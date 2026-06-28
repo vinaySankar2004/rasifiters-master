@@ -1,12 +1,12 @@
 ---
 name: deploy
-description: Provision + deploy a RaSi Fiters product — the web app to its own Vercel project (Vercel CLI) and the backend to its own Railway service (Railway CLI/MCP) — wire env vars, create the Supabase schema/bucket, apply scope guardrails. The ICM provision+deploy step. LIVING doc — append LESSONS_ARCHIVE.md every run.
+description: Provision + deploy a RaSi Fiters app — the web app to its Vercel project (Vercel CLI) and the backend to its Railway service (Railway CLI/MCP) — wire env vars, create the Supabase schema/bucket, apply scope guardrails. The ICM provision+deploy step. LIVING doc — append LESSONS_ARCHIVE.md every run.
 ---
 
-# Deploy — provision + deploy a RaSi Fiters product (LIVING)
+# Deploy — provision + deploy a RaSi Fiters app (LIVING)
 
 ## Trigger
-"deploy", "provision", "set up vercel/railway for <product>", or standing up a new product/company.
+"deploy", "provision", "set up vercel/railway for <app>", or standing up the web/backend app.
 
 ## Where to run
 **From a session rooted at `rasifiters-master/`** — only there do the scoped project MCPs
@@ -18,11 +18,11 @@ The faithful-rebuild reference is the LEGACY app at
 ## Prereqs (confirm first — STOP if any fail)
 - **Vercel CLI** installed (`vercel --version` → 54.x) + authed (`vercel whoami`). The web app deploys via CLI. **Pin the team with `--scope TODO(provision: vercel-team-slug)` on EVERY vercel command** — the CLI's default active team is often a personal account; never rely on it.
 - **Railway CLI** installed (`railway --version` → 4.66.x) + authed (`railway login`, one-time browser). The backend deploys via CLI; the `railway` MCP is also connected as an alternative/read path.
-- **Supabase**: the company's **own project** `supabase-rasifiters` (ref `TODO(provision: supabase-project-ref)`). `DATABASE_URL` + the `SUPABASE_*` keys come from the user. Repoint the `supabase-rasifiters` MCP `project_ref` once provisioned.
-- The product's `.env.example` is the **env-var contract** — read it first.
+- **Supabase**: the rasifiters Supabase project `supabase-rasifiters` (ref `TODO(provision: supabase-project-ref)`). `DATABASE_URL` + the `SUPABASE_*` keys come from the user. Repoint the `supabase-rasifiters` MCP `project_ref` once provisioned.
+- The app's `.env.example` is the **env-var contract** — read it first.
 - **Auth = Supabase Auth (not Clerk).** Express proxies Supabase Auth, verifies Supabase JWTs, and maps users via `members.auth_user_id` (legacy member UUIDs preserved; bcrypt-hash import). There is no Clerk instance, no `pk_test`/`pk_live`, no Clerk webhook.
 
-## Pre-cutover / new-company setup questions (ASK + verify BEFORE the live flip)
+## Pre-cutover setup questions (ASK + verify BEFORE the live flip)
 A mismatch here passes the anonymous path but **silently breaks signed-in**. Confirm Supabase Auth ·
 backend env · domain form a consistent set:
 1. **Supabase Auth project + JWT secret.** The web client uses `NEXT_PUBLIC_SUPABASE_URL` +
@@ -41,23 +41,23 @@ backend env · domain form a consistent set:
    values to a temp file in a separate call, then set from the file.
 
 ## Monorepo shape — 3 targets from one repo
-Each product is a subfolder, so set the **Root Directory** per project/service:
+Each app is a subfolder, so set the **Root Directory** per project/service:
 | Target | Source dir | Platform |
 |--------|-----------|----------|
-| `rasifiters-web` | `companies/rasifiters/products/web`     | Vercel (team `TODO(provision: vercel-team-slug)`) |
-| `rasifiters-api` | `companies/rasifiters/products/backend` | Railway |
-| iOS (`ios`)      | `companies/rasifiters/products/ios`     | not web-deployed — ships via Xcode/App Store; points at `rasifiters.com` / the Railway API |
+| `rasifiters-web` | `apps/web`     | Vercel (team `TODO(provision: vercel-team-slug)`) |
+| `rasifiters-api` | `apps/backend` | Railway |
+| iOS (`ios`)      | `apps/ios`     | not web-deployed — ships via Xcode/App Store; points at `rasifiters.com` / the Railway API |
 
-## Workflow (per product)
+## Workflow (per app)
 1. **Web → Vercel (CLI):**
-   - `cd companies/rasifiters/products/web`
+   - `cd apps/web`
    - `vercel link --scope TODO(provision: vercel-team-slug)` → create/link the project (name `rasifiters-web`).
    - Set **Root Directory** to this subfolder (project setting or `vercel.json`).
    - Env: for each name in `.env.example`, `vercel env add <NAME> production --scope <team>` (repeat for preview/dev as needed). **Values per §Env discipline.**
    - `vercel deploy --prod --scope <team>` (or rely on git auto-deploy once linked).
-   - Build is `next build` (Next.js 14 App Router); record project name + URL in the product `CONTEXT.md`.
+   - Build is `next build` (Next.js 14 App Router); record project name + URL in the app's `CONTEXT.md`.
 2. **Backend → Railway (CLI):**
-   - `cd companies/rasifiters/products/backend`
+   - `cd apps/backend`
    - `railway login` (one-time, browser) if not authed; then `railway init` to create the project/service (or `railway link` to an existing one).
    - Set vars from `.env.example`: `railway variables --set "<NAME>=<value>"` (values per §Env discipline).
    - Deploy the current dir: `railway up`.
@@ -73,7 +73,7 @@ Each product is a subfolder, so set the **Root Directory** per project/service:
 ## Tech-stack setup (per new website) — the things env vars DON'T do for you
 Setting an env var ≠ provisioning the resource. Each is a real step with its own verify:
 1. **Supabase schema (migrations).** Author the full runnable-from-blank set in
-   `companies/rasifiters/products/backend/sql/` as numbered idempotent migrations
+   `apps/backend/sql/` as numbered idempotent migrations
    (`NNN_*.sql`, `CREATE TABLE IF NOT EXISTS` / `ON CONFLICT DO NOTHING`). **Faithful legacy schema —
    NO table prefixes, preserve legacy member UUIDs.** Squash the legacy app's rename history into clean
    `CREATE TABLE`s + feature-delta migrations. **The user runs them** (never direct SQL from Claude —
@@ -95,9 +95,9 @@ Setting an env var ≠ provisioning the resource. Each is a real step with its o
    these are NOT a Vercel/Railway resource and won't exist until the user supplies them.
 
 ## Scope guardrail (do once IDs exist)
-Write the Vercel project ID + Railway service ID into the product `CONTEXT.md`, then add the
+Write the Vercel project ID + Railway service ID into the app's `CONTEXT.md`, then add the
 `PreToolUse` hook (in `.claude/hooks/`) that rejects `vercel`/`railway` calls targeting anything outside
-the active company's allow-list. (`supabase-rasifiters` is already URL-scoped.) The hook matches the
+the rasifiters allow-list. (`supabase-rasifiters` is already URL-scoped.) The hook matches the
 whole command string — keep sibling/other-project names out of any single `vercel`/`railway` command.
 
 ## Confirm before each outward action
@@ -105,16 +105,16 @@ Creating a project, setting env, and deploying are **billable + outward-facing**
 the user before each, same discipline as the scaffold's gh/folder pauses. No direct DB writes
 (CLAUDE.md policy) — schema changes via migration files the user runs.
 
-## Git → deploy pipeline runbook (push-to-`main` auto-deploy) — per product
+## Git → deploy pipeline runbook (push-to-`main` auto-deploy) — per app
 
-Goal: a `git push` to `main` auto-deploys the changed product. This is a **monorepo**, so EACH target is
+Goal: a `git push` to `main` auto-deploys the changed app. This is a **monorepo**, so EACH target is
 scoped to its own subdir **plus a change-filter** — never the bare repo, or every commit redeploys prod.
-Run this AFTER the product's first manual deploy (project/service + env already exist); it converts
+Run this AFTER the app's first manual deploy (project/service + env already exist); it converts
 CLI-deploy → git-deploy. Only **one step is manual** (the Railway GitHub-App install); everything else is
 scriptable.
 
 ### A. Web → Vercel (fully scriptable, ~2 min — no manual step if the org's Vercel App already has access)
-1. **Connect the repo** (from `companies/rasifiters/products/web`, project already linked):
+1. **Connect the repo** (from `apps/web`, project already linked):
    `vercel git connect https://github.com/<ORG>/<REPO> --scope <team> --yes`
    - A brand-new org needs a one-time Vercel App install (dashboard → project → Settings → Git).
 2. **Set Root Directory + the monorepo skip** via the REST API (the CLI canNOT set rootDirectory) — token is in
@@ -123,7 +123,7 @@ scriptable.
    TK=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/Library/Application Support/com.vercel.cli/auth.json')))['token'])")
    curl -sS -X PATCH "https://api.vercel.com/v9/projects/<project>?teamId=<teamId>" \
      -H "Authorization: Bearer $TK" -H "Content-Type: application/json" \
-     -d '{"rootDirectory":"companies/rasifiters/products/web","commandForIgnoringBuildStep":"git diff --quiet HEAD^ HEAD -- ."}'
+     -d '{"rootDirectory":"apps/web","commandForIgnoringBuildStep":"git diff --quiet HEAD^ HEAD -- ."}'
    ```
    - **ORDER MATTERS:** set `rootDirectory` before/with the connect, or the first git build runs from the repo
      root and fails (it's the project's *Root Directory* for git deploys — different from the cwd the CLI uploads).
@@ -141,7 +141,7 @@ scriptable.
      unreliable BEFORE the repo is connected. After the install, just **attempt the connect**.
 2. **SCRIPTABLE — drive the `railway` MCP** (with `projectId`+`environmentId` [+`serviceId`]). Two messages:
    - a) "Connect service `rasifiters-api` to repo `<ORG>/<REPO>`, branch `main`, Root Directory
-     `companies/rasifiters/products/backend`, Watch Paths `companies/rasifiters/products/backend/**`, keep all
+     `apps/backend`, Watch Paths `apps/backend/**`, keep all
      env vars. Attempt the connect directly and paste the raw error if it fails." (The connect only **stages** the
      change — no auto-deploy yet.)
    - b) "Trigger/apply the staged deployment now and report the SUCCESS/FAILED status." Then `curl <backend>/health`.
@@ -183,7 +183,7 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
   from repo root and fails. The CLI cannot set rootDirectory.
 - **Ignored-build-step skips by the PUSH-TIP commit's diff,** not the whole pushed range — if the tip is a
   docs/lessons chore with no web diff, Vercel CANCELS the web build even when an earlier commit changed web.
-  Fix: make the product-touching commit the push tip, or PATCH `commandForIgnoringBuildStep` → `""`,
+  Fix: make the app-touching commit the push tip, or PATCH `commandForIgnoringBuildStep` → `""`,
   `vercel redeploy <HEAD-deployment-uid>`, poll READY, then PATCH the ignore step back.
 - **Verify END-TO-END through the live web proxy,** not just the backend — a backend curl can be green while
   the web server-side proxy 500s (e.g. an auth helper throwing without its session middleware).

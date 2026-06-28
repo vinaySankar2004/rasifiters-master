@@ -2,10 +2,10 @@
 
 > The durable rationale + contracts for this repo. **rasifiters-master is self-contained**: this file
 > is the in-repo home for the ICM decision log + the feature-spec contract; everything *operational*
-> (how to document, stitch, version, deploy) lives in `.claude/skills/`.
+> (how to document, port, version, deploy) lives in `.claude/skills/`.
 >
-> ICM = the markdown-as-source-of-truth methodology: companies → products → versioned features,
-> with Claude Code (+ Vercel / Railway / Supabase MCPs) as the operator.
+> ICM = the markdown-as-source-of-truth methodology: one app → three apps (surfaces) → documented
+> features + pages, with Claude Code (+ Vercel / Railway / Supabase MCPs) as the operator.
 >
 > This is the **ICM-methodology rebuild of "RaSi Fiters"** — a fitness program tracker
 > (Members ↔ Programs ↔ Workouts/logs) with **web + iOS clients sharing ONE backend API**. The
@@ -17,17 +17,17 @@
 
 | Layer | In this repo |
 |-------|--------------|
-| L1 Map | `ICM.md` (routing: companies → products → features) |
-| L2 Rooms | `companies/rasifiters/CONTEXT.md` + `companies/rasifiters/products/{web,ios,backend}/CONTEXT.md` |
+| L1 Map | `ICM.md` (routing: app → apps/surfaces → features + pages) |
+| L2 Rooms | `CONTEXT.md` (project-level) + `apps/{web,ios,backend}/CONTEXT.md` |
 | L3 Tools | `.claude/skills/` + `.mcp.json` |
-| L4 Feature registry | `features/REGISTRY.md` + `features/registry.json` + `features/<feature>/<version>/` |
+| L4 Feature registry | `specs/features/REGISTRY.md` + `specs/features/registry.json` + `specs/features/<feature>/SPEC.md` + `specs/pages/{web,ios}/<page>/SPEC.md` |
 | L5 Pipelines | `git-version` skill + Vercel / Railway / Supabase MCP flows |
 
-## Products in this company
+## The apps (surfaces)
 
-`rasifiters` is a single company with **three products that share one backend API**:
+"RaSi Fiters" is **one app** with **three surfaces** (called **apps**) that share one backend API:
 
-| Product | What it is | Stack | Host |
+| App | What it is | Stack | Host |
 |---------|-----------|-------|------|
 | `web` | Member/admin web app | Next.js 14 App Router (TypeScript) | Vercel |
 | `ios` | Native mobile app | SwiftUI (+ widgets) | App Store (APNs push) |
@@ -38,39 +38,77 @@ backend is its own L2 room with its own CONTEXT.md, env, and deploy target.
 
 ## Feature-spec contract (Vision §B)
 
-Each `features/<feature>/<version>/` documents the feature so any product can rebuild it. Full file
+Each `specs/features/<feature>/SPEC.md` documents the feature so any surface can rebuild it. Full file
 set (rolled out as the contract proves out — shipped features are single-file SPECs today):
 - **SPEC.md** — what it is · why · functionality · feature list · data/schema touchpoints · flags/env
-  · dependencies · the **reference-implementation pointer** (canonical product+paths for this version).
+  · dependencies · the **reference-implementation pointer** (canonical app+paths).
 - **FLOWS.md** — user flows + key path sequences.
 - **SCHEMA.md** — tables/columns/migrations this feature owns or touches.
-- **QUESTIONS.md** — the questions to ask before building/adapting into a new app (auth? brand?
-  client = web or iOS? table names? flags?) — the `stitch` adaptation knobs.
+- **QUESTIONS.md** — the questions to ask before building/porting (auth? brand?
+  client = web or iOS? table names? flags?) asked by `question-asker`.
 - **CHANGELOG.md** — semver history + audit notes.
 
 > RaSi is a shared-backend app, so most feature SPECs touch **all three** rooms: the backend route(s)
 > + model(s), the web client surface, and the iOS client surface. The SPEC's reference-implementation
-> pointer names the legacy paths in each of `{backend, rasifiters-webapp, ios-mobile}`.
+> pointer names the legacy paths in each of `{backend, rasifiters-webapp, ios-mobile}`. But a feature
+> can also be **client-specific** — its `consumed_by` may be `[web]` or `[ios]` only (e.g. iOS
+> widgets / deep links are ios-only) — so not every SPEC touches all three rooms.
+
+## Page/screen-spec template (web + iOS pages)
+
+A **page/screen SPEC** lives at `specs/pages/{web,ios}/<page>/SPEC.md` and documents a single
+page/screen so it can be ported faithfully from the reference app. Like features, a page is tied to a
+surface (`web` or `ios`). **Role-based view rules are first-class for RaSi** — what each role sees /
+can do on a page is a load-bearing part of the contract, not an afterthought. Sections:
+
+1. **What it is + who uses it** — one-line identity and the audience (which roles land here).
+2. **Why it exists** — the job the page does in the product.
+3. **Route/location** — which app (`web`/`ios`) + the path/route (and the legacy equivalent).
+4. **Contents/sections** — the blocks on the page, top to bottom; cite the reference-impl `file:line`
+   for each block.
+5. **Components + shared features consumed** — the shared components and feature SPECs this page
+   draws on (link them).
+6. **Data/API** — the backend endpoints the page calls (method + path), and what it reads/writes.
+7. **Role-based view rules** — a table mapping each role to what's visible / which actions are enabled:
+
+   | Role | Visible | Actions enabled |
+   |------|---------|-----------------|
+   | `global_admin` | … | … |
+   | program admin | … | … |
+   | logger | … | … |
+   | member | … | … |
+
+   Include the **`admin_only_data_entry`** effect (when a program locks data entry to admins, what
+   changes for logger/member here).
+8. **States & edge cases** — loading / empty / error / offline / permission-denied / etc.
+9. **Decisions made** — a `D-xx` table of page-specific decisions (faithful-by-default; call out any
+   deliberate change).
+10. **Flagged characteristics kept as-is** — legacy quirks intentionally preserved.
+11. **Changelog** — semver history + audit notes.
 
 ## Versioning + cohesion (Vision §C/§F)
 
-- Feature semver `MAJOR.MINOR.PATCH`; recorded in `registry.json` + the SPEC §12 changelog; git tag
-  `feature/<feature>@<version>`.
-- `registry.json` is a **dependency graph**: `depends_on` (forward) + `consumed_by` (reverse). Any
-  change emits a **blast-radius report** before commit. The `git-version` skill owns this pipeline.
-  In a shared-backend app the graph is load-bearing: a backend route change fans out to both the web
-  and iOS consumers — the report catches the clients a backend edit silently breaks.
+- Feature semver `MAJOR.MINOR.PATCH`; recorded in the registry `version` field + the SPEC changelog
+  section; git tag `feature/<feature>@<version>`. **There are no per-feature version folders** —
+  version history is the SPEC's Changelog section + git tags + the registry `version` field, not a
+  `/<version>/` directory.
+- `registry.json` is a **dependency graph**: `depends_on` (forward) + `consumed_by` (reverse). A
+  feature may be **shared** (`consumed_by: [web, ios]`) or **client-specific** (`[web]` or `[ios]`
+  only — e.g. iOS widgets/deep links). Any change emits a **blast-radius report** before commit. The
+  `git-version` skill owns this pipeline. In a shared-backend app the graph is load-bearing: a
+  backend route change fans out to its consumers — the report catches the clients a backend edit
+  silently breaks.
 
 ## Methodology concern → the skill that now owns it
 
 | Concern (old doc) | Operational home |
 |-------------------|------------------|
-| Bootstrap a monorepo/company/product + deploy (Scaffold §5) | `deploy` skill |
-| Per-page documentation question loop (Playbook §2–3) | `question-asker` skill |
-| Assemble/rebuild a product from features (Vision §D) | `stitch` skill |
+| Bootstrap the monorepo/app + deploy (Scaffold §5) | `deploy` skill |
+| Per-page documentation question loop (Playbook §2–3) | `question-asker` skill (writes the SPEC) |
+| Implement a documented feature/page → port directly from the reference app | hand-written code (faithful 1:1 port; no stitch step), committed via `git-version` |
 | Commit + version + registry + blast-radius (Vision §C/§F) | `git-version` skill |
-| Cross-product feature diff / drift catch (Vision §E) | `audit` skill (web↔iOS parity per feature) |
-| Inspect/query the company's Supabase DB read-only | `supabase` skill (Supabase MCP-first) |
+| Cross-surface feature diff / drift catch (Vision §E) | `audit` skill (web↔iOS parity per feature) |
+| Inspect/query the Supabase DB read-only | `supabase` skill (Supabase MCP-first) |
 | Periodic doc-health cross-review (drift / redundancy / structure) | `health-check` skill (read-only, report-only via plan mode) |
 
 ## Where each fact lives (single source of truth — don't duplicate)
@@ -79,10 +117,12 @@ set (rolled out as the contract proves out — shipped features are single-file 
 |------|----------------|
 | The "why" / decision log | **this file** |
 | How to do X (operational) | the relevant `.claude/skills/<skill>` |
+| Cross-session state (read first each session) | `PROGRESS.md` (replaces the old `manifest.md` milestone log) |
 | Current state / what's next | `ICM.md` ("How to operate here") |
-| Feature inventory + graph | `features/registry.json` + `features/REGISTRY.md` |
-| Per-feature truth | `features/<feature>/<version>/SPEC.md` |
-| Per-product infra (IDs, env, ports) | `companies/rasifiters/products/<p>/CONTEXT.md` |
+| Feature inventory + graph | `specs/features/registry.json` + `specs/features/REGISTRY.md` |
+| Per-feature truth | `specs/features/<feature>/SPEC.md` |
+| Per-page/screen truth | `specs/pages/{web,ios}/<page>/SPEC.md` |
+| Per-app infra (IDs, env, ports) | `apps/<app>/CONTEXT.md` |
 | Env var inventory + how to inspect/change | `ENV_RUNBOOK.md` |
 | Fresh-clone bootstrap (MCP OAuth, .mcp.json) | `SETUP.md` |
 | Skill run history (verbose) | `<skill>/LESSONS_ARCHIVE.md` (not auto-loaded) |
@@ -93,7 +133,7 @@ Two classes of doc carry dated/strikethrough entries; the discipline differs:
 
 | Class | Docs | Rule |
 |-------|------|------|
-| **Durable / append-only** (the audit trail) | METHODOLOGY decision log (R-entries), feature SPEC §12 Changelogs, `<skill>/LESSONS_ARCHIVE.md`, `companies/**/manifest.md` milestone logs, `ENV_RUNBOOK.md` strikethrough rows | **Append, never prune.** History is the value; mark superseded entries, don't delete them. |
+| **Durable / append-only** (the audit trail) | METHODOLOGY decision log (R-entries), feature SPEC §12 Changelogs, `<skill>/LESSONS_ARCHIVE.md`, `PROGRESS.md` milestone logs, `ENV_RUNBOOK.md` strikethrough rows | **Append, never prune.** History is the value; mark superseded entries, don't delete them. |
 | **Volatile / prune-on-resolve** (current state only) | `ICM.md` "How to operate here" (Open follow-ups) + any "current state / next steps" list | **Don't accumulate.** On resolve: strike `~~item~~` + `DONE <date>` for one session of visibility, then **delete it on the next pass that touches the doc.** `CONTEXT.md` holds no logs at all — reference data only. |
 
 **Doc blast-radius check** (required before deleting any volatile-doc log entry — the doc-side
@@ -107,7 +147,7 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
 
 ---
 
-## Decisions log (R1 → R5) — the audit trail
+## Decisions log (R1 → R6) — the audit trail
 
 > RaSi's decision log starts fresh at the locked scaffolding decisions. Append new R-entries here as
 > the rebuild proceeds; never prune. The Higgins ICM's own R-history (its gen-4→gen-5 cutover) is not
@@ -133,10 +173,10 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   documenting + de-drifting as it goes (rebuild-as-audit). Same stance for the clients: the legacy
   `rasifiters-webapp` (Next.js 14) and `ios-mobile` (SwiftUI) are the canonical references for `web`
   and `ios`.
-- **2026-06-28 R3 — Products = `web` + `ios` + a shared `backend`.** One company, `rasifiters`, with
-  three products. `web` (Next.js, Vercel) and `ios` (SwiftUI, App Store) are **clients of the same**
-  `backend` (Express, Railway) — there is exactly one API for both. The backend is a first-class L2
-  room (its own CONTEXT.md / env / deploy), not an implementation detail of a client.
+- **2026-06-28 R3 — Apps = `web` + `ios` + a shared `backend`.** One app, "RaSi Fiters", with three
+  surfaces (called apps). `web` (Next.js, Vercel) and `ios` (SwiftUI, App Store) are **clients of the
+  same** `backend` (Express, Railway) — there is exactly one API for both. The backend is a
+  first-class L2 room (its own CONTEXT.md / env / deploy), not an implementation detail of a client.
 - **2026-06-28 R4 — Hosts: API → Railway, Web → Vercel, DB → Supabase.** The backend moves off Render
   (legacy `DB_URL` pointed at `*.oregon-postgres.render.com`) to **Railway**. The web app moves off
   Netlify (legacy `netlify.toml`) to **Vercel**. The database moves to **Supabase Postgres** (same
@@ -145,10 +185,22 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   Railway/Vercel/Supabase IDs are `TODO(provision)` placeholders until created (see `SETUP.md` +
   `ENV_RUNBOOK.md`).
 - **2026-06-28 R5 — No table prefixes; keep the legacy plain schema names.** Unlike the Higgins ICM
-  (which re-prefixes to `<company>_gen_5_*`), RaSi keeps the **legacy plain table names** —
+  (which re-prefixes to `<prefix>_gen_5_*`), RaSi keeps the **legacy plain table names** —
   `members`, `member_credentials`, `programs`, `program_memberships`, `program_invites`, `workouts`,
   `program_workouts`, `workout_logs`, `daily_health_logs`, `notifications`, etc. — for a **faithful
   1:1 migration** with zero rename churn (existing FKs and the preserved `members.id` UUIDs stay
   valid). The one additive schema change at the auth cutover is the **new `members.auth_user_id`
   column** (R1). Schema changes are only ever via migration files the user reviews/runs — no direct
   SQL from Claude.
+- **2026-06-28 R6 — Restructure: `apps/` (not `companies/`), specs split into features + pages, no
+  stitch, no version folders.** The methodology layer is collapsed: there is no `companies/` layer —
+  "RaSi Fiters" is **one app** with three surfaces (also called apps) under **`apps/{web,ios,backend}`**.
+  Specs split into **`specs/features/<feature>/SPEC.md`** (shared or client-specific behavior) and
+  **`specs/pages/{web,ios}/<page>/SPEC.md`** (per-page/screen, with first-class role-based view
+  rules). The **`stitch` skill is removed**: there is no "assemble a product from SPECs" step —
+  `question-asker` writes the SPEC and we **implement the code directly as a faithful 1:1 port** from
+  the legacy reference app, committing via `git-version`. The **`audit` skill is repurposed** as a
+  web↔iOS **parity checker** per feature. There are **no per-feature version folders** — version
+  history is the SPEC Changelog section + git tags + the registry `version` field. Features/pages may
+  be **client-specific** (`consumed_by` = `[web]` or `[ios]` only — e.g. iOS widgets/deep links), not
+  always shared. (R1–R5 stand unchanged.)

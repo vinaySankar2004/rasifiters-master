@@ -8,7 +8,7 @@ DB into the new Supabase project, and seeds Supabase Auth from the legacy creden
 
 ## What it must do
 
-1. **Schema** — apply the faithful migration set from `companies/rasifiters/products/backend/sql/` to the
+1. **Schema** — apply the faithful migration set from `apps/backend/sql/` to the
    Supabase project (same table names as legacy, NO prefix; R5). Plus the two auth deltas:
    - drop/skip `member_credentials` + `refresh_tokens` (Supabase Auth owns credentials),
    - add `members.auth_user_id UUID UNIQUE` → references `auth.users(id)`.

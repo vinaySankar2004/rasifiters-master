@@ -6,21 +6,23 @@ shared API) on a new stack: **Supabase** (DB + Auth), **Railway** (API), **Verce
 Markdown is the source of truth; Claude Code (with Vercel / Railway / Supabase MCPs) is the operator.
 
 ## Start here
-1. **`ICM.md`** — L1 routing + current state + the build sequence. Read this first.
-2. **`METHODOLOGY.md`** — the "why", the decision log, the feature-SPEC contract.
-3. **`SETUP.md`** — fresh-clone bootstrap (MCP OAuth, env).
-4. **`CLAUDE.md`** — project rules (DB write policy, auth model, standards, skills index).
+1. **`PROGRESS.md`** — current phase, what's done, the next concrete action. Read this first every session.
+2. **`ICM.md`** — L1 map (apps → specs), build sequence, how to operate here.
+3. **`METHODOLOGY.md`** — the "why", the decision log, the feature- and page-spec contracts.
+4. **`SETUP.md`** — fresh-clone bootstrap (MCP OAuth, env). · **`CLAUDE.md`** — project rules.
 
 ## Layout
 ```
-ICM.md  METHODOLOGY.md  CLAUDE.md  SETUP.md  ENV_RUNBOOK.md  COVERAGE.md
+PROGRESS.md  ICM.md  METHODOLOGY.md  CLAUDE.md  SETUP.md  ENV_RUNBOOK.md  COVERAGE.md
+CONTEXT.md                                  (project: brand + infra + migration source)
 .mcp.json  .claude/{settings.json, hooks/, skills/}
-companies/rasifiters/{CONTEXT.md, manifest.md, products/{web,ios,backend}/CONTEXT.md}
-features/{REGISTRY.md, registry.json, <feature>/<version>/SPEC.md}
+apps/{web,ios,backend}/CONTEXT.md
+specs/features/{REGISTRY.md, registry.json, <feature>/SPEC.md}
+specs/pages/{web,ios}/<page>/SPEC.md
 tools/migrator/   (temporary Render-PG → Supabase migrator)
 ```
 
 The legacy app being rebuilt lives in the parent folder: `../{rasifiters-webapp, ios-mobile, backend}`.
 
 ## Skills (`.claude/skills/`)
-`question-asker` · `git-version` · `stitch` · `deploy` · `audit` · `supabase` · `health-check`
+`question-asker` · `git-version` · `deploy` · `audit` · `supabase` · `health-check`

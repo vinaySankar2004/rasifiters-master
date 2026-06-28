@@ -3,10 +3,10 @@
 > **Instructions, not a secrets store.** This file says *how to inspect and change* env vars on
 > Railway / Vercel / Supabase and what each var is for. **Never commit real secret values here.**
 > Real secrets live in the platforms (Railway/Vercel, set as Sensitive on Vercel) + the user's
-> password manager. Companion: `.claude/skills/deploy/SKILL.md` (§Env discipline) + each product's
+> password manager. Companion: `.claude/skills/deploy/SKILL.md` (§Env discipline) + each app's
 > `.env.example` (the canonical name list).
 
-Scope: company `rasifiters`, products `backend` (Node/Express + Sequelize on **Railway**), `web`
+Scope: the "RaSi Fiters" app, surfaces `backend` (Node/Express + Sequelize on **Railway**), `web`
 (Next.js 14 on **Vercel**), `ios` (SwiftUI, App Store) — all sharing the **one** backend API. Data
 + auth on **Supabase** (`METHODOLOGY.md` R1/R4). **Infra is NOT provisioned yet** — every concrete
 host name / project id / ref / key below is a **`TODO(provision)`** until created.
@@ -152,6 +152,6 @@ same domains), and — critically — the **plain legacy table names** (R5: no p
 **RETIRED:** `JWT_SECRET` (backend + web), `REFRESH_TOKEN_TTL_DAYS`, `NEXT_PUBLIC_API_ENV`, the
 self-issued JWT machinery + the `refresh_tokens` table (R1).
 
-> When adding a NEW env var anywhere: update the product's `.env.example` + this inventory + (if it
+> When adding a NEW env var anywhere: update the app's `.env.example` + this inventory + (if it
 > gates a feature) the feature SPEC, then set it on the platform per §2. Fill each `TODO(provision)`
 > the moment the real Railway/Vercel/Supabase resource exists.

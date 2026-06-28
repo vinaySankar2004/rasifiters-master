@@ -2,7 +2,7 @@
 
 The shared API for RaSi Fiters. Both `web` and `ios` consume it. Node/Express + Sequelize.
 
-**Reference implementation:** `../../../../backend` (the legacy Express API). Faithful 1:1 rebuild except
+**Reference implementation:** `../../../backend` (the legacy Express API). Faithful 1:1 rebuild except
 the DB target (→ Supabase) and the auth layer (→ Supabase Auth, proxied + JWT-verified).
 
 ## Stack
@@ -29,7 +29,7 @@ the DB target (→ Supabase) and the auth layer (→ Supabase Auth, proxied + JW
 ## Endpoints
 ~11 route groups (auth, members, programs, program-memberships, invites, workouts, program-workouts,
 workout-logs, daily-health-logs, notifications, analytics v1+v2, member-analytics). Documented
-feature-by-feature in `features/` as they're rebuilt; cross-checked against the legacy routes.
+feature-by-feature in `specs/features/` as they're rebuilt; cross-checked against the legacy routes.
 
 ## Deploy
 Railway service `rasifiters-api`. Env per `ENV_RUNBOOK.md`. See the `deploy` skill (Railway runbook lifted

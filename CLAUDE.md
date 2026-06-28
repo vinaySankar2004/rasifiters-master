@@ -1,8 +1,9 @@
 # rasifiters-master — Claude Code Project Rules
 
-The ICM repo for the **RaSi Fiters** rebuild: company → products → versioned features. Markdown is the
-source of truth; Claude Code (with Vercel / Railway / Supabase MCPs) is the operator. Read **`ICM.md`**
-(L1 routing) first, then **`SETUP.md`** if this is a fresh clone.
+The ICM repo for the **RaSi Fiters** rebuild — one app, three surfaces (`web`, `ios`, `backend`),
+documented as specs then ported faithfully from the legacy app. Markdown is the source of truth; Claude
+Code (with Vercel / Railway / Supabase MCPs) is the operator. Read **`PROGRESS.md`** (current state) and
+**`ICM.md`** (L1 map) first, then **`SETUP.md`** if this is a fresh clone.
 
 Methodology (the "why" + decision log + feature-spec contract) lives in-repo at `METHODOLOGY.md`; all
 operational how-to lives in `.claude/skills/`. Current state + open follow-ups: `ICM.md` ("How to operate
@@ -22,7 +23,7 @@ deliberate changes are called out explicitly in the SPEC (§9/§10). Don't "impr
 The `supabase-rasifiters` MCP is **read-only** by URL, and a PreToolUse hook blocks inline `psql`
 writes. If asked to modify data/schema:
 1. Say no clearly.
-2. Redirect: create a numbered SQL migration file in `companies/rasifiters/products/backend/sql/`
+2. Redirect: create a numbered SQL migration file in `apps/backend/sql/`
    (idempotent — `IF NOT EXISTS` / `ON CONFLICT`).
 3. If the user insists on direct execution, ask "Are you sure? This should go in a migration file."
 
@@ -75,13 +76,14 @@ the product `CONTEXT.md` and fill the allow-list/scope in the hook.
 
 ## Skills (`.claude/skills/`)
 
-`git-version` (this repo's git skill; ICM commit + version pipeline) · `question-asker` (per-page SPEC
-question loop) · `stitch` (rebuild/assemble a product from feature SPECs) · `deploy` (provision + deploy to
-Vercel/Railway, create Supabase schema/buckets) · `audit` (stub — cross-product web-vs-ios diff) ·
-`supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic read-only
-doc-health cross-review; strict, report-only via plan mode). Each living skill keeps a slim "Converged
-lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for the
-"concern → skill" map.
+`git-version` (this repo's git skill; ICM commit + version pipeline) · `question-asker` (the spec question
+loop — writes both feature specs and page/screen specs incl. role-based view rules) · `deploy` (provision +
+deploy to Vercel/Railway, create Supabase schema/buckets) · `audit` (web↔iOS parity check for shared
+features) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
+read-only doc-health cross-review; strict, report-only via plan mode). Each living skill keeps a slim
+"Converged lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for the
+"concern → skill" map. (There is no `stitch` skill — we port code directly from the legacy app, not
+assemble it from modules.)
 
 **Run sessions rooted HERE (`rasifiters-master/`).** The legacy reference apps in the parent
 `../RaSi-Fiters/{rasifiters-webapp, ios-mobile, backend}` stay readable via
@@ -90,8 +92,10 @@ lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOL
 ## Structure
 
 ```
-companies/rasifiters/CONTEXT.md, manifest.md
-companies/rasifiters/products/<web|ios|backend>/CONTEXT.md
-features/REGISTRY.md, registry.json, <feature>/<version>/SPEC.md
-tools/migrator/   (temporary Render-PG → Supabase migrator)
+ICM.md  METHODOLOGY.md  CLAUDE.md  SETUP.md  ENV_RUNBOOK.md  COVERAGE.md  PROGRESS.md
+CONTEXT.md                                   (project: brand + infra + migration source)
+apps/<web|ios|backend>/CONTEXT.md
+specs/features/REGISTRY.md, registry.json, <feature>/SPEC.md
+specs/pages/<web|ios>/<page>/SPEC.md
+tools/migrator/                              (temporary Render-PG → Supabase migrator)
 ```

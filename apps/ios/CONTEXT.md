@@ -2,7 +2,7 @@
 
 The RaSi Fiters iOS app. Pure SwiftUI. Consumes the `backend` API. Built after `web`.
 
-**Reference implementation:** `../../../../ios-mobile` (the legacy iOS app). Faithful 1:1 rebuild; the only
+**Reference implementation:** `../../../ios-mobile` (the legacy iOS app). Faithful 1:1 rebuild; the only
 intended change is the auth path (Supabase-issued tokens via the backend proxy).
 
 ## Stack

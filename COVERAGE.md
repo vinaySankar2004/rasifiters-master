@@ -1,7 +1,7 @@
 # COVERAGE.md — Route / module → feature SPEC audit map
 
 The audit record that every route, screen, and backend module of the legacy app maps to a feature SPEC in
-`features/`. Built up as the `question-asker` loop documents each surface. The goal: when this is fully
+`specs/features/`. Built up as the `question-asker` loop documents each surface. The goal: when this is fully
 ticked, we know the rebuild covers the legacy app 1:1 with nothing missed.
 
 Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a SPEC.

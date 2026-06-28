@@ -1,13 +1,12 @@
 # ICM.md — L1 Map / Routing Directive (rasifiters-master)
 
-> The L1 layer of the RaSi Fiters ICM environment. This file routes companies → products →
-> features and points to the methodology docs. It is the first thing a Claude session reads
-> when operating in this repo.
+> The L1 layer of the RaSi Fiters ICM environment. This file maps the apps → specs and points to the
+> methodology docs. It is the first thing a Claude session reads when operating in this repo (right after
+> **`PROGRESS.md`**, the current-state tracker).
 >
-> Methodology (the "why" + decision log + feature-spec contract) is in-repo: **`METHODOLOGY.md`**.
-> Operational how-to lives in the **skills** (`deploy` · `stitch` · `git-version` · `question-asker` ·
-> `audit` · `supabase` · `health-check`). Current state + open follow-ups: **"How to operate here"**
-> below. Fresh-clone setup: **`SETUP.md`**.
+> Methodology (the "why" + decision log + spec contract) is in-repo: **`METHODOLOGY.md`**. Operational
+> how-to lives in the **skills** (`question-asker` · `git-version` · `deploy` · `audit` · `supabase` ·
+> `health-check`). Current state + next action: **`PROGRESS.md`**. Fresh-clone setup: **`SETUP.md`**.
 
 ## What this is
 
@@ -16,68 +15,68 @@ Workouts/logs, with admin/logger/member roles, analytics, health logging, push n
 recreating the existing app **faithfully (1:1 behavior)** while moving the stack to Supabase + Railway +
 Vercel and replacing custom JWT auth with Supabase Auth. See `METHODOLOGY.md` for the decision log.
 
+Markdown is the source of truth; Claude Code (with Vercel / Railway / Supabase MCPs) is the operator. We
+document each surface as a spec, then port the code faithfully from the legacy app — there is no
+"stitch/assemble" step; this is one app, not a multi-company factory.
+
 **Reference implementation (the thing we're rebuilding)** lives OUTSIDE this repo, in the legacy app at
-`../{rasifiters-webapp, ios-mobile, backend}` (the parent `RaSi-Fiters/` folder). Every feature SPEC cites
-it as the source of truth for faithful rebuild.
+`../{rasifiters-webapp, ios-mobile, backend}` (the parent `RaSi-Fiters/` folder). Every spec cites it as
+the source of truth for the faithful rebuild.
 
-## Routing table
+## The apps
 
-| Company | Products | Supabase project | Notes |
-|---------|----------|------------------|-------|
-| `rasifiters` | `web`, `ios`, `backend` | `TODO(provision)` (read-only MCP `supabase-rasifiters`) | single company; `web` (Next.js) + `ios` (SwiftUI) both consume the one `backend` (Express) API |
+| App | Stack | Host | Role |
+|-----|-------|------|------|
+| `backend` | Node/Express + Sequelize | Railway | The single API + data source for both clients. Talks to Supabase Postgres + proxies Supabase Auth. |
+| `web` | Next.js 14 (App Router) + TS | Vercel | The web client. |
+| `ios` | SwiftUI (iOS 18.6) | App Store | The iOS client. |
 
-_Infra is not provisioned yet — refs are `TODO(provision)`, filled by the `deploy` skill / `SETUP.md`._
+`web` and `ios` both consume `backend`. Supabase project ref: `TODO(provision)` (read-only MCP
+`supabase-rasifiters`). Infra is not provisioned yet — refs are `TODO(provision)`, filled by the `deploy`
+skill / `SETUP.md`.
 
 ## Layer map
 
 | ICM layer | Artifact in this repo |
 |-----------|------------------------|
-| L1 Map | `ICM.md` (this file) |
-| L2 Rooms | `companies/rasifiters/CONTEXT.md`, `companies/rasifiters/products/{web,ios,backend}/CONTEXT.md` |
-| L3 Tools | `.claude/skills/` (question-asker, git-version, stitch, deploy, audit, supabase, health-check), `.mcp.json` |
-| L4 Feature registry | `features/REGISTRY.md` + `features/registry.json` + `features/<feature>/<version>/` |
+| L1 Map | `ICM.md` (this file) + `PROGRESS.md` (current state) |
+| L2 Rooms | `CONTEXT.md` (project: brand + infra + migration source), `apps/{web,ios,backend}/CONTEXT.md` |
+| L3 Tools | `.claude/skills/` (question-asker, git-version, deploy, audit, supabase, health-check), `.mcp.json` |
+| L4 Specs | `specs/features/` (shared capabilities) + `specs/pages/{web,ios}/` (per page/screen) + `specs/features/registry.json` |
 | L5 Pipelines | `git-version` skill + Vercel / Railway / Supabase MCP flows |
 
-## Product model
+## Specs: features vs pages
 
-- **`backend`** — Node/Express + Sequelize API. The single source of data for both clients. Deploys to
-  **Railway**. Talks to **Supabase Postgres** + proxies **Supabase Auth**.
-- **`web`** — Next.js 14 (App Router) web app. Deploys to **Vercel**.
-- **`ios`** — SwiftUI app. Ships via the App Store / TestFlight.
+- **Feature spec** (`specs/features/<feature>/SPEC.md`) — a cross-cutting capability: `auth`,
+  `notifications`, `analytics-engine`, etc. Each declares `consumed_by` — which apps use it. A feature may
+  be **shared** (`[web, ios]`), **web-only** (`[web]`), or **ios-only** (`[ios]`) — e.g. iOS widgets /
+  deep links / push-token registration are ios-only; some bulk admin tools may be web-only.
+- **Page/screen spec** (`specs/pages/web/<page>/SPEC.md`, `specs/pages/ios/<screen>/SPEC.md`) — one page or
+  screen: its purpose, contents, the features it consumes, and **role-based view rules** (what each role —
+  global_admin / program admin / logger / member — sees and can do, incl. the `admin_only_data_entry`
+  effect). These rule-based views are first-class for RaSi.
 
-Features are company-agnostic SPECs in `features/`. A feature like `auth` or `summary-analytics` may be
-`consumed_by` multiple products (e.g. both `web` and `ios` consume `backend` feature SPECs).
+No per-feature version folders — history lives in each spec's Changelog + git tags (see the `git-version`
+skill). Coverage of the legacy app is tracked in `COVERAGE.md`; progress + next action in `PROGRESS.md`.
 
 ## How to operate here
 
-> **This is a fresh scaffold.** Nothing is built or deployed yet. Work is **new scope** — propose +
-> confirm with the user before implementing; follow the locked sequencing in `METHODOLOGY.md` rather than
-> re-deciding it.
+> **Read `PROGRESS.md` first** — it holds the current phase, what's done, and the next concrete action.
+> Work is **new scope** — propose + confirm with the user before implementing; follow the locked
+> sequencing in `METHODOLOGY.md` rather than re-deciding it.
 >
-> **Log hygiene:** the Open follow-ups below are current-state only — on resolve, strike `~~…~~` +
-> `DONE <date>`, then delete on the next pass (after a doc blast-radius check that the outcome lives in its
-> canonical home). See `METHODOLOGY.md` → "Log retention & pruning".
+> **Cross-session loop:** start → read `PROGRESS.md` → work → at session end, update `PROGRESS.md` +
+> commit (via `git-version`). Next session the user says "continue" and you resume from `PROGRESS.md`.
+>
+> **Log hygiene:** resolved follow-ups get struck `~~…~~` + `DONE <date>`, then deleted next pass (after a
+> doc blast-radius check that the outcome lives in its canonical home). See `METHODOLOGY.md` → "Log
+> retention & pruning".
 
-- **Locked build sequence (see `METHODOLOGY.md` decision log):**
-  1. ~~Scaffold the ICM repo (L1–L5 + skills + hooks).~~ **DONE 2026-06-28** (this file + siblings).
-  2. **Build the temporary migrator** (`tools/migrator/`): Render Postgres → Supabase, preserving
-     `members.id` UUIDs; create `auth.users` from `member_credentials` via **bcrypt-hash import**; backfill
-     `members.auth_user_id`. Re-runnable sync.
-  3. **Stand up the `backend` product**: point Express at Supabase, swap auth middleware to verify Supabase
-     JWTs (proxy login/refresh/logout), deploy to Railway.
-  4. **Rebuild `web`** feature-by-feature (`question-asker` → SPEC → `stitch` → `deploy` to Vercel, temp
-     domain). This also proves the auth path end-to-end.
-  5. **Rebuild `ios`** feature-by-feature.
-  6. **Cutover**: switch `rasifiters.com` (Vercel) + ship the iOS build.
-
-- **Open follow-ups (propose + confirm):**
-  - **Provision infra** — create the Supabase project (fill `project_ref` in `.mcp.json` + the routing
-    table), the Railway `rasifiters-api` service, and the Vercel `rasifiters-web` project; record IDs in the
-    product CONTEXT.md files and fill the allow-list in `.claude/hooks/deploy-scope-guard.sh`.
-  - **iOS auth approach** — confirm proxy-via-backend (clients unchanged, backend wraps Supabase Auth) vs
-    embedding `supabase-swift`. Leaning proxy for seamlessness; settle in the iOS `auth` SPEC.
-
-- **Document a NEW / undocumented surface (write its SPEC)** → the `question-asker` skill.
-- **Rebuild / assemble a product from feature SPECs** → the `stitch` skill (Mode R faithful rebuild, or
-  Mode S for a new company) → deploy via the `deploy` skill.
+- **Document a NEW / undocumented surface (write its spec)** → the `question-asker` skill (handles both
+  feature and page/screen specs).
+- **Implement a documented feature/page** → port the code directly + faithfully from the legacy reference
+  app; commit via `git-version`.
+- **Provision + deploy** → the `deploy` skill (Vercel / Railway / Supabase).
+- **Check web↔iOS parity** for a shared feature → the `audit` skill.
+- **Inspect the DB read-only** → the `supabase` skill. **Doc-health review** → `health-check`.
 - **Commit + version** → the `git-version` skill (this repo's git skill).

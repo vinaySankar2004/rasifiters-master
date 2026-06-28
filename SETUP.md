@@ -27,8 +27,8 @@ Open Claude Code in this directory. It reads the committed `.mcp.json` and promp
 | `railway` | `https://mcp.railway.com` | account — sees all Railway projects (the `backend` API) |
 | `supabase-rasifiters` | `https://mcp.supabase.com/mcp?read_only=true&project_ref=<TODO(provision):RASIFITERS_PROJECT_REF>` | **read-only**, the RaSi Fiters Supabase project (DB + Auth) |
 
-OAuth is genuinely **once per machine**: Vercel, Railway, and Supabase are the *same accounts*
-across every company — only the projects differ.
+OAuth is genuinely **once per machine**: Vercel, Railway, and Supabase are the *same accounts* —
+the three MCP servers only differ by which project/service they scope to.
 
 Equivalent CLI (the committed `.mcp.json` already defines all three, so you normally don't need
 these):
@@ -57,54 +57,41 @@ The ref is **not a secret** (it's in every Supabase URL), so it is committed in 
 service-role key and DB password are secrets and live on the platforms, never in this repo
 (see `ENV_RUNBOOK.md`).
 
-## 4. Adding another company later
-
-Append **one** Supabase server to `.mcp.json`, scoped to that company's project:
-
-```jsonc
-"supabase-<company>": {
-  "type": "http",
-  "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=<PROJECT_REF>"
-}
-```
-
-Vercel and Railway are account-level — no change needed. Then follow the **`deploy` skill**
-(new-company path) + `METHODOLOGY.md`.
-
-## 5. Per-product dev — DEFERRED (Vercel + Railway dev later)
+## 4. Per-app dev — DEFERRED (Vercel + Railway dev later)
 
 > **Current direction:** dev + preview will be wired to **Vercel** (the `web` frontend) and
 > **Railway** (the `backend` API) dev environments when we get there. The commands below are kept
 > as an optional local reference only — skip them for now.
 
-Each product has its own env template. Copy and fill, then run:
+Each app has its own env template. Copy and fill, then run:
 
 ```bash
 # backend — Node/Express + Sequelize (Supabase Postgres + Supabase Auth proxy)
-cd companies/rasifiters/products/backend && cp .env.example .env.local && npm install && npm run dev   # :5001
+cd apps/backend && cp .env.example .env.local && npm install && npm run dev   # :5001
 
 # web — Next.js 14 App Router
-cd companies/rasifiters/products/web && cp .env.example .env.local && npm install && npm run dev       # :3000
+cd apps/web && cp .env.example .env.local && npm install && npm run dev       # :3000
 
 # ios — SwiftUI (open in Xcode; point API base URL at the backend)
-open companies/rasifiters/products/ios/RaSi-Fiters-App.xcodeproj
+open apps/ios/RaSi-Fiters-App.xcodeproj
 ```
 
 Real `DATABASE_URL` / Supabase keys / APNs creds come from the team (or the Vercel/Railway/Supabase
-project env — see `ENV_RUNBOOK.md`). All three products are reference-faithful rebuilds of the legacy
-apps; the **`stitch`** skill assembles a product from `features/<feature>/<version>/SPEC.md` when
-standing up a new company or product.
+project env — see `ENV_RUNBOOK.md`). All three apps are reference-faithful rebuilds of the legacy
+apps: `question-asker` writes the SPEC (`specs/features/<feature>/SPEC.md` or
+`specs/pages/{web,ios}/<page>/SPEC.md`), then the code is **implemented directly as a faithful 1:1
+port** from the legacy reference app — there is no assemble/stitch step.
 
 > The legacy backend runs on **port 5001** and the legacy web on **3000** — kept for parity. The iOS
 > app targets the deployed backend via its configured API base URL; there is no local-only iOS path.
 
-## 6. MCP secrets (future)
+## 5. MCP secrets (future)
 
 If a future server needs an API key, follow `.env.mcp.example`: reference `${KEY}` in
 `.mcp.json`, document it in `.env.mcp.example`, and put the real value in `.env.mcp` (gitignored).
 Today there are none — `vercel`, `railway`, and `supabase-rasifiters` are all OAuth-based.
 
-## 7. Running a working session (where to root it)
+## 6. Running a working session (where to root it)
 
 **Always launch Claude Code rooted at `rasifiters-master/`** — never the parent `RaSi-Fiters/`.
 MCP servers + permission rules resolve from the project root + its ancestors only (never from

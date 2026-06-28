@@ -28,7 +28,7 @@ WRITE = r"\b(INSERT|UPDATE|DELETE|DROP|ALTER|TRUNCATE|CREATE|GRANT|REVOKE|REINDE
 if re.search(WRITE, cmd, re.IGNORECASE):
     sys.stderr.write(
         "db-readonly-guard: BLOCKED — inline psql write/DDL is not allowed. "
-        "Author a numbered migration in companies/rasifiters/products/backend/sql/ "
+        "Author a numbered migration in apps/backend/sql/ "
         "(idempotent IF NOT EXISTS / ON CONFLICT), have the user review it, then run it with "
         "`psql -f <migration.sql>` (file runs are allowed). See the `supabase` skill.\n"
     )

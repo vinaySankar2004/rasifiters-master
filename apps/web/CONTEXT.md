@@ -2,7 +2,7 @@
 
 The RaSi Fiters web app. Next.js 14 (App Router) + TypeScript. Consumes the `backend` API.
 
-**Reference implementation:** `../../../../rasifiters-webapp` (the legacy web app). Faithful 1:1 rebuild;
+**Reference implementation:** `../../../rasifiters-webapp` (the legacy web app). Faithful 1:1 rebuild;
 the only intended change is the auth path (Supabase-issued tokens via the backend proxy).
 
 ## Stack
@@ -17,7 +17,9 @@ the only intended change is the auth path (Supabase-issued tokens via the backen
 - **Members:** `/members`, `/members/{list,detail,invite,metrics,health,history,workouts,streaks}`
 - **Lifestyle:** `/lifestyle`, `/lifestyle/{timeline,workouts}`
 
-Each becomes a feature SPEC in `features/` via the `question-asker` loop, then built via `stitch`.
+Each page becomes a page spec in `specs/pages/web/<page>/SPEC.md` via the `question-asker` loop (with
+role-based view rules), then ported faithfully from the legacy app. Cross-cutting capabilities (auth,
+analytics, notifications) are `specs/features/` it consumes.
 
 ## Auth (client side)
 - Calls the backend `/auth/*` proxy (login/refresh/logout); stores the Supabase-issued session

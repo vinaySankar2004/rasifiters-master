@@ -1,6 +1,6 @@
 ---
 name: supabase
-description: Read-only Supabase DB inspection for RaSi Fiters. psql-first against a gitignored DATABASE_URL wrapped in a read-only transaction; the supabase-rasifiters MCP is the secondary path. Strictly read-only; any write/DDL goes to a numbered migration file in companies/rasifiters/products/backend/sql/ that the user runs. Trigger: "check supabase", "query the db", "what's in <table>", "how many …", /supabase.
+description: Read-only Supabase DB inspection for RaSi Fiters. psql-first against a gitignored DATABASE_URL wrapped in a read-only transaction; the supabase-rasifiters MCP is the secondary path. Strictly read-only; any write/DDL goes to a numbered migration file in apps/backend/sql/ that the user runs. Trigger: "check supabase", "query the db", "what's in <table>", "how many …", /supabase.
 ---
 
 # supabase — read-only DB inspection (psql-first, MCP secondary)
@@ -21,10 +21,10 @@ hooks load).
 ## Prereqs
 
 - `psql` on PATH (`psql --version` → 16.x).
-- `companies/rasifiters/products/backend/.env` exists with a `DATABASE_URL` line. If missing, recreate
+- `apps/backend/.env` exists with a `DATABASE_URL` line. If missing, recreate
   it from the linked Railway backend:
   ```bash
-  cd companies/rasifiters/products/backend
+  cd apps/backend
   railway variables --kv | grep -E '^DATABASE_URL=' > .env
   ```
   (`.env` is gitignored — only `.env.example` is tracked.)
@@ -50,7 +50,7 @@ via `members.auth_user_id`.
 1. **psql-first (the default path).** Wrap each read in an explicit read-only transaction — the server
    then rejects any write, on top of the guard hook:
    ```bash
-   DBURL=$(grep -E '^DATABASE_URL=' companies/rasifiters/products/backend/.env | cut -d= -f2-)
+   DBURL=$(grep -E '^DATABASE_URL=' apps/backend/.env | cut -d= -f2-)
    psql "$DBURL" -v ON_ERROR_STOP=1 \
      -c "BEGIN TRANSACTION READ ONLY; SELECT … LIMIT …; COMMIT;"
    ```
@@ -63,7 +63,7 @@ via `members.auth_user_id`.
    user explicitly says "use the MCP". It's `read_only=true`; if it's stuck authenticating it may need a
    one-time `claude /mcp` login in a standalone Terminal.
 3. **Writes → STOP.** Never run inline `INSERT/UPDATE/DELETE/DDL` (the hook blocks it anyway). Author a
-   numbered migration in `companies/rasifiters/products/backend/sql/` mirroring the existing `NNN_*.sql`
+   numbered migration in `apps/backend/sql/` mirroring the existing `NNN_*.sql`
    files (idempotent `IF NOT EXISTS` / `ON CONFLICT DO NOTHING`), flag the blast radius, and let the
    user review + run it. The guard hook allows `psql -f <migration.sql>`.
 
@@ -80,4 +80,4 @@ via `members.auth_user_id`.
   layer (Supavisor drops libpq startup `options`) — it leaves the session read-write, so it's false
   comfort. Always use `BEGIN TRANSACTION READ ONLY … COMMIT` for the DB-level guarantee.
 - **No table prefixes** — query bare names in the `public` schema (faithful legacy schema). Don't
-  prepend a company/env prefix; there is none.
+  prepend an env prefix; there is none.

@@ -1,6 +1,6 @@
 ---
 name: health-check
-description: Periodic ICM doc-health cross-review — a read-only audit of rasifiters-master's docs for factual drift, redundancy (single-source-of-truth violations), and genuine structural decay, plus doc↔code consistency (registry↔SPEC↔tag sync, reference_impl paths exist, schema ownership, manifest↔code). STRICT by design — restructuring is proposed only when REALLY needed; the healthy result is "no action". Runs as a standalone task in a fresh session, ends with a graded report via plan mode (no auto-apply). Optionally scoped to ONE product (web · backend · ios). NOT the per-feature `audit` skill. Trigger — "health check", "doc health", "icm health", "cross-review the docs", "/health-check". LIVING — append LESSONS_ARCHIVE.md every run.
+description: Periodic ICM doc-health cross-review — a read-only audit of rasifiters-master's docs for factual drift, redundancy (single-source-of-truth violations), and genuine structural decay, plus doc↔code consistency (registry↔SPEC↔tag sync, reference_impl paths exist, schema ownership, manifest↔code). STRICT by design — restructuring is proposed only when REALLY needed; the healthy result is "no action". Runs as a standalone task in a fresh session, ends with a graded report via plan mode (no auto-apply). Optionally scoped to ONE app (web · backend · ios). NOT the per-feature `audit` skill. Trigger — "health check", "doc health", "icm health", "cross-review the docs", "/health-check". LIVING — append LESSONS_ARCHIVE.md every run.
 ---
 
 # Health Check — ICM doc-health cross-review (LIVING)
@@ -11,7 +11,7 @@ description: Periodic ICM doc-health cross-review — a read-only audit of rasif
 > is not a finding, and restructuring is proposed only when it clears a high bar (below).
 > A run that finds only 🔴 drift fixes and zero structural proposals is a *healthy* run.
 >
-> This is NOT the `audit` skill. `audit` diffs ONE feature across products (drift reconcile);
+> This is NOT the `audit` skill. `audit` diffs ONE feature across apps (drift reconcile);
 > `health-check` audits the WHOLE doc corpus for hygiene + doc↔code consistency. See
 > `../audit/SKILL.md` and the repo's `METHODOLOGY.md` (concern→skill map) if present.
 
@@ -22,24 +22,24 @@ on its own.
 
 ## Where to run
 From a session rooted at `rasifiters-master/`. Read-only across the whole repo's docs (any top-level
-`ICM.md`, `METHODOLOGY.md`, `CLAUDE.md`, `SETUP.md`, `ENV_RUNBOOK.md`, `COVERAGE.md`, `features/**`,
-`companies/**`, `.claude/skills/**`) + the code paths the docs reference. The faithful-rebuild reference
+`ICM.md`, `METHODOLOGY.md`, `CLAUDE.md`, `SETUP.md`, `ENV_RUNBOOK.md`, `COVERAGE.md`, `specs/features/**`,
+`apps/**`, `.claude/skills/**`) + the code paths the docs reference. The faithful-rebuild reference
 is the LEGACY app at `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/{rasifiters-webapp, ios-mobile,
-backend}` — reference_impl paths point at the rasifiters-master products, not the legacy app.
+backend}` — reference_impl paths point at the rasifiters-master apps, not the legacy app.
 
 ## Scope
-- **Default = whole repo** (all products — web, backend, ios — all features, top-level + skill docs).
-- **Product-scoped** (user names a product, e.g. "health check web"): restrict to that product's
-  `companies/rasifiters/products/<product>/**` PLUS the shared docs those touch (registry rows, feature
-  SPECs the product stitches, the routing-table row). State the resolved scope back to the user before
-  starting.
+- **Default = whole repo** (all apps — web, backend, ios — all features, top-level + skill docs).
+- **App-scoped** (user names an app, e.g. "health check web"): restrict to that app's
+  `apps/<app>/**` PLUS the shared docs those touch (registry rows, the feature
+  SPECs the app consumes, the page SPECs under `specs/pages/<app>/**`, the routing-table row). State the
+  resolved scope back to the user before starting.
 
 ## Prereqs
 - This is an AUDIT, not an edit session. **Strictly read-only** — touch nothing but the plan.
 - Use the session's current date (from the system reminder); skills can't call `Date.now()`.
 - If a single-source-of-truth contract exists (a METHODOLOGY.md "Where each fact lives" table), it is
   the yardstick for redundancy findings — re-read it first. If the repo has no such table yet (early
-  scaffold), treat the per-product `CONTEXT.md` / registry as the canonical home and flag the missing
+  scaffold), treat the per-app `CONTEXT.md` / registry as the canonical home and flag the missing
   SoT table itself as a 🔵 candidate.
 
 ## Operating mode (read-only → plan)
@@ -48,9 +48,9 @@ Approved fixes are carried out afterward through the normal edit + commit flow. 
 already in plan mode, behave as if it is (no writes).
 
 ## Workflow
-1. **Resolve scope** (whole-repo vs one product). Echo it back.
+1. **Resolve scope** (whole-repo vs one app). Echo it back.
 2. **Build the doc inventory.** Fan out up to 3 `Explore` agents in parallel to map the doc
-   tree in scope (top-level, `features/**`, `companies/**`, `.claude/skills/**`) and return a
+   tree in scope (top-level, `specs/features/**`, `apps/**`, `.claude/skills/**`) and return a
    file→purpose→line-count inventory. Re-read any load-bearing doc yourself before asserting a
    finding on it (Explore summaries go stale — verify file:line at report time).
 3. **Run the check catalog** (below) over the inventory. Every finding MUST cite `file:line`
@@ -67,15 +67,15 @@ already in plan mode, behave as if it is (no writes).
 **A. Factual drift / breakage (🔴 — objective, always reported):**
 | Check | How |
 |-------|-----|
-| Registry↔SPEC↔tag sync | each `registry.json` `latest` == the SPEC's top §12 version == a `git tag -l "feature/<f>@*"` tag; REGISTRY.md cell matches |
-| `reference_impl.paths` exist | every path a SPEC's reference_impl names resolves to a real, non-empty file under `companies/rasifiters/products/<web|backend|ios>/` |
+| Registry↔SPEC↔tag sync | each `registry.json` `version` == the SPEC's top §12 version == a `git tag -l "feature/<f>@*"` tag; REGISTRY.md cell matches |
+| `reference_impl.paths` exist | every path a SPEC's reference_impl names resolves to a real, non-empty file under `apps/<web|backend|ios>/` |
 | Dependency graph closure | `A depends_on B` ⇒ `B.consumed_by` includes A (both halves written) |
 | Schema-ownership uniqueness | each table claimed by exactly one feature SPEC (no two claim the same; none unclaimed) |
-| Manifest↔code | every feature in a `companies/**/manifest.md` maps to real code/routes in that product |
+| Manifest↔code | every feature in a `PROGRESS.md` maps to real code/routes in that app |
 | Status progression | statuses only advance 📄→🏗️→🚀; a 🚀 has a matching CONTEXT.md milestone |
 | Self-referencing range headers | e.g. "Decisions log (R1 → Rn)" header matches the actual last entry; "N runs" counts; feature counts |
 | Broken cross-references | every `path/to/file` or skill/feature reference in a doc resolves |
-| Routing/skill-index consistency | ICM.md routing table ↔ `companies/**`; the skill lists in ICM.md + METHODOLOGY concern-map + CLAUDE.md all name the same skill set |
+| Routing/skill-index consistency | ICM.md routing table ↔ `apps/**`; the skill lists in ICM.md + METHODOLOGY concern-map + CLAUDE.md all name the same skill set |
 
 **B. Redundancy / overlap (🟡 — reported with canonical home named):**
 | Check | How |
@@ -117,18 +117,19 @@ structural — overall healthy / needs attention"); and which items, if approved
 
 ## Converged lessons (durable — the patterns that recur, project-agnostic)
 - The SoT table (when it exists) is the yardstick for every 🟡 finding — cite it. Until one exists in
-  this scaffold, the per-product `CONTEXT.md` / registry is the canonical home and the missing table is
+  this scaffold, the per-app `CONTEXT.md` / registry is the canonical home and the missing table is
   itself a 🔵 candidate.
 - Re-read the load-bearing doc at report time; Explore inventories go stale.
 - A clean run (only 🔴 fixes, no 🔵) is the goal, not a failure — resist manufacturing structure work.
-- **Version sync = §12 top, NOT the folder name.** Feature dirs and SPECs keep the full changelog inside
-  the SPEC, so `registry.latest` can look "ahead" of the folder name. The real invariant is
-  `registry.latest` == the SPEC **§12 Changelog top entry** == the highest `feature/<f>@*` git tag. Ignore
-  folder-name and "max-semver-in-file" comparisons (the latter catches prose cross-refs to other features'
-  versions) — Explore inventory agents tend to raise these as bogus alarms.
-- **reference_impl.paths are rasifiters-product paths, checked at the LATEST version** — they must resolve
-  in `companies/rasifiters/products/<web|backend|ios>/`, NOT in the legacy app. Exclude any retired feature
-  whose paths are legacy-only.
+- **Version sync = §12 top + registry `version`; NO version folders.** SPECs live flat at
+  `specs/features/<feature>/SPEC.md` (no `<version>/` segment) and keep the full changelog inside the SPEC.
+  The real invariant is `registry.version` == the SPEC **§12 Changelog top entry** == the highest
+  `feature/<f>@*` git tag. Ignore "max-semver-in-file" comparisons (they catch prose cross-refs to other
+  features' versions) — Explore inventory agents tend to raise these as bogus alarms.
+- **reference_impl.paths are rasifiters-app paths** — they must resolve
+  in `apps/<web|backend|ios>/`, NOT in the legacy app. Exclude any retired feature
+  whose paths are legacy-only. Remember a feature's `consumed_by` may name a single client (web-only or
+  ios-only), so don't flag a feature as broken just because it isn't wired into both clients.
 - **registry.json is safe to edit by script:** `json.dumps(d, indent=2, ensure_ascii=False)` round-trips it
   byte-identical, so a Python patch of just the target field produces a clean minimal diff (string-level
   Edit fails — paths repeat across versions).
