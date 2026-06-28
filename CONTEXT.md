@@ -16,9 +16,12 @@ implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}
   iOS uses `AppTheme`). _Record exact values in `apps/*/CONTEXT.md` as confirmed._
 - Support / legal: `rasifiters.com/support`, `rasifiters.com/privacy-policy` (public pages).
 
-## Infrastructure (all `TODO(provision)` — not created yet)
-- **Supabase** — one project (DB + Auth + object storage). `project_ref` `TODO(provision)`; fill it into
-  `.mcp.json` (`supabase-rasifiters`) + the `ICM.md` table once created.
+## Infrastructure (Supabase provisioned 2026-06-28; Railway + Vercel still `TODO(provision)`)
+- **Supabase** — one project (DB + Auth + object storage). Org **RaSi Fiters** (`lxehyprifvuozciizlem`),
+  project **rasifiters**, `project_ref` **`kpadxjekpiwfkqcxtrio`**, region `us-east-1`, status
+  ACTIVE_HEALTHY. `SUPABASE_URL` = `https://kpadxjekpiwfkqcxtrio.supabase.co`. Filled into `.mcp.json`
+  (`supabase-rasifiters`) + the `ICM.md` table. Secrets (DB password, keys, DATABASE_URL forms) live in the
+  user's password manager — **never committed** (see `ENV_RUNBOOK.md`).
   - **Schema** migrated faithfully from the legacy Render Postgres — **same table names, NO prefix** (R5).
     Migrations live in `apps/backend/sql/`, reviewed/run by the user (never direct SQL from Claude).
   - **Auth** = Supabase Auth; the Express backend proxies it + verifies its JWTs (R1).

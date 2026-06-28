@@ -35,6 +35,10 @@ env/
 
 # Vercel CLI link state (team/project IDs — local only)
 .vercel/
+
+# Supabase CLI local scratch (link state / temp — not project config)
+supabase/.temp/
+supabase/.branches/
 **/.vercel/
 
 # Xcode / iOS build artifacts (when the ios product lands)

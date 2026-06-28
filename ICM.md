@@ -31,9 +31,9 @@ the source of truth for the faithful rebuild.
 | `web` | Next.js 14 (App Router) + TS | Vercel | The web client. |
 | `ios` | SwiftUI (iOS 18.6) | App Store | The iOS client. |
 
-`web` and `ios` both consume `backend`. Supabase project ref: `TODO(provision)` (read-only MCP
-`supabase-rasifiters`). Infra is not provisioned yet — refs are `TODO(provision)`, filled by the `deploy`
-skill / `SETUP.md`.
+`web` and `ios` both consume `backend`. Supabase project ref: **`kpadxjekpiwfkqcxtrio`** (org `RaSi Fiters`
+/ `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). Railway +
+Vercel are still `TODO(provision)`, filled by the `deploy` skill / `SETUP.md`.
 
 ## Layer map
 

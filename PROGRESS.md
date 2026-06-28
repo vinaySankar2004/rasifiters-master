@@ -10,23 +10,27 @@
 
 ## Current phase
 
-**Phase 0 — Scaffolding.** The ICM repo is set up and restructured to fit RaSi (apps/ + specs/features +
-specs/pages, no stitch, no version folders, audit = web↔iOS parity). **Nothing is built or deployed.**
+**Phase 1 — Provisioning (in progress).** Scaffolding done. **Supabase is provisioned** (2026-06-28): org
+`RaSi Fiters` (`lxehyprifvuozciizlem`), project `rasifiters` ref **`kpadxjekpiwfkqcxtrio`**, region
+`us-east-1`, ACTIVE_HEALTHY; `.mcp.json` repointed; secrets in the user's password manager. Railway +
+Vercel projects are **not yet created** (deferred — `web`/`backend` have no code to deploy yet). Nothing is
+deployed.
 
 ## Next action
 
-**Decide before building the migrator** (two open questions): (a) how to handle members with **no primary
-email** in the Supabase Auth import (placeholder vs skip+flag); (b) provision the Supabase project so the
-migrator has a real target. Then build `tools/migrator/`.
+**Build the migrator** (`tools/migrator/`) — its target (Supabase) now exists. First resolve the one open
+decision it needs: members with **no primary email** in the Supabase Auth import (placeholder vs skip+flag).
+The connection strings (direct/session-pooler/txn-pooler) are captured in the user's secrets file.
 
 Alternatively, to validate the methodology first: run `question-asker` on the backend **`auth`** feature to
-produce the first spec.
+produce the first spec. (Railway + Vercel provisioning can wait until `backend`/`web` have portable code.)
 
 ## Build sequence (the locked plan — see `METHODOLOGY.md`)
 
 1. [x] **Scaffold the ICM repo** (L1–L5 + skills + hooks). _DONE 2026-06-28._
-2. [ ] **Provision infra** — Supabase project (fill `project_ref` in `.mcp.json` + `ICM.md`), Railway
-       `rasifiters-api`, Vercel `rasifiters-web`; record IDs in `apps/*/CONTEXT.md` + the deploy-scope hook.
+2. [~] **Provision infra** — Supabase project DONE 2026-06-28 (`project_ref` filled in `.mcp.json` + `ICM.md`
+       + `CONTEXT.md`). Railway `rasifiters-api` + Vercel `rasifiters-web` deferred until those apps have
+       code to deploy; record their IDs in `apps/*/CONTEXT.md` + the deploy-scope hook when created.
 3. [ ] **Migrator** (`tools/migrator/`) — Render PG → Supabase, preserve `members.id` UUIDs; create
        `auth.users` via bcrypt-hash import; backfill `members.auth_user_id`. Re-runnable sync.
 4. [ ] **`backend`** — point Express at Supabase, swap auth middleware to verify Supabase JWTs (proxy
@@ -50,6 +54,14 @@ produce the first spec.
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm)** — **Provisioned Supabase.** Created a new org `RaSi Fiters` (`lxehyprifvuozciizlem`)
+  + project `rasifiters` (ref `kpadxjekpiwfkqcxtrio`, `us-east-1`, ACTIVE_HEALTHY) via the Supabase CLI
+  (upgraded 2.67→2.108 to fix the broken `--region` enum; trusted the `supabase/tap`). DB password generated
+  with `openssl rand -hex 24`; captured all keys (anon/service_role + new publishable/secret) + the three
+  DATABASE_URL forms (direct IPv6 / session-pooler `aws-1-us-east-1` :5432 / txn-pooler :6543, all verified
+  with `psql select`) into the gitignored scratchpad secrets file for the user's password manager. Repointed
+  `.mcp.json` `supabase-rasifiters` to the real ref; updated `ICM.md` + `CONTEXT.md`. Railway/Vercel
+  deferred (no app code yet). Next: build `tools/migrator/`.
 - **2026-06-28** — Scaffolded the ICM repo from higgins-master; then restructured to fit RaSi: dropped
   `companies/` → `apps/`; split specs into `specs/features/` + `specs/pages/` (with role-based view rules);
   removed the `stitch` skill (faithful direct port instead); repurposed `audit` as a web↔iOS parity check;
