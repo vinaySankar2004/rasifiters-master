@@ -1,0 +1,49 @@
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Node / Next
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+dist/
+build/
+
+# Python (migrator tooling, if used)
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+.pytest_cache/
+
+# Env files — real env stays local; *.example templates ARE tracked
+.env
+.env.*
+!.env.example
+!.env.mcp.example
+.env.mcp
+
+# DB connection strings used by the `supabase`/`migrator` tooling (read-only psql)
+.dburl
+**/.dburl
+
+# Vercel CLI link state (team/project IDs — local only)
+.vercel/
+**/.vercel/
+
+# Xcode / iOS build artifacts (when the ios product lands)
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# Claude Code — machine-local only (committed file is .claude/settings.json)
+.claude/settings.local.json
+
+# NOTE: .mcp.json is intentionally NOT ignored — it carries no secrets and is
+# committed so a fresh clone gets the MCP servers out of the box.

@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "vercel": {
+      "type": "http",
+      "url": "https://mcp.vercel.com"
+    },
+    "railway": {
+      "type": "http",
+      "url": "https://mcp.railway.com"
+    },
+    "supabase-rasifiters": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=TODO_RASIFITERS_PROJECT_REF"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "$comment": "L4 machine registry — the feature dependency graph for RaSi Fiters. Empty until the first feature is documented via question-asker + committed via git-version. Each feature: { latest, versions: { vX.Y.Z: { spec, status, reference_impl: { product, paths }, consumed_by, depends_on } } }. status: documented|rebuilt|deployed|retired. Invariant: node count == count of `feature/<f>@v*` git tags.",
+  "features": {}
+}

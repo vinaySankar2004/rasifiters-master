@@ -1,0 +1,52 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git push:*)",
+      "Bash(git tag:*)",
+      "Bash(npm install)",
+      "Bash(npm ci)",
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint:*)",
+      "Bash(npm start:*)",
+      "Bash(npm test:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+      "Bash(psql:*)",
+      "mcp__supabase-rasifiters__list_tables",
+      "mcp__supabase-rasifiters__list_projects",
+      "mcp__supabase-rasifiters__execute_sql",
+      "mcp__supabase-rasifiters__get_logs",
+      "mcp__supabase-rasifiters__get_advisors"
+    ],
+    "deny": [
+      "mcp__claude_ai_Supabase",
+      "mcp__claude_ai_Vercel",
+      "mcp__claude_ai_Google_Drive",
+      "mcp__n8n"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/deploy-scope-guard.sh\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/db-readonly-guard.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "outputStyle": "default"
+}
