@@ -198,6 +198,15 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
   another → anon works, signed-in 401s (the RaSi Fiters analogue of the Clerk/env/domain consistency rule).
 - **Check what the deployed path actually needs before provisioning secrets** — grep the live request's
   provider/env; a render-only or read-only change may need zero new infra.
+- **Supabase provisioning (CLI):** org must exist first — `supabase orgs create "<name>"` makes a free org
+  (no dashboard/billing step); then `projects create <name> --org-id <id> --db-password <pw> --region
+  us-east-1 --yes`. CLI ≤2.67 ships a **broken empty `--region` enum** (`must be one of [  ]`, yet region is
+  required) → `brew upgrade supabase` (needs `brew trust supabase/tap`). **Probe the pooler host** with a
+  real `psql select`: new projects are `aws-1-…`, not `aws-0-…` (`aws-0` → `Tenant or user not found`).
+  `api-keys -o json` returns a bare list (no `{"keys":…}` wrapper).
+- **Provision in build-order, not all-at-once:** if an app has no portable code yet, creating its
+  Vercel/Railway shell just adds an empty project — do Supabase first (unblocks the migrator), stand up
+  Railway/Vercel when the app actually has code to deploy.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:**
