@@ -124,3 +124,49 @@ its single emit with an inline `emitProgramNotification` no-op. But `handleMembe
 feature later REPLACES wholesale — call sites unchanged. **Lesson: inline no-op for a one-off side-effect;
 a named-API stub file when multiple faithful modules import the dependency by name (the stub becomes the
 seam the real feature drops into).**
+
+---
+
+## Run 5 — `notifications` (backend feature; the keystone) — 2026-06-28
+
+**Target:** the backend `notifications` feature — `routes/notifications.js` (6 routes) + `utils/{notifications,
+notificationStreams,pushNotifications}.js` + `models/{Notification,NotificationRecipient,MemberPushToken}.js`.
+The keystone: it had been pre-stubbed by a DEFERRED named-API stub (`utils/notifications.js`, run 4 D-C4) that
+the programs/program-memberships emit call sites import by name. Porting = **replace the stub wholesale**, call
+sites untouched.
+
+**Shape:** confirm-heavy, 4 genuinely-independent decisions in ONE `AskUserQuestion` call (extended past the
+tight-3 because the migration delta + the APNs-creds question + the vestigial-route/stance question were all
+real and orthogonal). All four answered with the faithful lead option. 2 Explore agents (web + iOS
+consumption) ran in parallel; both clients consume the SSE stream + unack/ack, iOS-only owns the APNs device
+lifecycle, `POST /broadcast` is called by neither client (vestigial, like members `POST`/`DELETE`).
+
+**The load-bearing decision was the SSE stream's AUTH, not its data.** Legacy `authenticateStream`
+(`notifications.js:11-28`) verified a self-signed JWT with **symmetric `jwt.verify(token, JWT_SECRET)`**, read
+from the Authorization header **OR a `?token=` query param** (browser `EventSource` can't set headers). Under
+Supabase Auth there's no `JWT_SECRET` → this is the same token-verify migration the auth feature already made
+(D-C2: JWKS + `sub`→`members.auth_user_id`), but applied to a SECOND endpoint with a query-param token source.
+**New durable lesson (promoted): SSE/streaming/EventSource endpoints carry their OWN copy of the
+token-verify path, and it's easy to miss because it's a bespoke inline middleware (not the shared
+`authenticateToken`). For a "self-signed JWT → managed provider" migration, grep for EVERY verify call
+(`jwt.verify`, bespoke `authenticate*` middlewares), not just the main one — each needs the same migration.
+The streaming variant additionally needs a query-param token source (EventSource limitation); the faithful
+port extracts the shared verify+rebuild helper (`resolveReqUser`) and adds a header-or-query wrapper.**
+
+**APNs creds = a clean third deferral axis.** `pushNotifications.getProvider()` already returns `null` when
+`APNS_*` is unset (legacy degrades gracefully: warn + skip). So "port the code now, supply creds later" is a
+real, low-risk option distinct from the D-C2 migration — worth surfacing as its own question rather than
+folding into stance. **Lesson: a feature can have MULTIPLE independent deferral axes (here: APNs creds,
+separate from the SSE-auth migration and the cross-feature emit wiring); ask each as its own decision when the
+code already degrades gracefully for it.**
+
+**Stub-replacement confirmed the run-4 prediction.** The named-API stub seam worked exactly as designed: I
+replaced `apps/backend/utils/notifications.js` (stub → real `createNotification`) and the programs/memberships
+emit call sites lit up with ZERO edits. **Lesson reinforced: the deferred named-API stub is the correct seam
+when N faithful modules import the dependency by name — the keystone feature drops in by replacing one file.**
+
+**Scope stayed tight (D-C1 = module only).** The two deferred 501 delete cascades (members/auth) and the
+`invites` emit are OTHER features' follow-ups — they don't belong to `notifications` even though they emit
+through it. **Lesson: "owns the emit engine" ≠ "owns every emit call site"; the engine feature owns the engine,
+the callers own their calls. Resolve this in the scope question so the run doesn't sprawl into wiring 3 other
+features.**

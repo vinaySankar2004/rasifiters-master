@@ -207,7 +207,19 @@ directly as a faithful port from the legacy reference app** — there is no inte
   ported onto a new stack/provider it's the highest-value part of the SPEC and keeps the
   faithful-vs-changed line crisp (see `specs/features/auth/SPEC.md` §7). The load-bearing question for a
   "self-signed JWT → managed auth provider" migration is the **token-verify claim source** (verify method
-  + whether you add a per-request DB lookup) — lead with it.
+  + whether you add a per-request DB lookup) — lead with it. **Grep for EVERY verify call, not just the main
+  middleware:** SSE/streaming/EventSource endpoints carry their own bespoke inline `authenticate*` middleware
+  with the same `jwt.verify` (easy to miss) — each needs the same migration, and the streaming one also needs
+  a **query-param token source** (`?token=` — browser `EventSource` can't set headers). The faithful port
+  extracts the shared verify+rebuild helper and adds a header-or-query wrapper (notifications run 5, D-C2).
+- **A feature can have several INDEPENDENT deferral axes — ask each separately when the code degrades
+  gracefully for it.** notifications (run 5) had three orthogonal deferrals: the SSE-auth migration (D-C2),
+  APNs credentials (D-C4 — `getProvider()→null` already warns+skips, so "port now, creds later" is low-risk),
+  and the cross-feature emit/cascade wiring (left to the OTHER features). Don't fold them into one "stance"
+  question. And **"owns the emit engine" ≠ "owns every emit call site"** — the engine feature owns the engine;
+  the callers own their calls. Pin this in the scope question so a keystone run doesn't sprawl into wiring N
+  dependent features. The **deferred named-API stub** (run 4) is the seam: porting the keystone REPLACES the
+  one stub file and every by-name caller lights up unchanged (confirmed run 5).
 - **Dead-route check via the consumption sweep:** before speccing a backend CRUD feature, the cross-app
   sweep must confirm **which routes each client actually calls** — a route existing ≠ a route used. Routes
   called by *neither* client are vestigial: keep them for parity but **flag** them (§10), don't treat them
