@@ -30,3 +30,18 @@ features), that foundation rides in the same feature commit — it's not its own
 now; revisit if a later feature needs to claim ownership of a model file.
 
 _Earlier note: this was a fresh ICM repo; `auth` is the first documented + first built feature._
+
+### 2026-06-28 — Run: programs feature (v0.1.0 + port)
+**Shape:** a NEW node committed *and* ported in one session → a single `feat(programs)` commit (SPEC +
+code + registry/REGISTRY/COVERAGE/PROGRESS + server.js mount) with the status flip 📄→🏗️ folded in (no
+separate flip commit, since this is the node's first appearance), plus a separate `chore(skills)` commit
+for the question-asker LESSONS_ARCHIVE. **Bump:** new feature → v0.1.0, no confirmation needed (user named
+the tag). **Blast-radius:** new node, `depends_on [auth, program-memberships, notifications]` (two dangling
+forward edges — fine, additive/FYI, no gate); `consumed_by [web, ios]`. **Status consistency catch:** I'd
+initially set programs `documented`/📄 in the registry, but it was actually *ported* (same state as
+`members` = `built`/🏗️) — flipped registry/REGISTRY/SPEC-header/COVERAGE/PROGRESS to 🏗️/`built`/[x] before
+committing so the two ported backend features read consistently. **Lesson: when a run both specs AND ports,
+the registry status is `built` not `documented` — match the sibling feature's representation, don't leave
+it at the spec-only state.** **Tag gotcha: `git push --follow-tags` does NOT push lightweight tags** (these
+feature tags are lightweight) — had to `git push origin feature/programs@v0.1.0` explicitly. **Lesson: for
+this repo's lightweight feature tags, push the tag by name (or use `--tags`), not `--follow-tags`.**
