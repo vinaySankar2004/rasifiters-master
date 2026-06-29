@@ -249,6 +249,22 @@ directly as a faithful port from the legacy reference app** — there is no inte
   rather than auto-login (which would embed provider-shaped tokens as a client session — extra plumbing + R1
   tension). Collapse the page's invalid-token paths (fragment `#error`, no token, submit-time 401) into one
   "request a new link → forgot-password" state.
+- **A mandated change is often already satisfied elsewhere — confirm WHERE it holds before implementing (run
+  19).** A D-PLAN/user mandate phrased as backend-sounding work ("sign-up email mandatory + format-validated")
+  was already true server-side (`register`/`createMember` require + normalize + format-validate email) — the
+  only gap was the *client* page's inline regex. This is run-16's "sweep your OWN rebuilt stack" again: it
+  reshapes a mandate from "build it" to "wire the one missing client gate," and locates the work correctly.
+  Three more run-19 patterns: **(a) a page port can drag in shared UI-component dependencies** not yet in the
+  foundation (`Select`→`SelectMobile`→`useIsMobile`) — port them verbatim once their transitive deps exist;
+  **(b) the NO-feature-bump page** — when a page consumes an already-existing route + client fn (`POST
+  /auth/register` + `registerAccount()`), no feature SPEC version changes; the only versioned artifact is the
+  page SPEC at v0.1.0 (say so — it's the clean case, vs runs 17/18 which each added a route → an auth MINOR);
+  **(c) reconcile mutually-exclusive multiSelect picks by taking the SUPERSET, note the merge, don't re-ask** —
+  user selected both "conditional hint" + "live checklist"; implement the richer one (the live checklist appears
+  on first keystroke, subsuming the conditional behavior) and record the merge in the D-row. And the run-17/18
+  "don't auto-inherit a sibling's choice" cuts BOTH ways on redirects: legacy create-account had no authed
+  redirect, but all 3 sibling auth pages redirect — when the WHOLE sibling set already diverged one way,
+  matching them (a deliberate D-row) beats matching a lone legacy file.
 - **Separate locked-by-METHODOLOGY decisions from genuinely-open ones before asking.** Decisions already
   fixed in the R-log (e.g. R1's proxy model / retired tables / `auth_user_id`) are stated as context, NOT
   re-asked — keeps the round to the few real choices (auth run 1: 4 real Qs, all faithful).

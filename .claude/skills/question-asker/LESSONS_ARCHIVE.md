@@ -794,3 +794,63 @@ prerendered, 4.28 kB). SPEC v0.1.0 (D-REF net-new / D-SCOPE / D-C1 Bearer-reuse 
 confirm+policy / D-C4 implicit-fragment / D-S1 sibling chrome; F1–F6). Auth SPEC → 0.4.0 (route #10, §4/§6,
 D-C5, changelog); login SPEC → 0.1.1 (banner); registry/REGISTRY/page REGISTRY/COVERAGE. **The recovery path
 is end-to-end. Next:** `create-account` page + sign-up-email-mandatory (D-PLAN item 3).
+
+---
+
+## Run 19 — `create-account` (web sign-up page, 5th web page) — 2026-06-29
+
+**Target:** the public `/create-account` sign-up page — the last leg of the public/auth path
+(splash → login → forgot → reset → **create-account**). Carried D-PLAN item 3 ("sign-up email mandatory +
+format-validated, forward-only"). Faithful port of the legacy web page + sign-off cleanups.
+
+**Sweep:** 3 `Explore` agents — legacy web create-account · our ported web foundation + sibling auth pages ·
+backend register route. Then verified the legacy page, our `api/auth.ts`, the forgot-password page (for the
+inline-validation pattern), and `Select`/`SelectMobile` myself.
+
+**The headline finding — a D-PLAN mandate already satisfied SERVER-SIDE; the delta was client-only.** D-PLAN
+item 3 read "sign-up email mandatory + format-validated." The backend-stack agent confirmed `authService.register`
+(and its twin `memberService.createMember`, members D-C2) **already require + normalize + format-validate email**
+and enforce the password policy + create the Supabase Auth user. So "email mandatory" was *already true
+end-to-end*; the ONLY gap was the **client page's** inline format validation (legacy validated email only as
+non-empty + HTML5 `type="email"`, no regex). This is run-16's "fan an agent over your OWN rebuilt stack, not just
+legacy" paying off again: the finding reshaped the mandate from "make email mandatory" (sounds like backend work)
+to "add one client-side regex gate" (a tiny page deviation). **Always confirm where a mandate already holds
+before implementing it — the work is often smaller and located elsewhere than the phrasing implies.**
+
+**`register` returns no token → the faithful flow is register-THEN-auto-login.** The legacy page calls
+`registerAccount()` then immediately `login()` with the same credentials (the register response carries
+`member_id`/`username`/`member_name` but no JWT — auth SPEC §3). Ported verbatim; flagged the two-call
+no-rollback-on-login-leg as F2 (recoverable — the account exists, the user can sign in via `/login`).
+
+**A page port can drag in shared UI-component dependencies that aren't page-specific — port them verbatim.**
+The gender dropdown uses `Select` (which delegates to `SelectMobile` on mobile via the foundation
+`useIsMobile`); neither was in the ported foundation. Ported both byte-for-byte into `src/components/` as the
+dependency (they're generic, reusable across future pages — programs/members forms will want them). Confirm a
+component's transitive deps exist in the foundation (here `useIsMobile` did) before porting.
+
+**The "NO feature bump" page.** Unlike runs 17/18 (each added a backend route → an auth MINOR bump), this page
+consumes only the **already-existing** `POST /auth/register` + the already-present `registerAccount()` client
+fn. So no feature SPEC version changed — the only versioned artifact is the new page SPEC at v0.1.0. Not every
+page port ripples into a feature bump; say so explicitly (it's the clean, expected case).
+
+**Don't auto-inherit a sibling's redirect-or-not either — but here consistency WON over legacy-literal.** Legacy
+create-account had **no** already-authenticated redirect, yet all three sibling auth pages (login faithfully,
+forgot/reset by our addition) redirect authed visitors to `/programs`. Offered faithful-omit (lead) vs
+add-for-consistency; the user picked **add** (D-C2). The reverse of run-18's "keep recovery separate" judgment:
+when the WHOLE sibling set already diverged one way, matching them is the better consistency call than matching
+a lone legacy file — recorded as a deliberate D-row, not a flag.
+
+**Reconciling mutually-exclusive multiSelect picks — take the superset, note the merge, don't re-ask.** The
+cleanup multiSelect offered "conditional password hint" AND "live password checklist" with a note to pick one;
+the user selected **both** (plus autoFocus + muted mismatch hint). Reconciled by implementing the **richer**
+option (the live ✓/○ checklist) which *subsumes* the conditional-hint behavior (it appears on first keystroke),
+and documented the merge in D-C3 rather than bouncing a clarifying question back. When two selected options
+overlap, the superset usually satisfies both intents — implement it and record the reconciliation.
+
+**Output:** `apps/web/src/app/create-account/page.tsx` (faithful + D-C1…D-C5) + `src/components/{Select,SelectMobile}.tsx`.
+`npm run build` ✓ (`/create-account` prerendered, 6.25 kB). SPEC v0.1.0 (D-REF `[web]` / D-S1 faithful port +
+5 deviations / D-C1 inline email regex (D-PLAN item 3) / D-C2 authed→/programs redirect / D-C3 live password
+checklist / D-C4 muted mismatch hint / D-C5 autoFocus; F1–F6: client JWT decode, register-then-login no-rollback,
+bootstrap form flash, no client rate-limit, no client username rules, cleanups web-first/iOS gap). Page REGISTRY +
+COVERAGE ticked. **No feature bump.** The public/auth path is COMPLETE. **Next:** the `programs` hub (first
+protected route — resolve the `middleware.ts` HS256→ES256 decision first).
