@@ -30,9 +30,26 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port `workout-logs`** via `question-asker` — single + batch + member workout-log
-> writes/reads (`/api/workout-logs`), the surface that consumes `program_workouts` (the join target the
-> just-ported feature owns). Then `daily-health-logs` → `analytics`. Each backend commit auto-deploys to Render.
+> **On "continue": spec + port `daily-health-logs`** via `question-asker` — the OTHER half of the shared
+> `routes/logs.js`/`services/logService.js` file pair (the `dailyHealthLogRouter` 4 routes + the 4
+> daily-health fns + `parseOptionalNumber`), **appended to the same files** `workout-logs` just created
+> (helpers already there — reuse `resolveLogPermissions`/`isProgramAdmin`/`assertDataEntryAllowed`; note
+> `assertDataEntryAllowed` is NOT yet in the new `logService.js` — workout-logs hoisted it to middleware, so
+> daily-health must either add it back or adopt the same `requireDataEntryAllowed` hoist). Then `analytics` →
+> `member-analytics`. Each backend commit auto-deploys to Render.
+>
+> **`workout-logs` is DONE (ported 2026-06-29)** — the `workoutLogRouter` half (`/api/workout-logs`) of the
+> shared `routes/logs.js`/`services/logService.js`. **2 dead GET routes dropped** (`GET /` + `GET
+> /member/:memberName` — called by neither client; both read history via `/api/member-recent`); the 4 live
+> routes (`POST /`, `POST /batch`, `PUT /`, `DELETE /`) ported. `consumed_by = [web, ios]` — the trio
+> (add/edit/delete) 1:1, **`POST /batch` web-only** (iOS loops single POSTs in its widget). **Four
+> user-chosen cleanups** on the faithful base: **D-C2** positive-int single-log duration (was isNaN-only),
+> **D-C3** collapse `addWorkoutLog`'s member-auth double-check, **D-C4** de-dup the membership lookups
+> (incl. `deleteWorkoutLog`'s double `resolveLogPermissions`), **D-C5** hoist the `admin_only_data_entry`
+> lock into a co-located `requireDataEntryAllowed` resolve-or-pass-through middleware (403 preserved; one
+> accepted ordering nuance, F6/F9). Faithful otherwise (lazy `program_workouts` materialization, the batch
+> summing-upsert + `rowErrors` + 200-cap, no-dup-handling single add). Mounted. Boot check passes. **Runtime
+> smoke-test deferred to the batched pre-cutover pass.**
 >
 > **Per-feature runtime smoke-tests are DEFERRED to a single pre-cutover pass (user decision 2026-06-29)** —
 > do NOT re-offer them after each port. Every ported backend feature carries a "runtime smoke-test pending"
@@ -131,9 +148,18 @@ deferred (no web code yet).
     resolve-or-pass-through `requireProgramAdmin` route guard; service authz-free; status codes preserved;
     `GET` ungated). `consumed_by = [web, ios]` all 6 routes 1:1 (D-REF). Faithful otherwise (D-S1, F1–F7).
     Mounted. Boot check passes. **Runtime smoke-test vs live Supabase pending.**
-11. **NEXT — spec + port the remaining backend features** (workout-logs, daily-health-logs, analytics…)
-    via `question-asker`, mounting each route group in `server.js` as it lands. Each backend commit
-    auto-deploys to Render (push to `main` touching `apps/backend/**`).
+11. ~~Spec + port `workout-logs`.~~ **DONE 2026-06-29** — see
+    [`specs/features/workout-logs/SPEC.md`](specs/features/workout-logs/SPEC.md) v0.1.0 (🏗️ built). The
+    `workoutLogRouter` half of the shared `routes/logs.js`/`services/logService.js`; **2 dead GET routes
+    dropped** (called by neither client, D-C1); the 4 live routes mounted `/api/workout-logs`. Four
+    user-chosen cleanups (D-C2 positive-int duration / D-C3 collapse double-check / D-C4 de-dup membership
+    lookups / D-C5 hoist the `admin_only_data_entry` lock to a `requireDataEntryAllowed` middleware);
+    `consumed_by = [web, ios]`, `POST /batch` web-only. Faithful otherwise (F1–F9). Boot check passes.
+    **Runtime smoke-test pending.**
+12. **NEXT — spec + port the remaining backend features** (daily-health-logs, analytics, member-analytics,
+    app-config…) via `question-asker`, mounting each route group in `server.js` as it lands. Each backend
+    commit auto-deploys to Render (push to `main` touching `apps/backend/**`). `daily-health-logs` is the
+    other half of the `logs.js`/`logService.js` file pair — append it to those same files.
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -159,7 +185,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **8** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **9** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -192,6 +218,35 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (am)** — **Specced + ported the `workout-logs` feature** (9th feature — the workout-logging
+  write surface, and the `workoutLogRouter` half of the shared `routes/logs.js`/`services/logService.js`).
+  `question-asker`: read the legacy `routes/logs.js` + the workout-log half of `logService.js` + the
+  `WorkoutLog` model in full, fanned 2 `Explore` agents over web + iOS consumption. **Key findings:** the
+  file pair holds TWO COVERAGE rows (workout-logs + daily-health-logs — pre-drawn split, like workoutService);
+  **both GET routes are called by NEITHER client** (`GET /` by date + `GET /member/:memberName` — web + iOS
+  both read history via `/api/member-recent`); `POST /batch` is **web-only** (iOS bulk-logs by looping single
+  `POST /` in its widget); the add/edit/delete trio is 1:1 across clients. Confirmed `req.user.role` is
+  preserved 1:1 (legacy + new both set `role = global_role==='global_admin' ? 'admin' : 'member'`). 6
+  decisions: **D-C1** scope = workout-log half + shared helpers; daily-health → next feature, same files
+  reunited; **drop the 2 dead GETs**; **D-C2/D-C3/D-C4/D-C5** = the four user-chosen cleanups (the user
+  selected ALL four via a scope-pinning multiSelect): positive-int single-log duration / collapse
+  `addWorkoutLog`'s member-auth double-check / de-dup the membership lookups (incl. `deleteWorkoutLog`'s
+  double `resolveLogPermissions`) / **hoist the `admin_only_data_entry` lock** out of the service into a
+  co-located `requireDataEntryAllowed` **resolve-or-pass-through** middleware (403 + message preserved 1:1;
+  one accepted ordering nuance — locked+non-admin+invalid-body → 403 before 400, F6; and delete's not-enrolled
+  403 may precede a 404, F9). `resolveLogPermissions` stays inline (returns a boolean driving per-member
+  branching — not a hoistable gate). **D-REF** `consumed_by = [web, ios]`. **D-S1** faithful otherwise.
+  Flagged F1–F9 (dead GETs; single-add no-dup-handling PK-collision 500 vs batch summing; lazy
+  `program_workouts` materialization; web-only batch; `member_id`-path skips member-exists; the 2 ordering
+  nuances; + the 3 legacy shapes the cleanups changed). Wrote SPEC v0.1.0; registered in registry.json
+  (`depends_on:[auth, members, programs, program-memberships, workouts, program-workouts]`) + REGISTRY.md +
+  COVERAGE. Then **ported**: `services/logService.js` (4 live fns + shared helpers, cleanups applied; 2 GET
+  fns + `parseOptionalNumber`/`assertDataEntryAllowed` omitted — daily-health adds them later),
+  `routes/logs.js` (`workoutLogRouter` 4 routes + the middleware; exports `{ workoutLogRouter }` only),
+  mounted `/api/workout-logs`. Boot check (4-route stack, no GET, every route =
+  `[authenticateToken, requireDataEntryAllowed, handler]`, 5 service fns export, server loads) passes.
+  **Runtime smoke-test deferred to the batched pre-cutover pass.** Next: `daily-health-logs` (the other half
+  of the file pair).
 - **2026-06-28 (pm-15)** — **Specced + ported the `program-workouts` feature** (8th feature — the
   program-scoped other half of the shared `workoutService.js`). `question-asker`: read the legacy
   `routes/programWorkouts.js` + the program-scoped half of `services/workoutService.js` + the `ProgramWorkout`

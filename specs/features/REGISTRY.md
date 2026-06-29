@@ -18,6 +18,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `invites` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/invites.js`, `services/inviteService.js`, `models/{ProgramInvite,ProgramInviteBlock}.js`) | [invites/SPEC.md](invites/SPEC.md) |
 | `workouts` | 0.1.0 | 🏗️ | `ios` | `backend` (`routes/workouts.js`, `services/workoutService.js` [library half], `models/Workout.js`) | [workouts/SPEC.md](workouts/SPEC.md) |
 | `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
+| `workout-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
@@ -40,5 +41,13 @@ follows: 4 invite routes (`POST /invite`, `GET /my-invites`, `GET /all-invites`,
 Faithful except two cleanups — `target_member_id` dropped (vestigial, sent by neither client, D-C3a) and
 `getAllInvites`' N+1 batched into one query (D-C3b); the accept-path `ProgramMembership` write stays inline
 (D-C1). **The keystone realized:** its `program.invite_received`/`program.member_joined` emits are wired
-**live** against the ported notifications engine — the first feature with no deferred-emit stub (D-C2). Next
+**live** against the ported notifications engine — the first feature with no deferred-emit stub (D-C2).
+`workout-logs` (the workout-logging write surface) follows: the `workoutLogRouter` half of the shared
+`routes/logs.js`/`services/logService.js` (`daily-health-logs` = the other half, appended to the same file
+pair later, D-C1). **2 dead GET routes dropped** (`GET /` + `GET /member/:memberName`, called by neither
+client); the 4 live routes (`POST /`, `POST /batch`, `PUT /`, `DELETE /`) ported. `consumed_by = [web, ios]` —
+the trio 1:1, `POST /batch` web-only. Four user-chosen cleanups on the faithful base: D-C2 (positive-int
+single-log duration), D-C3 (collapse the member-auth double-check), D-C4 (de-dup the membership lookups,
+incl. `deleteWorkoutLog`'s double `resolveLogPermissions`), D-C5 (hoist the `admin_only_data_entry` lock into
+a `requireDataEntryAllowed` resolve-or-pass-through middleware, 403 preserved). Next
 features are authored as the backend rebuild proceeds — see `PROGRESS.md`._

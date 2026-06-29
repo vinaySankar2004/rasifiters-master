@@ -139,6 +139,22 @@
           "server.js"
         ]
       }
+    },
+    "workout-logs": {
+      "version": "0.1.0",
+      "spec": "specs/features/workout-logs/SPEC.md",
+      "status": "built",
+      "consumed_by": ["web", "ios"],
+      "depends_on": ["auth", "members", "programs", "program-memberships", "workouts", "program-workouts"],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/logs.js",
+          "services/logService.js",
+          "models/WorkoutLog.js",
+          "server.js"
+        ]
+      }
     }
   }
 }
