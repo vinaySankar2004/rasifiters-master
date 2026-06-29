@@ -30,13 +30,22 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port `daily-health-logs`** via `question-asker` — the OTHER half of the shared
-> `routes/logs.js`/`services/logService.js` file pair (the `dailyHealthLogRouter` 4 routes + the 4
-> daily-health fns + `parseOptionalNumber`), **appended to the same files** `workout-logs` just created
-> (helpers already there — reuse `resolveLogPermissions`/`isProgramAdmin`/`assertDataEntryAllowed`; note
-> `assertDataEntryAllowed` is NOT yet in the new `logService.js` — workout-logs hoisted it to middleware, so
-> daily-health must either add it back or adopt the same `requireDataEntryAllowed` hoist). Then `analytics` →
-> `member-analytics`. Each backend commit auto-deploys to Render.
+> **On "continue": spec + port `analytics`** via `question-asker` — the legacy `routes/analytics.js` +
+> `analyticsService.js` (summary, participation, workouts/duration, timeline, distribution, types). It
+> aggregates the now-ported `workout_logs` + `daily_health_logs` fact tables. Then `analytics-v2` →
+> `member-analytics` (member-metrics/history/streaks/recent) → `app-config`/push. Each backend commit
+> auto-deploys to Render.
+>
+> **`daily-health-logs` is DONE (ported 2026-06-29)** — the `dailyHealthLogRouter` half
+> (`/api/daily-health-logs`) of the shared `routes/logs.js`/`services/logService.js`, **appended to the same
+> files `workout-logs` created** (both halves reunited). 4 routes (POST/GET/PUT/DELETE) + the 4 daily-health
+> fns + `parseOptionalNumber`. `consumed_by = [web, ios]` — **all 4 routes 1:1, no divergence, no batch
+> route** (cleaner than workout-logs). Faithful except 2 changes: **D-C2** reuse `workout-logs`'
+> `requireDataEntryAllowed` middleware on the 3 write routes (both halves enforce the `admin_only_data_entry`
+> lock identically; GET ungated; one accepted ordering nuance F4), **D-C3** tidy `updateDailyHealthLog` to a
+> single `body` param (behavior identical). Faithful otherwise (one-row-per-day PK + 409-on-dup, sleep+diet
+> validation, partial-update absent-vs-null, synthetic GET id; F1–F6). Mounted. Boot check passes. **Runtime
+> smoke-test deferred to the batched pre-cutover pass.**
 >
 > **`workout-logs` is DONE (ported 2026-06-29)** — the `workoutLogRouter` half (`/api/workout-logs`) of the
 > shared `routes/logs.js`/`services/logService.js`. **2 dead GET routes dropped** (`GET /` + `GET
@@ -156,10 +165,17 @@ deferred (no web code yet).
     lookups / D-C5 hoist the `admin_only_data_entry` lock to a `requireDataEntryAllowed` middleware);
     `consumed_by = [web, ios]`, `POST /batch` web-only. Faithful otherwise (F1–F9). Boot check passes.
     **Runtime smoke-test pending.**
-12. **NEXT — spec + port the remaining backend features** (daily-health-logs, analytics, member-analytics,
+12. ~~Spec + port `daily-health-logs`.~~ **DONE 2026-06-29** — see
+    [`specs/features/daily-health-logs/SPEC.md`](specs/features/daily-health-logs/SPEC.md) v0.1.0 (🏗️ built).
+    The `dailyHealthLogRouter` half of the shared `logs.js`/`logService.js`, appended to the file pair
+    `workout-logs` created (both halves reunited). 4 routes at `/api/daily-health-logs`; `consumed_by =
+    [web, ios]` all 4 routes 1:1, no divergence. Two changes (D-C2 reuse `requireDataEntryAllowed` on the 3
+    writes; D-C3 single-`body` PUT signature); faithful otherwise (F1–F6). Boot check passes. **Runtime
+    smoke-test pending.**
+13. **NEXT — spec + port the remaining backend features** (analytics, analytics-v2, member-analytics,
     app-config…) via `question-asker`, mounting each route group in `server.js` as it lands. Each backend
-    commit auto-deploys to Render (push to `main` touching `apps/backend/**`). `daily-health-logs` is the
-    other half of the `logs.js`/`logService.js` file pair — append it to those same files.
+    commit auto-deploys to Render (push to `main` touching `apps/backend/**`). `analytics` aggregates the
+    now-ported `workout_logs` + `daily_health_logs` fact tables.
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -185,7 +201,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **9** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **10** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -218,6 +234,31 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (am-2)** — **Specced + ported the `daily-health-logs` feature** (10th feature — the OTHER
+  half of the shared `routes/logs.js`/`services/logService.js` file pair). `question-asker`: reused the
+  full read of `logService.js` (daily-health half) + `routes/logs.js` from the workout-logs run; verified
+  the `DailyHealthLog` model + associations are pre-ported (composite PK `program_id+member_id+log_date` =
+  one row/day; `food_quality`→DB `diet_quality`). Fanned 2 `Explore` agents over web + iOS. **Cleaner than
+  workout-logs:** all 4 routes (POST/GET/PUT/DELETE) live on BOTH clients, **no dead routes, no divergence,
+  no batch route** (`consumed_by = [web, ios]`): web `lib/api/{logs,members}.ts` (log-health form + member
+  health dashboard/detail), iOS `APIClient+Health.swift` + the quick-add health widget +
+  `MemberHealthDetail`/`DailyHealthEditSheet`. 5 decisions: **D-C1** scope = daily-health half, append the
+  4 fns + `parseOptionalNumber` to the file pair (helpers + `requireDataEntryAllowed` middleware already
+  there from workout-logs — reused, not re-created); **D-C2** (user chose consistency) reuse `workout-logs`'
+  `requireDataEntryAllowed` middleware on the 3 write routes so both halves enforce the lock identically
+  (GET ungated; the write fns drop inline `assertDataEntryAllowed`; same accepted ordering nuance F4);
+  **D-C3** tidy `updateDailyHealthLog`'s 3-arg `(parsed, requester, rawBody)` signature → single `(body,
+  requester)` (legacy passed `req.body` twice; behavior identical — derive destructure + `hasOwnProperty`
+  presence from one object); **D-REF** `[web, ios]` all 4 1:1; **D-S1** faithful otherwise. Flagged F1–F6
+  (one-row-per-day PK + 409-on-dup; partial-update absent-vs-null; synthetic GET id; `food_quality↔diet_quality`;
+  the 2 changed legacy shapes). Wrote SPEC v0.1.0; registered in registry.json
+  (`depends_on:[auth, programs, program-memberships, workout-logs]`) + REGISTRY.md + COVERAGE. Then
+  **ported**: appended `parseOptionalNumber` + the 4 daily-health fns to `services/logService.js` (added
+  `Op` + `DailyHealthLog` imports), the `dailyHealthLogRouter` (4 routes, lock on writes) to `routes/logs.js`
+  (now exports both routers), mounted `/api/daily-health-logs` in `server.js`. Boot check (9 service fns
+  export, daily POST/PUT/DELETE guarded + GET ungated, workout router unchanged, server loads) passes.
+  **The logs file pair is now whole** (both halves reunited, like workoutService). **Runtime smoke-test
+  deferred to the batched pre-cutover pass.** Next: `analytics` (aggregates both fact tables).
 - **2026-06-29 (am)** — **Specced + ported the `workout-logs` feature** (9th feature — the workout-logging
   write surface, and the `workoutLogRouter` half of the shared `routes/logs.js`/`services/logService.js`).
   `question-asker`: read the legacy `routes/logs.js` + the workout-log half of `logService.js` + the

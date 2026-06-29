@@ -19,6 +19,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `workouts` | 0.1.0 | 🏗️ | `ios` | `backend` (`routes/workouts.js`, `services/workoutService.js` [library half], `models/Workout.js`) | [workouts/SPEC.md](workouts/SPEC.md) |
 | `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
 | `workout-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
+| `daily-health-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [health half], `services/logService.js` [health half + `parseOptionalNumber`], `models/DailyHealthLog.js`) | [daily-health-logs/SPEC.md](daily-health-logs/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
@@ -49,5 +50,12 @@ client); the 4 live routes (`POST /`, `POST /batch`, `PUT /`, `DELETE /`) ported
 the trio 1:1, `POST /batch` web-only. Four user-chosen cleanups on the faithful base: D-C2 (positive-int
 single-log duration), D-C3 (collapse the member-auth double-check), D-C4 (de-dup the membership lookups,
 incl. `deleteWorkoutLog`'s double `resolveLogPermissions`), D-C5 (hoist the `admin_only_data_entry` lock into
-a `requireDataEntryAllowed` resolve-or-pass-through middleware, 403 preserved). Next
+a `requireDataEntryAllowed` resolve-or-pass-through middleware, 403 preserved). `daily-health-logs` (the
+OTHER half of the `logs.js`/`logService.js` file pair) follows: the `dailyHealthLogRouter` 4 routes
+(POST/GET/PUT/DELETE) + the 4 daily-health fns + `parseOptionalNumber`, appended to the same files (both
+halves reunited). `consumed_by = [web, ios]` — **all 4 routes 1:1, no divergence, no batch route**. Faithful
+except two changes: D-C2 (reuse `workout-logs`' `requireDataEntryAllowed` middleware on the 3 write routes —
+both halves enforce the lock identically; GET ungated) and D-C3 (tidy `updateDailyHealthLog` to a single
+`body` param, behavior identical). One-row-per-day PK / 409-on-dup / sleep+diet validation / partial-update
+absent-vs-null / synthetic GET id kept (F1–F6). Next
 features are authored as the backend rebuild proceeds — see `PROGRESS.md`._

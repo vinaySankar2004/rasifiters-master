@@ -155,6 +155,22 @@
           "server.js"
         ]
       }
+    },
+    "daily-health-logs": {
+      "version": "0.1.0",
+      "spec": "specs/features/daily-health-logs/SPEC.md",
+      "status": "built",
+      "consumed_by": ["web", "ios"],
+      "depends_on": ["auth", "programs", "program-memberships", "workout-logs"],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/logs.js",
+          "services/logService.js",
+          "models/DailyHealthLog.js",
+          "server.js"
+        ]
+      }
     }
   }
 }

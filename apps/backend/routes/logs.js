@@ -5,6 +5,7 @@ const { Program } = require("../models");
 const { AppError } = require("../utils/response");
 
 const workoutLogRouter = express.Router();
+const dailyHealthLogRouter = express.Router();
 
 // ── admin_only_data_entry lock (D-C5 — hoisted from the service into a route middleware) ──
 //
@@ -82,4 +83,53 @@ workoutLogRouter.delete("/", authenticateToken, requireDataEntryAllowed, async (
     }
 });
 
-module.exports = { workoutLogRouter };
+// ── Daily Health Logs ──
+//
+// The 3 write routes reuse the same `requireDataEntryAllowed` lock (D-C2 — both halves of this file enforce
+// the admin_only_data_entry lock identically); GET is `authenticateToken`-only (a read).
+
+dailyHealthLogRouter.post("/", authenticateToken, requireDataEntryAllowed, async (req, res) => {
+    try {
+        const result = await logService.addDailyHealthLog(req.body, req.user);
+        res.status(201).json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error adding daily health log:", err);
+        res.status(500).json({ error: "Failed to add daily health log." });
+    }
+});
+
+dailyHealthLogRouter.get("/", authenticateToken, async (req, res) => {
+    try {
+        const result = await logService.getDailyHealthLogs(req.query, req.user);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error fetching daily health logs:", err);
+        res.status(500).json({ error: "Failed to fetch daily health logs." });
+    }
+});
+
+dailyHealthLogRouter.put("/", authenticateToken, requireDataEntryAllowed, async (req, res) => {
+    try {
+        const result = await logService.updateDailyHealthLog(req.body, req.user);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error updating daily health log:", err);
+        res.status(500).json({ error: "Failed to update daily health log." });
+    }
+});
+
+dailyHealthLogRouter.delete("/", authenticateToken, requireDataEntryAllowed, async (req, res) => {
+    try {
+        const result = await logService.deleteDailyHealthLog(req.body, req.user);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error deleting daily health log:", err);
+        res.status(500).json({ error: "Failed to delete daily health log." });
+    }
+});
+
+module.exports = { workoutLogRouter, dailyHealthLogRouter };
