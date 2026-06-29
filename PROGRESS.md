@@ -30,6 +30,12 @@ deferred (no web code yet).
 
 ## Next action
 
+> **On "continue": start the `programs` feature** — run `question-asker` to spec it (legacy
+> `../backend/routes/programs.js` + `services/programService.js`; watch the `admin_only_data_entry`
+> flag + the `created_by` ownership the members delete-cascade reassigns), then port it to
+> `apps/backend/` and mount `/api/programs` in `server.js`. It's the natural next node: memberships,
+> workouts, and analytics all hang off `programs`. Follow the same loop the `auth` + `members` runs used.
+
 **Phase 2 — backend.** Point the Express app at Supabase + swap auth to verify Supabase JWTs:
 1. ~~Spec the backend **`auth`** feature via `question-asker`.~~ **DONE 2026-06-28** — see
    [`specs/features/auth/SPEC.md`](specs/features/auth/SPEC.md) v0.1.0 (decisions D-C1 whole-module scope /
