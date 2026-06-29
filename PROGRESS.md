@@ -42,9 +42,27 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + the FIRST THREE
+> **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + ALL FOUR
 > WORKSPACE TABS done (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account`
-> + `programs` + `summary` + `members` + `lifestyle`.** The auth-recovery path is END-TO-END (forgot → email → reset → login).
+> + `programs` + `summary` + `members` + `lifestyle` + `program`.** The auth-recovery path is END-TO-END (forgot → email → reset → login).
+> **The `program` page (10th web page, 4th & LAST WORKSPACE TAB `/program`) is DONE** (2026-06-29): faithful 1:1 port of
+> the legacy **program settings hub** — a role-gated menu (program info/edit · members/invite · role management · workout
+> types · leave · my account) for admins, or a **read-only** program-info card (name/status/duration/client-computed
+> progress/active-count) + switch/leave for non-admins. Only **Leave Program** (`PUT /program-memberships/leave`) +
+> **Sign Out** are live actions on the landing; everything else is forward-nav. **`admin_only_data_entry` N/A** (no data
+> entry — it's settings). **D-SCOPE** = landing only (6 `/program/*` sub-routes `edit/roles/profile/password/appearance/
+> privacy` deferred as their own rows). **D-S1** faithful + 2 pinned cleanups: **D-C1** appearance label via the
+> foundation's `getStoredTheme()` (was raw `localStorage`), **D-C2** extract the byte-identical duplicated
+> `LeaveProgramButton`; **D-C3** keep `computeProgramProgress` local (client-computed, distinct from summary's
+> server-derived progress — run-11). **Zero new deps, zero backend work, NO feature bump** — all api modules / 5 `ui/`
+> components / 11 icons / format-storage-theme helpers already ported, both endpoints already mounted. The bottom-nav
+> `/program` tab (already wired in `shell.tsx`) now resolves — **all 4 workspace tabs are live.** Flagged F1–F6 (client
+> JWT-decode role; forward-nav to unbuilt routes; global_admin can't leave; client-computed progress; raw `rf:appearance`
+> write contract owned by the appearance sub-route; no client throttle). `npm run build` ✓ (`/program` prerendered,
+> 4.36 kB — no Recharts; Middleware 27.3 kB active). **All this session's work committed via `git-version` next; lessons
+> run 24 appended.** **NEXT = the SUB-ROUTE layer — the workspace landing layer is now complete:** the 6 deferred
+> `/program/*` sub-routes, the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2
+> deferred `/lifestyle` sub-routes.
 > **The `lifestyle` page (9th web page, 3rd WORKSPACE TAB `/lifestyle`) is DONE** (2026-06-29): faithful 1:1 port of
 > the legacy lifestyle dashboard — NOT a sleep/diet logging screen but a **read-only** workout-type-analytics +
 > health-timeline overview with the same role-gated **"view as"** picker as Members (admin/global-admin view-as any
@@ -391,20 +409,21 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        features (program-memberships, invites, logs, workouts, notifications, analytics…) pending._
 5. [~] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end. _Foundation scaffold ported + builds green 2026-06-29
-       (`apps/web`); **9 pages done** — public/auth path (splash → login → forgot → reset → create-account)
-       + the `programs` hub (first protected route; resolved the middleware HS256→ES256 decision) + the
-       `summary` workspace tab (1st tab; read overview + desktop log-form modals) + the `members` workspace
-       tab (2nd tab; per-member overview + role-gated "view as" picker, read-only) + the `lifestyle` workspace
-       tab (3rd tab; read-only workout-type analytics + health-timeline overview, same view-as picker). Next:
-       the last tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6 deferred `/summary`
-       sub-routes, and/or the 2 deferred `/lifestyle` sub-routes (`workouts`/`timeline`)._
+       (`apps/web`); **10 pages done** — public/auth path (splash → login → forgot → reset → create-account)
+       + the `programs` hub (first protected route; resolved the middleware HS256→ES256 decision) + ALL FOUR
+       workspace tabs: `summary` (read overview + desktop log-form modals) + `members` (per-member overview +
+       role-gated "view as" picker, read-only) + `lifestyle` (read-only workout-type analytics + health-timeline
+       overview) + `program` (4th & last tab — the settings hub: role-gated menu / non-admin read-only card +
+       Leave + Sign Out; all 4 bottom-nav tabs now resolve). **The workspace landing layer is complete.** Next:
+       the SUB-ROUTE layer — the 6 deferred `/program/*` sub-routes, the 8 deferred `/members` sub-routes, the 6
+       deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
 
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **9** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **10** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
@@ -434,9 +453,17 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   popularity list; **read-only** so `admin_only_data_entry` N/A; D-SCOPE = landing only (2 sub-routes
   `/lifestyle/{workouts,timeline}` deferred), D-S1 faithful + D-C1 port whole `lib/api/lifestyle.ts` verbatim +
   D-C2 port `ui/EmptyState.tsx` verbatim; consumes `analytics`/`analytics-v2`/`program-memberships`/`auth`, all
-  endpoints already mounted, no feature bump) · iOS screen specs: **0**
-  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + first THREE workspace tabs done; next =
-  the last tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes; see Next action_
+  endpoints already mounted, no feature bump), `program` (🏗️ v0.1.0 `[web]` — **4th & LAST WORKSPACE TAB**
+  `/program`: the **settings hub** — role-gated menu (program info/edit · members/invite · role management · workout
+  types · leave · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins; only
+  **Leave Program** + **Sign Out** are live, all else forward-nav; **read-only-ish** so `admin_only_data_entry` N/A;
+  D-SCOPE = landing only (6 `/program/*` sub-routes deferred), D-S1 faithful + D-C1 appearance label via
+  `getStoredTheme()` + D-C2 extract duplicated `LeaveProgramButton` + D-C3 keep `computeProgramProgress` local;
+  consumes `program-memberships`/`program-workouts`/`auth`, all endpoints already mounted, **no new deps, no feature
+  bump**) · iOS screen specs: **0**
+  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + ALL FOUR workspace tabs done
+  (workspace landing layer complete); next = the SUB-ROUTE layer: the 6 deferred `/program/*`, the 8 deferred
+  `/members`, the 6 deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes; see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -476,6 +503,28 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (pm-10)** — **Specced + ported the `program` page (10th web page) — the FOURTH & LAST WORKSPACE
+  TAB (`/program`), the program settings hub. All 4 workspace tabs now live; the landing layer is complete.**
+  `question-asker` run 24. User picked `/program` (last tab) over the deferred sub-routes. The page is small, so
+  I read the 541-line landing `page.tsx` in full myself and verified every dep with greps over our ported
+  foundation (no Explore fan-out needed). **Key findings:** (1) a **third "name could mislead"** page (runs 22/23
+  recur) — `/program` is the settings/account hub, not program-CRUD; the real editors are 6 deferred sub-routes
+  (`edit/roles/profile/password/appearance/privacy`). (2) Two **role variants**: admin menu vs non-admin read-only
+  Program Info card; only **Leave Program** (`PUT /program-memberships/leave`) + **Sign Out** are live on the
+  landing, all else forward-nav. (3) `canLeaveProgram = !isGlobalAdmin` — a global admin is treated as
+  program-admin but can't Leave (intentional). (4) **run-11 client-vs-server recurred**: the landing's
+  `computeProgramProgress` is client-computed from `start_date`/`end_date`, distinct from summary's server-derived
+  `progress_percent` → keep local, not a shared helper. (5) `MyAccountSection` read `rf:appearance` raw from
+  `localStorage`, duplicating the foundation's `getStoredTheme()`. **Stance = faithful + 2 pinned cleanups** (user
+  picked change-now → the run-6/14/22 pinning multiSelect): **D-C1** appearance label via `getStoredTheme()`,
+  **D-C2** extract the byte-identical duplicated `LeaveProgramButton`; **D-C3** keep `computeProgramProgress` local
+  (confirm). **Zero new deps, zero backend work, NO feature bump** — all api modules / 5 `ui/` components / 11
+  icons / format-storage-theme helpers already ported, both endpoints already mounted. Ported
+  `apps/web/src/app/program/page.tsx` (verbatim + D-C1/D-C2). The bottom-nav `/program` tab (already wired in
+  `shell.tsx`) now resolves — **all 4 workspace tabs live.** SPEC v0.1.0 (D-REF `[web]` / D-SCOPE / D-S1 / D-C1 /
+  D-C2 / D-C3; F1–F6). Page REGISTRY ticked; lessons run 24 appended. `npm run build` ✓ (`/program` prerendered,
+  4.36 kB — no Recharts; Middleware 27.3 kB active). **Committed via `git-version` next. Next:** the SUB-ROUTE
+  layer (6 `/program/*`, 8 `/members`, 6 `/summary`, 2 `/lifestyle`).
 - **2026-06-29 (pm-9)** — **Specced + ported the `lifestyle` page (9th web page) — the THIRD WORKSPACE TAB
   (`/lifestyle`), the workout-type-analytics / health-timeline overview.** `question-asker` run 23. User picked
   `/lifestyle` (3rd tab) over the deferred sub-routes / `/program` tab. Opening sweep fanned 3 `Explore` agents
