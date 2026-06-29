@@ -14,6 +14,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 |------|-------|--------|---------------------|------|
 | splash | `/splash` (root `/` redirects here) | 🏗️ v0.1.0 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
 | login | `/login` | 🏗️ v0.1.0 | `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers) | [login SPEC](web/login/SPEC.md) |
+| forgot-password | `/forgot-password` | 🏗️ v0.1.0 | `auth` v0.3.0 (`requestPasswordReset()` `POST /auth/forgot-password`, `useAuth`); `SUPPORT_EMAIL` | [forgot-password SPEC](web/forgot-password/SPEC.md) |
 
 Inventory to document (from the research pass): splash · login · create-account · privacy-policy · support ·
 programs · program (+ profile/password/appearance/privacy/roles/edit) · summary (+ activity/distribution/

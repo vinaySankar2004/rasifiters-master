@@ -1,6 +1,6 @@
 # Feature: `auth` — authentication, session, and request authorization
 
-> **Status:** 🚀 deployed (live on Render) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🚀 deployed (live on Render) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Reference impl (legacy):** `../../../backend` — `routes/auth.js`, `services/authService.js`,
 > `middleware/auth.js`, `models/{Member,MemberEmail,MemberCredential,RefreshToken,MemberPushToken}.js`,
 > `server.js`.
@@ -48,6 +48,7 @@ All mounted at **`/api/auth`** (legacy `server.js:46`). Reference handlers in `r
 | 6 | `POST /register` | `routes/auth.js:60-69` → `register` (`authService.js:242-300`) | no | Create a new account (member + email + credential). 201. |
 | 7 | `PUT /change-password` | `routes/auth.js:71-80` → `changePassword` (`authService.js:302-315`) | **yes** | Set a new password for the authenticated member. |
 | 8 | `DELETE /account` | `routes/auth.js:82-91` → `deleteAccount` (`authService.js:deleteAccount`) | **yes** | Delete the authenticated member: shared cross-feature cascade (`cascadeMemberDeletion`) + Supabase auth-user delete. **WIRED** (D-C1). |
+| 9 | `POST /forgot-password` | **NET-NEW** (no legacy handler) → `requestPasswordReset` | no | **Self-service password recovery, request step.** Proxies Supabase `resetPasswordForEmail`. **Privacy-safe — always 200** with a generic message (no account-enumeration). Pairs with `POST /reset-password` (next run). **D-C4.** |
 
 ### Response shapes (preserved 1:1 — D-C3)
 
@@ -63,6 +64,10 @@ All mounted at **`/api/auth`** (legacy `server.js:46`). Reference handlers in `r
   member_id, username, member_name }`.
 - **`/change-password`** (`authService.js:314`): `{ message: "Password changed successfully." }`.
 - **`/account`** (`authService.js:403`): `{ message: "Account deleted successfully." }`.
+- **`/forgot-password`** (`requestPasswordReset`, NET-NEW): **always** `200 { message: "If an account
+  with that email exists, a password reset link has been sent." }` — the **same** response whether or not
+  the email maps to an account (no enumeration). A malformed/empty email returns the same 200 (no Supabase
+  call made); a Supabase error is swallowed.
 
 ### Error contract (faithful — `routes/auth.js` + `utils/response.AppError`)
 
@@ -104,6 +109,14 @@ credentials / token), `403` (global-admin delete block), `404` (credentials/acco
   **Rebuild delta:** after the transaction commits, best-effort delete the Supabase Auth user (admin API).
   The non-auth cascade is **owned by `program-memberships`** (single-sourced) and shared verbatim with
   `DELETE /api/members/:id` (D-C1).
+- **Password recovery — request step** (`requestPasswordReset`, **NET-NEW**, no legacy equivalent — D-C4):
+  normalize the email, and if it's syntactically valid call Supabase `resetPasswordForEmail(email,
+  { redirectTo: PASSWORD_RESET_REDIRECT_URL })` (the link lands on our **own** web `/reset-password` page —
+  R1). **Always returns the same generic 200** regardless of existence/validity/delivery (no enumeration);
+  Supabase errors are swallowed. The **reset (consume) step** — `POST /reset-password` that forwards the
+  recovery token from `/reset-password` back through Express to update the password — is the **next run**
+  (forgot-password page SPEC D-SCOPE). This is the migration's new self-service recovery (legacy had none on
+  either client).
 - **Push-token capture on mobile login** (`loginGlobal` → `upsertPushToken`, `authService.js:99-121`,
   `171-174`). **Referenced** — owned by the `notifications` feature; this SPEC only notes the call site.
 
@@ -148,6 +161,7 @@ Owned/required by this feature (faithful names, R5; schema in `apps/backend/sql/
 | `REFRESH_TOKEN_TTL_DAYS` | refresh expiry, `90` (`authService.js:26-30`) | **retired** → Supabase Auth config. |
 | `DB_URL` | Sequelize → Render Postgres (`config/database.js:5`) | → Supabase Postgres connection string. |
 | — (new) | — | **`SUPABASE_URL`**, **`SUPABASE_SERVICE_ROLE_KEY`** (admin API for sign-in proxy / createUser / updateUser / deleteUser), **`SUPABASE_JWKS_URL`** / project ref (JWT verification). Concrete values in `ENV_RUNBOOK.md` at build time. |
+| — (new) | — | **`PASSWORD_RESET_REDIRECT_URL`** (D-C4) — the recovery email link destination; MUST equal the deployed web origin + `/reset-password` and also be allow-listed in Supabase → Auth → URL Configuration → Redirect URLs. Unset → Supabase falls back to its Site URL. Committed (non-secret) in `render.yaml` = `https://rasifiters.com/reset-password` (forward dep — the page lands next run). |
 
 ## 7. The migration delta (legacy → Supabase Auth) — the load-bearing part
 
@@ -190,7 +204,8 @@ unchanged** (`isAdmin`/`requireProgramAdmin`/`requireProgramMember`/`canModifyLo
 | **D-C2** | **Verify Supabase JWTs via JWKS (ES256) + a per-request DB lookup** `sub`→`members.auth_user_id` to rebuild the existing `req.user` shape. Not custom claims / auth-hook; not the legacy HS256 shared secret. | Replaces `auth.js:13-14`; `001_schema.sql:34,242`; METHODOLOGY R1. |
 | **D-C3** | **Clients unchanged; `consumed_by = [web, ios]`.** Express returns the exact legacy response shapes; login proxies Supabase sign-in (resolved email); refresh/logout proxy Supabase; the `refresh_tokens` rotation table retires. | `authService.js:145-153, 176-184, 223-227`; CONTEXT.md (backend) Auth §. |
 | **D-S1** | **Faithful 1:1 stance.** Preserve endpoints, response shapes, the ≥8/upper/lower/digit password rule, dual legacy/global payloads, and all authorization rules. Oddities are kept and flagged in §10, not fixed now. | `validatePassword` (`authService.js:83-91`); whole-module review. |
-| **D-REF** | **Reference implementation** = legacy `../../../backend` (`routes/auth.js`, `services/authService.js`, `middleware/auth.js`, the five auth models, `server.js:46`). Faithful port except the §7 credential/token/verify delta. | Verified file:line throughout this SPEC. |
+| **D-C4** | **NET-NEW `POST /forgot-password` (v0.3.0) — privacy-safe, backend-proxied recovery request.** No legacy equivalent; added because Supabase Auth enables self-service recovery. `requestPasswordReset` always returns the same generic 200 (no account-enumeration) and proxies Supabase `resetPasswordForEmail` with `redirectTo` = our **own** web `/reset-password` page (R1 — clients never embed Supabase). The **consume step** (`POST /reset-password`) is the **next run** (scope = "Page + forgot route", forgot-password page SPEC D-SCOPE). MINOR bump (additive, backward-compatible). | User answers (recovery plan; this-run scope); `authService.js` `requestPasswordReset`; `routes/auth.js` `POST /forgot-password`; METHODOLOGY R1. |
+| **D-REF** | **Reference implementation** = legacy `../../../backend` (`routes/auth.js`, `services/authService.js`, `middleware/auth.js`, the five auth models, `server.js:46`). Faithful port except the §7 credential/token/verify delta **and the net-new recovery routes (D-C4, no legacy reference)**. | Verified file:line throughout this SPEC. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -212,4 +227,5 @@ unchanged** (`isAdmin`/`requireProgramAdmin`/`requireProgramMember`/`canModifyLo
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — faithful foundation (13 models + `index.js` minus retired `member_credentials`/`refresh_tokens`; `Member.auth_user_id` added) + the auth slice (`config/supabase.js` JWKS verify, `middleware/auth.js`, `services/authService.js`, `routes/auth.js`, `server.js` mounting only `/api/auth`). Status 📄→🏗️ (no semver bump — faithful port, contract unchanged). Known gaps: `DELETE /account`→501 (cascade owned by program-memberships/notifications, D-C1); backend deploy + asymmetric Supabase JWT keys pending. |
 | 0.1.0 (infra) | 2026-06-28 | **Backend host = Render, not Railway** (METHODOLOGY R7) — the D-C2 JWKS verify path is unchanged; the deploy target is a Render web service (Blueprint `apps/backend/render.yaml`). **Asymmetric Supabase JWT keys RESOLVED:** the project's JWKS endpoint serves a live `ES256`/P-256 key, so JWKS verify finds a key. No SPEC/contract change (no semver bump). Remaining gap: `DELETE /account`→501 (unchanged). |
 | 0.1.0 (deployed 🚀) | 2026-06-28 | **DEPLOYED to Render + verified live** at `https://rasifiters-api.onrender.com` (service `srv-d90tgmv7f7vs73cudptg`). Full auth round-trip green against migrated data (admin): `login`→200 (member resolution + primary-email + Supabase sign-in, **imported bcrypt password verified**, ES256 JWT `kid 0f6cd324…`); guarded route w/ valid token→200 (`authenticateToken` JWKS verify + `sub`→`members.auth_user_id`→`req.user`, the D-C2 path); garbage token→401; `refresh`→200; `logout`→200; unauth guard→401. Status 🏗️→🚀 (faithful deploy, no semver bump). **Migration fix shipped:** placeholder (no-email) members lacked a `member_emails` row → `admin` 401'd before password check; backfilled via `apps/backend/sql/002_backfill_placeholder_member_emails.sql` + `tools/migrator/src/importAuth.js` (writes the placeholder row on create/link/re-run). Remaining gap: `DELETE /account`→501 (unchanged). |
+| 0.3.0 | 2026-06-29 | **NET-NEW `POST /forgot-password` (D-C4) — self-service password recovery, request step.** Added `requestPasswordReset` (`services/authService.js`) + the public route (`routes/auth.js`) + `PASSWORD_RESET_REDIRECT_URL` (`render.yaml`). Privacy-safe: **always 200** with a generic message (no enumeration); proxies Supabase `resetPasswordForEmail(email, { redirectTo: <web>/reset-password })`; clients never embed Supabase (R1). No legacy reference (recovery existed on neither client). MINOR bump (additive). **The consume step `POST /reset-password` is the NEXT run** (this run's scope = forgot-password page + this one route — page SPEC D-SCOPE). Boot check passes (route mounted public, 1 handler). Drives the web `forgot-password` page ([SPEC](../../pages/web/forgot-password/SPEC.md)). Runtime smoke-test deferred to the batched pre-cutover pass. |
 | 0.2.0 | 2026-06-28 | **Wired `DELETE /account` (D-C1) — the 501 deferral is resolved** now that `program-memberships`/`invites`/`notifications` are ported. `deleteAccount` runs the shared cross-feature cascade `utils/programMemberships.cascadeMemberDeletion` (destroy outbound invites + actored notifications, `handleMemberExit` per active membership/created program, notify remaining members, destroy the member) — **single-sourced, shared verbatim** with `DELETE /api/members/:id` — then best-effort deletes the Supabase auth user after commit (the migration delta vs legacy `member_credentials`). Faithful to the legacy `deleteAccount` body; minor bump (functionality previously 501). Boot check passes. |

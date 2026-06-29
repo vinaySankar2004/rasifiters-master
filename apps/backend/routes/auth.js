@@ -68,6 +68,19 @@ router.post("/register", async (req, res) => {
     }
 });
 
+// NET-NEW (SPEC v0.3.0 / D-C4) — self-service password recovery, request step. Public, privacy-safe:
+// always 200 with a generic message (no account-enumeration). Pairs with POST /reset-password (next run).
+router.post("/forgot-password", async (req, res) => {
+    try {
+        const result = await authService.requestPasswordReset(req.body.email);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[forgot-password] error:", err);
+        res.status(500).json({ error: "Server error during password reset request." });
+    }
+});
+
 router.put("/change-password", authenticateToken, async (req, res) => {
     try {
         const result = await authService.changePassword(req.user.id, req.body.new_password);

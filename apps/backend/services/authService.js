@@ -18,6 +18,18 @@ const formatMemberName = (member) => member?.member_name || "";
 
 const normalizeEmail = (email) => (email || "").trim().toLowerCase();
 
+// Loose, defensive email-shape check (the web client validates format inline; this is a backstop so
+// we don't make a pointless Supabase call on obvious garbage). Existence is NEVER checked here.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Where the Supabase recovery email's link lands — our OWN web /reset-password page (R1: clients never
+// embed Supabase; that page forwards the recovery token back through Express). Unset → Supabase falls
+// back to its configured Site URL. The /reset-password page + POST /auth/reset-password land next run.
+const passwordResetRedirectUrl = () => {
+    const url = (process.env.PASSWORD_RESET_REDIRECT_URL || "").trim();
+    return url || null;
+};
+
 // Resolve a member from a username OR email (faithful to legacy resolveMemberByIdentifier):
 // exact username match first, then normalized-email lookup via member_emails.
 const resolveMemberByIdentifier = async (identifier) => {
@@ -250,6 +262,27 @@ async function changePassword(memberId, newPassword) {
     return { message: "Password changed successfully." };
 }
 
+// NET-NEW (auth SPEC v0.3.0 / D-C4): self-service password recovery — request step. Privacy-safe by
+// design (forgot-password page D-PLAN): ALWAYS returns the same generic 200 message, never revealing
+// whether the email maps to an account (no enumeration). Supabase is asked to send the recovery email
+// (it only does so when the email exists); any Supabase error is swallowed so nothing leaks. The reset
+// itself runs through a separate POST /auth/reset-password (next run) — clients never embed Supabase (R1).
+async function requestPasswordReset(emailRaw) {
+    const email = normalizeEmail(emailRaw);
+    if (email && EMAIL_RE.test(email)) {
+        const redirectTo = passwordResetRedirectUrl();
+        try {
+            await supabaseAuth.auth.resetPasswordForEmail(
+                email,
+                redirectTo ? { redirectTo } : undefined
+            );
+        } catch (_) {
+            // Swallow — never surface delivery/existence status to the caller.
+        }
+    }
+    return { message: "If an account with that email exists, a password reset link has been sent." };
+}
+
 // WIRED (SPEC D-C1): faithful self-service account deletion. The DB-side cross-feature cascade (destroy
 // outbound invites + actored notifications, run handleMemberExit per active membership/created program,
 // notify remaining members, destroy the member) is single-sourced in
@@ -293,6 +326,7 @@ module.exports = {
     logout,
     register,
     changePassword,
+    requestPasswordReset,
     deleteAccount,
     upsertPushToken,
     removePushToken,

@@ -15,3 +15,8 @@ export const AUTH_LOGIN_PATH =
 export const PRIVACY_POLICY_URL =
   process.env.NEXT_PUBLIC_PRIVACY_POLICY_URL ??
   "https://vinaysankar2004.github.io/RaSi-Fiters/";
+
+// Support contact for the auth-recovery "No email on your account? Contact us" mailto fallback
+// (forgot-password page). PLACEHOLDER — may change; overridden by NEXT_PUBLIC_SUPPORT_EMAIL at deploy.
+export const SUPPORT_EMAIL =
+  process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "vinay.sankara@gmail.com";

@@ -39,6 +39,12 @@ services:
         value: "1.2.0"
       - key: SUPABASE_URL
         value: https://kpadxjekpiwfkqcxtrio.supabase.co
+      # Password-recovery email link destination (auth SPEC v0.3.0 / forgot-password page). MUST match the
+      # deployed web origin + carry the path /reset-password (that page + POST /auth/reset-password land the
+      # NEXT run). Also add this exact URL to Supabase → Auth → URL Configuration → Redirect URLs. Until web
+      # is on Vercel this is a forward dependency; unset → Supabase falls back to its Site URL.
+      - key: PASSWORD_RESET_REDIRECT_URL
+        value: https://rasifiters.com/reset-password
       # SUPABASE_JWKS_URL / SUPABASE_JWT_ISS intentionally unset — they default off SUPABASE_URL
       # (${SUPABASE_URL}/auth/v1/.well-known/jwks.json) per auth SPEC D-C2. The project's JWT signing
       # keys are already migrated to asymmetric ES256 (verified live), so JWKS verify finds a key.

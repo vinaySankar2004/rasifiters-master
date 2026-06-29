@@ -59,6 +59,15 @@ export async function logout(refreshToken: string) {
   });
 }
 
+// Self-service password recovery — request step. Privacy-safe: the backend always returns a generic
+// 200 message (no account-enumeration). Pairs with a reset step landing next run.
+export async function requestPasswordReset(email: string) {
+  return apiRequest<{ message?: string }>("/auth/forgot-password", {
+    method: "POST",
+    body: { email }
+  });
+}
+
 export async function changePassword(token: string, newPassword: string) {
   return apiRequest<{ message?: string }>("/auth/change-password", {
     method: "PUT",

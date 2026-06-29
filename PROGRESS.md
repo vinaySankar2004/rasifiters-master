@@ -42,20 +42,23 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — `splash` + `login` pages ported (2026-06-29).** **NEXT page =
-> `forgot-password`**, the next step of the **auth-recovery path** the user mandated (the whole point of
-> Supabase Auth = easy self-service recovery). The `login` page added ONE thing beyond the faithful port: a
-> "Forgot your password?" link → `/forgot-password` (D-C1). The recovery path plan (D-PLAN, all user-decided):
-> (1) **forgot-password page** = **always-send + always-visible contact link** — always call Supabase
-> `resetPasswordForEmail` (privacy-safe, no enumeration) AND always show a "No email? Contact us" `mailto:`
-> (support = **`vinay.sankara@gmail.com`**, a PLACEHOLDER that may change — wire as a config/env value);
-> (2) the **reset flow runs THROUGH the Express backend** (R1 — no Supabase in clients) → **new `auth` routes
-> (`POST /auth/forgot-password`, `POST /auth/reset-password`) + a MINOR bump on the `auth` feature SPEC**;
-> (3) **sign-up email becomes mandatory + format-validated** (forward-only; existing/placeholder accounts
-> untouched — backend `register` already requires email per members D-C2). Then `create-account`, then the
-> programs hub. Still outstanding from Phase 1/2: provision the Vercel `rasifiters-web` project (deferred —
-> needed before a web deploy); the **batched pre-cutover runtime smoke-test pass** of all ported backend
-> features (needs a live admin JWT the user supplies) + a final pre-cutover migrator re-run.
+> **On "continue": Phase 3 `web` in progress — `splash` + `login` + `forgot-password` pages ported (2026-06-29).**
+> **NEXT page = `reset-password`** — the email link's destination (recovery step 2 of 2) + its backend route.
+> The `forgot-password` page (recovery step 1) is DONE: email-only field with inline format validation,
+> **always-send + generic success** (privacy-safe, no enumeration), an **always-visible `mailto:` contact
+> fallback** (support = **`vinay.sankara@gmail.com`** placeholder via `SUPPORT_EMAIL`) for the migrated
+> no-email accounts, reset routed **through Express** (R1). It calls the **NET-NEW `POST /auth/forgot-password`**
+> (auth SPEC bumped **0.2.0→0.3.0**, D-C4 — `requestPasswordReset` proxies Supabase `resetPasswordForEmail`
+> with `redirectTo` = `PASSWORD_RESET_REDIRECT_URL` → our `/reset-password`; always 200). **Scope this run was
+> "page + forgot route only"** (user-chosen) — so **`reset-password` page + `POST /auth/reset-password`
+> (another auth MINOR bump → 0.4.0) is the immediate next unit.** The reset page extracts the recovery token
+> from the email-link fragment and forwards it through Express to set the new password (clients never embed
+> Supabase, R1). Then: **(3) sign-up email mandatory + format-validated** (forward-only — `register` already
+> requires email per members D-C2), then `create-account`, then the programs hub. Still outstanding from
+> Phase 1/2: provision the Vercel `rasifiters-web` project (deferred — needed before a web deploy, and the
+> reset-link `redirectTo` won't have a live target until then); the **batched pre-cutover runtime smoke-test
+> pass** of all ported backend features (needs a live admin JWT the user supplies) + a final pre-cutover
+> migrator re-run.
 >
 > **On "continue": BACKEND FEATURE COVERAGE IS COMPLETE (14 features, 2026-06-29).** Every legacy backend
 > route group is now SPEC'd + ported + mounted in `server.js`; `COVERAGE.md`'s backend section is fully
@@ -319,10 +322,12 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **14** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **2** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.0 `[web]` — faithful + ONE
-  addition: "Forgot password?" link → `/forgot-password`) · iOS screen specs: **0** (see
-  `specs/pages/REGISTRY.md`) — _`forgot-password` page next (the auth-recovery path; see Next action)_
+- Shared features documented: **14** — `auth` (🚀 v0.3.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
+- Web page specs: **3** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.0 `[web]` — faithful + ONE
+  addition: "Forgot password?" link → `/forgot-password`), `forgot-password` (🏗️ v0.1.0 `[web]` —
+  **net-new**: always-send + always-visible `mailto:` fallback + inline email validation; calls the net-new
+  `POST /auth/forgot-password`, auth v0.3.0) · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`) —
+  _`reset-password` page next (recovery step 2 + `POST /auth/reset-password`, auth → 0.4.0; see Next action)_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -360,6 +365,33 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-29 (pm-3)** — **Specced + ported the `forgot-password` page (3rd web page, the FIRST net-new
+  one) + the NET-NEW backend `POST /auth/forgot-password` (auth 0.2.0→0.3.0).** `question-asker` run 17.
+  Opening sweep verified the link source ([login/page.tsx:156-163](apps/web/src/app/login/page.tsx#L156)
+  already renders the D-C1 "Forgot your password?" → `/forgot-password` link), the web config/API/client
+  patterns, and the ported auth stack — confirming `resetPasswordForEmail` is **unused** and the reset must
+  proxy through Express (R1; `changePassword` already uses `supabaseAdmin.updateUserById`). Most behavior was
+  pre-locked by login's D-PLAN, so a tight **2-Q** round on the genuinely-open decisions: **Scope** = *"Page +
+  forgot route only"* (user — build the page + the one route it calls this run; **`reset-password` page +
+  `POST /auth/reset-password` = next run**, another auth MINOR bump → 0.4.0); **Email field** = *add inline
+  email-format validation* (user — the field is email-only, unlike login's username-or-email identifier; a
+  deliberate divergence from login's no-validation F5). **Ported:** backend `requestPasswordReset`
+  (`services/authService.js` — always-200 generic message, no enumeration; calls Supabase
+  `resetPasswordForEmail(email, { redirectTo: PASSWORD_RESET_REDIRECT_URL })` only when email is format-valid;
+  swallows errors) + public `POST /forgot-password` (`routes/auth.js`) + `PASSWORD_RESET_REDIRECT_URL` in
+  `render.yaml` (=`https://rasifiters.com/reset-password`, forward dep). Web: `SUPPORT_EMAIL` (`config.ts`,
+  `vinay.sankara@gmail.com` placeholder), `requestPasswordReset()` (`api/auth.ts`), and
+  `app/forgot-password/page.tsx` — BrandMark + email field + inline format hint + "Send reset link", generic
+  green success replacing the form, an **always-visible `mailto:` "Contact us" fallback** (both states) for
+  no-email accounts, "Back to login", already-authed → `/programs`. Boot check passes (route mounted public,
+  1 handler; `requestPasswordReset` exported); `npm run build` ✓ (`/forgot-password` prerendered, 3.94 kB).
+  Wrote `specs/pages/web/forgot-password/SPEC.md` v0.1.0 (D-REF net-new / D-SCOPE / D-C1 always-send+fallback
+  / D-C2 inline validation / D-C3 reset-via-Express R1 / D-S1 faithful chrome; F1–F5: form flash, no client
+  rate-limit, iOS recovery gap, reset-page forward dependency, placeholder support email). Bumped auth SPEC →
+  **0.3.0** (route #9, §4 behavior, §6 env, **D-C4**, changelog) + registry.json/REGISTRY.md; page REGISTRY +
+  COVERAGE ticked (forgot-password ✓; reset-password = planned next); lessons run 17 appended next.
+  **All this session's work committed via `git-version` next. NEXT page = `reset-password`.**
 
 - **2026-06-29 (pm-2)** — **Specced + ported the `login` page (2nd web page spec) + established the
   auth-recovery path plan.** User opened by mandating the auth follow-up set: Supabase Auth was chosen for
