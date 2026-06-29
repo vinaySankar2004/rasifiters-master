@@ -1076,3 +1076,52 @@ lessons:
 `[web]` / D-SCOPE / D-S1 / D-C1 / D-C2; F1–F7). Page REGISTRY + COVERAGE ticked (lifestyle ✓). **No feature
 bump.** **Next:** the last tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6 deferred
 `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes.
+
+---
+
+## Run 24 — `/program` (web): the program SETTINGS HUB (4th & last workspace tab)
+
+**Target.** `specs/pages/web/program/SPEC.md` — the 9th web page, the **last** of the 4 workspace tabs
+(Summary/Members/Lifestyle/Program). User picked `/program` over the deferred sub-routes. Faithful 1:1 port of
+the legacy settings hub.
+
+**Sweep.** Read the 541-line landing `program/page.tsx` in full myself (incl. its 6 local helper components);
+verified deps with greps over our ported foundation rather than fanning Explore agents — the page is small and
+every dep was already ported (api modules `programs`/`program-workouts`, all 5 `ui/` components, 11 icons,
+`format`/`storage`/`theme` helpers). Confirmed both backend endpoints mounted (`GET /program-memberships/details`,
+`PUT /program-memberships/leave`). **Zero new deps, zero backend work, no feature bump** — the cleanest run yet.
+
+**Findings.** (1) A **third "name could mislead"** page — `/program` sounds like program-CRUD but is the
+settings/account hub; the real editors are 6 deferred sub-routes (`edit/roles/profile/password/appearance/
+privacy`). (2) Two **role variants** of the body: admin menu vs non-admin read-only Program Info card. Only
+**Leave Program** + **Sign Out** are live on the landing; all else is forward-nav. (3) `canLeaveProgram =
+!isGlobalAdmin` — a global admin is treated as program-admin but can't Leave (intentional; not an enrolled
+member to exit). (4) **client-vs-server progress (run-11) recurred**: the landing's `computeProgramProgress` is
+client-computed from `start_date`/`end_date`, distinct from summary's server-derived `progress_percent` — so
+NOT a shared helper; keep local. (5) `MyAccountSection` read `rf:appearance` **raw from localStorage**, exactly
+duplicating the foundation's `getStoredTheme()` (`lib/theme.ts` `THEME_KEY`).
+
+**Decisions.** D-SCOPE landing only (6 sub-routes deferred) · D-S1 faithful 1:1 · **D-C1** appearance label via
+`getStoredTheme()` (run-22 "use the foundation helper that subsumes inline logic") · **D-C2** extract the
+byte-identical duplicated Leave Program button into one `LeaveProgramButton` (de-dup WITHIN a file =
+behavior-preserving) · **D-C3** keep `computeProgramProgress` local (confirm, no change). F1–F6.
+
+**Durable patterns — reinforcement, nothing new to promote.** All established lessons applied cleanly:
+1. **"The name could mislead" — third occurrence** (runs 22, 23, now 24). Read the landing file in full; the
+   CRUD/editors live in deferred sub-routes. (Already in SKILL.md.)
+2. **Near-twin reuses its twin's decision shape** — `/program` mirrors the other tabs' D-SCOPE/D-S1/forward-nav-F2
+   pattern; the run is fast because you recognize the hub shape and confirm. (Already in SKILL.md, run 23.)
+3. **"Faithful + pinned cleanups" with the stance option pre-naming the cleanup** — the user picked the
+   change-now stance, so I ran the run-6/14/22 pinning multiSelect (concrete code-grounded cleanups; unselected
+   stay faithful + flagged). Both reuse-the-foundation-helper (D-C1) and de-dup-within-file (D-C2) are the
+   recurring safe cleanup classes; the confirm-keep-local option (D-C3) is the run-11 client-vs-server call.
+   (Already covered; no promotion.)
+4. **The "zero backend work, no feature bump" consuming page (run 21)** recurred in its purest form — all
+   endpoints mounted AND all deps already ported, so the only versioned artifact is the page SPEC at v0.1.0.
+
+**Output.** `apps/web/src/app/program/page.tsx` (verbatim + D-C1/D-C2). `npm run build` ✓ (`/program`
+prerendered, 4.36 kB — no Recharts; Middleware 27.3 kB active; bottom-nav `/program` tab, already wired in
+`shell.tsx`, now resolves — all 4 tabs live). SPEC v0.1.0 (D-REF `[web]` / D-SCOPE / D-S1 / D-C1 / D-C2 / D-C3;
+F1–F6). Page REGISTRY ticked. **No feature bump.** **Next:** the 6 deferred `/program/*` sub-routes, the 8
+deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle`
+sub-routes — the workspace landing layer is now complete; remaining web work is all sub-routes.
