@@ -42,23 +42,21 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — `splash` + `login` + `forgot-password` pages ported (2026-06-29).**
-> **NEXT page = `reset-password`** — the email link's destination (recovery step 2 of 2) + its backend route.
-> The `forgot-password` page (recovery step 1) is DONE: email-only field with inline format validation,
-> **always-send + generic success** (privacy-safe, no enumeration), an **always-visible `mailto:` contact
-> fallback** (support = **`vinay.sankara@gmail.com`** placeholder via `SUPPORT_EMAIL`) for the migrated
-> no-email accounts, reset routed **through Express** (R1). It calls the **NET-NEW `POST /auth/forgot-password`**
-> (auth SPEC bumped **0.2.0→0.3.0**, D-C4 — `requestPasswordReset` proxies Supabase `resetPasswordForEmail`
-> with `redirectTo` = `PASSWORD_RESET_REDIRECT_URL` → our `/reset-password`; always 200). **Scope this run was
-> "page + forgot route only"** (user-chosen) — so **`reset-password` page + `POST /auth/reset-password`
-> (another auth MINOR bump → 0.4.0) is the immediate next unit.** The reset page extracts the recovery token
-> from the email-link fragment and forwards it through Express to set the new password (clients never embed
-> Supabase, R1). Then: **(3) sign-up email mandatory + format-validated** (forward-only — `register` already
-> requires email per members D-C2), then `create-account`, then the programs hub. Still outstanding from
-> Phase 1/2: provision the Vercel `rasifiters-web` project (deferred — needed before a web deploy, and the
-> reset-link `redirectTo` won't have a live target until then); the **batched pre-cutover runtime smoke-test
-> pass** of all ported backend features (needs a live admin JWT the user supplies) + a final pre-cutover
-> migrator re-run.
+> **On "continue": Phase 3 `web` in progress — `splash` + `login` + `forgot-password` + `reset-password`
+> pages ported (2026-06-29). The auth-recovery path is now END-TO-END** (forgot → email → reset → login).
+> **NEXT page = `create-account`** (sign-up) — and with it the D-PLAN item (3): **sign-up email mandatory +
+> format-validated** (forward-only — `register` already requires email per members D-C2), then the programs
+> hub. The `reset-password` page (recovery step 2 of 2) is DONE: reads the Supabase recovery `access_token`
+> from the email-link **URL fragment** (implicit flow — `config/supabase.js` `flowType: "implicit"` pinned,
+> D-C5/D-C4), a **new-password + confirm form with an inline policy hint** (mirrors server `validatePassword`),
+> forwards the token as **Bearer** to the **NET-NEW `POST /auth/reset-password`** (auth bumped **0.3.0→0.4.0**,
+> D-C5 — reuses `authenticateToken` + the existing `changePassword`, single-sourced, no bespoke service fn),
+> then **in-page success → `/login?reason=password-reset`** (a new green banner on login, login SPEC →
+> v0.1.1). 401 → "request a new link"; clients never embed Supabase (R1). Still outstanding from Phase 1/2:
+> provision the Vercel `rasifiters-web` project (deferred — needed before a web deploy, and the reset-link
+> `redirectTo` `https://rasifiters.com/reset-password` won't have a live target until then); the **batched
+> pre-cutover runtime smoke-test pass** of all ported backend features (needs a live admin JWT the user
+> supplies) + a final pre-cutover migrator re-run.
 >
 > **On "continue": BACKEND FEATURE COVERAGE IS COMPLETE (14 features, 2026-06-29).** Every legacy backend
 > route group is now SPEC'd + ported + mounted in `server.js`; `COVERAGE.md`'s backend section is fully
@@ -322,12 +320,15 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **14** — `auth` (🚀 v0.3.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **3** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.0 `[web]` — faithful + ONE
-  addition: "Forgot password?" link → `/forgot-password`), `forgot-password` (🏗️ v0.1.0 `[web]` —
-  **net-new**: always-send + always-visible `mailto:` fallback + inline email validation; calls the net-new
-  `POST /auth/forgot-password`, auth v0.3.0) · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`) —
-  _`reset-password` page next (recovery step 2 + `POST /auth/reset-password`, auth → 0.4.0; see Next action)_
+- Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
+- Web page specs: **4** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+  addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
+  `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
+  inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
+  `[web]` — **net-new** recovery step 2: implicit-flow fragment token → new+confirm form → `POST
+  /auth/reset-password`, auth v0.4.0; the recovery path is now end-to-end) · iOS screen specs: **0** (see
+  `specs/pages/REGISTRY.md`) — _`create-account` page next + sign-up-email-mandatory (D-PLAN item 3); see
+  Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -365,6 +366,37 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-29 (pm-4)** — **Specced + ported the `reset-password` page (4th web page, 2nd net-new) + the
+  NET-NEW backend `POST /auth/reset-password` (auth 0.3.0→0.4.0); the auth-recovery path is now END-TO-END.**
+  `question-asker` run 18. Opening sweep verified the sibling `forgot-password` page/SPEC, the auth SPEC
+  (0.3.0), the backend `authService.js`/`routes/auth.js` (confirmed `changePassword` already does the
+  Supabase admin update + the password policy; `authenticateToken` JWKS-verifies any Supabase access token),
+  and the web `api/client.ts`/`api/auth.ts`. **Key code-grounded finding:** supabase-js 2.108.2 defaults to
+  the **implicit** flow, so `resetPasswordForEmail` lands the recovery session in the **URL fragment**
+  (`#access_token=…&type=recovery`) — and PKCE is architecturally unusable here (backend initiates, an
+  arbitrary browser completes; the verifier would be stranded server-side). Tight **3-Q** round on the
+  genuinely-open decisions (user picked all the recommended/lead options): **Backend design** = *Bearer +
+  reuse `changePassword`* (page sends the recovery token as the Bearer; route = `authenticateToken` + the
+  existing `changePassword(req.user.id, new_password)` — single-sourced, no bespoke service fn); **Post-reset
+  dest** = *in-page success → `/login?reason=password-reset`* (recovery stays separate from login; no Supabase
+  session embedded — clean R1; auto-login rejected); **Form fields** = *new + confirm + inline policy hint*
+  (mirrors server `validatePassword`; consistent with forgot's D-C2 inline-validation divergence). **Ported:**
+  backend `POST /auth/reset-password` (`routes/auth.js`) reusing `authenticateToken` + `changePassword`;
+  pinned `flowType: "implicit"` on the Supabase clients (`config/supabase.js`, defensive — already the
+  default). Web: `resetPassword(accessToken, newPassword)` (`api/auth.ts`), `app/reset-password/page.tsx`
+  (BrandMark + new/confirm fields + Show/Hide + inline policy + match hints + success banner →
+  `/login?reason=password-reset` redirect; reads + scrubs the fragment token; 401 → "request a new link"
+  invalid-link state → `/forgot-password`; already-authed-without-token → `/programs`), and a new green
+  `password-reset` banner case on the login page (login SPEC → v0.1.1). Boot check passes (`POST
+  /reset-password` mounted, `authenticateToken` + handler, mw=2); `npm run build` ✓ (`/reset-password`
+  prerendered, 4.28 kB). Wrote `specs/pages/web/reset-password/SPEC.md` v0.1.0 (D-REF net-new / D-SCOPE /
+  D-C1 Bearer-reuse / D-C2 success→login / D-C3 confirm+policy / D-C4 implicit-fragment / D-S1 sibling
+  chrome; F1–F6: bootstrap flash, no client rate-limit, iOS recovery gap, authed-with-token may reset, token
+  in fragment, fixed redirect timing). Bumped auth SPEC → **0.4.0** (route #10, §4 behavior, §6 flowType
+  note, **D-C5**, changelog) + registry.json/REGISTRY.md; bumped login page SPEC → v0.1.1 (banner); page
+  REGISTRY + COVERAGE ticked (reset-password ✓). **All this session's work committed via `git-version` next.
+  NEXT page = `create-account`** (+ sign-up-email-mandatory, D-PLAN item 3).
 
 - **2026-06-29 (pm-3)** — **Specced + ported the `forgot-password` page (3rd web page, the FIRST net-new
   one) + the NET-NEW backend `POST /auth/forgot-password` (auth 0.2.0→0.3.0).** `question-asker` run 17.

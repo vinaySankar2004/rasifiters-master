@@ -68,6 +68,18 @@ export async function requestPasswordReset(email: string) {
   });
 }
 
+// Self-service password recovery — reset (consume) step. The /reset-password page extracts the Supabase
+// recovery access_token from the email-link fragment and passes it here as the Bearer token; the backend
+// (authenticateToken + changePassword) sets the new password. R1: the client never embeds Supabase — the
+// token round-trips through Express. A 401 means the recovery link expired/was invalid.
+export async function resetPassword(accessToken: string, newPassword: string) {
+  return apiRequest<{ message?: string }>("/auth/reset-password", {
+    method: "POST",
+    token: accessToken,
+    body: { new_password: newPassword }
+  });
+}
+
 export async function changePassword(token: string, newPassword: string) {
   return apiRequest<{ message?: string }>("/auth/change-password", {
     method: "PUT",

@@ -1,7 +1,7 @@
 # Page: `login` (web) — the public sign-in screen + entry to auth-recovery
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
-> **Route:** `/login` (reached from `/splash` Sign-in CTA, or a middleware redirect when a session is missing/expired).
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Route:** `/login` (reached from `/splash` Sign-in CTA, a middleware redirect when a session is missing/expired, or `/reset-password` on a successful reset).
 > **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/login/page.tsx` (+ `components/BrandMark.tsx`).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `login()` (`POST /auth/login/global`),
 > the foundation `useAuth` context (`session`, `setSession`, `isBootstrapping`), and the client JWT helpers
@@ -42,7 +42,7 @@ and now the **entry to password recovery** (the migration-added "Forgot your pas
 |-------|------|------------------------|
 | Brand logo | `BrandMark` (size 128) — `app-icon.png` in a rounded circle, centered. | [login/page.tsx:88](../../../../../rasifiters-webapp/src/app/login/page.tsx#L88); `BrandMark.tsx` |
 | Heading + subheading | "Welcome Back" / "Login to access your fitness dashboard". | [login/page.tsx:90-95](../../../../../rasifiters-webapp/src/app/login/page.tsx#L90) |
-| Session alert (conditional) | Amber banner when `?reason=expired` ("Your session expired…") or `?reason=invalid` ("We could not verify your session…"). | [login/page.tsx:31-36, 97-101](../../../../../rasifiters-webapp/src/app/login/page.tsx#L31) |
+| Session / reset alert (conditional) | Amber banner when `?reason=expired` ("Your session expired…") or `?reason=invalid` ("We could not verify your session…"); a **green** banner when `?reason=password-reset` ("Your password has been reset. Sign in with your new password.") — the recovery-flow confirmation (v0.1.1, set by `/reset-password`). | `apps/web/src/app/login/page.tsx` (reason block) |
 | Identifier input | Text input, placeholder "Username or Email", `autoComplete="username"`. | [login/page.tsx:107-116](../../../../../rasifiters-webapp/src/app/login/page.tsx#L107) |
 | Password input + toggle | Password input with a Show/Hide text button (`showPassword`), `autoComplete="current-password"`. | [login/page.tsx:118-134](../../../../../rasifiters-webapp/src/app/login/page.tsx#L118) |
 | Error banner (conditional) | Red box with the caught error message (default "Unable to login. Try again."). | [login/page.tsx:136-140](../../../../../rasifiters-webapp/src/app/login/page.tsx#L136) |
@@ -126,4 +126,5 @@ applies only after a program is selected).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-06-29 | **Added the `?reason=password-reset` confirmation banner** (a green positive variant alongside the amber `expired`/`invalid` session-loss banners) — the landing point after a successful password reset (`/reset-password` → `/login?reason=password-reset`, reset-password SPEC D-C2). Patch bump (additive UI; no behavior change to the login flow). `apps/web/src/app/login/page.tsx`. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` — the **second web page spec** (after `splash`). Documents the public `/login` sign-in screen: identifier (username-or-email) + password + Show/Hide, `?reason` session-loss banner, error banner, JWT decode + `resolveGlobalRole` → `setSession` → `/programs`, already-authed redirect, create-account + Privacy links. Consumes `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers). Decisions: **D-REF** (`consumed_by=[web]`; iOS `LoginView` identical except the new recovery link) · **D-S1** (faithful 1:1, no behavior change) · **D-C1** (ONE migration addition — "Forgot your password?" link → `/forgot-password`) · **D-PLAN** (auth-recovery path: forgot-password = always-send + always-visible `mailto:` contact link to `vinay.sankara@gmail.com` placeholder; reset runs through Express → `auth` MINOR bump; sign-up email mandatory+validated forward-only — each a follow-up spec). Flagged F1–F5 (client JWT decode; no bootstrap gate / form flash; iOS recovery gap; no client rate-limit; no inline validation). Ported `apps/web/src/app/login/page.tsx` (faithful + the recovery link); `npm run build` ✓ (`/login` prerendered). |

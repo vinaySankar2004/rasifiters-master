@@ -81,6 +81,23 @@ router.post("/forgot-password", async (req, res) => {
     }
 });
 
+// NET-NEW (SPEC v0.4.0 / D-C5) — self-service password recovery, RESET (consume) step. The web
+// /reset-password page extracts the Supabase recovery access_token from the email-link fragment
+// (implicit flow) and sends it as the Bearer token here. authenticateToken JWKS-verifies it + maps
+// sub -> member, so this reuses the existing changePassword (single-sourced password update + policy).
+// An expired/invalid recovery token -> 401 (the page tells the user to request a new link). R1: the
+// client never embeds Supabase — the token round-trips through Express.
+router.post("/reset-password", authenticateToken, async (req, res) => {
+    try {
+        const result = await authService.changePassword(req.user.id, req.body.new_password);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[reset-password] error:", err);
+        res.status(500).json({ error: "Server error during password reset." });
+    }
+});
+
 router.put("/change-password", authenticateToken, async (req, res) => {
     try {
         const result = await authService.changePassword(req.user.id, req.body.new_password);

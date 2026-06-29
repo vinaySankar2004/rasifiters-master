@@ -29,11 +29,17 @@ export default function LoginPage() {
   );
 
   const redirectReason = searchParams.get("reason");
-  const showSessionMessage = redirectReason === "expired" || redirectReason === "invalid";
+  // `password-reset` lands here from the recovery flow (reset-password page) — a positive confirmation,
+  // not a session-loss warning; the others are the middleware session-loss redirects.
+  const passwordWasReset = redirectReason === "password-reset";
+  const showSessionMessage =
+    redirectReason === "expired" || redirectReason === "invalid" || passwordWasReset;
   const sessionMessage =
     redirectReason === "expired"
       ? "Your session expired. Please sign in again."
-      : "We could not verify your session. Please sign in again.";
+      : redirectReason === "invalid"
+        ? "We could not verify your session. Please sign in again."
+        : "Your password has been reset. Sign in with your new password.";
 
   useEffect(() => {
     if (!isBootstrapping && session) {
@@ -95,7 +101,13 @@ export default function LoginPage() {
         </div>
 
         {showSessionMessage && (
-          <div className="mt-6 w-full rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-700">
+          <div
+            className={`mt-6 w-full rounded-2xl border px-4 py-3 text-sm font-semibold ${
+              passwordWasReset
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-amber-200 bg-amber-50 text-amber-700"
+            }`}
+          >
             {sessionMessage}
           </div>
         )}

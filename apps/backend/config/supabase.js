@@ -12,7 +12,16 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const serverClientOptions = { auth: { persistSession: false, autoRefreshToken: false } };
+// flowType "implicit" is REQUIRED for the password-recovery path (auth SPEC D-C5): the backend calls
+// resetPasswordForEmail, but an arbitrary browser (the user's, at /reset-password) completes the flow —
+// PKCE would store the code verifier on the initiating client (here, server-side, persistSession:false),
+// so the user's browser could never exchange it. Implicit makes the email link land with the session in
+// the URL fragment (#access_token=...&type=recovery), consumable by any browser + forwarded through
+// Express. Implicit is already supabase-js's default; pinned explicitly to survive a future default flip.
+// (No effect on signInWithPassword / refreshSession — flowType governs only the code-exchange flows.)
+const serverClientOptions = {
+    auth: { persistSession: false, autoRefreshToken: false, flowType: "implicit" }
+};
 
 const supabaseAuth = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, serverClientOptions);
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, serverClientOptions);
