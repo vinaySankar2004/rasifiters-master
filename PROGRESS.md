@@ -25,6 +25,18 @@ verify + `auth_user_id` mapping→200, garbage token→401, refresh→200, logou
 en route (placeholder members had no `member_emails` row → `002` migration + migrator patch). Vercel still
 deferred (no web code yet).
 
+**Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
+`npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
+providers, edge middleware). Ported the shared page-independent infra directly (not via `question-asker` —
+that loop is for pages): all `src/lib/*` (config, api/client+auth, auth session/jwt/provider, theme,
+storage, permissions, format, hooks), `globals.css`, layout/providers/shell chrome, the icon library,
+brand assets. Deviations (all migration-justified, logged in `apps/web/CONTEXT.md` §Foundation port): host
+Netlify→Vercel (dropped `@netlify/plugin-nextjs`+`netlify.toml`, pkg renamed `rasifiters-web`); prod API
+default → our Render service; **`NotificationsGate` = deferred stub** (returns null until the web
+notifications feature lands — backend deferred-stub pattern); **`src/middleware.ts` faithfully ported but
+INERT + currently incompatible with Supabase ES256** (see Open questions). Next: the public/auth pages via
+`question-asker`.
+
 > NOTE: the user reset the Supabase DB password on 2026-06-28 — the value in the earlier scratchpad secrets
 > file is STALE; the live one is in the user's password manager + `tools/migrator/.env` (gitignored).
 
@@ -284,15 +296,18 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        (v0.1.0) + PORTED + **DEPLOYED to Render + verified live 2026-06-28** (`/api/auth` 🚀). `members`
        SPEC'd + ported (🏗️); `programs` SPEC'd + ported (📄, `/api/programs` mounted). Remaining backend
        features (program-memberships, invites, logs, workouts, notifications, analytics…) pending._
-5. [ ] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
-       temp domain). Proves the auth path end-to-end.
+5. [~] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
+       temp domain). Proves the auth path end-to-end. _Foundation scaffold ported + builds green 2026-06-29
+       (`apps/web`); page-by-page port next, starting splash → login → create-account._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
 
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
+- Web page specs: **1** — `splash` (🏗️ v0.1.0 `[web]`) · iOS screen specs: **0** (see
+  `specs/pages/REGISTRY.md`) — _web foundation scaffold ported + builds green 2026-06-29 (infra, not a page
+  spec); `login` page next_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -310,6 +325,13 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   `auth.users` but NOT to `member_emails`, so admin 401'd at login (no email to resolve) → backfilled via
   `apps/backend/sql/002_*.sql` (user ran it) + patched `tools/migrator/src/importAuth.js` to write the row.
 - **iOS auth approach:** backend-proxy (clients ~unchanged) vs embed `supabase-swift`. Leaning proxy.
+- **Web edge middleware vs Supabase ES256 (NEW 2026-06-29):** `apps/web/src/middleware.ts` was ported
+  faithfully but verifies **HS256** (shared `JWT_SECRET`); auth migrated to Supabase **ES256** (asymmetric),
+  so it would mark every real session token invalid → redirect loop. **Inert today** (none of its matched
+  routes — `/summary`,`/members`,`/lifestyle`,`/program`,`/programs` — exist yet). **Must resolve in the
+  auth-path SPEC before `/programs` lands** (first protected route after login): (a) ES256/JWKS verify at the
+  edge (mirror backend `middleware/auth.js`), or (b) decode + expiry check only (backend re-verifies every
+  API call; middleware is just a UX redirect gate). See `apps/web/CONTEXT.md` §Foundation port.
 - ~~**Two deferred delete cascades return 501** — `DELETE /api/auth/account` and `DELETE /api/members/:id`.~~
   **RESOLVED 2026-06-28** — both wired now that program-memberships/invites/notifications are ported. The
   faithful cross-feature cascade is single-sourced as `utils/programMemberships.cascadeMemberDeletion` and
@@ -324,6 +346,37 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (pm)** — **Phase 3 (`web`) STARTED — ported the web foundation scaffold + it builds green.**
+  Backend feature coverage having closed (14 features), began the web phase. On "continue" the user chose
+  **"scaffold + spec first page"** (vs provision-Vercel-first / spec-whole-auth-path-first). Mapped the
+  legacy web foundation (`../rasifiters-webapp`: config + full `src/lib` + root `src/app` + `src/middleware`
+  + components), then ported the **page-independent infrastructure directly** (NOT via `question-asker` —
+  that loop is for pages; this mirrors the backend foundation port). Files into `apps/web`: 8 config files
+  (`package.json` renamed `rasifiters-web` + dropped `@netlify/plugin-nextjs`; `tsconfig`, `next.config.mjs`,
+  `postcss`, `tailwind.config.ts`, `next-env.d.ts`, `.npmrc`, `.gitignore`), all of `src/lib/*` (config,
+  `api/{client,auth}`, `auth/{session,jwt,auth-provider}`, theme + theme-provider, storage, permissions,
+  format, chart-theme, use-active-program, use-client-search-params, hooks/{use-auth-guard,use-is-mobile}),
+  `src/app/{globals.css,layout,providers,shell,page}`, `src/components/icons`, brand assets. **4 deliberate
+  deviations (all migration-justified, logged in `apps/web/CONTEXT.md` §Foundation port):** host
+  Netlify→Vercel (dropped plugin+`netlify.toml`, default APP_URL→`rasifiters.com`); prod API default →
+  `https://rasifiters-api.onrender.com/api` (our Render service); **`NotificationsGate` = deferred stub**
+  (returns null — drags in the unported web notifications/SSE+programs stack otherwise; backend
+  deferred-stub pattern, replaced when that feature lands); **`src/middleware.ts` faithfully ported but
+  INERT + incompatible with Supabase ES256** (HS256/shared-secret verify → would reject every ES256 token;
+  no protected routes exist yet; **open decision for the auth-path SPEC** — ES256/JWKS-at-edge vs
+  decode+expiry-only — see Open questions). `npm install` (463 pkgs) + `npm run build` both ✓ (TS strict +
+  lint + edge middleware + Manrope font all compile). PROGRESS + CONTEXT updated. **Then specced + ported the
+  FIRST web page — `splash`** (the public welcome screen; `question-asker` run 15, the first page/screen
+  spec). Public leaf page: typewriter intro + `BrandMark` logo + Sign-in CTA → `/login`, authenticated→
+  `/programs` redirect; consumes only the foundation `useAuth` (no API). Tight 2-Q round — **D-S1** faithful
+  1:1 + **D-REF** (`consumed_by=[web]`; the iOS `SplashView` divergence — placeholder icon + no redirect; web
+  keeps the real logo, **iOS placeholder flagged as a defect** to fix at the iOS splash port). Role rules N/A
+  (pre-auth). F1–F4 (web-only auth redirect; no loading gate / splash flash; iOS-placeholder defect;
+  type-speed). Wrote `specs/pages/web/splash/SPEC.md` + ported `src/app/splash/page.tsx` +
+  `src/components/BrandMark.tsx`; `npm run build` ✓ (`/splash` prerendered); page REGISTRY + COVERAGE (public
+  row `[~]`, splash ✓) ticked; lessons run 15 appended. **All Phase-3 work this session (foundation + splash)
+  is UNCOMMITTED** — commit via `git-version` next. Next page: **`login`** — where the real auth round-trip +
+  the auth-path middleware (HS256→ES256) decision get exercised.
 - **2026-06-29 (am-6)** — **Specced + ported `app-config` — the 14th and LAST backend feature; backend
   feature coverage is now COMPLETE.** First confirmed (per the carried Next-action) what remained of
   `app-config`/push: **nothing to port** — `GET /api/app-config` was already inline + byte-identical in

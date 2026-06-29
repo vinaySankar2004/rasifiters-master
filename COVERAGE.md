@@ -26,7 +26,7 @@ Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a
 - [x] app-config (min iOS version) + push (APNs) → [app-config SPEC](specs/features/app-config/SPEC.md) (v0.1.0; 🏗️ ported — **owns app-config**: the inline `GET /api/app-config` returning `{ min_ios_version }` from the `MIN_IOS_VERSION` env, the iOS version gate; `consumed_by = [ios]` (web ignores it). Kept inline in `server.js` per D-C1; two pinned cleanups vs legacy — D-C2 `Cache-Control: public, max-age=300` + D-C3 trim/semver-validate `MIN_IOS_VERSION` (malformed → `null`). **Push (APNs) is referenced, not re-documented** — already owned by [notifications SPEC](specs/features/notifications/SPEC.md) (device routes `PUT`/`DELETE /api/notifications/device`, APNs dispatch, `member_push_tokens`, `APNS_*`) + [auth SPEC](specs/features/auth/SPEC.md) (login capture + `upsert/removePushToken`); §6 is the cross-reference index, `consumed_by = [ios]`. F1–F5. **Backend coverage now complete.**)
 
 ## web (Next.js) — `../rasifiters-webapp`
-- [ ] public: splash, login, create-account, privacy-policy, support
+- [~] public: **splash ✓** ([splash SPEC](specs/pages/web/splash/SPEC.md) v0.1.0 — 🏗️ ported, `consumed_by=[web]`, faithful D-S1), login, create-account, privacy-policy, support
 - [ ] programs hub + program overview + roles/edit
 - [ ] program settings: profile, password, appearance, privacy
 - [ ] summary dashboard + activity / distribution / workout-types

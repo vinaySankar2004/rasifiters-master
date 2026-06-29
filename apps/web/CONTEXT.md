@@ -28,8 +28,39 @@ analytics, notifications) are `specs/features/` it consumes.
   disables logging UI for non-admins.
 
 ## Deploy
-Vercel project `rasifiters-web`, `--scope TODO(provision)`. Env per `ENV_RUNBOOK.md` (`NEXT_PUBLIC_API_BASE_URL`
-→ the Render API). See the `deploy` skill.
+Vercel project `rasifiters-web`, `--scope TODO(provision)`. See the `deploy` skill. Env (from
+`src/lib/config.ts`): `NEXT_PUBLIC_API_ENV=prod` + `NEXT_PUBLIC_API_BASE_URL_PROD` → the Render API
+(`https://rasifiters-api.onrender.com/api`); `NEXT_PUBLIC_APP_URL` → the live web origin (metadata base).
+`JWT_SECRET` is consumed by `src/middleware.ts` today but is part of the deferred auth-path decision below.
+
+## Foundation port (Phase 3 kickoff, 2026-06-29)
+
+The shared, page-independent scaffold is ported + builds green (`npm run build` ✓). It is **NOT** spec'd via
+`question-asker` — that loop is for pages; this is infrastructure ported directly (mirrors the backend
+foundation port). Pages (splash → login → …) are spec'd + ported on top of it. Deliberate deviations from
+the legacy app (`../../../rasifiters-webapp`), all justified by the migration:
+
+- **Host Netlify → Vercel** — dropped `@netlify/plugin-nextjs` (devDep) + `netlify.toml`; default
+  `NEXT_PUBLIC_APP_URL` fallback is `https://rasifiters.com` (was `rasifiters.netlify.app`). Package
+  renamed `rasifiters-webapp` → `rasifiters-web`.
+- **Prod API default** — `src/lib/config.ts` `prodBase` fallback → `https://rasifiters-api.onrender.com/api`
+  (our Render service; legacy pointed at the old `rasi-fiters-api` host). Env-overridable.
+- **`NotificationsGate` = DEFERRED STUB** (`src/components/NotificationsGate.tsx` returns `null`). The
+  legacy gate opens the SSE stream + hydrates the active program + renders the notification modal — it
+  depends on the web `notifications`/`programs` features (not yet ported). Mirrors the backend's
+  deferred-stub pattern; REPLACED with the faithful port when the web notifications feature lands.
+- **`src/middleware.ts` = faithful HS256 port that does NOT work under the migrated auth model** — it
+  verifies an HS256 token signed with a shared `JWT_SECRET`, but auth migrated to Supabase **ES256**
+  (asymmetric), so every real session token would be marked invalid → redirect loop. It is **inert** for
+  now (none of the matched routes — `/summary`, `/members`, `/lifestyle`, `/program`, `/programs` — exist
+  yet). **OPEN DECISION (auth-path SPEC), must resolve before `/programs` lands** (first protected route
+  after login): (a) ES256/JWKS verify at the edge (mirror the backend `middleware/auth.js`), or (b) decode
+  + expiry check only (no signature verify) since the backend re-verifies every API call and the middleware
+  is just a UX redirect gate.
+
+Faithful (verbatim) otherwise: all of `src/lib/*`, `globals.css`, theme/tailwind tokens, providers, layout,
+shell chrome, the icon library, and the API client + auth API module.
 
 ## Status
-📄 not built — built after the backend is live on Supabase + Render.
+🏗️ foundation scaffolded + builds green (2026-06-29). Page-by-page port next, starting with the
+public/auth path (splash → login → create-account) via the `question-asker` page loop.
