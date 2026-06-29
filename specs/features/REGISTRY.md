@@ -11,7 +11,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | Feature | Version | Status | Apps | Reference impl | Spec |
 |---------|---------|--------|------|----------------|------|
 | `auth` | 0.1.0 | 🚀 | `web` `ios` | `backend` (`routes/auth.js`, `services/authService.js`, `middleware/auth.js`) | [auth/SPEC.md](auth/SPEC.md) |
-| `members` | 0.1.0 | 📄 | `web` `ios` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
+| `members` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the

@@ -1,6 +1,6 @@
 # Feature: `members` — member directory, profiles, and admin lifecycle
 
-> **Status:** 📄 documented · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Reference impl (legacy):** `../../../backend` — `routes/members.js`, `services/memberService.js`,
 > `models/Member.js`, `models/MemberEmail.js`, `server.js:47`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken` / `isAdmin`).
@@ -173,3 +173,4 @@ update whitelist, and the `global_admin` delete block.
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the five `/api/members` routes + `memberService`. Decisions D-C1 (scope; `DELETE` cascade deferred → 501, auth `/account` pattern) / D-C2 (the one deliberate change — `createMember` wired to Supabase `createUser`, requires `email`) / D-REF (`consumed_by [web, ios]`; `POST`+`DELETE` called by neither client) / D-S1 (faithful except `createMember`; `getAllMembers` excludes `auth_user_id`). Flagged F1–F6. |
+| 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — `services/memberService.js` (faithful `getAllMembers` w/ `auth_user_id` excluded, `getMemberById`, `updateMember`; **`createMember` wired to Supabase `admin.createUser` + requires `email`** per D-C2, reusing `authService.validatePassword`/`normalizeEmail`; `deleteMember`→501 per D-C1), `routes/members.js` (faithful 1:1), mounted `/api/members` in `server.js`. Module-load + route-stack boot check pass. Status 📄→🏗️ (no semver bump — the port matches the SPEC). |

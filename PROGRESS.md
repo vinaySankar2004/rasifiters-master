@@ -44,10 +44,16 @@ deferred (no web code yet).
    VERIFIED 2026-06-28** — live at `https://rasifiters-api.onrender.com` (`srv-d90tgmv7f7vs73cudptg`);
    full round-trip green against migrated data (see auth SPEC §12 / session log). Service id recorded in
    `CONTEXT.md` + the `deploy-scope-guard.sh` allow-list; auth status flipped 🏗️→🚀.
-4. **NEXT — spec + port the remaining backend features** (members, programs, program-memberships, logs,
-   notifications, analytics…) via `question-asker`, mounting each route group in `server.js` as it lands;
-   wire the deferred `DELETE /account` cascade when program-memberships + notifications are ported. Each
-   backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
+4. ~~Spec + port `members`.~~ **DONE 2026-06-28** — see [`specs/features/members/SPEC.md`](specs/features/members/SPEC.md)
+   v0.1.0 (📄→🏗️). Ported `services/memberService.js` + `routes/members.js`, mounted `/api/members`. Faithful
+   except the one deliberate change **D-C2** (`createMember` now creates a loginable member via Supabase
+   `admin.createUser` + requires `email`); `DELETE /:id` deferred → 501 (**D-C1**, the auth `/account`
+   pattern); `getAllMembers` excludes the migration-added `auth_user_id`. `POST`+`DELETE` are vestigial
+   (called by neither client — **D-REF**). Boot check passes; **runtime smoke-test vs live Supabase pending**.
+5. **NEXT — spec + port the remaining backend features** (programs, program-memberships, invites, logs,
+   workouts, notifications, analytics…) via `question-asker`, mounting each route group in `server.js` as it
+   lands; wire the deferred `DELETE /account` + `members DELETE /:id` cascades when program-memberships +
+   notifications are ported. Each backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -72,7 +78,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **1** — `auth` (see `specs/features/REGISTRY.md`)
+- Shared features documented: **2** — `auth` (🚀), `members` (🏗️) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -84,9 +90,10 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   `auth.users` but NOT to `member_emails`, so admin 401'd at login (no email to resolve) → backfilled via
   `apps/backend/sql/002_*.sql` (user ran it) + patched `tools/migrator/src/importAuth.js` to write the row.
 - **iOS auth approach:** backend-proxy (clients ~unchanged) vs embed `supabase-swift`. Leaning proxy.
-- **`DELETE /api/auth/account` returns 501** in the ported backend — the faithful cross-feature delete
-  cascade (invites/notifications/membership-exit) is owned by the program-memberships + notifications
-  features (SPEC D-C1); wire it when those are ported. Temporary implementation gap, not a spec change.
+- **Two deferred delete cascades return 501** — `DELETE /api/auth/account` and `DELETE /api/members/:id`.
+  Both run the same faithful cross-feature cascade (invites/notifications/membership-exit + delete the
+  Supabase auth user) owned by the program-memberships + invites + notifications features (auth D-C1 /
+  members D-C1); wire both when those features are ported. Temporary implementation gaps, not spec changes.
 - ~~**Supabase JWT signing keys must be asymmetric (ECC P-256/ES256)** for the JWKS verify path (D-C2).~~
   **RESOLVED 2026-06-28** — the project's JWKS endpoint (`/auth/v1/.well-known/jwks.json`) serves a live
   `ES256`/P-256 key (`kid 0f6cd324…`), so JWKS verify finds a key. No further action needed at deploy.
@@ -97,6 +104,19 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-8)** — **Specced + ported the `members` feature** (2nd feature). `question-asker`: read
+  the legacy `routes/members.js` + `services/memberService.js` in full, fanned 2 `Explore` agents over web +
+  iOS consumption. Key finding — **`POST`/`DELETE /api/members` are called by neither client** (both use
+  `/auth/register` + `/program-memberships`), reframing it as read + self-profile-update with two vestigial
+  admin routes. User chose to **fix** the latent bug in `createMember` (legacy destructured `password` but
+  never persisted it → unloggable member): D-C2 wires it to Supabase `admin.createUser` + requires `email`.
+  Wrote `specs/features/members/SPEC.md` v0.1.0 (D-C1/D-C2/D-REF/D-S1, F1–F6); committed
+  (`docs(members)` + `chore(skills)`) + tagged `feature/members@v0.1.0` + pushed. Then **ported**:
+  `services/memberService.js` (faithful reads/update; `createMember` change reusing
+  `authService.validatePassword`/`normalizeEmail`; `getAllMembers` excludes `auth_user_id`;
+  `deleteMember`→501 per D-C1), `routes/members.js` (faithful 1:1), mounted `/api/members` in `server.js`.
+  Boot check (module load + 5-route stack) passes. Status 📄→🏗️. **Pending:** runtime smoke-test vs live
+  Supabase (the auto-deploy to Render on push). Next: the remaining backend features.
 - **2026-06-28 (pm-7)** — **Deployed the auth backend to Render + verified it live.** User provisioned the
   Blueprint (`apps/backend/render.yaml`) and connected GitHub auto-deploy; service `rasifiters-api`
   (`srv-d90tgmv7f7vs73cudptg`) live at `https://rasifiters-api.onrender.com`. Smoke test: `GET /`→200

@@ -23,7 +23,7 @@
     "members": {
       "version": "0.1.0",
       "spec": "specs/features/members/SPEC.md",
-      "status": "documented",
+      "status": "built",
       "consumed_by": ["web", "ios"],
       "depends_on": ["auth"],
       "reference_impl": {

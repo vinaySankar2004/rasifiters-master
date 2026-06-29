@@ -268,5 +268,9 @@ module.exports = {
     changePassword,
     deleteAccount,
     upsertPushToken,
-    removePushToken
+    removePushToken,
+    // shared auth-policy helpers (reused by memberService.createMember — SPEC members §7 / D-C2,
+    // so the password policy + email normalization are single-sourced).
+    validatePassword,
+    normalizeEmail
 };
