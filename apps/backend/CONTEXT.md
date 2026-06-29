@@ -9,7 +9,8 @@ the DB target (→ Supabase) and the auth layer (→ Supabase Auth, proxied + JW
 - Node 18 · Express 4 · Sequelize 6 · `pg`
 - bcrypt (legacy hashing — hashes are imported into Supabase Auth, then bcrypt leaves the app)
 - `apn` (Apple Push Notifications) · Server-Sent Events for the notification stream
-- Host: **Render** web service (`rasifiters-api`, `TODO(provision)`) via Blueprint `render.yaml`
+- Host: **Render** web service `rasifiters-api` (`srv-d90tgmv7f7vs73cudptg`) via Blueprint `render.yaml`,
+  live at `https://rasifiters-api.onrender.com`
 
 ## Data
 - **Supabase Postgres**, schema migrated faithfully from the legacy Render DB — **same table names, no
@@ -32,10 +33,12 @@ workout-logs, daily-health-logs, notifications, analytics v1+v2, member-analytic
 feature-by-feature in `specs/features/` as they're rebuilt; cross-checked against the legacy routes.
 
 ## Deploy
-Render web service `rasifiters-api`, defined as IaC in `render.yaml` (`rootDir: apps/backend`,
-`buildFilter.paths: [apps/backend/**]`, `autoDeployTrigger: commit`, `healthCheckPath: /`). Provision via
-Render Dashboard → Blueprint → `apps/backend/render.yaml` (prompts for the `sync: false` secrets). Env per
-`ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
+**LIVE** on Render — web service `rasifiters-api` (`srv-d90tgmv7f7vs73cudptg`),
+`https://rasifiters-api.onrender.com`. Defined as IaC in `render.yaml` (`rootDir: apps/backend`,
+`buildFilter.paths: [apps/backend/**]`, `autoDeployTrigger: commit`, `healthCheckPath: /`); GitHub
+auto-deploy on push to `main` touching `apps/backend/**`. The 3 secrets (`DATABASE_URL`,
+`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are dashboard-entered `sync: false` Blueprint vars. Env
+per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 
 ## Status
 🏗️ building — **`auth` feature ported** into this dir (2026-06-28): the data-layer foundation
@@ -51,4 +54,6 @@ Render Dashboard → Blueprint → `apps/backend/render.yaml` (prompts for the `
   documented + built (COVERAGE.md).
 - **Provisioning prerequisite:** the Supabase project must migrate its JWT signing keys to **asymmetric
   (ECC P-256 / ES256)** so JWKS verification (D-C2) finds a key; set `SUPABASE_*` env per `.env.example`.
-- Not deployed to Render yet (Blueprint authored: `render.yaml`).
+- **Deployed to Render + verified live (2026-06-28):** full auth round-trip green against migrated data
+  (login → guarded route via JWKS verify → refresh → logout); see auth SPEC §12. `/api/auth` is the only
+  mounted route group so far.

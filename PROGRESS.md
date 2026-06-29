@@ -15,9 +15,15 @@
 ACTIVE_HEALTHY; `.mcp.json` repointed. **Schema applied + data/auth MIGRATED to Supabase** (2026-06-28): all
 13 tables reconcile with legacy (members 48 … notification_recipients 1304), **48/48 members created in
 `auth.users` (bcrypt hashes imported, no resets) and linked via `auth_user_id`**, admin on
-`admin@no-email.rasifiters.com`. Migration is idempotent (re-run = 48 skips, 0 dupes). Render + Vercel
-deferred. Nothing deployed yet. **Backend host = Render (Blueprint), not Railway** (METHODOLOGY R7,
-decided 2026-06-28).
+`admin@no-email.rasifiters.com`. Migration is idempotent (re-run = 48 skips, 0 dupes).
+
+**Phase 2 — backend `auth`: DEPLOYED + VERIFIED LIVE (2026-06-28).** Render web service `rasifiters-api`
+(`srv-d90tgmv7f7vs73cudptg`) at `https://rasifiters-api.onrender.com` via Blueprint
+`apps/backend/render.yaml` (host = **Render, not Railway** — METHODOLOGY R7). Full auth round-trip green
+against migrated data (admin): login→200 (bcrypt password verified, ES256 JWT), guarded route via JWKS
+verify + `auth_user_id` mapping→200, garbage token→401, refresh→200, logout→200. Fixed a migration gap
+en route (placeholder members had no `member_emails` row → `002` migration + migrator patch). Vercel still
+deferred (no web code yet).
 
 > NOTE: the user reset the Supabase DB password on 2026-06-28 — the value in the earlier scratchpad secrets
 > file is STALE; the live one is in the user's password manager + `tools/migrator/.env` (gitignored).
@@ -34,19 +40,14 @@ decided 2026-06-28).
    (`config/supabase.js`, JWKS-verify `middleware/auth.js`, `services/authService.js`, `routes/auth.js`,
    `server.js` mounting only `/api/auth`). `npm install` + boot-check pass. **Two follow-ups carried**
    below (`/account` 501; asymmetric JWT keys).
-3. **NEXT — provision Render + deploy the auth backend** (`deploy` skill, Blueprint
-   `apps/backend/render.yaml`): in the Render Dashboard → New → **Blueprint** → connect the repo →
-   Blueprint path `apps/backend/render.yaml` → Apply; paste the `sync: false` secrets when prompted
-   (`DATABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — `SUPABASE_URL` + `MIN_IOS_VERSION`
-   are baked into the YAML). The user is doing the GitHub auto-deploy connection. **Asymmetric Supabase
-   JWT keys are DONE** — the JWKS endpoint serves a live ES256/P-256 key (verified 2026-06-28), so the
-   D-C2 verify path will find a key. Then smoke-test the real login→verify→refresh→logout path against
-   the migrated data (e.g. the `admin` placeholder account). **All 3 secrets are in hand** —
-   `SUPABASE_ANON_KEY` was supplied by the user (held out of git); `DATABASE_URL` +
-   `SUPABASE_SERVICE_ROLE_KEY` are in `tools/migrator/.env`.
-4. Then spec + port the remaining backend features (members, programs, logs, …) via `question-asker`,
-   mounting each route group as it lands; wire the deferred `DELETE /account` cascade when
-   program-memberships + notifications are ported.
+3. ~~Provision Render + deploy the auth backend + smoke-test login→verify→refresh→logout.~~ **DONE +
+   VERIFIED 2026-06-28** — live at `https://rasifiters-api.onrender.com` (`srv-d90tgmv7f7vs73cudptg`);
+   full round-trip green against migrated data (see auth SPEC §12 / session log). Service id recorded in
+   `CONTEXT.md` + the `deploy-scope-guard.sh` allow-list; auth status flipped 🏗️→🚀.
+4. **NEXT — spec + port the remaining backend features** (members, programs, program-memberships, logs,
+   notifications, analytics…) via `question-asker`, mounting each route group in `server.js` as it lands;
+   wire the deferred `DELETE /account` cascade when program-memberships + notifications are ported. Each
+   backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -54,17 +55,16 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 ## Build sequence (the locked plan — see `METHODOLOGY.md`)
 
 1. [x] **Scaffold the ICM repo** (L1–L5 + skills + hooks). _DONE 2026-06-28._
-2. [~] **Provision infra** — Supabase project DONE 2026-06-28 (`project_ref` filled in `.mcp.json` + `ICM.md`
-       + `CONTEXT.md`). Render `rasifiters-api` (Blueprint `apps/backend/render.yaml`) + Vercel
-       `rasifiters-web` deferred until those apps have code to deploy; record their IDs in
-       `apps/*/CONTEXT.md` + the deploy-scope hook when created.
+2. [~] **Provision infra** — Supabase DONE 2026-06-28. **Render `rasifiters-api` PROVISIONED + LIVE
+       2026-06-28** (`srv-d90tgmv7f7vs73cudptg`, Blueprint `apps/backend/render.yaml`, id recorded in
+       `CONTEXT.md` + the deploy-scope hook). Vercel `rasifiters-web` deferred until the web app has code.
 3. [x] **Migrator** (`tools/migrator/`) — BUILT + EXECUTED against Supabase 2026-06-28. Preserved
        `members.id` UUIDs, imported bcrypt hashes → `auth.users` (48/48), backfilled `members.auth_user_id`,
        idempotent re-runnable sync. Schema in `apps/backend/sql/001_schema.sql` (applied). _DONE._
 4. [~] **`backend`** — point Express at Supabase, swap auth middleware to verify Supabase JWTs (proxy
        login/refresh/logout), deploy to Render (Blueprint). Spec features as we go. _Auth feature SPEC'd
-       (v0.1.0) + PORTED to `apps/backend/` 2026-06-28 (foundation + `/api/auth`); `render.yaml` authored;
-       Render deploy + remaining features pending._
+       (v0.1.0) + PORTED + **DEPLOYED to Render + verified live 2026-06-28** (`/api/auth` 🚀). Remaining
+       backend features (members, programs, logs, notifications, analytics…) pending._
 5. [ ] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end.
 6. [ ] **`ios`** — feature/screen by feature/screen.
@@ -80,7 +80,9 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 - ~~**Migrator — members without a primary email:** placeholder vs skip?~~ **RESOLVED 2026-06-28** —
   placeholder (`<username>@no-email.rasifiters.com`). Affects exactly 1 row (the `admin` account); keeps
-  admin able to sign in. Implemented in `tools/migrator/`.
+  admin able to sign in. **Gap found + fixed during deploy verify:** the migrator wrote the placeholder to
+  `auth.users` but NOT to `member_emails`, so admin 401'd at login (no email to resolve) → backfilled via
+  `apps/backend/sql/002_*.sql` (user ran it) + patched `tools/migrator/src/importAuth.js` to write the row.
 - **iOS auth approach:** backend-proxy (clients ~unchanged) vs embed `supabase-swift`. Leaning proxy.
 - **`DELETE /api/auth/account` returns 501** in the ported backend — the faithful cross-feature delete
   cascade (invites/notifications/membership-exit) is owned by the program-memberships + notifications
@@ -95,6 +97,19 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-7)** — **Deployed the auth backend to Render + verified it live.** User provisioned the
+  Blueprint (`apps/backend/render.yaml`) and connected GitHub auto-deploy; service `rasifiters-api`
+  (`srv-d90tgmv7f7vs73cudptg`) live at `https://rasifiters-api.onrender.com`. Smoke test: `GET /`→200
+  (DB connected), `/api/app-config`+`/api/test`→200, guarded route no-token→401, bogus login→401. Full
+  signed-in round-trip against migrated `admin`: login→200 (**imported bcrypt password verified**, ES256
+  JWT `kid 0f6cd324…`); guarded route w/ valid token→200 (`authenticateToken` JWKS verify +
+  `sub`→`members.auth_user_id`, the D-C2 path); garbage token→401; refresh→200; logout→200. **Found + fixed
+  a migration gap:** placeholder (no-email) members had no `member_emails` row → `admin` 401'd before the
+  password check; shipped `apps/backend/sql/002_backfill_placeholder_member_emails.sql` (user ran it) +
+  patched `tools/migrator/src/importAuth.js` (writes the placeholder row on create/link/re-run). Recorded
+  the deploy: `CONTEXT.md` + `apps/backend/CONTEXT.md` (URL + service id), filled the
+  `deploy-scope-guard.sh` allow-list (+ a real render-srv guard, tested), flipped `auth` 🏗️→🚀 in
+  registry/REGISTRY/SPEC §12. Next: spec + port the remaining backend features.
 - **2026-06-28 (pm-6)** — **Switched the backend host Railway → Render** (user decision; METHODOLOGY R7).
   Researched Render's mechanics (Blueprint spec, monorepo `rootDir`+`buildFilter`, env-var model, hosted
   MCP, health checks, PORT/host). Authored **`apps/backend/render.yaml`** (Blueprint: `type: web`,

@@ -16,7 +16,7 @@ implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}
   iOS uses `AppTheme`). _Record exact values in `apps/*/CONTEXT.md` as confirmed._
 - Support / legal: `rasifiters.com/support`, `rasifiters.com/privacy-policy` (public pages).
 
-## Infrastructure (Supabase provisioned 2026-06-28; Render + Vercel still `TODO(provision)`)
+## Infrastructure (Supabase + Render backend provisioned 2026-06-28; Vercel still `TODO(provision)`)
 - **Supabase** — one project (DB + Auth + object storage). Org **RaSi Fiters** (`lxehyprifvuozciizlem`),
   project **rasifiters**, `project_ref` **`kpadxjekpiwfkqcxtrio`**, region `us-east-1`, status
   ACTIVE_HEALTHY. `SUPABASE_URL` = `https://kpadxjekpiwfkqcxtrio.supabase.co`. Filled into `.mcp.json`
@@ -26,8 +26,10 @@ implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}
     Migrations live in `apps/backend/sql/`, reviewed/run by the user (never direct SQL from Claude).
   - **Auth** = Supabase Auth; the Express backend proxies it + verifies its JWTs (R1).
   - **Object storage** = Supabase Storage (only if/when needed; the legacy app has no blobs today).
-- **API (`backend`) → Render** — web service `rasifiters-api` (`TODO(provision)`) via Blueprint
-  (`apps/backend/render.yaml`, GitHub auto-deploy). A **new** service; the legacy backend also ran on Render.
+- **API (`backend`) → Render** — web service `rasifiters-api` (`srv-d90tgmv7f7vs73cudptg`),
+  **LIVE** at `https://rasifiters-api.onrender.com` via Blueprint (`apps/backend/render.yaml`, GitHub
+  auto-deploy). A **new** service; the legacy backend also ran on Render. `/api/auth` deployed + verified
+  end-to-end 2026-06-28.
 - **Web → Vercel** — project `rasifiters-web` (`TODO(provision)`), team/scope `TODO(provision)`. Runs on a
   temp domain until the `rasifiters.com` cutover.
 - **iOS** — App Store / TestFlight; bundle id `com.vinayaksankaranarayanan.RaSi-Fiters-App` (legacy).

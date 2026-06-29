@@ -5,20 +5,31 @@
 # restricts any vercel/render invocation to the rasifiters allow-list. Exit 2 = block (stderr shown
 # to the model).
 #
-# Allow-list (fill the real values once infra is provisioned — see the `deploy` skill):
+# Allow-list (see the `deploy` skill):
 #   web:     Vercel project `rasifiters-web`   (team/scope `TODO(provision)`)
-#   backend: Render web service `rasifiters-api` (Blueprint apps/backend/render.yaml)
+#   backend: Render web service `rasifiters-api` = srv-d90tgmv7f7vs73cudptg (PROVISIONED 2026-06-28)
 #
-# Until provisioning, this hook BLOCKS any vercel/render command that names a non-rasifiters
-# target, and (for vercel) enforces that any --scope passed matches the rasifiters team once set.
-# After provisioning: replace TODO_RASIFITERS_VERCEL_SCOPE below with the real team slug and add
-# any sibling-project deny patterns if this account hosts other apps.
+# This hook BLOCKS any vercel/render command that names a non-rasifiters target: a `render` command
+# referencing a `srv-…`/`dpl-…` id that is NOT ours, and (for vercel) any `--scope` that isn't the
+# rasifiters team once set. After Vercel provisioning: replace TODO_RASIFITERS_VERCEL_SCOPE with the
+# real team slug.
 
 input=$(cat)
 cmd=$(printf '%s' "$input" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null)
 
 # Only police vercel/render commands.
 printf '%s' "$cmd" | grep -qiE '(^|[^[:alnum:]])(vercel|render)([^[:alnum:]]|$)' || exit 0
+
+RENDER_SERVICE="srv-d90tgmv7f7vs73cudptg"   # rasifiters-api (the only Render service we own)
+
+# Block a render command that names a Render service id which is NOT ours.
+if printf '%s' "$cmd" | grep -qiE '(^|[^[:alnum:]])render([^[:alnum:]]|$)'; then
+  bad=$(printf '%s' "$cmd" | grep -oE 'srv-[a-z0-9]+' | grep -vx "$RENDER_SERVICE" || true)
+  if [ -n "$bad" ]; then
+    echo "scope-guard: BLOCKED — render command references a non-rasifiters service id ($bad). Only $RENDER_SERVICE is allowed." >&2
+    exit 2
+  fi
+fi
 
 # TODO(provision): once the Vercel team slug is known, set it here and uncomment the --scope check.
 VERCEL_SCOPE="TODO_RASIFITERS_VERCEL_SCOPE"
