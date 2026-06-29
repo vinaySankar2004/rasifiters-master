@@ -42,11 +42,20 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — `splash` + `login` + `forgot-password` + `reset-password`
-> pages ported (2026-06-29). The auth-recovery path is now END-TO-END** (forgot → email → reset → login).
-> **NEXT page = `create-account`** (sign-up) — and with it the D-PLAN item (3): **sign-up email mandatory +
-> format-validated** (forward-only — `register` already requires email per members D-C2), then the programs
-> hub. The `reset-password` page (recovery step 2 of 2) is DONE: reads the Supabase recovery `access_token`
+> **On "continue": Phase 3 `web` in progress — the entire public/auth path is now ported (2026-06-29):
+> `splash` + `login` + `forgot-password` + `reset-password` + `create-account`.** The auth-recovery path is
+> END-TO-END (forgot → email → reset → login). **NEXT page = the `programs` hub** (the first protected
+> route after login — and where the `middleware.ts` HS256→ES256 decision MUST be resolved before it lands;
+> see Open questions). The **`create-account` page (5th web page) is DONE**: faithful port of the legacy
+> sign-up screen (first/last name + username + email + optional gender via the newly-ported
+> `Select`/`SelectMobile` + password + confirm; **register-then-auto-login → `/programs`**, since
+> `POST /auth/register` returns no token) **+ 5 deviations** — **D-C1** inline email-format validation (the
+> D-PLAN item-3 mandate; `register` already requires + format-validates email server-side, so forward-only;
+> reuses forgot-password's `EMAIL_RE`), **D-C2** already-authed → `/programs` redirect (legacy had none; matches
+> the sibling auth pages), **D-C3** live password-policy checklist (✓/○ per rule, mirrors `validatePassword`)
+> replacing the static hint, **D-C4** muted confirm-mismatch hint, **D-C5** autoFocus First Name. No auth-feature
+> bump (the `register` route + `registerAccount()` client fn already existed). `npm run build` ✓
+> (`/create-account` prerendered, 6.25 kB). The `reset-password` page (recovery step 2 of 2) is DONE: reads the Supabase recovery `access_token`
 > from the email-link **URL fragment** (implicit flow — `config/supabase.js` `flowType: "implicit"` pinned,
 > D-C5/D-C4), a **new-password + confirm form with an inline policy hint** (mirrors server `validatePassword`),
 > forwards the token as **Bearer** to the **NET-NEW `POST /auth/reset-password`** (auth bumped **0.3.0→0.4.0**,
@@ -321,14 +330,17 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **4** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **5** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
   `[web]` — **net-new** recovery step 2: implicit-flow fragment token → new+confirm form → `POST
-  /auth/reset-password`, auth v0.4.0; the recovery path is now end-to-end) · iOS screen specs: **0** (see
-  `specs/pages/REGISTRY.md`) — _`create-account` page next + sign-up-email-mandatory (D-PLAN item 3); see
-  Next action_
+  /auth/reset-password`, auth v0.4.0; the recovery path is now end-to-end), `create-account` (🏗️ v0.1.0
+  `[web]` — faithful port + 5 deviations: inline email validation D-C1 (D-PLAN item 3), authed → `/programs`
+  redirect D-C2, live password checklist D-C3, muted mismatch hint D-C4, autoFocus D-C5; register-then-auto-login
+  → `/programs`; ported the `Select`/`SelectMobile` dependency; no auth-feature bump) · iOS screen specs: **0**
+  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE; next page = the `programs` hub (resolve the
+  `middleware.ts` HS256→ES256 decision first); see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -366,6 +378,31 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-29 (pm-5)** — **Specced + ported the `create-account` page (5th web page) — the public/auth path
+  (splash → login → forgot → reset → create-account) is now COMPLETE.** `question-asker` run 19. Opening sweep
+  fanned 3 `Explore` agents (legacy web create-account · our ported web foundation+sibling pages · backend
+  register route). **Key code-grounded findings:** (1) the backend `register` (`authService.register`) **already
+  requires + normalizes + format-validates email** + enforces the password policy + creates the Supabase Auth
+  user — so D-PLAN item 3 ("sign-up email mandatory + format-validated") was already satisfied *server-side*;
+  the only delta was the *client* page; (2) `register` returns **no token**, so the legacy page (faithfully)
+  **register-then-auto-logs-in** via `login()`; (3) `registerAccount()` already existed in our `api/auth.ts`;
+  (4) the gender dropdown needs `Select` (+ `SelectMobile`), **neither ported yet** → ported both verbatim as
+  the dependency; (5) legacy create-account had **no already-authed redirect**, unlike all 3 sibling auth pages.
+  Tight **3-Q round** then a scope-pinning multiSelect. Decisions (all user-answered): **D-S1** faithful port +
+  **D-C1** inline email-format validation (D-PLAN item 3; reuses forgot-password's `EMAIL_RE`; forward-only) +
+  **D-C2** already-authed → `/programs` redirect (matches siblings; legacy had none) + **D-C3** live
+  password-policy checklist (✓/○ per rule, mirrors `validatePassword`) replacing the static hint — *merges the
+  two password-hint cleanups the user selected* (the live checklist subsumes the conditional-hint behavior by
+  appearing on first keystroke) + **D-C4** muted confirm-mismatch hint + **D-C5** autoFocus First Name. **No
+  auth-feature bump** (the `register` route + client fn pre-existed — this run added only the page + the
+  `Select` components). Ported `apps/web/src/app/create-account/page.tsx` + `src/components/{Select,SelectMobile}.tsx`;
+  `npm run build` ✓ (`/create-account` prerendered, 6.25 kB). Wrote `specs/pages/web/create-account/SPEC.md`
+  v0.1.0 (D-REF `[web]` / D-S1 / D-C1–C5; F1–F6: client JWT decode, register-then-login no-rollback, bootstrap
+  form flash, no client rate-limit, no client username rules, cleanups web-first/iOS gap). Page REGISTRY +
+  COVERAGE ticked (create-account ✓). **All this session's work committed via `git-version` next; lessons run 19
+  appended. NEXT page = the `programs` hub** (first protected route — resolve the `middleware.ts` HS256→ES256
+  decision first; see Open questions).
 
 - **2026-06-29 (pm-4)** — **Specced + ported the `reset-password` page (4th web page, 2nd net-new) + the
   NET-NEW backend `POST /auth/reset-password` (auth 0.3.0→0.4.0); the auth-recovery path is now END-TO-END.**
