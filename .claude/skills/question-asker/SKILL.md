@@ -285,6 +285,21 @@ directly as a faithful port from the legacy reference app** — there is no inte
   legit reuse cleanup (D-row), but mind the hook's parameters (`requireProgram:false` here — the hub is WHERE you
   pick the active program, so the default `requireProgram:true` would bounce it to itself). Check the foundation
   for a hook/util that subsumes inline page logic before porting that logic verbatim.
+- **For an OVERSIZED page, the scope cut IS the run — and a pre-named cleanup needs no pinning round (run 21).**
+  When a page drags in a heavy write path (run 21: `/summary` ~1,700 LoC incl. a 500-line `BulkLogWorkoutForm`,
+  3 modal forms, 3 api modules, 6 sibling sub-routes), the highest-value decision is the **scope cut**: what
+  THIS page SPEC owns vs defers. Lead with the **"one page that WORKS end-to-end" slice** — the landing page +
+  its embedded modals (desktop write path live) — and defer the separately-inventoried sub-routes as their own
+  rows (links to them are forward-nav, the recurring F2). Reject the read-only slice that leaves core action
+  controls dead (an awkward half-page) and the whole-bundle mega-run. **Don't manufacture a scope-pinning
+  multiSelect when the stance option already NAMES the cleanup** — if the chosen stance option says "type
+  ProgramProgressCard's prop", the user endorsed that exact cleanup; apply it as a D-row and move on (the
+  pinning multiSelect is for "change now" selected WITHOUT a named target). Two corollaries: **(a) "backend
+  coverage complete" pays off at the consuming page** — a web page consuming N endpoints needs ZERO backend
+  work; the sweep's job is to CONFIRM each endpoint is mounted (`server.js`), not to port — say "all endpoints
+  already mounted" explicitly. **(b) the rebuild can flatten a legacy nested workspace to top-level routes** —
+  confirm the route shape from the navigation CALL SITE (`saveActiveProgram` + `router.push("/summary")`), not
+  from the legacy directory tree (run 21: `/summary` is top-level, not `program/[id]/summary`).
 - **Separate locked-by-METHODOLOGY decisions from genuinely-open ones before asking.** Decisions already
   fixed in the R-log (e.g. R1's proxy model / retired tables / `auth_user_id`) are stated as context, NOT
   re-asked — keeps the round to the few real choices (auth run 1: 4 real Qs, all faithful).

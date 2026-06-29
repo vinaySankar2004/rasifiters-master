@@ -901,3 +901,64 @@ StatusBadge}.tsx, app/programs/page.tsx}` + rewrote `src/middleware.ts` (decode+
 F1–F6). Page REGISTRY + COVERAGE ticked; `apps/web/CONTEXT.md` + PROGRESS open-question flipped to RESOLVED. **No
 feature bump** (consumes existing `programs`/`program-memberships`/`invites`/`auth` routes). **Next:** `program`
 overview / the first workspace tab `/summary`.
+
+---
+
+## Run 21 — `summary` page (web), the first WORKSPACE TAB (2026-06-29)
+
+**Target.** `specs/pages/web/summary/SPEC.md` — the program-overview dashboard at `/summary`, the first
+bottom-nav workspace tab, reached from the hub via `saveActiveProgram` → `router.push("/summary")`. 7th web
+page; first protected workspace surface; the first web screen to consume the analytics (read) + logging (write)
+backend.
+
+**Sweep.** 3 `Explore` agents (legacy web summary cluster · our ported web foundation · backend API contract),
+then I verified the load-bearing files myself: legacy 606-line `summary/page.tsx`, `lib/api/{summary,logs,
+program-workouts}.ts`, the 3 `forms/*`, `ui/{Input,Button,ErrorState}`, and our foundation's `shell.tsx`/
+`permissions.ts`/`storage.ts`/`chart-theme.ts`/`client.ts`/`config.ts`.
+
+**Key code-grounded findings.** (1) `/summary` is a **top-level route** reading the active program from
+`localStorage`, NOT a `[id]` route (the rebuild flattened the legacy workspace). (2) charts are **inline
+Recharts** — no chart components to port; our `chart-theme.ts` already exports all 5 imported tokens. (3)
+`shell.tsx` already activates the bottom-nav for `/summary`. (4) **all 11 backend endpoints the page consumes
+are already ported + mounted** (`server.js:73-76`) — the backend-coverage-complete phase paid off: zero backend
+work this run. (5) the page drags in 4 not-yet-ported deps (3 api modules + `ui/{ErrorState,Input,Button}` + 3
+`forms/*`), all transitive deps present.
+
+**Decisions (tight 3-Q round, all user-answered).**
+- **D-SCOPE — the master cut for an oversized page.** This was the central decision: `/summary` is the largest
+  page yet (~1,700 LoC incl. a 500-line `BulkLogWorkoutForm`). Offered 3 cuts: (A) landing + the 3 log-form
+  modals [lead] · (B) read-only overview, defer forms · (C) whole bundle incl. 6 sub-routes. User took **A** —
+  the "one coherent page that WORKS end-to-end (desktop)" slice. The 6 sibling sub-route pages (3 detail:
+  activity/distribution/workout-types; 3 mobile log fallbacks) are **separate inventory rows** → deferred,
+  links to them are forward-nav (F2). B was rejectable because it leaves the 3 action cards non-functional (an
+  awkward half-page); C is one mega-run.
+- **D-S1 — faithful 1:1.** Ported the page + 3 forms + 3 api modules + 3 UI components verbatim (`cp`), whole
+  api modules even where this page uses a subset (later pages reuse the rest).
+- **D-C1 — one typed cleanup.** `ProgramProgressCard` prop `summary?: any` → `AnalyticsSummary` (the type
+  already exists in `summary.ts`). The cleanup was **pre-named in the stance question option**, so no separate
+  scope-pinning multiSelect was needed — the user endorsed the specific cleanup by selecting the option.
+- **Role rules — confirmed, not asked open.** Fully code-determined (`canLogForAny` lines 51-54 +
+  `isDataEntryLocked` line 55); presented my reading as a confirm (global_admin/admin/logger see Bulk-add + log
+  for any member; member sees Add+Health + logs for self; lock → disabled cards), user confirmed faithful.
+
+**Durable patterns (promote to SKILL.md).**
+1. **The scope cut IS the run when a page is oversized.** For a page that drags in a 500-line form + a write
+   path + 6 sub-routes, the highest-value decision is "what does THIS page SPEC own vs defer." Lead with the
+   "one page that works end-to-end" slice (landing + its embedded modals), defer separately-listed sub-routes
+   as their own rows (forward-nav F2). Don't offer a read-only slice that leaves core action controls dead.
+2. **A pre-named cleanup needs no pinning round.** When the stance question's chosen option already names the
+   exact cleanup ("type ProgramProgressCard's prop"), the user has endorsed it — apply it as a D-row; skip the
+   scope-pinning multiSelect (which is for when "change now" is selected without a named target).
+3. **"Backend coverage complete" pays off at the consuming page.** When the backend phase finished all features
+   first, a web page that consumes 11 endpoints needs ZERO backend work — the sweep's job is just to confirm
+   each endpoint is mounted (`server.js`), not to port. State "all endpoints already mounted" explicitly.
+4. **The rebuild can flatten a legacy nested workspace to top-level routes** — confirm the route shape from the
+   navigation call site (`saveActiveProgram` + `router.push("/summary")`), not from the legacy directory tree.
+
+**Output.** `apps/web/src/{lib/api/{summary,logs,program-workouts}.ts, components/ui/{ErrorState,Input,Button}.tsx,
+components/forms/{LogWorkoutForm,BulkLogWorkoutForm,LogDailyHealthForm}.tsx, app/summary/page.tsx}` (+ the D-C1
+edit). `npm run build` ✓ (`/summary` prerendered, 107 kB — Recharts; Middleware 27.2 kB active). SPEC v0.1.0
+(D-REF `[web]` / D-SCOPE / D-S1 / D-C1; F1–F7). Page REGISTRY + COVERAGE ticked (summary ✓; logging forms ✓ as
+modals). **No feature bump** (consumes existing analytics/analytics-v2/workout-logs/daily-health-logs/program-
+workouts/program-memberships/auth routes). **Next:** the 6 deferred `/summary` sub-routes and/or the sibling
+workspace tabs (`/members`, `/lifestyle`, `/program` settings).
