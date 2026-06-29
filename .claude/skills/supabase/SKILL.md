@@ -21,13 +21,17 @@ hooks load).
 ## Prereqs
 
 - `psql` on PATH (`psql --version` → 16.x).
-- `apps/backend/.env` exists with a `DATABASE_URL` line. If missing, recreate
-  it from the linked Railway backend:
+- `apps/backend/.env` exists with a `DATABASE_URL` line. If missing, recreate it from the user's
+  password manager, `tools/migrator/.env` (`TARGET_DATABASE_URL`), or the Render service's env:
   ```bash
   cd apps/backend
-  railway variables --kv | grep -E '^DATABASE_URL=' > .env
+  # From the Render REST API (keys+values; needs RENDER_API_KEY + the service id):
+  curl -s https://api.render.com/v1/services/<serviceId>/env-vars \
+    -H "Authorization: Bearer $RENDER_API_KEY" \
+    | jq -r '.[].envVar | select(.key=="DATABASE_URL") | "DATABASE_URL=" + .value' > .env
   ```
-  (`.env` is gitignored — only `.env.example` is tracked.)
+  (`.env` is gitignored — only `.env.example` is tracked. Or just copy `DATABASE_URL` from the
+  Render Dashboard → service → Environment.)
 
 ## Connection facts
 
@@ -69,8 +73,8 @@ via `members.auth_user_id`.
 
 ## Gotchas
 
-- The DB secret lives only in the gitignored `.env` (and Railway) — never print `DATABASE_URL`,
-  never commit a `.env`.
+- The DB secret lives only in the gitignored `.env` (and Render / the user's password manager) — never
+  print `DATABASE_URL`, never commit a `.env`.
 - The `db-readonly-guard.sh` hook scans the whole command line for write/DDL keywords — a write word
   inside a SELECT **string literal** (e.g. `WHERE name = 'DELETE'`) can false-positive. Rephrase, or
   it's harmless under the read-only flag anyway.

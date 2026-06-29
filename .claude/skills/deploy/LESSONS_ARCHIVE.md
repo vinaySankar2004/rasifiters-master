@@ -7,7 +7,7 @@
 
 ### Entry template
 - **Run N — <product> <milestone> (YYYY-MM-DD) — <FIRST DEPLOY | REDEPLOY on existing infra> ✅/🏗️**
-  - Targets: web → Vercel `<project>` (`<url>`); backend → Railway `rasifiters-api` (`<url>`).
+  - Targets: web → Vercel `<project>` (`<url>`); backend → Render `rasifiters-api` (`<url>`).
   - What the deploy actually needed (env/secrets/schema/bucket/auth): …
   - Gotchas hit + the fix: …
   - Verify done (headless) vs owed (signed-in/storage/push): …
@@ -44,3 +44,33 @@
 - Flip call: ✅ provision complete for Supabase; Railway/Vercel intentionally held to their build steps.
 - New durable patterns promoted to Converged lessons: Supabase-CLI region-enum/upgrade; org-create-first;
   probe-the-pooler-host (`aws-1`, not `aws-0`).
+
+### Entry — RaSi Fiters backend host swap Railway → Render (2026-06-28) — DOC/IaC CHANGE (no deploy) ✅
+- Targets: none deployed this run. Rewrote the skill + repo docs for Render; authored the backend Blueprint.
+- Trigger: user chose **Render** over Railway for the API (legacy backend was already a Render service;
+  keep the platform, use Render's native Blueprint + GitHub auto-deploy). Railway was never provisioned →
+  clean swap, zero migration cost. Recorded as METHODOLOGY R7 (R4 amended in place).
+- What changed: `apps/backend/render.yaml` (NEW Blueprint), `server.js` (explicit `0.0.0.0` bind),
+  `.mcp.json` (`railway`→`render` MCP `https://mcp.render.com/mcp`), `deploy-scope-guard.sh`, this skill
+  (prereqs, workflow §2, git→deploy §B, smoke test, converged lessons, frontmatter), `ENV_RUNBOOK.md`,
+  `METHODOLOGY.md`, `ICM.md`, `CLAUDE.md`, `CONTEXT.md`, `SETUP.md`, `README.md`, `apps/{web,backend}/CONTEXT.md`,
+  `supabase`+`health-check` skills, auth SPEC changelog, `package.json`.
+- Render facts researched + baked in:
+  - **Blueprint = IaC**: `render.yaml` with `type: web`, `runtime: node`, `rootDir`, `buildCommand`,
+    `startCommand`, `healthCheckPath`, `autoDeployTrigger: commit`, `buildFilter`, `envVars`.
+  - **Monorepo**: `rootDir: apps/backend` makes commands relative + limits autodeploy to that subtree;
+    `buildFilter.paths` are **repo-root-relative** (`apps/backend/**`), NOT relative to `rootDir` — footgun.
+  - **Env model**: `value:` vars live in the YAML; `sync: false` secrets are prompted ONCE at first
+    Blueprint sync (dashboard), editable later via dashboard / REST API (`PUT /v1/services/{id}/env-vars`),
+    never overwritten by YAML edits. `generateValue: true` = Render's random-secret generator.
+  - **PORT/host**: Render injects `PORT` (default 10000); app MUST bind `0.0.0.0`.
+  - **Health check**: no `healthCheckPath` → TCP probe; with it → expects 2xx/3xx, gates zero-downtime
+    deploys (cancels after 15 min unhealthy). Set it to `/`.
+  - **Hosted MCP** exists at `https://mcp.render.com/mcp` (OAuth) — a clean analogue of the railway MCP.
+- Verify done: full-repo `grep -i railway` clean except the intentional R7/switch descriptions + historical
+  session-log/lessons entries; `.mcp.json` JSON-valid with the render entry; the live Supabase JWKS endpoint
+  confirmed serving an ES256/P-256 key (the deploy's asymmetric-key prereq is already satisfied).
+- Owed: actual Render provision + deploy + auth smoke-test (needs the user's `SUPABASE_ANON_KEY`).
+- New durable patterns promoted to Converged lessons: Render false-green (confirm a NEW deploy id);
+  Blueprint provisions AND auto-wires in one step; `buildFilter` is repo-root-relative; `sync:false`
+  secrets are dashboard-owned.

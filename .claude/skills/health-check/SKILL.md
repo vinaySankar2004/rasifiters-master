@@ -81,7 +81,7 @@ already in plan mode, behave as if it is (no writes).
 | Check | How |
 |-------|-----|
 | Single-source-of-truth violation | the same fact maintained in ≥2 docs where the SoT table says one is canonical → propose: keep canonical, replace the copy with a pointer |
-| Drift-prone duplication | values likely to change (IDs, env vars, ports, version numbers, Supabase/Vercel/Railway refs) restated outside their canonical CONTEXT.md/registry |
+| Drift-prone duplication | values likely to change (IDs, env vars, ports, version numbers, Supabase/Vercel/Render refs) restated outside their canonical CONTEXT.md/registry |
 | Volatile-doc log accumulation | a volatile doc (`ICM.md` Open follow-ups, any current-state list) still carries struck `DONE` entries past one pass, or un-struck items whose work is clearly shipped → propose pruning, gated on the doc blast-radius check (outcome lives in its canonical home) |
 
 **C. Structural decay (🔵 — only past the strict bar, often zero per run):**
