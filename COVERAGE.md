@@ -11,7 +11,7 @@ Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a
 
 ## backend (Express API) — `../backend`
 - [x] auth (login/app/global, refresh, logout, register, change-password, delete-account) → [auth SPEC](specs/features/auth/SPEC.md) (v0.1.0; incl. `middleware/auth.js` authz gates per D-C1)
-- [ ] members (CRUD, list)
+- [x] members (CRUD, list) → [members SPEC](specs/features/members/SPEC.md) (v0.1.0; `DELETE /:id` cascade deferred → 501 per D-C1; `createMember` wired to Supabase `createUser` per D-C2)
 - [ ] programs (CRUD, archive, admin_only_data_entry)
 - [ ] program-memberships (members, available, enroll, role/status, leave)
 - [ ] invites (invite, my-invites, all-invites, response, blocks)

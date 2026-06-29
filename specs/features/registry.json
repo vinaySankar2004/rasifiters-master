@@ -19,6 +19,23 @@
           "server.js"
         ]
       }
+    },
+    "members": {
+      "version": "0.1.0",
+      "spec": "specs/features/members/SPEC.md",
+      "status": "documented",
+      "consumed_by": ["web", "ios"],
+      "depends_on": ["auth"],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/members.js",
+          "services/memberService.js",
+          "models/Member.js",
+          "models/MemberEmail.js",
+          "server.js"
+        ]
+      }
     }
   }
 }
