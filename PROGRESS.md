@@ -42,9 +42,28 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + the FIRST TWO
+> **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + the FIRST THREE
 > WORKSPACE TABS done (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account`
-> + `programs` + `summary` + `members`.** The auth-recovery path is END-TO-END (forgot → email → reset → login).
+> + `programs` + `summary` + `members` + `lifestyle`.** The auth-recovery path is END-TO-END (forgot → email → reset → login).
+> **The `lifestyle` page (9th web page, 3rd WORKSPACE TAB `/lifestyle`) is DONE** (2026-06-29): faithful 1:1 port of
+> the legacy lifestyle dashboard — NOT a sleep/diet logging screen but a **read-only** workout-type-analytics +
+> health-timeline overview with the same role-gated **"view as"** picker as Members (admin/global-admin view-as any
+> member or program-wide "None"; logger/member own data, no picker). 4 workout-type stat cards (total / most-popular /
+> longest-duration / highest-participation) + a sleep/diet `ComposedChart` timeline card (→ deferred `/lifestyle/timeline`)
+> + a sortable workout-type popularity list (count/total-min/avg toggle + top-10/show-all). The header pill flips
+> "Manage workouts"/"View workouts" by `canAddWorkouts` but both nav to the deferred `/lifestyle/workouts` (the write path
+> where `admin_only_data_entry` actually bites). **Read-only** → `admin_only_data_entry` **N/A** here. **D-SCOPE** =
+> landing page only (the 2 sub-routes `/lifestyle/{workouts,timeline}` deferred as their own rows). **D-S1** faithful 1:1
+> + **D-C1** port whole `lib/api/lifestyle.ts` verbatim (6 fns over already-mounted `analytics`/`analytics-v2` routes) +
+> **D-C2** port `ui/EmptyState.tsx` verbatim (new 10-line primitive). **Zero backend work, no feature bump** — all 6
+> endpoints already mounted (`server.js:74-76`). The page-local `MemberPickerModal` is a near-dup of the Members one;
+> the user chose port-local-copy + flag (F6) over extracting a shared component (the Members picker was de-dup'd into a
+> 2-variant `activePicker` form, so sharing would add branches). Flagged F1–F7 (client JWT-decode role; forward-nav to
+> unbuilt routes; `sessionStorage` view-as + 2 effects; highest-participation always program-wide; over-fetched
+> client-sorted popularity; duplicated picker; no client throttle). `npm run build` ✓ (`/lifestyle` prerendered, 13.6 kB
+> — Recharts; Middleware 27.3 kB active). **All this session's work committed via `git-version` next; lessons run 23
+> appended.** **NEXT = the last workspace tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6 deferred
+> `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes (`workouts`/`timeline`).**
 > **NEXT = the 8 deferred `/members` sub-routes** (`list` / `detail` / `invite` / `metrics` / `history` /
 > `streaks` / `workouts` / `health`), **the 6 deferred `/summary` sub-routes** (3 detail: `activity` /
 > `distribution` / `workout-types`; 3 mobile log fallbacks: `log-workout` / `log-health` / `bulk-log-workout`),
@@ -372,19 +391,20 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        features (program-memberships, invites, logs, workouts, notifications, analytics…) pending._
 5. [~] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end. _Foundation scaffold ported + builds green 2026-06-29
-       (`apps/web`); **8 pages done** — public/auth path (splash → login → forgot → reset → create-account)
+       (`apps/web`); **9 pages done** — public/auth path (splash → login → forgot → reset → create-account)
        + the `programs` hub (first protected route; resolved the middleware HS256→ES256 decision) + the
        `summary` workspace tab (1st tab; read overview + desktop log-form modals) + the `members` workspace
-       tab (2nd tab; per-member overview + role-gated "view as" picker, read-only). Next: the 8 deferred
-       `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the remaining tabs (`/lifestyle`,
-       `/program` settings)._
+       tab (2nd tab; per-member overview + role-gated "view as" picker, read-only) + the `lifestyle` workspace
+       tab (3rd tab; read-only workout-type analytics + health-timeline overview, same view-as picker). Next:
+       the last tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6 deferred `/summary`
+       sub-routes, and/or the 2 deferred `/lifestyle` sub-routes (`workouts`/`timeline`)._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
 
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **8** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **9** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
@@ -407,9 +427,16 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   **read-only** so `admin_only_data_entry` N/A; D-SCOPE = landing only (8 sub-routes deferred), D-S1 faithful +
   D-C1 port whole `lib/api/members.ts` verbatim + D-C2 hoist `formatDuration`→`lib/format.ts` + D-C3 de-dup the
   two `MemberPickerModal` blocks; consumes `member-analytics`/`daily-health-logs`/`program-memberships`/`auth`;
-  no feature bump) · iOS screen specs: **0**
-  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + first TWO workspace tabs done; next =
-  the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the remaining tabs (`/lifestyle`, `/program`); see Next action_
+  no feature bump), `lifestyle` (🏗️ v0.1.0 `[web]` — **3rd WORKSPACE TAB** `/lifestyle`: NOT a sleep/diet
+  logging screen — a **read-only** workout-type-analytics + health-timeline overview with the same role-gated
+  **"view as"** picker as Members (admin/global-admin view-as any member or program-wide "None"; logger/member
+  own data, no picker); 4 workout-type stat cards + a sleep/diet `ComposedChart` timeline card + a sortable
+  popularity list; **read-only** so `admin_only_data_entry` N/A; D-SCOPE = landing only (2 sub-routes
+  `/lifestyle/{workouts,timeline}` deferred), D-S1 faithful + D-C1 port whole `lib/api/lifestyle.ts` verbatim +
+  D-C2 port `ui/EmptyState.tsx` verbatim; consumes `analytics`/`analytics-v2`/`program-memberships`/`auth`, all
+  endpoints already mounted, no feature bump) · iOS screen specs: **0**
+  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + first THREE workspace tabs done; next =
+  the last tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes; see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -448,6 +475,32 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-29 (pm-9)** — **Specced + ported the `lifestyle` page (9th web page) — the THIRD WORKSPACE TAB
+  (`/lifestyle`), the workout-type-analytics / health-timeline overview.** `question-asker` run 23. User picked
+  `/lifestyle` (3rd tab) over the deferred sub-routes / `/program` tab. Opening sweep fanned 3 `Explore` agents
+  (legacy lifestyle cluster · our ported web foundation+deps · backend API contract), and I verified the
+  load-bearing files myself: the full 625-line landing `page.tsx` + the new `lib/api/lifestyle.ts` + our
+  foundation's ported deps. **Key findings:** (1) **the name lies again** (run-22 pattern recurs) — `/lifestyle`
+  is NOT a sleep/diet *logging* screen but a **read-only** workout-type-analytics + health-timeline dashboard,
+  a near-twin of the Members tab (same view-as picker, same `MemberPickerModal` with `allowNone`, same role
+  gating). The actual data-entry (workout-type CRUD) lives in the deferred `/lifestyle/workouts` sub-route. (2)
+  **2** new deps — `lib/api/lifestyle.ts` (6 fns over already-mounted `analytics`/`analytics-v2` routes) +
+  `ui/EmptyState.tsx` (new 10-line primitive); everything else already ported (incl. the shell `/lifestyle`
+  nav tab, all 5 chart tokens, `IconDumbbell`, `fetchProgramMembers`). (3) **all 6 endpoints already mounted**
+  (`server.js:74-76`) — zero backend work, no feature bump. (4) 2 forward-nav sub-routes deferred (`workouts`/
+  `timeline`, F2). (5) read-only → `admin_only_data_entry` **N/A**. **Tight 2-Q round** (both user-answered):
+  **D-SCOPE** = landing page only · stance = **faithful, port local `MemberPickerModal` verbatim + flag the dup**
+  with Members (F6) — user declined extracting a shared picker component (I recommended against: the Members
+  picker was de-dup'd into a 2-variant `activePicker` form, so sharing would add branches, not remove them).
+  Ported `apps/web/src/app/lifestyle/page.tsx` + `lib/api/lifestyle.ts` + `ui/EmptyState.tsx` verbatim. `npm run
+  build` ✓ (`/lifestyle` prerendered, 13.6 kB — Recharts; Middleware 27.3 kB active). Wrote
+  `specs/pages/web/lifestyle/SPEC.md` v0.1.0 (D-REF `[web]` / D-SCOPE / D-S1 / D-C1 / D-C2; F1–F7: client
+  JWT-decode role, forward-nav to unbuilt routes, `sessionStorage` view-as + 2 effects, highest-participation
+  always program-wide, over-fetched client-sorted popularity, duplicated picker, no client throttle). Page
+  REGISTRY + COVERAGE ticked (lifestyle ✓). **All this session's work committed via `git-version` next; lessons
+  run 23 appended.** **NEXT = the last tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6
+  deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes.**
 
 - **2026-06-29 (pm-8)** — **Specced + ported the `members` page (8th web page) — the SECOND WORKSPACE TAB
   (`/members`), the per-member overview / "view as" dashboard.** `question-asker` run 22. Opening sweep fanned

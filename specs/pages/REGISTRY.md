@@ -20,6 +20,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | programs | `/programs` (first **protected** route) | 🏗️ v0.1.0 | `programs` + `program-memberships` + `invites` (CRUD, invites, membership) + `auth` (`useAuth`/`useAuthGuard`) | [programs SPEC](web/programs/SPEC.md) |
 | summary | `/summary` (first **workspace tab**) | 🏗️ v0.1.0 | `analytics` + `analytics-v2` (8 reads) + `workout-logs` + `daily-health-logs` (3 writes) + `program-workouts`/`program-memberships` (form lookups) + `auth` (`useAuthGuard`) | [summary SPEC](web/summary/SPEC.md) |
 | members | `/members` (second **workspace tab**) | 🏗️ v0.1.0 | `member-analytics` (metrics/history/streaks/recent) + `daily-health-logs` (health card) + `program-memberships` (`fetchProgramMembers` → view-as picker) + `auth` (`useAuthGuard`) | [members SPEC](web/members/SPEC.md) |
+| lifestyle | `/lifestyle` (third **workspace tab**) | 🏗️ v0.1.0 | `analytics` (`workouts/types` popularity + `health/timeline`) + `analytics-v2` (4 workout-type stats) + `program-memberships` (`fetchProgramMembers` → view-as picker) + `auth` (`useAuthGuard`) | [lifestyle SPEC](web/lifestyle/SPEC.md) |
 
 Inventory to document (from the research pass): splash · login · create-account · privacy-policy · support ·
 programs · program (+ profile/password/appearance/privacy/roles/edit) · summary (+ activity/distribution/
