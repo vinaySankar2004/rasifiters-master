@@ -199,7 +199,22 @@ directly as a faithful port from the legacy reference app** — there is no inte
   wins / keep both / single-client" first in §3, record it as `D-REF` in §9.
 - **Page/screen specs always carry role-based view rules:** map global_admin · program admin · logger ·
   member → visible/enabled per page, incl. the `admin_only_data_entry` effect (§0.7). It's a mandatory
-  question dimension, not an afterthought.
+  question dimension, not an afterthought. (When a page is pre-auth, the answer is "N/A — no role exists
+  yet"; say so explicitly rather than omitting the section — splash/login runs 15–16.)
+- **A page can be faithful-1:1 PLUS one deliberate addition — keep the addition scoped, defer the rest (run
+  16).** When the user mandates a *net-new capability* on an otherwise-faithful page (login + auth-recovery),
+  the stance is NOT pure-faithful and NOT a rewrite: it's faithful-1:1 **plus ONE addition** (a link/control),
+  recorded as its own `D-C1`, with the heavy machinery (new pages, new backend routes) pinned in a **`D-PLAN`
+  row** and pushed to follow-up specs. Lead the scope question with *"this page only + plan the rest"* vs
+  *"build the whole path now."* And for a net-new **cross-surface** capability, the opening sweep must fan an
+  agent over **your own rebuilt stack** (ported web + backend + the feature SPEC), not just the legacy
+  reference — the "what's already half-built" finding (run 16: `register` already makes loginable users;
+  Supabase `resetPasswordForEmail` exists but is unrouted) reshapes the work from "build everything" to "wire
+  the gap." When the user's verbal intent has a privacy/security footgun (run 16: "detect no-email then
+  branch" = an account-enumeration vector), offer it as the lead option but **also offer + recommend the
+  leak-free default** (always-send + always-visible fallback); they often take the safe one. Save the mandate
+  to memory at the top of the run, and **update that memory mid-run** when a decision supersedes the initial
+  assumption.
 - **Separate locked-by-METHODOLOGY decisions from genuinely-open ones before asking.** Decisions already
   fixed in the R-log (e.g. R1's proxy model / retired tables / `auth_user_id`) are stated as context, NOT
   re-asked — keeps the round to the few real choices (auth run 1: 4 real Qs, all faithful).

@@ -639,3 +639,43 @@ prerendered). Registered in `specs/pages/REGISTRY.md` (web table) + COVERAGE (pu
 ticked). Decisions: **D-REF** (`consumed_by=[web]`; iOS placeholder divergence) · **D-S1** (faithful 1:1, no
 code changes). Flagged F1–F4. Next: `login` (where the auth-path middleware + the real auth round-trip get
 exercised).
+
+---
+
+## Run 16 — `login` page (web), 2026-06-29 (the 2nd web page spec; first page with a deliberate addition)
+
+**Target:** the public `/login` sign-in screen + the entry to a net-new auth-recovery path. **Kind:** page
+spec (web). **The run's signature:** unlike `splash` (pure faithful 1:1), the user mandated a *new
+capability* — Supabase-Auth self-service recovery (forgot/reset-password) + mandatory-validated sign-up
+email — so the page is faithful-1:1 **plus ONE scoped addition**.
+
+**Sweep — fan out over BOTH legacy clients AND our own ported stack (the key move).** 3 `Explore` agents:
+(1) legacy web login UI, (2) legacy iOS auth, (3) **our ported web foundation + backend auth + the auth
+SPEC**. Agent 3 was the high-value one: it revealed what already exists so the work reshaped from "build
+everything" to "wire the gap" — our `register` already creates a loginable Supabase user with an email
+(members D-C2), and Supabase `resetPasswordForEmail` is available but **no backend route calls it**. Agents
+1+2 confirmed forgot-password/reset/email-verification exist on **neither** client (100% net-new). For a
+net-new cross-surface capability, always sweep the rebuilt stack too, not just the legacy reference — the
+"what's already half-built" finding changes the scope question.
+
+**Decision round — decide-heavy auth shape (4 Qs, all user-answered):**
+1. **Scope** — *login page only + plan the rest* (vs whole auth-recovery path now). Chose page-only: the
+   forgot-password/reset pages + sign-up email enforcement + the backend `auth` routes each become their own
+   follow-up spec/port. Keeps the page spec focused (ICM page-by-page norm).
+2. **Reset trigger** — *always-send + always-visible contact link* (vs detect-then-branch vs show-both). The
+   user's verbal intent was "detect no-email → show contact," but the always-send path (Supabase replies "if
+   an account exists, a link was sent") + an always-visible `mailto:` fallback is **privacy-safe (no account-
+   email enumeration)** and simpler. Lesson: lead the option with the user's literal idea, but offer +
+   recommend the leak-free default; the user picked it.
+3. **Reset path** — *through the Express backend* (vs web embeds Supabase client). R1: clients never embed
+   Supabase → new `auth` routes + a MINOR auth-feature bump when built.
+4. **Support email** — `vinay.sankara@gmail.com`, an explicit **placeholder that may change** → wire as a
+   config/env value (reuses the iOS `APIConfig.supportURL` precedent).
+
+**Output:** ported `apps/web/src/app/login/page.tsx` faithful 1:1 + **D-C1** (one addition: "Forgot your
+password?" link → `/forgot-password`, with a comment marking it non-legacy). `npm run build` ✓. SPEC v0.1.0:
+**D-REF** (`[web]`; iOS `LoginView` identical bar the new link) · **D-S1** (faithful) · **D-C1** (the
+addition) · **D-PLAN** (the whole recovery path's pinned decisions, so the deferred follow-ups inherit them).
+Flagged F1–F5 (client JWT decode; no bootstrap gate/form flash; iOS recovery gap; no client rate-limit; no
+inline validation). Registered + COVERAGE ticked. Memory saved + updated mid-run when decisions superseded
+the initial assumption. **Next:** `forgot-password` page (build the link target + the backend `auth` routes).
