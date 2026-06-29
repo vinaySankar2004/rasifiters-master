@@ -679,3 +679,57 @@ addition) · **D-PLAN** (the whole recovery path's pinned decisions, so the defe
 Flagged F1–F5 (client JWT decode; no bootstrap gate/form flash; iOS recovery gap; no client rate-limit; no
 inline validation). Registered + COVERAGE ticked. Memory saved + updated mid-run when decisions superseded
 the initial assumption. **Next:** `forgot-password` page (build the link target + the backend `auth` routes).
+
+---
+
+## Run 17 — `forgot-password` page (web) + the net-new `POST /auth/forgot-password` (2026-06-29)
+
+**Target:** the `/forgot-password` page (login SPEC D-C1's link destination) — recovery step 1 of 2. The
+**third web page spec**, and the **first 100%-net-new page** (run 16 already confirmed recovery exists on
+neither client). Page mode.
+
+**Pre-locked vs genuinely-open — the short-round discipline paid off again.** Login's D-PLAN had already
+resolved almost everything (always-send + always-visible `mailto:` fallback; support = `vinay.sankara@gmail.com`
+placeholder via config; reset-through-Express). And METHODOLOGY R1 locks "clients never embed Supabase" → the
+reset link MUST land on our own `/reset-password` page, not Supabase's hosted one — so I **stated that as
+context, did not ask it** (presenting "use Supabase's hosted page" would offer something R1 forbids). After
+removing the locked + pre-decided items, only **2 genuinely-open decisions** remained → one 2-Q round.
+
+**The 2 real decisions:**
+1. **Scope** — *"Page + forgot route only"* (vs page + both backend routes, vs page only). User chose the
+   minimal by-page vertical slice: build the forgot-password page + the **one** route it calls
+   (`POST /auth/forgot-password`, auth MINOR → 0.3.0); **`reset-password` page + `POST /auth/reset-password`
+   = next run** (auth → 0.4.0). New lesson: **cut a multi-step net-new flow BY PAGE — each page paired with
+   the single route it calls** — rather than "all backend now, pages later." Two small reviewable slices,
+   each builds something that works end-to-end, at the cost of two MINOR bumps (cheap; the changelog records
+   both). The "one MINOR bump for both routes" wording in D-PLAN was a guess that the per-page cut improved on.
+2. **Email field** — *add inline email-format validation* (vs match login's no-validation F5). User added it:
+   this field is **email-only**, unlike login's username-or-email identifier, so format validation is
+   meaningful here where it'd be misleading on login. New lesson: **a sibling page's flagged "kept-as-is"
+   characteristic (login F5) is NOT automatically inherited — re-evaluate it against THIS page's input
+   semantics.** Recorded as a deliberate divergence (D-C2), cross-referencing login F5.
+
+**Privacy-safe by construction (the always-200 contract).** `requestPasswordReset` always returns the same
+generic `200 { message }` regardless of existence/validity/delivery, swallows Supabase errors, and only calls
+`resetPasswordForEmail` when the email is format-valid — no account-enumeration. The client mirrors it: a
+genuine network/500 failure shows a **neutral** retry message (a 500 is not existence info), and success shows
+a fixed generic banner, not the server text. The **always-visible `mailto:` fallback** (shown in BOTH the form
+and success states) is the path back in for migrated **placeholder no-email accounts** that literally can't
+receive a reset email — the structural reason it's always visible, not conditional.
+
+**Net-new ≠ no reference patterns.** With no legacy file to port, faithfulness was to the **sibling auth pages'
+chrome** (D-S1): reused login/splash's `BrandMark`, `motion.div` fade-in, `input-shell`/`button-primary--dark-white`,
+`rf-*` tokens, and the already-authed→`/programs` redirect verbatim. Net-new pages still get a "faithful"
+stance — to the established in-repo design language, not to legacy.
+
+**Forward-dependency wiring done right.** The reset link's `redirectTo` (`PASSWORD_RESET_REDIRECT_URL`,
+committed in `render.yaml` = `https://rasifiters.com/reset-password`) points at a page that lands next run, and
+web isn't on Vercel yet — so the route is **inert until web deploys + a real user triggers it** (mirrors login →
+`/programs`). Code degrades gracefully (unset env → Supabase Site URL fallback). Flagged as F4 (resolved next
+run), not hidden.
+
+**Output:** backend `requestPasswordReset` + public `POST /forgot-password` + `PASSWORD_RESET_REDIRECT_URL`;
+web `SUPPORT_EMAIL` + `requestPasswordReset()` + `app/forgot-password/page.tsx`. Boot check ✓ (public route,
+1 handler), `npm run build` ✓ (`/forgot-password` prerendered, 3.94 kB). SPEC v0.1.0 (D-REF net-new / D-SCOPE
+/ D-C1 / D-C2 / D-C3 / D-S1; F1–F5). Auth SPEC → 0.3.0 (route #9, D-C4, changelog) + registry/REGISTRY/page
+REGISTRY/COVERAGE. **Next:** `reset-password` page + `POST /auth/reset-password` (auth → 0.4.0).

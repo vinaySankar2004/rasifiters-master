@@ -214,7 +214,22 @@ directly as a faithful port from the legacy reference app** — there is no inte
   branch" = an account-enumeration vector), offer it as the lead option but **also offer + recommend the
   leak-free default** (always-send + always-visible fallback); they often take the safe one. Save the mandate
   to memory at the top of the run, and **update that memory mid-run** when a decision supersedes the initial
-  assumption.
+  assumption. **The follow-up that builds the deferred machinery: cut a multi-step net-new flow BY PAGE —
+  each page paired with the SINGLE backend route it calls — not "all backend now, pages later" (run 17:
+  forgot-password page + `POST /auth/forgot-password` this run; reset-password page + `POST /auth/reset-password`
+  next).** Each slice builds something that works end-to-end; the cost is one MINOR bump per route (cheap —
+  the changelog records each), and it beats a guessed "one bump for both routes." Lead the scope question
+  with the smallest by-page slice. **A net-new page is still "faithful" — to the SIBLING pages' chrome**
+  (run 17 D-S1: reuse the established `BrandMark`/`motion`/`input-shell`/`rf-*` design language verbatim),
+  not to a legacy file that doesn't exist. And **don't auto-inherit a sibling page's flagged kept-as-is
+  characteristic — re-evaluate it against THIS page's input semantics** (run 17: login's "no inline
+  validation" F5 was kept because its identifier is username-or-email; forgot-password's field is
+  email-only, so inline format validation IS meaningful — recorded as a deliberate divergence D-C2,
+  cross-referencing the sibling's F-row). For a privacy-safe recovery request, the backend contract is
+  **always-200 generic message** (never reveal existence), Supabase errors swallowed, the API called only
+  on a format-valid email; the client mirrors it (a genuine 500 ≠ existence info → neutral retry message,
+  not the leak), and the `mailto:` fallback is **always visible** precisely because placeholder no-email
+  accounts can't receive the email at all.
 - **Separate locked-by-METHODOLOGY decisions from genuinely-open ones before asking.** Decisions already
   fixed in the R-log (e.g. R1's proxy model / retired tables / `auth_user_id`) are stated as context, NOT
   re-asked — keeps the round to the few real choices (auth run 1: 4 real Qs, all faithful).
