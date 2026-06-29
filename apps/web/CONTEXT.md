@@ -31,7 +31,7 @@ analytics, notifications) are `specs/features/` it consumes.
 Vercel project `rasifiters-web`, `--scope TODO(provision)`. See the `deploy` skill. Env (from
 `src/lib/config.ts`): `NEXT_PUBLIC_API_ENV=prod` + `NEXT_PUBLIC_API_BASE_URL_PROD` → the Render API
 (`https://rasifiters-api.onrender.com/api`); `NEXT_PUBLIC_APP_URL` → the live web origin (metadata base).
-`JWT_SECRET` is consumed by `src/middleware.ts` today but is part of the deferred auth-path decision below.
+`JWT_SECRET` is **no longer used** — `src/middleware.ts` was changed to decode + expiry only (see Foundation port, resolved 2026-06-29), so no edge secret is needed.
 
 ## Foundation port (Phase 3 kickoff, 2026-06-29)
 
@@ -49,14 +49,13 @@ the legacy app (`../../../rasifiters-webapp`), all justified by the migration:
   legacy gate opens the SSE stream + hydrates the active program + renders the notification modal — it
   depends on the web `notifications`/`programs` features (not yet ported). Mirrors the backend's
   deferred-stub pattern; REPLACED with the faithful port when the web notifications feature lands.
-- **`src/middleware.ts` = faithful HS256 port that does NOT work under the migrated auth model** — it
-  verifies an HS256 token signed with a shared `JWT_SECRET`, but auth migrated to Supabase **ES256**
-  (asymmetric), so every real session token would be marked invalid → redirect loop. It is **inert** for
-  now (none of the matched routes — `/summary`, `/members`, `/lifestyle`, `/program`, `/programs` — exist
-  yet). **OPEN DECISION (auth-path SPEC), must resolve before `/programs` lands** (first protected route
-  after login): (a) ES256/JWKS verify at the edge (mirror the backend `middleware/auth.js`), or (b) decode
-  + expiry check only (no signature verify) since the backend re-verifies every API call and the middleware
-  is just a UX redirect gate.
+- **`src/middleware.ts` = decode + expiry only (RESOLVED 2026-06-29, option b)** — the faithful HS256 port
+  couldn't validate Supabase **ES256** (asymmetric) tokens (would redirect-loop every real session). Resolved
+  with the `programs` page port (its D-C1): the edge middleware is a **UX redirect gate**, not the security
+  boundary — it now only decodes the token + checks `exp` (malformed → clear + bounce; expired → pass through
+  for the client to refresh). The Express backend JWKS-verifies (ES256) **every** API call and owns all authz
+  (CLAUDE.md auth model — not RLS), so dropping edge signature-verify doesn't weaken security; it also avoids a
+  per-navigation JWKS fetch at the edge. The `JWT_SECRET` env dependency is gone.
 
 Faithful (verbatim) otherwise: all of `src/lib/*`, `globals.css`, theme/tailwind tokens, providers, layout,
 shell chrome, the icon library, and the API client + auth API module.

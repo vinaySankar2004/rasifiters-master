@@ -42,11 +42,24 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — the entire public/auth path is now ported (2026-06-29):
-> `splash` + `login` + `forgot-password` + `reset-password` + `create-account`.** The auth-recovery path is
-> END-TO-END (forgot → email → reset → login). **NEXT page = the `programs` hub** (the first protected
-> route after login — and where the `middleware.ts` HS256→ES256 decision MUST be resolved before it lands;
-> see Open questions). The **`create-account` page (5th web page) is DONE**: faithful port of the legacy
+> **On "continue": Phase 3 `web` in progress — public/auth path COMPLETE + the FIRST PROTECTED ROUTE done
+> (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account` + `programs`.**
+> The auth-recovery path is END-TO-END (forgot → email → reset → login). **NEXT page = `program` overview /
+> the first workspace tab `/summary`** (selecting a program on the hub routes there; `useAuthGuard({requireProgram:true})`
+> already bounces back to `/programs` until a program is chosen). The **`programs` hub (6th web page, first
+> PROTECTED route) is DONE**: faithful 1:1 port of the legacy post-login hub — `My Programs` list of
+> `ProgramCard`s (status/progress/member-counts + invite Accept/Decline + admin Edit/Delete), the Program
+> Actions modal (Invites + Create tabs), the Account modal (5 rows), and the Edit/Delete/SignOut/Decline
+> confirm modals. **Resolved the standing `middleware.ts` HS256→ES256 open question (D-C1): edge = decode +
+> expiry only** (UX redirect gate; the Express backend JWKS-verifies ES256 on every API call + owns all authz,
+> so dropping edge signature-verify doesn't weaken security and avoids a per-nav JWKS fetch; `JWT_SECRET`
+> dependency dropped). **D-C2** ported the dragged-in deps verbatim — whole `lib/api/{programs,invites}.ts`
+> api modules + the 5 `ui/{PageShell,GlassCard,Modal,ConfirmDialog,StatusBadge}` components this page needs
+> (first `components/ui/` in the rebuild). **D-C3** reused the foundation's `useAuthGuard({requireProgram:false})`
+> for the inline login-redirect. Faithful otherwise; F1–F6 (client JWT-decode role; forward-nav to unbuilt
+> `/summary` + `/program/*`; dual invite mechanisms; edge gate doesn't verify signatures; vestigial-here api
+> fns + `enrollments_closed`; no client rate-limit). `npm run build` ✓ (`/programs` prerendered, 11.3 kB;
+> Middleware 27.2 kB active). The **`create-account` page (5th web page) is DONE**: faithful port of the legacy
 > sign-up screen (first/last name + username + email + optional gender via the newly-ported
 > `Select`/`SelectMobile` + password + confirm; **register-then-auto-login → `/programs`**, since
 > `POST /auth/register` returns no token) **+ 5 deviations** — **D-C1** inline email-format validation (the
@@ -323,7 +336,9 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        features (program-memberships, invites, logs, workouts, notifications, analytics…) pending._
 5. [~] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end. _Foundation scaffold ported + builds green 2026-06-29
-       (`apps/web`); page-by-page port next, starting splash → login → create-account._
+       (`apps/web`); **6 pages done** — public/auth path (splash → login → forgot → reset → create-account)
+       + the `programs` hub (first protected route; resolved the middleware HS256→ES256 decision). Next:
+       `program` overview / `/summary`._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
 
@@ -338,9 +353,12 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   /auth/reset-password`, auth v0.4.0; the recovery path is now end-to-end), `create-account` (🏗️ v0.1.0
   `[web]` — faithful port + 5 deviations: inline email validation D-C1 (D-PLAN item 3), authed → `/programs`
   redirect D-C2, live password checklist D-C3, muted mismatch hint D-C4, autoFocus D-C5; register-then-auto-login
-  → `/programs`; ported the `Select`/`SelectMobile` dependency; no auth-feature bump) · iOS screen specs: **0**
-  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE; next page = the `programs` hub (resolve the
-  `middleware.ts` HS256→ES256 decision first); see Next action_
+  → `/programs`; ported the `Select`/`SelectMobile` dependency; no auth-feature bump), `programs` (🏗️ v0.1.0
+  `[web]` — **first PROTECTED route**: faithful 1:1 hub port + D-C1 middleware = decode+expiry only (resolves
+  HS256→ES256), D-C2 deps ported verbatim (`lib/api/{programs,invites}.ts` + `ui/{PageShell,GlassCard,Modal,
+  ConfirmDialog,StatusBadge}`), D-C3 reuse `useAuthGuard`) · iOS screen specs: **0**
+  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route done; next page =
+  `program` overview / `/summary`; see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -358,13 +376,14 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   `auth.users` but NOT to `member_emails`, so admin 401'd at login (no email to resolve) → backfilled via
   `apps/backend/sql/002_*.sql` (user ran it) + patched `tools/migrator/src/importAuth.js` to write the row.
 - **iOS auth approach:** backend-proxy (clients ~unchanged) vs embed `supabase-swift`. Leaning proxy.
-- **Web edge middleware vs Supabase ES256 (NEW 2026-06-29):** `apps/web/src/middleware.ts` was ported
-  faithfully but verifies **HS256** (shared `JWT_SECRET`); auth migrated to Supabase **ES256** (asymmetric),
-  so it would mark every real session token invalid → redirect loop. **Inert today** (none of its matched
-  routes — `/summary`,`/members`,`/lifestyle`,`/program`,`/programs` — exist yet). **Must resolve in the
-  auth-path SPEC before `/programs` lands** (first protected route after login): (a) ES256/JWKS verify at the
-  edge (mirror backend `middleware/auth.js`), or (b) decode + expiry check only (backend re-verifies every
-  API call; middleware is just a UX redirect gate). See `apps/web/CONTEXT.md` §Foundation port.
+- ~~**Web edge middleware vs Supabase ES256 (NEW 2026-06-29):** `apps/web/src/middleware.ts` ported faithfully
+  but verifies HS256; auth migrated to Supabase ES256, so it would mark every real session invalid → redirect
+  loop.~~ **RESOLVED 2026-06-29 (option b)** with the `programs` page port (its D-C1): the edge middleware is
+  now **decode + expiry only** — a UX redirect gate, not the security boundary. The Express backend
+  JWKS-verifies (ES256) **every** API call + owns all authz (CLAUDE.md auth model — not RLS), so dropping edge
+  signature-verify doesn't weaken security and avoids a per-navigation JWKS fetch; the `JWT_SECRET` dependency
+  is gone. `npm run build` ✓ (Middleware 27.2 kB active). See `apps/web/CONTEXT.md` §Foundation port +
+  `specs/pages/web/programs/SPEC.md` D-C1.
 - ~~**Two deferred delete cascades return 501** — `DELETE /api/auth/account` and `DELETE /api/members/:id`.~~
   **RESOLVED 2026-06-28** — both wired now that program-memberships/invites/notifications are ported. The
   faithful cross-feature cascade is single-sourced as `utils/programMemberships.cascadeMemberDeletion` and
@@ -378,6 +397,32 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-29 (pm-6)** — **Specced + ported the `programs` hub (6th web page) — the FIRST PROTECTED route —
+  and RESOLVED the standing `middleware.ts` HS256→ES256 open question.** `question-asker` run 20. Opening sweep
+  fanned 3 `Explore` agents (legacy web programs hub · our ported web foundation + `middleware.ts` · backend
+  programs/memberships/invites API contract), then I verified the load-bearing files myself
+  (`apps/web/src/middleware.ts`, the legacy 1022-line `programs/page.tsx`, the legacy `api/{programs,invites}.ts`,
+  `useAuthGuard`). **Key findings:** (1) `GET /api/programs` already returns the exact per-user shape the hub
+  needs (`my_role`/`my_status`/`total_members`/`active_members`/`progress_percent`/`admin_only_data_entry`),
+  global-admins all programs / members only their own; (2) the page drags in **2 api modules + 5 `ui/` components**
+  not yet in the foundation (the run-19 "page pulls in shared deps" pattern), but their transitive deps (`cn`,
+  `formatInviteDate`) are already ported. **Tight 3-Q decision round (all user-answered):** **D-C1** middleware =
+  *decode + expiry only* (the faithful HS256 verify is non-viable against Supabase ES256; the backend
+  JWKS-verifies every API call + owns authz, so the edge is just a UX redirect gate — no per-nav JWKS fetch,
+  `JWT_SECRET` dropped); **D-C2** dependency port = *verbatim* (whole `lib/api/{programs,invites}.ts` modules +
+  the 5 `ui/` components the page uses, not all 12 legacy `ui/` files); **D-C3** stance = *faithful + reuse
+  `useAuthGuard({requireProgram:false})`* (replacing the inline login-redirect `useEffect`). Ported (verbatim
+  `cp`): `apps/web/src/lib/api/{programs,invites}.ts`, `src/components/ui/{PageShell,GlassCard,Modal,ConfirmDialog,
+  StatusBadge}.tsx`, `src/app/programs/page.tsx` (+ the D-C3 edit); rewrote `src/middleware.ts` (decode+expiry,
+  removed the HS256/secret path). `npm run build` ✓ (`/programs` prerendered, 11.3 kB; Middleware 27.2 kB —
+  now active, was inert). Wrote `specs/pages/web/programs/SPEC.md` v0.1.0 (D-REF `[web]` / D-S1 / D-C1 / D-C2 /
+  D-C3; F1–F6: client JWT-decode role, forward-nav to unbuilt `/summary`+`/program/*`, dual invite mechanisms,
+  edge gate no signature-verify, vestigial-here api fns + `enrollments_closed`, no client rate-limit). Page
+  REGISTRY + COVERAGE ticked (programs ✓); `apps/web/CONTEXT.md` §Foundation-port middleware note flipped to
+  RESOLVED; the open question marked resolved. **All this session's work committed via `git-version` next;
+  lessons run 20 appended. NEXT page = `program` overview / the first workspace tab `/summary`** (where a
+  selected program lands).
 
 - **2026-06-29 (pm-5)** — **Specced + ported the `create-account` page (5th web page) — the public/auth path
   (splash → login → forgot → reset → create-account) is now COMPLETE.** `question-asker` run 19. Opening sweep
