@@ -19,6 +19,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | create-account | `/create-account` | 🏗️ v0.1.0 | `auth` (`registerAccount()` `POST /auth/register` + `login()`, `useAuth`, jwt helpers) | [create-account SPEC](web/create-account/SPEC.md) |
 | programs | `/programs` (first **protected** route) | 🏗️ v0.1.0 | `programs` + `program-memberships` + `invites` (CRUD, invites, membership) + `auth` (`useAuth`/`useAuthGuard`) | [programs SPEC](web/programs/SPEC.md) |
 | summary | `/summary` (first **workspace tab**) | 🏗️ v0.1.0 | `analytics` + `analytics-v2` (8 reads) + `workout-logs` + `daily-health-logs` (3 writes) + `program-workouts`/`program-memberships` (form lookups) + `auth` (`useAuthGuard`) | [summary SPEC](web/summary/SPEC.md) |
+| members | `/members` (second **workspace tab**) | 🏗️ v0.1.0 | `member-analytics` (metrics/history/streaks/recent) + `daily-health-logs` (health card) + `program-memberships` (`fetchProgramMembers` → view-as picker) + `auth` (`useAuthGuard`) | [members SPEC](web/members/SPEC.md) |
 
 Inventory to document (from the research pass): splash · login · create-account · privacy-policy · support ·
 programs · program (+ profile/password/appearance/privacy/roles/edit) · summary (+ activity/distribution/

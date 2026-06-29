@@ -45,6 +45,14 @@ export function dietLabel(value: number | null) {
   return `${value}/5`;
 }
 
+export function formatDuration(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 export function escapeCsv(value: string) {
   return `"${value.replace(/"/g, '""')}"`;
 }

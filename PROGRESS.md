@@ -42,13 +42,32 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + the FIRST
-> WORKSPACE TAB done (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account`
-> + `programs` + `summary`.** The auth-recovery path is END-TO-END (forgot → email → reset → login). **NEXT =
-> the 6 deferred `/summary` sub-route pages** (3 detail: `activity` / `distribution` / `workout-types`; 3 mobile
-> log fallbacks: `log-workout` / `log-health` / `bulk-log-workout`) **and/or the sibling workspace tabs**
-> (`/members`, `/lifestyle`, `/program` settings). The **`summary` page (7th web page, first WORKSPACE TAB) is
-> DONE** (2026-06-29): faithful 1:1 port of the legacy program-overview dashboard — program-progress gauge,
+> **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + the FIRST TWO
+> WORKSPACE TABS done (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account`
+> + `programs` + `summary` + `members`.** The auth-recovery path is END-TO-END (forgot → email → reset → login).
+> **NEXT = the 8 deferred `/members` sub-routes** (`list` / `detail` / `invite` / `metrics` / `history` /
+> `streaks` / `workouts` / `health`), **the 6 deferred `/summary` sub-routes** (3 detail: `activity` /
+> `distribution` / `workout-types`; 3 mobile log fallbacks: `log-workout` / `log-health` / `bulk-log-workout`),
+> **and/or the remaining sibling tabs** (`/lifestyle`, `/program` settings). The **`members` page (8th web page,
+> 2nd WORKSPACE TAB) is DONE** (2026-06-29): faithful 1:1 port of the legacy member-overview dashboard — **NOT a
+> roster-management screen** but a per-member performance view with a role-gated **"view as"** picker
+> (admin/global-admin view-as any member with an optional "None"; logger own cards + a logs-scoped view-as;
+> member own cards incl. a Metrics-single card). **Read-only** → `admin_only_data_entry` is **N/A** here; every
+> non-card control is forward-nav to a deferred sub-route (F2). **D-SCOPE** = landing page only (8 sub-routes
+> deferred as their own rows). **D-S1** faithful + **2 pinned cleanups**: **D-C1** ported the one new dep
+> `lib/api/members.ts` whole (verbatim; the 3 unused fns — `fetchMemberProfile`/`updateMemberProfile`/
+> `sendProgramInvite` — serve the deferred detail/invite sub-routes), **D-C2** hoisted page-local `formatDuration`
+> → `lib/format.ts` (single-sources it for the deferred `/workouts`+`/history`), **D-C3** de-dup'd the two
+> `MemberPickerModal` render blocks into one `activePicker`-discriminant render (behavior-preserving — the admin +
+> logger pickers are mutually exclusive, with the admin path's `allowNone`/`"none"`-storage nuance kept). All
+> backend endpoints already mounted (member-{metrics,history,streaks,recent} + daily-health-logs +
+> program-memberships) — **zero backend work, no feature bump**. The page corrected an Explore agent's "roster
+> management" inference (verified the landing file myself — the CRUD lives in the deferred sub-routes). Flagged
+> F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; `sessionStorage` view-as + 4 parallel effects;
+> vestigial-here api fns; over-fetched metrics preview; two near-duplicate metric renderers; no client throttle).
+> `npm run build` ✓ (`/members` prerendered, 7.78 kB — Recharts; Middleware 27.3 kB active). **All this session's
+> work committed via `git-version` next; lessons run 22 appended.** The **`summary` page (7th web page, first
+> WORKSPACE TAB) is DONE** (2026-06-29): faithful 1:1 port of the legacy program-overview dashboard — program-progress gauge,
 > activity-timeline chart, 4 MTD stat cards (participation/total-workouts/total-duration/avg-duration),
 > distribution chart, workout-types list — **plus the desktop write path**: the 3 log-form modals (Add workout
 > / Bulk add / Log daily health). **D-SCOPE** = landing + 3 forms this run; the 6 sub-route pages deferred
@@ -353,10 +372,11 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        features (program-memberships, invites, logs, workouts, notifications, analytics…) pending._
 5. [~] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end. _Foundation scaffold ported + builds green 2026-06-29
-       (`apps/web`); **7 pages done** — public/auth path (splash → login → forgot → reset → create-account)
+       (`apps/web`); **8 pages done** — public/auth path (splash → login → forgot → reset → create-account)
        + the `programs` hub (first protected route; resolved the middleware HS256→ES256 decision) + the
-       `summary` workspace tab (first protected workspace surface; read overview + desktop log-form modals).
-       Next: the 6 deferred `/summary` sub-routes and/or the sibling tabs (`/members`, `/lifestyle`,
+       `summary` workspace tab (1st tab; read overview + desktop log-form modals) + the `members` workspace
+       tab (2nd tab; per-member overview + role-gated "view as" picker, read-only). Next: the 8 deferred
+       `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the remaining tabs (`/lifestyle`,
        `/program` settings)._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
@@ -364,7 +384,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **7** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **8** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
@@ -381,9 +401,15 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   sub-routes deferred), D-S1 faithful, D-C1 one typed cleanup (`ProgramProgressCard` `any`→`AnalyticsSummary`);
   consumes `analytics`/`analytics-v2` (8 reads) + `workout-logs`/`daily-health-logs` (3 writes); ported deps
   `lib/api/{summary,logs,program-workouts}.ts` + `ui/{ErrorState,Input,Button}` + `forms/{LogWorkoutForm,
-  BulkLogWorkoutForm,LogDailyHealthForm}`) · iOS screen specs: **0**
-  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + first workspace tab done; next =
-  the 6 deferred `/summary` sub-routes and/or the sibling tabs (`/members`, `/lifestyle`, `/program`); see Next action_
+  BulkLogWorkoutForm,LogDailyHealthForm}`), `members` (🏗️ v0.1.0 `[web]` — **2nd WORKSPACE TAB** `/members`:
+  NOT roster-management — a per-member overview with a role-gated **"view as"** picker (admin/global-admin
+  view-as any member + optional "None"; logger own + logs-scoped view-as; member own + Metrics-single card);
+  **read-only** so `admin_only_data_entry` N/A; D-SCOPE = landing only (8 sub-routes deferred), D-S1 faithful +
+  D-C1 port whole `lib/api/members.ts` verbatim + D-C2 hoist `formatDuration`→`lib/format.ts` + D-C3 de-dup the
+  two `MemberPickerModal` blocks; consumes `member-analytics`/`daily-health-logs`/`program-memberships`/`auth`;
+  no feature bump) · iOS screen specs: **0**
+  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + first TWO workspace tabs done; next =
+  the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the remaining tabs (`/lifestyle`, `/program`); see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -422,6 +448,34 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-29 (pm-8)** — **Specced + ported the `members` page (8th web page) — the SECOND WORKSPACE TAB
+  (`/members`), the per-member overview / "view as" dashboard.** `question-asker` run 22. Opening sweep fanned
+  3 `Explore` agents (legacy members cluster · our ported web foundation+deps · backend members/analytics API
+  contract), then I verified the load-bearing files myself: the full 833-line landing `page.tsx`, the legacy
+  `lib/api/members.ts`, and our foundation (`programs.ts` `fetchProgramMembers`, `format.ts`, icons,
+  `chart-theme`, `useAuthGuard`, session/Program shapes). **Key findings:** (1) **the name lies** — `/members`
+  is NOT a roster-management screen but a per-member overview with a role-gated **"view as"** picker; the
+  roster/CRUD lives in deferred sub-routes (`/list`+`/detail`). One Explore agent *inferred* "roster management"
+  + listed `fetchMembershipDetails`/`update`/`remove` as the page's deps — **my own read of the landing file
+  corrected it** (the landing uses only `fetchProgramMembers` for the picker + 5 read-only member-analytics
+  calls). (2) **one** new dep — `lib/api/members.ts`; everything else already ported (incl. the shell `/members`
+  nav tab). (3) **all endpoints already mounted** — zero backend work, no feature bump. (4) 8 forward-nav
+  sub-routes deferred (F2). (5) read-only → `admin_only_data_entry` **N/A**. **Tight 3-Q round + a pinning
+  multiSelect** (all user-answered): **D-SCOPE** = landing page only · **D-C1** = port whole `lib/api/members.ts`
+  verbatim · stance = *faithful + small cleanups* → the pinning multiSelect surfaced **D-C2** (hoist
+  `formatDuration` → `lib/format.ts`, recommended) + **D-C3** (de-dup the two `MemberPickerModal` blocks, I
+  recommended *against* — structural); user picked **both**. Implemented D-C3 behavior-preserving via an
+  `activePicker` discriminant (the admin + logger pickers are mutually exclusive; kept the admin path's
+  `allowNone`/`"none"`-storage nuance). Ported `apps/web/src/app/members/page.tsx` + `lib/api/members.ts`; added
+  `formatDuration` to `lib/format.ts`. `npm run build` ✓ (`/members` prerendered, 7.78 kB — Recharts; Middleware
+  27.3 kB active). Wrote `specs/pages/web/members/SPEC.md` v0.1.0 (D-REF `[web]` / D-SCOPE / D-S1 / D-C1 / D-C2 /
+  D-C3; F1–F7: client JWT-decode role, forward-nav to unbuilt routes, `sessionStorage` view-as + 4 parallel
+  effects, vestigial-here api fns, over-fetched metrics preview, two near-duplicate metric renderers, no client
+  throttle). Page REGISTRY + COVERAGE ticked (members ✓). **All this session's work committed via `git-version`
+  next; lessons run 22 appended** (promoted the durable "a page named like a CRUD screen may be a read-only
+  dashboard — verify the landing file yourself" pattern). **NEXT = the 8 deferred `/members` sub-routes, the 6
+  deferred `/summary` sub-routes, and/or the remaining tabs (`/lifestyle`, `/program` settings).**
 
 - **2026-06-29 (pm-7)** — **Specced + ported the `summary` page (7th web page) — the FIRST WORKSPACE TAB
   (`/summary`), the program-overview dashboard + the desktop log-form write path.** `question-asker` run 21.
