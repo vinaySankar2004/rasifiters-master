@@ -229,7 +229,26 @@ directly as a faithful port from the legacy reference app** — there is no inte
   **always-200 generic message** (never reveal existence), Supabase errors swallowed, the API called only
   on a format-valid email; the client mirrors it (a genuine 500 ≠ existence info → neutral retry message,
   not the leak), and the `mailto:` fallback is **always visible** precisely because placeholder no-email
-  accounts can't receive the email at all.
+  accounts can't receive the email at all. **The SECOND half of a by-page net-new slice often reuses an
+  existing backend fn — don't reflexively add a new one (run 18).** `POST /auth/reset-password` is just
+  `authenticateToken` + the existing `changePassword` because the managed provider's recovery token is a
+  normal access JWT the verify middleware already accepts; the password update + policy stay single-sourced
+  (the recovery token substitutes for the authed bearer). So run-17's "each page paired with the SINGLE
+  route it calls" holds, but the route can be a thin handler delegating to a shared fn. **The provider's
+  FLOW TYPE is a load-bearing, code-determined fact — grep the SDK default before designing token
+  transport.** When the BACKEND initiates a flow but an ARBITRARY BROWSER completes it (backend calls
+  `resetPasswordForEmail`; the locked-out user's browser lands on the reset page), **PKCE is unusable** (the
+  code verifier strands server-side) — the **implicit/fragment** path is forced: the email link delivers the
+  session in the URL `#fragment`, the page reads + **scrubs it from history** (`history.replaceState`), and
+  forwards the token through Express (R1). Pin `flowType: "implicit"` explicitly even when it's already the
+  default (defensive against an SDK flip). And re-apply run-17's "don't auto-inherit a sibling's kept-as-is
+  choice" in the OTHER direction: a set-new-password screen warrants a **confirm field + inline policy hint**
+  (mirroring the server password policy) the single-password login/forgot fields don't — a password the user
+  can't see-and-retype is a lock-out-inducing typo. Keep recovery **separate from login** (redirect to
+  `/login?reason=…` with a new banner case — a cheap patch bump on the sibling page that records the ripple)
+  rather than auto-login (which would embed provider-shaped tokens as a client session — extra plumbing + R1
+  tension). Collapse the page's invalid-token paths (fragment `#error`, no token, submit-time 401) into one
+  "request a new link → forgot-password" state.
 - **Separate locked-by-METHODOLOGY decisions from genuinely-open ones before asking.** Decisions already
   fixed in the R-log (e.g. R1's proxy model / retired tables / `auth_user_id`) are stated as context, NOT
   re-asked — keeps the round to the few real choices (auth run 1: 4 real Qs, all faithful).

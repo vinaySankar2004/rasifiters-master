@@ -733,3 +733,64 @@ web `SUPPORT_EMAIL` + `requestPasswordReset()` + `app/forgot-password/page.tsx`.
 1 handler), `npm run build` ✓ (`/forgot-password` prerendered, 3.94 kB). SPEC v0.1.0 (D-REF net-new / D-SCOPE
 / D-C1 / D-C2 / D-C3 / D-S1; F1–F5). Auth SPEC → 0.3.0 (route #9, D-C4, changelog) + registry/REGISTRY/page
 REGISTRY/COVERAGE. **Next:** `reset-password` page + `POST /auth/reset-password` (auth → 0.4.0).
+
+---
+
+## Run 18 — `reset-password` page (web) + NET-NEW `POST /auth/reset-password` (auth → 0.4.0)
+
+The **reset/consume half** of the by-page recovery slice that run 17 (`forgot-password`) started — the email
+link's destination. Page mode. 4th web page, 2nd net-new. **The recovery path is now end-to-end** (forgot →
+email → reset → login). Stance pre-locked by the run-17 D-PLAN/D-SCOPE (this page was explicitly named "next
+run"); a tight **3-Q** round on the genuinely-open decisions, all answered with the recommended lead option.
+
+**The flow type is the load-bearing, code-determined fact — grep the client default before designing the
+token transport.** supabase-js 2.108.2 defaults to the **implicit** flow, so `resetPasswordForEmail` lands the
+recovery session in the URL **fragment** (`#access_token=…&type=recovery`), consumable by any browser. PKCE is
+**architecturally unusable here**: the backend INITIATES the reset (`resetPasswordForEmail`) but an ARBITRARY
+BROWSER (the locked-out user's, at `/reset-password`) COMPLETES it — a PKCE code verifier would be stranded on
+the server-side initiating client (`persistSession:false`), so the user's browser could never exchange the
+`?code=`. So implicit isn't a preference, it's forced by the "backend initiates, arbitrary browser completes"
+shape. Pinned `flowType: "implicit"` explicitly in `config/supabase.js` (already the default — defensive
+against a future supabase-js flip; no effect on signInWithPassword/refreshSession, which aren't code-exchange
+flows). **Generalizable:** for any managed-auth provider where the server starts a flow a different client
+finishes, the implicit/fragment path is the one that survives — verify the SDK default + pin it.
+
+**The second half of a by-page net-new slice can REUSE an existing backend service fn — don't reflexively add
+a new one.** The recovery `access_token` is a normal Supabase access JWT (aud=authenticated), so
+`authenticateToken` already JWKS-verifies it + maps `sub`→member — meaning `POST /auth/reset-password` is just
+`authenticateToken` + the **existing** `changePassword(req.user.id, new_password)`. No bespoke `resetPassword`
+service fn; the password update + policy stay single-sourced (the recovery token simply substitutes for the
+authed bearer). The lead option in the backend-design question was this reuse ("Bearer + reuse changePassword")
+vs a parallel bespoke service path; reuse won. Run-17's "each page paired with the SINGLE backend route it
+calls" still holds — but the route can be a 7-line handler delegating to a shared fn, not new logic.
+
+**Don't auto-inherit a sibling's KEPT-AS-IS choice — re-evaluate against THIS page's semantics (the run-17
+lesson, applied again, opposite direction).** Run 17 ADDED inline validation that login (F5) lacked, because
+its field is email-only. Run 18: the set-new-password screen warrants a **confirm field + an inline policy
+hint** (mirroring the server `validatePassword`: ≥8/upper/lower/digit) + a match hint — neither present on the
+single-password login/forgot fields, because a password a user can't see-and-retype is a typo waiting to lock
+them back out. The lead/recommended option, picked.
+
+**Post-recovery destination: keep recovery SEPARATE from login (R1 fit).** Chose in-page success → redirect
+to `/login?reason=password-reset` (a new green positive banner case alongside login's amber session-loss
+banners — login SPEC patch 0.1.0→0.1.1) over auto-login → `/programs`. Auto-login would mean embedding the
+Supabase recovery tokens as a client session, but those are Supabase-shaped, not our legacy login payload —
+extra plumbing + mild R1 tension. Redirect-to-login is the clean default: the user signs in fresh with the new
+password. **The patch bump on a SIBLING page** (login gained one banner case) is the cheap, honest record of a
+cross-page ripple — same shape as run-13's re-export patch bump, but for a page spec.
+
+**Edge handling for a token-bearing page (faithful defaults, flagged not asked):** parse the fragment in a
+mount effect, then **scrub it from the address bar** (`history.replaceState`) so the token doesn't linger in
+history (F5). Three paths collapse to one "invalid/expired link → request a new one → `/forgot-password`"
+state: (a) `#error=…` in the fragment, (b) no `access_token` (direct visit), (c) a **401** at submit (token
+expired between landing and submitting — `ApiError.status === 401`). And the already-authed→`/programs`
+redirect is **suppressed when a recovery token is present** (a logged-in user who clicked a reset link still
+intends to reset — F4) — a small but real divergence from the siblings' unconditional redirect.
+
+**Output:** backend `POST /auth/reset-password` (reuses `authenticateToken` + `changePassword`) +
+`flowType:"implicit"` pin; web `resetPassword()` + `app/reset-password/page.tsx` + the login `password-reset`
+banner. Boot check ✓ (route mounted, mw=2 = authenticateToken + handler), `npm run build` ✓ (`/reset-password`
+prerendered, 4.28 kB). SPEC v0.1.0 (D-REF net-new / D-SCOPE / D-C1 Bearer-reuse / D-C2 success→login / D-C3
+confirm+policy / D-C4 implicit-fragment / D-S1 sibling chrome; F1–F6). Auth SPEC → 0.4.0 (route #10, §4/§6,
+D-C5, changelog); login SPEC → 0.1.1 (banner); registry/REGISTRY/page REGISTRY/COVERAGE. **The recovery path
+is end-to-end. Next:** `create-account` page + sign-up-email-mandatory (D-PLAN item 3).
