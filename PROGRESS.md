@@ -30,12 +30,29 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port the remaining backend features** via `question-asker`, mounting each route
-> group in `server.js` as it lands. The obvious next is **`app-config` + push** — `GET /api/app-config`
-> (`min_ios_version`) is already served inline in `server.js:42-46`; the push/APNs device-token lifecycle
-> mostly landed with `notifications` (`PUT`/`DELETE /api/notifications/device`, APNs creds deferred D-C4).
-> Confirm what (if anything) of `app-config`/push remains to document/port, then proceed. Each backend
-> commit auto-deploys to Render.
+> **On "continue": BACKEND FEATURE COVERAGE IS COMPLETE (14 features, 2026-06-29).** Every legacy backend
+> route group is now SPEC'd + ported + mounted in `server.js`; `COVERAGE.md`'s backend section is fully
+> ticked. **The next phase is `web`** (Build-sequence step 5): feature/page by feature/page via
+> `question-asker` → spec (page/screen kind) → port code → `deploy` to a Vercel temp domain — starting with
+> the public/auth path (splash → login → create-account) to prove auth end-to-end, then the programs hub.
+> Before starting web, provision the Vercel `rasifiters-web` project (deferred until now — no web code
+> existed). Also still outstanding: the **batched pre-cutover runtime smoke-test pass** of all ported backend
+> features (needs a live admin JWT the user supplies) + a final pre-cutover migrator re-run.
+>
+> **`app-config` is DONE (ported 2026-06-29)** — the **last backend feature**, closing backend coverage.
+> Documentation-only base: all the code was already ported (`GET /api/app-config` inline in `server.js`; the
+> push/APNs device lifecycle + `pushNotifications` util landed with `notifications`; `upsert/removePushToken`
+> + `member_push_tokens` + login push-capture landed with `auth`). **Scope = own app-config, reference push**
+> (D-C1) — the SPEC owns the inline `GET /api/app-config` route + `MIN_IOS_VERSION` env (the iOS version gate);
+> push is the §6 cross-reference index pointing to the `notifications`/`auth` SPECs (no duplication, SSOT).
+> `consumed_by = [ios]` for **both** app-config and push (web ignores both — it uses SSE, not APNs, and has no
+> version to check). Route kept **inline** in `server.js` (D-C1, faithful — legacy is inline). **The user
+> chose "change now": 2 cleanups applied to `server.js`** — **D-C2** add `Cache-Control: public, max-age=300`
+> (iOS polls the gate on every launch/foreground/widget-open) + **D-C3** trim + semver-validate
+> `MIN_IOS_VERSION` via a new `normalizeMinIosVersion` (`^\d+(\.\d+)*$`, else `null`) so a malformed env yields
+> no gate instead of a broken client comparison. Faithful otherwise; F1–F5 (`device_id` sent-but-always-nil by
+> iOS; no logout `DELETE /device`; public route; operator-managed env; web ignores both). Syntax check + helper
+> behavior verified. **Runtime smoke-test deferred to the batched pre-cutover pass.**
 >
 > **`member-analytics` is DONE (ported 2026-06-29)** — the per-member analytics surface, **its own file pair**
 > `routes/memberAnalytics.js` (4 separate routers) + `services/memberAnalyticsService.js` (4 fns + helpers),
@@ -237,10 +254,18 @@ deferred (no web code yet).
     helpers from `analyticsService.js` — restores the legacy export surface; touches the built `analytics`
     feature → patch bump) + 2 cleanups **D-C3** (extract the shared access prelude) + **D-C4** (guard null
     `start_date` in streaks). No UTC cleanup. Boot check passes. **Runtime smoke-test pending.**
-16. **NEXT — spec + port the remaining backend features** (app-config/push, …) via `question-asker`, mounting
-    each route group in `server.js` as it lands. Each backend commit auto-deploys to Render (push to `main`
-    touching `apps/backend/**`). `app-config` is partly live already (`GET /api/app-config` inline in
-    `server.js:42-46`); the push/APNs device lifecycle landed with `notifications` (APNs creds deferred D-C4).
+16. ~~Spec + port `app-config` + push.~~ **DONE 2026-06-29** — see
+    [`specs/features/app-config/SPEC.md`](specs/features/app-config/SPEC.md) v0.1.0 (🏗️ built). The **last
+    backend feature** — owns the inline `GET /api/app-config` (`min_ios_version`, the iOS version gate) +
+    `MIN_IOS_VERSION` env; push (APNs) is the §6 cross-reference index (already owned by `notifications`/`auth`,
+    not re-documented). `consumed_by = [ios]` (web ignores both). Route kept inline (D-C1); 2 user-pinned
+    cleanups applied to `server.js` — D-C2 `Cache-Control: public, max-age=300` + D-C3 trim/semver-validate
+    `MIN_IOS_VERSION` (malformed → `null`). F1–F5. Syntax + helper verified. **Backend feature coverage complete
+    (14 features).** Runtime smoke-test deferred to the batched pre-cutover pass.
+17. **NEXT — Phase 3: `web`.** Provision the Vercel `rasifiters-web` project, then spec (page/screen kind via
+    `question-asker`) + port the web app feature/page by feature/page → `deploy` to a Vercel temp domain.
+    Start with the public/auth path (splash → login → create-account) to prove auth end-to-end, then the
+    programs hub. See Build sequence step 5.
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -266,7 +291,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **13** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **14** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -299,6 +324,31 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (am-6)** — **Specced + ported `app-config` — the 14th and LAST backend feature; backend
+  feature coverage is now COMPLETE.** First confirmed (per the carried Next-action) what remained of
+  `app-config`/push: **nothing to port** — `GET /api/app-config` was already inline + byte-identical in
+  `server.js`; the push/APNs device lifecycle (`PUT`/`DELETE /api/notifications/device`, `pushNotifications`
+  util, APNs dispatch, `member_push_tokens` table, `APNS_*` env) landed with `notifications`;
+  `upsert/removePushToken` + the login push-capture landed with `auth`. So this was a **documentation-only**
+  SPEC to close `COVERAGE.md` L26. `question-asker`: fanned 2 `Explore` agents over web + iOS — **both
+  app-config AND push are `consumed_by = [ios]` only** (iOS version-gate → force-update modal
+  `ProgramContext+VersionCheck.swift`; iOS APNs token via login body + `PUT/DELETE /device`); **web consumes
+  neither** (no `/api/app-config`, no device registration — it uses SSE for notifications). Tight 3-Q round:
+  **D-C1** scope = **own app-config, reference push** (push is already documented in `notifications`/`auth`;
+  §6 of the SPEC is a cross-reference index, not a re-doc — avoids the SSOT/duplication a re-doc would create)
+  + **keep the route inline** in `server.js` (faithful — legacy is inline). **Stance = the user chose "change
+  now"**; a scope-pinning follow-up locked exactly **2 cleanups** (3rd option — extract to a route file —
+  unselected): **D-C2** add `Cache-Control: public, max-age=300` (iOS polls the gate on every
+  launch/foreground/widget-open) + **D-C3** trim + semver-validate `MIN_IOS_VERSION` via a new
+  `normalizeMinIosVersion` (`^\d+(\.\d+)*$`, else `null`) so a malformed env yields no gate rather than a
+  broken client comparison. Faithful otherwise; F1–F5 (`device_id` sent-but-always-nil by iOS; no logout
+  `DELETE /device`; public no-auth route; operator-managed env not in `render.yaml`; web ignores both).
+  **Applied the 2 changes to `server.js`** (`normalizeMinIosVersion` + Cache-Control). Wrote SPEC v0.1.0;
+  registered in registry.json (`app-config`, `consumed_by:[ios]`, `depends_on:[]`) + REGISTRY.md + COVERAGE
+  (L26 ticked — **backend section fully covered**). Boot/syntax check (`node --check server.js` OK;
+  `normalizeMinIosVersion` verified: trims, accepts `1.2.3`/`2`, rejects `v1.2`/`latest`/empty → `null`)
+  passes. **Runtime smoke-test deferred to the batched pre-cutover pass.** Next phase: **`web`** (provision
+  Vercel `rasifiters-web`, then page-by-page via `question-asker` page/screen specs).
 - **2026-06-29 (am-5)** — **Specced + ported the `member-analytics` feature** (13th feature — the per-member
   analytics surface; **its own file pair**, not the analytics/analytics-v2 pair). `question-asker`: read the
   full legacy `routes/memberAnalytics.js` (4 routers) + `services/memberAnalyticsService.js` (4 fns + helpers)

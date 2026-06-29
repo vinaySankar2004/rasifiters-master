@@ -23,6 +23,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `analytics` | 0.1.1 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v1 half], `services/analyticsService.js` [v1 + shared helpers], `utils/{dateRange,queryHelpers}.js`) | [analytics/SPEC.md](analytics/SPEC.md) |
 | `analytics-v2` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v2 half], `services/analyticsService.js` [v2 fns]) | [analytics-v2/SPEC.md](analytics-v2/SPEC.md) |
 | `member-analytics` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberAnalytics.js`, `services/memberAnalyticsService.js`, `services/analyticsService.js` [3 re-exported helpers]) | [member-analytics/SPEC.md](member-analytics/SPEC.md) |
+| `app-config` | 0.1.0 | 🏗️ | `ios` | `backend` (`server.js` [inline `GET /api/app-config` + `MIN_IOS_VERSION`]) | [app-config/SPEC.md](app-config/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
@@ -85,4 +86,12 @@ timeline helpers `resolveTimelineWindow`/`buildBuckets`/`bucketKey` from `analyt
 legacy export surface, a tiny additive change to `analytics`) + two cleanups: D-C3 (extract the shared
 requester-access prelude shared by history/streaks/recent, statuses 1:1) and D-C4 (guard null
 `program.start_date` in `getMemberStreaks`). No UTC cleanup (dates already UTC-correct). F1–F7.
+`app-config` (the iOS version gate) follows as the **last backend feature** — the inline `GET /api/app-config`
+returning `{ min_ios_version }` (sourced from the `MIN_IOS_VERSION` env), which iOS polls to drive its
+force-update modal. `consumed_by = [ios]` only (web ignores it; it has no version to check). Kept inline in
+`server.js` (D-C1, faithful). Two pinned cleanups vs legacy: D-C2 (add `Cache-Control: public, max-age=300` —
+iOS polls on every launch/foreground/widget-open) + D-C3 (trim + semver-validate `MIN_IOS_VERSION` so a
+malformed env yields `null` rather than a broken client comparison). The **push (APNs)** half of the same
+COVERAGE row is owned by `notifications` + `auth` (already ported); this SPEC §6 is its cross-reference index
+(no duplication). F1–F5. **Backend feature coverage is now complete (14 features).**
 Next features are authored as the backend rebuild proceeds — see `PROGRESS.md`._

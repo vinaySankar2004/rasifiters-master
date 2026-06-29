@@ -44,9 +44,21 @@ app.get("/", (req, res) => {
 
 app.use(express.json());
 
+// app-config — the iOS version gate (consumed_by = [ios]; web ignores it). `min_ios_version` drives
+// iOS's force-update modal, polled on every launch/foreground/widget-open. Two deliberate changes vs
+// legacy (see specs/features/app-config/SPEC.md): D-C2 Cache-Control so the gate is cached between
+// polls; D-C3 trim + semver-validate the env so a malformed MIN_IOS_VERSION yields null (no gate)
+// rather than a broken comparison on the client. Push (APNs) is owned by `notifications` + `auth`.
+function normalizeMinIosVersion(raw) {
+    if (typeof raw !== "string") return null;
+    const trimmed = raw.trim();
+    return /^\d+(\.\d+)*$/.test(trimmed) ? trimmed : null;
+}
+
 app.get("/api/app-config", (req, res) => {
+    res.set("Cache-Control", "public, max-age=300");
     res.json({
-        min_ios_version: process.env.MIN_IOS_VERSION || null
+        min_ios_version: normalizeMinIosVersion(process.env.MIN_IOS_VERSION)
     });
 });
 
