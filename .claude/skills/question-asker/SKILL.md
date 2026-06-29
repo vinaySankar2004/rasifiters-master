@@ -285,7 +285,12 @@ directly as a faithful port from the legacy reference app** — there is no inte
   file + the SHARED HELPERS:** the first-ported half takes the shared helpers (they live once); the deferred
   half's solo helper and any gate the first half hoisted away aren't ported yet — leave them for the sibling
   with a §7 scope note (run 9: daily-health re-adds `assertDataEntryAllowed` or adopts the hoist). Changed
-  legacy shapes from accepted cleanups still get F-rows (run 9: F7–F9).
+  legacy shapes from accepted cleanups still get F-rows (run 9: F7–F9). **Resolved run 10: when the FIRST
+  half already hoisted a gate, the second half's lead choice is CONSISTENCY (reuse the sibling's middleware),
+  not legacy-literal-faithful** — re-adding the inline helper would make one file enforce the lock two ways;
+  the reuse is a real `depends_on` edge to the sibling. And **don't assume the two halves have symmetric
+  consumption** — run 9's half had 2 dead routes + a web-only endpoint; run 10's half was fully shared, no
+  dead routes, no batch route. Sweep each half independently.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

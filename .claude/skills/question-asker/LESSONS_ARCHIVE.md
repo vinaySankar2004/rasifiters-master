@@ -345,3 +345,44 @@ boolean would be wrong.
 middleware; exports `{ workoutLogRouter }` only), mounted `/api/workout-logs`. Boot check (4-route stack,
 no GET, every route `[authenticateToken, requireDataEntryAllowed, handler]`, 5 service fns export, server
 loads) passes. No migration delta (model + schema pre-ported).
+
+---
+
+## Run 10 — `daily-health-logs` (backend; the second half of the logs file pair)
+
+**Target:** the `dailyHealthLogRouter` half of `routes/logs.js` + the daily-health functions of
+`services/logService.js` (`addDailyHealthLog`/`getDailyHealthLogs`/`updateDailyHealthLog`/
+`deleteDailyHealthLog`) + the daily-health-only `parseOptionalNumber` helper + `models/DailyHealthLog.js`.
+
+**Sweep:** reused the full read of the daily-health half of `logService.js` + `routes/logs.js` from run 9;
+verified `DailyHealthLog` model + associations pre-ported (composite PK `program_id+member_id+log_date` =
+one row/day → the 409-on-dup; `food_quality` ↔ DB column `diet_quality` via the model `field` mapping).
+Fanned 2 `Explore` agents over web + iOS.
+
+**Findings — the inversion of run 9's asymmetry:** where workout-logs had 2 dead GET routes + a web-only
+batch, **daily-health-logs is fully shared** — all 4 routes (POST/GET/PUT/DELETE) live on BOTH clients, no
+dead routes, no divergence, and there's **no batch route at all** (both clients loop single POSTs in their
+quick-add widgets). Lesson: don't assume the two halves of a file pair have symmetric consumption — sweep
+each independently; one half can be messy (dead routes) and the other clean.
+
+**5 decisions (D-C1 scope, D-C2 lock-reuse, D-C3 PUT-signature cleanup, D-REF, D-S1).** This run **confirmed
+run 9's "second-half" lesson** and refined the lead choice:
+- **D-C1 — append, reuse.** The first half (workout-logs) landed the shared helpers
+  (`resolveLogPermissions`/`isProgramAdmin`) + the `requireDataEntryAllowed` middleware; this port appends
+  the 4 daily-health fns + `parseOptionalNumber` and **reuses** those — not re-creating them. The reuse is a
+  real `depends_on` edge to the sibling (`daily-health-logs` depends_on `workout-logs`).
+- **D-C2 — the lead choice for a gate the first half hoisted is CONSISTENCY, not legacy-literal.** Run 9
+  predicted daily-health "re-adds `assertDataEntryAllowed` or adopts the same hoist." Presented both, leading
+  with **reuse `requireDataEntryAllowed` (consistency)** — and the user took it. The tell: re-adding the
+  inline helper would make ONE file enforce the lock two different ways (inline for one half, middleware for
+  the other). When the sibling already hoisted, "consistent with the shipped sibling" beats "literal to
+  legacy" — both halves enforce identically. Same accepted ordering nuance carries over (F4).
+- **D-C3 — a tiny signature cleanup is a legit user-chosen change.** `updateDailyHealthLog(parsed, requester,
+  rawBody)` was called with `req.body` twice (the 3rd arg only for `hasOwnProperty` presence). Tidied to a
+  single `(body, requester)` deriving both — behavior identical. Recorded the legacy shape as F6.
+
+**Other:** D-REF settled with no question (all 4 routes 1:1 both clients) — recorded, not asked. The
+`food_quality`↔`diet_quality` field mapping flagged (F5) so an audit knows the API field ≠ the column.
+Port: appended to the existing file pair (both halves now reunited, like workoutService); boot check (9
+service fns export, daily writes guarded + GET ungated, workout router unchanged, server loads) passes. No
+migration delta (model + schema pre-ported).
