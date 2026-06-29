@@ -30,11 +30,17 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port `program-workouts`** via `question-asker` — the program-scoped other half of
-> the shared `workoutService.js` (`getProgramWorkouts` + the global/custom visibility toggles + custom
-> workout CRUD), which web's `/lifestyle/workouts` page + iOS's `WorkoutTypesSection` actually drive. Its
-> service functions are the half left behind when `workouts` (the library) split the file. Then
-> `workout-logs` → `daily-health-logs` → `analytics`. Each backend commit auto-deploys to Render.
+> **On "continue": spec + port `workout-logs`** via `question-asker` — single + batch + member workout-log
+> writes/reads (`/api/workout-logs`), the surface that consumes `program_workouts` (the join target the
+> just-ported feature owns). Then `daily-health-logs` → `analytics`. Each backend commit auto-deploys to Render.
+>
+> **`program-workouts` is DONE (ported 2026-06-28)** — 6 `/api/program-workouts` routes + the 6
+> program-scoped fns appended to the shared `workoutService.js` (both halves reunited; D-C1). The one
+> deliberate change (**D-C2**): the per-action program-admin authz was **hoisted out of the service into a
+> resolve-or-pass-through `requireProgramAdmin` route guard** (status codes preserved 1:1; `GET` ungated).
+> `consumed_by = [web, ios]`, all 6 routes 1:1 (no divergence); `GET` also feeds the log forms + iOS widget.
+> Faithful otherwise (merge/dual-id/lazy-materialization/dedup/in-use-guard kept + flagged F1–F7). Mounted.
+> **Pending:** runtime smoke-test vs live Supabase.
 >
 > **`workouts` (the library) is DONE (ported 2026-06-28)** — 4 `/api/workouts` routes + the 4 library fns
 > split out of the shared service; `POST /mobile` dropped (byte-dup, D-C2); `consumed_by = [ios]` (GET-only
@@ -112,9 +118,16 @@ deferred (no web code yet).
    The cascade is single-sourced (owned by program-memberships, it drives `handleMemberExit`) and shared
    verbatim by both callers; the global-admin guard, 404, transaction, and success message stay per-caller.
    Boot check passes. **Runtime smoke-test vs live Supabase pending** (Render auto-deploy on push).
-10. **NEXT — spec + port the remaining backend features** (workouts, program-workouts, workout-logs,
-    daily-health-logs, analytics…) via `question-asker`, mounting each route group in `server.js` as it
-    lands. Each backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
+10. ~~Spec + port `program-workouts`.~~ **DONE 2026-06-28** — see
+    [`specs/features/program-workouts/SPEC.md`](specs/features/program-workouts/SPEC.md) v0.1.0 (🏗️ built).
+    6 `/api/program-workouts` routes + the 6 program-scoped fns appended to the shared `workoutService.js`
+    (both halves reunited, D-C1). One deliberate change **D-C2** (per-action admin authz hoisted into a
+    resolve-or-pass-through `requireProgramAdmin` route guard; service authz-free; status codes preserved;
+    `GET` ungated). `consumed_by = [web, ios]` all 6 routes 1:1 (D-REF). Faithful otherwise (D-S1, F1–F7).
+    Mounted. Boot check passes. **Runtime smoke-test vs live Supabase pending.**
+11. **NEXT — spec + port the remaining backend features** (workout-logs, daily-health-logs, analytics…)
+    via `question-asker`, mounting each route group in `server.js` as it lands. Each backend commit
+    auto-deploys to Render (push to `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -140,7 +153,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **7** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **8** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -166,6 +179,29 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-15)** — **Specced + ported the `program-workouts` feature** (8th feature — the
+  program-scoped other half of the shared `workoutService.js`). `question-asker`: read the legacy
+  `routes/programWorkouts.js` + the program-scoped half of `services/workoutService.js` + the `ProgramWorkout`
+  model in full, fanned 2 `Explore` agents over web + iOS consumption. **Both clients call all 6 routes 1:1,
+  no divergence** (`consumed_by = [web, ios]`): web's `lifestyle/workouts/page.tsx` (Workout Types mgmt) +
+  iOS's `WorkoutTypesSection.swift` (`ViewWorkoutTypesListView`) drive the toggles + custom CRUD; `GET` is
+  also read by the log forms (`LogWorkoutForm`/`BulkLogWorkoutForm`, which filter `is_hidden` client-side),
+  the program dashboard, member-workout filters, and the iOS quick-add widget. 4 decisions: **D-C1** scope =
+  the 6 program-scoped routes + fns split from `workoutService.js` (library half already → `workouts`);
+  **D-C2** (the one change — user chose it) **hoist the per-action admin authz out of the service into a
+  route guard** — a local **resolve-or-pass-through `requireProgramAdmin(resolveProgramId)`** factory whose
+  per-route resolvers mirror each legacy fn's pre-admin-check guards, so 403 fires exactly where legacy's
+  inline check did and the service still emits its native 400/404 first (status codes 1:1, CLAUDE.md
+  non-breaking); `GET` stays ungated; **D-REF** `[web, ios]`, no divergence; **D-S1** faithful otherwise.
+  Flagged F1–F7 (dual-meaning GET id `pw?.id || gw.id`; hidden rows included; lazy `program_workouts`
+  materialization on first hide; the friendly in-use delete 400 vs the library's bare destroy; add/edit
+  dedup vs program+global; unscoped `GET` read). Wrote SPEC v0.1.0 (no migration delta — models + schema
+  pre-ported); registered in registry.json (`depends_on:[auth, workouts, program-memberships, programs]`) +
+  REGISTRY.md + COVERAGE. Then **ported**: appended the 6 program-scoped fns to `services/workoutService.js`
+  (inline admin checks removed, `requester` param dropped), `routes/programWorkouts.js` (6 routes + the guard
+  factory), mounted `/api/program-workouts`. Boot check (6-route stack w/ correct ordering, `GET` ungated vs
+  curation routes guarded, all 10 service fns export, server loads) passes. **Pending:** runtime smoke-test
+  (Render auto-deploy on push). Next: `workout-logs` (consumes the `program_workouts` join target).
 - **2026-06-28 (pm-14)** — **Specced + ported the `workouts` feature** (7th feature — the global workout
   library). `question-asker`: read the legacy `routes/workouts.js` + `services/workoutService.js` + `Workout`
   model in full, fanned 2 `Explore` agents over web + iOS consumption. **Decisive reframe:** web calls
