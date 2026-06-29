@@ -61,5 +61,8 @@ Faithful (verbatim) otherwise: all of `src/lib/*`, `globals.css`, theme/tailwind
 shell chrome, the icon library, and the API client + auth API module.
 
 ## Status
-🏗️ foundation scaffolded + builds green (2026-06-29). Page-by-page port next, starting with the
-public/auth path (splash → login → create-account) via the `question-asker` page loop.
+🏗️ foundation scaffolded + builds green (2026-06-29). **7 pages ported** via the `question-asker` page loop:
+the public/auth path (`splash` → `login` → `forgot-password` → `reset-password` → `create-account`), the
+`programs` hub (first protected route), and `summary` (first workspace tab — program-overview dashboard + the
+3 desktop log-form modals; the 6 `/summary` sub-routes deferred). Next: the deferred sub-routes and/or the
+sibling workspace tabs (`/members`, `/lifestyle`, `/program` settings). See `PROGRESS.md` for the live pointer.

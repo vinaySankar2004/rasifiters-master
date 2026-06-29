@@ -42,11 +42,28 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
-> **On "continue": Phase 3 `web` in progress — public/auth path COMPLETE + the FIRST PROTECTED ROUTE done
-> (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account` + `programs`.**
-> The auth-recovery path is END-TO-END (forgot → email → reset → login). **NEXT page = `program` overview /
-> the first workspace tab `/summary`** (selecting a program on the hub routes there; `useAuthGuard({requireProgram:true})`
-> already bounces back to `/programs` until a program is chosen). The **`programs` hub (6th web page, first
+> **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + the FIRST
+> WORKSPACE TAB done (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account`
+> + `programs` + `summary`.** The auth-recovery path is END-TO-END (forgot → email → reset → login). **NEXT =
+> the 6 deferred `/summary` sub-route pages** (3 detail: `activity` / `distribution` / `workout-types`; 3 mobile
+> log fallbacks: `log-workout` / `log-health` / `bulk-log-workout`) **and/or the sibling workspace tabs**
+> (`/members`, `/lifestyle`, `/program` settings). The **`summary` page (7th web page, first WORKSPACE TAB) is
+> DONE** (2026-06-29): faithful 1:1 port of the legacy program-overview dashboard — program-progress gauge,
+> activity-timeline chart, 4 MTD stat cards (participation/total-workouts/total-duration/avg-duration),
+> distribution chart, workout-types list — **plus the desktop write path**: the 3 log-form modals (Add workout
+> / Bulk add / Log daily health). **D-SCOPE** = landing + 3 forms this run; the 6 sub-route pages deferred
+> (links to them are forward-nav, F2). **D-S1** faithful + **D-C1** one typed cleanup (`ProgramProgressCard`
+> `any`→`AnalyticsSummary`). Reached via the hub's `saveActiveProgram` → `/summary`; `useAuthGuard()` (default
+> `requireProgram:true`) bounces to `/programs` with no active program; the `shell.tsx` bottom-nav (Summary/
+> Members/Lifestyle/Program) is now active. Role gating: global_admin/admin/logger see Bulk-add + may log for
+> any member; a member sees Add+Health only + logs for self; `admin_only_data_entry` → lock banner + disabled
+> cards (backend `requireDataEntryAllowed` is the real guard). Ported deps verbatim: `lib/api/{summary,logs,
+> program-workouts}.ts` + `components/ui/{ErrorState,Input,Button}.tsx` + `components/forms/{LogWorkoutForm,
+> BulkLogWorkoutForm,LogDailyHealthForm}.tsx`. All 11 backend endpoints already mounted (`server.js:73-76`).
+> Flagged F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; vestigial-here api fns; week-only
+> landing period; over-fetched summary fields; dead form `variant="page"`; no client rate-limit). `npm run
+> build` ✓ (`/summary` prerendered, 107 kB — Recharts; Middleware 27.2 kB active). **All this session's work
+> committed via `git-version` next; lessons run 21 appended.** The **`programs` hub (6th web page, first
 > PROTECTED route) is DONE**: faithful 1:1 port of the legacy post-login hub — `My Programs` list of
 > `ProgramCard`s (status/progress/member-counts + invite Accept/Decline + admin Edit/Delete), the Program
 > Actions modal (Invites + Create tabs), the Account modal (5 rows), and the Edit/Delete/SignOut/Decline
@@ -336,16 +353,18 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        features (program-memberships, invites, logs, workouts, notifications, analytics…) pending._
 5. [~] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end. _Foundation scaffold ported + builds green 2026-06-29
-       (`apps/web`); **6 pages done** — public/auth path (splash → login → forgot → reset → create-account)
-       + the `programs` hub (first protected route; resolved the middleware HS256→ES256 decision). Next:
-       `program` overview / `/summary`._
+       (`apps/web`); **7 pages done** — public/auth path (splash → login → forgot → reset → create-account)
+       + the `programs` hub (first protected route; resolved the middleware HS256→ES256 decision) + the
+       `summary` workspace tab (first protected workspace surface; read overview + desktop log-form modals).
+       Next: the 6 deferred `/summary` sub-routes and/or the sibling tabs (`/members`, `/lifestyle`,
+       `/program` settings)._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
 
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **5** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **7** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
@@ -356,9 +375,15 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   → `/programs`; ported the `Select`/`SelectMobile` dependency; no auth-feature bump), `programs` (🏗️ v0.1.0
   `[web]` — **first PROTECTED route**: faithful 1:1 hub port + D-C1 middleware = decode+expiry only (resolves
   HS256→ES256), D-C2 deps ported verbatim (`lib/api/{programs,invites}.ts` + `ui/{PageShell,GlassCard,Modal,
-  ConfirmDialog,StatusBadge}`), D-C3 reuse `useAuthGuard`) · iOS screen specs: **0**
-  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route done; next page =
-  `program` overview / `/summary`; see Next action_
+  ConfirmDialog,StatusBadge}`), D-C3 reuse `useAuthGuard`), `summary` (🏗️ v0.1.0 `[web]` — **first WORKSPACE
+  TAB** `/summary`: faithful 1:1 program-overview dashboard (progress gauge + activity-timeline + 4 MTD stat
+  cards + distribution + workout-types) + the 3 desktop log-form modals; D-SCOPE = landing + 3 forms (6
+  sub-routes deferred), D-S1 faithful, D-C1 one typed cleanup (`ProgramProgressCard` `any`→`AnalyticsSummary`);
+  consumes `analytics`/`analytics-v2` (8 reads) + `workout-logs`/`daily-health-logs` (3 writes); ported deps
+  `lib/api/{summary,logs,program-workouts}.ts` + `ui/{ErrorState,Input,Button}` + `forms/{LogWorkoutForm,
+  BulkLogWorkoutForm,LogDailyHealthForm}`) · iOS screen specs: **0**
+  (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + first workspace tab done; next =
+  the 6 deferred `/summary` sub-routes and/or the sibling tabs (`/members`, `/lifestyle`, `/program`); see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -397,6 +422,32 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-29 (pm-7)** — **Specced + ported the `summary` page (7th web page) — the FIRST WORKSPACE TAB
+  (`/summary`), the program-overview dashboard + the desktop log-form write path.** `question-asker` run 21.
+  Opening sweep fanned 3 `Explore` agents (legacy web summary cluster · our ported web foundation · backend
+  API contract for summary), then I verified the load-bearing files myself: the legacy 606-line
+  `summary/page.tsx`, `lib/api/{summary,logs}.ts`, the 3 `forms/*`, `Input`/`Button`/`program-workouts.ts`, and
+  our foundation's `shell.tsx`/`permissions.ts`/`storage.ts`/`chart-theme.ts`/`client.ts`. **Key findings:**
+  (1) selecting a program on the hub does `saveActiveProgram` → `router.push("/summary")` — **`/summary` is a
+  top-level route** reading the active program from `localStorage`, NOT a `[id]` route; (2) the charts are
+  **inline Recharts** (no chart components to port) and our `chart-theme.ts` already exports all 5 tokens the
+  page imports; (3) `shell.tsx` already activates the bottom-nav for `/summary`; (4) **all 11 backend endpoints
+  the page consumes are already ported + mounted** (`server.js:73-76`); (5) the page drags in 4 not-yet-ported
+  deps (`lib/api/{summary,logs,program-workouts}.ts`, `ui/{ErrorState,Input,Button}`, the 3 `forms/*`), whose
+  transitive deps (`cn`, `useIsMobile`, `Select`, `fetchProgramMembers`, `apiRequest`) are all present. **Tight
+  3-Q round (all user-answered):** **D-SCOPE** = *landing + the 3 log-form modals this run* (desktop write path
+  end-to-end; the 6 sibling sub-route pages — 3 detail + 3 mobile log fallbacks — deferred as their own rows,
+  links to them are forward-nav F2); **D-S1** = *faithful 1:1*; **D-C1** = *one typed cleanup*
+  (`ProgramProgressCard` `summary?: any` → `AnalyticsSummary`, the type already in `summary.ts`); role-based
+  view rules confirmed faithful (canLogForAny + dataEntryLocked). Ported (verbatim `cp`) the 9 dep files +
+  `src/app/summary/page.tsx`, then applied the D-C1 edit. `npm run build` ✓ (`/summary` prerendered, 107 kB —
+  Recharts; Middleware 27.2 kB active). Wrote `specs/pages/web/summary/SPEC.md` v0.1.0 (D-REF `[web]` / D-SCOPE
+  / D-S1 / D-C1; F1–F7: client JWT-decode role, forward-nav to unbuilt routes, vestigial-here api fns, week-only
+  landing period, over-fetched summary fields, dead form `variant="page"` branch, no client rate-limit). Page
+  REGISTRY + COVERAGE ticked (summary ✓; logging forms ✓ as modals). **All this session's work committed via
+  `git-version` next; lessons run 21 appended. NEXT = the 6 deferred `/summary` sub-routes and/or the sibling
+  workspace tabs (`/members`, `/lifestyle`, `/program` settings).**
 
 - **2026-06-29 (pm-6)** — **Specced + ported the `programs` hub (6th web page) — the FIRST PROTECTED route —
   and RESOLVED the standing `middleware.ts` HS256→ES256 open question.** `question-asker` run 20. Opening sweep
