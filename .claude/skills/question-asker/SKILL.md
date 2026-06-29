@@ -463,7 +463,16 @@ directly as a faithful port from the legacy reference app** — there is no inte
   a branch's nuance; **(b)** for a read-only page with no `any`/typing debt (so summary's typed-prop cleanup has
   no analogue), the clean pinned cleanup is a **hoist-to-shared-util** — move a page-local pure helper
   (`formatDuration`) into `lib/format.ts` so the deferred sub-routes that also use it single-source it. Offer the
-  hoist as recommended; flag structural de-dups as recommend-against.
+  hoist as recommended; flag structural de-dups as recommend-against. **Run 23 confirmed the pattern recurs +
+  added a corollary:** `/lifestyle` was a SECOND "name-lies, actually-read-only-dashboard" page (a near-twin of
+  `/members` — same view-as picker, same role gating). Two takeaways: **(a) a near-twin page reuses its twin's
+  decision shape — confirm, don't re-derive** (same D-SCOPE landing-only, same faithful D-S1, same "port whole
+  api module" D-C, same read-only→`admin_only_data_entry`-N/A); the run is fast because you recognize the twin.
+  **(b) de-dup WITHIN a file is behavior-preserving, but de-dup ACROSS files that already DIVERGED is not —
+  decline the cross-file extraction.** `/lifestyle`'s local `MemberPickerModal` duplicates `/members`', but the
+  Members copy was already specialized (run-22's 2-variant `activePicker`), so extracting a shared `ui/` picker
+  would carry BOTH tabs' union of props/branches (adds branches, doesn't remove them). Flag the dup (F-row,
+  rebuild-cleanup candidate), recommend against extraction, let the user decide — they chose port-local + flag.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

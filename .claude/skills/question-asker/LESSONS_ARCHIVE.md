@@ -1027,3 +1027,52 @@ none) · admin (view-as, no "None", auto-self) · logger (own cards + a logs-sco
 SPEC v0.1.0 (D-REF `[web]` / D-SCOPE / D-S1 / D-C1 / D-C2 / D-C3; F1–F7). Page REGISTRY + COVERAGE ticked
 (members ✓). **No feature bump** (consumes existing member-analytics/daily-health-logs/program-memberships/auth
 routes). **Next:** the 8 deferred `/members` sub-routes and/or the sibling tabs (`/lifestyle`, `/program`).
+
+---
+
+## Run 23 — `lifestyle` page (web, 3rd workspace tab) · 2026-06-29
+
+**Target.** `specs/pages/web/lifestyle/SPEC.md` — the program workspace **Lifestyle** tab (`/lifestyle`), the
+9th web page. User picked it (3rd tab) over the deferred sub-routes / the `/program` tab.
+
+**Sweep.** 3 `Explore` agents (legacy lifestyle cluster · our ported foundation+deps · backend API contract).
+Verified the load-bearing files myself: the full 625-line landing `page.tsx`, the new `lib/api/lifestyle.ts`,
+and the foundation deps. All three agents confirmed my own read — no drift.
+
+**Findings.** (1) **The name lies again** (run-22 pattern recurs): `/lifestyle` is NOT a sleep/diet *logging*
+screen but a **read-only** workout-type-analytics + health-timeline dashboard — a near-twin of the Members tab
+(same view-as picker, same `MemberPickerModal` w/ `allowNone`, same role gating). Data-entry (workout-type
+CRUD) lives in the deferred `/lifestyle/workouts` sub-route. (2) **2 new deps** — `lib/api/lifestyle.ts` (6 fns
+over already-mounted `analytics`/`analytics-v2` routes) + `ui/EmptyState.tsx` (new 10-line primitive);
+everything else already ported (shell `/lifestyle` tab, 5 chart tokens, `IconDumbbell`, `fetchProgramMembers`).
+(3) **all 6 endpoints already mounted** (`server.js:74-76`) — zero backend, no feature bump. (4) 2 forward-nav
+sub-routes deferred (F2). (5) read-only → `admin_only_data_entry` **N/A**.
+
+**Questions — tight 2-Q round** (both user-answered): **D-SCOPE** = landing page only (2 sub-routes deferred) ·
+stance = **faithful, port local `MemberPickerModal` verbatim + flag the dup** with Members (F6). User declined
+extracting a shared picker component — I recommended against it: the Members picker was de-dup'd (run 22) into a
+2-variant `activePicker` form, so a shared component would ADD branches, not remove them.
+
+**Role rules — confirmed (code-determined, lines 51-56).** global_admin (view-as + "None"/program-wide,
+default none) · admin (view-as, "None"→"Admin" label, auto-self) · logger (own data, no picker, "View
+workouts") · member (own data, no picker, "View workouts"). `canAddWorkouts` flips only the header pill *label*
+(both labels nav to the same deferred route). Read-only → lock N/A.
+
+**Durable patterns — reinforcement, nothing new to promote.** This run was a clean application of established
+lessons:
+1. **Run-22's "the name lies" recurred verbatim** — a 2nd "looks-like-CRUD, actually-read-only-dashboard" page.
+   The lesson held: read the landing file in full; the CRUD lives in deferred sub-routes. (Already in SKILL.md.)
+2. **A near-twin page reuses its twin's decision shape — don't re-derive.** `/lifestyle` mirrors `/members`:
+   same D-SCOPE (landing only), same D-S1 (faithful), same "port whole api module" D-C, same read-only→lock-N/A,
+   same view-as picker. The run is fast because you recognize the twin and confirm rather than re-discover.
+3. **Decline a tempting shared-component extraction when the twin already DIVERGED.** The reflex on seeing a
+   duplicated `MemberPickerModal` is "extract to `ui/`." But the Members copy was already specialized (2-variant
+   `activePicker`); a shared component would carry both tabs' union of props/branches. Flag the dup (F-row,
+   rebuild-cleanup candidate), recommend against extraction, let the user decide. (Extends run-22's de-dup
+   lesson — de-dup WITHIN a file is behavior-preserving; de-dup ACROSS files that already diverged is not.)
+
+**Output.** `apps/web/src/app/lifestyle/page.tsx` + `lib/api/lifestyle.ts` + `ui/EmptyState.tsx` (all verbatim).
+`npm run build` ✓ (`/lifestyle` prerendered, 13.6 kB — Recharts; Middleware 27.3 kB active). SPEC v0.1.0 (D-REF
+`[web]` / D-SCOPE / D-S1 / D-C1 / D-C2; F1–F7). Page REGISTRY + COVERAGE ticked (lifestyle ✓). **No feature
+bump.** **Next:** the last tab `/program` (settings), the 8 deferred `/members` sub-routes, the 6 deferred
+`/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes.
