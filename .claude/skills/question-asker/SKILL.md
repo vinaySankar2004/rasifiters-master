@@ -291,6 +291,20 @@ directly as a faithful port from the legacy reference app** — there is no inte
   the reuse is a real `depends_on` edge to the sibling. And **don't assume the two halves have symmetric
   consumption** — run 9's half had 2 dead routes + a web-only endpoint; run 10's half was fully shared, no
   dead routes, no batch route. Sweep each half independently.
+- **Verbatim-aggregation features (analytics, reporting): port the SQL EXACTLY, and a TZ "fix" that is a
+  no-op on the deploy target is a low-risk cleanup (run 11).** For a pure read feature whose numbers must
+  match legacy, D-S1 is faithful *verbatim* — every `Promise.all` aggregation, inner-join, `fn("COUNT","*")`
+  idiom, and response shape is ported character-for-character; resist "improving" the queries. Two run-11
+  specifics: (a) **a versioned-API supersession is a new dead-route flavor** — a v1 endpoint can be dead not
+  because it's a byte-dup but because a v2 successor (living in the SIBLING feature) replaced it on every
+  client; confirm by sweeping for the v2 URL too, then drop-or-keep like any dead route (the behavior isn't
+  lost, it's relocated to the sibling). (b) **server-local-timezone date formatting** (`toLocaleDateString`/
+  `Intl` with no `timeZone` option, while the surrounding code parses UTC midnight) is the classic latent bug
+  in date-bucketing code — surface it as a cleanup, **split by impact** (numeric bucketing vs display labels),
+  and frame the risk honestly: a TZ fix that is a **no-op on the deploy target** (Render-UTC) but makes the
+  UTC intent explicit is low-risk ("unchanged on UTC, just deterministic"). **Scope the cleanup precisely** —
+  the same root cause often recurs at sites the user did NOT pin (`buildMTDDateRanges`, period labels); leave
+  those faithful + flagged, don't silently widen the fix.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

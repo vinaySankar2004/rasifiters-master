@@ -386,3 +386,48 @@ run 9's "second-half" lesson** and refined the lead choice:
 Port: appended to the existing file pair (both halves now reunited, like workoutService); boot check (9
 service fns export, daily writes guarded + GET ungated, workout router unchanged, server loads) passes. No
 migration delta (model + schema pre-ported).
+
+---
+
+## Run 11 — `analytics` (v1) (backend; program-level read aggregations)
+
+**Target:** the `v1Router` half of `routes/analytics.js` + the v1 functions of `analyticsService.js`
+(`getSummary`/`getTotalWorkoutsMTD`/`getTotalDurationMTD`/`getAvgDurationMTD`/`getActivityTimeline`/
+`getHealthTimeline`/`getDistributionByDay`/`getWorkoutTypes`) + the shared date/bucket helpers + the two
+analytics-only utils (`utils/dateRange.js`, `utils/queryHelpers.js`).
+
+**Sweep:** read the full v1 half (1–472) of the 713-line `analyticsService.js` + the v1 route handlers + both
+utils; `grep -rl` confirmed `dateRange`/`queryHelpers` are imported by NO other service (analytics-only → they
+land with this first-ported half, v2 reuses them). All 6 models pre-ported. Fanned 2 `Explore` agents over
+web + iOS.
+
+**Findings:** the file pair holds two COVERAGE rows again (analytics v1 + analytics v2; `routes/analytics.js`
+exports `v1Router`+`v2Router`, the service holds v1 fns / v2 fns / shared helpers) — and `memberAnalytics.js`
+is a THIRD, separate feature. 8 of 9 v1 endpoints live on both clients 1:1, no divergence; the 9th
+(`participation/mtd` v1) is **dead on both** — both call the v2 variant. **A versioned-API supersession is a
+new dead-route flavor:** unlike a byte-dup or a never-used route, a v1 endpoint can be dead because a v2
+successor (in the SIBLING feature) replaced it on every client. Confirm by sweeping for the v2 URL too.
+
+**6 decisions (D-C1 scope, D-C2 drop-dead, D-C3+D-C4 cleanups, D-REF, D-S1).**
+- **D-C1** scope = v1 half + the 2 analytics-only utils; v2 appends to the same files later; member-analytics
+  separate. (Third file-pair split this session — logs, then analytics; the pattern is now routine.)
+- **D-C2** drop the dead `participation/mtd` v1 route + `getParticipationMTD` (user chose drop). Its v2
+  successor ships with `analytics-v2`, so the behavior isn't lost — just relocated to the sibling.
+- **D-C3 + D-C4** — the user picked "faithful + cleanups" for a PURE-AGGREGATION feature, then a pinning
+  multiSelect surfaced the one real correctness class: **server-local-timezone date formatting**
+  (`toLocaleDateString`/`Intl.DateTimeFormat` with NO `timeZone` option, while all the surrounding bucketing
+  parses UTC midnight). Split it by IMPACT: D-C3 = the distribution **weekday bucketing** (numeric — which day
+  a log counts toward) vs D-C4 = the timeline **labels** (display only). User took both. **Key framing for an
+  aggregation feature: a TZ "fix" that is a no-op on the deploy target (Render-UTC) but makes intent explicit
+  is low-risk — say so** ("unchanged on UTC, just deterministic"), and scope it precisely (the same root cause
+  also lives in `buildMTDDateRanges`/`getPeriodRange`/`resolveTimelineWindow` labels, left UNFIXED + flagged
+  F4/F6 because the user pinned only the two sites — don't silently widen the cleanup).
+- **D-S1** faithful VERBATIM — analytics is the canonical verbatim-port feature: every `Promise.all`
+  aggregation, `activeMembershipInclude` inner join, `fn("COUNT","*")` idiom (F7), and response shape ported
+  exactly. The numbers must match legacy, so resist "improving" the SQL.
+
+**Port:** both utils verbatim; `analyticsService.js` = helpers + 8 v1 fns with the 2 UTC fixes (v2 fns +
+`getParticipationMTD` omitted); `routes/analytics.js` = `v1Router` 8 routes exporting `{ v1Router }`; mounted
+`/api/analytics`. Boot check (8 routes no `participation/mtd`, all `authenticateToken`, 8 fns export, utils
+load, 4 `timeZone:"UTC"` present, server loads) passes. No migration delta (read-only; models pre-ported;
+utils faithful new files).
