@@ -854,3 +854,50 @@ checklist / D-C4 muted mismatch hint / D-C5 autoFocus; F1–F6: client JWT decod
 bootstrap form flash, no client rate-limit, no client username rules, cleanups web-first/iOS gap). Page REGISTRY +
 COVERAGE ticked. **No feature bump.** The public/auth path is COMPLETE. **Next:** the `programs` hub (first
 protected route — resolve the `middleware.ts` HS256→ES256 decision first).
+
+## Run 20 — `programs` hub (web, 6th page) — the FIRST PROTECTED route + resolving a deferred migration decision (2026-06-29)
+
+**Target.** The post-login `programs` hub — the first route the edge `middleware.ts` actually gates. Legacy
+`../rasifiters-webapp/src/app/programs/page.tsx` (1022 lines incl. inline subcomponents: `ProgramCard`,
+`InvitesTab`/`InviteCard`, `CreateProgramTab`, `EditProgramModal`, `AccountRow`). Page mode. Carried a
+pre-flagged open decision (the `middleware.ts` HS256→ES256 mismatch) that HAD to be resolved as part of the run.
+
+**Sweep.** 3 `Explore` agents — legacy web hub · our ported web foundation + `middleware.ts` · backend
+programs/memberships/invites contract — then I verified the load-bearing files myself (`middleware.ts` full,
+the 1022-line page full, legacy `api/{programs,invites}.ts`, `useAuthGuard`, the 5 legacy `ui/` components +
+their transitive deps). The backend agent's "notification emits deferred" note was STALE (notifications is
+ported, emits live) — a reminder that agent maps can carry old code comments; didn't matter for a page spec but
+worth noting.
+
+**Decisions (tight 3-Q, all user-answered):**
+- **D-C1 — the deferred migration decision.** Middleware = **decode + expiry only**. The faithful HS256-verify
+  port is *non-viable* against Supabase ES256 (would redirect-loop every real session), so "faithful-literal"
+  wasn't on the table — this is the auth-run-1 pattern (a migration-FORCED decision where the lead option is
+  "closest-to-faithful-intent," not "faithful-literal"). Framed the three concrete options (decode+expiry /
+  ES256-JWKS-at-edge / remove middleware) and led with decode+expiry because it preserves the middleware's
+  faithful ROLE (a UX redirect gate) while the backend stays the security boundary (JWKS-verifies every call +
+  owns authz — CLAUDE.md, not RLS). User took it. Dropped the `JWT_SECRET` edge dependency entirely.
+- **D-C2 — dependency port (run-19 pattern, bigger).** The page dragged in **2 api modules** (`lib/api/{programs,
+  invites}.ts`) **+ 5 `ui/` components** (`PageShell`/`GlassCard`/`Modal`/`ConfirmDialog`/`StatusBadge`) absent
+  from the foundation. Verified the transitive deps (`cn` from `lib/utils`, `formatInviteDate` from `format.ts`)
+  were ALREADY ported → no gap. Decision: port the **whole** api modules (shared infra later pages reuse) but
+  **only the 5** `ui/` components this page uses (not all 12 legacy `ui/` files — the rest belong to their own
+  pages). `cp`'d verbatim for byte-fidelity, then applied edits.
+- **D-C3 — stance.** Faithful 1:1 + **reuse `useAuthGuard({requireProgram:false})`** in place of the inline
+  login-redirect `useEffect`. `requireProgram:false` is load-bearing: the hub is WHERE you pick the active
+  program, so it must not bounce to itself (the guard's default `requireProgram:true` redirects to `/programs`).
+
+**Durable patterns promoted to SKILL.md:**
+1. A **pre-flagged deferred decision becomes a run's D-C1** when its blocking page lands — and when the faithful
+   port is non-viable (migration-forced), lead with the closest-to-faithful-INTENT option, not faithful-literal.
+2. The run-19 "page drags in shared deps" pattern recurs and SCALES (here 7 deps) — the discipline is: verify
+   transitive deps are already ported, port WHOLE shared modules but only the SPECIFIC leaf components used.
+3. A page port can **reuse a foundation hook the legacy file predated** (`useAuthGuard`) — a legit reuse cleanup,
+   recorded as a D-row; check the foundation for a hook/util that subsumes inline page logic before porting it verbatim.
+
+**Output:** `apps/web/src/{lib/api/{programs,invites}.ts, components/ui/{PageShell,GlassCard,Modal,ConfirmDialog,
+StatusBadge}.tsx, app/programs/page.tsx}` + rewrote `src/middleware.ts` (decode+expiry). `npm run build` ✓
+(`/programs` 11.3 kB; Middleware 27.2 kB — now active). SPEC v0.1.0 (D-REF `[web]` / D-S1 / D-C1 / D-C2 / D-C3;
+F1–F6). Page REGISTRY + COVERAGE ticked; `apps/web/CONTEXT.md` + PROGRESS open-question flipped to RESOLVED. **No
+feature bump** (consumes existing `programs`/`program-memberships`/`invites`/`auth` routes). **Next:** `program`
+overview / the first workspace tab `/summary`.

@@ -265,6 +265,26 @@ directly as a faithful port from the legacy reference app** — there is no inte
   "don't auto-inherit a sibling's choice" cuts BOTH ways on redirects: legacy create-account had no authed
   redirect, but all 3 sibling auth pages redirect — when the WHOLE sibling set already diverged one way,
   matching them (a deliberate D-row) beats matching a lone legacy file.
+- **A pre-flagged DEFERRED decision becomes a run's D-row when its blocking page lands — and a migration-FORCED
+  decision leads with closest-to-faithful-INTENT, not faithful-literal (run 20).** The `programs` hub (first
+  protected route) carried a standing open question (the edge `middleware.ts` verified HS256 but auth migrated to
+  Supabase ES256 → would redirect-loop every real session). Resolve it AS PART OF the page run, recorded as a
+  D-row (D-C1), not left dangling. Because the faithful HS256 port was *non-viable* on the new stack, "faithful
+  as-is" wasn't a real option — this is the auth-run-1 shape: a **migration-forced** decision where you lead with
+  the option that preserves the faithful ROLE, not the faithful CODE. Here the middleware's role is a **UX
+  redirect gate**, not the security boundary (the backend JWKS-verifies every API call + owns all authz — not
+  RLS), so "decode + expiry only" preserves the role while fixing the algorithm; offer it as the lead vs
+  edge-JWKS-verify (adds a per-nav network fetch + duplicates backend logic) vs remove-middleware (diverges from
+  legacy). Frame the security honestly: dropping edge signature-verify doesn't weaken anything when the backend
+  re-verifies every call. The run-19 "page drags in shared deps" pattern **recurs and scales** (run 20: 2 api
+  modules + 5 `ui/` components) — the discipline holds: confirm the transitive deps (`cn`, a `format` helper) are
+  already ported, then port WHOLE shared api modules (later pages reuse them) but only the SPECIFIC leaf
+  components this page uses (not the sibling `ui/` files that belong to their own pages); `cp` verbatim for
+  byte-fidelity, then apply the deviation edits. And **a page port can reuse a foundation hook the legacy file
+  predated** — swapping the page's inline login-redirect `useEffect` for the foundation's `useAuthGuard` is a
+  legit reuse cleanup (D-row), but mind the hook's parameters (`requireProgram:false` here — the hub is WHERE you
+  pick the active program, so the default `requireProgram:true` would bounce it to itself). Check the foundation
+  for a hook/util that subsumes inline page logic before porting that logic verbatim.
 - **Separate locked-by-METHODOLOGY decisions from genuinely-open ones before asking.** Decisions already
   fixed in the R-log (e.g. R1's proxy model / retired tables / `auth_user_id`) are stated as context, NOT
   re-asked — keeps the round to the few real choices (auth run 1: 4 real Qs, all faithful).
