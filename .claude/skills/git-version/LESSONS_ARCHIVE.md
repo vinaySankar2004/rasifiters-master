@@ -45,3 +45,24 @@ the registry status is `built` not `documented` — match the sibling feature's 
 it at the spec-only state.** **Tag gotcha: `git push --follow-tags` does NOT push lightweight tags** (these
 feature tags are lightweight) — had to `git push origin feature/programs@v0.1.0` explicitly. **Lesson: for
 this repo's lightweight feature tags, push the tag by name (or use `--tags`), not `--follow-tags`.**
+
+### 2026-06-28 — Run: wire the two deferred 501 delete cascades (auth + members @ v0.2.0)
+**Shape:** a *fill-in-the-deferral* change — two routes that shipped as documented `501` stubs (auth
+`DELETE /account`, members `DELETE /:id`) became functional now that their cross-feature dependencies
+(program-memberships/invites/notifications) are ported. This is a real behavior delta (501→200), so it's a
+**MINOR bump** (functionality previously deferred), NOT a faithful no-bump flip. **One commit touched THREE
+features:** the byte-identical legacy cascade was extracted into a single new export
+`cascadeMemberDeletion` on `utils/programMemberships.js` — a registered `reference_impl` path of
+**program-memberships** — so that feature ALSO took a MINOR bump (additive owned-interface growth,
+`handleMemberExit` unchanged, zero dependent re-version). **Lesson: a single behavioral commit can map to
+multiple features via reference_impl paths — bump each touched feature, even the one that only gained a new
+shared export.** **Mutual-edge bookkeeping:** auth + members now *import* program-memberships' util →
+each gained `depends_on: program-memberships`. program-memberships already depended on auth+members
+(middleware/models), so this completes a legitimate **mutual edge** (cycle). The skill explicitly allows
+this ("Mutual edges need BOTH halves written") — wrote both halves. Additive edges to an already-built node
+= FYI, no gate. **DRY-vs-faithful judgment:** legacy duplicated the cascade verbatim across two services;
+chose to single-source it in the util that already owns `handleMemberExit` rather than copy-paste — matches
+the workspace DRY standard while staying behavior-faithful (each caller keeps its own tx/guard/404/message).
+**Three tags this run:** `feature/{auth,members,program-memberships}@v0.2.0`; verified each registry node's
+current version has a matching tag (6 nodes, all current). **Push:** lightweight tags → `git push` then
+`git push origin <tag>...` by name (not `--follow-tags`).
