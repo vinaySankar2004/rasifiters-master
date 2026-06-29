@@ -16,9 +16,10 @@ const notificationRoutes = require("./routes/notifications");
 const workoutRoutes = require("./routes/workouts");
 const programWorkoutRoutes = require("./routes/programWorkouts");
 const { workoutLogRouter, dailyHealthLogRouter } = require("./routes/logs");
+const { v1Router: analyticsV1Routes } = require("./routes/analytics");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
 // documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/. Remaining legacy mounts:
-//   /api/analytics /api/analytics-v2
+//   /api/analytics-v2
 //   /api/member-metrics /api/member-history /api/member-streaks /api/member-recent
 
 const app = express();
@@ -55,6 +56,7 @@ app.use("/api/workouts", workoutRoutes);
 app.use("/api/program-workouts", programWorkoutRoutes);
 app.use("/api/workout-logs", workoutLogRouter);
 app.use("/api/daily-health-logs", dailyHealthLogRouter);
+app.use("/api/analytics", analyticsV1Routes);
 
 app.get("/api/test", (req, res) => {
     res.json({

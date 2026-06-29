@@ -20,6 +20,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
 | `workout-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
 | `daily-health-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [health half], `services/logService.js` [health half + `parseOptionalNumber`], `models/DailyHealthLog.js`) | [daily-health-logs/SPEC.md](daily-health-logs/SPEC.md) |
+| `analytics` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v1 half], `services/analyticsService.js` [v1 + shared helpers], `utils/{dateRange,queryHelpers}.js`) | [analytics/SPEC.md](analytics/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
@@ -57,5 +58,12 @@ halves reunited). `consumed_by = [web, ios]` — **all 4 routes 1:1, no divergen
 except two changes: D-C2 (reuse `workout-logs`' `requireDataEntryAllowed` middleware on the 3 write routes —
 both halves enforce the lock identically; GET ungated) and D-C3 (tidy `updateDailyHealthLog` to a single
 `body` param, behavior identical). One-row-per-day PK / 409-on-dup / sleep+diet validation / partial-update
-absent-vs-null / synthetic GET id kept (F1–F6). Next
+absent-vs-null / synthetic GET id kept (F1–F6). `analytics` (v1, the program-level read-aggregation API)
+follows: the `v1Router` half of the shared `routes/analytics.js`/`analyticsService.js` + the 2 analytics-only
+utils (`dateRange.js`/`queryHelpers.js`); `analytics-v2` = the other half (appended later, reuses the
+helpers/utils). Read-only date-bucketing + `COUNT`/`SUM`/`GROUP BY` over `workout_logs`/`daily_health_logs`
+(active-membership inner join). **`participation/mtd` v1 dropped** (D-C2 — both clients use the v2 variant);
+8 live routes; `consumed_by = [web, ios]` all 1:1, no divergence. Faithful verbatim except two UTC cleanups:
+D-C3 (distribution weekday bucketing) + D-C4 (timeline labels), both adding `timeZone:"UTC"` (unchanged on
+Render-UTC). F1–F7. Next
 features are authored as the backend rebuild proceeds — see `PROGRESS.md`._

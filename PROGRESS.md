@@ -30,11 +30,24 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port `analytics`** via `question-asker` — the legacy `routes/analytics.js` +
-> `analyticsService.js` (summary, participation, workouts/duration, timeline, distribution, types). It
-> aggregates the now-ported `workout_logs` + `daily_health_logs` fact tables. Then `analytics-v2` →
-> `member-analytics` (member-metrics/history/streaks/recent) → `app-config`/push. Each backend commit
-> auto-deploys to Render.
+> **On "continue": spec + port `analytics-v2`** via `question-asker` — the OTHER half of the
+> `routes/analytics.js`/`analyticsService.js` file pair (the `v2Router` 6 routes + the 6 `*V2` fns:
+> `getSummaryV2`, `getParticipationMTDV2`, `getWorkoutTypesTotal`, `getMostPopularWorkoutType`,
+> `getLongestDurationWorkoutType`, `getHighestParticipationWorkoutType`), **appended to the same files**
+> `analytics` just created (the shared date/bucket helpers + the 2 utils are already there — reuse them).
+> Note: both clients' `participation/mtd` card uses the v2 variant, so `getParticipationMTDV2` IS live
+> (unlike the dropped v1). Then `member-analytics` (member-metrics/history/streaks/recent) → `app-config`/push.
+> Each backend commit auto-deploys to Render.
+>
+> **`analytics` (v1) is DONE (ported 2026-06-29)** — the `v1Router` half (`/api/analytics`) of the shared
+> `routes/analytics.js`/`analyticsService.js` + the 2 analytics-only utils (`dateRange.js`/`queryHelpers.js`).
+> Read-only aggregation (date-bucketing + `COUNT`/`SUM`/`GROUP BY` over the now-ported `workout_logs` +
+> `daily_health_logs`, inner-joined to active memberships). **`participation/mtd` v1 dropped** (D-C2 — both
+> clients use the v2 variant); 8 live routes. `consumed_by = [web, ios]` all 1:1, no divergence. Faithful
+> verbatim except 2 UTC cleanups: **D-C3** distribution weekday bucketing + **D-C4** timeline labels (both
+> add `timeZone:"UTC"`; unchanged on Render-UTC, just deterministic). Faithful otherwise (F1–F7: the MTD-vs-
+> `period` dual window, no per-program read authz, the plain-`Error`→500 paths, `COUNT('*')` idiom). Mounted.
+> Boot check passes. **Runtime smoke-test deferred to the batched pre-cutover pass.**
 >
 > **`daily-health-logs` is DONE (ported 2026-06-29)** — the `dailyHealthLogRouter` half
 > (`/api/daily-health-logs`) of the shared `routes/logs.js`/`services/logService.js`, **appended to the same
@@ -172,10 +185,18 @@ deferred (no web code yet).
     [web, ios]` all 4 routes 1:1, no divergence. Two changes (D-C2 reuse `requireDataEntryAllowed` on the 3
     writes; D-C3 single-`body` PUT signature); faithful otherwise (F1–F6). Boot check passes. **Runtime
     smoke-test pending.**
-13. **NEXT — spec + port the remaining backend features** (analytics, analytics-v2, member-analytics,
-    app-config…) via `question-asker`, mounting each route group in `server.js` as it lands. Each backend
-    commit auto-deploys to Render (push to `main` touching `apps/backend/**`). `analytics` aggregates the
-    now-ported `workout_logs` + `daily_health_logs` fact tables.
+13. ~~Spec + port `analytics` (v1).~~ **DONE 2026-06-29** — see
+    [`specs/features/analytics/SPEC.md`](specs/features/analytics/SPEC.md) v0.1.0 (🏗️ built). The `v1Router`
+    half of the shared `routes/analytics.js`/`analyticsService.js` + the 2 analytics-only utils
+    (`dateRange.js`/`queryHelpers.js`). 8 routes at `/api/analytics` (dead `participation/mtd` dropped per
+    D-C2 — both clients use the v2 variant); `consumed_by = [web, ios]` all 1:1. Read-only verbatim except 2
+    UTC cleanups (D-C3 distribution bucketing + D-C4 timeline labels). Faithful otherwise (F1–F7). Boot check
+    passes. **Runtime smoke-test pending.**
+14. **NEXT — spec + port the remaining backend features** (analytics-v2, member-analytics, app-config/push…)
+    via `question-asker`, mounting each route group in `server.js` as it lands. Each backend commit
+    auto-deploys to Render (push to `main` touching `apps/backend/**`). `analytics-v2` is the other half of
+    the `analytics.js`/`analyticsService.js` file pair — append it to those same files (reuse the helpers +
+    utils); its `getParticipationMTDV2` is the LIVE variant both clients use.
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -201,7 +222,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **10** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **11** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -234,6 +255,31 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (am-3)** — **Specced + ported the `analytics` (v1) feature** (11th feature — the program-level
+  read-aggregation API; the `v1Router` half of the shared `routes/analytics.js`/`analyticsService.js`).
+  `question-asker`: read the full v1 half of `analyticsService.js` (shared date/bucket helpers + 9 v1 fns,
+  1–472) + the v1 route handlers + both analytics-only utils (`dateRange.js`, `queryHelpers.js`); confirmed
+  the utils are used by no other service (analytics-only) and all 6 models are pre-ported. Fanned 2 `Explore`
+  agents over web + iOS. **Findings:** 8 of 9 v1 endpoints live on BOTH clients 1:1 (summary, workouts/total,
+  duration/total, duration/average, timeline, health/timeline, distribution/day, workouts/types); the 9th,
+  **`participation/mtd` (v1), is dead on both** — both call the v2 variant (`/api/analytics-v2/participation/mtd`).
+  No divergence. 6 decisions: **D-C1** scope = v1 half + the 2 utils (v2 = next feature, same file pair;
+  member-analytics separate); **D-C2** (user chose drop) drop the dead `participation/mtd` v1 route +
+  `getParticipationMTD`; **D-C3 + D-C4** (user chose both cleanups via a pinning multiSelect) UTC-fix the
+  server-local-TZ date formatting — D-C3 the distribution weekday bucketing (`getDistributionByDay` +
+  `getSummary.distribution_by_day`, numeric) + D-C4 the timeline labels (`bucketLabel`, display); both add
+  `timeZone:"UTC"` (unchanged on Render-UTC, just deterministic); **D-REF** `[web, ios]` 8 routes 1:1;
+  **D-S1** faithful verbatim otherwise (every aggregation query + bucketing + response shape ported exactly).
+  Flagged F1–F7 (MTD-vs-`period` dual window; no per-program read authz; `resolveTimelineWindow` plain-`Error`
+  →500; `buildMTDDateRanges`/`getPeriodRange` server-local boundaries — out of cleanup scope; `COUNT('*')`
+  idiom). Wrote SPEC v0.1.0; registered in registry.json
+  (`depends_on:[auth, members, programs, program-memberships, program-workouts, workout-logs, daily-health-logs]`)
+  + REGISTRY.md + COVERAGE. Then **ported**: `utils/dateRange.js` + `utils/queryHelpers.js` (verbatim),
+  `services/analyticsService.js` (helpers + 8 v1 fns, the 2 UTC fixes; `getParticipationMTD` + v2 fns
+  omitted), `routes/analytics.js` (`v1Router` 8 routes, exports `{ v1Router }`), mounted `/api/analytics`.
+  Boot check (8-route stack no `participation/mtd`, all `authenticateToken`, 8 service fns export, both utils
+  load, 4 `timeZone:"UTC"` fixes present, server loads) passes. **Runtime smoke-test deferred to the batched
+  pre-cutover pass.** Next: `analytics-v2` (the other half).
 - **2026-06-29 (am-2)** — **Specced + ported the `daily-health-logs` feature** (10th feature — the OTHER
   half of the shared `routes/logs.js`/`services/logService.js` file pair). `question-asker`: reused the
   full read of `logService.js` (daily-health half) + `routes/logs.js` from the workout-logs run; verified
