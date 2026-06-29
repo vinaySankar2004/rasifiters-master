@@ -4,11 +4,11 @@ const analyticsService = require("../services/analyticsService");
 const { AppError } = require("../utils/response");
 
 const v1Router = express.Router();
+const v2Router = express.Router();
 
 // ── V1 Analytics (/api/analytics/*) ──
 // NOTE: legacy's GET /participation/mtd (v1) is dropped — both clients call the v2 variant
-// (/api/analytics-v2/participation/mtd). See analytics SPEC D-C2. v2Router lands with the
-// `analytics-v2` feature, appended to this file.
+// (/api/analytics-v2/participation/mtd). See analytics SPEC D-C2.
 
 v1Router.get("/summary", authenticateToken, async (req, res) => {
     try {
@@ -112,4 +112,63 @@ v1Router.get("/workouts/types", authenticateToken, async (req, res) => {
     }
 });
 
-module.exports = { v1Router };
+// ── V2 Analytics (/api/analytics-v2/*) ──
+// NOTE (D-C2): legacy's GET /summary (v2) is dropped — both clients call the v1 summary
+// (/api/analytics/summary). See analytics-v2 SPEC D-C2.
+
+v2Router.get("/participation/mtd", authenticateToken, async (req, res) => {
+    try {
+        const result = await analyticsService.getParticipationMTDV2(req.query.programId);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error computing MTD participation (v2):", err);
+        res.status(500).json({ error: "Failed to compute MTD participation." });
+    }
+});
+
+v2Router.get("/workouts/types/total", authenticateToken, async (req, res) => {
+    try {
+        const result = await analyticsService.getWorkoutTypesTotal(req.query.programId, req.query.memberId);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error computing total workout types:", err);
+        res.status(500).json({ error: "Failed to compute total workout types." });
+    }
+});
+
+v2Router.get("/workouts/types/most-popular", authenticateToken, async (req, res) => {
+    try {
+        const result = await analyticsService.getMostPopularWorkoutType(req.query.programId, req.query.memberId);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error computing most popular workout type:", err);
+        res.status(500).json({ error: "Failed to compute most popular workout type." });
+    }
+});
+
+v2Router.get("/workouts/types/longest-duration", authenticateToken, async (req, res) => {
+    try {
+        const result = await analyticsService.getLongestDurationWorkoutType(req.query.programId, req.query.memberId);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error computing longest duration workout type:", err);
+        res.status(500).json({ error: "Failed to compute longest duration workout type." });
+    }
+});
+
+v2Router.get("/workouts/types/highest-participation", authenticateToken, async (req, res) => {
+    try {
+        const result = await analyticsService.getHighestParticipationWorkoutType(req.query.programId, req.query.memberId);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error computing highest participation workout type:", err);
+        res.status(500).json({ error: "Failed to compute highest participation workout type." });
+    }
+});
+
+module.exports = { v1Router, v2Router };

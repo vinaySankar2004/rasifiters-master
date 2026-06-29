@@ -21,6 +21,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `workout-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
 | `daily-health-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [health half], `services/logService.js` [health half + `parseOptionalNumber`], `models/DailyHealthLog.js`) | [daily-health-logs/SPEC.md](daily-health-logs/SPEC.md) |
 | `analytics` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v1 half], `services/analyticsService.js` [v1 + shared helpers], `utils/{dateRange,queryHelpers}.js`) | [analytics/SPEC.md](analytics/SPEC.md) |
+| `analytics-v2` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v2 half], `services/analyticsService.js` [v2 fns]) | [analytics-v2/SPEC.md](analytics-v2/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
@@ -65,5 +66,11 @@ helpers/utils). Read-only date-bucketing + `COUNT`/`SUM`/`GROUP BY` over `workou
 (active-membership inner join). **`participation/mtd` v1 dropped** (D-C2 — both clients use the v2 variant);
 8 live routes; `consumed_by = [web, ios]` all 1:1, no divergence. Faithful verbatim except two UTC cleanups:
 D-C3 (distribution weekday bucketing) + D-C4 (timeline labels), both adding `timeZone:"UTC"` (unchanged on
-Render-UTC). F1–F7. Next
-features are authored as the backend rebuild proceeds — see `PROGRESS.md`._
+Render-UTC). F1–F7. `analytics-v2` (the v2 half of the same file pair) follows: the `v2Router` routes + the
+v2 functions **appended to the shared `routes/analytics.js`/`analyticsService.js`** (reusing the helpers +
+utils landed with v1). **`GET /summary` (v2) dropped** (D-C2 — the mirror of v1's D-C2: both clients use the
+v1 summary, so `getSummaryV2` is dead); 5 live routes at `/api/analytics-v2` (participation/mtd + the 4
+workout-type aggregates), `consumed_by = [web, ios]` all 1:1, no divergence. Read-only verbatim otherwise
+(D-S1); `getParticipationMTDV2` is byte-identical to the v1 fn v1 dropped (now live), and
+`getHighestParticipationWorkoutType`'s member-scoped branch is dead (both clients call it program-wide). F1–F6.
+Next features are authored as the backend rebuild proceeds — see `PROGRESS.md`._

@@ -443,6 +443,143 @@ async function getWorkoutTypes(programId, memberId, limit = 50) {
     });
 }
 
+// ── V2 Analytics ──
+// The v2 half of this service (analytics-v2 SPEC). Reuses the shared imports + queryHelpers above.
+// NOTE (D-C2): legacy's getSummaryV2 / GET /api/analytics-v2/summary is dropped — both clients use the
+// v1 summary (GET /api/analytics/summary). See analytics-v2 SPEC §7 D-C2. It was also the only v2 fn with
+// date formatting, so the v2 half needs no UTC cleanup.
+
+async function getParticipationMTDV2(programId) {
+    if (!programId) throw new AppError(400, "programId is required");
+
+    const mtd = buildMTDDateRanges();
+    const incl = activeMembershipInclude(programId);
+
+    const [totalMembers, activeCurrent, activePrev] = await Promise.all([
+        ProgramMembership.count({ where: { program_id: programId, status: "active" } }),
+        WorkoutLog.count({
+            where: { program_id: programId, log_date: { [Op.between]: [mtd.current.start, mtd.current.end] } },
+            distinct: true, col: "member_id", include: [incl]
+        }),
+        WorkoutLog.count({
+            where: { program_id: programId, log_date: { [Op.between]: [mtd.previous.start, mtd.previous.end] } },
+            distinct: true, col: "member_id", include: [incl]
+        })
+    ]);
+
+    const currentPct = totalMembers > 0 ? Number(((activeCurrent / totalMembers) * 100).toFixed(1)) : 0;
+    const prevPct = totalMembers > 0 ? Number(((activePrev / totalMembers) * 100).toFixed(1)) : 0;
+
+    return {
+        total_members: totalMembers,
+        active_members: activeCurrent,
+        participation_pct: currentPct,
+        change_pct: percentChange(currentPct, prevPct)
+    };
+}
+
+async function getWorkoutTypesTotal(programId, memberId) {
+    if (!programId) throw new AppError(400, "programId is required");
+
+    const where = memberId ? { program_id: programId, member_id: memberId } : { program_id: programId };
+    const rows = await WorkoutLog.findAll({
+        where,
+        attributes: [[col("ProgramWorkout.workout_name"), "workout_name"]],
+        include: [activeMembershipInclude(programId), { model: ProgramWorkout, attributes: [] }],
+        group: ["ProgramWorkout.workout_name"]
+    });
+
+    return { total_types: rows.length };
+}
+
+async function getMostPopularWorkoutType(programId, memberId) {
+    if (!programId) throw new AppError(400, "programId is required");
+
+    const where = memberId ? { program_id: programId, member_id: memberId } : { program_id: programId };
+    const rows = await WorkoutLog.findAll({
+        where,
+        attributes: [[col("ProgramWorkout.workout_name"), "workout_name"], [fn("COUNT", "*"), "sessions"]],
+        include: [activeMembershipInclude(programId), { model: ProgramWorkout, attributes: [] }],
+        group: ["ProgramWorkout.workout_name"],
+        order: [[literal("sessions"), "DESC"]],
+        limit: 1
+    });
+
+    const top = rows[0];
+    return { workout_name: top?.get("workout_name") ?? null, sessions: Number(top?.get("sessions")) || 0 };
+}
+
+async function getLongestDurationWorkoutType(programId, memberId) {
+    if (!programId) throw new AppError(400, "programId is required");
+
+    const where = memberId ? { program_id: programId, member_id: memberId } : { program_id: programId };
+    const rows = await WorkoutLog.findAll({
+        where,
+        attributes: [[col("ProgramWorkout.workout_name"), "workout_name"], [fn("AVG", col("duration")), "avg_duration"]],
+        include: [activeMembershipInclude(programId), { model: ProgramWorkout, attributes: [] }],
+        group: ["ProgramWorkout.workout_name"],
+        order: [[literal("avg_duration"), "DESC"]],
+        limit: 1
+    });
+
+    const longest = rows[0];
+    return { workout_name: longest?.get("workout_name") ?? null, avg_minutes: Math.round(Number(longest?.get("avg_duration")) || 0) };
+}
+
+async function getHighestParticipationWorkoutType(programId, memberId) {
+    if (!programId) throw new AppError(400, "programId is required");
+    const incl = activeMembershipInclude(programId);
+
+    if (memberId) {
+        const rows = await WorkoutLog.findAll({
+            where: { program_id: programId, member_id: memberId },
+            attributes: [[col("ProgramWorkout.workout_name"), "workout_name"], [fn("COUNT", "*"), "sessions"]],
+            include: [incl, { model: ProgramWorkout, attributes: [] }],
+            group: ["ProgramWorkout.workout_name"],
+            order: [[literal("sessions"), "DESC"]],
+            limit: 1
+        });
+
+        const totalWorkouts = await WorkoutLog.count({
+            where: { program_id: programId, member_id: memberId },
+            include: [incl]
+        });
+
+        const top = rows[0];
+        const sessions = Number(top?.get("sessions")) || 0;
+        return {
+            workout_name: top?.get("workout_name") ?? null,
+            participants: sessions > 0 ? 1 : 0,
+            participation_pct: totalWorkouts > 0 ? Number(((sessions / totalWorkouts) * 100).toFixed(1)) : 0,
+            total_members: 1
+        };
+    }
+
+    const [totalMembers, rows] = await Promise.all([
+        ProgramMembership.count({ where: { program_id: programId, status: "active" } }),
+        WorkoutLog.findAll({
+            where: { program_id: programId },
+            attributes: [
+                [col("ProgramWorkout.workout_name"), "workout_name"],
+                [fn("COUNT", literal('DISTINCT "WorkoutLog"."member_id"')), "participants"]
+            ],
+            include: [incl, { model: ProgramWorkout, attributes: [] }],
+            group: ["ProgramWorkout.workout_name"],
+            order: [[literal("participants"), "DESC"]],
+            limit: 1
+        })
+    ]);
+
+    const top = rows[0];
+    const participants = Number(top?.get("participants")) || 0;
+    return {
+        workout_name: top?.get("workout_name") ?? null,
+        participants,
+        participation_pct: totalMembers > 0 ? Number(((participants / totalMembers) * 100).toFixed(1)) : 0,
+        total_members: totalMembers
+    };
+}
+
 module.exports = {
     getSummary,
     getTotalWorkoutsMTD,
@@ -451,5 +588,10 @@ module.exports = {
     getActivityTimeline,
     getHealthTimeline,
     getDistributionByDay,
-    getWorkoutTypes
+    getWorkoutTypes,
+    getParticipationMTDV2,
+    getWorkoutTypesTotal,
+    getMostPopularWorkoutType,
+    getLongestDurationWorkoutType,
+    getHighestParticipationWorkoutType
 };

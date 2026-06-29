@@ -30,14 +30,25 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port `analytics-v2`** via `question-asker` — the OTHER half of the
-> `routes/analytics.js`/`analyticsService.js` file pair (the `v2Router` 6 routes + the 6 `*V2` fns:
-> `getSummaryV2`, `getParticipationMTDV2`, `getWorkoutTypesTotal`, `getMostPopularWorkoutType`,
-> `getLongestDurationWorkoutType`, `getHighestParticipationWorkoutType`), **appended to the same files**
-> `analytics` just created (the shared date/bucket helpers + the 2 utils are already there — reuse them).
-> Note: both clients' `participation/mtd` card uses the v2 variant, so `getParticipationMTDV2` IS live
-> (unlike the dropped v1). Then `member-analytics` (member-metrics/history/streaks/recent) → `app-config`/push.
-> Each backend commit auto-deploys to Render.
+> **On "continue": spec + port `member-analytics`** via `question-asker` — the per-member analytics surface
+> (`routes/memberAnalytics.js` → `/api/member-metrics` · `/api/member-history` · `/api/member-streaks` ·
+> `/api/member-recent`; a separate file pair from `analytics`). `member-recent` is the workout/health history
+> read both clients use (it's why `workout-logs` dropped its 2 dead GETs). Then `app-config`/push. Each
+> backend commit auto-deploys to Render.
+>
+> **`analytics-v2` is DONE (ported 2026-06-29)** — the `v2Router` half (`/api/analytics-v2`) of the shared
+> `routes/analytics.js`/`analyticsService.js`, **appended to the same files `analytics` (v1) created** (both
+> halves reunited; reuses the date/bucket helpers + the 2 utils landed with v1 — no new files). **`GET /summary`
+> (v2) dropped** (D-C2 — the mirror of v1's D-C2: both clients call the v1 summary `/api/analytics/summary`,
+> so `getSummaryV2` is dead; it was also the only UTC-bucketing site in the v2 half, so no UTC cleanup needed).
+> 5 live routes ported (participation/mtd + workouts/types/{total,most-popular,longest-duration,highest-
+> participation}); `consumed_by = [web, ios]` all 1:1, no divergence. Faithful verbatim aggregation otherwise
+> (D-S1). Flagged: **F1** `getParticipationMTDV2` is byte-identical to the v1 `getParticipationMTD` v1 dropped
+> (now the live participation card), **F4** `getHighestParticipationWorkoutType`'s member-scoped branch is dead
+> (both clients always call it program-wide), + inherited F2/F5/F6 (no per-program read authz; MTD server-local
+> boundaries; `COUNT('*')`/raw-`DISTINCT` idioms). Mounted `/api/analytics-v2`. Boot check passes (v2 5-route
+> stack no `/summary`, all `authenticateToken`, 5 service fns export + `getSummaryV2` absent, v1 unchanged,
+> server loads). **Runtime smoke-test deferred to the batched pre-cutover pass.**
 >
 > **`analytics` (v1) is DONE (ported 2026-06-29)** — the `v1Router` half (`/api/analytics`) of the shared
 > `routes/analytics.js`/`analyticsService.js` + the 2 analytics-only utils (`dateRange.js`/`queryHelpers.js`).
@@ -192,11 +203,18 @@ deferred (no web code yet).
     D-C2 — both clients use the v2 variant); `consumed_by = [web, ios]` all 1:1. Read-only verbatim except 2
     UTC cleanups (D-C3 distribution bucketing + D-C4 timeline labels). Faithful otherwise (F1–F7). Boot check
     passes. **Runtime smoke-test pending.**
-14. **NEXT — spec + port the remaining backend features** (analytics-v2, member-analytics, app-config/push…)
-    via `question-asker`, mounting each route group in `server.js` as it lands. Each backend commit
-    auto-deploys to Render (push to `main` touching `apps/backend/**`). `analytics-v2` is the other half of
-    the `analytics.js`/`analyticsService.js` file pair — append it to those same files (reuse the helpers +
-    utils); its `getParticipationMTDV2` is the LIVE variant both clients use.
+14. ~~Spec + port `analytics-v2`.~~ **DONE 2026-06-29** — see
+    [`specs/features/analytics-v2/SPEC.md`](specs/features/analytics-v2/SPEC.md) v0.1.0 (🏗️ built). The
+    `v2Router` half of the shared `routes/analytics.js`/`analyticsService.js`, appended to the v1 files (both
+    halves reunited; reuses the helpers + 2 utils landed with v1). **`GET /summary` (v2) dropped** (D-C2 — the
+    mirror of v1's D-C2: both clients use the v1 summary; `getSummaryV2` dead). 5 live routes at
+    `/api/analytics-v2`; `consumed_by = [web, ios]` all 1:1, no divergence. Faithful verbatim (D-S1); F1–F6.
+    Boot check passes. **Runtime smoke-test pending.**
+15. **NEXT — spec + port the remaining backend features** (member-analytics, app-config/push…) via
+    `question-asker`, mounting each route group in `server.js` as it lands. Each backend commit auto-deploys to
+    Render (push to `main` touching `apps/backend/**`). `member-analytics` (`routes/memberAnalytics.js`) is a
+    **separate** file pair — `/api/member-metrics` · `/api/member-history` · `/api/member-streaks` ·
+    `/api/member-recent` (the last is the history read both clients use, why `workout-logs` dropped its 2 GETs).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -222,7 +240,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **11** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **12** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -255,6 +273,32 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (am-4)** — **Specced + ported the `analytics-v2` feature** (12th feature — the v2 half of the
+  shared `routes/analytics.js`/`analyticsService.js` file pair; the file pair is now whole, like the logs +
+  workout services). `question-asker`: read the full legacy v2 half of `analyticsService.js` (`getSummaryV2` +
+  the 5 workout-type/participation fns, 471–692) + the `v2Router` route handlers (`analytics.js:124-195`) +
+  the already-ported v1 service/routes (to confirm the shared helpers + utils + module-top imports are all
+  present from v1 — they are). Verified the `Member.member_name` VIRTUAL exists. Fanned 2 `Explore` agents over
+  web + iOS v2 consumption — **they agree exactly:** 5 of 6 v2 routes live on BOTH clients 1:1 (participation/mtd
+  → summary MTD card; workouts/types/{total,most-popular,longest-duration,highest-participation} → the
+  Lifestyle/Workout-Types tiles), and **`GET /summary` (v2) is dead on BOTH** — both call the v1 summary
+  `/api/analytics/summary` instead. 4 decisions: **D-C1** scope = the v2 half appended to the shared files
+  (reuse helpers/utils — no new files; `member-analytics` separate); **D-C2** (user chose drop) **drop the dead
+  `GET /summary` (v2) + `getSummaryV2`** — the mirror of v1's D-C2 (each version dropped the half-route its
+  clients abandoned); distinct-but-superseded (not a byte-dup: optional `programId`/global agg, `member_name`,
+  no `program_progress`); it was also the only UTC-bucketing site in the v2 half, so **no UTC cleanup needed**;
+  **D-REF** `[web, ios]` 5 routes 1:1, no divergence; **D-S1** faithful verbatim otherwise. Flagged F1–F6
+  (**F1** `getParticipationMTDV2` byte-identical to the v1 `getParticipationMTD` v1 dropped — now the live
+  participation card; **F4** `getHighestParticipationWorkoutType`'s member-scoped branch is dead, both clients
+  call it program-wide; inherited F2/F5/F6 = no per-program read authz / MTD server-local boundaries /
+  `COUNT('*')`+raw-`DISTINCT` idioms). Wrote SPEC v0.1.0; registered in registry.json
+  (`depends_on:[auth, analytics, program-memberships, program-workouts, workout-logs]`) + REGISTRY.md +
+  COVERAGE. Then **ported**: appended the 5 v2 fns to `services/analyticsService.js` (`getSummaryV2` omitted)
+  + extended exports, appended the `v2Router` (5 routes, no `/summary`) to `routes/analytics.js` (now exports
+  `{ v1Router, v2Router }`), mounted `/api/analytics-v2` in `server.js` (removed the placeholder comment). Boot
+  check (v2 5-route stack no `/summary`, all `authenticateToken`, 5 service fns export + `getSummaryV2` absent,
+  v1 8-route stack + fns unchanged, server loads) passes. **The analytics file pair is now whole.** **Runtime
+  smoke-test deferred to the batched pre-cutover pass.** Next: `member-analytics`.
 - **2026-06-29 (am-3)** — **Specced + ported the `analytics` (v1) feature** (11th feature — the program-level
   read-aggregation API; the `v1Router` half of the shared `routes/analytics.js`/`analyticsService.js`).
   `question-asker`: read the full v1 half of `analyticsService.js` (shared date/bucket helpers + 9 v1 fns,
