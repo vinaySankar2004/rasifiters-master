@@ -59,3 +59,37 @@ to ship when `program-memberships`/`notifications` land. Consistent staging acro
 **New pattern → promote:** "**Dead-route check via the consumption sweep**" — before speccing any backend
 CRUD feature, confirm which routes each client actually calls; routes called by neither are vestigial and
 get flagged (kept for parity), not treated as load-bearing.
+
+### 2026-06-28 — Run 3: backend `programs` feature (3rd SPEC)
+**Target:** the four `/api/programs` routes (`routes/programs.js` + `services/programService.js`) — the
+program-lifecycle container. **Sweep:** read the route+service+`Program` model in full myself, fanned 2
+`Explore` agents over web + iOS consumption. `consumed_by = [web, ios]` (both call all four routes).
+**The central decision (scope cut) was a side-effect, not a route:** `updateProgram`/`deleteProgram` emit
+`program.updated`/`program.deleted` via `utils/notifications` (`createNotification` +
+`getActiveProgramMemberIds`), which drags in SSE streams + APNs push — the whole undocumented
+`notifications` feature. Unlike the members `DELETE`→501 deferral (a *whole route* deferred), here the CRUD
+stays fully functional and only the **side-effect** defers → a guarded `emitProgramNotification` no-op
+(D-C1). **Lesson: the deferred-dependency pattern has two shapes — defer a whole route (501) OR defer a
+side-effect inside a working route (guarded no-op). Pick by whether the route's core job needs the
+dependency.**
+**Cross-app divergence = a web-only field on a shared endpoint:** the agents proved `admin_only_data_entry`
+is read+written **only by web** (edit-page toggle); iOS's `ProgramDTO` never decodes or sends it. The
+backend faithfully serves/accepts it for both clients regardless — so the divergence is a *client* fact
+(D-REF / §10 flag), not a backend change. **Lesson: a shared endpoint can carry a single-client field;
+record it as D-REF + flag, don't try to "fix" the backend.**
+**Dead-input (not dead-route) caught by the consumption sweep:** the `description` field is the create-time
+analog of members' dead routes — `createProgram` persists+returns it, but `updateProgram` can't change it,
+`getPrograms` never returns it, and **neither client sends it** (half-wired write-only field). Hypothesis-led
+the stance question with it; user chose **change/clean up now** → drop it (D-C2). **Same scope-pinning
+follow-up discipline as members:** a second `AskUserQuestion` pinned the mechanic (drop vs fully-wire vs keep)
++ confirmed nothing else changes — so the SPEC stayed prescriptive. **Lesson: the "vestigial surface" check
+generalizes from routes to individual request *fields* — sweep what clients actually send, not just which
+routes they call.**
+**Soft-delete needs no 501:** unlike members `DELETE` (hard cross-feature cascade → deferred), `deleteProgram`
+is a soft-delete (`is_deleted=true`, no cascade) → ports fully now. **Lesson: check delete semantics
+(soft vs hard-cascade) before assuming a `DELETE` needs the deferral treatment.**
+**Re-sweep catches (faithful flags):** `total_members`==`active_members` always (two aliases over the same
+`status='active'` count); both clients decode an `enrollments_closed` field `getPrograms` never returns
+(resolves undefined/nil). Both kept + flagged (§10 F2/F5) — clients read both keys, so collapsing would
+break them. **Lesson: "always-equal" response pairs and "decoded-but-never-served" fields are faithful
+flags, not cleanups, once a client depends on the shape.**
