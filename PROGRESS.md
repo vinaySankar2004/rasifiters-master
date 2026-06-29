@@ -10,20 +10,27 @@
 
 ## Current phase
 
-**Phase 1 — Provisioning (in progress).** Scaffolding done. **Supabase is provisioned** (2026-06-28): org
-`RaSi Fiters` (`lxehyprifvuozciizlem`), project `rasifiters` ref **`kpadxjekpiwfkqcxtrio`**, region
-`us-east-1`, ACTIVE_HEALTHY; `.mcp.json` repointed; secrets in the user's password manager. Railway +
-Vercel projects are **not yet created** (deferred — `web`/`backend` have no code to deploy yet). Nothing is
-deployed.
+**Phase 1 — Provisioning + migration: DONE.** Scaffolding done. **Supabase provisioned** (2026-06-28): org
+`RaSi Fiters` (`lxehyprifvuozciizlem`), project `rasifiters` ref **`kpadxjekpiwfkqcxtrio`**, `us-east-1`,
+ACTIVE_HEALTHY; `.mcp.json` repointed. **Schema applied + data/auth MIGRATED to Supabase** (2026-06-28): all
+13 tables reconcile with legacy (members 48 … notification_recipients 1304), **48/48 members created in
+`auth.users` (bcrypt hashes imported, no resets) and linked via `auth_user_id`**, admin on
+`admin@no-email.rasifiters.com`. Migration is idempotent (re-run = 48 skips, 0 dupes). Railway + Vercel
+deferred. Nothing deployed yet.
+
+> NOTE: the user reset the Supabase DB password on 2026-06-28 — the value in the earlier scratchpad secrets
+> file is STALE; the live one is in the user's password manager + `tools/migrator/.env` (gitignored).
 
 ## Next action
 
-**Build the migrator** (`tools/migrator/`) — its target (Supabase) now exists. First resolve the one open
-decision it needs: members with **no primary email** in the Supabase Auth import (placeholder vs skip+flag).
-The connection strings (direct/session-pooler/txn-pooler) are captured in the user's secrets file.
+**Phase 2 — backend.** Point the Express app at Supabase + swap auth to verify Supabase JWTs:
+1. Spec the backend **`auth`** feature via `question-asker` (proxy login/refresh/logout, username→email
+   resolution, JWKS verification, `auth_user_id` mapping), then port the rebuilt backend into `apps/backend/`.
+2. Provision the Railway service (`deploy` skill) once the backend has code; deploy + smoke-test the
+   signed-in path against the migrated data.
 
-Alternatively, to validate the methodology first: run `question-asker` on the backend **`auth`** feature to
-produce the first spec. (Railway + Vercel provisioning can wait until `backend`/`web` have portable code.)
+Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
+app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Build sequence (the locked plan — see `METHODOLOGY.md`)
 
@@ -31,8 +38,9 @@ produce the first spec. (Railway + Vercel provisioning can wait until `backend`/
 2. [~] **Provision infra** — Supabase project DONE 2026-06-28 (`project_ref` filled in `.mcp.json` + `ICM.md`
        + `CONTEXT.md`). Railway `rasifiters-api` + Vercel `rasifiters-web` deferred until those apps have
        code to deploy; record their IDs in `apps/*/CONTEXT.md` + the deploy-scope hook when created.
-3. [ ] **Migrator** (`tools/migrator/`) — Render PG → Supabase, preserve `members.id` UUIDs; create
-       `auth.users` via bcrypt-hash import; backfill `members.auth_user_id`. Re-runnable sync.
+3. [x] **Migrator** (`tools/migrator/`) — BUILT + EXECUTED against Supabase 2026-06-28. Preserved
+       `members.id` UUIDs, imported bcrypt hashes → `auth.users` (48/48), backfilled `members.auth_user_id`,
+       idempotent re-runnable sync. Schema in `apps/backend/sql/001_schema.sql` (applied). _DONE._
 4. [ ] **`backend`** — point Express at Supabase, swap auth middleware to verify Supabase JWTs (proxy
        login/refresh/logout), deploy to Railway. Spec features as we go.
 5. [ ] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
@@ -48,12 +56,31 @@ produce the first spec. (Railway + Vercel provisioning can wait until `backend`/
 
 ## Open questions (carry until resolved)
 
-- **Migrator — members without a primary email:** synthesize a placeholder email vs skip + flag? (Supabase
-  Auth needs an email per user.)
+- ~~**Migrator — members without a primary email:** placeholder vs skip?~~ **RESOLVED 2026-06-28** —
+  placeholder (`<username>@no-email.rasifiters.com`). Affects exactly 1 row (the `admin` account); keeps
+  admin able to sign in. Implemented in `tools/migrator/`.
 - **iOS auth approach:** backend-proxy (clients ~unchanged) vs embed `supabase-swift`. Leaning proxy.
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-3)** — **Ran the migration against live Supabase.** User applied
+  `apps/backend/sql/001_schema.sql` + reset the DB password + handed over creds; filled
+  `tools/migrator/.env`. Dry-run → `npm run migrate`: all 13 tables copied + reconciled vs legacy, **48
+  `auth.users` created (bcrypt imported) and 48/48 members linked**, admin on the placeholder email
+  (confirmed via `auth.users` join). Idempotency re-run = 48 skips, `auth.users` still 48. Migration done;
+  next is Phase 2 (backend). Fixed two migrator bugs found while wiring it (auth/verify modes need the
+  legacy DSN; added `sslmode=disable` escape hatch).
+- **2026-06-28 (pm-2)** — **Built the migrator + faithful schema.** Mapped the live legacy schema via
+  `pg_dump --schema-only` (richer than the Sequelize models: real CHECKs, `programs.created_by NOT NULL`,
+  composite FKs, partial unique index; found `auth_identities`/`email_verification_tokens` empty +
+  `legacy_*` cruft). Wrote `apps/backend/sql/001_schema.sql` (13 canonical tables, idempotent
+  `IF NOT EXISTS`, the `members.auth_user_id`→`auth.users` delta; retired
+  member_credentials/refresh_tokens/auth_identities/email_verification_tokens) and `tools/migrator/` (Node:
+  generic FK-ordered upsert copy + bcrypt→Supabase-Auth import + backfill + reconciliation report).
+  Resolved the no-email question → placeholder for `admin`. **Validated locally** against the real Render
+  data into a throwaway Postgres: schema applies + is idempotent; all 13 tables row-count match
+  (members 48 … notification_recipients 1304); auth dry-run = 48/48 with bcrypt hash, 1 placeholder.
+  Awaits the user to apply the schema + run against Supabase.
 - **2026-06-28 (pm)** — **Provisioned Supabase.** Created a new org `RaSi Fiters` (`lxehyprifvuozciizlem`)
   + project `rasifiters` (ref `kpadxjekpiwfkqcxtrio`, `us-east-1`, ACTIVE_HEALTHY) via the Supabase CLI
   (upgraded 2.67→2.108 to fix the broken `--region` enum; trusted the `supabase/tap`). DB password generated
