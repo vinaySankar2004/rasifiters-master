@@ -34,13 +34,19 @@ deferred (no web code yet).
 > writes/reads (`/api/workout-logs`), the surface that consumes `program_workouts` (the join target the
 > just-ported feature owns). Then `daily-health-logs` → `analytics`. Each backend commit auto-deploys to Render.
 >
-> **`program-workouts` is DONE (ported 2026-06-28)** — 6 `/api/program-workouts` routes + the 6
+> **Per-feature runtime smoke-tests are DEFERRED to a single pre-cutover pass (user decision 2026-06-29)** —
+> do NOT re-offer them after each port. Every ported backend feature carries a "runtime smoke-test pending"
+> note; they're batched and run together near cutover (needs a live admin JWT — can't be minted, the user
+> supplies it then). Boot checks (module-load + route-stack) stay the per-port gate. See Open questions.
+>
+> **`program-workouts` is DONE (ported + DEPLOYED 2026-06-28)** — 6 `/api/program-workouts` routes + the 6
 > program-scoped fns appended to the shared `workoutService.js` (both halves reunited; D-C1). The one
 > deliberate change (**D-C2**): the per-action program-admin authz was **hoisted out of the service into a
 > resolve-or-pass-through `requireProgramAdmin` route guard** (status codes preserved 1:1; `GET` ungated).
 > `consumed_by = [web, ios]`, all 6 routes 1:1 (no divergence); `GET` also feeds the log forms + iOS widget.
-> Faithful otherwise (merge/dual-id/lazy-materialization/dedup/in-use-guard kept + flagged F1–F7). Mounted.
-> **Pending:** runtime smoke-test vs live Supabase.
+> Faithful otherwise (merge/dual-id/lazy-materialization/dedup/in-use-guard kept + flagged F1–F7). Mounted +
+> auto-deployed (Render); route confirmed live (`GET` no-token → 401, was 404 pre-mount). **Runtime
+> smoke-test deferred to the batched pre-cutover pass.**
 >
 > **`workouts` (the library) is DONE (ported 2026-06-28)** — 4 `/api/workouts` routes + the 4 library fns
 > split out of the shared service; `POST /mobile` dropped (byte-dup, D-C2); `consumed_by = [ios]` (GET-only
@@ -159,6 +165,13 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Open questions (carry until resolved)
 
+- **Runtime smoke-tests of ported backend features are BATCHED to a pre-cutover pass (decided 2026-06-29).**
+  Don't re-offer a smoke-test after each feature port — every "🏗️ built" feature carries a standing
+  "runtime smoke-test pending" note and they're verified together near cutover (Build-sequence step 7).
+  Needs a live admin JWT (ES256/Supabase-signed — can't be minted by Claude; the user supplies a token or
+  admin credentials at that time). Boot checks (module-load + route-stack) remain the per-port gate. Live
+  routes confirmed mounted via unauthenticated probes as they deploy (`program-workouts`: `GET` no-token →
+  401, 2026-06-28).
 - ~~**Migrator — members without a primary email:** placeholder vs skip?~~ **RESOLVED 2026-06-28** —
   placeholder (`<username>@no-email.rasifiters.com`). Affects exactly 1 row (the `admin` account); keeps
   admin able to sign in. **Gap found + fixed during deploy verify:** the migrator wrote the placeholder to
