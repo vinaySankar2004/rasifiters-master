@@ -449,6 +449,21 @@ directly as a faithful port from the legacy reference app** — there is no inte
   flagged) you'd use on a port. The consumption sweep settles `consumed_by` for **every** half of the row, and
   **"iOS-only" / "web-only" is a real answer** (run 14: app-config AND push are both `[ios]`; web consumes
   neither — no version to gate, SSE not APNs — recorded as a flagged characteristic, not a divergence).
+- **A page named like a CRUD/management screen may actually be a read-only dashboard — verify the LANDING file
+  yourself before trusting the map (run 22).** An `Explore` agent infers a page's job from its directory name +
+  sibling files and will list CRUD deps that actually belong to *deferred sub-routes* (run 22: an agent called
+  `/members` "roster management" + listed `fetchMembershipDetails`/`update`/`remove`; the real landing uses only
+  `fetchProgramMembers` for a view-as picker + 5 read-only analytics calls — the CRUD lives in `/members/list`
+  + `/members/detail`, both deferred). The landing file is the source of truth for what THIS run owns; read it
+  in full. Corollary: a read-only page makes **`admin_only_data_entry` N/A** — say so explicitly (it gates the
+  log forms on other tabs, not this one). Two more run-22 cleanup patterns: **(a)** when the user picks a
+  structural de-dup you recommended AGAINST, honor it behavior-preserving — two near-identical render blocks
+  gated by *mutually-exclusive* state collapse to ONE render via an `activePicker`-style discriminant that
+  carries each block's exact differences (props, storage side-effects, setters), never a `.map()` that flattens
+  a branch's nuance; **(b)** for a read-only page with no `any`/typing debt (so summary's typed-prop cleanup has
+  no analogue), the clean pinned cleanup is a **hoist-to-shared-util** — move a page-local pure helper
+  (`formatDuration`) into `lib/format.ts` so the deferred sub-routes that also use it single-source it. Offer the
+  hoist as recommended; flag structural de-dups as recommend-against.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

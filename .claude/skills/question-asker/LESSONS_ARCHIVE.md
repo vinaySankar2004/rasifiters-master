@@ -962,3 +962,68 @@ edit). `npm run build` ✓ (`/summary` prerendered, 107 kB — Recharts; Middlew
 modals). **No feature bump** (consumes existing analytics/analytics-v2/workout-logs/daily-health-logs/program-
 workouts/program-memberships/auth routes). **Next:** the 6 deferred `/summary` sub-routes and/or the sibling
 workspace tabs (`/members`, `/lifestyle`, `/program` settings).
+
+---
+
+## Run 22 — `members` (web page, second workspace tab) · 2026-06-29
+
+**Target.** `apps/web/src/app/members/page.tsx` — the `/members` bottom-nav tab. **Page spec.** Faithful 1:1
+port of legacy `rasifiters-webapp/src/app/members/page.tsx` (833 lines) + 2 small cleanups. `consumed_by=[web]`.
+
+**Opening sweep.** Fanned 3 `Explore` agents (legacy members cluster · our ported web foundation+deps ·
+backend members/analytics API contract), then verified the load-bearing files myself: the full 833-line
+landing `page.tsx`, the legacy `lib/api/members.ts`, and our foundation (`programs.ts` `fetchProgramMembers`,
+`format.ts`, icons, `chart-theme`, `useAuthGuard`, session/Program shapes).
+
+**Key findings.** (1) **The name lies** — `/members` is NOT a roster-management screen; it's a per-member
+overview dashboard with a role-gated **"view as"** picker. The roster/CRUD lives in deferred sub-routes
+(`/members/list` + `/members/detail`). One Explore agent *inferred* "roster management" and listed
+`fetchMembershipDetails`/`updateMembership`/`removeMembership` as the page's deps — **my own read of the
+landing file corrected it** (those serve the deferred sub-routes; the landing uses only `fetchProgramMembers`
+for the picker + 5 member-analytics reads). The "agents map, I verify" discipline earned its keep. (2) Only
+**one** new dep — `lib/api/members.ts`; everything else (programs.ts/`fetchProgramMembers`, PageShell/GlassCard/
+Modal, FlameIcon/IconMail, chart-theme, format helpers, useAuthGuard, the shell `/members` nav tab) already
+ported. (3) **All endpoints already mounted** (member-{metrics,history,streaks,recent} + daily-health-logs +
+program-memberships) — backend coverage complete, the page needed zero backend work (sweep = confirm, not
+port). (4) 8 forward-nav sub-routes → deferred (the recurring F2). (5) read-only page → `admin_only_data_entry`
+**N/A** (no data entry here).
+
+**Decision round (tight 3-Q + a pinning multiSelect).** **D-SCOPE** = landing page only (defer 8 sub-routes) ·
+**D-C1** = port whole `lib/api/members.ts` verbatim (run-20/21 pattern) · **D-S1/stance** = faithful + small
+cleanups. The user picked "faithful + small cleanups" *without naming a target* → I owed a scope-pinning
+multiSelect (per run-21's rule). Offered the genuinely-safe candidates: hoist `formatDuration`→`lib/format.ts`
+(recommended) + de-dup the two `MemberPickerModal` blocks (recommended **against** — structural). User
+selected **both**.
+
+**Cleanups applied.** **D-C2** hoisted the page-local `formatDuration` (legacy 699-705) into `lib/format.ts`
+beside `initials`/`sleepLabel`/`dietLabel` — pure fn, single-sources it for the deferred `/workouts`+`/history`
+sub-routes. **D-C3** collapsed the two `MemberPickerModal` render blocks (legacy 419-449) into one render
+driven by an `activePicker` discriminant — preserving the exact per-picker differences (`allowNone` =
+`isGlobalAdmin` vs `false`; admin stores `member ? id : "none"`, logger stores only on a member). Behavior-
+identical because the two pickers are mutually exclusive (admin vs logger branch). When the user picks a
+structural de-dup you flagged against, the safe way to honor it is a discriminant over mutually-exclusive state
+→ a single render, not a parameterized loop that risks dropping a branch's nuance.
+
+**Role rules — confirmed.** Fully code-determined (lines 45-51): global_admin (view-as + "None", default
+none) · admin (view-as, no "None", auto-self) · logger (own cards + a logs-scoped view-as) · member (own cards
++ Metrics-single). Read-only → lock N/A. Presented as a confirm; user's "faithful" stance covered it.
+
+**Durable patterns (promote to SKILL.md).**
+1. **A page named like a management/CRUD screen may be a read-only dashboard — verify the landing file
+   yourself.** An Explore agent will infer the page's job from its directory name + sibling files and list CRUD
+   deps that actually belong to deferred sub-routes. The landing file is the source of truth for what THIS run
+   ports; read it in full before trusting the map's "what it does."
+2. **When the user picks a structural de-dup you recommended against, honor it behavior-preserving.** Two
+   near-identical render blocks gated by mutually-exclusive state → collapse to a single render via an
+   `activePicker`-style discriminant that carries each block's exact differences (props, storage side-effects,
+   setters). Don't force a `.map()` that flattens the nuances.
+3. **For a read-only page with no `any`/typing debt, the clean "small cleanup" is a hoist-to-shared-util.** When
+   summary's typed-prop cleanup has no analogue here, the safe pinned cleanup is moving a page-local pure helper
+   (`formatDuration`) into the shared `lib/format.ts` — single-sources it for the deferred sub-routes that also
+   use it. Offer it as the recommended pick; flag structural de-dups as recommend-against.
+
+**Output.** `apps/web/src/app/members/page.tsx` + `lib/api/members.ts` (new) + `formatDuration` added to
+`lib/format.ts`. `npm run build` ✓ (`/members` prerendered, 7.78 kB — Recharts; Middleware 27.3 kB active).
+SPEC v0.1.0 (D-REF `[web]` / D-SCOPE / D-S1 / D-C1 / D-C2 / D-C3; F1–F7). Page REGISTRY + COVERAGE ticked
+(members ✓). **No feature bump** (consumes existing member-analytics/daily-health-logs/program-memberships/auth
+routes). **Next:** the 8 deferred `/members` sub-routes and/or the sibling tabs (`/lifestyle`, `/program`).
