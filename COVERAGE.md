@@ -14,7 +14,7 @@ Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a
 - [x] members (CRUD, list) → [members SPEC](specs/features/members/SPEC.md) (v0.1.0; `DELETE /:id` cascade deferred → 501 per D-C1; `createMember` wired to Supabase `createUser` per D-C2)
 - [x] programs (CRUD, archive, admin_only_data_entry) → [programs SPEC](specs/features/programs/SPEC.md) (v0.1.0; ported; `description` dropped per D-C2; notification emit deferred → `notifications` per D-C1)
 - [x] program-memberships (members, details, role/status, remove, leave + `handleMemberExit`) → [program-memberships SPEC](specs/features/program-memberships/SPEC.md) (v0.1.0; ported; `createMemberAndEnroll` fixed→loginable per D-C2; `available`+`enroll` dropped as dead routes per D-C3; notification emits deferred per D-C4)
-- [ ] invites (invite, my-invites, all-invites, response, blocks)
+- [x] invites (invite, my-invites, all-invites, response, blocks) → [invites SPEC](specs/features/invites/SPEC.md) (v0.1.0; ported; co-mounted at `/api/program-memberships`; emits wired **live** per D-C2; `target_member_id` dropped per D-C3a; `getAllInvites` N+1 batched per D-C3b; accept-path membership write inline per D-C1)
 - [ ] workouts library (CRUD, mobile)
 - [ ] program-workouts (custom, visibility toggles)
 - [ ] workout-logs (single, batch, member)

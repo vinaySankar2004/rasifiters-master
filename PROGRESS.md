@@ -30,19 +30,18 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port the `invites` feature** — run `question-asker` (legacy
-> `../backend/routes/invites.js` + `services/inviteService.js` + `models/{ProgramInvite,ProgramInviteBlock}.js`).
-> It's the co-mounted other half of `/api/program-memberships` (`server.js:50`, `inviteRoutes`) referenced by
-> program-memberships D-C1, and its `program.invite_received`/`member_joined` emits now light up automatically
-> against the just-ported `notifications` engine. **OR** knock out the cross-feature follow-up first: wire the
-> two deferred delete cascades — `members DELETE /:id` (501) + auth `DELETE /account` (501) — to the ported
-> `handleMemberExit` + Supabase `deleteUser` (their emits now fire too). Either is unblocked now that
-> `notifications` is ported.
+> **On "continue": wire the two deferred 501 delete cascades** — `members DELETE /:id` (501) + auth
+> `DELETE /account` (501) — to the ported `handleMemberExit` (`utils/programMemberships.js`, owned by
+> program-memberships) + Supabase `admin.deleteUser`. Both run the same faithful cross-feature cascade
+> (revoke invites / destroy blocks / membership-exit + delete the auth user); they call `handleMemberExit`
+> with `updateCreatedBy:true`. Their notification emits now fire live too (notifications + invites ported).
+> **OR** spec + port the next undocumented backend feature via `question-asker` — `workouts` (the library) or
+> `program-workouts`, then `workout-logs` → `daily-health-logs` → `analytics`.
 >
-> **`notifications` is DONE (ported 2026-06-28)** — the deferred `utils/notifications.js` stub was **replaced**
-> with the real emit engine, so the programs/program-memberships emits fire unchanged. Pending: runtime
-> smoke-test vs live Supabase (Render auto-deploy on push). APNs creds still deferred (D-C4) — push no-ops
-> gracefully until `APNS_*` are pasted into Render.
+> **`invites` is DONE (ported 2026-06-28)** — 4 routes co-mounted at `/api/program-memberships`; the first
+> feature with **live** emits (no deferred stub — the keystone realized). Faithful except two cleanups
+> (dropped `target_member_id` D-C3a; batched `getAllInvites` N+1 D-C3b). Pending: runtime smoke-test vs live
+> Supabase (Render auto-deploy on push).
 
 **Phase 2 — backend.** Point the Express app at Supabase + swap auth to verify Supabase JWTs:
 1. ~~Spec the backend **`auth`** feature via `question-asker`.~~ **DONE 2026-06-28** — see
@@ -87,11 +86,21 @@ deferred (no web code yet).
    deferred → `APNS_*` declared `sync:false` in `render.yaml`, push no-ops gracefully). `POST /broadcast` kept
    vestigial (no client, F1). Mounted `/api/notifications`. Boot check passes. **The keystone unblock:** the
    programs/program-memberships emit call sites now fire unchanged. **Runtime smoke-test vs live Supabase pending.**
-8. **NEXT — spec + port the remaining backend features** (invites, logs, workouts, analytics…) via
-   `question-asker`, mounting each route group in `server.js` as it lands. `invites` is next (the co-mounted
-   `/api/program-memberships` other half — its emits now fire against the ported `notifications`); also wire
-   the deferred `DELETE /account` + `members DELETE /:id` cascades to the now-ported `handleMemberExit`.
-   Each backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
+8. ~~Spec + port `invites`.~~ **DONE 2026-06-28** — see [`specs/features/invites/SPEC.md`](specs/features/invites/SPEC.md)
+   v0.1.0 (🏗️ built). 4 routes (`POST /invite`, `GET /my-invites`, `GET /all-invites`, `PUT /invite-response`)
+   **co-mounted at `/api/program-memberships`** (`server.js` — `inviteRoutes` alongside `membershipRoutes`,
+   mirroring legacy `server.js:50`); ported `services/inviteService.js` + `routes/invites.js`. The
+   `ProgramInvite`/`ProgramInviteBlock` models + associations were already ported (with program-memberships).
+   **The keystone realized:** `program.invite_received`/`program.member_joined` emits wired **live** (D-C2,
+   no stub — notifications is ported). Faithful except two cleanups: dropped vestigial `target_member_id`
+   (D-C3a) + batched `getAllInvites`' N+1 into one query (D-C3b); accept-path `ProgramMembership` write stays
+   inline (D-C1). Boot check (4-route stack, emit engine wired, `InvitedByMember` assoc) passes.
+   **Runtime smoke-test vs live Supabase pending.**
+9. **NEXT — wire the two deferred 501 delete cascades** (`members DELETE /:id` + auth `DELETE /account`) to
+   the ported `handleMemberExit` + Supabase `admin.deleteUser`, **then spec + port the remaining backend
+   features** (workouts, program-workouts, workout-logs, daily-health-logs, analytics…) via `question-asker`,
+   mounting each route group in `server.js` as it lands. Each backend commit auto-deploys to Render (push to
+   `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -117,7 +126,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **5** — `auth` (🚀), `members` (🏗️), `programs` (🏗️), `program-memberships` (🏗️), `notifications` (🏗️) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **6** — `auth` (🚀), `members` (🏗️), `programs` (🏗️), `program-memberships` (🏗️), `notifications` (🏗️), `invites` (🏗️) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -143,6 +152,26 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-12)** — **Specced + ported the `invites` feature** (6th feature — the co-mounted other
+  half of `/api/program-memberships`). `question-asker`: read the legacy `routes/invites.js` +
+  `inviteService.js` + the 2 models in full, fanned 2 `Explore` agents over web + iOS. `consumed_by =
+  [web, ios]` — **all 4 routes 1:1 across clients, no divergence** (web `lib/api/{invites,members}.ts` +
+  `/members/invite` + `/programs` modal; iOS `APIClient+Invites.swift` + `InvitesTabView` + `InviteMemberView`;
+  matching DTOs). 6 decisions: **D-C1** scope = the 4 routes + `inviteService` + the `ProgramInvite`/
+  `ProgramInviteBlock` tables, accept-path `ProgramMembership` write stays **inline** (faithful); **D-C2** the
+  `program.invite_received`/`program.member_joined` emits wired **LIVE** (no stub — the keystone is ported);
+  **D-C3a** drop the vestigial `target_member_id` (sent by neither client, read by no path); **D-C3b** fix
+  `getAllInvites`' N+1 (one batched `Member.findAll` + map vs `Promise.all(findOne)` per invite); **D-REF**
+  `[web, ios]` gates match; **D-S1** faithful otherwise. Flagged F1–F7 (privacy-safe `sendInvite` swallows
+  throws to 200; global-admin accept-on-behalf+revoke; web's *second* accept path via `updateMembership`;
+  `member_name` VIRTUAL dep; unused `invited_email`; hardcoded 30-day expiry/`max_uses:1`). Wrote SPEC v0.1.0;
+  updated registry.json + REGISTRY.md + COVERAGE. Then **ported**: `services/inviteService.js` (4 fns, the two
+  cleanups, live emits via the ported `utils/notifications`), `routes/invites.js` (4 routes, faithful), mounted
+  `inviteRoutes` at `/api/program-memberships` in `server.js` (alongside `membershipRoutes`). Boot check
+  (4-route stack, emit engine wired, `InvitedByMember` assoc, server loads) passes. **The keystone realized:**
+  first feature with **live** emits — the deferred-stub seam (programs/program-memberships) isn't needed.
+  **Pending:** runtime smoke-test (Render auto-deploy on push). Next: wire the two 501 delete cascades to
+  `handleMemberExit`, or port `workouts`.
 - **2026-06-28 (pm-11)** — **Specced + ported the `notifications` feature** (5th feature — **the keystone**).
   `question-asker`: read the legacy `routes/notifications.js` + `utils/{notifications,notificationStreams,
   pushNotifications}.js` + the 3 models in full, fanned 2 `Explore` agents over web + iOS consumption.

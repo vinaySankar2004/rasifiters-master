@@ -90,6 +90,23 @@
           "server.js"
         ]
       }
+    },
+    "invites": {
+      "version": "0.1.0",
+      "spec": "specs/features/invites/SPEC.md",
+      "status": "built",
+      "consumed_by": ["web", "ios"],
+      "depends_on": ["auth", "programs", "members", "program-memberships", "notifications"],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/invites.js",
+          "services/inviteService.js",
+          "models/ProgramInvite.js",
+          "models/ProgramInviteBlock.js",
+          "server.js"
+        ]
+      }
     }
   }
 }
