@@ -61,6 +61,20 @@ async function link(memberId, authUserId) {
   );
 }
 
+// For placeholder (no-email) members, mirror the synthesized email into member_emails so the backend
+// can resolve it at login (member -> primary email -> Supabase signInWithPassword). Legacy has no
+// member_emails row for these, so copyData copied nothing. Idempotent: inserts only when the member
+// has NO email row yet, and the unique-email constraint guards re-runs.
+async function ensurePlaceholderEmail(memberId, email) {
+  await target().query(
+    `INSERT INTO public.member_emails (member_id, email, is_primary)
+       SELECT $1, $2, true
+       WHERE NOT EXISTS (SELECT 1 FROM public.member_emails WHERE member_id = $1)
+     ON CONFLICT ON CONSTRAINT member_emails_email_key DO NOTHING`,
+    [memberId, email]
+  );
+}
+
 export async function importAuthUsers({ dryRun }) {
   const sb = admin();
   const [members, authByEmail, linked] = await Promise.all([
@@ -76,6 +90,9 @@ export async function importAuthUsers({ dryRun }) {
     const base = { member_id: m.id, username: m.username, email, placeholder: usedPlaceholder };
 
     if (linked.has(m.id)) {
+      // Re-run safety: a placeholder member can be linked yet still be missing its member_emails row
+      // (the gap this fixes) — backfill it even on the skip path.
+      if (usedPlaceholder) await ensurePlaceholderEmail(m.id, email);
       results.push({ ...base, action: "skip", reason: "already-linked", auth_user_id: linked.get(m.id) });
       continue;
     }
@@ -88,6 +105,7 @@ export async function importAuthUsers({ dryRun }) {
     const existing = authByEmail.get(email);
     if (existing) {
       await link(m.id, existing);
+      if (usedPlaceholder) await ensurePlaceholderEmail(m.id, email);
       results.push({ ...base, action: "link-existing", auth_user_id: existing });
       continue;
     }
@@ -110,6 +128,7 @@ export async function importAuthUsers({ dryRun }) {
     }
     await link(m.id, data.user.id);
     authByEmail.set(email, data.user.id);
+    if (usedPlaceholder) await ensurePlaceholderEmail(m.id, email);
     results.push({ ...base, action: "create", auth_user_id: data.user.id, importedHash: !!m.password_hash });
   }
   return results;
