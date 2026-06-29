@@ -531,3 +531,58 @@ single-member "Active program membership required.").
 routers each `GET /` = `[authenticateToken, handler]` (OK), server.js fully loads (only the bogus-DB connect
 fails at runtime, as expected), syntax clean on all 4 files. Runtime smoke-test deferred to the batched
 pre-cutover pass.
+
+---
+
+## Run 14 — `app-config` (+ push index) · 2026-06-29 (am-6) · the LAST backend feature; backend coverage complete
+
+**Target:** `app-config` — the inline `GET /api/app-config` (`{ min_ios_version }`) iOS version gate + the
+`MIN_IOS_VERSION` env. The 14th and final backend feature, closing `COVERAGE.md` L26 (`app-config (min iOS
+version) + push (APNs)`). FEATURE spec, `consumed_by = [ios]`.
+
+**New durable pattern — the DOCUMENTATION-ONLY / already-ported feature.** The carried Next-action flagged that
+this feature's code "mostly landed" with prior features. The FIRST move was to *confirm by grep/diff* that
+nothing remained to PORT — and it didn't: `GET /api/app-config` was already inline + byte-identical in
+`server.js`; the whole push/APNs surface (device routes `PUT`/`DELETE /api/notifications/device`,
+`pushNotifications` util, APNs dispatch, `member_push_tokens` table, `APNS_*` env) landed with `notifications`;
+`upsert/removePushToken` + the login push-capture landed with `auth`. So the SPEC's job flipped from "port +
+document" to "document + index." **Lesson:** when a feature's code is already spread across earlier features,
+the run is a *confirmation sweep + a SPEC*, not a port. Verify with grep/diff before assuming there's code work.
+
+**New durable pattern — OWN the undocumented piece, REFERENCE the already-documented piece (don't re-doc → SSOT).**
+A bundled COVERAGE row ("app-config + push") can split across what's genuinely undocumented (app-config) vs
+what a sibling SPEC already owns (push → `notifications` + `auth`). The scope cut: **own app-config; reference
+push via a §6 cross-reference index** (a map of the end-to-end APNs path pointing to the owning SPECs), NOT a
+re-documentation. Re-documenting push here would duplicate `notifications`/`auth` — the exact single-source-of-
+truth violation `health-check` flags. Lead the scope question with "own X, reference Y"; the §6 index closes the
+COVERAGE row without duplication.
+
+**New durable pattern — documentation-only ≠ faithful-only; a doc run can still carry a deliberate change.**
+The stance question still offered "change now," and the user took it — a scope-pinning multiSelect locked
+exactly 2 cleanups on the OWNED surface (the 3rd, "extract to a route file," left unselected, consistent with
+the separate "keep inline" answer): **D-C2** add `Cache-Control: public, max-age=300` (iOS polls the gate on
+every launch/foreground/widget-open — 3 triggers, per the sweep) + **D-C3** trim + semver-validate
+`MIN_IOS_VERSION` via a new `normalizeMinIosVersion` (`^\d+(\.\d+)*$`, else `null`) so a malformed env yields no
+gate rather than a broken client comparison on iOS. **Lesson:** don't assume a doc-only feature is automatically
+faithful-1:1; ask the stance, and if the user picks change-now, run the same scope-pinning follow-up
+(multiSelect of concrete code-grounded cleanups; unselected stay faithful + flagged) used for porting runs.
+
+**Reinforced — the consumption sweep settles `consumed_by` for BOTH halves, and "iOS-only" is a real answer.**
+Two `Explore` agents (web + iOS) agreed: app-config AND push are `consumed_by = [ios]` only. Web consumes
+*neither* — no `/api/app-config` call (it has no version to gate; it's served fresh from Vercel) and no
+device-token registration (it receives notifications via SSE/`EventSource`, never APNs). The web-ignores-both
+is recorded as a flagged characteristic (F5), not a divergence to reconcile. A backend route existing ≠ both
+clients calling it; the sweep tells you which client(s) actually do.
+
+**Scope + stance decisions:** D-C1 (own app-config, reference push; keep inline) · D-C2 (Cache-Control) · D-C3
+(trim/validate `MIN_IOS_VERSION`) · D-REF (`consumed_by = [ios]`; web consumes neither) · D-S1 (faithful 1:1
+except D-C2/D-C3). Flagged F1–F5: `device_id` sent-but-always-nil by iOS (`LoginView.swift:157` passes `nil`;
+unique `device_token` is the real key); no explicit logout `DELETE /device` (only on notification-permission
+denial); the public no-auth route (gate runs pre-login); operator-managed env not in `render.yaml`; web ignores
+both.
+
+**Port + boot check:** applied the 2 changes to `server.js` (added `normalizeMinIosVersion` + `Cache-Control`
+header). Boot check: `node --check server.js` OK; `normalizeMinIosVersion` verified (trims, accepts
+`1.2.3`/`2`, rejects `v1.2`/`latest`/empty → `null`). Registered in registry.json + REGISTRY.md + COVERAGE
+(backend section now fully ticked). Runtime smoke-test deferred to the batched pre-cutover pass. **Backend
+feature coverage complete (14 features); next phase is `web`.**

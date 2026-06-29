@@ -335,6 +335,20 @@ directly as a faithful port from the legacy reference app** — there is no inte
   lookups), it does not merge the two queries. Exclude any sibling fn with a different shape / distinct error
   message from the extraction (run 13: `getMemberMetrics`' "Program membership required." vs the single-member
   "Active program membership required.").
+- **The DOCUMENTATION-ONLY / already-ported feature, and "own-vs-reference" for a bundled COVERAGE row (run 14).**
+  Some features have **no code left to port** — their pieces already landed with earlier features (app-config
+  was inline + byte-identical; the whole push/APNs surface landed with `notifications`+`auth`). The FIRST move
+  is to **confirm by grep/diff** that nothing remains, *then* the SPEC's job flips from "port + document" to
+  "document + index." For a **bundled COVERAGE row** ("app-config + push"), split it: **OWN the genuinely-
+  undocumented piece** (app-config) and **REFERENCE the already-documented piece** via a cross-reference index
+  section (a §6 map of the end-to-end path pointing to the owning SPECs) — **do NOT re-document it** (that
+  duplicates the sibling SPECs = the exact single-source-of-truth violation `health-check` flags). Lead the
+  scope question with "own X, reference Y." And **documentation-only ≠ faithful-only**: still ask the stance —
+  the user may pick "change now" even on a doc run (run 14: 2 cleanups, `Cache-Control` + env validate/trim),
+  so run the same scope-pinning multiSelect (concrete code-grounded cleanups; unselected stay faithful +
+  flagged) you'd use on a port. The consumption sweep settles `consumed_by` for **every** half of the row, and
+  **"iOS-only" / "web-only" is a real answer** (run 14: app-config AND push are both `[ios]`; web consumes
+  neither — no version to gate, SSE not APNs — recorded as a flagged characteristic, not a divergence).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
