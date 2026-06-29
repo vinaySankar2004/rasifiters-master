@@ -219,15 +219,27 @@ directly as a faithful port from the legacy reference app** — there is no inte
   question. And **"owns the emit engine" ≠ "owns every emit call site"** — the engine feature owns the engine;
   the callers own their calls. Pin this in the scope question so a keystone run doesn't sprawl into wiring N
   dependent features. The **deferred named-API stub** (run 4) is the seam: porting the keystone REPLACES the
-  one stub file and every by-name caller lights up unchanged (confirmed run 5).
-- **Dead-route check via the consumption sweep:** before speccing a backend CRUD feature, the cross-app
-  sweep must confirm **which routes each client actually calls** — a route existing ≠ a route used. Routes
-  called by *neither* client are vestigial: keep them for parity but **flag** them (§10), don't treat them
-  as load-bearing (members run 2: `POST`/`DELETE /api/members` are called by neither web nor iOS — it
-  reframed the whole feature). When such a route's faithful behavior is a **latent bug** (members'
-  `createMember` ignores `password` → unloggable member), surface it as a decision (faithful-keep vs
-  fix-now) — the user often picks fix; then a **scope-pinning follow-up** locks the mechanics (the email
-  source Supabase `createUser` needs; that the cleanup is createMember-only) so the SPEC stays prescriptive.
+  one stub file and every by-name caller lights up unchanged (confirmed run 5). **The inversion (run 6):**
+  once the keystone is ported, a downstream feature that consumes it has **NO deferral axis for it** — the
+  faithful behavior IS the live behavior. Don't reflexively offer a stub; *confirm live* (invites' invite
+  emits wired live, no stub). And **a feature's owning tables may already be ported by a neighbor that WRITES
+  them** — program-memberships' exit cascade (run 4) ported invites' `ProgramInvite`/`ProgramInviteBlock`
+  models + associations, so the invites port was routes+service only. Before treating model-porting as work,
+  `ls models/` + grep `models/index.js` associations — the cross-feature-write feature often lands the schema
+  first.
+- **Dead-route AND dead-param check via the consumption sweep:** before speccing a backend CRUD feature, the
+  cross-app sweep must confirm **which routes each client actually calls AND which request fields each sends**
+  — a route/param existing ≠ used. Routes called by *neither* client are vestigial: keep them for parity but
+  **flag** them (§10), don't treat them as load-bearing (members run 2: `POST`/`DELETE /api/members` are called
+  by neither web nor iOS — it reframed the whole feature). Likewise a request param destructured by the
+  service but sent by *neither* client AND read by no path is a vestigial param (invites run 6:
+  `target_member_id`) — have the sweep enumerate request-body fields per client, not just endpoints. When a
+  vestige's faithful behavior is a **latent bug** (members' `createMember` ignores `password` → unloggable
+  member), surface it as a decision (faithful-keep vs fix-now) — the user often picks fix; then a
+  **scope-pinning follow-up** locks the mechanics (the email source Supabase `createUser` needs; that the
+  cleanup is createMember-only) so the SPEC stays prescriptive. The pinning follow-up generalizes to *quality*
+  cleanups too (invites run 6: a multiSelect locking exactly "drop `target_member_id`" + "batch the N+1",
+  everything unselected staying faithful + flagged — the fixed N+1 still recorded as the legacy F-row).
   Also: any "returns full rows" handler may now **leak a migration-added column** (`getAllMembers` +
   `auth_user_id`) — exclude it to preserve the legacy response shape.
 

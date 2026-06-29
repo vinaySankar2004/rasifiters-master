@@ -170,3 +170,48 @@ when N faithful modules import the dependency by name — the keystone feature d
 through it. **Lesson: "owns the emit engine" ≠ "owns every emit call site"; the engine feature owns the engine,
 the callers own their calls. Resolve this in the scope question so the run doesn't sprawl into wiring 3 other
 features.**
+
+---
+
+## Run 6 — `invites` feature (backend; 2026-06-28, pm-12)
+
+**Target:** the co-mounted other half of `/api/program-memberships` — 4 routes (`POST /invite`,
+`GET /my-invites`, `GET /all-invites`, `PUT /invite-response`), `services/inviteService.js`, and the
+`ProgramInvite`/`ProgramInviteBlock` tables. Faithful rebuild.
+
+**Shape:** the tightest run yet — a clean confirm-heavy faithful rebuild. Read the 4 legacy files in full;
+2 `Explore` agents (web · iOS) returned **identical** consumption — `consumed_by=[web,ios]`, all 4 routes
+1:1, matching DTOs, matching role gating. **Zero cross-app divergence** (the D-REF that's usually the run's
+biggest decision was a one-line confirm). 3-Q core round (scope / emits / stance) + 1 pinning follow-up
+(which cleanups). Decisions: D-C1 (scope; inline accept-path join write) / D-C2 (emits LIVE) / D-C3a (drop
+`target_member_id`) / D-C3b (fix N+1) / D-REF / D-S1.
+
+**New durable patterns (promoted to Converged lessons):**
+
+- **The "keystone realized" inversion.** notifications (run 5) was the engine; invites is the FIRST consumer
+  ported *after* it. So the deferral question **flips**: where programs/program-memberships asked "defer the
+  emit via a stub?", invites asks "wire it LIVE?" — and faithful = live (no stub), because the dependency now
+  exists. **Lesson: once a keystone dependency is ported, downstream features that consume it have NO deferral
+  axis for it — the faithful behavior IS the live behavior. Don't reflexively offer a stub option; confirm
+  live.** (This is the mirror image of run 4/5's deferred-stub seam.)
+
+- **A feature's owning tables may already be ported by a neighbor.** invites OWNS `program_invites` +
+  `program_invite_blocks`, but program-memberships (run 4) already ported both models + all associations
+  (`InvitedByMember`/`SentInvites`/blocks) because its exit cascade *writes* them (that SPEC F5). So the
+  invites port was routes+service only — the model work was already done. **Lesson: before treating
+  model-porting as work, check whether a neighbor that *writes* your tables already ported the models — the
+  exit-cascade / cross-feature-write feature often lands the schema first. Verify with `ls models/` +
+  `grep` the associations in `models/index.js`, don't re-port.**
+
+- **The "fix-now" branch needs a pinning follow-up even when small.** User chose "fix some now" over pure
+  faithful; the single follow-up locked EXACTLY two cleanups (drop `target_member_id`; batch the N+1) as a
+  multiSelect, so everything unselected stays faithful + flagged. Reuses the members-run-2 pattern (a
+  scope-pinning follow-up after a fix-vs-faithful decision) — confirmed it generalizes to *quality* cleanups
+  (dead param, N+1), not just latent bugs. The fixed-but-recorded N+1 became F7 (the legacy characteristic
+  that motivated the change) so the SPEC still documents the "as-was".
+
+- **Dead-PARAM check, alongside the dead-ROUTE check.** The consumption sweep's job isn't only "which routes
+  does each client call" (run 2) — it's also "which request FIELDS does each client send". `target_member_id`
+  was destructured by the service but sent by neither client AND read by no code path — a vestigial param,
+  caught only because both Explore agents enumerated the actual request bodies. **Lesson: have the sweep
+  enumerate request-body fields per client, not just endpoints — vestigial params hide in the destructure.**
