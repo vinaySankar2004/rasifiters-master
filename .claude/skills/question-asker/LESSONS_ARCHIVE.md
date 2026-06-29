@@ -93,3 +93,34 @@ is a soft-delete (`is_deleted=true`, no cascade) → ports fully now. **Lesson: 
 (resolves undefined/nil). Both kept + flagged (§10 F2/F5) — clients read both keys, so collapsing would
 break them. **Lesson: "always-equal" response pairs and "decoded-but-never-served" fields are faithful
 flags, not cleanups, once a client depends on the shape.**
+
+### 2026-06-28 — Run 4: backend `program-memberships` feature (4th SPEC)
+**Target:** the 8 `/api/program-memberships` routes (`routes/memberships.js` + `membershipService.js`) + the
+`handleMemberExit` cascade (`utils/programMemberships.js`). **Sweep:** read all three + the model in full
+myself, fanned 2 `Explore` agents over web + iOS. `consumed_by = [web, ios]`.
+**Scope cut was a shared-mount-path collision, not a sub-component split:** `inviteRoutes` co-mounts at the
+SAME `/api/program-memberships` base path as `membershipRoutes` (server.js:49-50). So the cut wasn't "which
+files" but "which of the routes served under this path does THIS feature own" — membership routes here,
+invite routes → the `invites` feature. **Lesson: when two Express routers share a mount path, the scope
+question is per-route-group, not per-path — grep the server mounts before assuming one path = one feature.**
+**The dead-input/dead-route pattern recurred at scale:** the consumption sweep proved 3 of 8 routes are
+called by NEITHER client (`POST /` createMemberAndEnroll, `GET /available`, `POST /enroll`) — iOS had dormant
+APIClient methods with no call sites; web had no method at all. Same shape as members run 2. **And the same
+latent bug recurred:** createMemberAndEnroll passes `password` + non-columns to `Member.create` (Supabase owns
+credentials now) → unloggable member. Hypothesis-led it; user chose **fix** (mirror members D-C2). **Lesson:
+the members `createMember` bug is a SERVICE-FAMILY bug — any legacy "create a member" path has it; check each.**
+**Two changes needed two scope-pins:** the user picked "change/clean up" on BOTH the vestigial-routes
+question (→ fix createMemberAndEnroll) AND the stance question. A stance "change" after an already-decided
+fix is ambiguous, so a third `AskUserQuestion` enumerated the remaining cleanup candidates → "drop the 2
+clean dead routes too" (D-C3). **Lesson: if the user picks "change" on stance AFTER a specific fix is already
+decided, they mean ADDITIONAL cleanup — pin it with an enumerated follow-up; don't assume it just re-affirms
+the fix.** Divergence from members: members KEPT its vestigial routes (parity); here the user chose to DROP
+the 2 clean ones (createMemberAndEnroll kept because it got fixed). **Lesson: "keep-vestigial-for-parity" is
+not automatic — ask; a clean dead route with no bug is a fair drop candidate.**
+**Deferred-stub beats inline no-op when the dependency is called by NAME across modules:** programs deferred
+its single emit with an inline `emitProgramNotification` no-op. But `handleMemberExit` + 3 service fns call
+`createNotification`/`getActiveProgramMemberIds` by those exact names (faithful), so I created a deferred STUB
+`utils/notifications.js` (real getActiveProgramMemberIds, no-op createNotification) that the `notifications`
+feature later REPLACES wholesale — call sites unchanged. **Lesson: inline no-op for a one-off side-effect;
+a named-API stub file when multiple faithful modules import the dependency by name (the stub becomes the
+seam the real feature drops into).**
