@@ -29,3 +29,33 @@ skeleton (it's now the de-facto feature-SPEC template — §B says shipped featu
 changes)"** section (§7 here) — it's the highest-value part and keeps the faithful-vs-changed line crisp.
 
 _Earlier note: this was a fresh ICM repo; `auth` is the first documented feature._
+
+### 2026-06-28 — Run 2: backend `members` feature
+**Target:** the five `/api/members` routes + `services/memberService.js` (+ `Member`/`MemberEmail` models).
+**Sweep:** read the two load-bearing legacy files in full myself (route + service), then **2 parallel
+`Explore` agents** mapped web vs iOS consumption. That consumption sweep was the whole ballgame.
+**The payoff finding — "dead routes":** the agents proved **`POST /api/members` and `DELETE /api/members/:id`
+are called by NEITHER client** (web creates via `/auth/register`, both manage participation via
+`/program-memberships`; "delete" = unenroll, never full member deletion). That reframed a 5-route CRUD
+feature into "read + self-profile-update, plus two vestigial admin routes." **Lesson: always run the
+cross-app consumption sweep before assuming a backend route is live — a route existing ≠ a route used.**
+**Hypothesis-first caught a real bug-shaped oddity:** legacy `createMember` (`memberService.js:38`)
+destructures `password` but never persists it + writes no email → admin-created members can't log in. Led
+the question with that as the hypothesis; the user chose to **fix it** (change over faithful) — wire
+Supabase `admin.createUser`. **Lesson: when the faithful behavior is a latent bug, surface it as a decision
+(faithful-keep vs fix-now); the user often picks fix.**
+**Follow-up round locked mechanics, not vibes:** "fix createMember" implied a missing input — Supabase
+`createUser` needs an **email**, but legacy `createMember` takes none. A second `AskUserQuestion` pinned the
+email source (require explicit `email`) + the cleanup scope (createMember only, rest faithful) so the SPEC
+stayed prescriptive. **Lesson: a "change/cleanup" answer needs a scope-pinning follow-up or the SPEC drifts
+into "fix as needed."**
+**Migration-column shape leak (re-sweep catch):** `getAllMembers` returns full rows; the model gained
+`auth_user_id` (R1) → a faithful response must now **exclude** it to preserve the legacy shape. Subtle, only
+surfaced on the completeness-critic pass. **Lesson: for any "returns full rows" handler, check whether the
+migration added a column the legacy response never had.**
+**Reused the auth deferral pattern:** `DELETE /:id`'s cross-feature cascade (invites/notifications/
+membership-exit) is the same shape as auth `/account` → deferred → 501 under D-C1 ("reference, don't own"),
+to ship when `program-memberships`/`notifications` land. Consistent staging across features.
+**New pattern → promote:** "**Dead-route check via the consumption sweep**" — before speccing any backend
+CRUD feature, confirm which routes each client actually calls; routes called by neither are vestigial and
+get flagged (kept for parity), not treated as load-bearing.

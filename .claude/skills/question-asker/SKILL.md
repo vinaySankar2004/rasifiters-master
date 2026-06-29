@@ -208,6 +208,16 @@ directly as a faithful port from the legacy reference app** — there is no inte
   faithful-vs-changed line crisp (see `specs/features/auth/SPEC.md` §7). The load-bearing question for a
   "self-signed JWT → managed auth provider" migration is the **token-verify claim source** (verify method
   + whether you add a per-request DB lookup) — lead with it.
+- **Dead-route check via the consumption sweep:** before speccing a backend CRUD feature, the cross-app
+  sweep must confirm **which routes each client actually calls** — a route existing ≠ a route used. Routes
+  called by *neither* client are vestigial: keep them for parity but **flag** them (§10), don't treat them
+  as load-bearing (members run 2: `POST`/`DELETE /api/members` are called by neither web nor iOS — it
+  reframed the whole feature). When such a route's faithful behavior is a **latent bug** (members'
+  `createMember` ignores `password` → unloggable member), surface it as a decision (faithful-keep vs
+  fix-now) — the user often picks fix; then a **scope-pinning follow-up** locks the mechanics (the email
+  source Supabase `createUser` needs; that the cleanup is createMember-only) so the SPEC stays prescriptive.
+  Also: any "returns full rows" handler may now **leak a migration-added column** (`getAllMembers` +
+  `auth_user_id`) — exclude it to preserve the legacy response shape.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
