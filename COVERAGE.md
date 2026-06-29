@@ -13,7 +13,7 @@ Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a
 - [x] auth (login/app/global, refresh, logout, register, change-password, delete-account) → [auth SPEC](specs/features/auth/SPEC.md) (v0.1.0; incl. `middleware/auth.js` authz gates per D-C1)
 - [x] members (CRUD, list) → [members SPEC](specs/features/members/SPEC.md) (v0.1.0; `DELETE /:id` cascade deferred → 501 per D-C1; `createMember` wired to Supabase `createUser` per D-C2)
 - [x] programs (CRUD, archive, admin_only_data_entry) → [programs SPEC](specs/features/programs/SPEC.md) (v0.1.0; ported; `description` dropped per D-C2; notification emit deferred → `notifications` per D-C1)
-- [ ] program-memberships (members, available, enroll, role/status, leave)
+- [x] program-memberships (members, details, role/status, remove, leave + `handleMemberExit`) → [program-memberships SPEC](specs/features/program-memberships/SPEC.md) (v0.1.0; ported; `createMemberAndEnroll` fixed→loginable per D-C2; `available`+`enroll` dropped as dead routes per D-C3; notification emits deferred per D-C4)
 - [ ] invites (invite, my-invites, all-invites, response, blocks)
 - [ ] workouts library (CRUD, mobile)
 - [ ] program-workouts (custom, visibility toggles)

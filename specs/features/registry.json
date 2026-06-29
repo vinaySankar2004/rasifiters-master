@@ -53,6 +53,23 @@
           "server.js"
         ]
       }
+    },
+    "program-memberships": {
+      "version": "0.1.0",
+      "spec": "specs/features/program-memberships/SPEC.md",
+      "status": "built",
+      "consumed_by": ["web", "ios"],
+      "depends_on": ["auth", "members", "programs", "notifications", "invites"],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/memberships.js",
+          "services/membershipService.js",
+          "utils/programMemberships.js",
+          "models/ProgramMembership.js",
+          "server.js"
+        ]
+      }
     }
   }
 }

@@ -30,13 +30,17 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": start the `program-memberships` feature** — run `question-asker` to spec it (legacy
-> `../backend/routes/memberships.js` + `utils/programMemberships.js`, incl. `handleMemberExit`). It's the natural next node: it owns the `ProgramMembership` join that `programs`
-> bootstraps (creator row) + reads for authz/counts, AND it owns the deferred cascade pieces (auth
-> `/account` + members `DELETE /:id` + the `handleMemberExit`/`created_by` reassignment). Then port it to
-> `apps/backend/` and mount `/api/program-memberships` in `server.js`. Follow the same loop the `auth` +
-> `members` + `programs` runs used. (After it, `notifications` unblocks the deferred program.updated/deleted
-> emits + the members cascade notifications.)
+> **On "continue": start the `notifications` feature** — run `question-asker` to spec it (legacy
+> `../backend/routes/notifications.js` + `utils/notifications.js` + `utils/notificationStreams.js` (SSE) +
+> `utils/pushNotifications.js` (APNs) + `models/{Notification,NotificationRecipient,MemberPushToken}.js`).
+> It's the keystone that unblocks the deferred emits piling up: `programs` (program.updated/deleted),
+> `program-memberships` (role_changed/member_removed/member_left + the `handleMemberExit` cascade emits), and
+> the members/auth delete-cascade alerts. Porting it **replaces the deferred stub** at
+> `apps/backend/utils/notifications.js` (real `createNotification` + SSE dispatch + push) — the call sites
+> across programs/memberships stay unchanged. Watch the SSE stream endpoint + APNs credentials (env). Then
+> port + mount `/api/notifications` in `server.js`. (After it: wire the deferred `members DELETE /:id` + auth
+> `/account` cascades to the now-ported `handleMemberExit`, and spec the `invites` feature for the co-mounted
+> invite routes.)
 
 **Phase 2 — backend.** Point the Express app at Supabase + swap auth to verify Supabase JWTs:
 1. ~~Spec the backend **`auth`** feature via `question-asker`.~~ **DONE 2026-06-28** — see
@@ -66,11 +70,17 @@ deferred (no web code yet).
    no-op (**D-C1**, wired when `notifications` lands — CRUD fully functional); `getPrograms` keeps its two raw
    SQL branches verbatim (**D-S2**); `admin_only_data_entry` is web-only (**D-REF**). Boot check passes;
    **runtime smoke-test vs live Supabase pending** (the Render auto-deploy on push).
-6. **NEXT — spec + port the remaining backend features** (program-memberships, invites, logs, workouts,
-   notifications, analytics…) via `question-asker`, mounting each route group in `server.js` as it lands;
-   wire the deferred `DELETE /account` + `members DELETE /:id` cascades + the `programs` notification emits
-   when program-memberships + notifications are ported. Each backend commit auto-deploys to Render (push to
-   `main` touching `apps/backend/**`).
+6. ~~Spec + port `program-memberships`.~~ **DONE 2026-06-28** — see
+   [`specs/features/program-memberships/SPEC.md`](specs/features/program-memberships/SPEC.md) v0.1.0 (🏗️ built).
+   6 of 8 routes ported (`createMemberAndEnroll` fixed→loginable **D-C2**; `getAvailableMembers`+`enrollMember`
+   dropped as dead routes **D-C3**); `handleMemberExit` cascade ported (`utils/programMemberships.js`);
+   notification emits deferred via a **deferred stub** `utils/notifications.js` (**D-C4**); invite-table writes
+   ported. Mounted `/api/program-memberships`. Boot check passes. **Runtime smoke-test vs live Supabase pending.**
+7. **NEXT — spec + port the remaining backend features** (notifications, invites, logs, workouts, analytics…)
+   via `question-asker`, mounting each route group in `server.js` as it lands. `notifications` is next (the
+   keystone): porting it replaces the deferred `utils/notifications.js` stub + unblocks every deferred emit;
+   then wire the deferred `DELETE /account` + `members DELETE /:id` cascades to the now-ported `handleMemberExit`.
+   Each backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -96,7 +106,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **3** — `auth` (🚀), `members` (🏗️), `programs` (🏗️) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **4** — `auth` (🚀), `members` (🏗️), `programs` (🏗️), `program-memberships` (🏗️) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -122,6 +132,25 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-10)** — **Specced + ported the `program-memberships` feature** (4th feature). `question-asker`:
+  read `routes/memberships.js` + `membershipService.js` + `utils/programMemberships.js` (`handleMemberExit`) +
+  the model in full, fanned 2 `Explore` agents over web + iOS. `consumed_by = [web, ios]`; gates match across
+  clients (no divergence). Decisions: **D-C1** scope = the 6 membership routes + `handleMemberExit`; the
+  co-mounted invite routes (`server.js:50`) → the separate `invites` feature; **D-C2** (change) fix
+  `createMemberAndEnroll` → loginable (Supabase `createUser` + require `email`, mirroring members D-C2) — same
+  latent password bug; **D-C3** (change) drop the 2 dead routes `GET /available` + `POST /enroll` (called by
+  neither client — iOS methods dormant, web absent); **D-C4** defer the notification emits (role_changed/
+  member_removed/member_left + the cascade emits) via a **deferred stub** `utils/notifications.js` (real
+  `getActiveProgramMemberIds`, no-op `createNotification`). Stance "change/clean up" pinned by a scope follow-up
+  to exactly D-C2 + D-C3. Flagged F1–F7 (handleMemberExit's caller-specific params for the deferred members/auth
+  cascades; self-service status matrix; last-admin guard; the cross-feature invite-table writes ported since the
+  models exist). Wrote the SPEC v0.1.0; updated registry.json + REGISTRY.md + COVERAGE. Then **ported**:
+  `utils/notifications.js` (stub), `utils/programMemberships.js` (faithful cascade), `services/membershipService.js`
+  (6 fns, createMemberAndEnroll fixed), `routes/memberships.js` (6 routes), mounted `/api/program-memberships`.
+  Boot check (6 service fns + handleMemberExit + 6-route stack + 6 models) passes. **Key unblock:** porting
+  `handleMemberExit` here gives the deferred members `DELETE /:id` + auth `/account` their cascade dependency —
+  wiring those is the members/auth follow-up. **Pending:** runtime smoke-test (Render auto-deploy on push).
+  Next: `notifications` (replaces the stub + unblocks every deferred emit).
 - **2026-06-28 (pm-9)** — **Specced + ported the `programs` feature** (3rd feature). `question-asker`: read
   the legacy `routes/programs.js` + `services/programService.js` + `Program` model in full, fanned 2
   `Explore` agents over web + iOS consumption (`consumed_by = [web, ios]`, all four routes). Decisions:

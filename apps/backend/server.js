@@ -10,9 +10,10 @@ const { errorHandler } = require("./middleware/errorHandler");
 const authRoutes = require("./routes/auth");
 const memberRoutes = require("./routes/members");
 const programRoutes = require("./routes/programs");
+const membershipRoutes = require("./routes/memberships");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
 // documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/. Remaining legacy mounts:
-//   /api/program-memberships /api/workouts /api/program-workouts
+//   /api/program-memberships (inviteRoutes half — the `invites` feature) /api/workouts /api/program-workouts
 //   /api/workout-logs /api/daily-health-logs /api/analytics /api/analytics-v2
 //   /api/member-metrics /api/member-history /api/member-streaks /api/member-recent /api/notifications
 
@@ -43,6 +44,7 @@ app.get("/api/app-config", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/members", memberRoutes);
 app.use("/api/programs", programRoutes);
+app.use("/api/program-memberships", membershipRoutes);
 
 app.get("/api/test", (req, res) => {
     res.json({
