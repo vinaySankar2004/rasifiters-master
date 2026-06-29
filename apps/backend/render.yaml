@@ -50,4 +50,17 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY    # service-role key — admin createUser/updateUser/deleteUser
         sync: false
+      # --- APNs push (notifications SPEC §6, D-C4) — DEFERRED: declared but NOT supplied this run. ---
+      # When any required value is unset, utils/pushNotifications.getProvider() returns null and push is a
+      # logged no-op — SSE + DB delivery + GET /unacknowledged still work. Supply these (in the Dashboard)
+      # to turn on iOS push: APNS_KEY_ID, APNS_TEAM_ID, APNS_BUNDLE_ID, and ONE of APNS_KEY (base64 .p8)
+      # or APNS_KEY_PATH. APNS_PRODUCTION ("true"/"false") defaults to NODE_ENV==='production'.
+      - key: APNS_KEY_ID                  # APNs auth key (.p8) Key ID
+        sync: false
+      - key: APNS_TEAM_ID                 # Apple Developer Team ID
+        sync: false
+      - key: APNS_BUNDLE_ID               # iOS app bundle id (APNs topic)
+        sync: false
+      - key: APNS_KEY                      # base64-encoded .p8 auth key (or use APNS_KEY_PATH)
+        sync: false
       # PORT is injected by Render (default 10000) — do NOT set it; server.js reads process.env.PORT.

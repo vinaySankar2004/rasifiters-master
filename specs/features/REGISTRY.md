@@ -14,6 +14,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `members` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
 | `programs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programs.js`, `services/programService.js`, `models/{Program,ProgramMembership}.js`) | [programs/SPEC.md](programs/SPEC.md) |
 | `program-memberships` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
+| `notifications` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/notifications.js`, `utils/{notifications,notificationStreams,pushNotifications}.js`, `models/{Notification,NotificationRecipient,MemberPushToken}.js`) | [notifications/SPEC.md](notifications/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
@@ -24,4 +25,11 @@ are called by neither client. `programs` (the organizing container) follows: fou
 faithful except one deliberate cleanup (`createProgram` drops the vestigial `description` field, D-C2); the
 `program.updated`/`program.deleted` notification emit is deferred to the `notifications` feature (D-C1, CRUD
 ports fully functional); `getPrograms` keeps its raw SQL verbatim (D-S2); `admin_only_data_entry` is web-only
-(D-REF). Next features are authored as the backend rebuild proceeds — see `PROGRESS.md`._
+(D-REF). `program-memberships` (the join + member-exit cascade) follows: 6 of 8 routes ported
+(`createMemberAndEnroll` fixed→loginable D-C2; two dead routes dropped D-C3); notification emits deferred via
+a stub D-C4. `notifications` (**the keystone**) follows: 6 `/api/notifications` routes + the emit engine —
+faithful except one migration delta (the SSE stream auth swaps symmetric `jwt.verify` → Supabase JWKS,
+D-C2) and deferred APNs creds (D-C4, push no-ops gracefully). Porting it **replaced** the deferred
+`utils/notifications.js` stub, so the programs/memberships emits now fire unchanged; `POST /broadcast` is kept
+but vestigial (called by neither client, F1). Next features are authored as the backend rebuild proceeds —
+see `PROGRESS.md`._

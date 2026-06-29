@@ -30,17 +30,19 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": start the `notifications` feature** — run `question-asker` to spec it (legacy
-> `../backend/routes/notifications.js` + `utils/notifications.js` + `utils/notificationStreams.js` (SSE) +
-> `utils/pushNotifications.js` (APNs) + `models/{Notification,NotificationRecipient,MemberPushToken}.js`).
-> It's the keystone that unblocks the deferred emits piling up: `programs` (program.updated/deleted),
-> `program-memberships` (role_changed/member_removed/member_left + the `handleMemberExit` cascade emits), and
-> the members/auth delete-cascade alerts. Porting it **replaces the deferred stub** at
-> `apps/backend/utils/notifications.js` (real `createNotification` + SSE dispatch + push) — the call sites
-> across programs/memberships stay unchanged. Watch the SSE stream endpoint + APNs credentials (env). Then
-> port + mount `/api/notifications` in `server.js`. (After it: wire the deferred `members DELETE /:id` + auth
-> `/account` cascades to the now-ported `handleMemberExit`, and spec the `invites` feature for the co-mounted
-> invite routes.)
+> **On "continue": spec + port the `invites` feature** — run `question-asker` (legacy
+> `../backend/routes/invites.js` + `services/inviteService.js` + `models/{ProgramInvite,ProgramInviteBlock}.js`).
+> It's the co-mounted other half of `/api/program-memberships` (`server.js:50`, `inviteRoutes`) referenced by
+> program-memberships D-C1, and its `program.invite_received`/`member_joined` emits now light up automatically
+> against the just-ported `notifications` engine. **OR** knock out the cross-feature follow-up first: wire the
+> two deferred delete cascades — `members DELETE /:id` (501) + auth `DELETE /account` (501) — to the ported
+> `handleMemberExit` + Supabase `deleteUser` (their emits now fire too). Either is unblocked now that
+> `notifications` is ported.
+>
+> **`notifications` is DONE (ported 2026-06-28)** — the deferred `utils/notifications.js` stub was **replaced**
+> with the real emit engine, so the programs/program-memberships emits fire unchanged. Pending: runtime
+> smoke-test vs live Supabase (Render auto-deploy on push). APNs creds still deferred (D-C4) — push no-ops
+> gracefully until `APNS_*` are pasted into Render.
 
 **Phase 2 — backend.** Point the Express app at Supabase + swap auth to verify Supabase JWTs:
 1. ~~Spec the backend **`auth`** feature via `question-asker`.~~ **DONE 2026-06-28** — see
@@ -76,10 +78,19 @@ deferred (no web code yet).
    dropped as dead routes **D-C3**); `handleMemberExit` cascade ported (`utils/programMemberships.js`);
    notification emits deferred via a **deferred stub** `utils/notifications.js` (**D-C4**); invite-table writes
    ported. Mounted `/api/program-memberships`. Boot check passes. **Runtime smoke-test vs live Supabase pending.**
-7. **NEXT — spec + port the remaining backend features** (notifications, invites, logs, workouts, analytics…)
-   via `question-asker`, mounting each route group in `server.js` as it lands. `notifications` is next (the
-   keystone): porting it replaces the deferred `utils/notifications.js` stub + unblocks every deferred emit;
-   then wire the deferred `DELETE /account` + `members DELETE /:id` cascades to the now-ported `handleMemberExit`.
+7. ~~Spec + port `notifications`.~~ **DONE 2026-06-28** — see [`specs/features/notifications/SPEC.md`](specs/features/notifications/SPEC.md)
+   v0.1.0 (🏗️ built). 6 `/api/notifications` routes + the emit engine; **replaced the deferred
+   `utils/notifications.js` stub** with the real `createNotification` (DB write + transactional SSE/APNs
+   dispatch) + ported `utils/{notificationStreams,pushNotifications}.js` (added `apn` dep). Faithful except
+   **D-C2** (the one migration delta — SSE stream auth migrated symmetric `jwt.verify` → Supabase JWKS via a
+   shared `resolveReqUser` in `middleware/auth.js`, keeping the `?token=` query path) and **D-C4** (APNs creds
+   deferred → `APNS_*` declared `sync:false` in `render.yaml`, push no-ops gracefully). `POST /broadcast` kept
+   vestigial (no client, F1). Mounted `/api/notifications`. Boot check passes. **The keystone unblock:** the
+   programs/program-memberships emit call sites now fire unchanged. **Runtime smoke-test vs live Supabase pending.**
+8. **NEXT — spec + port the remaining backend features** (invites, logs, workouts, analytics…) via
+   `question-asker`, mounting each route group in `server.js` as it lands. `invites` is next (the co-mounted
+   `/api/program-memberships` other half — its emits now fire against the ported `notifications`); also wire
+   the deferred `DELETE /account` + `members DELETE /:id` cascades to the now-ported `handleMemberExit`.
    Each backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
@@ -106,7 +117,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **4** — `auth` (🚀), `members` (🏗️), `programs` (🏗️), `program-memberships` (🏗️) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **5** — `auth` (🚀), `members` (🏗️), `programs` (🏗️), `program-memberships` (🏗️), `notifications` (🏗️) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -132,6 +143,28 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-11)** — **Specced + ported the `notifications` feature** (5th feature — **the keystone**).
+  `question-asker`: read the legacy `routes/notifications.js` + `utils/{notifications,notificationStreams,
+  pushNotifications}.js` + the 3 models in full, fanned 2 `Explore` agents over web + iOS consumption.
+  `consumed_by = [web, ios]`: **both** clients open the SSE stream (web `EventSource` `?token=`
+  `NotificationsGate.tsx:144`; iOS `NotificationStreamClient.swift:12`) + call `GET /unacknowledged` +
+  `POST /:id/acknowledge` + render a single-notification modal queue; **iOS-only** the APNs device lifecycle
+  (`PUT/DELETE /device`); **`POST /broadcast` called by neither client** (vestigial, F1). 4 decisions (all the
+  faithful lead): **D-C1** scope = the module only (replaces the deferred stub; cross-feature emits/cascades
+  stay their features' follow-ups); **D-C2** (the one migration delta) the SSE stream auth swaps symmetric
+  `jwt.verify(JWT_SECRET)` → Supabase JWKS verify (`verifySupabaseJwt` + `sub`→member), keeping the `?token=`
+  query path for `EventSource`; **D-C4** defer APNs creds (`getProvider()→null` ⇒ push no-ops, SSE+DB live);
+  **D-S1** faithful, keep broadcast vestigial. Wrote SPEC v0.1.0; updated registry.json + REGISTRY.md +
+  COVERAGE. Then **ported**: **replaced** `utils/notifications.js` (DEFERRED STUB → real `createNotification`
+  DB write + transactional `afterCommit` SSE/APNs dispatch + `getMemberIdsWithPushTokens`), added
+  `utils/notificationStreams.js` (SSE registry) + `utils/pushNotifications.js` (APNs, `apn@^2.2.0`,
+  graceful-null), refactored `middleware/auth.js` to share `resolveReqUser` between `authenticateToken` +
+  the new `authenticateStream` (D-C2), `routes/notifications.js` (6 routes), mounted `/api/notifications`,
+  added `APNS_*` `sync:false` to `render.yaml`. `npm install` + syntax + boot check (6-route stack,
+  `authenticateStream` exported, `getProvider()→null`) pass. **Key unblock:** the deferred emits across
+  programs/program-memberships now fire **unchanged** (the stub is gone). **Pending:** runtime smoke-test
+  (Render auto-deploy on push). Next: `invites` (the co-mounted membership half) or wire the two 501 delete
+  cascades to `handleMemberExit`.
 - **2026-06-28 (pm-10)** — **Specced + ported the `program-memberships` feature** (4th feature). `question-asker`:
   read `routes/memberships.js` + `membershipService.js` + `utils/programMemberships.js` (`handleMemberExit`) +
   the model in full, fanned 2 `Explore` agents over web + iOS. `consumed_by = [web, ios]`; gates match across

@@ -6,6 +6,32 @@
 const { verifySupabaseJwt } = require("../config/supabase");
 const { Member, ProgramMembership } = require("../models");
 
+// Verify a Supabase-issued JWT and rebuild the legacy `req.user` contract (carries BOTH `role` and
+// `global_role` so every gate below + every downstream feature reads the same fields it always did).
+// Shared by authenticateToken (header) and authenticateStream (header or ?token=, the SSE D-C2 path).
+// Returns { user, authUserId } or null if the token is invalid / maps to no member.
+const resolveReqUser = async (token) => {
+    const payload = await verifySupabaseJwt(token);
+    const authUserId = payload.sub;
+    if (!authUserId) return null;
+
+    const member = await Member.findOne({ where: { auth_user_id: authUserId } });
+    if (!member) return null;
+
+    return {
+        authUserId,
+        user: {
+            id: member.id,
+            userId: member.id,
+            username: member.username,
+            member_name: member.member_name,
+            global_role: member.global_role,
+            role: member.global_role === "global_admin" ? "admin" : "member",
+            date_joined: member.date_joined
+        }
+    };
+};
+
 const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -15,29 +41,40 @@ const authenticateToken = async (req, res, next) => {
     }
 
     try {
-        const payload = await verifySupabaseJwt(token);
-        const authUserId = payload.sub;
-        if (!authUserId) {
+        const resolved = await resolveReqUser(token);
+        if (!resolved) {
             return res.status(401).json({ error: "Invalid token." });
         }
+        req.user = resolved.user;
+        req.authUserId = resolved.authUserId;
+        next();
+    } catch (error) {
+        return res.status(401).json({ error: "Invalid token." });
+    }
+};
 
-        const member = await Member.findOne({ where: { auth_user_id: authUserId } });
-        if (!member) {
+// SSE stream auth (notifications GET /stream) — MIGRATION DELTA (notifications SPEC §7, D-C2).
+// Legacy verified a self-signed JWT (jwt.verify(token, JWT_SECRET)) read from the Authorization header
+// OR a ?token= query param (browser EventSource can't set headers). This now verifies a SUPABASE JWT
+// via the SAME resolveReqUser path as authenticateToken, keeping the dual token source so the web
+// EventSource (?token=) and iOS URLSession (either) clients are unchanged.
+const authenticateStream = async (req, res, next) => {
+    const authHeader = req.headers["authorization"];
+    const headerToken = authHeader && authHeader.split(" ")[1];
+    const queryToken = req.query?.token;
+    const token = headerToken || queryToken;
+
+    if (!token) {
+        return res.status(401).json({ error: "Access denied. No token provided." });
+    }
+
+    try {
+        const resolved = await resolveReqUser(token);
+        if (!resolved) {
             return res.status(401).json({ error: "Invalid token." });
         }
-
-        // Rebuild the legacy req.user contract (carries BOTH `role` and `global_role` so every gate
-        // below + every downstream feature reads the same fields it always did).
-        req.user = {
-            id: member.id,
-            userId: member.id,
-            username: member.username,
-            member_name: member.member_name,
-            global_role: member.global_role,
-            role: member.global_role === "global_admin" ? "admin" : "member",
-            date_joined: member.date_joined
-        };
-        req.authUserId = authUserId;
+        req.user = resolved.user;
+        req.authUserId = resolved.authUserId;
         next();
     } catch (error) {
         return res.status(401).json({ error: "Invalid token." });
@@ -148,4 +185,4 @@ const requireProgramMember = async (req, res, next) => {
     next();
 };
 
-module.exports = { authenticateToken, isAdmin, canModifyLog, requireProgramAdmin, requireProgramMember };
+module.exports = { authenticateToken, authenticateStream, isAdmin, canModifyLog, requireProgramAdmin, requireProgramMember };

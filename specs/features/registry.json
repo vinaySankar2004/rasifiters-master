@@ -70,6 +70,26 @@
           "server.js"
         ]
       }
+    },
+    "notifications": {
+      "version": "0.1.0",
+      "spec": "specs/features/notifications/SPEC.md",
+      "status": "built",
+      "consumed_by": ["web", "ios"],
+      "depends_on": ["auth", "members", "program-memberships"],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/notifications.js",
+          "utils/notifications.js",
+          "utils/notificationStreams.js",
+          "utils/pushNotifications.js",
+          "models/Notification.js",
+          "models/NotificationRecipient.js",
+          "models/MemberPushToken.js",
+          "server.js"
+        ]
+      }
     }
   }
 }

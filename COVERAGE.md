@@ -19,7 +19,7 @@ Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a
 - [ ] program-workouts (custom, visibility toggles)
 - [ ] workout-logs (single, batch, member)
 - [ ] daily-health-logs (CRUD)
-- [ ] notifications (unacknowledged, device register/unregister, broadcast, acknowledge, SSE stream)
+- [x] notifications (unacknowledged, device register/unregister, broadcast, acknowledge, SSE stream) → [notifications SPEC](specs/features/notifications/SPEC.md) (v0.1.0; ported; **replaced the deferred `utils/notifications.js` stub** so programs/memberships emits now fire; SSE stream auth migrated symmetric→Supabase JWKS per D-C2; APNs creds deferred per D-C4; `POST /broadcast` kept vestigial F1)
 - [ ] analytics v1 (summary, participation, workouts/duration, timeline, distribution, types)
 - [ ] analytics v2 (summary, participation, workout-type aggregates)
 - [ ] member-analytics (metrics, history, streaks, recent)
