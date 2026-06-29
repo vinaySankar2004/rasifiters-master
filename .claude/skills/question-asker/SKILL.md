@@ -200,6 +200,14 @@ directly as a faithful port from the legacy reference app** — there is no inte
 - **Page/screen specs always carry role-based view rules:** map global_admin · program admin · logger ·
   member → visible/enabled per page, incl. the `admin_only_data_entry` effect (§0.7). It's a mandatory
   question dimension, not an afterthought.
+- **Separate locked-by-METHODOLOGY decisions from genuinely-open ones before asking.** Decisions already
+  fixed in the R-log (e.g. R1's proxy model / retired tables / `auth_user_id`) are stated as context, NOT
+  re-asked — keeps the round to the few real choices (auth run 1: 4 real Qs, all faithful).
+- **Migration features get a "migration delta" section** (what STAYS vs what CHANGES) — for any feature
+  ported onto a new stack/provider it's the highest-value part of the SPEC and keeps the
+  faithful-vs-changed line crisp (see `specs/features/auth/SPEC.md` §7). The load-bearing question for a
+  "self-signed JWT → managed auth provider" migration is the **token-verify claim source** (verify method
+  + whether you add a per-request DB lookup) — lead with it.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
