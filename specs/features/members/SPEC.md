@@ -1,6 +1,6 @@
 # Feature: `members` — member directory, profiles, and admin lifecycle
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Reference impl (legacy):** `../../../backend` — `routes/members.js`, `services/memberService.js`,
 > `models/Member.js`, `models/MemberEmail.js`, `server.js:47`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken` / `isAdmin`).
@@ -42,7 +42,7 @@ All mounted at **`/api/members`** (legacy `server.js:47`). Handlers in `routes/m
 | 2 | `GET /:id` | `members.js:19-28` → `getMemberById` (`memberService.js:22-36`) | `authenticateToken` | One member's profile (hand-picked fields). 404 if missing. |
 | 3 | `POST /` | `members.js:30-39` → `createMember` (`memberService.js:38-69`) | `authenticateToken` + `isAdmin` | Admin-create a member. **CHANGED** (§7) — now creates a loginable member. 201. |
 | 4 | `PUT /:id` | `members.js:41-50` → `updateMember` (`memberService.js:71-106`) | `authenticateToken` | Update `first_name`/`last_name`/`gender`; own-profile **or** `global_admin` only. |
-| 5 | `DELETE /:id` | `members.js:52-61` → `deleteMember` (`memberService.js:108-190`) | `authenticateToken` + `isAdmin` | Delete member + cascade. **DEFERRED → 501** (§7) until owning features land. |
+| 5 | `DELETE /:id` | `members.js:56-65` → `deleteMember` (`memberService.js:147-179`) | `authenticateToken` + `isAdmin` | Delete member + cross-feature cascade (`cascadeMemberDeletion`) + Supabase auth-user delete. **WIRED** (§7, D-C1). |
 
 ### Response shapes (preserved 1:1, except the auth_user_id exclusion in §7)
 
@@ -80,14 +80,14 @@ block), `404` (member not found).
 - **Update member** (`memberService.js:71-106`) — authorize: `requester.id === member.id` **or**
   `requester.global_role === 'global_admin'`, else `403` (`:80-85`). Apply only `first_name` / `last_name`
   / `gender` (each trimmed) when present; ignore everything else. Transactional.
-- **Delete member (DEFERRED → 501, §7)** (`memberService.js:108-190`) — block `global_admin` (`403`,
-  `:116-119`); then cascade: destroy `program_invites` referencing the member by `invited_by` /
-  `invited_username` / `invited_email ∈ member's emails` (`:121-134`); destroy `notifications` where
-  `actor_member_id = member.id` (`:135`); run `handleMemberExit` for every `active` membership **and** every
+- **Delete member (WIRED, §7)** (`memberService.js:147-179`) — block `global_admin` (`403`); then run the
+  shared cascade `utils/programMemberships.cascadeMemberDeletion`: destroy `program_invites` referencing the
+  member by `invited_by` / `invited_username` / `invited_email ∈ member's emails`; destroy `notifications`
+  where `actor_member_id = member.id`; run `handleMemberExit` for every `active` membership **and** every
   program the member `created_by` (reassigning `created_by`, possibly deleting the program, notifying
-  remaining members, `:137-179`); destroy the member (`:181`). The rebuild adds **delete the Supabase auth
-  user** (admin API). The whole cascade is **referenced** (owned by `program-memberships` / `invites` /
-  `notifications`), so the route returns **501** until those features land (D-C1).
+  remaining members); destroy the member. After the transaction commits the rebuild **best-effort deletes
+  the Supabase auth user** (admin API) — the migration delta vs legacy. The cascade is single-sourced in
+  `program-memberships` (it drives `handleMemberExit`) and shared with `DELETE /api/auth/account` (D-C1).
 
 ## 5. Data / schema touchpoints
 
@@ -134,10 +134,9 @@ update whitelist, and the `global_admin` delete block.
   rows and had no such column; the migration added it, so a faithful response must project it out
   (`attributes: { exclude: ["auth_user_id"] }`) to keep the exact legacy shape. This is shape-preservation,
   not a behavior change.
-- **`DELETE /:id` is deferred → 501** (the auth `/account` pattern, D-C1). The cross-feature cascade
-  (invites / notifications / membership-exit) is **referenced**, owned by those features. When they land,
-  the route is wired up and additionally deletes the Supabase auth user (admin API — owned here). Until then
-  it returns `501 Not Implemented`, matching how `DELETE /api/auth/account` is staged.
+- **`DELETE /:id` is WIRED** (D-C1) now that `program-memberships` / `invites` / `notifications` are ported.
+  The cross-feature cascade is single-sourced in `utils/programMemberships.cascadeMemberDeletion` and shared
+  with `DELETE /api/auth/account`; it additionally deletes the Supabase auth user (admin API) after commit.
 
 ## 8. Dependencies
 
@@ -152,7 +151,7 @@ update whitelist, and the `global_admin` delete block.
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-C1** | **Scope = the five `/api/members` routes + `memberService`.** The `deleteMember` cross-feature cascade (invites / notifications / membership-exit) is **referenced**, owned by those features → `DELETE /:id` returns **501** until they land (faithful to the auth `/account` deferral). | `memberService.js:121-179`; auth SPEC D-C1; `utils/{programMemberships,notifications}.js`. |
+| **D-C1** | **Scope = the five `/api/members` routes + `memberService`.** The `deleteMember` cross-feature cascade (invites / notifications / membership-exit) is single-sourced in `utils/programMemberships.cascadeMemberDeletion` (owned by `program-memberships`) and **WIRED** now those features are ported; `DELETE /:id` additionally deletes the Supabase auth user after commit. Shared verbatim with the auth `/account` cascade. | `memberService.js:147-179`; `utils/programMemberships.js:cascadeMemberDeletion`; auth SPEC D-C1. |
 | **D-C2** | **`createMember` is wired to Supabase `createUser` + requires an explicit `email`** so admin-created members can log in — the single deliberate change. Mirrors the ported `authService.register`. | `memberService.js:38-69` (legacy gap); `apps/backend/services/authService.js:172-233`; user decision. |
 | **D-REF** | **Reference impl = legacy `../../../backend`** (`routes/members.js`, `services/memberService.js`, the two models, `server.js:47`). **`consumed_by = [web, ios]`** for the read + self-update routes; **`POST` and `DELETE` are called by neither client** (vestigial — kept for API parity, §10 F1). | Web + iOS consumption sweep (Explore agents); `members.js`. |
 | **D-S1** | **Stance = faithful 1:1 except `createMember`.** Response shapes, gates, filtering/ordering, virtuals preserved; `getAllMembers` excludes the migration-added `auth_user_id` to keep the legacy shape. Other oddities are kept and flagged (§10), not fixed. | Whole-module review; §7. |
@@ -161,7 +160,7 @@ update whitelist, and the `global_admin` delete block.
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **Two dead admin routes** — `POST /api/members` and `DELETE /api/members/:id` are called by neither web nor iOS (clients create via `/auth/register`, manage participation via `/program-memberships`, and "delete" = unenroll). | `members.js:30-39, 52-61`; consumption sweep | Kept for API parity. `POST` now does useful work (D-C2); `DELETE` deferred → 501 (D-C1). |
+| **F1** | **Two dead admin routes** — `POST /api/members` and `DELETE /api/members/:id` are called by neither web nor iOS (clients create via `/auth/register`, manage participation via `/program-memberships`, and "delete" = unenroll). | `members.js:30-39, 56-65`; consumption sweep | Kept for API parity. `POST` now does useful work (D-C2); `DELETE` now wired with the full cascade (D-C1). |
 | **F2** | **Username derived by `member_name.toLowerCase().replace(/\s+/g, '')`** — collision → `400`; no explicit username input on create. | `memberService.js:43, 47-51` | Kept (faithful). |
 | **F3** | **Inconsistent read shapes** — `getAllMembers` returns full rows; `getMemberById`/`updateMember` hand-pick fields. | `memberService.js:15-20` vs `26-35`/`95-100` | Kept (faithful); the only delta is the `auth_user_id` exclusion (§7). |
 | **F4** | **Update authz lives in the service, not middleware** — `PUT /:id` is `authenticateToken`-only at the route; the own-profile-or-`global_admin` check is in `updateMember`. | `members.js:41`; `memberService.js:80-85` | Kept (faithful). |
@@ -174,3 +173,4 @@ update whitelist, and the `global_admin` delete block.
 |---------|------|--------|
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the five `/api/members` routes + `memberService`. Decisions D-C1 (scope; `DELETE` cascade deferred → 501, auth `/account` pattern) / D-C2 (the one deliberate change — `createMember` wired to Supabase `createUser`, requires `email`) / D-REF (`consumed_by [web, ios]`; `POST`+`DELETE` called by neither client) / D-S1 (faithful except `createMember`; `getAllMembers` excludes `auth_user_id`). Flagged F1–F6. |
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — `services/memberService.js` (faithful `getAllMembers` w/ `auth_user_id` excluded, `getMemberById`, `updateMember`; **`createMember` wired to Supabase `admin.createUser` + requires `email`** per D-C2, reusing `authService.validatePassword`/`normalizeEmail`; `deleteMember`→501 per D-C1), `routes/members.js` (faithful 1:1), mounted `/api/members` in `server.js`. Module-load + route-stack boot check pass. Status 📄→🏗️ (no semver bump — the port matches the SPEC). |
+| 0.2.0 | 2026-06-28 | **Wired `DELETE /:id` (D-C1) — the 501 deferral is resolved.** The cross-feature cascade (destroy outbound invites + actored notifications, `handleMemberExit` per active membership/created program, notify remaining members, destroy the member) is single-sourced as `utils/programMemberships.cascadeMemberDeletion` and **shared verbatim** with `DELETE /api/auth/account`; after commit it best-effort deletes the Supabase auth user (the migration delta). Faithful to the legacy `deleteMember` body; minor bump (functionality previously 501). Boot check passes. |

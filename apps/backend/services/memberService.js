@@ -10,6 +10,7 @@ const { Member, MemberEmail } = require("../models");
 const { sequelize } = require("../config/database");
 const { supabaseAdmin } = require("../config/supabase");
 const { validatePassword, normalizeEmail } = require("./authService");
+const { cascadeMemberDeletion } = require("../utils/programMemberships");
 const { AppError } = require("../utils/response");
 
 async function getAllMembers() {
@@ -138,14 +139,41 @@ async function updateMember(memberId, { first_name, last_name, gender }, request
     }
 }
 
-// DEFERRED (§7 / D-C1): faithful member deletion runs a cross-feature cascade — destroy the member's
-// program_invites + notifications, run handleMemberExit for every active membership and created
-// program (reassign created_by / delete empty programs / notify remaining members), then destroy the
-// member AND the Supabase auth user. That cascade is owned by the program-memberships + invites +
-// notifications features and is wired here once they are ported (the same staging as
-// DELETE /api/auth/account). Until then this is a documented gap, not a partial (unsafe) delete.
-async function deleteMember(_memberId) {
-    throw new AppError(501, "Member deletion is not available yet in this rebuild.");
+// WIRED (§7 / D-C1): faithful member deletion runs the cross-feature cascade now that
+// program-memberships/invites/notifications are ported. The DB-side cascade (destroy outbound invites +
+// actored notifications, run handleMemberExit per active membership/created program, notify remaining
+// members, destroy the member) is single-sourced in utils/programMemberships.cascadeMemberDeletion (it is
+// owned by program-memberships). After the transaction commits we best-effort delete the Supabase auth
+// user — the migration delta vs legacy (auth.users replaces member_credentials). An orphaned auth.users
+// row maps to no member, so post-commit deletion is the safe ordering.
+async function deleteMember(memberId) {
+    const transaction = await sequelize.transaction();
+    let authUserId = null;
+    try {
+        const member = await Member.findByPk(memberId, { transaction });
+        if (!member) {
+            await transaction.rollback();
+            throw new AppError(404, "Member not found.");
+        }
+        if (member.global_role === "global_admin") {
+            await transaction.rollback();
+            throw new AppError(403, "Cannot delete global admin account.");
+        }
+
+        authUserId = member.auth_user_id;
+        await cascadeMemberDeletion({ member, transaction });
+        await transaction.commit();
+    } catch (err) {
+        if (err instanceof AppError) throw err;
+        await transaction.rollback();
+        throw new AppError(500, "Failed to delete member.");
+    }
+
+    if (authUserId) {
+        try { await supabaseAdmin.auth.admin.deleteUser(authUserId); } catch (_) { /* best-effort */ }
+    }
+
+    return { message: "Member deleted successfully." };
 }
 
 module.exports = {

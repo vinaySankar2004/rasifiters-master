@@ -5,12 +5,13 @@
 //   • logout       → revoke the session via Supabase.
 //   • register     → Supabase admin createUser + members + member_emails (+ backfill auth_user_id).
 //   • changePass   → Supabase admin updateUserById.
-//   • deleteAccount→ DEFERRED: the cross-feature cascade is owned by program-memberships/notifications
-//                    (SPEC D-C1) and is wired when those features are ported.
+//   • deleteAccount→ runs the cross-feature member-exit cascade (owned by program-memberships,
+//                    SPEC D-C1) then deletes the Supabase auth user.
 // Response shapes are preserved 1:1 so the web + iOS clients are unchanged (D-C3).
 const { sequelize } = require("../config/database");
 const { Member, MemberEmail, MemberPushToken } = require("../models");
 const { supabaseAuth, supabaseAdmin, makeEphemeralAuthClient } = require("../config/supabase");
+const { cascadeMemberDeletion } = require("../utils/programMemberships");
 const { AppError } = require("../utils/response");
 
 const formatMemberName = (member) => member?.member_name || "";
@@ -249,14 +250,40 @@ async function changePassword(memberId, newPassword) {
     return { message: "Password changed successfully." };
 }
 
-async function deleteAccount(_memberId) {
-    // DEFERRED (SPEC D-C1): faithful account deletion runs a cross-feature cascade — delete the
-    // member's program_invites + notifications, run handleMemberExit for every active membership and
-    // created program (reassign created_by / delete empty programs / notify remaining members), then
-    // destroy the member AND the Supabase auth user. That cascade is owned by the program-memberships
-    // + notifications features and is wired here once they are ported. Until then this endpoint is a
-    // documented temporary gap rather than a partial (and unsafe) delete. See PROGRESS.md.
-    throw new AppError(501, "Account deletion is not available yet in this rebuild.");
+// WIRED (SPEC D-C1): faithful self-service account deletion. The DB-side cross-feature cascade (destroy
+// outbound invites + actored notifications, run handleMemberExit per active membership/created program,
+// notify remaining members, destroy the member) is single-sourced in
+// utils/programMemberships.cascadeMemberDeletion — byte-identical to the legacy deleteMember body, hence
+// shared. After the transaction commits we best-effort delete the Supabase auth user (the migration delta
+// vs legacy). An orphaned auth.users row maps to no member, so post-commit deletion is the safe ordering.
+async function deleteAccount(memberId) {
+    const transaction = await sequelize.transaction();
+    let authUserId = null;
+    try {
+        const member = await Member.findByPk(memberId, { transaction });
+        if (!member) {
+            await transaction.rollback();
+            throw new AppError(404, "Account not found.");
+        }
+        if (member.global_role === "global_admin") {
+            await transaction.rollback();
+            throw new AppError(403, "Global admin accounts cannot be deleted through this endpoint.");
+        }
+
+        authUserId = member.auth_user_id;
+        await cascadeMemberDeletion({ member, transaction });
+        await transaction.commit();
+    } catch (err) {
+        if (err instanceof AppError) throw err;
+        await transaction.rollback();
+        throw err;
+    }
+
+    if (authUserId) {
+        try { await supabaseAdmin.auth.admin.deleteUser(authUserId); } catch (_) { /* best-effort */ }
+    }
+
+    return { message: "Account deleted successfully." };
 }
 
 module.exports = {

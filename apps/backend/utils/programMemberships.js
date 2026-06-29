@@ -5,7 +5,7 @@
 // (D-C4) via the deferred utils/notifications stub (createNotification = no-op). getActiveProgramMemberIds
 // is the real pure-DB query.
 const { Op } = require("sequelize");
-const { Program, ProgramMembership, Member } = require("../models");
+const { Program, ProgramMembership, Member, MemberEmail, ProgramInvite, Notification } = require("../models");
 const { createNotification, getActiveProgramMemberIds } = require("./notifications");
 
 const findOldestActiveMembership = async ({
@@ -154,6 +154,81 @@ const handleMemberExit = async ({
     };
 };
 
+// cascadeMemberDeletion — the full member-removal cascade shared by DELETE /api/members/:id and
+// DELETE /api/auth/account (members D-C1 / auth D-C1). FAITHFUL 1:1 to the duplicated legacy bodies in
+// memberService.deleteMember + authService.deleteAccount (they are byte-identical), single-sourced here
+// because the cascade is owned by program-memberships (it drives handleMemberExit). Order: destroy the
+// member's outbound program_invites (by id / username / any of their emails) + the notifications they
+// actored, then for every program they actively belong to OR created, run handleMemberExit (reassign
+// created_by / delete now-empty programs / promote a new admin) and emit program.member_left to the
+// remaining members, then destroy the member row. Runs entirely inside the caller's transaction; the
+// caller commits and then best-effort deletes the Supabase auth user (an orphaned auth.users row maps to
+// no member, so post-commit is the safe ordering). Caller owns the global-admin guard + the 404.
+const cascadeMemberDeletion = async ({ member, transaction }) => {
+    const memberEmails = await MemberEmail.findAll({
+        where: { member_id: member.id },
+        attributes: ["email"],
+        transaction
+    });
+    const emailList = memberEmails.map((row) => row.email).filter(Boolean);
+    const inviteFilters = [
+        { invited_by: member.id },
+        { invited_username: member.username }
+    ];
+    if (emailList.length > 0) {
+        inviteFilters.push({ invited_email: { [Op.in]: emailList } });
+    }
+    await ProgramInvite.destroy({ where: { [Op.or]: inviteFilters }, transaction });
+    await Notification.destroy({ where: { actor_member_id: member.id }, transaction });
+
+    const activeMemberships = await ProgramMembership.findAll({
+        where: { member_id: member.id, status: "active" },
+        attributes: ["program_id"],
+        transaction
+    });
+    const createdPrograms = await Program.findAll({
+        where: { created_by: member.id, is_deleted: false },
+        attributes: ["id"],
+        transaction
+    });
+
+    const programIds = new Set([
+        ...activeMemberships.map((m) => m.program_id),
+        ...createdPrograms.map((p) => p.id)
+    ]);
+
+    for (const programId of programIds) {
+        const exitResult = await handleMemberExit({
+            programId,
+            exitingMemberId: member.id,
+            transaction,
+            updateCreatedBy: true,
+            notificationActorId: null,
+            includeExitingMemberInRecipients: false
+        });
+
+        if (!exitResult.programDeleted) {
+            const remainingMemberIds = await getActiveProgramMemberIds(programId, transaction);
+            const recipients = remainingMemberIds.filter((id) => id !== member.id);
+            if (recipients.length > 0) {
+                const program = await Program.findByPk(programId, { transaction });
+                await createNotification({
+                    type: "program.member_left",
+                    programId,
+                    actorMemberId: null,
+                    title: "Member left",
+                    body: `A member left ${program?.name || "the program"}.`,
+                    recipientIds: recipients,
+                    transaction
+                });
+            }
+        }
+    }
+
+    await member.destroy({ transaction });
+};
+
 module.exports = {
-    handleMemberExit
+    handleMemberExit,
+    cascadeMemberDeletion
 };

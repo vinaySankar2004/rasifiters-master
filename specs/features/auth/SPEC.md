@@ -1,6 +1,6 @@
 # Feature: `auth` — authentication, session, and request authorization
 
-> **Status:** 🏗️ built (ported to `apps/backend/`; not yet deployed) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🚀 deployed (live on Render) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Reference impl (legacy):** `../../../backend` — `routes/auth.js`, `services/authService.js`,
 > `middleware/auth.js`, `models/{Member,MemberEmail,MemberCredential,RefreshToken,MemberPushToken}.js`,
 > `server.js`.
@@ -47,7 +47,7 @@ All mounted at **`/api/auth`** (legacy `server.js:46`). Reference handlers in `r
 | 5 | `POST /logout` | `routes/auth.js:49-58` → `logout` (`authService.js:230-240`) | no | Revoke the supplied refresh token. |
 | 6 | `POST /register` | `routes/auth.js:60-69` → `register` (`authService.js:242-300`) | no | Create a new account (member + email + credential). 201. |
 | 7 | `PUT /change-password` | `routes/auth.js:71-80` → `changePassword` (`authService.js:302-315`) | **yes** | Set a new password for the authenticated member. |
-| 8 | `DELETE /account` | `routes/auth.js:82-91` → `deleteAccount` (`authService.js:317-409`) | **yes** | Delete the authenticated member + cascade cleanup. |
+| 8 | `DELETE /account` | `routes/auth.js:82-91` → `deleteAccount` (`authService.js:deleteAccount`) | **yes** | Delete the authenticated member: shared cross-feature cascade (`cascadeMemberDeletion`) + Supabase auth-user delete. **WIRED** (D-C1). |
 
 ### Response shapes (preserved 1:1 — D-C3)
 
@@ -96,13 +96,14 @@ credentials / token), `403` (global-admin delete block), `404` (credentials/acco
   `member_credentials` write (R1).
 - **Change password** (`authService.js:302-315`): re-hash + update `member_credentials`. **Rebuild:**
   Supabase admin update of the auth user's password.
-- **Delete account** (`authService.js:317-409`): blocks `global_admin` (403, `:327-330`); cascades —
-  deletes `program_invites` referencing the member (by id / username / any of their emails, `:338-348`),
-  deletes `notifications` where `actor_member_id` = member (`:350-353`), runs `handleMemberExit` for every
-  active membership + every program they created (reassigning `created_by`, possibly deleting the program,
-  notifying remaining members, `:355-398`), then destroys the member (`:400`). **Rebuild:** same cascade,
-  plus delete the Supabase Auth user (admin API). The non-auth cascade (invites/notifications/membership
-  exit) is **referenced** as belonging to those features, not owned here (D-C1).
+- **Delete account** (`authService.js:deleteAccount`, **WIRED**): blocks `global_admin` (403); runs the
+  shared cascade `utils/programMemberships.cascadeMemberDeletion` — deletes `program_invites` referencing
+  the member (by id / username / any of their emails), deletes `notifications` where `actor_member_id` =
+  member, runs `handleMemberExit` for every active membership + every program they created (reassigning
+  `created_by`, possibly deleting the program, notifying remaining members), then destroys the member.
+  **Rebuild delta:** after the transaction commits, best-effort delete the Supabase Auth user (admin API).
+  The non-auth cascade is **owned by `program-memberships`** (single-sourced) and shared verbatim with
+  `DELETE /api/members/:id` (D-C1).
 - **Push-token capture on mobile login** (`loginGlobal` → `upsertPushToken`, `authService.js:99-121`,
   `171-174`). **Referenced** — owned by the `notifications` feature; this SPEC only notes the call site.
 
@@ -211,3 +212,4 @@ unchanged** (`isAdmin`/`requireProgramAdmin`/`requireProgramMember`/`canModifyLo
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — faithful foundation (13 models + `index.js` minus retired `member_credentials`/`refresh_tokens`; `Member.auth_user_id` added) + the auth slice (`config/supabase.js` JWKS verify, `middleware/auth.js`, `services/authService.js`, `routes/auth.js`, `server.js` mounting only `/api/auth`). Status 📄→🏗️ (no semver bump — faithful port, contract unchanged). Known gaps: `DELETE /account`→501 (cascade owned by program-memberships/notifications, D-C1); backend deploy + asymmetric Supabase JWT keys pending. |
 | 0.1.0 (infra) | 2026-06-28 | **Backend host = Render, not Railway** (METHODOLOGY R7) — the D-C2 JWKS verify path is unchanged; the deploy target is a Render web service (Blueprint `apps/backend/render.yaml`). **Asymmetric Supabase JWT keys RESOLVED:** the project's JWKS endpoint serves a live `ES256`/P-256 key, so JWKS verify finds a key. No SPEC/contract change (no semver bump). Remaining gap: `DELETE /account`→501 (unchanged). |
 | 0.1.0 (deployed 🚀) | 2026-06-28 | **DEPLOYED to Render + verified live** at `https://rasifiters-api.onrender.com` (service `srv-d90tgmv7f7vs73cudptg`). Full auth round-trip green against migrated data (admin): `login`→200 (member resolution + primary-email + Supabase sign-in, **imported bcrypt password verified**, ES256 JWT `kid 0f6cd324…`); guarded route w/ valid token→200 (`authenticateToken` JWKS verify + `sub`→`members.auth_user_id`→`req.user`, the D-C2 path); garbage token→401; `refresh`→200; `logout`→200; unauth guard→401. Status 🏗️→🚀 (faithful deploy, no semver bump). **Migration fix shipped:** placeholder (no-email) members lacked a `member_emails` row → `admin` 401'd before password check; backfilled via `apps/backend/sql/002_backfill_placeholder_member_emails.sql` + `tools/migrator/src/importAuth.js` (writes the placeholder row on create/link/re-run). Remaining gap: `DELETE /account`→501 (unchanged). |
+| 0.2.0 | 2026-06-28 | **Wired `DELETE /account` (D-C1) — the 501 deferral is resolved** now that `program-memberships`/`invites`/`notifications` are ported. `deleteAccount` runs the shared cross-feature cascade `utils/programMemberships.cascadeMemberDeletion` (destroy outbound invites + actored notifications, `handleMemberExit` per active membership/created program, notify remaining members, destroy the member) — **single-sourced, shared verbatim** with `DELETE /api/members/:id` — then best-effort deletes the Supabase auth user after commit (the migration delta vs legacy `member_credentials`). Faithful to the legacy `deleteAccount` body; minor bump (functionality previously 501). Boot check passes. |

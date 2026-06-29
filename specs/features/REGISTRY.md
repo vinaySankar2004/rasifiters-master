@@ -10,10 +10,10 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 
 | Feature | Version | Status | Apps | Reference impl | Spec |
 |---------|---------|--------|------|----------------|------|
-| `auth` | 0.1.0 | 🚀 | `web` `ios` | `backend` (`routes/auth.js`, `services/authService.js`, `middleware/auth.js`) | [auth/SPEC.md](auth/SPEC.md) |
-| `members` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
+| `auth` | 0.2.0 | 🚀 | `web` `ios` | `backend` (`routes/auth.js`, `services/authService.js`, `middleware/auth.js`) | [auth/SPEC.md](auth/SPEC.md) |
+| `members` | 0.2.0 | 🏗️ | `web` `ios` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
 | `programs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programs.js`, `services/programService.js`, `models/{Program,ProgramMembership}.js`) | [programs/SPEC.md](programs/SPEC.md) |
-| `program-memberships` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
+| `program-memberships` | 0.2.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
 | `notifications` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/notifications.js`, `utils/{notifications,notificationStreams,pushNotifications}.js`, `models/{Notification,NotificationRecipient,MemberPushToken}.js`) | [notifications/SPEC.md](notifications/SPEC.md) |
 | `invites` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/invites.js`, `services/inviteService.js`, `models/{ProgramInvite,ProgramInviteBlock}.js`) | [invites/SPEC.md](invites/SPEC.md) |
 
@@ -21,8 +21,8 @@ _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates e
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
 R1 Supabase-Auth migration delta. `members` (the FK-anchor entity) follows: five `/api/members` routes —
 faithful except one deliberate change (`createMember` now creates a loginable member via Supabase
-`createUser`, D-C2); `DELETE /:id` cascade deferred → 501 (D-C1, the auth `/account` pattern); `POST`+`DELETE`
-are called by neither client. `programs` (the organizing container) follows: four `/api/programs` routes —
+`createUser`, D-C2); `DELETE /:id` cascade **wired** (D-C1, v0.2.0 — shared `cascadeMemberDeletion` + Supabase
+auth-user delete, same as auth `/account`); `POST`+`DELETE` are called by neither client. `programs` (the organizing container) follows: four `/api/programs` routes —
 faithful except one deliberate cleanup (`createProgram` drops the vestigial `description` field, D-C2); the
 `program.updated`/`program.deleted` notification emit is deferred to the `notifications` feature (D-C1, CRUD
 ports fully functional); `getPrograms` keeps its raw SQL verbatim (D-S2); `admin_only_data_entry` is web-only

@@ -30,13 +30,16 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": wire the two deferred 501 delete cascades** — `members DELETE /:id` (501) + auth
-> `DELETE /account` (501) — to the ported `handleMemberExit` (`utils/programMemberships.js`, owned by
-> program-memberships) + Supabase `admin.deleteUser`. Both run the same faithful cross-feature cascade
-> (revoke invites / destroy blocks / membership-exit + delete the auth user); they call `handleMemberExit`
-> with `updateCreatedBy:true`. Their notification emits now fire live too (notifications + invites ported).
-> **OR** spec + port the next undocumented backend feature via `question-asker` — `workouts` (the library) or
-> `program-workouts`, then `workout-logs` → `daily-health-logs` → `analytics`.
+> **On "continue": spec + port the next undocumented backend feature** via `question-asker` — `workouts`
+> (the library) or `program-workouts`, then `workout-logs` → `daily-health-logs` → `analytics`, mounting
+> each route group in `server.js` as it lands. Each backend commit auto-deploys to Render.
+>
+> **The two deferred 501 delete cascades are DONE (wired 2026-06-28)** — `members DELETE /:id` + auth
+> `DELETE /account` now run the shared `utils/programMemberships.cascadeMemberDeletion` (destroy outbound
+> invites + actored notifications, `handleMemberExit` per active membership/created program, notify remaining
+> members, destroy the member) + best-effort Supabase `admin.deleteUser` after commit. Single-sourced, shared
+> verbatim by both callers; live notification emits fire (notifications + invites ported). Both SPECs bumped
+> 0.1.0→0.2.0. **Pending:** runtime smoke-test vs live Supabase (Render auto-deploy on push).
 >
 > **`invites` is DONE (ported 2026-06-28)** — 4 routes co-mounted at `/api/program-memberships`; the first
 > feature with **live** emits (no deferred stub — the keystone realized). Faithful except two cleanups
@@ -96,11 +99,15 @@ deferred (no web code yet).
    (D-C3a) + batched `getAllInvites`' N+1 into one query (D-C3b); accept-path `ProgramMembership` write stays
    inline (D-C1). Boot check (4-route stack, emit engine wired, `InvitedByMember` assoc) passes.
    **Runtime smoke-test vs live Supabase pending.**
-9. **NEXT — wire the two deferred 501 delete cascades** (`members DELETE /:id` + auth `DELETE /account`) to
-   the ported `handleMemberExit` + Supabase `admin.deleteUser`, **then spec + port the remaining backend
-   features** (workouts, program-workouts, workout-logs, daily-health-logs, analytics…) via `question-asker`,
-   mounting each route group in `server.js` as it lands. Each backend commit auto-deploys to Render (push to
-   `main` touching `apps/backend/**`).
+9. ~~Wire the two deferred 501 delete cascades.~~ **DONE 2026-06-28** — `members DELETE /:id` (members SPEC
+   v0.2.0) + auth `DELETE /account` (auth SPEC v0.2.0) now run the shared
+   `utils/programMemberships.cascadeMemberDeletion` + best-effort Supabase `admin.deleteUser` after commit.
+   The cascade is single-sourced (owned by program-memberships, it drives `handleMemberExit`) and shared
+   verbatim by both callers; the global-admin guard, 404, transaction, and success message stay per-caller.
+   Boot check passes. **Runtime smoke-test vs live Supabase pending** (Render auto-deploy on push).
+10. **NEXT — spec + port the remaining backend features** (workouts, program-workouts, workout-logs,
+    daily-health-logs, analytics…) via `question-asker`, mounting each route group in `server.js` as it
+    lands. Each backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -126,7 +133,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **6** — `auth` (🚀), `members` (🏗️), `programs` (🏗️), `program-memberships` (🏗️), `notifications` (🏗️), `invites` (🏗️) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **6** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️), `notifications` (🏗️), `invites` (🏗️) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -138,10 +145,10 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   `auth.users` but NOT to `member_emails`, so admin 401'd at login (no email to resolve) → backfilled via
   `apps/backend/sql/002_*.sql` (user ran it) + patched `tools/migrator/src/importAuth.js` to write the row.
 - **iOS auth approach:** backend-proxy (clients ~unchanged) vs embed `supabase-swift`. Leaning proxy.
-- **Two deferred delete cascades return 501** — `DELETE /api/auth/account` and `DELETE /api/members/:id`.
-  Both run the same faithful cross-feature cascade (invites/notifications/membership-exit + delete the
-  Supabase auth user) owned by the program-memberships + invites + notifications features (auth D-C1 /
-  members D-C1); wire both when those features are ported. Temporary implementation gaps, not spec changes.
+- ~~**Two deferred delete cascades return 501** — `DELETE /api/auth/account` and `DELETE /api/members/:id`.~~
+  **RESOLVED 2026-06-28** — both wired now that program-memberships/invites/notifications are ported. The
+  faithful cross-feature cascade is single-sourced as `utils/programMemberships.cascadeMemberDeletion` and
+  shared verbatim, + best-effort Supabase `admin.deleteUser` after commit. Both SPECs bumped 0.1.0→0.2.0.
 - ~~**Supabase JWT signing keys must be asymmetric (ECC P-256/ES256)** for the JWKS verify path (D-C2).~~
   **RESOLVED 2026-06-28** — the project's JWKS endpoint (`/auth/v1/.well-known/jwks.json`) serves a live
   `ES256`/P-256 key (`kid 0f6cd324…`), so JWKS verify finds a key. No further action needed at deploy.
@@ -152,6 +159,20 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-13)** — **Wired the two deferred 501 delete cascades** (`members DELETE /:id` + auth
+  `DELETE /account`) now that program-memberships/invites/notifications are ported. Read both legacy bodies
+  (`memberService.deleteMember` + `authService.deleteAccount`) — they are byte-identical — so **single-sourced**
+  the cascade as `utils/programMemberships.cascadeMemberDeletion` (the util that already owns
+  `handleMemberExit`): destroy outbound `program_invites` (by `invited_by`/`invited_username`/`invited_email ∈
+  member emails`) + `notifications` where `actor_member_id = member.id`, run `handleMemberExit` (`updateCreatedBy:true`,
+  `includeExitingMemberInRecipients:false`, `notificationActorId:null`) for every active membership + created
+  program, emit `program.member_left` to remaining members, destroy the member. Each caller keeps its own
+  transaction + global-admin guard + 404 + success message; the **migration delta** is best-effort
+  `supabaseAdmin.auth.admin.deleteUser(auth_user_id)` **after commit** (an orphaned `auth.users` row maps to
+  no member → safe ordering). Updated both SPECs (route table, §4 prose, D-C1, F1, changelog) + bumped
+  0.1.0→0.2.0; fixed the auth SPEC status (was "not yet deployed" → 🚀). Boot check (services + routes load,
+  `cascadeMemberDeletion` exported, no circular dep) passes. **Pending:** runtime smoke-test (Render
+  auto-deploy on push). Next: spec + port `workouts`/`program-workouts` → logs → analytics.
 - **2026-06-28 (pm-12)** — **Specced + ported the `invites` feature** (6th feature — the co-mounted other
   half of `/api/program-memberships`). `question-asker`: read the legacy `routes/invites.js` +
   `inviteService.js` + the 2 models in full, fanned 2 `Explore` agents over web + iOS. `consumed_by =
