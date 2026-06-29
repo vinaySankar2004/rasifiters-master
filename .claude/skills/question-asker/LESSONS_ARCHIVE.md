@@ -279,3 +279,69 @@ helper isn't automatically the right tool — grep its usages (here: none) and v
 against the SPEC's decision; a feature-specific guard (loads the feature's model, mirrors the feature's
 guard order) belongs co-located in the route file, leaving the generic helper untouched.** No migration
 delta (models + schema pre-ported); stated explicitly.
+
+---
+
+## Run 9 — `workout-logs` (backend; the workout-logging write surface)
+
+**Target:** the `workoutLogRouter` half of the shared `routes/logs.js` / `services/logService.js`
+(`POST /`, `POST /batch`, `PUT /`, `DELETE /` + the two GET routes) + the `WorkoutLog` model.
+
+**Sweep:** read `routes/logs.js` + the workout-log half of `logService.js` + `models/WorkoutLog.js` in
+full; fanned 2 `Explore` agents over web + iOS consumption. Verified `req.user.role` is preserved 1:1
+(legacy `authService.js:54` and the new `middleware/auth.js:29` both set
+`role = global_role==='global_admin' ? 'admin' : 'member'`) — load-bearing for the `requester.role==='admin'`
+gates that were about to be dropped with the GET routes.
+
+**Findings that shaped the decisions:**
+- **The file pair holds TWO COVERAGE rows** (workout-logs L20 + daily-health-logs L21) — the scope cut was
+  pre-drawn (same as workoutService → workouts/program-workouts). Confirmed the shared HELPERS at the top of
+  `logService.js` (`resolveLogPermissions`, `isProgramAdmin`, `assertDataEntryAllowed`,
+  `findMemberByDisplayName`, `resolveProgramWorkout`, `isValidDateString`) are used by BOTH halves; the
+  daily-health-only `parseOptionalNumber` is not.
+- **Both GET routes are dead** — `GET /` (logs by date+programId) and `GET /member/:memberName` are called
+  by NEITHER client; web + iOS both read workout history via `/api/member-recent` (member-analytics). The
+  Explore agents grepped call sites, not wrapper definitions.
+- **`POST /batch` is web-only** — iOS has no batch method; its quick-add widget loops single `POST /` calls
+  across program ids (and rolls back with `DELETE /` on partial failure). The add/edit/delete trio is 1:1.
+
+**6 decisions (D-C1 scope+drop, D-C2–D-C5 the four user-chosen cleanups, D-REF, D-S1).** The user opened
+the cleanup door ("Faithful + targeted cleanups") and then a **scope-pinning multiSelect** offered the four
+concrete oddities I found, each cited + with an honest caveat; the user selected **ALL four** — including
+the authz hoist (D-C5) I explicitly advised against. So the port is faithful + 4 deliberate changes:
+- **D-C2** single-log duration → positive whole number (was `isNaN`-only + `parseInt`, matched batch).
+- **D-C3** collapse `addWorkoutLog`'s member-auth double-check (drop the pre-resolution name-string check,
+  keep the authoritative post-resolution id check).
+- **D-C4** de-dup the requester-membership lookups — `deleteWorkoutLog` called `resolveLogPermissions`
+  twice (`:386` + `:400`); collapsed to one (hoisted above the `member_name` privacy pre-check, so a
+  not-enrolled requester's 403 can precede a 404 — accepted, F9). `addWorkoutLog` inlines a single
+  requester-membership read (canLogForAny + self-target reuse).
+- **D-C5** hoist the `admin_only_data_entry` lock into a co-located `requireDataEntryAllowed`
+  resolve-or-pass-through middleware (403 + message preserved; the lock now fires before the handler's
+  other 400s, so locked+non-admin+invalid-body → 403 where legacy gave 400 — accepted, F6).
+
+**The key NEW pattern (promoted): not every authz block is hoistable.** Distinguish a **pure pass/fail
+gate** (`assertDataEntryAllowed` — throw-or-pass on the program lock → hoistable to middleware, à la
+program-workouts) from a **boolean that drives business-logic branching** (`resolveLogPermissions` returns
+`canLogForAny`, used inside the fn to decide *which member* you may act on → NOT hoistable; it stays inline).
+Surfacing "hoist?" as a cleanup must say which mechanism is hoistable and why; offering to hoist the
+boolean would be wrong.
+
+**Other reinforced patterns:**
+- The file-pair split extends to the ROUTE file too (`routes/logs.js` holds two routers); the first-ported
+  half takes the shared helpers (they live once); the deferred half's helper (`parseOptionalNumber`) and the
+  gate the first half hoisted away (`assertDataEntryAllowed`) are simply not ported yet — left for
+  daily-health (which must add `assertDataEntryAllowed` back OR adopt the same `requireDataEntryAllowed`
+  hoist). Stated as a §7 scope note so the next run knows.
+- Dead-route handling by sub-type: the two dead GETs are **distinct** (not byte-dups) → the faithful default
+  is keep-and-flag, but the user chose to **drop** them (a sanctioned deliberate change, D-C1) since neither
+  client calls them; recorded for the parity audit. (Contrast workouts run 7's `POST /mobile` byte-dup =
+  always-drop.)
+- When the user takes a cleanup, the changed legacy shape is still recorded as an F-row (F7/F8/F9) so an
+  audit sees what diverged from legacy.
+
+**Port:** `services/logService.js` (4 live fns + shared helpers, cleanups applied; 2 GET fns +
+`parseOptionalNumber`/`assertDataEntryAllowed` omitted), `routes/logs.js` (`workoutLogRouter` + the
+middleware; exports `{ workoutLogRouter }` only), mounted `/api/workout-logs`. Boot check (4-route stack,
+no GET, every route `[authenticateToken, requireDataEntryAllowed, handler]`, 5 service fns export, server
+loads) passes. No migration delta (model + schema pre-ported).

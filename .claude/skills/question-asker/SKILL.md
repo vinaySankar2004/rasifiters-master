@@ -272,6 +272,20 @@ directly as a faithful port from the legacy reference app** — there is no inte
   tool** — grep its usages (run 8's generic `requireProgramAdmin` was unused AND 400'd where the SPEC needed
   pass-through) and verify exact semantics vs the decision; a feature-specific guard belongs co-located in
   the route file, leaving the generic helper untouched.
+- **NOT every authz block is hoistable — separate a pure pass/fail GATE from a boolean that drives
+  BRANCHING (run 9).** Before offering "hoist?", classify each inline check: a **throw-or-pass gate** (e.g.
+  workout-logs' `assertDataEntryAllowed` program-lock) is hoistable to resolve-or-pass-through middleware; a
+  helper whose **return value is consumed by the function body** (e.g. `resolveLogPermissions` →
+  `canLogForAny`, used to decide *which member* you may act on) is business logic and **stays inline** —
+  hoisting it is wrong. A feature can have one of each: hoist the gate, keep the boolean; say which in the
+  decision. **When a cleanup hoists/moves a check whose legacy position was AFTER other validations, the
+  residual is a status-ordering shift** (locked + non-admin + invalid-body → 403 where legacy gave 400; a
+  de-duped check hoisted above a privacy pre-check → 403 before a 404) — surface it as an *accepted* nuance
+  (an F-row + a note in the decision), don't bury it. **And the file-pair split (run 7) extends to the ROUTE
+  file + the SHARED HELPERS:** the first-ported half takes the shared helpers (they live once); the deferred
+  half's solo helper and any gate the first half hoisted away aren't ported yet — leave them for the sibling
+  with a §7 scope note (run 9: daily-health re-adds `assertDataEntryAllowed` or adopts the hoist). Changed
+  legacy shapes from accepted cleanups still get F-rows (run 9: F7–F9).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
