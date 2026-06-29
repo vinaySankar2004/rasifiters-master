@@ -13,6 +13,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | Page | Route | Status | Consumes (features) | Spec |
 |------|-------|--------|---------------------|------|
 | splash | `/splash` (root `/` redirects here) | 🏗️ v0.1.0 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
+| login | `/login` | 🏗️ v0.1.0 | `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers) | [login SPEC](web/login/SPEC.md) |
 
 Inventory to document (from the research pass): splash · login · create-account · privacy-policy · support ·
 programs · program (+ profile/password/appearance/privacy/roles/edit) · summary (+ activity/distribution/

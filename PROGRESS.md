@@ -42,6 +42,21 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — `splash` + `login` pages ported (2026-06-29).** **NEXT page =
+> `forgot-password`**, the next step of the **auth-recovery path** the user mandated (the whole point of
+> Supabase Auth = easy self-service recovery). The `login` page added ONE thing beyond the faithful port: a
+> "Forgot your password?" link → `/forgot-password` (D-C1). The recovery path plan (D-PLAN, all user-decided):
+> (1) **forgot-password page** = **always-send + always-visible contact link** — always call Supabase
+> `resetPasswordForEmail` (privacy-safe, no enumeration) AND always show a "No email? Contact us" `mailto:`
+> (support = **`vinay.sankara@gmail.com`**, a PLACEHOLDER that may change — wire as a config/env value);
+> (2) the **reset flow runs THROUGH the Express backend** (R1 — no Supabase in clients) → **new `auth` routes
+> (`POST /auth/forgot-password`, `POST /auth/reset-password`) + a MINOR bump on the `auth` feature SPEC**;
+> (3) **sign-up email becomes mandatory + format-validated** (forward-only; existing/placeholder accounts
+> untouched — backend `register` already requires email per members D-C2). Then `create-account`, then the
+> programs hub. Still outstanding from Phase 1/2: provision the Vercel `rasifiters-web` project (deferred —
+> needed before a web deploy); the **batched pre-cutover runtime smoke-test pass** of all ported backend
+> features (needs a live admin JWT the user supplies) + a final pre-cutover migrator re-run.
+>
 > **On "continue": BACKEND FEATURE COVERAGE IS COMPLETE (14 features, 2026-06-29).** Every legacy backend
 > route group is now SPEC'd + ported + mounted in `server.js`; `COVERAGE.md`'s backend section is fully
 > ticked. **The next phase is `web`** (Build-sequence step 5): feature/page by feature/page via
@@ -305,9 +320,9 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **1** — `splash` (🏗️ v0.1.0 `[web]`) · iOS screen specs: **0** (see
-  `specs/pages/REGISTRY.md`) — _web foundation scaffold ported + builds green 2026-06-29 (infra, not a page
-  spec); `login` page next_
+- Web page specs: **2** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.0 `[web]` — faithful + ONE
+  addition: "Forgot password?" link → `/forgot-password`) · iOS screen specs: **0** (see
+  `specs/pages/REGISTRY.md`) — _`forgot-password` page next (the auth-recovery path; see Next action)_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
@@ -346,6 +361,28 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (pm-2)** — **Specced + ported the `login` page (2nd web page spec) + established the
+  auth-recovery path plan.** User opened by mandating the auth follow-up set: Supabase Auth was chosen for
+  easy self-service recovery, so login/sign-up/account pages must GAIN forgot/reset-password (web first, then
+  iOS), with a **dual** forgot-password (emailed reset when an email exists; a `mailto:` "contact us" fallback
+  for the placeholder no-email accounts), and **sign-up email must become mandatory + validated for new
+  members** (forward-only). Saved this as a durable memory. `question-asker` run 16 (page mode): fanned 3
+  `Explore` agents (legacy web login · legacy iOS auth · our ported web+backend auth) — **confirmed
+  forgot-password/reset/email-verification exist on NEITHER client** (100% net-new), our `register` already
+  creates a loginable Supabase user w/ email (members D-C2), and Supabase `resetPasswordForEmail` exists but
+  **no backend route calls it**. Verified the legacy login file + ported foundation myself. **4-Q decision
+  round (all user-answered):** **Scope** = *login page only + plan rest* (forgot/reset/signup-changes +
+  backend bump are their own follow-ups); **Reset trigger** = *always-send + always-visible contact link*
+  (privacy-safe, supersedes the earlier "detect then branch" idea); **Reset path** = *through Express backend*
+  (R1); **Support email** = `vinay.sankara@gmail.com` (placeholder, may change). Updated the memory to match.
+  Ported `apps/web/src/app/login/page.tsx` — **faithful 1:1** (identifier+password, Show/Hide, `?reason`
+  banner, JWT decode → `setSession` → `/programs`, already-authed redirect, create-account + Privacy links)
+  **+ ONE addition (D-C1): a "Forgot your password?" link → `/forgot-password`**. `npm run build` ✓ (`/login`
+  prerendered, 4.04 kB). Wrote `specs/pages/web/login/SPEC.md` v0.1.0 (D-REF/D-S1/D-C1/D-PLAN; F1–F5: client
+  JWT decode, no bootstrap gate/form flash, iOS recovery gap, no client rate-limit, no inline validation);
+  page REGISTRY + COVERAGE (public row, login ✓) ticked; lessons run 16 appended. **NEXT page =
+  `forgot-password`** (build the link's destination; needs the new backend `auth` routes + a MINOR auth bump —
+  see Next action / D-PLAN). All this session's work committed via `git-version` next.
 - **2026-06-29 (pm)** — **Phase 3 (`web`) STARTED — ported the web foundation scaffold + it builds green.**
   Backend feature coverage having closed (14 features), began the web phase. On "continue" the user chose
   **"scaffold + spec first page"** (vs provision-Vercel-first / spec-whole-auth-path-first). Mapped the
