@@ -2,7 +2,7 @@
 
 The ICM repo for the **RaSi Fiters** rebuild — one app, three surfaces (`web`, `ios`, `backend`),
 documented as specs then ported faithfully from the legacy app. Markdown is the source of truth; Claude
-Code (with Vercel / Railway / Supabase MCPs) is the operator. Read **`PROGRESS.md`** (current state) and
+Code (with Vercel / Render / Supabase MCPs) is the operator. Read **`PROGRESS.md`** (current state) and
 **`ICM.md`** (L1 map) first, then **`SETUP.md`** if this is a fresh clone.
 
 Methodology (the "why" + decision log + feature-spec contract) lives in-repo at `METHODOLOGY.md`; all
@@ -12,7 +12,7 @@ here").
 ## The mission (faithful rebuild)
 
 We are recreating the existing RaSi Fiters app **1:1** — same features, same behavior — on a new stack
-(Supabase DB + Auth, Railway API, Vercel web). The **reference implementation** is the legacy app at
+(Supabase DB + Auth, Render API, Vercel web). The **reference implementation** is the legacy app at
 `../{rasifiters-webapp, ios-mobile, backend}`. Default stance for every feature is **faithful-as-is**;
 deliberate changes are called out explicitly in the SPEC (§9/§10). Don't "improve" silently.
 
@@ -58,7 +58,8 @@ copy-paste-ready code, no "as needed"/TBD/figure-it-out.
 ## MCP Servers (see `.mcp.json` + `SETUP.md`)
 
 - **vercel** — `https://mcp.vercel.com` (account-level OAuth; all projects in the team).
-- **railway** — `https://mcp.railway.com` (account-level OAuth; all projects).
+- **render** — `https://mcp.render.com/mcp` (account/workspace-level OAuth; all services). The backend
+  deploys as a Blueprint (`apps/backend/render.yaml`); this MCP is the create/inspect/deploy path.
 - **supabase-rasifiters** — read-only, scoped to the rasifiters project (`project_ref` is
   `TODO(provision)` until the Supabase project is created).
 
@@ -69,16 +70,16 @@ browser login per server.
 (`claude.ai Supabase`, `claude.ai Vercel`, `claude.ai Google Drive`) and `n8n` are **denied** in
 `.claude/settings.json` — they grant broad account-level access and bypass our scoping.
 
-**Scope guardrail.** Vercel + Railway OAuth grant access to *all* account projects. The
-`deploy-scope-guard.sh` PreToolUse hook restricts `vercel`/`railway` commands to the rasifiters
-allow-list. When the `deploy` skill provisions the Vercel project + Railway service, record their IDs in
+**Scope guardrail.** Vercel + Render OAuth grant access to *all* account projects/services. The
+`deploy-scope-guard.sh` PreToolUse hook restricts `vercel`/`render` commands to the rasifiters
+allow-list. When the `deploy` skill provisions the Vercel project + Render service, record their IDs in
 the product `CONTEXT.md` and fill the allow-list/scope in the hook.
 
 ## Skills (`.claude/skills/`)
 
 `git-version` (this repo's git skill; ICM commit + version pipeline) · `question-asker` (the spec question
 loop — writes both feature specs and page/screen specs incl. role-based view rules) · `deploy` (provision +
-deploy to Vercel/Railway, create Supabase schema/buckets) · `audit` (web↔iOS parity check for shared
+deploy to Vercel/Render, create Supabase schema/buckets) · `audit` (web↔iOS parity check for shared
 features) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
 read-only doc-health cross-review; strict, report-only via plan mode). Each living skill keeps a slim
 "Converged lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for the

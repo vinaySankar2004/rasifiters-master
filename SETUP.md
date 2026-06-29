@@ -5,9 +5,9 @@ Goal: a teammate clones this repo and gets a working Claude Code operator enviro
 the MCP servers are OAuth-based.
 
 > Stack reminder (`METHODOLOGY.md` R2–R4): the backend is **Node/Express + Sequelize** (not
-> Python/FastAPI), the web app is **Next.js 14** on **Vercel**, the API runs on **Railway**, and
-> data + auth live on **Supabase**. Infra is **not provisioned yet** — the Supabase `project_ref`
-> below is a `TODO(provision)` placeholder.
+> Python/FastAPI), the web app is **Next.js 14** on **Vercel**, the API runs on **Render** (Blueprint
+> `apps/backend/render.yaml`), and data + auth live on **Supabase**. Supabase is provisioned; Render +
+> Vercel are still `TODO(provision)`.
 
 ## 1. Clone
 
@@ -24,10 +24,10 @@ Open Claude Code in this directory. It reads the committed `.mcp.json` and promp
 | Server | What it is | Scope |
 |--------|-----------|-------|
 | `vercel` | `https://mcp.vercel.com` | account/team — sees all Vercel projects (the `web` frontend) |
-| `railway` | `https://mcp.railway.com` | account — sees all Railway projects (the `backend` API) |
+| `render` | `https://mcp.render.com/mcp` | account/workspace — sees all Render services (the `backend` API) |
 | `supabase-rasifiters` | `https://mcp.supabase.com/mcp?read_only=true&project_ref=<TODO(provision):RASIFITERS_PROJECT_REF>` | **read-only**, the RaSi Fiters Supabase project (DB + Auth) |
 
-OAuth is genuinely **once per machine**: Vercel, Railway, and Supabase are the *same accounts* —
+OAuth is genuinely **once per machine**: Vercel, Render, and Supabase are the *same accounts* —
 the three MCP servers only differ by which project/service they scope to.
 
 Equivalent CLI (the committed `.mcp.json` already defines all three, so you normally don't need
@@ -35,7 +35,7 @@ these):
 
 ```bash
 claude mcp add vercel               --transport http https://mcp.vercel.com
-claude mcp add railway              --transport http https://mcp.railway.com
+claude mcp add render               --transport http https://mcp.render.com/mcp
 claude mcp add supabase-rasifiters  --transport http "https://mcp.supabase.com/mcp?read_only=true&project_ref=<TODO(provision):RASIFITERS_PROJECT_REF>"
 ```
 
@@ -57,11 +57,11 @@ The ref is **not a secret** (it's in every Supabase URL), so it is committed in 
 service-role key and DB password are secrets and live on the platforms, never in this repo
 (see `ENV_RUNBOOK.md`).
 
-## 4. Per-app dev — DEFERRED (Vercel + Railway dev later)
+## 4. Per-app dev — DEFERRED (Vercel + Render dev later)
 
 > **Current direction:** dev + preview will be wired to **Vercel** (the `web` frontend) and
-> **Railway** (the `backend` API) dev environments when we get there. The commands below are kept
-> as an optional local reference only — skip them for now.
+> **Render** (the `backend` API, via Blueprint preview environments) when we get there. The commands
+> below are kept as an optional local reference only — skip them for now.
 
 Each app has its own env template. Copy and fill, then run:
 
@@ -76,7 +76,7 @@ cd apps/web && cp .env.example .env.local && npm install && npm run dev       # 
 open apps/ios/RaSi-Fiters-App.xcodeproj
 ```
 
-Real `DATABASE_URL` / Supabase keys / APNs creds come from the team (or the Vercel/Railway/Supabase
+Real `DATABASE_URL` / Supabase keys / APNs creds come from the team (or the Vercel/Render/Supabase
 project env — see `ENV_RUNBOOK.md`). All three apps are reference-faithful rebuilds of the legacy
 apps: `question-asker` writes the SPEC (`specs/features/<feature>/SPEC.md` or
 `specs/pages/{web,ios}/<page>/SPEC.md`), then the code is **implemented directly as a faithful 1:1
@@ -89,14 +89,14 @@ port** from the legacy reference app — there is no assemble/stitch step.
 
 If a future server needs an API key, follow `.env.mcp.example`: reference `${KEY}` in
 `.mcp.json`, document it in `.env.mcp.example`, and put the real value in `.env.mcp` (gitignored).
-Today there are none — `vercel`, `railway`, and `supabase-rasifiters` are all OAuth-based.
+Today there are none — `vercel`, `render`, and `supabase-rasifiters` are all OAuth-based.
 
 ## 6. Running a working session (where to root it)
 
 **Always launch Claude Code rooted at `rasifiters-master/`** — never the parent `RaSi-Fiters/`.
 MCP servers + permission rules resolve from the project root + its ancestors only (never from
 subdirectories), so:
-- rooted at `rasifiters-master/` → you get the scoped `vercel` / `railway` / `supabase-rasifiters`
+- rooted at `rasifiters-master/` → you get the scoped `vercel` / `render` / `supabase-rasifiters`
   servers **and** any deny rules. ✅
 - rooted at `RaSi-Fiters/` → you'd get the parent's settings, none of the scoped servers. ❌
 

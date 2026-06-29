@@ -1,0 +1,53 @@
+# RaSi Fiters — Render Blueprint (Infrastructure-as-Code) for the backend API.
+#
+# This file defines ONLY the `backend` surface (Node/Express → Render web service). The web app
+# deploys to Vercel; the DB + Auth are Supabase. Place/keep this at apps/backend/render.yaml and point
+# the Render Blueprint at it (Dashboard → New → Blueprint → pick this repo; set the Blueprint file path
+# to apps/backend/render.yaml). On the FIRST sync, Render prompts for every `sync: false` secret below.
+#
+# Env contract: ../../ENV_RUNBOOK.md  ·  faithful auth delta: ../../specs/features/auth/SPEC.md §6/§7
+# Operating runbook (provision + deploy + git auto-deploy): ../../.claude/skills/deploy/SKILL.md
+#
+# Monorepo gotcha (Render): `rootDir` makes build/start commands run relative to apps/backend, and
+# limits autodeploys to changes under it. `buildFilter` paths are relative to the REPO ROOT (NOT
+# rootDir) — that's why they read `apps/backend/**`, not `**`.
+
+services:
+  - type: web
+    name: rasifiters-api
+    runtime: node
+    rootDir: apps/backend            # build/start run here; only changes under it autodeploy
+    region: virginia                 # closest Render region to Supabase us-east-1 (DB latency)
+    plan: starter                    # `free` spins down on idle (cold starts); `starter` stays warm
+    branch: main
+    autoDeployTrigger: commit        # auto-deploy on push to `main` (gated by buildFilter below)
+    buildCommand: npm ci             # uses package-lock.json (committed); falls back to npm install
+    startCommand: npm start          # = `node server.js`; binds process.env.PORT on 0.0.0.0
+    healthCheckPath: /               # GET / → 200 "Rasi Fiters API is running!" gates zero-downtime deploys
+
+    # Only commits that touch the backend subtree trigger a deploy (repo-root-relative globs).
+    buildFilter:
+      paths:
+        - apps/backend/**
+      ignoredPaths:
+        - apps/backend/**/*.md       # docs/CONTEXT changes shouldn't redeploy the API
+        - apps/backend/.env.example
+
+    envVars:
+      # --- Non-secret (safe to commit) ---------------------------------------------------------
+      - key: MIN_IOS_VERSION
+        value: "1.2.0"
+      - key: SUPABASE_URL
+        value: https://kpadxjekpiwfkqcxtrio.supabase.co
+      # SUPABASE_JWKS_URL / SUPABASE_JWT_ISS intentionally unset — they default off SUPABASE_URL
+      # (${SUPABASE_URL}/auth/v1/.well-known/jwks.json) per auth SPEC D-C2. The project's JWT signing
+      # keys are already migrated to asymmetric ES256 (verified live), so JWKS verify finds a key.
+      #
+      # --- Secrets: entered in the Render Dashboard at first Blueprint sync, NOT committed ----------
+      - key: DATABASE_URL                 # Supabase session-pooler / direct connection string
+        sync: false
+      - key: SUPABASE_ANON_KEY            # public anon key — sign-in / refresh proxy
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY    # service-role key — admin createUser/updateUser/deleteUser
+        sync: false
+      # PORT is injected by Render (default 10000) — do NOT set it; server.js reads process.env.PORT.

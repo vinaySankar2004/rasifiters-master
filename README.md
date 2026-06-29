@@ -1,9 +1,9 @@
 # rasifiters-master
 
 The **ICM repo** for the RaSi Fiters rebuild — a faithful 1:1 recreation of the existing app (web + iOS +
-shared API) on a new stack: **Supabase** (DB + Auth), **Railway** (API), **Vercel** (web).
+shared API) on a new stack: **Supabase** (DB + Auth), **Render** (API), **Vercel** (web).
 
-Markdown is the source of truth; Claude Code (with Vercel / Railway / Supabase MCPs) is the operator.
+Markdown is the source of truth; Claude Code (with Vercel / Render / Supabase MCPs) is the operator.
 
 ## Start here
 1. **`PROGRESS.md`** — current phase, what's done, the next concrete action. Read this first every session.
@@ -19,7 +19,7 @@ CONTEXT.md                                  (project: brand + infra + migration 
 apps/{web,ios,backend}/CONTEXT.md
 specs/features/{REGISTRY.md, registry.json, <feature>/SPEC.md}
 specs/pages/{web,ios}/<page>/SPEC.md
-tools/migrator/   (temporary Render-PG → Supabase migrator)
+tools/migrator/   (temporary legacy-Render-PG → Supabase migrator)
 ```
 
 The legacy app being rebuilt lives in the parent folder: `../{rasifiters-webapp, ios-mobile, backend}`.

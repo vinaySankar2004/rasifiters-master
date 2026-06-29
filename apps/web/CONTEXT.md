@@ -29,7 +29,7 @@ analytics, notifications) are `specs/features/` it consumes.
 
 ## Deploy
 Vercel project `rasifiters-web`, `--scope TODO(provision)`. Env per `ENV_RUNBOOK.md` (`NEXT_PUBLIC_API_BASE_URL`
-→ the Railway API). See the `deploy` skill.
+→ the Render API). See the `deploy` skill.
 
 ## Status
-📄 not built — built after the backend is live on Supabase + Railway.
+📄 not built — built after the backend is live on Supabase + Render.

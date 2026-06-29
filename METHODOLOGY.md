@@ -5,7 +5,7 @@
 > (how to document, port, version, deploy) lives in `.claude/skills/`.
 >
 > ICM = the markdown-as-source-of-truth methodology: one app → three apps (surfaces) → documented
-> features + pages, with Claude Code (+ Vercel / Railway / Supabase MCPs) as the operator.
+> features + pages, with Claude Code (+ Vercel / Render / Supabase MCPs) as the operator.
 >
 > This is the **ICM-methodology rebuild of "RaSi Fiters"** — a fitness program tracker
 > (Members ↔ Programs ↔ Workouts/logs) with **web + iOS clients sharing ONE backend API**. The
@@ -21,7 +21,7 @@
 | L2 Rooms | `CONTEXT.md` (project-level) + `apps/{web,ios,backend}/CONTEXT.md` |
 | L3 Tools | `.claude/skills/` + `.mcp.json` |
 | L4 Feature registry | `specs/features/REGISTRY.md` + `specs/features/registry.json` + `specs/features/<feature>/SPEC.md` + `specs/pages/{web,ios}/<page>/SPEC.md` |
-| L5 Pipelines | `git-version` skill + Vercel / Railway / Supabase MCP flows |
+| L5 Pipelines | `git-version` skill + Vercel / Render / Supabase MCP flows |
 
 ## The apps (surfaces)
 
@@ -31,7 +31,7 @@
 |---------|-----------|-------|------|
 | `web` | Member/admin web app | Next.js 14 App Router (TypeScript) | Vercel |
 | `ios` | Native mobile app | SwiftUI (+ widgets) | App Store (APNs push) |
-| `backend` | The shared REST API | Node/Express + Sequelize | Railway |
+| `backend` | The shared REST API | Node/Express + Sequelize | Render (Blueprint) |
 
 Both clients (`web`, `ios`) talk to the **same** `backend`. There is no per-client backend; the
 backend is its own L2 room with its own CONTEXT.md, env, and deploy target.
@@ -175,15 +175,17 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   and `ios`.
 - **2026-06-28 R3 — Apps = `web` + `ios` + a shared `backend`.** One app, "RaSi Fiters", with three
   surfaces (called apps). `web` (Next.js, Vercel) and `ios` (SwiftUI, App Store) are **clients of the
-  same** `backend` (Express, Railway) — there is exactly one API for both. The backend is a
+  same** `backend` (Express, Render) — there is exactly one API for both. The backend is a
   first-class L2 room (its own CONTEXT.md / env / deploy), not an implementation detail of a client.
-- **2026-06-28 R4 — Hosts: API → Railway, Web → Vercel, DB → Supabase.** The backend moves off Render
-  (legacy `DB_URL` pointed at `*.oregon-postgres.render.com`) to **Railway**. The web app moves off
-  Netlify (legacy `netlify.toml`) to **Vercel**. The database moves to **Supabase Postgres** (same
-  project also provides Supabase Auth per R1). iOS ships through the App Store and uses **APNs** for
-  push (the legacy `apn`-based push path is preserved). Infra is **NOT provisioned yet** — concrete
-  Railway/Vercel/Supabase IDs are `TODO(provision)` placeholders until created (see `SETUP.md` +
-  `ENV_RUNBOOK.md`).
+- **2026-06-28 R4 — Hosts: API → Render, Web → Vercel, DB → Supabase.**
+  _(Amended 2026-06-28 — API host was originally Railway; see R7. Railway was never provisioned, so this
+  entry is restated to Render.)_ The backend stays on **Render** but as a **brand-new web service**
+  provisioned via Blueprint (the legacy backend ran on Render too; legacy `DB_URL` pointed at
+  `*.oregon-postgres.render.com`). The web app moves off Netlify (legacy `netlify.toml`) to **Vercel**.
+  The database moves to **Supabase Postgres** (same project also provides Supabase Auth per R1). iOS
+  ships through the App Store and uses **APNs** for push (the legacy `apn`-based push path is preserved).
+  Infra is provisioned in build-order — concrete Render/Vercel IDs are `TODO(provision)` until each app
+  has code to deploy (Supabase is provisioned; see `SETUP.md` + `ENV_RUNBOOK.md`).
 - **2026-06-28 R5 — No table prefixes; keep the legacy plain schema names.** Unlike the Higgins ICM
   (which re-prefixes to `<prefix>_gen_5_*`), RaSi keeps the **legacy plain table names** —
   `members`, `member_credentials`, `programs`, `program_memberships`, `program_invites`, `workouts`,
@@ -204,3 +206,14 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   history is the SPEC Changelog section + git tags + the registry `version` field. Features/pages may
   be **client-specific** (`consumed_by` = `[web]` or `[ios]` only — e.g. iOS widgets/deep links), not
   always shared. (R1–R5 stand unchanged.)
+- **2026-06-28 R7 — Backend host: Render, not Railway (supersedes R4's original Railway choice).** The
+  API deploys to a **Render web service** defined as Infrastructure-as-Code in
+  `apps/backend/render.yaml` (a Blueprint), not Railway. Railway was never provisioned, so this is a
+  clean swap with no migration cost. Rationale: keep the API on the platform the team already runs
+  (the legacy backend was a Render service), use Render's native **Blueprint + GitHub auto-deploy** as
+  the deploy model (`rootDir: apps/backend`, `buildFilter.paths: [apps/backend/**]` for the monorepo,
+  `autoDeployTrigger: commit`), and manage the account via Render's hosted MCP (`https://mcp.render.com/mcp`).
+  Concrete deltas: `.mcp.json` `railway`→`render`; the `deploy` skill + `deploy-scope-guard.sh` +
+  `ENV_RUNBOOK.md` rewritten for Render; `server.js` binds `0.0.0.0` (Render injects `PORT`, default
+  `10000`); secrets are `sync: false` Blueprint vars entered in the dashboard at first sync. DB
+  (Supabase) and web (Vercel) hosts are unaffected. (R1–R6 stand unchanged; R4 amended in place.)

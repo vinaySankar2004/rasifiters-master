@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-// Load .env then .env.local (local overrides); on Railway only env vars are set.
+// Load .env then .env.local (local overrides); on Render only env vars are set.
 require("dotenv").config();
 require("dotenv").config({ path: ".env.local", override: true });
 const { connectDB } = require("./config/database");
@@ -56,7 +56,8 @@ const startServer = async () => {
     try {
         await connectDB();
         console.log("Database connected successfully");
-        app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+        // Bind 0.0.0.0 explicitly — Render (and most PaaS) require it to route external traffic.
+        app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
     } catch (error) {
         console.error("Failed to start server:", error);
         process.exit(1);

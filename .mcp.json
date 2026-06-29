@@ -4,9 +4,9 @@
       "type": "http",
       "url": "https://mcp.vercel.com"
     },
-    "railway": {
+    "render": {
       "type": "http",
-      "url": "https://mcp.railway.com"
+      "url": "https://mcp.render.com/mcp"
     },
     "supabase-rasifiters": {
       "type": "http",

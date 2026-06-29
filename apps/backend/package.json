@@ -1,7 +1,7 @@
 {
   "name": "rasifiters-backend",
   "version": "1.0.0",
-  "description": "RaSi Fiters API — faithful 1:1 rebuild of the legacy Express backend on Supabase (Postgres + Auth) / Railway. See specs/features/ + apps/backend/CONTEXT.md.",
+  "description": "RaSi Fiters API — faithful 1:1 rebuild of the legacy Express backend on Supabase (Postgres + Auth) / Render. See specs/features/ + apps/backend/CONTEXT.md.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

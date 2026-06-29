@@ -1,12 +1,13 @@
 # ENV_RUNBOOK.md — environment variables for RaSi Fiters (ICM rebuild)
 
 > **Instructions, not a secrets store.** This file says *how to inspect and change* env vars on
-> Railway / Vercel / Supabase and what each var is for. **Never commit real secret values here.**
-> Real secrets live in the platforms (Railway/Vercel, set as Sensitive on Vercel) + the user's
+> Render / Vercel / Supabase and what each var is for. **Never commit real secret values here.**
+> Real secrets live in the platforms (Render/Vercel, set as Sensitive on Vercel) + the user's
 > password manager. Companion: `.claude/skills/deploy/SKILL.md` (§Env discipline) + each app's
-> `.env.example` (the canonical name list).
+> `.env.example` (the canonical name list). The backend's env contract is also encoded as IaC in
+> `apps/backend/render.yaml` (non-secret vars inline; secrets as `sync: false`).
 
-Scope: the "RaSi Fiters" app, surfaces `backend` (Node/Express + Sequelize on **Railway**), `web`
+Scope: the "RaSi Fiters" app, surfaces `backend` (Node/Express + Sequelize on **Render**), `web`
 (Next.js 14 on **Vercel**), `ios` (SwiftUI, App Store) — all sharing the **one** backend API. Data
 + auth on **Supabase** (`METHODOLOGY.md` R1/R4). **Infra is NOT provisioned yet** — every concrete
 host name / project id / ref / key below is a **`TODO(provision)`** until created.
@@ -19,20 +20,20 @@ host name / project id / ref / key below is a **`TODO(provision)`** until create
 
 ## 1. How to INSPECT current values
 
-**Railway (backend API):**
+**Render (backend API):** Dashboard → the `rasifiters-api` service → **Environment** (lists every var;
+values revealable). Programmatic / keys-only audit via the REST API:
 ```
-railway variables --service <TODO(provision):rasifiters-backend> --json   # list names + values (readable via API)
+curl -s https://api.render.com/v1/services/<TODO(provision):serviceId>/env-vars \
+  -H "Authorization: Bearer $RENDER_API_KEY" | jq -r '.[].envVar.key'   # keys only — no values leaked
 ```
-Or `railway variables --service <TODO(provision):rasifiters-backend>` (table). Dashboard: Railway →
-project → the backend service → Variables.
+(The hosted `render` MCP and the optional `render` CLI can also list env.)
 
-> **Railway has no per-var "Sensitive" flag** (unlike Vercel): `--json`/`--kv` return **raw values**
-> ("JSON and KV output include raw variable values"). RaSi backend secrets are therefore *readable,
-> not sealed*. To audit/compare without leaking, list **keys only** —
-> `railway variables --service <svc> --json | jq -r 'keys[]'` — or whitelist non-secret keys via
-> `jq '{PORT, MIN_IOS_VERSION, SUPABASE_URL}'`. "Sealing" exists only as an **irreversible
-> dashboard-only toggle** (value becomes write-only); we deliberately do **not** seal the DB /
-> Supabase / APNs keys we must read & coordinate.
+> **Render env-var values are readable** (dashboard "reveal", and the REST API returns raw values) —
+> they are *not* sealed/write-only. To audit/compare without leaking, list **keys only** (the `jq`
+> above) or whitelist non-secret keys (`SUPABASE_URL`, `MIN_IOS_VERSION`). For files that should never
+> appear in env at all, Render **Secret Files** mount at `/etc/secrets/<name>`. In `render.yaml`,
+> `value:` vars live in git; `sync: false` secrets are entered in the dashboard at first Blueprint sync
+> and edited there/via API thereafter — editing the YAML never overwrites them.
 
 **Vercel (web frontend):**
 ```
@@ -49,14 +50,18 @@ tokens) · Authentication (the Auth provider config the backend proxies).
 
 ## 2. How to CHANGE a value
 
-**Railway:**
-```
-railway variables --service <svc> --set "NAME=value"                              # non-secret
-printf '%s' '<secret>' | railway variables --service <svc> --set "NAME=$(cat)"    # avoid echoing
-```
-⚠️ **Transcript-leak gotcha:** `railway add ... --variables` and interactive TUI modes ECHO values
-to stdout. For real secrets prefer stdin/no-echo and never paste a secret into a command that gets
-logged. Railway restarts the service on a variable change.
+**Render:**
+- **Dashboard** (preferred for secrets): Service → Environment → **+ Add Environment Variable** or
+  bulk **Add from .env** → Save (rebuild & deploy / save only). Never paste a secret into a shell that
+  gets logged.
+- **render.yaml** (non-secret only): edit a `value:` var, commit, push — Render re-syncs on deploy.
+  Do NOT put real secrets in the YAML; keep them `sync: false`.
+- **REST API** (non-interactive, e.g. rotation): single-key upsert
+  `PUT https://api.render.com/v1/services/<svc>/env-vars/<KEY>` or replace-all
+  `PUT …/env-vars`, `Authorization: Bearer $RENDER_API_KEY`. Pass secret values via stdin/a temp file,
+  not inline.
+
+Render restarts/redeploys the service on a variable change (or "Save only" to defer).
 
 **Vercel:**
 ```
@@ -72,7 +77,7 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 
 ---
 
-## 3. Inventory — BACKEND (Railway, Node/Express + Sequelize)
+## 3. Inventory — BACKEND (Render, Node/Express + Sequelize)
 
 > Legacy reference: `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/backend/.env.local`,
 > `server.js`, `config/database.js`, `middleware/auth.js`.
@@ -84,14 +89,14 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | `SUPABASE_ANON_KEY` | anon key for the Auth proxy (sign-in/up/refresh on behalf of clients) | **secret-ish** | **NEW (R1)** — anon (publishable) key; never the service-role for client-acting flows. `TODO(provision)`. |
 | `SUPABASE_SERVICE_ROLE_KEY` | server-side admin Auth ops (create user on bcrypt import, link `auth_user_id`, admin lookups) | **secret** | **NEW (R1)** — full privilege; backend-only, never shipped to a client. `TODO(provision)`. |
 | `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | verify Supabase-issued JWTs on every request | **secret** | **NEW (R1)** — **replaces** the legacy `jwt.verify(token, JWT_SECRET)` in `middleware/auth.js`. Use the project's JWT secret (HS) or the JWKS endpoint (`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`) depending on the verification mode chosen. `TODO(provision)`. |
-| `PORT` | HTTP listen port | no | legacy default `5001` (`server.js`). Railway injects `$PORT` — bind to it. |
+| `PORT` | HTTP listen port | no | legacy default `5001` (`server.js`). **Render injects `PORT` (default `10000`)** — never set it; `server.js` binds `process.env.PORT` on `0.0.0.0`. |
 | `MIN_IOS_VERSION` | min iOS app version, served at `GET /api/app-config` | no | legacy `1.2.0`; force-upgrade gate for the iOS client. Keep. |
 | `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | legacy hardcoded in `server.js` (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`). **Externalize to env at rebuild**; the iOS client is native (no CORS). `TODO(provision)` final list. |
 | `APNS_KEY_ID` | APNs auth-key id | no | legacy `F9C876PZ9K`. Push for iOS (the `apn` lib). |
 | `APNS_TEAM_ID` | Apple team id | no | legacy `VSTTF2AM22`. |
 | `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | legacy `com.app.rasifiters`. |
-| `APNS_KEY` | base64 of the `.p8` auth key (production / Railway form) | **secret** | legacy commented Render form (`APNS_KEY=LS0tLS1CRUdJTi…`). On Railway, ship the key as **base64 env**, not a file path. `TODO(provision)`. |
-| `APNS_KEY_PATH` | filesystem path to the `.p8` (local dev only) | no | legacy local-only (`backend/secrets/auth_key.p8`). **Not used on Railway** — use `APNS_KEY` (base64) instead. |
+| `APNS_KEY` | base64 of the `.p8` auth key (production form) | **secret** | legacy commented form (`APNS_KEY=LS0tLS1CRUdJTi…`). On Render, ship the key as a **base64 env var** (or a Render **Secret File** at `/etc/secrets/`), not a repo file path. `TODO(provision)`. |
+| `APNS_KEY_PATH` | filesystem path to the `.p8` (local dev only) | no | legacy local-only (`backend/secrets/auth_key.p8`). **Not used on Render** — use `APNS_KEY` (base64) or a Secret File instead. |
 | `APNS_PRODUCTION` | `true`/`false` → APNs prod vs sandbox gateway | no | legacy commented; set `true` for App Store builds. `TODO(provision)`. |
 | ~~`JWT_SECRET`~~ | (was: HS256 secret to sign+verify self-issued access tokens) | secret | **RETIRED at R1** — identity moves to Supabase Auth; verification uses `SUPABASE_JWT_SECRET`/JWKS. The legacy value `my_secret_key` is a dev placeholder, not a real secret. |
 | ~~`REFRESH_TOKEN_TTL_DAYS`~~ | (was: TTL for rows in the `refresh_tokens` table) | no | **RETIRED at R1** — Supabase Auth owns refresh tokens; the legacy `refresh_tokens` table + `/api/auth/refresh` self-issue path go away (the proxy forwards Supabase's refresh). Legacy value `90`. |
@@ -112,7 +117,7 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 
 | Var | Purpose | Secret? | Notes / migration change |
 |---|---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | the Railway backend base URL the web client calls | no | **NEW/explicit (R4)** — the web app talks to the shared backend; point at the deployed Railway URL. The legacy app selected its API by `NEXT_PUBLIC_API_ENV`; the rebuild uses an explicit base URL. `TODO(provision)`. |
+| `NEXT_PUBLIC_API_BASE_URL` | the Render backend base URL the web client calls | no | **NEW/explicit (R4)** — the web app talks to the shared backend; point at the deployed Render URL (`https://rasifiters-api.onrender.com`). The legacy app selected its API by `NEXT_PUBLIC_API_ENV`; the rebuild uses an explicit base URL. `TODO(provision)`. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for client-side Auth (if the web uses the Supabase JS SDK directly) | no | **NEW (R1)** — only if the web signs in via the Supabase client; if all auth flows route through the backend proxy, this may be unneeded. Confirm at rebuild. `TODO(provision)`. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client anon key for Supabase Auth | **secret-ish** | **NEW (R1)** — anon key only, **never** the service-role key in a `NEXT_PUBLIC_*` var. `TODO(provision)`. |
 | ~~`NEXT_PUBLIC_API_ENV`~~ | (was: `dev`/`prod` switch selecting the API host) | no | **RETIRED at R4** — replaced by the explicit `NEXT_PUBLIC_API_BASE_URL`. Legacy value `prod`. |
@@ -130,7 +135,7 @@ talks to the **same backend API**. The relevant runbook facts:
 
 | Setting | Where | Notes |
 |---|---|---|
-| API base URL | iOS build config (Xcode) | Point at the deployed Railway backend. Mirrors web's `NEXT_PUBLIC_API_BASE_URL`. |
+| API base URL | iOS build config (Xcode) | Point at the deployed Render backend. Mirrors web's `NEXT_PUBLIC_API_BASE_URL`. |
 | Bundle id | Xcode target / `APNS_BUNDLE_ID` | `com.app.rasifiters` — must match the backend's APNs topic. |
 | Min-version gate | `GET /api/app-config` → `MIN_IOS_VERSION` (backend) | The backend, not the app, owns the force-upgrade threshold. |
 | Push | APNs (Apple) | Backend sends via `APNS_KEY`/`APNS_KEY_ID`/`APNS_TEAM_ID`; the app registers its token (legacy `member_push_tokens`). |
@@ -142,8 +147,10 @@ talks to the **same backend API**. The relevant runbook facts:
 - **NEW** `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` /
   `SUPABASE_JWT_SECRET` (or `SUPABASE_JWKS_URL`) on the backend — R1.
 - **NEW** `NEXT_PUBLIC_API_BASE_URL` (+ optional `NEXT_PUBLIC_SUPABASE_*`) on the web — R1/R4.
-- `APNS_KEY_PATH` (local file) → **`APNS_KEY`** (base64) on Railway.
-- Hosts: backend **Render → Railway**, web **Netlify → Vercel**, DB/auth **Render PG → Supabase**.
+- `APNS_KEY_PATH` (local file) → **`APNS_KEY`** (base64) on Render.
+- Hosts: backend **Render (legacy) → Render (new service via Blueprint, fresh account)**, web
+  **Netlify → Vercel**, DB/auth **Render Postgres → Supabase**. (The API platform is unchanged — Render —
+  but it's a brand-new service; the DB and web platforms do move.)
 
 **STAYS:** `PORT`, `MIN_IOS_VERSION`, the `APNS_*` ids, `CORS_ALLOWED_ORIGINS` (externalized but
 same domains), and — critically — the **plain legacy table names** (R5: no prefixes) and the
@@ -154,4 +161,4 @@ self-issued JWT machinery + the `refresh_tokens` table (R1).
 
 > When adding a NEW env var anywhere: update the app's `.env.example` + this inventory + (if it
 > gates a feature) the feature SPEC, then set it on the platform per §2. Fill each `TODO(provision)`
-> the moment the real Railway/Vercel/Supabase resource exists.
+> the moment the real Render/Vercel/Supabase resource exists.

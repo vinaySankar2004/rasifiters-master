@@ -12,10 +12,10 @@
 
 The ICM-methodology rebuild of **RaSi Fiters** — a fitness-program tracker (Members ↔ Programs ↔
 Workouts/logs, with admin/logger/member roles, analytics, health logging, push notifications). We are
-recreating the existing app **faithfully (1:1 behavior)** while moving the stack to Supabase + Railway +
+recreating the existing app **faithfully (1:1 behavior)** while moving the stack to Supabase + Render +
 Vercel and replacing custom JWT auth with Supabase Auth. See `METHODOLOGY.md` for the decision log.
 
-Markdown is the source of truth; Claude Code (with Vercel / Railway / Supabase MCPs) is the operator. We
+Markdown is the source of truth; Claude Code (with Vercel / Render / Supabase MCPs) is the operator. We
 document each surface as a spec, then port the code faithfully from the legacy app — there is no
 "stitch/assemble" step; this is one app, not a multi-company factory.
 
@@ -27,12 +27,12 @@ the source of truth for the faithful rebuild.
 
 | App | Stack | Host | Role |
 |-----|-------|------|------|
-| `backend` | Node/Express + Sequelize | Railway | The single API + data source for both clients. Talks to Supabase Postgres + proxies Supabase Auth. |
+| `backend` | Node/Express + Sequelize | Render (Blueprint) | The single API + data source for both clients. Talks to Supabase Postgres + proxies Supabase Auth. |
 | `web` | Next.js 14 (App Router) + TS | Vercel | The web client. |
 | `ios` | SwiftUI (iOS 18.6) | App Store | The iOS client. |
 
 `web` and `ios` both consume `backend`. Supabase project ref: **`kpadxjekpiwfkqcxtrio`** (org `RaSi Fiters`
-/ `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). Railway +
+/ `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). Render +
 Vercel are still `TODO(provision)`, filled by the `deploy` skill / `SETUP.md`.
 
 ## Layer map
@@ -43,7 +43,7 @@ Vercel are still `TODO(provision)`, filled by the `deploy` skill / `SETUP.md`.
 | L2 Rooms | `CONTEXT.md` (project: brand + infra + migration source), `apps/{web,ios,backend}/CONTEXT.md` |
 | L3 Tools | `.claude/skills/` (question-asker, git-version, deploy, audit, supabase, health-check), `.mcp.json` |
 | L4 Specs | `specs/features/` (shared capabilities) + `specs/pages/{web,ios}/` (per page/screen) + `specs/features/registry.json` |
-| L5 Pipelines | `git-version` skill + Vercel / Railway / Supabase MCP flows |
+| L5 Pipelines | `git-version` skill + Vercel / Render / Supabase MCP flows |
 
 ## Specs: features vs pages
 
@@ -76,7 +76,7 @@ skill). Coverage of the legacy app is tracked in `COVERAGE.md`; progress + next 
   feature and page/screen specs).
 - **Implement a documented feature/page** → port the code directly + faithfully from the legacy reference
   app; commit via `git-version`.
-- **Provision + deploy** → the `deploy` skill (Vercel / Railway / Supabase).
+- **Provision + deploy** → the `deploy` skill (Vercel / Render / Supabase).
 - **Check web↔iOS parity** for a shared feature → the `audit` skill.
 - **Inspect the DB read-only** → the `supabase` skill. **Doc-health review** → `health-check`.
 - **Commit + version** → the `git-version` skill (this repo's git skill).

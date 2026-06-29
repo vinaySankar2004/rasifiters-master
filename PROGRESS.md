@@ -15,8 +15,9 @@
 ACTIVE_HEALTHY; `.mcp.json` repointed. **Schema applied + data/auth MIGRATED to Supabase** (2026-06-28): all
 13 tables reconcile with legacy (members 48 … notification_recipients 1304), **48/48 members created in
 `auth.users` (bcrypt hashes imported, no resets) and linked via `auth_user_id`**, admin on
-`admin@no-email.rasifiters.com`. Migration is idempotent (re-run = 48 skips, 0 dupes). Railway + Vercel
-deferred. Nothing deployed yet.
+`admin@no-email.rasifiters.com`. Migration is idempotent (re-run = 48 skips, 0 dupes). Render + Vercel
+deferred. Nothing deployed yet. **Backend host = Render (Blueprint), not Railway** (METHODOLOGY R7,
+decided 2026-06-28).
 
 > NOTE: the user reset the Supabase DB password on 2026-06-28 — the value in the earlier scratchpad secrets
 > file is STALE; the live one is in the user's password manager + `tools/migrator/.env` (gitignored).
@@ -33,10 +34,16 @@ deferred. Nothing deployed yet.
    (`config/supabase.js`, JWKS-verify `middleware/auth.js`, `services/authService.js`, `routes/auth.js`,
    `server.js` mounting only `/api/auth`). `npm install` + boot-check pass. **Two follow-ups carried**
    below (`/account` 501; asymmetric JWT keys).
-3. **NEXT — provision Railway + deploy the auth backend** (`deploy` skill): set `DATABASE_URL` +
-   `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`, **migrate the Supabase project's JWT
-   signing keys to asymmetric (ECC P-256)** so JWKS verify finds a key, then smoke-test the real
-   login→verify→refresh→logout path against the migrated data (e.g. the `admin` placeholder account).
+3. **NEXT — provision Render + deploy the auth backend** (`deploy` skill, Blueprint
+   `apps/backend/render.yaml`): in the Render Dashboard → New → **Blueprint** → connect the repo →
+   Blueprint path `apps/backend/render.yaml` → Apply; paste the `sync: false` secrets when prompted
+   (`DATABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` — `SUPABASE_URL` + `MIN_IOS_VERSION`
+   are baked into the YAML). The user is doing the GitHub auto-deploy connection. **Asymmetric Supabase
+   JWT keys are DONE** — the JWKS endpoint serves a live ES256/P-256 key (verified 2026-06-28), so the
+   D-C2 verify path will find a key. Then smoke-test the real login→verify→refresh→logout path against
+   the migrated data (e.g. the `admin` placeholder account). **All 3 secrets are in hand** —
+   `SUPABASE_ANON_KEY` was supplied by the user (held out of git); `DATABASE_URL` +
+   `SUPABASE_SERVICE_ROLE_KEY` are in `tools/migrator/.env`.
 4. Then spec + port the remaining backend features (members, programs, logs, …) via `question-asker`,
    mounting each route group as it lands; wire the deferred `DELETE /account` cascade when
    program-memberships + notifications are ported.
@@ -48,15 +55,16 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 1. [x] **Scaffold the ICM repo** (L1–L5 + skills + hooks). _DONE 2026-06-28._
 2. [~] **Provision infra** — Supabase project DONE 2026-06-28 (`project_ref` filled in `.mcp.json` + `ICM.md`
-       + `CONTEXT.md`). Railway `rasifiters-api` + Vercel `rasifiters-web` deferred until those apps have
-       code to deploy; record their IDs in `apps/*/CONTEXT.md` + the deploy-scope hook when created.
+       + `CONTEXT.md`). Render `rasifiters-api` (Blueprint `apps/backend/render.yaml`) + Vercel
+       `rasifiters-web` deferred until those apps have code to deploy; record their IDs in
+       `apps/*/CONTEXT.md` + the deploy-scope hook when created.
 3. [x] **Migrator** (`tools/migrator/`) — BUILT + EXECUTED against Supabase 2026-06-28. Preserved
        `members.id` UUIDs, imported bcrypt hashes → `auth.users` (48/48), backfilled `members.auth_user_id`,
        idempotent re-runnable sync. Schema in `apps/backend/sql/001_schema.sql` (applied). _DONE._
 4. [~] **`backend`** — point Express at Supabase, swap auth middleware to verify Supabase JWTs (proxy
-       login/refresh/logout), deploy to Railway. Spec features as we go. _Auth feature SPEC'd (v0.1.0) +
-       PORTED to `apps/backend/` 2026-06-28 (foundation + `/api/auth`); Railway deploy + remaining
-       features pending._
+       login/refresh/logout), deploy to Render (Blueprint). Spec features as we go. _Auth feature SPEC'd
+       (v0.1.0) + PORTED to `apps/backend/` 2026-06-28 (foundation + `/api/auth`); `render.yaml` authored;
+       Render deploy + remaining features pending._
 5. [ ] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end.
 6. [ ] **`ios`** — feature/screen by feature/screen.
@@ -77,12 +85,31 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 - **`DELETE /api/auth/account` returns 501** in the ported backend — the faithful cross-feature delete
   cascade (invites/notifications/membership-exit) is owned by the program-memberships + notifications
   features (SPEC D-C1); wire it when those are ported. Temporary implementation gap, not a spec change.
-- **Supabase JWT signing keys must be asymmetric (ECC P-256/ES256)** for the JWKS verify path (D-C2) to
-  work; migrate them in the Supabase dashboard (Auth → JWT Keys) before/at the Railway deploy. Resolve at
-  cutover.
+- ~~**Supabase JWT signing keys must be asymmetric (ECC P-256/ES256)** for the JWKS verify path (D-C2).~~
+  **RESOLVED 2026-06-28** — the project's JWKS endpoint (`/auth/v1/.well-known/jwks.json`) serves a live
+  `ES256`/P-256 key (`kid 0f6cd324…`), so JWKS verify finds a key. No further action needed at deploy.
+- ~~**`SUPABASE_ANON_KEY` not stored locally**~~ **OBTAINED 2026-06-28** — the user supplied the anon key
+  (a public anon JWT). Kept OUT of git per policy; paste it into Render as the `SUPABASE_ANON_KEY`
+  `sync: false` Blueprint secret at provisioning (alongside `DATABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`,
+  both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-6)** — **Switched the backend host Railway → Render** (user decision; METHODOLOGY R7).
+  Researched Render's mechanics (Blueprint spec, monorepo `rootDir`+`buildFilter`, env-var model, hosted
+  MCP, health checks, PORT/host). Authored **`apps/backend/render.yaml`** (Blueprint: `type: web`,
+  `rootDir: apps/backend`, `npm ci`/`npm start`, `healthCheckPath: /`, `autoDeployTrigger: commit`,
+  `buildFilter.paths: [apps/backend/**]`; non-secret vars inline, the 3 secrets as `sync: false`).
+  `server.js` now binds `0.0.0.0` (Render injects `PORT`, default 10000). Swept every Railway reference →
+  Render across the repo: `.mcp.json` (`railway`→`render` MCP `https://mcp.render.com/mcp`),
+  `.env.mcp.example`, the `deploy-scope-guard.sh` hook, the **`deploy` skill** (prereqs, workflow §2,
+  git→deploy pipeline §B, smoke test, converged lessons, frontmatter), `ENV_RUNBOOK.md` (§1/§2 Render
+  inspect+change mechanics, §3/§6 host delta), `METHODOLOGY.md` (R4 amended + new **R7**), `ICM.md`,
+  `CLAUDE.md`, `CONTEXT.md`, `SETUP.md`, `README.md`, `apps/{web,backend}/CONTEXT.md`, the `supabase` +
+  `health-check` skills, the auth SPEC changelog, `package.json`. Also **verified the asymmetric Supabase
+  JWT keys are already live** (JWKS serves an ES256/P-256 key) — that open blocker is resolved. NOT
+  committed yet (use `git-version`). Next: provision the Render Blueprint + deploy (needs the user's
+  `SUPABASE_ANON_KEY`), then smoke-test the auth path.
 - **2026-06-28 (pm-5)** — **Ported the backend foundation + `auth` feature** into `apps/backend/`. Data
   layer (faithful 1:1 via a subagent): `config/database.js` (`DB_URL`→`DATABASE_URL`, kept
   `rejectUnauthorized:false` per F6), 13 models + `models/index.js` with the R1 deltas
