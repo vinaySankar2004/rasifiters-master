@@ -215,3 +215,32 @@ biggest decision was a one-line confirm). 3-Q core round (scope / emits / stance
   was destructured by the service but sent by neither client AND read by no code path — a vestigial param,
   caught only because both Explore agents enumerated the actual request bodies. **Lesson: have the sweep
   enumerate request-body fields per client, not just endpoints — vestigial params hide in the destructure.**
+
+### 2026-06-28 — Run 7: workouts (the global workout library)
+**Shape:** confirm-heavy faithful port, but the consumption sweep produced the run's biggest reframe — a
+4-question round (scope cut · consumed_by/dead-routes · delete-guard change-candidate · drop-the-dup), all
+leading with faithful. **The dead-route check, escalated to the extreme:** not just *some* routes unused
+(members run 2) — here the **entire admin CRUD (`POST`/`PUT`/`DELETE`) is called by NEITHER client, and only
+`GET` is live (iOS picker)**. Web's `fetchWorkouts` wrapper is *defined but never imported* — dead
+scaffolding, easy to mistake for a live consumer if you grep the api module and stop there. **Lesson: a
+defined api-client function is NOT proof of consumption — grep for its CALL SITES (imports/usages), not just
+its definition.** That flipped `consumed_by` to a single client `[ios]` even though the backend serves both
+and a (dead) web wrapper exists — record consumed_by by *live call sites*, flag the dead wrapper + unused
+CRUD as §10 characteristics rather than inventing usage.
+**Shared-service-FILE split along the COVERAGE boundary:** `services/workoutService.js` physically holds TWO
+features — the global library (this run) and the program-scoped functions (`program-workouts`, the next
+feature). COVERAGE already split them (lines 18 vs 19), so the scope cut was pre-drawn; the port splits the
+file, taking only the 4 library fns and leaving the rest for the sibling. **Lesson: when one legacy service
+file maps to two COVERAGE rows, the scope question is settled — own your half, port-split the file, name the
+sibling as the owner of the remainder (§7 scope note + D-C1).**
+**Byte-dup route as a clean drop:** `POST /mobile` was character-identical to `POST /` (same one-line body)
+and called by no one — unlike members' kept-for-parity dead routes, a pure duplicate has zero behavioral
+information, so the cleanup is *removal* (D-C2), not keep-and-flag. **Lesson: distinguish a vestigial-but-
+distinct route (keep + flag) from a byte-identical duplicate (drop) — only the latter is safe to remove
+under the faithful stance because nothing is lost.**
+**Latent-rough-edge offered as a change, user kept faithful:** the bare unguarded `deleteWorkout` relies on
+an un-cascaded FK to reject in-use deletes → ugly 500 (vs the sibling `deleteCustomWorkout`'s friendly-400
+guard). Surfaced as a faithful-keep-vs-add-guard decision (like members' createMember bug) — user kept
+faithful, so it lands as a flagged cleanup candidate (F2), not a silent port. **No migration delta** (model +
+schema already ported with earlier features) — the SPEC says so explicitly so the faithful-vs-changed line
+stays crisp even when "changed" is empty but for the one route drop.

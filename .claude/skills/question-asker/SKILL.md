@@ -241,7 +241,21 @@ directly as a faithful port from the legacy reference app** — there is no inte
   cleanups too (invites run 6: a multiSelect locking exactly "drop `target_member_id`" + "batch the N+1",
   everything unselected staying faithful + flagged — the fixed N+1 still recorded as the legacy F-row).
   Also: any "returns full rows" handler may now **leak a migration-added column** (`getAllMembers` +
-  `auth_user_id`) — exclude it to preserve the legacy response shape.
+  `auth_user_id`) — exclude it to preserve the legacy response shape. **A defined api-client function is NOT
+  proof of consumption** (workouts run 7): web's `fetchWorkouts` existed but was never imported — grep CALL
+  SITES, not the definition, or you'll invent a consumer. Record `consumed_by` by live call sites and flag the
+  dead wrapper; run 7 went `[web, ios]`→`[ios]` because the *entire admin CRUD* was called by neither client
+  and only `GET` was live. **Byte-dup vs vestigial-but-distinct route:** a route called-by-no-one that is
+  *character-identical* to another (workouts' `POST /mobile` == `POST /`) carries zero behavioral info → the
+  cleanup is **drop** (D-C2), not keep-and-flag; a distinct-but-unused route is keep-for-parity + flag. Only
+  the duplicate is safe to remove under the faithful stance.
+- **One legacy service FILE can map to TWO COVERAGE rows → the scope cut is pre-drawn; port-split the file.**
+  workouts run 7: `services/workoutService.js` held the global library (this feature) + the program-scoped
+  functions (`program-workouts`, the next feature) — COVERAGE already separated them, so Q1's scope answer was
+  settled. Own your half, split the file on port (take only your functions), and name the sibling as owner of
+  the remainder in a §7 scope note + D-C1. **And state "no migration delta" explicitly** when the model+schema
+  already landed with an earlier feature (run 7: `Workout`/`workouts_library` pre-ported) — an empty "what
+  changes" (but for one route drop) still belongs in §7 to keep the faithful-vs-changed line crisp.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
