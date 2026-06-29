@@ -244,3 +244,38 @@ guard). Surfaced as a faithful-keep-vs-add-guard decision (like members' createM
 faithful, so it lands as a flagged cleanup candidate (F2), not a silent port. **No migration delta** (model +
 schema already ported with earlier features) — the SPEC says so explicitly so the faithful-vs-changed line
 stays crisp even when "changed" is empty but for the one route drop.
+
+### 2026-06-28 — Run 8: program-workouts (a program's workout list)
+
+**Shape:** the cleanest faithful run yet — both clients call all 6 routes 1:1 with **zero divergence**
+(`consumed_by = [web, ios]`), no dead routes, no byte-dups, no vestigial params, dedup pre-checks +
+friendly in-use guard already present. Nothing to clean up. Tight 3-Q round (scope · stance · authz
+location), then ONE pinning follow-up. **This is the SECOND half of the same shared service file `workouts`
+(run 7) split** — confirming run 7's "port-split along the COVERAGE boundary" lesson from the other side:
+the scope was pre-settled, the port just reunited both halves into `apps/backend/services/workoutService.js`.
+**The genuinely-open decision wasn't faithful-vs-change in behavior — it was an ARCHITECTURE hoist.** The
+legacy repeated an identical inline admin block in all 5 curation functions; the sibling `workouts` had
+hoisted *its* (different, global-only `isAdmin`) gate to route middleware. So the real question was *where
+authz lives*, and the user chose to hoist (the one deliberate change, D-C2). **Lesson: when a feature
+repeats the same authorization block inline across N functions AND a sibling already uses middleware for an
+analogous gate, surface "keep inline (faithful) vs hoist to middleware (match sibling)" as a first-class
+decision — it's an architecture choice the code can't answer, distinct from the behavior stance.**
+**The load-bearing follow-up for an authz hoist is STATUS-CODE FIDELITY.** Legacy ran its inline admin
+check *after* the service's validation/lookup/type guards, so non-admins saw 400 (missing fields) / 404
+(not found) / 400 (wrong-type) *before* 403. A naive "403-first" middleware silently flips those to 403 —
+a non-breaking violation (CLAUDE.md). The faithful hoist is **resolve-or-pass-through**: a middleware
+factory `requireProgramAdmin(resolveProgramId)` where each route's resolver returns the target program_id
+(gate the 403) or **null to pass through** so the service emits its native pre-admin-check error. The
+resolver must mirror *every* guard the legacy fn ran before its inline check (missing body field → null;
+`/:id` row not found → null; wrong-type custom/global → null), and for `/:id` routes the resolver loads the
+row to find its program_id (the service loads it again — accept the one by-PK read, keep them decoupled).
+**Lesson: hoisting inline authz is only faithful if 403 fires at exactly the same point — encode the
+legacy's pre-check guards into a per-route resolver and pass through everywhere else, so observable status
+codes stay 1:1.**
+**Pre-scaffolded generic middleware may not fit — check before reusing.** `middleware/auth.js` already had
+a generic `requireProgramAdmin` (pre-ported, unused), but it 400'd on a missing programId and couldn't
+resolve the `/:id` routes (program_id lives on the row, not the request). **Lesson: a same-named ported
+helper isn't automatically the right tool — grep its usages (here: none) and verify its exact semantics
+against the SPEC's decision; a feature-specific guard (loads the feature's model, mirrors the feature's
+guard order) belongs co-located in the route file, leaving the generic helper untouched.** No migration
+delta (models + schema pre-ported); stated explicitly.

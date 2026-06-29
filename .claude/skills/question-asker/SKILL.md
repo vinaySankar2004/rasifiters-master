@@ -256,6 +256,22 @@ directly as a faithful port from the legacy reference app** — there is no inte
   the remainder in a §7 scope note + D-C1. **And state "no migration delta" explicitly** when the model+schema
   already landed with an earlier feature (run 7: `Workout`/`workouts_library` pre-ported) — an empty "what
   changes" (but for one route drop) still belongs in §7 to keep the faithful-vs-changed line crisp.
+- **The "one deliberate change" can be an ARCHITECTURE hoist, not a behavior change — and then status-code
+  fidelity is the load-bearing follow-up.** When a feature repeats the same authorization block inline
+  across N functions AND a sibling already uses route middleware for an analogous gate (program-workouts
+  run 8: 5 inline admin checks vs `workouts`' hoisted `isAdmin`), surface "keep inline (faithful) vs hoist
+  to middleware (match sibling)" as its own decision — the code can't answer *where authz should live*.
+  **If the user hoists, it's only faithful when 403 fires at exactly the legacy point.** Legacy ran the
+  inline check *after* the service's validation/lookup/type guards, so non-admins hit 400/404 *before* 403;
+  a naive "403-first" middleware silently flips those (CLAUDE.md non-breaking violation). The faithful port
+  is **resolve-or-pass-through**: a `requireXAdmin(resolveId)` factory whose per-route resolver returns the
+  target id (gate the 403) or **null to pass through**, so the service still emits its native pre-check
+  400/404. The resolver must mirror *every* guard the legacy fn ran before its inline check (missing field,
+  row-not-found, wrong-type), loading the row for `/:id` routes (accept one extra by-PK read; keep
+  middleware↔service decoupled). And **a same-named pre-scaffolded middleware isn't automatically the right
+  tool** — grep its usages (run 8's generic `requireProgramAdmin` was unused AND 400'd where the SPEC needed
+  pass-through) and verify exact semantics vs the decision; a feature-specific guard belongs co-located in
+  the route file, leaving the generic helper untouched.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
