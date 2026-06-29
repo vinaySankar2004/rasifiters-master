@@ -10,8 +10,9 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 
 | Feature | Version | Status | Apps | Reference impl | Spec |
 |---------|---------|--------|------|----------------|------|
-| _(none yet)_ | — | — | — | — | — |
+| `auth` | 0.1.0 | 📄 | `web` `ios` | `backend` (`routes/auth.js`, `services/authService.js`, `middleware/auth.js`) | [auth/SPEC.md](auth/SPEC.md) |
 
-_This is a fresh scaffold — no features documented yet. The first specs are authored via the
-`question-asker` skill (the backend `auth` feature is the natural first one, since it gates everything
-else). See `PROGRESS.md` for the next action and `ICM.md` for the build sequence._
+_First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
+the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
+R1 Supabase-Auth migration delta. Next features are authored as the backend rebuild proceeds — see
+`PROGRESS.md`._

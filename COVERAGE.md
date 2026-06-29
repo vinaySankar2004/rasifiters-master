@@ -10,7 +10,7 @@ Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a
 > research pass) to be filled in feature-by-feature.
 
 ## backend (Express API) — `../backend`
-- [ ] auth (login/app/global, refresh, logout, register, change-password, delete-account)
+- [x] auth (login/app/global, refresh, logout, register, change-password, delete-account) → [auth SPEC](specs/features/auth/SPEC.md) (v0.1.0; incl. `middleware/auth.js` authz gates per D-C1)
 - [ ] members (CRUD, list)
 - [ ] programs (CRUD, archive, admin_only_data_entry)
 - [ ] program-memberships (members, available, enroll, role/status, leave)

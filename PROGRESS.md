@@ -24,9 +24,17 @@ deferred. Nothing deployed yet.
 ## Next action
 
 **Phase 2 — backend.** Point the Express app at Supabase + swap auth to verify Supabase JWTs:
-1. Spec the backend **`auth`** feature via `question-asker` (proxy login/refresh/logout, username→email
-   resolution, JWKS verification, `auth_user_id` mapping), then port the rebuilt backend into `apps/backend/`.
-2. Provision the Railway service (`deploy` skill) once the backend has code; deploy + smoke-test the
+1. ~~Spec the backend **`auth`** feature via `question-asker`.~~ **DONE 2026-06-28** — see
+   [`specs/features/auth/SPEC.md`](specs/features/auth/SPEC.md) v0.1.0 (decisions D-C1 whole-module scope /
+   D-C2 JWKS+per-request DB-lookup verify / D-C3 clients-unchanged proxy / D-S1 faithful; flagged F1–F7).
+   Registry + COVERAGE ticked.
+2. **NEXT — port the backend into `apps/backend/`** as a faithful 1:1 from `../backend`, applying the
+   §7 migration delta: replace `authenticateToken` with Supabase-JWT (JWKS) verify + `sub`→`auth_user_id`
+   lookup; make `/login` resolve username→primary-email then proxy Supabase sign-in; proxy
+   `/refresh` + `/logout` to Supabase; route `/register` `/change-password` `/account` through the Supabase
+   admin API; keep `member_credentials`/`refresh_tokens` out (retired). Spec the remaining backend
+   features (members, programs, logs, …) via `question-asker` as they're ported.
+3. Provision the Railway service (`deploy` skill) once the backend has code; deploy + smoke-test the
    signed-in path against the migrated data.
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
@@ -50,7 +58,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **0** (see `specs/features/REGISTRY.md`)
+- Shared features documented: **1** — `auth` (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -63,6 +71,18 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-4)** — **Specced the backend `auth` feature** (first SPEC in the repo) via
+  `question-asker`. 3 parallel Explore agents mapped the legacy auth (route+service · middleware+authz ·
+  models+config); re-read `authService.js`/`middleware/auth.js`/`routes/auth.js` in full to verify every
+  `file:line`. 4 decisions confirmed (all faithful): **D-C1** scope = whole `middleware/auth.js` module
+  (authN + authZ gates) as one unit; **D-C2** verify Supabase JWTs via **JWKS (ES256) + per-request
+  `sub`→`members.auth_user_id` lookup** to rebuild `req.user` (deliberate change from legacy's
+  lookup-free token); **D-C3** clients unchanged, `consumed_by=[web,ios]`, login proxies Supabase sign-in
+  via username→primary-email resolution, refresh/logout proxy Supabase, `refresh_tokens` retires;
+  **D-S1** faithful 1:1 (flagged F1–F7: dual payloads, no rate-limit, unused auth_identities/
+  email_verification_tokens, rejectUnauthorized:false, two JWT verifiers, vestigial `userId`). Wrote
+  `specs/features/auth/SPEC.md` v0.1.0; updated REGISTRY.md + registry.json + COVERAGE (auth ticked `[x]`).
+  Not committed yet (use `git-version`). Next: port the backend per §7.
 - **2026-06-28 (pm-3)** — **Ran the migration against live Supabase.** User applied
   `apps/backend/sql/001_schema.sql` + reset the DB password + handed over creds; filled
   `tools/migrator/.env`. Dry-run → `npm run migrate`: all 13 tables copied + reconciled vs legacy, **48
