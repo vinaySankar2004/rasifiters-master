@@ -304,7 +304,18 @@ directly as a faithful port from the legacy reference app** — there is no inte
   and frame the risk honestly: a TZ fix that is a **no-op on the deploy target** (Render-UTC) but makes the
   UTC intent explicit is low-risk ("unchanged on UTC, just deterministic"). **Scope the cleanup precisely** —
   the same root cause often recurs at sites the user did NOT pin (`buildMTDDateRanges`, period labels); leave
-  those faithful + flagged, don't silently widen the fix.
+  those faithful + flagged, don't silently widen the fix. **(c) The versioned-dead-route supersession is
+  SYMMETRIC — the mirror-drop (run 12).** Run 11 dropped a dead *v1* route because clients used the *v2*
+  successor; run 12 dropped a dead *v2* route (`/summary`) because clients kept the *v1* predecessor. So when
+  you port the SECOND half of a versioned file pair and the first half already dropped its dead versioned
+  route, the consistency move is to **drop the second half's dead versioned route too** — each version sheds
+  the half-route its clients abandoned, and the dead one can point EITHER direction; confirm by sweeping for
+  BOTH the v1 AND v2 URL of any overlapping endpoint, per client. The drop can also delete the only instance of
+  the first half's cleanup class (run 12: the dead v2 summary held the sole TZ-bucketing site), so the second
+  half may need **fewer** cleanups than the first — mirror the *drop*, not reflexively the cleanups. And when an
+  earlier feature dropped fn X as dead while the sibling reinstates a byte-identical copy under a different
+  name/route that IS live (run 12: `getParticipationMTDV2` ≡ the dropped v1 `getParticipationMTD`), that's
+  faithful — flag the two-names-one-body dup, don't re-drop it.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

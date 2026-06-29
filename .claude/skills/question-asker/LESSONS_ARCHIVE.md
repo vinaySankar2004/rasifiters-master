@@ -431,3 +431,48 @@ successor (in the SIBLING feature) replaced it on every client. Confirm by sweep
 `/api/analytics`. Boot check (8 routes no `participation/mtd`, all `authenticateToken`, 8 fns export, utils
 load, 4 `timeZone:"UTC"` present, server loads) passes. No migration delta (read-only; models pre-ported;
 utils faithful new files).
+
+---
+
+## Run 12 — `analytics-v2` (backend, the v2 half of the shared analytics file pair)
+
+**Target:** the `v2Router` 6 routes + the 6 `*V2`/workout-type fns of the shared
+`routes/analytics.js`/`analyticsService.js` — the OTHER half of the file pair `analytics` (v1, run 11)
+created. The shared date/bucket helpers + the 2 utils (`dateRange.js`/`queryHelpers.js`) already landed with
+v1, so this half added NO new files — it appended fns to the service + a router to the routes file + one mount.
+
+**Sweep:** read the full legacy v2 half (471–692) + the `v2Router` handlers (124–195) + the already-ported v1
+files (to confirm every shared import/helper/util the v2 fns need is present — all were). 2 `Explore` agents
+over web + iOS v2 consumption **agreed exactly**: 5 of 6 v2 routes live 1:1 on both clients (participation/mtd
++ the 4 workout-type tiles), and **`GET /summary` (v2) dead on BOTH** — both call the v1 summary.
+
+**Decisions:**
+- **D-C1** scope = the v2 half appended to the shared files; reuse helpers/utils (no new files);
+  `member-analytics` separate. (v1's D-C1 had already committed this — stated as context, lightly confirmed.)
+- **D-C2** (user chose drop) **drop the dead `GET /summary` (v2) + `getSummaryV2`** — both clients use the v1
+  summary. Distinct-but-superseded (optional `programId`/global agg, `member_name`, no `program_progress`),
+  not a byte-dup. Dropping it also removed the only server-local-TZ `distribution_by_day` site in the v2 half
+  → **no UTC cleanup needed in v2** (v1 needed D-C3/D-C4; v2 needed none once summary was gone).
+- **D-REF** `[web, ios]` 5 routes 1:1, no divergence.
+- **D-S1** faithful verbatim otherwise.
+
+**Flagged F1–F6:** F1 `getParticipationMTDV2` byte-identical to the v1 `getParticipationMTD` v1 dropped (now
+the live participation card — two names, one body); F4 `getHighestParticipationWorkoutType`'s member-scoped
+branch dead (both clients call it program-wide); F2/F5/F6 inherited from v1 (no per-program read authz, MTD
+server-local boundaries, `COUNT('*')`+raw-`DISTINCT "WorkoutLog"."member_id"` idioms).
+
+**Port:** appended the 5 v2 fns to `analyticsService.js` (`getSummaryV2` omitted) + extended exports; appended
+the `v2Router` (5 routes, no `/summary`) to `routes/analytics.js` (now `{ v1Router, v2Router }`); mounted
+`/api/analytics-v2` in `server.js` (removed the placeholder comment). Boot check (v2 5-route stack no
+`/summary`, all `authenticateToken`, 5 fns export + `getSummaryV2` absent, v1 unchanged, server loads) passes.
+
+**New durable lesson — versioned-dead-route supersession is SYMMETRIC / the mirror-drop.** Run 11's lesson said
+"a v1 route can be dead because a v2 successor replaced it." Run 12 is the **mirror**: a **v2** route can be
+dead because the clients **kept the v1** predecessor (`/summary`). So when you port the SECOND half of a
+versioned file pair and the FIRST half already dropped its dead versioned route (v1's D-C2 dropped the dead v1
+participation/mtd because clients used v2), the consistency move is to **drop the second half's dead versioned
+route too** (drop the dead v2 summary because clients use v1) — each version sheds the half-route its clients
+abandoned, and the dead route can point EITHER direction. Confirm by sweeping for BOTH the v1 and v2 URL of the
+overlapping endpoint, per client. Bonus: dropping the dead fn can also delete the only instance of an earlier
+half's cleanup class (here, the v2 summary held the sole TZ-bucketing site), so the second half may need
+**fewer** cleanups than the first, not the same set — don't reflexively mirror the cleanups, only the drop.
