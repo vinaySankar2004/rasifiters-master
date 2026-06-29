@@ -13,9 +13,10 @@ const programRoutes = require("./routes/programs");
 const membershipRoutes = require("./routes/memberships");
 const inviteRoutes = require("./routes/invites");
 const notificationRoutes = require("./routes/notifications");
+const workoutRoutes = require("./routes/workouts");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
 // documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/. Remaining legacy mounts:
-//   /api/workouts /api/program-workouts
+//   /api/program-workouts
 //   /api/workout-logs /api/daily-health-logs /api/analytics /api/analytics-v2
 //   /api/member-metrics /api/member-history /api/member-streaks /api/member-recent
 
@@ -49,6 +50,7 @@ app.use("/api/programs", programRoutes);
 app.use("/api/program-memberships", membershipRoutes);
 app.use("/api/program-memberships", inviteRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/workouts", workoutRoutes);
 
 app.get("/api/test", (req, res) => {
     res.json({

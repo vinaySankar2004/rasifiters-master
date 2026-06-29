@@ -30,9 +30,16 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port the next undocumented backend feature** via `question-asker` — `workouts`
-> (the library) or `program-workouts`, then `workout-logs` → `daily-health-logs` → `analytics`, mounting
-> each route group in `server.js` as it lands. Each backend commit auto-deploys to Render.
+> **On "continue": spec + port `program-workouts`** via `question-asker` — the program-scoped other half of
+> the shared `workoutService.js` (`getProgramWorkouts` + the global/custom visibility toggles + custom
+> workout CRUD), which web's `/lifestyle/workouts` page + iOS's `WorkoutTypesSection` actually drive. Its
+> service functions are the half left behind when `workouts` (the library) split the file. Then
+> `workout-logs` → `daily-health-logs` → `analytics`. Each backend commit auto-deploys to Render.
+>
+> **`workouts` (the library) is DONE (ported 2026-06-28)** — 4 `/api/workouts` routes + the 4 library fns
+> split out of the shared service; `POST /mobile` dropped (byte-dup, D-C2); `consumed_by = [ios]` (GET-only
+> live — web's `fetchWorkouts` is dead, admin CRUD called by neither client, D-REF). Faithful otherwise
+> (bare unguarded delete kept + flagged F2). Mounted. **Pending:** runtime smoke-test vs live Supabase.
 >
 > **The two deferred 501 delete cascades are DONE (wired 2026-06-28)** — `members DELETE /:id` + auth
 > `DELETE /account` now run the shared `utils/programMemberships.cascadeMemberDeletion` (destroy outbound
@@ -133,7 +140,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **6** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️), `notifications` (🏗️), `invites` (🏗️) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **7** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -159,6 +166,23 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-14)** — **Specced + ported the `workouts` feature** (7th feature — the global workout
+  library). `question-asker`: read the legacy `routes/workouts.js` + `services/workoutService.js` + `Workout`
+  model in full, fanned 2 `Explore` agents over web + iOS consumption. **Decisive reframe:** web calls
+  **none** of the 5 `/api/workouts` routes (its `fetchWorkouts` wrapper is defined-but-dead), and iOS calls
+  **only `GET`** (the "Add Workout" picker reference). So the admin CRUD (`POST`/`PUT`/`DELETE`) is called by
+  **neither client**, and `POST /mobile` is a byte-identical dup of `POST /`. 4 decisions: **D-C1** scope =
+  the global library only (the program-scoped half of the shared `workoutService.js` → the next
+  `program-workouts` feature, per COVERAGE lines 18 vs 19); **D-C2** (the one change) **drop the dead
+  byte-dup `POST /mobile`**; **D-REF** `consumed_by = [ios]` (GET-only live), flag web's dead `fetchWorkouts`
+  + the unused admin CRUD; **D-S1** faithful otherwise — **keep the bare unguarded `deleteWorkout`** (the
+  un-cascaded `program_workouts.library_workout_id` FK → 500 when in use, flagged F2) + the no-dedup-precheck
+  create (unique-500, F5). Wrote SPEC v0.1.0 (no migration delta — model + schema already ported); registered
+  in registry.json (`depends_on:[auth]`) + REGISTRY.md + COVERAGE. Then **ported**: `services/workoutService.js`
+  (library half only — 4 fns), `routes/workouts.js` (4 routes, no `/mobile`), mounted `/api/workouts`. Boot
+  check (4 fns, 4 routes, `/mobile` absent, server loads) passes. Also fixed COVERAGE's stale members line
+  (cascade now wired v0.2.0). **Pending:** runtime smoke-test (Render auto-deploy on push). Next:
+  `program-workouts` (the other half of the split service).
 - **2026-06-28 (pm-13)** — **Wired the two deferred 501 delete cascades** (`members DELETE /:id` + auth
   `DELETE /account`) now that program-memberships/invites/notifications are ported. Read both legacy bodies
   (`memberService.deleteMember` + `authService.deleteAccount`) — they are byte-identical — so **single-sourced**

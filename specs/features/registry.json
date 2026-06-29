@@ -107,6 +107,22 @@
           "server.js"
         ]
       }
+    },
+    "workouts": {
+      "version": "0.1.0",
+      "spec": "specs/features/workouts/SPEC.md",
+      "status": "built",
+      "consumed_by": ["ios"],
+      "depends_on": ["auth"],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/workouts.js",
+          "services/workoutService.js",
+          "models/Workout.js",
+          "server.js"
+        ]
+      }
     }
   }
 }

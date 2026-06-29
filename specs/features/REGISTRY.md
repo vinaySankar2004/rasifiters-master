@@ -16,6 +16,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `program-memberships` | 0.2.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
 | `notifications` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/notifications.js`, `utils/{notifications,notificationStreams,pushNotifications}.js`, `models/{Notification,NotificationRecipient,MemberPushToken}.js`) | [notifications/SPEC.md](notifications/SPEC.md) |
 | `invites` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/invites.js`, `services/inviteService.js`, `models/{ProgramInvite,ProgramInviteBlock}.js`) | [invites/SPEC.md](invites/SPEC.md) |
+| `workouts` | 0.1.0 | 🏗️ | `ios` | `backend` (`routes/workouts.js`, `services/workoutService.js` [library half], `models/Workout.js`) | [workouts/SPEC.md](workouts/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
