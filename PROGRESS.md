@@ -30,11 +30,13 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": start the `programs` feature** — run `question-asker` to spec it (legacy
-> `../backend/routes/programs.js` + `services/programService.js`; watch the `admin_only_data_entry`
-> flag + the `created_by` ownership the members delete-cascade reassigns), then port it to
-> `apps/backend/` and mount `/api/programs` in `server.js`. It's the natural next node: memberships,
-> workouts, and analytics all hang off `programs`. Follow the same loop the `auth` + `members` runs used.
+> **On "continue": start the `program-memberships` feature** — run `question-asker` to spec it (legacy
+> `../backend/routes/memberships.js` + `utils/programMemberships.js`, incl. `handleMemberExit`). It's the natural next node: it owns the `ProgramMembership` join that `programs`
+> bootstraps (creator row) + reads for authz/counts, AND it owns the deferred cascade pieces (auth
+> `/account` + members `DELETE /:id` + the `handleMemberExit`/`created_by` reassignment). Then port it to
+> `apps/backend/` and mount `/api/program-memberships` in `server.js`. Follow the same loop the `auth` +
+> `members` + `programs` runs used. (After it, `notifications` unblocks the deferred program.updated/deleted
+> emits + the members cascade notifications.)
 
 **Phase 2 — backend.** Point the Express app at Supabase + swap auth to verify Supabase JWTs:
 1. ~~Spec the backend **`auth`** feature via `question-asker`.~~ **DONE 2026-06-28** — see
@@ -56,10 +58,19 @@ deferred (no web code yet).
    `admin.createUser` + requires `email`); `DELETE /:id` deferred → 501 (**D-C1**, the auth `/account`
    pattern); `getAllMembers` excludes the migration-added `auth_user_id`. `POST`+`DELETE` are vestigial
    (called by neither client — **D-REF**). Boot check passes; **runtime smoke-test vs live Supabase pending**.
-5. **NEXT — spec + port the remaining backend features** (programs, program-memberships, invites, logs,
-   workouts, notifications, analytics…) via `question-asker`, mounting each route group in `server.js` as it
-   lands; wire the deferred `DELETE /account` + `members DELETE /:id` cascades when program-memberships +
-   notifications are ported. Each backend commit auto-deploys to Render (push to `main` touching `apps/backend/**`).
+5. ~~Spec + port `programs`.~~ **DONE 2026-06-28** — see [`specs/features/programs/SPEC.md`](specs/features/programs/SPEC.md)
+   v0.1.0 (🏗️ built — SPEC + ported). Four `/api/programs` routes; ported `services/programService.js` +
+   `routes/programs.js`, mounted `/api/programs`. Faithful except the one deliberate cleanup **D-C2**
+   (`createProgram` drops the vestigial `description` field — sent by no client, unupdatable, never returned);
+   the `program.updated`/`program.deleted` notification emit is **deferred** → guarded `emitProgramNotification`
+   no-op (**D-C1**, wired when `notifications` lands — CRUD fully functional); `getPrograms` keeps its two raw
+   SQL branches verbatim (**D-S2**); `admin_only_data_entry` is web-only (**D-REF**). Boot check passes;
+   **runtime smoke-test vs live Supabase pending** (the Render auto-deploy on push).
+6. **NEXT — spec + port the remaining backend features** (program-memberships, invites, logs, workouts,
+   notifications, analytics…) via `question-asker`, mounting each route group in `server.js` as it lands;
+   wire the deferred `DELETE /account` + `members DELETE /:id` cascades + the `programs` notification emits
+   when program-memberships + notifications are ported. Each backend commit auto-deploys to Render (push to
+   `main` touching `apps/backend/**`).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -75,8 +86,9 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        idempotent re-runnable sync. Schema in `apps/backend/sql/001_schema.sql` (applied). _DONE._
 4. [~] **`backend`** — point Express at Supabase, swap auth middleware to verify Supabase JWTs (proxy
        login/refresh/logout), deploy to Render (Blueprint). Spec features as we go. _Auth feature SPEC'd
-       (v0.1.0) + PORTED + **DEPLOYED to Render + verified live 2026-06-28** (`/api/auth` 🚀). Remaining
-       backend features (members, programs, logs, notifications, analytics…) pending._
+       (v0.1.0) + PORTED + **DEPLOYED to Render + verified live 2026-06-28** (`/api/auth` 🚀). `members`
+       SPEC'd + ported (🏗️); `programs` SPEC'd + ported (📄, `/api/programs` mounted). Remaining backend
+       features (program-memberships, invites, logs, workouts, notifications, analytics…) pending._
 5. [ ] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end.
 6. [ ] **`ios`** — feature/screen by feature/screen.
@@ -84,7 +96,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **2** — `auth` (🚀), `members` (🏗️) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **3** — `auth` (🚀), `members` (🏗️), `programs` (🏗️) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -110,6 +122,24 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-9)** — **Specced + ported the `programs` feature** (3rd feature). `question-asker`: read
+  the legacy `routes/programs.js` + `services/programService.js` + `Program` model in full, fanned 2
+  `Explore` agents over web + iOS consumption (`consumed_by = [web, ios]`, all four routes). Decisions:
+  **D-C1** the `program.updated`/`program.deleted` notification emit is **deferred** (it drags in SSE streams
+  + APNs push = the undocumented `notifications` feature) → guarded `emitProgramNotification` no-op, CRUD
+  ports fully functional (a side-effect deferral, vs the members whole-route 501); **D-C2** (the one
+  deliberate change, user chose clean-up) `createProgram` **drops the vestigial `description` field** — sent
+  by neither client, unupdatable, never returned (the create-field analog of members' dead routes), with a
+  scope-pinning follow-up confirming drop-only; **D-S2** `getPrograms` keeps both raw `sequelize.query`
+  branches verbatim; **D-REF** `admin_only_data_entry` is web-only (web edit-page toggle; iOS `ProgramDTO`
+  never decodes/sets it) — backend serves/accepts it for both faithfully. Flagged F1–F7 (incl. always-equal
+  total/active counts, decoded-but-never-served `enrollments_closed`). Wrote `specs/features/programs/SPEC.md`
+  v0.1.0; updated registry.json + REGISTRY.md + COVERAGE (`[~]`). Then **ported**: `services/programService.js`
+  (faithful raw-SQL list, create w/o description, update/soft-delete with deferred emit), `routes/programs.js`
+  (faithful 1:1), mounted `/api/programs` in `server.js`. Boot check (4 service fns + GET/POST/PUT/DELETE
+  route stack + models resolve) passes. **Pending:** runtime smoke-test vs live Supabase (the Render
+  auto-deploy on push). Next: `program-memberships` (owns the `ProgramMembership` join + the deferred
+  cascades).
 - **2026-06-28 (pm-8)** — **Specced + ported the `members` feature** (2nd feature). `question-asker`: read
   the legacy `routes/members.js` + `services/memberService.js` in full, fanned 2 `Explore` agents over web +
   iOS consumption. Key finding — **`POST`/`DELETE /api/members` are called by neither client** (both use
