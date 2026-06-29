@@ -1,6 +1,6 @@
 # Feature: `auth` — authentication, session, and request authorization
 
-> **Status:** 📄 documented · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`; not yet deployed) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Reference impl (legacy):** `../../../backend` — `routes/auth.js`, `services/authService.js`,
 > `middleware/auth.js`, `models/{Member,MemberEmail,MemberCredential,RefreshToken,MemberPushToken}.js`,
 > `server.js`.
@@ -207,4 +207,5 @@ unchanged** (`isAdmin`/`requireProgramAdmin`/`requireProgramMember`/`canModifyLo
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker` (Phase 2 kickoff). Documents the legacy `/api/auth/*` surface + `middleware/auth.js` and the R1 Supabase-Auth migration delta. Decisions D-C1/D-C2/D-C3/D-S1/D-REF; flagged F1–F7. Not yet built. |
+| 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker` (Phase 2 kickoff). Documents the legacy `/api/auth/*` surface + `middleware/auth.js` and the R1 Supabase-Auth migration delta. Decisions D-C1/D-C2/D-C3/D-S1/D-REF; flagged F1–F7. |
+| 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — faithful foundation (13 models + `index.js` minus retired `member_credentials`/`refresh_tokens`; `Member.auth_user_id` added) + the auth slice (`config/supabase.js` JWKS verify, `middleware/auth.js`, `services/authService.js`, `routes/auth.js`, `server.js` mounting only `/api/auth`). Status 📄→🏗️ (no semver bump — faithful port, contract unchanged). Known gaps: `DELETE /account`→501 (cascade owned by program-memberships/notifications, D-C1); Railway deploy + asymmetric Supabase JWT keys pending. |

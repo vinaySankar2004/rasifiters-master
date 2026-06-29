@@ -36,4 +36,17 @@ Railway service `rasifiters-api`. Env per `ENV_RUNBOOK.md`. See the `deploy` ski
 from higgins-master).
 
 ## Status
-📄 not built — pending the migrator + Supabase provisioning.
+🏗️ building — **`auth` feature ported** into this dir (2026-06-28): the data-layer foundation
+(`config/database.js` → `DATABASE_URL`, all 13 models + `models/index.js` minus the retired
+`member_credentials`/`refresh_tokens`, `utils/response.js`, `middleware/errorHandler.js`) + the auth slice
+(`config/supabase.js`, `middleware/auth.js` Supabase-JWT verify, `services/authService.js`, `routes/auth.js`,
+`server.js` mounting only `/api/auth`). `npm install` + boot-check pass (syntax, module load, jose JWKS wire).
+
+**Known gaps (intentional, incremental):**
+- `DELETE /api/auth/account` returns **501** until the cross-feature cascade (program-memberships +
+  notifications) is ported — its delete logic is owned by those features (SPEC D-C1).
+- Remaining route groups (members, programs, logs, …) are **not yet mounted** — ported as each feature is
+  documented + built (COVERAGE.md).
+- **Provisioning prerequisite:** the Supabase project must migrate its JWT signing keys to **asymmetric
+  (ECC P-256 / ES256)** so JWKS verification (D-C2) finds a key; set `SUPABASE_*` env per `.env.example`.
+- Not deployed to Railway yet.

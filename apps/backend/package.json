@@ -1,0 +1,26 @@
+{
+  "name": "rasifiters-backend",
+  "version": "1.0.0",
+  "description": "RaSi Fiters API — faithful 1:1 rebuild of the legacy Express backend on Supabase (Postgres + Auth) / Railway. See specs/features/ + apps/backend/CONTEXT.md.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jose": "^5.9.0",
+    "pg": "^8.13.3",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.37.6",
+    "uuid": "^9.0.1"
+  }
+}

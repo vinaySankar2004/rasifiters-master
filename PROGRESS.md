@@ -28,14 +28,18 @@ deferred. Nothing deployed yet.
    [`specs/features/auth/SPEC.md`](specs/features/auth/SPEC.md) v0.1.0 (decisions D-C1 whole-module scope /
    D-C2 JWKS+per-request DB-lookup verify / D-C3 clients-unchanged proxy / D-S1 faithful; flagged F1–F7).
    Registry + COVERAGE ticked.
-2. **NEXT — port the backend into `apps/backend/`** as a faithful 1:1 from `../backend`, applying the
-   §7 migration delta: replace `authenticateToken` with Supabase-JWT (JWKS) verify + `sub`→`auth_user_id`
-   lookup; make `/login` resolve username→primary-email then proxy Supabase sign-in; proxy
-   `/refresh` + `/logout` to Supabase; route `/register` `/change-password` `/account` through the Supabase
-   admin API; keep `member_credentials`/`refresh_tokens` out (retired). Spec the remaining backend
-   features (members, programs, logs, …) via `question-asker` as they're ported.
-3. Provision the Railway service (`deploy` skill) once the backend has code; deploy + smoke-test the
-   signed-in path against the migrated data.
+2. ~~Port the backend foundation + `auth` feature into `apps/backend/`.~~ **DONE 2026-06-28** — data
+   layer (13 models + index, `config/database.js`→`DATABASE_URL`, response/errorHandler) + auth slice
+   (`config/supabase.js`, JWKS-verify `middleware/auth.js`, `services/authService.js`, `routes/auth.js`,
+   `server.js` mounting only `/api/auth`). `npm install` + boot-check pass. **Two follow-ups carried**
+   below (`/account` 501; asymmetric JWT keys).
+3. **NEXT — provision Railway + deploy the auth backend** (`deploy` skill): set `DATABASE_URL` +
+   `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY`, **migrate the Supabase project's JWT
+   signing keys to asymmetric (ECC P-256)** so JWKS verify finds a key, then smoke-test the real
+   login→verify→refresh→logout path against the migrated data (e.g. the `admin` placeholder account).
+4. Then spec + port the remaining backend features (members, programs, logs, …) via `question-asker`,
+   mounting each route group as it lands; wire the deferred `DELETE /account` cascade when
+   program-memberships + notifications are ported.
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -49,8 +53,10 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 3. [x] **Migrator** (`tools/migrator/`) — BUILT + EXECUTED against Supabase 2026-06-28. Preserved
        `members.id` UUIDs, imported bcrypt hashes → `auth.users` (48/48), backfilled `members.auth_user_id`,
        idempotent re-runnable sync. Schema in `apps/backend/sql/001_schema.sql` (applied). _DONE._
-4. [ ] **`backend`** — point Express at Supabase, swap auth middleware to verify Supabase JWTs (proxy
-       login/refresh/logout), deploy to Railway. Spec features as we go.
+4. [~] **`backend`** — point Express at Supabase, swap auth middleware to verify Supabase JWTs (proxy
+       login/refresh/logout), deploy to Railway. Spec features as we go. _Auth feature SPEC'd (v0.1.0) +
+       PORTED to `apps/backend/` 2026-06-28 (foundation + `/api/auth`); Railway deploy + remaining
+       features pending._
 5. [ ] **`web`** — feature/page by feature/page (`question-asker` → spec → port code → `deploy` to Vercel
        temp domain). Proves the auth path end-to-end.
 6. [ ] **`ios`** — feature/screen by feature/screen.
@@ -68,9 +74,27 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   placeholder (`<username>@no-email.rasifiters.com`). Affects exactly 1 row (the `admin` account); keeps
   admin able to sign in. Implemented in `tools/migrator/`.
 - **iOS auth approach:** backend-proxy (clients ~unchanged) vs embed `supabase-swift`. Leaning proxy.
+- **`DELETE /api/auth/account` returns 501** in the ported backend — the faithful cross-feature delete
+  cascade (invites/notifications/membership-exit) is owned by the program-memberships + notifications
+  features (SPEC D-C1); wire it when those are ported. Temporary implementation gap, not a spec change.
+- **Supabase JWT signing keys must be asymmetric (ECC P-256/ES256)** for the JWKS verify path (D-C2) to
+  work; migrate them in the Supabase dashboard (Auth → JWT Keys) before/at the Railway deploy. Resolve at
+  cutover.
 
 ## Session log (newest first)
 
+- **2026-06-28 (pm-5)** — **Ported the backend foundation + `auth` feature** into `apps/backend/`. Data
+  layer (faithful 1:1 via a subagent): `config/database.js` (`DB_URL`→`DATABASE_URL`, kept
+  `rejectUnauthorized:false` per F6), 13 models + `models/index.js` with the R1 deltas
+  (`Member.auth_user_id` added; `member_credentials`/`refresh_tokens` models + associations dropped),
+  `utils/response.js`, `middleware/errorHandler.js`. Auth slice (hand-written per SPEC §7):
+  `config/supabase.js` (anon + service clients + `verifySupabaseJwt` via jose JWKS), `middleware/auth.js`
+  (Supabase-JWT verify + `sub`→`auth_user_id` member lookup rebuilding the legacy `req.user`; authz gates
+  unchanged), `services/authService.js` (proxy login/refresh/logout via Supabase, register/change-password
+  via admin API; `/account` deferred → 501), `routes/auth.js` (faithful), `server.js` (mounts only
+  `/api/auth`). `package.json` drops `jsonwebtoken`/`bcrypt`, adds `@supabase/supabase-js`+`jose`+`uuid`.
+  `npm install` + boot-check pass (syntax, module load, models wired, jose JWKS wire reached). Next:
+  Railway deploy (needs asymmetric Supabase JWT keys + env) and the remaining backend features.
 - **2026-06-28 (pm-4)** — **Specced the backend `auth` feature** (first SPEC in the repo) via
   `question-asker`. 3 parallel Explore agents mapped the legacy auth (route+service · middleware+authz ·
   models+config); re-read `authService.js`/`middleware/auth.js`/`routes/auth.js` in full to verify every
