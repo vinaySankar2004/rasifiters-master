@@ -20,8 +20,9 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
 | `workout-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
 | `daily-health-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [health half], `services/logService.js` [health half + `parseOptionalNumber`], `models/DailyHealthLog.js`) | [daily-health-logs/SPEC.md](daily-health-logs/SPEC.md) |
-| `analytics` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v1 half], `services/analyticsService.js` [v1 + shared helpers], `utils/{dateRange,queryHelpers}.js`) | [analytics/SPEC.md](analytics/SPEC.md) |
+| `analytics` | 0.1.1 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v1 half], `services/analyticsService.js` [v1 + shared helpers], `utils/{dateRange,queryHelpers}.js`) | [analytics/SPEC.md](analytics/SPEC.md) |
 | `analytics-v2` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v2 half], `services/analyticsService.js` [v2 fns]) | [analytics-v2/SPEC.md](analytics-v2/SPEC.md) |
+| `member-analytics` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberAnalytics.js`, `services/memberAnalyticsService.js`, `services/analyticsService.js` [3 re-exported helpers]) | [member-analytics/SPEC.md](member-analytics/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the
@@ -73,4 +74,15 @@ v1 summary, so `getSummaryV2` is dead); 5 live routes at `/api/analytics-v2` (pa
 workout-type aggregates), `consumed_by = [web, ios]` all 1:1, no divergence. Read-only verbatim otherwise
 (D-S1); `getParticipationMTDV2` is byte-identical to the v1 fn v1 dropped (now live), and
 `getHighestParticipationWorkoutType`'s member-scoped branch is dead (both clients call it program-wide). F1–F6.
+`member-analytics` (the per-member analytics surface) follows as **its own file pair** —
+`routes/memberAnalytics.js` (4 separate routers) + `services/memberAnalyticsService.js` (4 fns + helpers) —
+distinct from the analytics/analytics-v2 pair. 4 routes: `/api/member-metrics` (per-program member leaderboard:
+in-memory rollup → search/16-filter/sort), `/api/member-history` (single-member timeline), `/api/member-streaks`
+(streak + milestones), `/api/member-recent` (the workout-history read both clients use — why `workout-logs`
+dropped its 2 dead GETs). `consumed_by = [web, ios]` all 4 routes **1:1, no divergence**. Unlike v1/v2 it
+**enforces per-program read authz** (`ensureProgramAccess`, F1). Faithful verbatim except D-C2 (re-export the 3
+timeline helpers `resolveTimelineWindow`/`buildBuckets`/`bucketKey` from `analyticsService.js` — restoring the
+legacy export surface, a tiny additive change to `analytics`) + two cleanups: D-C3 (extract the shared
+requester-access prelude shared by history/streaks/recent, statuses 1:1) and D-C4 (guard null
+`program.start_date` in `getMemberStreaks`). No UTC cleanup (dates already UTC-correct). F1–F7.
 Next features are authored as the backend rebuild proceeds — see `PROGRESS.md`._

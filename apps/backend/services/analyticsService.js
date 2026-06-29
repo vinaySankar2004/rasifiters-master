@@ -593,5 +593,10 @@ module.exports = {
     getWorkoutTypesTotal,
     getMostPopularWorkoutType,
     getLongestDurationWorkoutType,
-    getHighestParticipationWorkoutType
+    getHighestParticipationWorkoutType,
+    // Shared timeline helpers re-exported for member-analytics (faithful restoration of the
+    // legacy export surface — consumed by services/memberAnalyticsService.js).
+    resolveTimelineWindow,
+    buildBuckets,
+    bucketKey
 };

@@ -30,11 +30,29 @@ deferred (no web code yet).
 
 ## Next action
 
-> **On "continue": spec + port `member-analytics`** via `question-asker` — the per-member analytics surface
-> (`routes/memberAnalytics.js` → `/api/member-metrics` · `/api/member-history` · `/api/member-streaks` ·
-> `/api/member-recent`; a separate file pair from `analytics`). `member-recent` is the workout/health history
-> read both clients use (it's why `workout-logs` dropped its 2 dead GETs). Then `app-config`/push. Each
-> backend commit auto-deploys to Render.
+> **On "continue": spec + port the remaining backend features** via `question-asker`, mounting each route
+> group in `server.js` as it lands. The obvious next is **`app-config` + push** — `GET /api/app-config`
+> (`min_ios_version`) is already served inline in `server.js:42-46`; the push/APNs device-token lifecycle
+> mostly landed with `notifications` (`PUT`/`DELETE /api/notifications/device`, APNs creds deferred D-C4).
+> Confirm what (if anything) of `app-config`/push remains to document/port, then proceed. Each backend
+> commit auto-deploys to Render.
+>
+> **`member-analytics` is DONE (ported 2026-06-29)** — the per-member analytics surface, **its own file pair**
+> `routes/memberAnalytics.js` (4 separate routers) + `services/memberAnalyticsService.js` (4 fns + helpers),
+> distinct from the analytics/analytics-v2 pair. 4 routes at `/api/member-{metrics,history,streaks,recent}`
+> (`getMemberMetrics` = per-program leaderboard with in-memory rollup → search/16-filter/sort; history =
+> single-member timeline; streaks = streak + milestones; recent = the workout-history read both clients use).
+> `consumed_by = [web, ios]` **all 4 routes 1:1, no divergence** (cleanest yet, like daily-health-logs).
+> **Enforces per-program read authz** (`ensureProgramAccess` — unlike v1/v2 which lacked it; now F1). Faithful
+> verbatim except **D-C2** (re-export the 3 timeline helpers `resolveTimelineWindow`/`buildBuckets`/`bucketKey`
+> from `analyticsService.js` — restores the legacy export surface our v1/v2 port omitted; single-sourced, not
+> duplicated; **touches the built `analytics` feature** → patch bump at commit) + 2 user-pinned cleanups:
+> **D-C3** (extract the shared requester-access + target-enrolled prelude shared by history/streaks/recent into
+> `assertMemberAccess` — 400/403/404 statuses preserved 1:1) + **D-C4** (guard null `program.start_date` in
+> `getMemberStreaks`, mirroring `getMemberMetrics`' guard; only the null-start_date 500 edge changes). **No UTC
+> cleanup** — dates already UTC-correct. F1–F7. Boot check passes (analyticsService re-exports the 3 helpers, 4
+> service fns export, 4 routers each `GET /` = `[authenticateToken, handler]`, server loads). **Runtime
+> smoke-test deferred to the batched pre-cutover pass.**
 >
 > **`analytics-v2` is DONE (ported 2026-06-29)** — the `v2Router` half (`/api/analytics-v2`) of the shared
 > `routes/analytics.js`/`analyticsService.js`, **appended to the same files `analytics` (v1) created** (both
@@ -210,11 +228,19 @@ deferred (no web code yet).
     mirror of v1's D-C2: both clients use the v1 summary; `getSummaryV2` dead). 5 live routes at
     `/api/analytics-v2`; `consumed_by = [web, ios]` all 1:1, no divergence. Faithful verbatim (D-S1); F1–F6.
     Boot check passes. **Runtime smoke-test pending.**
-15. **NEXT — spec + port the remaining backend features** (member-analytics, app-config/push…) via
-    `question-asker`, mounting each route group in `server.js` as it lands. Each backend commit auto-deploys to
-    Render (push to `main` touching `apps/backend/**`). `member-analytics` (`routes/memberAnalytics.js`) is a
-    **separate** file pair — `/api/member-metrics` · `/api/member-history` · `/api/member-streaks` ·
-    `/api/member-recent` (the last is the history read both clients use, why `workout-logs` dropped its 2 GETs).
+15. ~~Spec + port `member-analytics`.~~ **DONE 2026-06-29** — see
+    [`specs/features/member-analytics/SPEC.md`](specs/features/member-analytics/SPEC.md) v0.1.0 (🏗️ built). Its
+    **own file pair** — `routes/memberAnalytics.js` (4 separate routers) + `services/memberAnalyticsService.js`
+    (4 fns + helpers), distinct from analytics/analytics-v2. 4 routes at `/api/member-{metrics,history,streaks,
+    recent}`; `consumed_by = [web, ios]` all 4 routes 1:1, **no divergence**. **Enforces per-program read authz**
+    (`ensureProgramAccess`, F1 — unlike v1/v2). Faithful verbatim except **D-C2** (re-export the 3 timeline
+    helpers from `analyticsService.js` — restores the legacy export surface; touches the built `analytics`
+    feature → patch bump) + 2 cleanups **D-C3** (extract the shared access prelude) + **D-C4** (guard null
+    `start_date` in streaks). No UTC cleanup. Boot check passes. **Runtime smoke-test pending.**
+16. **NEXT — spec + port the remaining backend features** (app-config/push, …) via `question-asker`, mounting
+    each route group in `server.js` as it lands. Each backend commit auto-deploys to Render (push to `main`
+    touching `apps/backend/**`). `app-config` is partly live already (`GET /api/app-config` inline in
+    `server.js:42-46`); the push/APNs device lifecycle landed with `notifications` (APNs creds deferred D-C4).
 
 Re-run `tools/migrator/ → npm run migrate` right before cutover to sync any rows that changed on the legacy
 app in the meantime (it's the pre-cutover sync, idempotent).
@@ -240,7 +266,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Coverage snapshot
 
-- Shared features documented: **12** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
+- Shared features documented: **13** — `auth` (🚀 v0.2.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`) (see `specs/features/REGISTRY.md`)
 - Web page specs: **0** · iOS screen specs: **0** (see `specs/pages/REGISTRY.md`)
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
@@ -273,6 +299,35 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 
 ## Session log (newest first)
 
+- **2026-06-29 (am-5)** — **Specced + ported the `member-analytics` feature** (13th feature — the per-member
+  analytics surface; **its own file pair**, not the analytics/analytics-v2 pair). `question-asker`: read the
+  full legacy `routes/memberAnalytics.js` (4 routers) + `services/memberAnalyticsService.js` (4 fns + helpers)
+  in full; confirmed all 6 models pre-ported + the WorkoutLog↔ProgramWorkout default-alias association; found
+  the **one porting wrinkle** — the service imports `resolveTimelineWindow`/`buildBuckets`/`bucketKey` from
+  `analyticsService`, which legacy exported but our v1/v2 port left un-exported (no consumer yet). Fanned 2
+  `Explore` agents over web + iOS consumption — **they agree exactly:** all 4 endpoints live on BOTH clients
+  1:1, **no divergence, no dead routes** (`member-recent` is the shared workout-history read — why workout-logs
+  dropped its 2 GETs; metrics is dual-use leaderboard + member card on both). Noted this feature **enforces
+  per-program read authz** (`ensureProgramAccess`) — the very thing v1/v2 flagged absent (their F2). 6 decisions:
+  **D-C1** scope = its own file pair; **D-C2** (user chose faithful) **re-export the 3 timeline helpers from
+  `analyticsService.js`** (restore the legacy export surface; single-sourced, not duplicated — `depends_on:
+  analytics`); **D-C3 + D-C4** (user pinned both cleanups) **C1** extract the shared requester-access +
+  target-enrolled prelude shared by history/streaks/recent into `assertMemberAccess` (400/403/404 statuses
+  preserved 1:1; metrics keeps its own inline checks/distinct message) + **C2** guard a null
+  `program.start_date` in `getMemberStreaks` (mirrors `getMemberMetrics`' guard; only the null-start_date 500
+  edge changes); **D-REF** `[web, ios]` 4 routes 1:1; **D-S1** faithful verbatim otherwise — **no UTC cleanup**
+  (dates already UTC-correct, `T00:00:00Z` + `getUTC*`, unlike v1). Flagged F1–F7 (per-program read authz
+  enforced; `current` streak not anchored to today; in-memory metrics filter/sort/no-pagination; possibly-unused
+  rich fields; null sleep/food coerced to 0; synthetic recent id; MTD-within-range/UTC). Wrote SPEC v0.1.0;
+  registered in registry.json (`depends_on:[auth, analytics, members, programs, program-memberships,
+  program-workouts, workout-logs, daily-health-logs]`) + REGISTRY.md + COVERAGE. Then **ported**: re-added the
+  3 helpers to `analyticsService.js`'s `module.exports` (D-C2), `services/memberAnalyticsService.js` (4 fns +
+  helpers + `assertMemberAccess`, the start_date guard), `routes/memberAnalytics.js` (4 routers, verbatim),
+  mounted the 4 `/api/member-*` routers in `server.js` (removed the placeholder comment). Boot check
+  (analyticsService re-exports the 3 helpers, 4 service fns export, 4 routers each `GET /` =
+  `[authenticateToken, handler]`, server loads; syntax clean) passes. **The D-C2 re-export touches the built
+  `analytics` feature → patch bump at commit** (git-version detects analyticsService.js touched). **Runtime
+  smoke-test deferred to the batched pre-cutover pass.** Next: `app-config`/push.
 - **2026-06-29 (am-4)** — **Specced + ported the `analytics-v2` feature** (12th feature — the v2 half of the
   shared `routes/analytics.js`/`analyticsService.js` file pair; the file pair is now whole, like the logs +
   workout services). `question-asker`: read the full legacy v2 half of `analyticsService.js` (`getSummaryV2` +

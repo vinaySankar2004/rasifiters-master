@@ -17,9 +17,14 @@ const workoutRoutes = require("./routes/workouts");
 const programWorkoutRoutes = require("./routes/programWorkouts");
 const { workoutLogRouter, dailyHealthLogRouter } = require("./routes/logs");
 const { v1Router: analyticsV1Routes, v2Router: analyticsV2Routes } = require("./routes/analytics");
+const {
+    metricsRouter: memberMetricsRoutes,
+    historyRouter: memberHistoryRoutes,
+    streaksRouter: memberStreaksRoutes,
+    recentRouter: memberRecentRoutes
+} = require("./routes/memberAnalytics");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
-// documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/. Remaining legacy mounts:
-//   /api/member-metrics /api/member-history /api/member-streaks /api/member-recent
+// documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/.
 
 const app = express();
 
@@ -57,6 +62,10 @@ app.use("/api/workout-logs", workoutLogRouter);
 app.use("/api/daily-health-logs", dailyHealthLogRouter);
 app.use("/api/analytics", analyticsV1Routes);
 app.use("/api/analytics-v2", analyticsV2Routes);
+app.use("/api/member-metrics", memberMetricsRoutes);
+app.use("/api/member-history", memberHistoryRoutes);
+app.use("/api/member-streaks", memberStreaksRoutes);
+app.use("/api/member-recent", memberRecentRoutes);
 
 app.get("/api/test", (req, res) => {
     res.json({
