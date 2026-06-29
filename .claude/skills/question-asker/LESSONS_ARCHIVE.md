@@ -586,3 +586,56 @@ header). Boot check: `node --check server.js` OK; `normalizeMinIosVersion` verif
 `1.2.3`/`2`, rejects `v1.2`/`latest`/empty → `null`). Registered in registry.json + REGISTRY.md + COVERAGE
 (backend section now fully ticked). Runtime smoke-test deferred to the batched pre-cutover pass. **Backend
 feature coverage complete (14 features); next phase is `web`.**
+
+---
+
+## Run 15 — `splash` (web page) — the FIRST page/screen spec (2026-06-29)
+
+**Phase flip: feature SPECs → page/screen SPECs.** With backend feature coverage closed (14 features), this
+is the first run under the **page/screen template** (§0), not the feature template. The §0 sections (identity,
+why, route, contents-with-`file:line`, components+features-consumed, data/API, **role-based view rules**,
+states/edge-cases, §9/§10/§11) all apply; the §9/§10 question loop is shared with feature runs.
+
+**A trivial public leaf page collapses to the 2-Q tight shape — and that's correct, don't manufacture more.**
+Splash is a 108-line public page: typewriter intro + `BrandMark` + Sign-in CTA → `/login`, with an
+authenticated→`/programs` redirect. It makes **no API call** (consumes only the foundation `useAuth`). The
+genuinely-open decisions were exactly two: **stance** (faithful) and **the cross-app brand divergence**. No
+scope-cut question (a leaf page owns itself — there's no module boundary to draw), no borderline-UI question
+(every control does something). Counting real decisions beat padding to the canonical 3.
+
+**Role-based view rules can be legitimately N/A — but you still fill the dimension.** Splash is pre-auth, so
+there is no role when it renders. Rather than skip §7, state it explicitly: a one-row "unauthenticated (any
+visitor)" + "any authenticated role → redirected to `/programs`" table, and note `admin_only_data_entry` is
+irrelevant. The mandatory dimension is *answered* (N/A with the reason), not omitted.
+
+**Cross-app divergence is still the signature decision on a leaf page — and "flag it as a defect on the OTHER
+client" is a distinct answer from "keep as-is".** Web renders the real `BrandMark` (`app-icon.png`); iOS
+`SplashView.swift:113-128` renders a placeholder (orange circle + `chart.bar.fill`, accessibility-labeled
+"Brand icon placeholder"). The user chose **keep web's real logo (faithful) AND mark the iOS placeholder a
+bug to reconcile at the iOS splash port** — so D-REF records "web wins on the brand mark" and F3 is a
+**rebuild-cleanup = yes (iOS defect)**, not the usual "kept, faithful". Page-spec divergences can be one-client
+defects, tracked as forward open-items for the other client's port, without changing the web port. Two more
+divergences kept as plain faithful characteristics: F1 (the authenticated→programs redirect is web-only — iOS
+routes signed-in users at the app root) and F4 (42 ms vs 55 ms type speed, cosmetic).
+
+**Page-spec-specific flagged characteristics: the "no loading gate" flash.** The typewriter `useEffect` runs
+on mount unconditionally while the redirect waits for `!isBootstrapping` — so a returning authenticated user
+briefly glimpses the intro before redirect (F2). This is the page-spec analogue of a backend "vestigial
+behavior" flag: a faithful cosmetic oddity, rebuild-candidate (gate render on `isBootstrapping`). Also note
+**forward dependencies** explicitly in §8 — splash links to `/login` + redirects to `/programs`, neither built
+yet (first page of the auth path); that's expected, not a gap.
+
+**Foundation is ported directly, NOT via question-asker.** Before this run, the web foundation scaffold
+(config + all `src/lib/*` + globals + providers + layout + shell + middleware + icons) was ported as
+infrastructure (mirrors the backend foundation port) — question-asker is for *pages*. Two foundation seams
+that became this run's context (stated, not re-asked): the `NotificationsGate` deferred stub (returns null
+until the web notifications feature lands) and the `src/middleware.ts` HS256→ES256 incompatibility (inert —
+no protected routes exist yet; open decision for the auth-path SPEC). The auth-path middleware decision is the
+real one looming for the `/programs` / login runs.
+
+**Port + build check:** wrote `specs/pages/web/splash/SPEC.md` (the first page spec) + ported
+`src/app/splash/page.tsx` + `src/components/BrandMark.tsx` verbatim. `npm run build` ✓ (`/splash` route
+prerendered). Registered in `specs/pages/REGISTRY.md` (web table) + COVERAGE (public row → `[~]`, splash
+ticked). Decisions: **D-REF** (`consumed_by=[web]`; iOS placeholder divergence) · **D-S1** (faithful 1:1, no
+code changes). Flagged F1–F4. Next: `login` (where the auth-path middleware + the real auth round-trip get
+exercised).
