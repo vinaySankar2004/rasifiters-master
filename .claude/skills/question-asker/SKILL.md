@@ -315,7 +315,26 @@ directly as a faithful port from the legacy reference app** — there is no inte
   half may need **fewer** cleanups than the first — mirror the *drop*, not reflexively the cleanups. And when an
   earlier feature dropped fn X as dead while the sibling reinstates a byte-identical copy under a different
   name/route that IS live (run 12: `getParticipationMTDV2` ≡ the dropped v1 `getParticipationMTD`), that's
-  faithful — flag the two-names-one-body dup, don't re-drop it.
+  faithful — flag the two-names-one-body dup, don't re-drop it. **(d) The RE-EXPORT wrinkle — the inverse of
+  the file-pair split (run 13).** When an earlier feature ported a shared service file and trimmed internal
+  helpers from its `module.exports` because *nothing consumed them yet* (correct then — v1/v2 analytics dropped
+  `resolveTimelineWindow`/`buildBuckets`/`bucketKey`), a LATER **separate-file-pair** feature that `require`s
+  those helpers from the sibling gets `undefined` → runtime crash. The faithful fix is to **re-add the names to
+  the sibling's exports** (restore the legacy export surface) — single-sourced, NOT duplicated into the new file
+  (byte-dup / drift). It's a tiny additive NON-behavioral change to an already-built feature → a touched file at
+  commit + a **patch bump** on that sibling. Detect early: in the opening sweep, grep the target service's
+  cross-service `require`s and confirm each imported name is actually exported by the *ported* sibling, not just
+  the legacy one. Offer "re-export (faithful, single-sourced) vs duplicate locally"; re-export leads.
+- **Sibling read features need NOT share the same authz posture — check each (run 13).** v1/v2 analytics are
+  `authenticateToken`-only (no per-program read gate, their F2); `member-analytics` enforces `ensureProgramAccess`
+  on every route. Don't assume a neighboring analytics/read feature's authz stance carries over; here it flipped
+  absent→enforced, recorded as the *secure* characteristic (F1), kept as-is. And (reinforces run 9) **don't
+  de-dup checks that target DIFFERENT entities**: `ensureProgramAccess` gates the REQUESTER while a separate
+  `ProgramMembership.findOne` verifies the TARGET `memberId` is enrolled (404) — they look like a double-lookup
+  but check different members; the safe cleanup extracts the *repeated 400/403/404 prelude* (keeping both
+  lookups), it does not merge the two queries. Exclude any sibling fn with a different shape / distinct error
+  message from the extraction (run 13: `getMemberMetrics`' "Program membership required." vs the single-member
+  "Active program membership required.").
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

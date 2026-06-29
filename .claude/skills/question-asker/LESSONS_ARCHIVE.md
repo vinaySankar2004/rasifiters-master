@@ -476,3 +476,58 @@ abandoned, and the dead route can point EITHER direction. Confirm by sweeping fo
 overlapping endpoint, per client. Bonus: dropping the dead fn can also delete the only instance of an earlier
 half's cleanup class (here, the v2 summary held the sole TZ-bucketing site), so the second half may need
 **fewer** cleanups than the first, not the same set — don't reflexively mirror the cleanups, only the drop.
+
+## Run 13 — `member-analytics` (backend; the per-member analytics surface — its own file pair)
+
+**Target:** the per-member analytics read API — `routes/memberAnalytics.js` (4 separate routers:
+`metricsRouter`/`historyRouter`/`streaksRouter`/`recentRouter`, mounted `/api/member-{metrics,history,streaks,
+recent}`) + `services/memberAnalyticsService.js` (`getMemberMetrics`/`getMemberHistory`/`getMemberStreaks`/
+`getMemberRecentWorkouts` + helpers `ensureProgramAccess`/`computeStreaks`/`isInCurrentMonth`/`SORTABLE_FIELDS`/
+`milestonesList`). A **separate file pair** from analytics/analytics-v2 (one COVERAGE row).
+
+**Sweep:** read both legacy files in full. All 6 models pre-ported; WorkoutLog↔ProgramWorkout uses the default
+alias (so `.ProgramWorkout` accessor + `order:[[ProgramWorkout,"workout_name",dir]]` work). 2 `Explore` agents
+(web + iOS) agreed **exactly**: all 4 endpoints live on BOTH clients 1:1, **no divergence, no dead routes**
+(`member-recent` is the shared workout-history read — the one that made workout-logs drop its 2 GETs; `member-
+metrics` is dual-use leaderboard + single-member card on both, via optional `memberId`). All sort/filter
+delegated to the backend on both clients.
+
+**Decisions:** D-C1 scope = its own file pair. D-C2 (user chose faithful) re-export the 3 timeline helpers from
+`analyticsService.js`. D-C3 + D-C4 (user pinned both via the cleanup multiSelect) = C1 extract the shared
+requester-access prelude for history/streaks/recent into `assertMemberAccess` + C2 guard null
+`program.start_date` in `getMemberStreaks`. D-REF `[web, ios]` 4 routes 1:1. D-S1 faithful verbatim otherwise;
+no UTC cleanup (dates already UTC-correct). F1–F7.
+
+**New durable lesson — the RE-EXPORT wrinkle (the inverse of the file-pair-split lesson).** When an earlier
+feature ports a shared service file and trims internal helpers from its `module.exports` because *nothing
+consumed them yet* (correct at the time — v1/v2 analytics dropped `resolveTimelineWindow`/`buildBuckets`/
+`bucketKey` from exports), a LATER separate-file-pair feature that `require`s those helpers from the sibling
+will get `undefined` → runtime crash. The faithful fix is to **re-add the names to the sibling's exports**
+(restoring the legacy export surface) — single-sourced, NOT duplicated into the new file (a byte-dup / drift
+risk). This is a tiny, additive, NON-behavioral change to an already-built feature → it shows up as a touched
+file at commit and warrants a **patch bump** on that sibling. Detect it early: in the opening sweep, grep the
+target service's cross-service `require`s and confirm each imported name is actually exported by the *ported*
+sibling (not just the legacy one). Surface "re-export (faithful, single-sourced) vs duplicate locally" as a
+decision; the re-export is the lead.
+
+**Reinforced — sibling read features need NOT share the same authz posture.** v1/v2 analytics are
+`authenticateToken`-only (their F2 = no per-program read gate); `member-analytics` enforces `ensureProgramAccess`
+(global-admin OR active membership) on every route. Don't assume a neighboring analytics feature's authz stance
+carries over — check each; here it flips from absent → enforced, recorded as the *secure* characteristic (F1),
+kept as-is.
+
+**Reinforced (run 9) — don't de-dup checks that target DIFFERENT entities.** Each single-member fn calls
+`ensureProgramAccess` (gates the REQUESTER) then a separate `ProgramMembership.findOne` (verifies the TARGET
+`memberId` is enrolled → 404). They look like a redundant double-lookup but check different members — collapsing
+them would be a correctness regression. So C1 (D-C3) extracts the *shared 3-step prelude* (which keeps BOTH
+lookups, just unifies the repeated 400/403/404 sequence across history/streaks/recent) — it does NOT merge the
+two membership queries. `getMemberMetrics` was excluded from the extraction (different shape: program-wide,
+optional `memberId`, its own `Program.findOne`, and a distinct 403 message "Program membership required." vs the
+single-member "Active program membership required.").
+
+**Port + boot check:** re-added the 3 helpers to `analyticsService.js` exports; wrote `memberAnalyticsService.js`
+(verbatim + `assertMemberAccess` + the start_date guard) + `routes/memberAnalytics.js` (verbatim) + the 4
+`server.js` mounts. Boot check: analyticsService re-exports the 3 helpers (OK), 4 service fns export (OK), 4
+routers each `GET /` = `[authenticateToken, handler]` (OK), server.js fully loads (only the bogus-DB connect
+fails at runtime, as expected), syntax clean on all 4 files. Runtime smoke-test deferred to the batched
+pre-cutover pass.
