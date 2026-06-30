@@ -10,12 +10,15 @@ intended change is the auth path (Supabase-issued tokens via the backend proxy).
 - Architecture: MVVM via one central `ProgramContext` ObservableObject (extended by feature categories)
 - Tokens in **Keychain**; session metadata in UserDefaults
 - Real-time: Server-Sent Events stream; Push: APNs
-- Bundle id: `com.vinayaksankaranarayanan.RaSi-Fiters-App` · URL scheme `rasifiters://`
+- Bundle id: `com.app.rasifiters` (app) · `com.app.rasifiters.widgets` (widgets) · URL scheme `rasifiters://`
+- Version (faithful copy): marketing **1.3.0**, build **40** (widgets 1.2.0/25). The user bumps the version
+  **one higher at TestFlight push time** — the scaffold stays at the legacy version.
 
 ## Targets
-- **RaSi-Fiters-App** — the main app (~79 Swift files in the legacy app).
+- **RaSi-Fiters-App** — the main app (78 Swift files in the legacy app; 41 foundation files in the scaffold).
 - **RaSi-Fiters-App-Widgets** — home-screen widgets: quick-add workout (`rasifiters://quick-add-workout`)
-  + quick-add health (`rasifiters://quick-add-health`).
+  + quick-add health (`rasifiters://quick-add-health`). Self-contained `WidgetKit` extension (no app-code
+    deps) — copied verbatim and kept in the scaffold.
 
 ## Surface (screens, from the legacy app)
 Splash · Login · CreateAccount · ProgramPicker · AdminHome (Summary / Members / Lifestyle / Program tabs,
@@ -23,12 +26,54 @@ admin + standard variants) · member detail/metrics/streaks/history · Settings 
 appearance / notifications) · widget entry views · notification modal.
 
 ## Auth (client side)
-- **Leaning:** keep the existing Keychain + APIClient networking and have the **backend proxy** issue
-  Supabase tokens (clients change minimally) rather than embedding `supabase-swift`. Confirm + lock in the
-  iOS `auth` SPEC (open follow-up in `ICM.md`).
+- **Locked (de-risked by web):** keep the existing Keychain + APIClient networking and have the **backend
+  proxy** issue Supabase tokens — clients change minimally, no `supabase-swift`. The web surface PROVED this
+  exact path live on `rasifiters.com`, so the only client change is the API base URL (see §Foundation port).
+  Formally transcribed into the iOS `auth` SPEC when the auth screens are ported (question-asker).
+
+## Foundation port (run 50, 2026-06-30)
+
+The iOS kickoff mirrors the web foundation scaffold: port the page-independent infra directly (NOT via
+question-asker — that loop is for screens), get it building green, then port feature screens one-by-one.
+
+**What was ported (faithful 1:1 copy of the legacy Xcode project):** the whole `RaSi-Fiters-App.xcodeproj`
+(folder-synchronized groups, same bundle ids, same version) + the foundation sources — `App/`
+(`RaSi_Fiters_AppApp`, `AppDelegate`, `AppRootView`), `Config/APIConfig`, `Shared/Services/*` (APIClient +
+all 9 category extensions, `KeychainService`, `SessionStore`, `NotificationStreamClient`, `ShareSheet`),
+`Shared/Theme/*`, `Shared/Models/*` (`ProgramContext` + 8 extensions, `AuthResponse`, `AnalyticsSummary`),
+`Shared/Components/*`, `Shared/Views/NotificationModalView` (incl. `ForcedUpdateModalView`), `Assets.xcassets`,
+`Info.plist`, `.entitlements` — plus the self-contained `RaSi-Fiters-App-Widgets` extension verbatim.
+
+**Deviations (all migration-justified):**
+1. **API base URL** — `APIConfig.renderBaseURL` repointed `rasi-fiters-api.onrender.com` → the new
+   `rasifiters-api.onrender.com/api` (the Supabase-Auth proxy backend; matches the web prod API). The one
+   auth-path change. `simulatorBaseURL`/`deviceBaseURL` (local dev) kept as-is.
+2. **`Features/` deferred** — all 37 feature-screen files were removed; they are ported per-screen via
+   question-asker in later runs (auth splash/login/create-account first). The legacy originals stay readable
+   at `../../../ios-mobile/RaSi-Fiters-App/Features/**`.
+3. **`App/_DeferredScreenStubs.swift`** — the only foundation→feature coupling is `AppRootView`'s four view
+   instantiations (`SplashView`, `ProgramPickerView`, `QuickAddWorkoutWidgetEntryView`,
+   `QuickAddHealthWidgetEntryView`). This temp file provides minimal placeholder `View`s for exactly those
+   four so the scaffold compiles, keeping `AppRootView` itself **byte-faithful**. The iOS analogue of web's
+   `NotificationsGate` deferred stub — each stub is deleted when its real screen lands.
+4. **Stripped** `xcuserdata`/`*.xcuserstate`/`.DS_Store` from the copy; added `apps/ios/.gitignore`.
+
+**Build:** target = `RaSi-Fiters-App` scheme. See §Toolchain note below for the local Xcode caveat.
+
+### Toolchain note (local machine, 2026-06-30)
+This Mac's **Xcode 26.5** could not build from the CLI at scaffold time: (a) the **iOS 26.5 device platform
+was not installed** (`xcodebuild ... -downloadPlatform iOS` resolves this), and (b) the **CoreSimulator
+service had a version mismatch** (bundled `1051.54` vs stale launchd job `1051.17.7`) so xcodebuild
+enumerated **zero simulator destinations**. `xcodebuild -runFirstLaunch` fixed the `IDESimulatorFoundation`
+plugin load error. To restore simulator builds the user may need to **open Xcode.app once** (installs
+components) and/or **reboot** (clears the stale CoreSimulator launchd job). Green-check command once healthy:
+`xcodebuild -project apps/ios/RaSi-Fiters-App.xcodeproj -scheme RaSi-Fiters-App -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` (device, no signing) — or a simulator destination once enumerated.
 
 ## Deploy
-Xcode → TestFlight → App Store. App config (`min_ios_version`) served by the backend `/app-config`.
+Xcode → TestFlight → App Store (the user handles signing/upload). Bump the version one higher at push time.
+App config (`min_ios_version`) served by the backend `/app-config`.
 
 ## Status
-📄 not built — last in the build order (after `web` proves the auth path).
+🟡 **Foundation scaffold ported (run 50)** — Xcode project + foundation copied into `apps/ios`, API repointed,
+`Features/` deferred (4 stubbed). **Build-green pending the local Xcode toolchain fix** (see §Toolchain note).
+Next: port the auth screens (Splash · Login · CreateAccount) via question-asker.

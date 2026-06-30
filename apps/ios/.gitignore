@@ -1,0 +1,13 @@
+# Xcode build + user-specific state (RaSi Fiters iOS)
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcuserdatad/
+
+# macOS
+.DS_Store
+
+# Swift Package Manager
+.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+.build/

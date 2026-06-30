@@ -38,10 +38,11 @@ Legend: `[ ]` not yet documented · `[~]` SPEC in progress · `[x]` covered by a
   `https://rasifiters.com`**
 
 ## ios (SwiftUI) — `../ios-mobile`
-- [ ] auth: splash, login, create-account
+- [x] **foundation scaffold (run 50, 2026-06-30)** — Xcode project + `App`/`Config`/`Shared/{Services,Theme,Models,Components,Views}` copied verbatim into `apps/ios`, API repointed, `Features/` deferred (4 views stubbed in `App/_DeferredScreenStubs.swift`). Code-present, build green-check owned by the user (Xcode). See `apps/ios/CONTEXT.md` §Foundation port.
+- [ ] auth: splash, login, create-account ← **NEXT** (question-asker, per screen)
 - [ ] program picker + create/edit/invites
 - [ ] admin home tabs: summary, members, lifestyle/workout-types, program (admin + standard variants)
 - [ ] member detail: metrics, history, streaks, recent, health
 - [ ] settings: profile, password, appearance, notifications
 - [ ] widgets: quick-add workout, quick-add health
-- [ ] cross-cutting: ProgramContext state, APIClient + Keychain, SSE + push, version check
+- [~] cross-cutting: ProgramContext state, APIClient + Keychain, SSE + push, version check — **foundation infra ported (run 50)**; per-screen wiring lands with each feature

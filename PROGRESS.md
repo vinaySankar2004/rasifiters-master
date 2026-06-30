@@ -38,6 +38,27 @@ open). **The web app is DEPLOYED + LIVE on the custom domain `https://rasifiters
 auto-deploy on `main` wired (root `apps/web`, monorepo ignore-step), favicon/icons ported, smoke test green on the
 domain.** **Next: the `ios` (SwiftUI) surface — see COVERAGE `## ios`.** Foundation history below.
 
+**Phase 4 — `ios` (SwiftUI): STARTED — foundation scaffold ported (run 50, 2026-06-30).** Mirroring the web
+kickoff, the legacy Xcode project + page-independent foundation were copied **verbatim** into `apps/ios`
+(faithful 1:1; folder-synchronized groups, **same bundle ids** `com.app.rasifiters`/`.widgets`, **same version**
+1.3.0/40 — the user bumps +1 at TestFlight push time). Ported: `App/` (incl. byte-faithful `AppRootView`),
+`Config/APIConfig`, `Shared/Services/*` (APIClient + 9 extensions, Keychain, SessionStore, NotificationStream),
+`Shared/Theme/*`, `Shared/Models/*` (ProgramContext + 8 extensions), `Shared/Components/*`,
+`Shared/Views/NotificationModalView`, `Assets.xcassets`, `Info.plist`, `.entitlements`, + the self-contained
+`RaSi-Fiters-App-Widgets` extension. **Deviations (logged in `apps/ios/CONTEXT.md` §Foundation port):** (1)
+`APIConfig.renderBaseURL` repointed to the new `rasifiters-api.onrender.com/api` (the auth-path change — matches
+web prod); (2) all 37 `Features/` screen files **deferred** (ported per-screen via question-asker, auth first);
+(3) `App/_DeferredScreenStubs.swift` — minimal placeholders for the only 4 feature views `AppRootView` references
+(`SplashView`/`ProgramPickerView`/`QuickAddWorkout|HealthWidgetEntryView`), the iOS analogue of web's
+`NotificationsGate` stub; (4) stripped `xcuserdata`/`.DS_Store`, added `apps/ios/.gitignore`. **The iOS auth path
+the CONTEXT only *leaned* toward is now LOCKED (web proved it live): backend proxies Supabase tokens, clients
+change minimally — only the API base URL.** **Build:** the self-contained Widgets target compiles clean (Swift
+toolchain verified); the **app target's full build green-check is owned by the user (visual run in Xcode)** — the
+local CLI build is blocked only by an Xcode-install quirk (stale CoreSimulator service can't expose the new iOS
+26.5 simulator runtime → `actool` asset-catalog failure), NOT by the ported code. See `apps/ios/CONTEXT.md`
+§Toolchain note + memory [[ios-user-verifies-builds-visually]]. **Next: port the auth screens (Splash · Login ·
+CreateAccount) via `question-asker`.**
+
 **Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
 `npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
 providers, edge middleware). Ported the shared page-independent infra directly (not via `question-asker` —
@@ -61,7 +82,17 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → START THE `ios` (SwiftUI) SURFACE — the web app is LIVE on `rasifiters.com`; web surface CLOSED
+> ### ⏭️ ON "continue" → PORT THE iOS AUTH SCREENS (Splash · Login · CreateAccount) via `question-asker`
+> **The iOS foundation scaffold is DONE (run 50, 2026-06-30)** — Xcode project + foundation copied into
+> `apps/ios`, API repointed to `rasifiters-api.onrender.com/api`, `Features/` deferred (4 views stubbed), auth
+> path locked. See the **Phase 4** entry above + `apps/ios/CONTEXT.md` §Foundation port. **NEXT = port the auth
+> screens** — reference impl `../ios-mobile/RaSi-Fiters-App/Features/{Onboarding/SplashView, Auth/LoginView,
+> Auth/CreateAccountView}.swift`; run the `question-asker` loop per screen, port faithfully (deleting the matching
+> stub in `App/_DeferredScreenStubs.swift` as each lands), and write the iOS `auth` SPEC. **The user verifies the
+> build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI toolchain.
+> The pre-iOS web/deploy context is retained below for reference.
+>
+> ### (history) Web surface CLOSED + LIVE on `rasifiters.com`
 > **The web app is DEPLOYED + LIVE on the custom domain `https://rasifiters.com` (run 49 + domain cutover,
 > 2026-06-29).** Project **`rasifiters`** (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak` =
 > `team_VWBSWxM5pHvWjCraHUWB73v5`), apex 308→`www.rasifiters.com`; also at `https://rasifiters.vercel.app`. **The
