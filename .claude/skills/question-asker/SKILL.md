@@ -585,6 +585,16 @@ directly as a faithful port from the legacy reference app** — there is no inte
   selection; an admin landing here directly sees program-wide. The tell (run-27/31 axis): absence of both a picker
   AND an admin-redirect `useEffect`. And it CLOSES the group (run-30 corollary): flip COVERAGE `[~]`→`[x]`, say so
   in D-SCOPE + PROGRESS.
+- **Run 33 — a near-twin chart drill-down can be SIMPLER than its twin; copy the decision shape, then SUBTRACT the
+  twin-specific cleanups.** `summary/activity` (first `/summary` sub-route) reused `lifestyle/timeline`'s shape
+  (purest deps — no new dependency; faithful + chart cleanups) but is **program-wide** (no view-as picker, no
+  `memberId`, no role logic at all — the run-22/32 read-only-dashboard axis) and **same-unit** (both series are
+  counts). So the run-32 **dual-Y-axis cleanup is declined** — a second axis is correct only when series share an
+  axis but NOT a unit (timeline: sleep-hrs vs diet-1–5); same-unit series belong on one shared axis. Don't
+  reflexively port a twin's cleanup list — re-test EACH against THIS page (run-26's "don't offer a cleanup without a
+  clean basis", now applied to a twin's cleanups). The unit-agnostic clarity cleanups DO transfer (`<Legend>` +
+  series names so color-only-distinguished bars are labeled; the empty-state guard); the unit-specific one
+  (dual-axis) does not. Recognize the twin to go fast, then subtract what doesn't apply.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

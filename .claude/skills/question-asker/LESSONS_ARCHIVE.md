@@ -1507,3 +1507,45 @@ D-C4 axis unit labels.
 PROGRESS ticked. `npm run build` ✓ (`/lifestyle/timeline` 2.68 kB; Recharts shared; Middleware 27.4 kB active). **No
 feature bump, one verbatim chrome-leaf dep.** **Next:** the 8 deferred `/members` and/or 6 deferred `/summary`
 sub-routes (the `/lifestyle` group is now done).
+
+---
+
+## Run 33 — `summary/activity` (web page; first of the 6 deferred `/summary` sub-routes)
+
+**Target:** the **workout activity timeline** detail behind the summary landing's Activity chart card — a
+`PeriodSelector` (W/M/Y/P) over one `GlassCard` (range + daily-average header + a `BarChart` of workouts +
+active-members per bucket, over `workout_logs` via `GET /analytics/timeline`).
+
+**Sweep finding:** the purest sub-route shape and a **near-twin of `lifestyle/timeline` (run 32) — but SIMPLER**.
+No view-as picker, no `memberId` → **program-wide only**; `useAuthGuard()` default, **no role logic at all** (the
+ABSENCE of role-conditional UI is the finding). Every import already ported (`fetchActivityTimeline` byte-identical
+at `lib/api/summary.ts:129`, landed with the summary landing run 21; `PeriodSelector` landed with timeline run 32;
+chrome + chart-theme earlier) → **D-DEPS = no new dependency**; the sweep ported nothing but the page itself.
+Backend `GET /api/analytics/timeline` already mounted (`routes/analytics.js:60`, `authenticateToken`-only) → zero
+backend work, no feature bump.
+
+**Decision (tight, 1 question):** scope/deps/role all code-answered → the only open call was the **stance**. User
+took **faithful + 2 chart cleanups**: D-C1 `<Legend>` + series names (`name="Workouts"`/`name="Active members"`;
+tooltip formatter keys off `name`) so the two color-only-distinguished bars are labeled; D-C2 empty-state guard
+(`buckets.length===0` → "No data for this range yet."). Both mirror run-32 timeline.
+
+**The KEY refinement (promoted):** the run-32 dual-Y-axis cleanup is **twin-SPECIFIC, not a default** — I
+deliberately did NOT offer it here because both series are **counts** (same unit), so a single shared Y-axis is
+correct; a second axis would be misleading. The dual-axis is the answer only when series share an axis but NOT a
+unit (timeline: sleep-hrs vs diet-1–5). A near-twin can need FEWER cleanups than its twin — recognize the twin,
+then subtract the cleanups that don't apply.
+
+**New durable pattern (promoted to SKILL.md):**
+- **A near-twin chart drill-down can be SIMPLER than its twin — copy the decision shape, then SUBTRACT the
+  twin-specific cleanups.** `summary/activity` reused `lifestyle/timeline`'s shape (purest deps, faithful + chart
+  cleanups) but is program-wide (no picker/`memberId`) and same-unit (both series counts), so the dual-axis cleanup
+  is declined. Don't reflexively port a twin's cleanup list — re-test each against THIS page (run-26's "don't offer
+  a cleanup without a clean basis", applied to a twin's cleanups). The two clarity cleanups that DO carry — Legend +
+  series names, and the empty-state guard — are unit-agnostic, so they transfer; the dual-axis is unit-specific, so
+  it doesn't.
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-DEPS/D-S1/D-C1–C2; F1–F4). COVERAGE summary row updated (activity ✓; first of 6,
+group NOT closed) + PROGRESS prepended. `npm run build` ✓ (`/summary/activity` prerendered, 2.31 kB — smallest
+`/summary` route; Recharts shared 208 kB; Middleware 27.4 kB active). **No feature bump, no new dependency.**
+**Next:** `summary/distribution` (next chart drill-down), `workout-types`, the 3 mobile log fallbacks; and/or the 8
+deferred `/members` sub-routes.
