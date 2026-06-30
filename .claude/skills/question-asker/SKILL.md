@@ -896,6 +896,31 @@ directly as a faithful port from the legacy reference app** — there is no inte
   now stubbing 7 tab bodies); dep-purity by grep (`isProgramAdmin`/`adaptiveTint` foundation symbols + collision-free
   names); `admin_only_data_entry` N/A at a nav shell (a screen that does no data entry has the lock N/A — the read-vs-write
   axis); role rules code-answered by the `@ViewBuilder` Admin*/Standard* switches (stated, not asked).
+- **Run 54 — the first TAB BODY (`AdminSummaryTab`, iOS analogue of web `/summary`): a web-parity reconcile can be
+  a capability legacy iOS NEVER HAD (a missing feature, not a swallow-vs-surface tweak) sourced from the backend
+  payload + web's predicate; the file-pair split recurs at the CARD/DETAIL boundary; and a "faithful" stance means
+  REVERTING an over-eager de-dup.** Three durable patterns. **(a) A web-parity ADD can span 3 client layers and
+  source its truth from WEB, not legacy iOS.** Run-52's error banner was the swallow-vs-surface shape (iOS computes
+  `errorMessage` but hides it). Run-54's D-C2 data-lock is heavier: legacy iOS had **no lock notion at all** (grep
+  `Features/Home/` = zero refs; it relied on the backend 403). Adopting it = decode the field the backend already
+  returns (`ProgramDTO.admin_only_data_entry`) → add a context flag + computed (`adminOnlyDataEntry`/
+  `dataEntryLocked`) → render the UI (🔒 banner + dimmed cards), replicating **web's exact predicate**
+  (`flag && !isProgramAdmin`, from `lib/permissions.ts`), NOT inventing one. So when the behavior-diff sweep
+  (run-52) finds "web does X, iOS doesn't", X may be a whole missing feature — wire it across DTO→context→UI to
+  web's logic, and the SPEC's D-C cites the web permission helper as the source of truth. **(b) The file-pair split
+  (run 7) recurs at the CARD/DETAIL boundary, cross-platform.** Legacy bundled each summary `*Card` struct in the
+  SAME file as its expanded `*DetailView`; porting the dashboard = take the CARD half into the new files, leave the
+  DETAIL half as deferred stubs (the 5 detail views = the iOS analogues of web's `/summary` sub-routes). A generic
+  collision-risky helper pulled across (`ChartOverlay`) gets a disambiguating rename (`DistributionChartOverlay`) —
+  faithful, non-behavioral (the run-52 `StatusPill` collision-grep, now applied as a rename). **(c) "Faithful" means
+  REVERT an over-eager de-dup — keep the dup + flag it.** Mid-port I extracted the 4×-duplicated inline `changeBadge`
+  into a shared component; the user picked faithful, NOT change-now, so I reverted to the 4 inline copies + recorded
+  an F-row (rebuild-cleanup candidate). The de-dup is a USER-PICKED `D-C` (runs 22/45), never the author's reflex —
+  under faithful, port verbatim incl. the dup. Reconfirmed: scope-cut-IS-the-run for N deferred targets (run
+  21/50/52/53 — now 5 detail stubs); dep-purity by foundation Explore + grep; `admin_only_data_entry` decided per
+  page by read-vs-write (LIVE here — the landing has the log action cards); role rules same-for-all → stated not
+  asked; build owned by the user (Xcode), symbols grep-verified (each card/type once, theme/context/DTO resolve,
+  5 stubs collision-free).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

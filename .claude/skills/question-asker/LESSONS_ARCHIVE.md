@@ -2294,3 +2294,65 @@ verified via grep (exactly one `AdminHomeView`, each tab body once, `AdminHomeVi
 **Next:** port a TAB BODY — `AdminSummaryTab` (the dashboard cards, iOS analogue of web `/summary`) is the natural first — or
 the still-deferred picker targets (`ProgramActionsSheet`/`EditProgramInfoView`/the 4 account screens). Each tab body is its own
 "scope cut IS the run".
+
+---
+
+## Run 54 — `AdminSummaryTab` (the iOS Summary dashboard tab body; iOS analogue of web `/summary`)
+
+**Target:** the first TAB BODY of the run-53 home shell — Tab 1 "Summary". Legacy: a 228-line
+`Features/Home/Tabs/AdminSummaryTab.swift` + the 10 card structs inline in `Helpers/AdminHomeHelpers.swift`
+(2,659 LoC) + `Detail/WorkoutDistributionViews.swift` + `Detail/WorkoutTypesDetailViews.swift`. Ported into 3
+new files (`Tabs/{AdminSummaryTab,SummaryCards,SummaryChartCards}.swift`); the `AdminSummaryTab` stub removed;
+5 detail-view nav targets added as stubs.
+
+**The sweep (3 Explore agents): legacy iOS Summary cluster · web `/summary` SPEC parity baseline · iOS
+foundation dep-purity.** Findings: the analytics DATA layer is **fully ported** in the foundation (run 50) —
+`APIClient+Analytics` (13 fns + 15 DTOs), `ProgramContext+Analytics` (13 loaders + 30 props), the
+program-progress computeds — so the run is **UI-only**, but the UI is large (10 card structs + 5 detail views).
+
+**Decisions (one `AskUserQuestion`, 3 Qs — scope / web-parity multiSelect / stance):**
+- **D-SCOPE = the scope cut IS the run** — port the grid + all 10 cards (Swift Charts render live), **defer the
+  5 `NavigationLink` detail targets as `ScaffoldPlaceholder` stubs** (the iOS analogues of the web `/summary`
+  sub-routes, which were each their own run 33–38). Mirrors web's landing-vs-sub-routes split (run 21).
+- **D-REF = keep iOS-native** — a reorderable card grid + native drill-downs vs web's fixed grid + routes/modals
+  (platform idiom; the card set + MTD stats already match web).
+- **D-S1 = faithful 1:1 otherwise.**
+- **D-C1 (web-parity ADD) = visible error banner** — legacy set `errorMessage` but rendered it NOWHERE; web
+  shows `ErrorState`. The run-52 swallow-vs-surface mirror.
+- **D-C2 (web-parity ADD) = the `admin_only_data_entry` landing treatment** — 🔒 banner (verbatim
+  `DATA_LOCK_MESSAGE`) + dimmed/non-navigating log cards when `dataEntryLocked`. **Absent from legacy iOS
+  ENTIRELY** (grep `Features/Home/` = zero lock refs; legacy relied on the backend 403). Required adding
+  `ProgramDTO.admin_only_data_entry` decode + `ProgramContext.adminOnlyDataEntry`/`dataEntryLocked` (web
+  `isDataEntryLocked` = flag-on && not-admin).
+- **D-DEPS = no new dependency for the dashboard** — the analytics layer landed in the foundation; newly ported
+  WITH the cards (lived only in deferred Detail files): `ScrollableBarChart`, `DistributionPoint`/
+  `distributionPoints`, `DistributionChartOverlay`, `typeColor`/`barColor`.
+
+**NEW durable patterns (promoted to SKILL.md):**
+1. **A web-parity reconcile can be a capability legacy iOS NEVER HAD — not a swallow-vs-surface tweak but a
+   missing feature, sourced from the backend payload + web's logic.** D-C2's data-lock wasn't "iOS computes it
+   but hides it" (run-52's error banner shape) — legacy iOS had no lock notion at all. Wiring it = decode the
+   field the backend already returns (`admin_only_data_entry`) into the client DTO + context, then replicate
+   web's exact predicate (`flag && !isProgramAdmin`). So a web-parity ADD spans 3 layers (DTO decode → context
+   flag/computed → UI), and the source of truth for the predicate is the WEB permission helper, not legacy iOS.
+2. **The file-pair split (run 7) recurs at the CARD/DETAIL boundary, cross-platform.** Legacy bundled each
+   summary card struct in the SAME file as its expanded detail view (`*Card` + `*DetailView` in
+   `AdminHomeHelpers`/`WorkoutDistributionViews`/`WorkoutTypesDetailViews`). Porting the dashboard = take the
+   CARD half into the new files, leave the DETAIL half as deferred stubs. And a generic collision-risky helper
+   pulled across (`ChartOverlay`) gets a disambiguating rename (`DistributionChartOverlay`) — a faithful,
+   non-behavioral change (the run-52 `StatusPill` collision-grep, now a rename).
+3. **When the stance is "faithful", REVERT an over-eager de-dup — keep the dup + flag it.** Mid-port I extracted
+   the 4×-duplicated inline `changeBadge` into a shared `ChangeBadge` component; that's a change-now cleanup the
+   user did NOT pick (they chose faithful). Reverted to the 4 inline copies + recorded F4 (rebuild-cleanup
+   candidate). The discipline: faithful = port verbatim incl. the dup; the de-dup is a USER-PICKED `D-C`, not an
+   author's reflex (the inverse of runs 22/45 where the user picked the hoist).
+
+**Reconfirmed:** scope-cut-IS-the-run for a screen hosting N deferred targets (run 21/50/52/53 — now 5 detail
+stubs); dep-purity by a foundation Explore agent + grep (run 31/48/51/52); the behavior-diff sweep surfaces
+web-parity candidates by reading the legacy code (run-52 — here BOTH candidates adopted); `admin_only_data_entry`
+decided per page by read-vs-write (run 31/36/40 — LIVE here because the landing has the log action cards); role
+rules code-answered (same for all roles) → stated, not asked; build green-check owned by the user (Xcode),
+symbols grep-verified (each card/type defined once, all theme/context/DTO symbols resolve, 5 stubs collision-free).
+
+**Next:** another tab body — the **Members** pair (`AdminMembersTab`/`StandardMembersTab`, iOS analogue of web
+`/members`), or a **Summary detail view** (one of the 5 stubs). Each its own "scope cut IS the run".
