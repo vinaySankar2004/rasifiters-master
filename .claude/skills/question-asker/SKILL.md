@@ -511,6 +511,24 @@ directly as a faithful port from the legacy reference app** — there is no inte
   (run 25 took all 3: additive client-side validation the legacy lacked, server-truth hydration over optimistic
   form state — the run-11 client-vs-server call resolved toward the canonical row, and skip-redundant-write);
   none touch the wire contract → no feature bump.
+  **Run 28 — a page can be a "near-twin" of TWO already-built pages from DIFFERENT families at once; recognize
+  both to cut the run to confirm-only.** `program/password` was the FORM-twin of the public/auth `reset-password`
+  page (same new+confirm+5-rule-checklist) AND the DECISION-twin of its sibling sub-route `profile` (same
+  D-SCOPE landing-only / D-DEPS no-new-dep / tokenize + clear-stale cleanups). The form-twin settles the UI port;
+  the decision-twin settles §9 — neither needs re-derivation (run-23's twin-recognition, now spanning families).
+  State the ONE structural difference that makes them twins-not-clones honestly (here: `reset-password`
+  authorizes via a URL-fragment recovery token, `password` via the live session bearer — same form, different
+  token source). Three corollaries: **(a)** the run-27 selective-tokenize has an inverse — when the per-site
+  palette grep comes back ALL-clean (run 28: `text-emerald-600` at 6 sites — 5 checklist rows + the success line
+  — all map to `rf-success`, no amber holdout), tokenize everything; the discipline (grep per-site) is constant,
+  the result varies. **(b)** the run-20 `useAuthGuard`-reuse generalizes to ANY page still carrying a legacy
+  inline `useAuth` + manual redirect `useEffect` that predates the foundation hook — swap it for the exact
+  sibling call (`useAuthGuard({ requireProgram: false })`), which does the same redirect AND returns
+  `program`/`token`, deleting the boilerplate; confirm the params fit (a password form needs no active program).
+  **(c)** a page with NO role-conditional UI at all (byte-identical form for every role; backend only ever
+  touches `req.user.id`) makes the role-rules question fully code-answered — §7 is a "same for everyone" table +
+  the `admin_only_data_entry`-N/A note, and you skip the role question (run-4b: if the answer wouldn't change the
+  SPEC, drop it). The ABSENCE of role-conditional UI is itself the finding.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

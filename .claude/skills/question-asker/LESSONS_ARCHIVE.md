@@ -1269,3 +1269,67 @@ gate vs `authenticateToken`-only backend route; no client throttle).
 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1/D-C2; F1–F5). Page COVERAGE ticked. **No feature bump, no new deps.** **Next:**
 the remaining 3 `/program/*` sub-routes (password · appearance · privacy), the 8 deferred `/members`, the 6
 deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes.
+
+---
+
+## Run 28 — `program/password` (web page, 4th of 6 `/program/*` sub-routes)
+
+**Target.** The signed-in user's OWN change-password page (new + confirm + a live 5-rule policy checklist →
+`PUT /auth/change-password`). A near-twin of the built `reset-password` form (same new+confirm + checklist),
+minus the URL-fragment recovery token (here the user is already signed in, so the session bearer authorizes the
+change), and a sibling of `profile` (run 27). Page/screen spec at `specs/pages/web/program/password/SPEC.md`.
+
+**Sweep.** Read the whole legacy `program/password/page.tsx` (89 lines) first, then verified each dep against the
+*rebuilt* stack (run-16 "sweep your own stack"): `changePassword` client fn present (`PUT /auth/change-password`,
+body `{ new_password }`); the route mounted (`routes/auth.js:101` — `authenticateToken` + the shared
+`authService.changePassword`, the same fn `reset-password` reuses); all chrome (`PageShell`/`PageHeader`/
+`GlassCard`) ported; `rf-success` token defined (theme-aware, `globals.css`); `useAuthGuard`/`useActiveProgram`
+present. Purest shape — nothing to port but the page.
+
+**Round.** One `AskUserQuestion` multiSelect (cleanups; select-none = pure faithful) — scope (this page only) and
+role rules (every role, no gating, no role-conditional UI) were fully code-answered, so not asked. User took all
+three precedented cleanups.
+
+**Decisions.** D-REF (`consumed_by=[web]`; iOS Settings→Change Password mirrors later) · D-SCOPE (this page only;
+appearance/privacy still deferred) · D-DEPS (**no new dependency** — run-27 purest shape) · D-S1 (faithful 1:1) ·
+**D-C1** tokenize the success/checklist color `text-emerald-600` → `text-rf-success` at all 6 sites · **D-C2**
+reuse `useAuthGuard({ requireProgram: false })` over the legacy inline `useAuth` + manual `useEffect` redirect ·
+**D-C3** clear the stale success/error message on field edit. Flagged F1–F4 (client policy mirror; no client
+throttle; Show toggles New only; no JWT re-issue on change).
+
+**New/confirmed patterns (promotion candidates):**
+1. **The "near-twin of an EARLIER page" recognition cuts the run to confirm-only — and the twin can be a page
+   from a DIFFERENT family (not just a sibling sub-route).** Run 23 had `/lifestyle` as a twin of `/members`
+   (same family — both workspace dashboards). Run 28's `program/password` is a twin of TWO already-built pages
+   at once: `reset-password` (the same new+confirm+checklist form, different family — a public/auth page) for the
+   *form shape*, and `profile` (the sibling sub-route) for the *decision shape* (D-SCOPE landing-only, D-DEPS
+   no-new-dep, the tokenize + clear-stale-message cleanups). Recognize the form-twin to settle the UI port and
+   the decision-twin to settle §9; neither needs re-derivation. The tell that they're DIFFERENT-family twins:
+   `reset-password` authorizes via a URL-fragment recovery token, `password` via the live session bearer — same
+   form, different token source. State the one structural difference explicitly so the "twin" claim is honest.
+2. **D-C1 tokenize can hit ALL sites cleanly when there's no literal-color holdout (the inverse of run-27's
+   selective tokenize).** Run 27 was partly-tokenizable (success line → `rf-success`, but avatar amber kept). Run
+   28's `text-emerald-600` appears at 6 sites (5 met-rule checklist rows + the success line) and ALL map cleanly
+   to `rf-success` — no amber chip, no dark-ink-on-accent foreground. So the per-site palette grep (run-26/27
+   discipline) can come back "all clean" → tokenize everything. The discipline is the same (grep per-site); the
+   *result* varies by page.
+3. **The `useAuthGuard`-reuse cleanup (run-20) generalizes to ANY page still carrying a legacy inline
+   `useAuth` + manual redirect `useEffect`.** `program/password` predated the foundation hook and hand-rolled
+   `!session?.token → /login`. Swapping it for `useAuthGuard({ requireProgram: false })` (the exact sibling
+   `profile` call) is a real reuse cleanup: the hook does the same redirect AND returns `program` (for the
+   back-href) + `token` (for the mutation), deleting the inline `useRouter`/`useEffect`/`useAuth` boilerplate.
+   When porting a page older than a foundation hook, check whether the hook subsumes the page's inline auth/redirect
+   logic before porting that logic verbatim — and confirm the params (`requireProgram:false` here — a password
+   form needs no active program).
+4. **A "no role-conditional UI at all" page makes the role-rules question fully code-answered — say so and don't
+   ask.** Unlike `profile` (which reads the JWT for a role label + a global_admin Delete gate), `password` reads
+   no role anywhere — the form is byte-identical for every role and the backend only ever updates `req.user.id`.
+   §7 is a 4-row "same for everyone" table + the `admin_only_data_entry` N/A note; the round skips the role
+   question entirely (it would not change the SPEC — the run-4b "if the answer wouldn't change the SPEC, drop it"
+   test). The absence of role-conditional UI is itself the finding.
+
+**Output.** `apps/web/src/app/program/password/page.tsx` (faithful + D-C1/D-C2/D-C3). `npm run build` ✓
+(`/program/password` prerendered, **3.5 kB** — smallest sub-route yet, no Recharts; Middleware 27.3 kB active).
+SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1/D-C2/D-C3; F1–F4). Page COVERAGE ticked. **No feature bump, no new
+deps.** **Next:** the remaining 2 `/program/*` sub-routes (appearance · privacy), the 8 deferred `/members`, the
+6 deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes.
