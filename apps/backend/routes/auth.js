@@ -81,16 +81,15 @@ router.post("/forgot-password", async (req, res) => {
     }
 });
 
-// NET-NEW (SPEC D-C5, revised) — self-service password recovery, RESET (consume) step via a typed
-// 6-digit OTP CODE (was: Bearer recovery token from a magic link). The web /reset-password page collects
-// { email, code, new_password }; the service verifyOtp-consumes the code + sets the new password. PUBLIC
-// (no authenticateToken — the code itself is the proof). Invalid/expired code -> 401. Switched away from
-// the magic link because email scanners (Outlook Safe Links) pre-consumed the single-use link. R1: the
-// client never embeds Supabase.
-router.post("/reset-password", async (req, res) => {
+// NET-NEW (SPEC v0.4.0 / D-C5) — self-service password recovery, RESET (consume) step. The web
+// /reset-password page extracts the Supabase recovery access_token from the email-link fragment
+// (implicit flow) and sends it as the Bearer token here. authenticateToken JWKS-verifies it + maps
+// sub -> member, so this reuses the existing changePassword (single-sourced password update + policy).
+// An expired/invalid recovery token -> 401 (the page tells the user to request a new link). R1: the
+// client never embeds Supabase — the token round-trips through Express.
+router.post("/reset-password", authenticateToken, async (req, res) => {
     try {
-        const { email, code, new_password } = req.body;
-        const result = await authService.resetPasswordWithOtp({ email, code, new_password });
+        const result = await authService.changePassword(req.user.id, req.body.new_password);
         res.json(result);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
