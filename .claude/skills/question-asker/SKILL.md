@@ -746,6 +746,19 @@ directly as a faithful port from the legacy reference app** — there is no inte
   empty-state guard transferred in INTENT, but its CONDITION had to be re-keyed off the **sum** (`buckets.some(b =>
   b.workouts > 0)`), not `buckets.length`, because `getMemberHistory` always returns a full window of buckets so
   `length` is never 0 — copying the twin's `length===0` verbatim would have been a silent no-op.
+- **Run 45 — `members/workouts` (the only WRITE sub-route in an otherwise read-only group): "no new dependency" can hold
+  across THREE families' modules at once, and the cleanups can be a UNION transferred from several distinct prior runs.**
+  The page's api fns came from `lib/api/members.ts` (run 22) + `program-workouts.ts` + `logs.ts` (run 21) — three
+  different feature families — yet every fn was already landed by some earlier sibling, so the sweep still ported only
+  the page file. Run 39/40/41 sized "no new dep" per-FUNCTION (the import path is the source of truth, not the family);
+  run 45 is the extreme — grep EACH import's actual path, don't tally by family. **Corollary: pin the cleanup UNION in
+  one multiSelect when a page's surface spans patterns several siblings each solved once** — D-C1 `window.confirm`→
+  `ConfirmDialog` (run 31), D-C2 reuse hoisted `formatDuration` (run 22), D-C3 tokenize the Delete button → `rf-danger`
+  (run 39); each cites its own precedent run, no re-derivation. And the read-vs-write-lock axis (runs 31/36/40) decides
+  `admin_only_data_entry` PER PAGE within a group: four read-only members sub-routes had the lock N/A, this WRITE page
+  has it LIVE (gating `canEdit`/`canDelete`); the lock follows whether the page *mutates*, not its directory group. The
+  "no list-query error state" (only mutation errors surface) is a faithful F-row — a write page need not mirror its read
+  twins' `ErrorState`.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
