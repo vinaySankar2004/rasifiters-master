@@ -160,6 +160,19 @@ extension ProgramContext {
         _ = try await APIClient.shared.changePassword(token: token, newPassword: newPassword)
     }
 
+    /// Changes the user's email (direct, password-confirmed). Returns the resulting email
+    /// so the caller can refresh its display. The web-parity addition (legacy iOS had no
+    /// email field); the backend `PUT /auth/email` is the real boundary.
+    @MainActor
+    func changeEmail(newEmail: String, password: String) async throws -> String? {
+        guard let token = authToken, !token.isEmpty else {
+            throw APIError(message: "No auth token")
+        }
+
+        let response = try await APIClient.shared.changeEmail(token: token, newEmail: newEmail, password: password)
+        return response.email
+    }
+
     /// Permanently deletes the user's account and all associated data
     @MainActor
     func deleteAccount() async throws {

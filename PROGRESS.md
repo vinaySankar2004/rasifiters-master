@@ -79,6 +79,41 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` account/settings cluster: 4 SCREENS PORTED (run 58, 2026-06-30).** The **first DEFERRED layer**
+after the closed 4-tab shell — the **4-screen account/settings cluster** (`ProgramMyAccountSection` targets, run
+57) — ported into `apps/ios/.../Features/Home/Settings/{MyProfileView,ChangePasswordView,AppearanceSettingsView,
+NotificationsSettingsView}.swift` (4 iOS SPECs `specs/pages/ios/{my-profile,change-password,appearance,notifications}/`),
+the 4 deferred stubs removed. **D-SCOPE = the cluster IS the run** (run-47 cohesive-cluster precedent at 4-screen
+scale): all 4 cohesive siblings in one run. **The two DECISION-bearing screens resolve toward web parity** (memory
+[[ios-matches-web-not-just-legacy]]): **MyProfileView** gains the **web-parity email-change form** the legacy iOS
+lacked entirely (D-C1 — read-only current email + a collapsible password-confirmed change form → `PUT /auth/email`;
+required a NEW `APIClient.changeEmail` + `ChangeEmailResponse` + `ProgramContext.changeEmail` + an optional
+`MemberDTO.email` surfaced via `fetchMemberById` — mirrors web `/program/profile` D-EMAIL, direct/no-verification-email),
+faithful otherwise (header, first/last name, gender `Menu`, Save via `updateMemberProfile`, Delete via `deleteAccount`
+gated `!isGlobalAdmin`); **ChangePasswordView** adopts the **web 5-rule live policy checklist** (D-C2 — ≥8/upper/lower/
+number/match, replacing the legacy 6-char hint — matches web `/program/password` + run-51 create-account + the real
+backend `validatePassword`). **The two TRIVIAL screens are faithful 1:1 verbatim ports**: **AppearanceSettingsView**
+(System/Light/Dark device-local picker, already matches web `/program/appearance`) + **NotificationsSettingsView**
+(**iOS-only**, no web sibling — OS-authorization status card + Enable/Open-Settings; the APNs `PUT /notifications/device`
+registration is owned by the `notifications` feature, not the view). **D-C3 = adopt the foundation's shared chrome
+components** (`AppInputField`/`AppPrimaryButton`/`AppDestructiveButton`) on Profile + Password, matching the run-51 auth
+screens — the run-31 "match the rebuild's established pattern" cleanup, cross-platform; **N/A on Appearance/Notifications**
+(bespoke selection/status controls, no text inputs or generic CTA). **D-DEPS = ONE new API-layer dependency** (the email
+ADD: `changeEmail` + `ChangeEmailResponse` + `ProgramContext.changeEmail` + optional `MemberDTO.email`); **no new view
+component** (all chrome ported run 50). **Role rules code-answered** (every authenticated role edits own account, no admin
+redirect; Delete hidden for global_admin; Password/Appearance/Notifications have NO role-conditional UI) → `admin_only_data_entry`
+**N/A** for all 4 (account settings, not workout/health data entry — the read-vs-write-lock axis). Flagged: Profile F1–F6
+(client role gate; name space-split heuristic; email fetch-once; solid-red `AppDestructiveButton` more prominent than web's
+outline; name/gender from session not the fetch; no client rate-limit) · Password F1–F5 (client policy mirror; Show/Hide on
+new only; no old-password challenge; no JWT re-issue; no rate-limit) · Appearance F1–F2 (device-local only; bespoke controls)
+· Notifications F1–F2 (iOS-only; no per-type preferences). **The app target's build green-check is owned by the user (visual
+run in Xcode)** — symbols verified via grep (each of the 4 views defined exactly once with no stub collision; `changeEmail`/
+`ChangeEmailResponse`/`MemberDTO.email`/`fetchMemberById`/`appGreen`/`appRed`/`AppInputField`/`AppPrimaryButton`/
+`AppDestructiveButton`/`AppSpacing`/`AppCornerRadius` all resolve), not a CLI build (memory
+[[ios-user-verifies-builds-visually]]). **Next: the DEFERRED DETAIL/SECTION layer continues** — a Program management
+section (3 stubs), `ProgramActionsSheet`/`EditProgramInfoView`, or a Summary (5) / Members (6) / Lifestyle (2) detail view,
+via `question-asker`.
+
 **Phase 4 — `ios` Program tab: `AdminProgramTab`/`StandardProgramTab` PORTED — the 4-tab home shell is COMPLETE
 (run 57, 2026-06-30).** The **fourth & LAST tab body** of the home shell — Tab 4 "Program", the iOS analogue of web
 `/program` — ported into `apps/ios/.../Features/Home/Tabs/{AdminProgramTab,StandardProgramTab,ProgramCards}.swift`
@@ -294,37 +329,26 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → the 4-tab home shell is COMPLETE — PORT A DETAIL VIEW / DEFERRED SECTION (the deferred stubs), via `question-asker`
-> **`AdminProgramTab`/`StandardProgramTab` is DONE (run 57, 2026-06-30) — Tab 4 "Program", the LAST tab body, which
-> CLOSES the `AdminHomeView` 4-tab shell** (Summary ✓54 · Members ✓55 · Lifestyle ✓56 · Program ✓57). Ported into
-> `apps/ios/.../Features/Home/Tabs/{AdminProgramTab,StandardProgramTab,ProgramCards}.swift` (SPEC
-> `specs/pages/ios/admin-program/`), the two Program deferred stubs removed. **D-SCOPE = the scope cut IS the run**:
-> ported the 2 role-bifurcated tab bodies + the 2 light sections (`ProgramInfoSection` = select/edit/leave +
-> `ProgramMyAccountSection` = profile/password/appearance/notifications/privacy/support/sign-out) + the
-> `sectionHeader`/`settingsRow` helpers, **deferred the 3 heavy management sections as `ScaffoldPlaceholder` stubs** —
-> `ProgramMemberManagementSection` (356 LoC, roster + `MemberDetailEditView` + invite = web `/members/*`),
-> `ProgramRoleManagementSection` (291 LoC, `ManageRolesView` = web `/program/roles`), `ProgramWorkoutTypesSection`
-> (370 LoC, workout-type CRUD = web `/lifestyle/workouts`). **D-REF = keep iOS-native** (native multi-screen
-> management push-screens vs web's flat card→sub-route hub; iOS-only Notifications + Support account rows — push
-> settings are `[ios]`-only; same destinations + role gating match web → platform idiom, not a gap). **D-S1 = faithful
-> 1:1, NO web-parity ADD** — both web AND legacy iOS surface ONLY the Leave-mutation error + swallow read errors →
-> faithful-swallow IS web parity (run-53/55/56 shape). **Faithful + 3 pinned cleanups: D-C1** de-dup the
-> verbatim-triplicated Leave-Program logic into a shared `.leaveProgramConfirmation()` modifier (mirrors web's
-> extracted `LeaveProgramButton`); **D-C2** drop the dead `PlaceholderTab` struct (referenced by nobody); **D-C3**
-> tokenize the 3 bare `.blue` section accents → `Color.appBlue`. **D-DEPS = one small dep class** (the
-> `sectionHeader`/`settingsRow` helpers co-located in the legacy giant `AdminHomeHelpers.swift`, never in the
-> foundation — the run-55/56 situation) + the new `.leaveProgramConfirmation` modifier; everything else already ported
-> (run 50/52/54). Read-only surface → `admin_only_data_entry` N/A. **NEXT = the home shell is CLOSED — the work now is
-> the DEFERRED DETAIL / SECTION layer.** Pick one (each its own "scope cut IS the run" with further deferrals): a
-> **Program** management section (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite,
-> `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts`);
-> the **account/settings** screens (`MyProfileView` = web `/program/profile`, `ChangePasswordView` =
-> `/program/password`, `AppearanceSettingsView` = `/program/appearance`, `NotificationsSettingsView` = iOS-native,
-> `EditProgramInfoView` = `/program/edit`); the picker's `ProgramActionsSheet` (create+invites — the "+" target); or
-> a **Summary** (5 stubs) / **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run `question-asker` per
-> screen, **match the current web sibling** + faithful legacy iOS, delete each stub when it lands. **The user verifies
-> the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI
-> toolchain. The pre-iOS web/deploy context is retained below for reference.
+> ### ⏭️ ON "continue" → PORT A DEFERRED DETAIL VIEW / MANAGEMENT SECTION (the deferred stubs), via `question-asker`
+> **The 4-screen account/settings cluster is DONE (run 58, 2026-06-30)** — `MyProfileView` · `ChangePasswordView` ·
+> `AppearanceSettingsView` · `NotificationsSettingsView` ported into `apps/ios/.../Features/Home/Settings/` (4 SPECs
+> `specs/pages/ios/{my-profile,change-password,appearance,notifications}/`), the 4 deferred stubs removed. **D-SCOPE =
+> the cluster IS the run** (run-47 cohesive-cluster precedent). The 2 decision-bearing screens resolved toward web
+> parity: **Profile** gained the **web-parity email-change form** legacy iOS lacked (D-C1 — new `APIClient.changeEmail`
+> `PUT /auth/email` + `ProgramContext.changeEmail` + optional `MemberDTO.email` via `fetchMemberById`); **Password**
+> adopted the **web 5-rule live checklist** (D-C2). The 2 trivial screens are faithful 1:1 verbatim (Appearance matches
+> web; Notifications is iOS-only). **D-C3** adopt shared `AppInputField`/`AppPrimaryButton`/`AppDestructiveButton` on
+> Profile+Password (N/A on the bespoke Appearance/Notifications controls). **D-DEPS = one new API-layer dep** (the email
+> ADD); no new view component. Role rules code-answered (every role, own account, no admin redirect; Delete hidden for
+> global_admin); `admin_only_data_entry` N/A for all 4. **NEXT = the DEFERRED DETAIL / SECTION layer continues.** Pick
+> one (each its own "scope cut IS the run" with further deferrals): a **Program** management section
+> (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite, `ProgramRoleManagementSection` = web
+> `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts`); the picker's `ProgramActionsSheet`
+> (create+invites — the "+" target) or `EditProgramInfoView` (= web `/program/edit`); or a **Summary** (5 stubs) /
+> **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run `question-asker` per screen, **match the current web
+> sibling** + faithful legacy iOS, delete each stub when it lands. **The user verifies the build/run visually in Xcode**
+> (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI toolchain. The pre-iOS web/deploy context
+> is retained below for reference.
 >
 > **REMINDER for every iOS screen:** the web app is now a co-equal reference point — port to match what the
 > built web app ships, resolving cross-app divergences toward web parity unless there's a platform reason not

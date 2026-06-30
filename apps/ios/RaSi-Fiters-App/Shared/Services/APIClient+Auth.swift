@@ -30,6 +30,11 @@ extension APIClient {
         let message: String
     }
 
+    struct ChangeEmailResponse: Decodable {
+        let message: String?
+        let email: String?
+    }
+
     struct DeleteAccountResponse: Decodable {
         let message: String
     }
@@ -160,6 +165,22 @@ extension APIClient {
         request.httpBody = try JSONEncoder().encode(body)
         let data = try await data(for: request)
         return try JSONDecoder().decode(ChangePasswordResponse.self, from: data)
+    }
+
+    /// Changes the email for the authenticated user. Direct, password-confirmed change
+    /// (no verification email) — mirrors the web `PUT /auth/email` flow: the backend
+    /// re-authenticates with the current password, then updates Supabase + `member_emails`.
+    func changeEmail(token: String, newEmail: String, password: String) async throws -> ChangeEmailResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/email"))
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+
+        let body = ["new_email": newEmail, "password": password]
+        request.httpBody = try JSONEncoder().encode(body)
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(ChangeEmailResponse.self, from: data)
     }
 
     /// Permanently deletes the authenticated user's account and all associated data

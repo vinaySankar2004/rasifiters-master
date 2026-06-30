@@ -127,25 +127,11 @@ struct EditProgramInfoView: View {
     var body: some View { ScaffoldPlaceholder(screen: "Edit Program") }
 }
 
-/// DEFERRED (Features/Account/MyProfileView.swift) — account-menu → My Profile.
-struct MyProfileView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "My Profile") }
-}
-
-/// DEFERRED (Features/Account/ChangePasswordView.swift) — account-menu → Change Password.
-struct ChangePasswordView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Change Password") }
-}
-
-/// DEFERRED (Features/Settings/AppearanceSettingsView.swift) — account-menu → Appearance.
-struct AppearanceSettingsView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Appearance") }
-}
-
-/// DEFERRED (Features/Settings/NotificationsSettingsView.swift) — account-menu → Notifications.
-struct NotificationsSettingsView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Notifications") }
-}
+// NOTE: the 4 account/settings screens landed (Features/Home/Settings/MyProfileView.swift +
+// ChangePasswordView.swift + AppearanceSettingsView.swift + NotificationsSettingsView.swift, run 58) —
+// stubs removed. They are the ProgramMyAccountSection account-menu targets (run 57). MyProfile + Change
+// Password match web `/program/{profile,password}` (incl. the web-parity email-change form + 5-rule
+// password checklist); Appearance + Notifications are faithful 1:1 ports (Notifications is iOS-only).
 
 // MARK: - Deferred detail screens referenced by AdminSummaryTab (the Summary tab's NavigationLink targets)
 // The iOS analogues of the web /summary sub-routes (log-workout / log-health / activity / distribution /

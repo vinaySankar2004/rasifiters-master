@@ -9,6 +9,10 @@ extension APIClient {
         let gender: String?
         let date_of_birth: String?
         let date_joined: String?
+        // Optional — only `GET /members/:id` returns it (the web profile page reads it the
+        // same way); list endpoints omit it, so it decodes as nil there. Surfaces the current
+        // email on MyProfileView for the web-parity email-change form.
+        let email: String?
     }
 
     struct MemberDetailDTO: Decodable {
