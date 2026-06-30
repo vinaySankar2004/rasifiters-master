@@ -25,6 +25,15 @@ verify + `auth_user_id` mapping→200, garbage token→401, refresh→200, logou
 en route (placeholder members had no `member_emails` row → `002` migration + migrator patch). Vercel still
 deferred (no web code yet).
 
+**Phase 3 — `web`: ALL PAGES PORTED (2026-06-29).** **The entire web surface is COMPLETE — 34/34 legacy pages
+ported + 2 net-new auth-recovery pages (`forgot-password`/`reset-password`) = 36 web page SPECs, all
+`npm run build` ✓.** Every legacy route in `../rasifiters-webapp/src/app/**` now has a 1:1 rebuilt page (route-tree
+diff is clean). The four workspace-tab groups are done (`/summary` 6/6, `/members` 8/8, `/lifestyle` 2/2,
+`/program/*` 6/6) and the **public group is now complete** (`splash`/`login`/`forgot-password`/`reset-password`/
+`create-account`/`privacy-policy`/`support`). Remaining web work is the cross-cutting polish line (COVERAGE line 36:
+the INERT middleware ES256 fix, the `NotificationsGate` stub) — not pages. **Next surface: `ios` (SwiftUI) — see
+COVERAGE `## ios`.** Foundation history below.
+
 **Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
 `npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
 providers, edge middleware). Ported the shared page-independent infra directly (not via `question-asker` —
@@ -41,6 +50,38 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 > file is STALE; the live one is in the user's password manager + `tools/migrator/.env` (gitignored).
 
 ## Next action
+
+> **On "continue": Phase 3 `web` is COMPLETE — THE ENTIRE WEB SURFACE IS PORTED. NEXT SURFACE = `ios`.** The final
+> two web pages — the **public legal/contact pair `privacy-policy` + `support` (33rd & 34th web pages, run 47) —
+> are DONE** (2026-06-29) and **CLOSE the web surface**. Both are faithful 1:1 ports of the legacy public (pre-auth)
+> static pages: **`/privacy-policy`** (a `PageShell maxWidth="3xl"` + `PageHeader` "Privacy Policy" / "Effective date:
+> 2026-03-02" / a header **Support** `next/link` action, over one `GlassCard` of policy prose) and **`/support`** (the
+> **smallest page in the rebuild**, 38 legacy lines — `PageHeader` "Support" / a header **Privacy Policy** link, over
+> one `GlassCard` with the contact email `vinay.sankara@gmail.com` + a "what to include" list). The two **cross-link**
+> (each header links to the other). **KEY: both are genuinely PUBLIC — NOT under the `middleware.ts` matcher**
+> (`middleware.ts:6-13` covers only `/summary`/`/members`/`/lifestyle`/`/program`/`/programs`), so a tokenless visitor
+> is **not** bounced to `/login`; there is **no `useAuthGuard`** at all → **role rules N/A (pre-auth)** (the splash/login
+> shape, runs 15–16). **`/privacy-policy` is the PUBLIC TWIN of the already-built `program/privacy`** (byte-identical
+> policy body) but a **distinct access tier** (public legal URL vs in-app settings copy) — they are NOT the same page.
+> **D-SCOPE** = both pages this run (cross-linked pair, both trivial) and they **CLOSE the web surface** (route-tree diff
+> vs legacy is now clean). **D-DEPS = NO new dependency** — `PageShell`/`PageHeader`/`GlassCard` + `next/link` all
+> already ported; **even purer than `program/privacy`** (run 30) — no `useAuthGuard` either (public). **Stance = FAITHFUL
+> 1:1, NO deviations** (D-S1): content verbatim, already fully `rf-*` tokenized → **no tokenize cleanup**; static
+> `<Link>`s, no router → **no nav cleanup**; no forms; **no `useAuthGuard` cleanup analogue** (there is no auth guard on
+> a public page — `program/privacy`'s D-C1 has no counterpart here). **THE ONE GENUINELY-OPEN DECISION — D-DUP: keep the
+> `/privacy-policy` policy body DUPLICATED, do NOT single-source it.** The body is byte-identical to `program/privacy`,
+> but the legacy keeps them as two independent files and the routes are conceptually distinct access tiers; the user chose
+> **keep faithful + flag** (F2) over extracting a shared `<PrivacyPolicyContent>` (which would touch the already-committed
+> `program/privacy` + couple two access tiers a future divergence would re-split) — matches run-30 "keep the shared legal
+> doc verbatim, don't fork/couple". **Zero backend work, NO feature bump** — no endpoint, no `lib/*` module; the sweep
+> ported only the two page files. `consumed_by=[web]` (iOS surfaces both natively — Settings → Privacy Policy / Support).
+> Flagged: privacy-policy F1 (shared iOS-push/APNs text on the web surface) / F2 (web↔web body dup, kept) / F3 (hardcoded
+> date + email) / F4 (public/no-role); support F1 (public/no-role) / F2 (contact email `vinay.sankara@gmail.com` differs
+> from the policy's `geethasankar78@gmail.com`, both faithful) / F3 (iOS-oriented "include" list on web). `npm run build`
+> ✓ (38 static pages: `/privacy-policy` **2.81 kB**, `/support` **1.52 kB** — the smallest page). **Committed via
+> `git-version` next; lessons run 47 appended.** **NEXT = the `web` surface is DONE — start the `ios` (SwiftUI) surface
+> (COVERAGE `## ios`: auth splash/login/create-account first), OR the cross-cutting web polish (COVERAGE line 36 — the
+> INERT middleware ES256 fix + the `NotificationsGate` stub).**
 
 > **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS NOW COMPLETE (8 of 8).** The
 > **`members/health` page (32nd web page, 8th & LAST of the 8 deferred `/members` sub-routes — the per-member daily-health
