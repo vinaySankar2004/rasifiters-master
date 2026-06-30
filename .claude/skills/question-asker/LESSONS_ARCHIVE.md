@@ -1419,3 +1419,56 @@ group marked COMPLETE (6 of 6). `npm run build` ✓ (`/program/privacy` 2.44 kB 
 `appearance`'s 3.06 kB). **No feature bump, no new deps.** **Next:** the SUB-ROUTE layer continues elsewhere —
 the 8 deferred `/members`, the 6 deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes (the
 `/program/*` group is done).
+
+---
+
+## Run 31 — `lifestyle/workouts` (web page spec; 17th web page, 1st of 2 deferred `/lifestyle` sub-routes)
+
+**Target:** the workout-**type** management screen behind the `/lifestyle` landing's "Manage workouts" /
+"View workouts" pill — a searchable Available/Hidden list of global (library) + custom workout types; admins
+Add/Edit/Hide-Show/Delete, everyone else read-only.
+
+**Sweep finding that reshaped the run:** the PROGRESS/run-23 forward-inference called this "the write path
+where `admin_only_data_entry` bites." Reading the legacy file proved it WRONG — `admin_only_data_entry` is
+never referenced; the gate is `canManage` (admin role). The data-entry lock gates whether non-admins may *log*
+workouts (the `/summary` forms), not who manages the workout-type vocabulary (always admin-only). Recorded as
+F1 (a correction of the inference), not a question.
+
+**Second finding:** non-admins are NOT redirected (unlike `program/edit`/`program/roles`) — they get a
+**read-only DEGRADE** (controls + Hidden section hidden via `canManage`). The landing's "View workouts" pill
+intentionally routes them here. Tell: `useAuthGuard()` with no admin-redirect `useEffect`. F2.
+
+**Deps:** purest shape — every import already ported (the whole `lib/api/program-workouts.ts` module landed
+"vestigial-here" with `summary` run 21; the chrome leaves `LoadingState`/`ConfirmDialog`/`PageHeader` with the
+`/program/*` sub-routes). D-DEPS = **no new dependency**; the sweep ported only the page.
+
+User chose: **this page only** (timeline deferred — 1st of 2, does NOT close the group) and **faithful + both
+cleanups**: D-C1 `window.confirm` → `ConfirmDialog` (2 delete sites), D-C2 clear stale error on Add **and**
+Edit modal open (legacy cleared only on Add).
+
+**Decisions:** D-REF (`consumed_by=[web]`; iOS workout-type management mirrors later) · D-SCOPE (this page only;
+`/lifestyle/timeline` deferred; 1st-of-2) · D-DEPS (no new dependency) · D-S1 (faithful 1:1: `canManage` admin
+gate with read-only degrade, Available/Hidden split, global-vs-custom control matrix, invalidate-on-success) ·
+D-C1 (`window.confirm` → `ConfirmDialog`) · D-C2 (clear stale error on both modal opens). Flagged F1–F6.
+
+**New durable patterns (promoted to Converged lessons):**
+- **A forward-inference recorded in a LANDING/sibling run can be wrong — the sub-route run is where it's
+  corrected; record the correction as an F-row, not a question.** Run-23's lifestyle landing guessed this
+  sub-route was `admin_only_data_entry`-gated; the actual file is admin-ROLE gated. The landing file genuinely
+  can't see the sub-route's gate — so treat any "the deferred sub-route does X" note as a hypothesis to verify
+  against the real file, and when it's wrong, the SPEC (F-row) supersedes the guess.
+- **Non-admin handling splits into REDIRECT vs read-only DEGRADE — read the page's guard to tell which, don't
+  inherit a sibling's.** `program/edit`/`program/roles` bounce non-admins (`useEffect` redirect); this page
+  renders for everyone and hides controls via a `canManage` flag. The tell is the presence/absence of the
+  admin-redirect `useEffect` — same as run-27's "the path can lie about ownership" but for the
+  redirect-vs-degrade axis.
+- **`window.confirm` is a native primitive the rebuild replaced everywhere — porting it verbatim would be the
+  lone divergence; swap it for the ported `ConfirmDialog`.** No rebuilt page uses `window.confirm`; the
+  cleanup (a `deleteTarget` state + `ConfirmDialog` danger/loading) mirrors `program/profile`'s delete flow.
+  When the legacy uses a browser-native dialog the rebuild has a component for, "faithful" = match the
+  rebuild's established pattern, not the native call.
+
+**Output:** SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1/D-C2; F1–F6). COVERAGE + PROGRESS ticked.
+`npm run build` ✓ (`/lifestyle/workouts` 4.82 kB — no Recharts; Middleware 27.4 kB active). **No feature bump,
+no new deps.** **Next:** `/lifestyle/timeline` (closes the group), the 8 deferred `/members`, and/or the 6
+deferred `/summary` sub-routes.

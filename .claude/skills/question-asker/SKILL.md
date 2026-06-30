@@ -550,6 +550,25 @@ directly as a faithful port from the legacy reference app** — there is no inte
   governance, not a code cleanup). Lead with "keep verbatim" (taken); record the mismatch + the hardcoded
   effective-date/contact-email as faithful F-rows (a CMS/config-sourced policy is a rebuild feature). And a
   sub-route run can CLOSE its group — when it's the Nth-of-N, say so in D-SCOPE (the `/program/*` layer is now 6/6).
+- **Run 31 — a LANDING/sibling run's forward-inference about a deferred sub-route can be WRONG; the sub-route
+  run is where it's corrected, as an F-row not a question.** Run-23's lifestyle landing guessed `/lifestyle/workouts`
+  was "the write path where `admin_only_data_entry` bites"; reading the actual file proved it's admin-ROLE gated
+  (`canManage`) and never references the lock (the lock gates *logging* on `/summary`, not the workout-type
+  vocabulary). A landing file genuinely can't see its sub-route's gate — so treat any "the deferred sub-route does
+  X" note as a hypothesis to verify against the real file, and when wrong, let the SPEC (an F-row) supersede the
+  guess. Two more run-31 patterns: **(a) non-admin handling splits into REDIRECT vs read-only DEGRADE — read THIS
+  page's guard to tell which, don't inherit a sibling's.** `program/edit`/`program/roles` bounce non-admins via an
+  admin-redirect `useEffect`; `/lifestyle/workouts` renders for everyone and hides controls + the Hidden section
+  via a `canManage` flag (the landing's "View workouts" pill routes non-admins here on purpose). The tell is the
+  presence/absence of the redirect `useEffect` — the run-27 "path can lie about ownership" axis, applied to
+  redirect-vs-degrade. **(b) `window.confirm` is a native primitive the rebuild replaced everywhere — porting it
+  verbatim would be the lone divergence; swap it for the ported `ConfirmDialog`** (a `deleteTarget` state +
+  danger/loading dialog, mirroring `program/profile`'s delete). When the legacy uses a browser-native dialog the
+  rebuild has a component for, "faithful" = match the rebuild's established pattern, not the native call. And the
+  purest-shape spectrum (runs 27→29→30) recurs on a WRITE page: `/lifestyle/workouts` is a full CRUD admin screen
+  yet still "no new dependency" because the api module landed vestigial-here with an earlier sibling (run 21) and
+  every chrome leaf with the `/program/*` sub-routes — D-DEPS = no-new-dep is about whether the deps are already
+  ported, not how stateful the page is.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
