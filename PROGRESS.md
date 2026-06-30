@@ -42,6 +42,38 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/lifestyle` SUB-ROUTE GROUP HAS STARTED (1 of 2).** The
+> **`lifestyle/workouts` page (17th web page, 1st of the 2 deferred `/lifestyle` sub-routes) is DONE** (2026-06-29):
+> faithful 1:1 port of the legacy **workout-TYPE management** screen behind the `/lifestyle` landing's "Manage
+> workouts" / "View workouts" pill — a searchable list of the program's workout types (**global** library +
+> **custom**) split into **Available** (`!is_hidden`) / **Hidden**, with Add / Edit / Hide-Show / Delete for admins
+> and a **read-only** Available list for everyone else. **KEY FINDING (corrects the run-23 forward-inference): this
+> is NOT "the write path where `admin_only_data_entry` bites"** — the legacy file never references that flag; gating
+> is by **admin ROLE** (`canManage = global_admin || (standard && my_role==="admin")`). The data-entry lock gates
+> whether non-admins may *log* workouts on the `/summary` forms, not who curates the workout-type vocabulary (always
+> admin-only). Recorded as **F1**. **Second finding (F2): non-admins are NOT redirected** (unlike
+> `program/edit`/`program/roles`) — they get a **read-only DEGRADE** (controls + Hidden section hidden via
+> `canManage`); the landing's "View workouts" pill routes them here on purpose. `useAuthGuard()` (default
+> `requireProgram: true`, no admin redirect). **D-SCOPE** = this page only — the sibling **`/lifestyle/timeline` still
+> deferred**; this is **1st-of-2, does NOT close the group**. **D-DEPS = NO new dependency** (purest shape on a full
+> CRUD page — the whole `lib/api/program-workouts.ts` module landed "vestigial-here" with `summary` run 21; every
+> chrome leaf `PageShell`/`PageHeader`/`GlassCard`/`Modal`/`LoadingState`/`ConfirmDialog` + `useAuthGuard` already
+> ported; the sweep ported only the page itself). **D-S1 faithful 1:1** otherwise (same `canManage` gate, Available/
+> Hidden split, global-vs-custom control matrix — global types hide/show-only, custom editable/deletable —
+> `["lifestyle","workouts",programId]` query + invalidate-on-success, no optimistic update). **Two pinned cleanups:
+> D-C1** `window.confirm` → ported `ui/ConfirmDialog` (2 delete sites; no rebuilt page uses `window.confirm` —
+> keeping it would be the rebuild's lone divergence; mirrors `program/profile`'s delete), **D-C2** clear the stale
+> error on **both** Add and Edit modal open (legacy cleared only on Add). **Zero backend work, NO feature bump** —
+> all 6 `/api/program-workouts` routes already mounted + gated (`GET` ungated, 5 writes via `requireProgramAdmin`),
+> api module already ported. Flagged F1–F6 (admin-role gate not `admin_only_data_entry`; read-only degrade not
+> redirect; client JWT-decode admin gate; client-side search filter; global types hide/show-only; no per-card
+> in-flight lock). `npm run build` ✓ (`/lifestyle/workouts` prerendered, **4.82 kB** — no Recharts; Middleware 27.4
+> kB active). **Committed via `git-version` next; lessons run 31 appended (promoted: "a landing-run forward-inference
+> can be wrong — correct it in the sub-route run as an F-row"; "non-admin handling splits into redirect vs read-only
+> degrade — read THIS page's guard"; "swap `window.confirm` for the ported `ConfirmDialog`").** **NEXT = the LAST
+> `/lifestyle` sub-route `timeline` (closes the group), the 8 deferred `/members` sub-routes, and/or the 6 deferred
+> `/summary` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the `/program/*` SUB-ROUTE GROUP IS NOW COMPLETE (6 of 6).** The
 > **`program/privacy` page (16th web page, 6th & LAST `/program/*` settings sub-route) is DONE** (2026-06-29): faithful
 > 1:1 port of the legacy **Privacy Policy** — a single static `GlassCard` of policy prose (effective date 2026-03-02,
