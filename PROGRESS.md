@@ -42,6 +42,35 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/summary` SUB-ROUTE GROUP IS ADVANCING (2 of 6).** The
+> **`summary/distribution` page (20th web page, 2nd of the 6 deferred `/summary` sub-routes) is DONE** (2026-06-29):
+> faithful 1:1 port of the legacy **workout distribution by day-of-week** detail behind the summary landing's
+> Distribution chart card — one `GlassCard` with a single `BarChart` plotting the program's total workout count per
+> weekday (Sun→Sat) over `workout_logs` via `GET /analytics/distribution/day`. **The PUREST page in the `/summary`
+> group — even purer than run-33 `activity`: no `PeriodSelector`, NO `useState`, NO state at all; program-wide +
+> ALL-TIME (no period, no `memberId`, no view-as, no role logic — the ABSENCE of role-conditional UI is F2).**
+> **Read-only** → `admin_only_data_entry` **N/A**. **D-SCOPE** = this page only — **2nd-of-6, does NOT close the
+> group** (sibling `workout-types` + the 3 log fallbacks `log-workout`/`log-health`/`bulk-log-workout` still
+> deferred). **D-DEPS = NO new dependency** (every import already ported — `fetchDistributionByDay`+`DistributionByDay`
+> landed with the summary landing run 21, all chrome `PageShell`/`PageHeader`/`GlassCard`/`LoadingState`/`ErrorState`
+> + chart-theme earlier; the sweep ported nothing but the page itself). **Stance = faithful + 1 user-picked cleanup:
+> D-C1** all-zero empty-state guard (when the 7 weekday counts SUM to 0 → "No workouts logged yet." instead of 7
+> flat zero-height bars; keys off the sum NOT `data.length` since the backend always returns all 7 keys; adapts
+> `activity`'s empty-state intent to the always-7-buckets shape). **Run-33 lesson applied — twin cleanups SUBTRACTED:
+> `<Legend>`+series-names NOT applied** (single series — nothing to disambiguate, the subtitle already says
+> "Workouts"); **dual-Y-axis NOT applied** (single counts series → one natural axis). Faithful otherwise (D-S1 — same
+> query key `["summary","distribution",programId]` shared with the landing preview, `enabled` gate, fixed Sun→Sat
+> mapping, single `value` bar `CHART_COLORS[2]`, `h-80`, inline axis ticks; already fully `rf-*` tokenized so NO
+> tokenize cleanup). **Zero backend work, NO feature bump** — `GET /api/analytics/distribution/day` already mounted
+> (`routes/analytics.js:89`, `authenticateToken`-only; `analytics` D-C3 already bucketed the weekday in explicit UTC)
+> + the api fn already ported. Flagged F1–F5 (no per-program read authz on the route — analytics F2; no view-as/no
+> `memberId`/no period/no role logic — program-wide all-time; read-only → `admin_only_data_entry` N/A; all-time
+> window unlike period-scoped `activity`; hardcoded client weekday labels over UTC-bucketed server keys). `npm run
+> build` ✓ (`/summary/distribution` prerendered, **2.01 kB** — smallest `/summary` route, below `activity`'s 2.31 kB;
+> Recharts shared 208 kB; Middleware 27.4 kB active). **Committed via `git-version` next; lessons run 34 appended.**
+> **NEXT = the `/summary` group continues: `workout-types` (the last chart drill-down), then the 3 mobile log
+> fallbacks (`log-workout`/`log-health`/`bulk-log-workout`); and/or the 8 deferred `/members` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the `/summary` SUB-ROUTE GROUP HAS STARTED (1 of 6).** The
 > **`summary/activity` page (19th web page, 1st of the 6 deferred `/summary` sub-routes) is DONE** (2026-06-29):
 > faithful 1:1 port of the legacy **workout activity timeline** detail behind the summary landing's Activity chart
