@@ -1172,3 +1172,51 @@ prerendered, 5.7 kB — no Recharts; Middleware 27.3 kB active). SPEC v0.1.0 (D-
 D-C3; F1–F4). Page REGISTRY + COVERAGE ticked. **No feature bump.** **Next:** the remaining 5 `/program/*`
 sub-routes (roles · profile · password · appearance · privacy), the 8 deferred `/members`, the 6 deferred
 `/summary`, and/or the 2 deferred `/lifestyle` sub-routes.
+
+---
+
+## Run 26 — `program/roles` (web page spec; 2nd of the 6 `/program/*` settings sub-routes)
+
+**Target.** The legacy admin-only role-management list (`rasifiters-webapp/src/app/program/roles/page.tsx`,
+198 lines): the program's **active** members rendered as `GlassCard`s, each with Admin/Logger/Member toggle
+buttons → `PUT /program-memberships` `{program_id, member_id, role}`. Non-admins redirected to `/program`; the
+last active admin's buttons disabled (mirrored by a backend 400). `consumed_by = [web]` (page spec).
+
+**Stance chosen.** Faithful 1:1 + all **3** offered cleanups (user took the whole pinning multiSelect):
+**D-C1** tokenize role-button colors, **D-C2** optimistic role update, **D-C3** disable all buttons while any
+update is in flight. Flagged F1–F5 (client JWT-decode admin gate; client last-admin disable mirroring the
+backend 400; role-only PUT payload; raw name / default role label; no client throttle).
+
+**Durable patterns — reinforcement, nothing new to promote.**
+1. **Run-25's "first sub-route lands shared chrome" generalizes to EVERY sub-route, not just the first —
+   each one may drag in its OWN small chrome leaf.** `program/edit` (run 25) landed `PageHeader`+`BackButton`;
+   `program/roles` (run 26) landed `LoadingState` (9 lines). Same D-DEPS treatment: port verbatim as foundation
+   chrome (the remaining sub-routes reuse it), sized to the group not the page. The lesson isn't "the FIRST
+   sub-route" — it's "confirm each sub-route's chrome deps against the foundation and port the missing leaf."
+2. **The PUREST consuming-page shape yet (purer than run-21/25): not just no backend work + no feature bump,
+   but the api modules were ALSO already ported.** `fetchMembershipDetails`/`updateMembership`/`MembershipDetail`
+   landed verbatim with the `program` landing page (the run confirmed byte-identical via `diff`). So the only
+   net-new code was a 9-line chrome leaf + the page itself. When a sibling landing page already dragged in the
+   whole api module, the sweep CONFIRMS (diff rebuilt vs legacy) — it ports nothing.
+3. **The tokenize cleanup needs a CLEAN token mapping or it isn't worth offering — grep the palette FIRST.**
+   The legacy fixed hexes mapped 1:1 to existing rf tokens (`#f59e0b`→`--rf-warning` literally; `#3b82f6`→
+   `rf-info`; `#6b7280`→`rf-text-muted`), so tokenizing made them theme-aware (the real win) with admin
+   pixel-identical in light mode. Had there been no matching token, "tokenize" would've meant inventing a token
+   = scope creep; I checked `tailwind.config` + `globals.css` before recommending it. **A foreground that must
+   stay dark on a light accent (dark ink on amber) has no theme-flipping token — keep the literal ink**
+   (`text-[#111827]`); tokenize the background/border (what flips), not the contrast ink.
+4. **Optimistic update = `onMutate` snapshot + `setQueryData` + rollback `onError`, reconcile `onSettled`
+   (run-11 client-vs-server, resolved toward instant-feedback-then-canonical).** The recurring shape: cancel
+   in-flight queries, snapshot `getQueryData`, write the optimistic row, return `{previous}` as context, restore
+   it on error before surfacing the message, invalidate on settle. The optimistic write also makes derived
+   client state (here `activeAdminCount`/`isLastActiveAdmin`) recompute immediately — desirable.
+5. **Defense-in-depth flags recur and stay kept:** the client JWT-decode admin gate (F1, every protected page)
+   + the client last-admin disable mirroring the backend 400 (F2). Two copies of a rule across client+server is
+   correct; flag both, name the backend as authoritative, don't "de-dup" by trusting one side.
+
+**Output.** `apps/web/src/app/program/roles/page.tsx` (faithful + D-C1/D-C2/D-C3) + new shared
+`components/ui/LoadingState.tsx` (verbatim). `npm run build` ✓ (`/program/roles` prerendered, 4.23 kB — no
+Recharts; Middleware 27.3 kB active). SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1/D-C2/D-C3; F1–F5). Page
+REGISTRY + COVERAGE ticked. **No feature bump.** **Next:** the remaining 4 `/program/*` sub-routes (profile ·
+password · appearance · privacy), the 8 deferred `/members`, the 6 deferred `/summary`, and/or the 2 deferred
+`/lifestyle` sub-routes.

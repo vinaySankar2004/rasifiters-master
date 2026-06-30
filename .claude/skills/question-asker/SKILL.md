@@ -473,15 +473,23 @@ directly as a faithful port from the legacy reference app** — there is no inte
   Members copy was already specialized (run-22's 2-variant `activePicker`), so extracting a shared `ui/` picker
   would carry BOTH tabs' union of props/branches (adds branches, doesn't remove them). Flag the dup (F-row,
   rebuild-cleanup candidate), recommend against extraction, let the user decide — they chose port-local + flag.
-- **The FIRST sub-route of a deferred group lands that group's shared chrome — size the dep port to the whole
-  group, not just this page (run 25).** When you start the sub-route layer under a hub (run 25: `/program/edit`,
-  first of 6 `/program/*` settings sub-routes), the page often drags in small chrome leaf components the landing
-  pages never needed (`ui/PageHeader.tsx` → its child `components/BackButton.tsx`). Port them **verbatim now as
-  shared chrome** (the run-19/20 "port whole shared dep" pattern) because the 5 siblings reuse them — front-load
-  the cost once; record it as a **D-DEPS** row scoped to the group. **Confirm the transitive chain first**
-  (PageHeader→BackButton) so you don't miss a leaf. The rest of a sub-route run is usually the purest "zero
-  backend work, no feature bump" shape (run 21): the hub's write endpoint (`PUT /programs/:id`) + its client fn
-  + any emit all shipped with the owning feature — the sweep CONFIRMS the mount, ports nothing. And **a
+- **Sub-routes of a deferred group land that group's shared chrome — size the dep port to the whole group, and
+  check EACH sub-route, not just the first (runs 25–26).** When you build the sub-route layer under a hub, a page
+  often drags in small chrome leaf components the landing pages never needed (run 25 `/program/edit`:
+  `ui/PageHeader.tsx`→`components/BackButton.tsx`; run 26 `/program/roles`: `ui/LoadingState.tsx`). Port them
+  **verbatim now as shared chrome** (the run-19/20 "port whole shared dep" pattern) because the siblings reuse
+  them — front-load the cost once; record it as a **D-DEPS** row scoped to the group. The lesson isn't "the FIRST
+  sub-route" — each sub-route may bring its own leaf, so **confirm each page's chrome deps against the foundation**
+  and **confirm the transitive chain first** (PageHeader→BackButton) so you don't miss a nested leaf. The rest of
+  a sub-route run is usually the purest "zero backend work, no feature bump" shape (run 21): the hub's write
+  endpoint (`PUT /programs/:id`) + its client fn + any emit all shipped with the owning feature — the sweep
+  CONFIRMS the mount, ports nothing. It can go **one purer** (run 26): when a sibling LANDING page already dragged
+  in the whole api module, the sweep `diff`s rebuilt-vs-legacy (byte-identical) and ports *only* the chrome leaf +
+  the page. And **a tokenize-the-colors cleanup needs a CLEAN token mapping or don't offer it — grep the palette
+  FIRST** (run 26: legacy hexes `#f59e0b`/`#3b82f6`/`#6b7280` mapped 1:1 to `rf-warning`/`rf-info`/`rf-text-muted`,
+  admin pixel-identical in light mode); no matching token = inventing one = scope creep. A foreground that must
+  stay dark on a light accent (dark ink on amber) has no theme-flipping token → keep the literal ink, tokenize
+  only the background/border (what flips). And **a
   settings/editor page whose whole job is to SET `admin_only_data_entry` makes that flag N/A as a GATE** — it's
   the value being edited, not a lock on the editor; say so explicitly in §7 (the inverse of the read-only-page
   "N/A because no write path" answer — here it's "N/A because this IS the write path for the flag itself").
