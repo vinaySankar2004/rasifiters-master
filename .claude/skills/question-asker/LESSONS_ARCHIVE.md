@@ -1998,3 +1998,72 @@ state kept faithful + flagged (run 45 F5); a sub-route run that CLOSES its group
 
 **Next:** the `/members` group is COMPLETE (8/8). The sub-route layer continues with the next deferred hub group (see
 `COVERAGE.md` for the remaining web pages).
+
+## Run 47 — `privacy-policy` + `support` (web page specs #33 & #34) — the public legal/contact pair; CLOSES the ENTIRE WEB SURFACE — 2026-06-29
+
+**Target:** the final two web pages — the **public (pre-auth) legal/contact pair**: `/privacy-policy` (130 legacy
+lines — the public twin of the already-built `program/privacy`, byte-identical policy body) and `/support` (38 legacy
+lines — the **smallest page in the rebuild**: a contact email + a "what to include" list). The two **cross-link** (each
+header links to the other). With them the **entire web surface is COMPLETE** — the route-tree diff vs
+`../rasifiters-webapp/src/app/**` is now clean (34/34 legacy pages ported + the 2 net-new auth-recovery pages).
+
+**Sweep (the load-bearing facts, all code-determined):**
+- **Both routes are genuinely PUBLIC.** The `middleware.ts` matcher covers only `/summary`/`/members`/`/lifestyle`/
+  `/program`/`/programs` (`middleware.ts:6-13`); `/privacy-policy` + `/support` are NOT matched → no edge bounce to
+  `/login`, and the legacy pages carry **no `useAuthGuard`** at all. So **role rules = N/A (pre-auth)** — the splash/login
+  shape (runs 15–16): viewable signed-out, no role exists to gate on, no role-conditional UI.
+- **`/privacy-policy` is the PUBLIC TWIN of `program/privacy`** (run 30): the `<GlassCard>` policy body is byte-identical,
+  but it lives at a pre-auth route (no guard) and swaps the in-app Back button for a header **Support** `next/link`. The
+  two are **distinct access tiers** that merely share text today (a public legal URL for the App-Store/marketing vs the
+  in-app settings copy).
+- **No backend, no API, no `lib/*` module, no feature bump.** The sweep ports only the two page files.
+
+**Decisions:** **D-REF** (`consumed_by=[web]`; iOS surfaces both natively — Settings → Privacy Policy / Support) ·
+**D-SCOPE** (both pages this run — cross-linked pair, both trivial — and they **CLOSE the web surface**) · **D-DEPS** (no
+new dependency — `PageShell`/`PageHeader`/`GlassCard` + `next/link` all ported; **purer than `program/privacy`**: no
+`useAuthGuard` either) · **D-S1** (**faithful 1:1, no deviations** — content verbatim, already fully `rf-*` tokenized →
+no tokenize cleanup; static `<Link>`s → no nav cleanup; no forms; **no `useAuthGuard` cleanup analogue**, since there's
+no auth guard on a public page) · **D-DUP** (the ONE genuinely-open decision — keep the `/privacy-policy` policy body
+**DUPLICATED**, do NOT single-source; user chose keep-faithful + flag over extracting a shared `<PrivacyPolicyContent>`).
+The genuinely-open count was ONE (D-DUP) plus the scope confirm — a single `AskUserQuestion` of 2 questions.
+
+**Flagged:** privacy-policy F1 (shared iOS-push/APNs text on the web surface — the run-30 F1, kept verbatim) / F2 (the
+web↔web body dup with `program/privacy`, kept per D-DUP) / F3 (hardcoded effective date + email) / F4 (public/no-role);
+support F1 (public/no-role) / F2 (its contact email `vinay.sankara@gmail.com` differs from the policy's
+`geethasankar78@gmail.com` — both faithful) / F3 (the "iOS version"/"Device model" prompts on the web page).
+`npm run build` ✓ — 38 static pages, `/privacy-policy` 2.81 kB, `/support` 1.52 kB (the smallest page in the app).
+
+**Durable patterns promoted:**
+1. **The purest-shape spectrum has a PUBLIC floor BELOW run-30's static page: a public page is a static page MINUS the
+   auth guard.** Runs 27→29→30 traced no-new-dep → no-backend/API → fully-static-with-`useAuthGuard`; a PUBLIC static
+   page (`privacy-policy`/`support`) drops even the `useAuthGuard` — no session check, no redirect, no `program`
+   back-href. **The MATCHER, not the page, decides public-vs-gated — grep `middleware.ts`'s matcher to classify a route,
+   not the page body.** When a public page is the twin of an auth-gated one, the ONE structural difference is the
+   absence of the guard (and the header action swaps Back → a cross-link), so `program/privacy`'s D-C1
+   "reuse `useAuthGuard`" has **no analogue** here — don't manufacture a guard cleanup on a guard-less page. Role rules =
+   N/A (pre-auth), stated explicitly (the splash/login answer), not omitted.
+2. **A run can CLOSE the entire SURFACE, not just a group — and two cross-linked trivial pages are legitimately ONE run.**
+   The "closes the group" lesson (run 30/32/38/46) scales up: when the last two legacy routes are a cross-linked pair of
+   trivial static pages, doing both in one run (one commit) is the clean milestone — say "CLOSES the web surface" in
+   D-SCOPE + PROGRESS + COVERAGE, and verify it with a **route-tree diff** (`find legacy -name page.tsx` vs `find ours`)
+   rather than trusting the COVERAGE checklist alone. The diff is the proof the surface is complete.
+3. **Single-sourcing byte-identical content across two ROUTES is the user's decision, and run-30's "keep the shared legal
+   doc verbatim, don't fork/couple" applies to web↔web duplication, not just cross-surface.** `/privacy-policy`'s body is
+   byte-identical to `program/privacy`, but the two are **distinct access tiers** (public vs in-app) — extracting a shared
+   component would touch an already-committed page AND couple two tiers a future divergence (different effective date,
+   public-only clauses) would re-split. Lead with **faithful-duplicate + flag** (the F-row is a rebuild-cleanup
+   candidate), offer single-source as the alternative with its coupling cost named; the user owns the DRY-vs-decoupling
+   trade-off. Run-30 was about NOT trimming a shared doc to fit one surface; run-47 is the symmetric case — NOT merging two
+   shared copies into one component. Same principle: a shared legal/policy document stays verbatim-per-surface; coupling it
+   is content governance, not a code cleanup.
+
+**Already-known patterns reconfirmed (not re-promoted):** twin-recognition collapses the run (runs 23/28/33/37/46 —
+`privacy-policy` is the public twin of `program/privacy`); the per-site palette grep comes back all-clean → nothing to
+tokenize (run 29/30); a page that doesn't navigate (static `<Link>` only) has no nav cleanup (run 40/41); no new
+dependency on a content page (run 29/30); the launch-prompt hypothesis confirmed by the first file-read (run 22/46 — here
+it held: the pair really is two trivial public statics).
+
+**Next:** the **`web` surface is DONE** (route-tree diff clean). Next is the **`ios` (SwiftUI) surface** (COVERAGE
+`## ios` — auth splash/login/create-account first), OR the cross-cutting web polish (COVERAGE line 36 — the INERT
+middleware ES256 fix + the `NotificationsGate` stub). Neither is a page port; the per-page `question-asker` cadence pauses
+until the iOS screens begin.

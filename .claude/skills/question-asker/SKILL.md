@@ -776,6 +776,30 @@ directly as a faithful port from the legacy reference app** — there is no inte
   re-promoted): no-new-dep per-FUNCTION across families (run 39/40/41/45); read-vs-write-lock LIVE because the page WRITES
   (run 31/36/40/45); client-stricter-than-backend faithful F-row (run 40/43/45); at-least-one-metric guard (log-health
   run-37 mirror); a run CLOSING its group (run 30/32/38 — flip COVERAGE to "COMPLETE (8/8)", say so in D-SCOPE/PROGRESS).
+- **Run 47 — `privacy-policy` + `support` (the public legal/contact pair; CLOSES the ENTIRE WEB SURFACE): a PUBLIC page
+  is a static page MINUS the auth guard, two cross-linked trivial pages are ONE run, and single-sourcing byte-identical
+  content across two ROUTES is the user's call.** Three durable patterns. **(a) The purest-shape spectrum has a PUBLIC
+  floor BELOW run-30's static page.** Runs 27→29→30 traced no-new-dep → no-backend/API → fully-static-with-`useAuthGuard`;
+  a PUBLIC static page (`privacy-policy`/`support`) drops even the `useAuthGuard` — no session check, no redirect, no
+  `program` back-href. **The `middleware.ts` MATCHER, not the page body, decides public-vs-gated — grep the matcher to
+  classify a route** (here it covers only `/summary`/`/members`/`/lifestyle`/`/program`/`/programs`, so the two pages are
+  pre-auth). When a public page is the twin of an auth-gated one (`privacy-policy` is the public twin of `program/privacy`,
+  byte-identical body), the ONE structural difference is the absence of the guard (+ the header action swaps Back → a
+  cross-link), so the gated twin's "reuse `useAuthGuard`" D-C has **no analogue** — don't manufacture a guard cleanup on a
+  guard-less page. Role rules = **N/A (pre-auth)**, stated explicitly (the splash/login answer, runs 15–16), never omitted.
+  **(b) A run can CLOSE the entire SURFACE, not just a group — and two cross-linked trivial pages are legitimately ONE
+  run.** The "closes the group" lesson (run 30/32/38/46) scales up: when the last two legacy routes are a cross-linked
+  pair of trivial statics, do both in one run/commit and say "CLOSES the web surface" in D-SCOPE + PROGRESS + COVERAGE —
+  and **verify it with a route-tree diff** (`find legacy -name page.tsx` vs `find ours`), the proof the surface is
+  complete, not just the COVERAGE checklist. **(c) Single-sourcing byte-identical content across two ROUTES is the user's
+  decision, and run-30's "keep the shared legal doc verbatim, don't fork/couple" applies to web↔web duplication too.**
+  `/privacy-policy`'s body is byte-identical to `program/privacy`, but the two are **distinct access tiers** (public legal
+  URL vs in-app settings) — extracting a shared `<PrivacyPolicyContent>` would touch an already-committed page AND couple
+  two tiers a future divergence (different effective date, public-only clauses) would re-split. Lead with
+  **faithful-duplicate + flag** (an F-row / rebuild-cleanup candidate), offer single-source with its coupling cost named;
+  the user owns the DRY-vs-decoupling trade-off. Run-30 was "don't TRIM a shared doc to fit one surface"; run-47 is the
+  symmetric "don't MERGE two shared copies into one component" — same principle, a shared legal/policy doc stays
+  verbatim-per-route, coupling it is content governance, not a code cleanup.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
