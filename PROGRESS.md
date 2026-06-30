@@ -42,6 +42,33 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/password` page
+> (14th web page, 4th of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1 port
+> of the legacy **change-password page** — a new + confirm password pair (Show/Hide on New only) + a live 5-rule
+> policy checklist (≥8 chars · upper · lower · number · match) → `PUT /auth/change-password`. **Despite living under
+> `/program/*` it is NOT a program-admin setting** — it changes the *requester's own* password (`req.user.id`), has
+> **no admin redirect, no role gate, and no role-conditional UI at all** (byte-identical form for every role).
+> A **near-twin of two already-built pages at once**: the public/auth `reset-password` form (same new+confirm+checklist,
+> minus the URL-fragment recovery token — here the live session bearer authorizes) + the sibling `profile` (same
+> decision shape). `useAuthGuard({ requireProgram: false })`. **D-SCOPE** = this page only (appearance · privacy
+> still deferred). **D-DEPS = NO new dependency** (purest shape — `PageShell`/`PageHeader`/`GlassCard`,
+> `changePassword`, `useAuthGuard`, `rf-success` token all already ported; the route + the shared `validatePassword`
+> policy shipped with `auth`, `reset-password` already proved the shared `changePassword` service fn). **D-S1 faithful
+> + 3 user-pinned cleanups: D-C1** tokenize the success/checklist color (`text-emerald-600` → `text-rf-success` at
+> **all 6 sites** — the 5 met-rule rows + the success line; the inverse of profile run-27's selective tokenize — no
+> literal-amber holdout here, all clean), **D-C2** reuse `useAuthGuard` over the legacy inline `useAuth` + manual
+> redirect `useEffect` (matches sibling `profile`; the hook subsumes the redirect + provides `program`/`token`),
+> **D-C3** clear the stale success/error message on field edit (legacy left "Password updated successfully." lingering
+> with the cleared fields until the next submit). **Zero backend work, NO feature bump** — `PUT /auth/change-password`
+> already mounted (`auth` v0.1.0, `authenticateToken` + the single-sourced `changePassword`). Flagged F1–F4 (client
+> `validatePassword` mirrors the server policy; no client throttle; Show toggles New only; `changePassword` doesn't
+> re-issue the JWT). `npm run build` ✓ (`/program/password` prerendered, **3.5 kB** — smallest sub-route yet, no
+> Recharts; Middleware 27.3 kB active). **Committed via `git-version` next; lessons run 28 appended (promoted:
+> "near-twin of TWO pages across families"; "all-clean tokenize is run-27's inverse"; "`useAuthGuard`-reuse for any
+> legacy inline-redirect page"; "no role-conditional UI → role question is fully code-answered").** **NEXT = the
+> remaining 2 `/program/*` sub-routes (appearance · privacy), the 8 deferred `/members` sub-routes, the 6 deferred
+> `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/profile` page
 > (13th web page, 3rd of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1
 > port of the legacy page that — despite its `/program/*` path — is **NOT a program-admin setting** but the
