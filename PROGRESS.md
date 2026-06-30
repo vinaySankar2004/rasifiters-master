@@ -56,8 +56,28 @@ change minimally — only the API base URL.** **Build:** the self-contained Widg
 toolchain verified); the **app target's full build green-check is owned by the user (visual run in Xcode)** — the
 local CLI build is blocked only by an Xcode-install quirk (stale CoreSimulator service can't expose the new iOS
 26.5 simulator runtime → `actool` asset-catalog failure), NOT by the ported code. See `apps/ios/CONTEXT.md`
-§Toolchain note + memory [[ios-user-verifies-builds-visually]]. **Next: port the auth screens (Splash · Login ·
-CreateAccount) via `question-asker`.**
+§Toolchain note + memory [[ios-user-verifies-builds-visually]].
+
+**Phase 4 — `ios` auth screens: PORTED (run 51, 2026-06-30).** The **iOS public/auth path is COMPLETE** —
+`SplashView` · `LoginView` · `CreateAccountView` ported into `apps/ios/.../Features/{Onboarding,Auth}/`
+(3 iOS screen SPECs at `specs/pages/ios/{splash,login,create-account}/`), the `SplashView` deferred stub
+removed. **The guiding stance shifted (user steer, memory [[ios-matches-web-not-just-legacy]]): match the
+CURRENT built web app, not just the legacy iOS code** — so all three cross-app divergences the web SPECs had
+flagged for this port resolved toward web parity: **(1)** the real brand icon (new `BrandMark.swift` +
+`BrandIcon.imageset` built from the `AppIcon` PNGs) replaces the legacy orange-circle/`chart.bar.fill`
+placeholder on all three screens (closes web splash F3); **(2)** Login gains a **"Forgot your password?"**
+link → `APIConfig.forgotPasswordURL` opening the live web recovery flow (the reset always completes
+in-browser via the Supabase email link, so iOS opens web rather than duplicating natively — closes web login
+F3); **(3)** CreateAccount adopts **all 4 web cleanups** — inline email-format validation + muted hint, a
+live password-policy checklist (replacing the static hint), a muted mismatch hint, and autoFocus First Name
+(web's authed-redirect cleanup is N/A — the `AppRootView` `authToken` bifurcation already handles it).
+Faithful 1:1 otherwise (typewriter/`SplashViewModel`, `loginGlobal`/`registerAccount` + `ProgramContext`
+session writes, the gender `Menu`, native error `Alert`s). **No new deps beyond `BrandMark`/`BrandIcon` +
+the `forgotPasswordURL` constant** — every other component was ported in the foundation (run 50). **The app
+target's build green-check is owned by the user (visual run in Xcode)** — symbols verified present
+(`Color.appGreen`, `adaptiveShadow`, single type definitions, no duplicate `SplashView`). **Next: port
+`ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
+program create/edit/invites, via `question-asker`.**
 
 **Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
 `npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
@@ -82,15 +102,21 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT THE iOS AUTH SCREENS (Splash · Login · CreateAccount) via `question-asker`
-> **The iOS foundation scaffold is DONE (run 50, 2026-06-30)** — Xcode project + foundation copied into
-> `apps/ios`, API repointed to `rasifiters-api.onrender.com/api`, `Features/` deferred (4 views stubbed), auth
-> path locked. See the **Phase 4** entry above + `apps/ios/CONTEXT.md` §Foundation port. **NEXT = port the auth
-> screens** — reference impl `../ios-mobile/RaSi-Fiters-App/Features/{Onboarding/SplashView, Auth/LoginView,
-> Auth/CreateAccountView}.swift`; run the `question-asker` loop per screen, port faithfully (deleting the matching
-> stub in `App/_DeferredScreenStubs.swift` as each lands), and write the iOS `auth` SPEC. **The user verifies the
-> build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI toolchain.
-> The pre-iOS web/deploy context is retained below for reference.
+> ### ⏭️ ON "continue" → PORT `ProgramPickerView` (the post-auth landing) via `question-asker`
+> **The iOS auth path is DONE (run 51, 2026-06-30)** — `SplashView`/`LoginView`/`CreateAccountView` ported
+> with web parity (real `BrandMark`, the "Forgot your password?" web-recovery link, the 4 create-account
+> cleanups). See the **Phase 4 — auth screens** entry above + the 3 SPECs at `specs/pages/ios/{splash,login,
+> create-account}/`. **NEXT = `ProgramPickerView`** — the post-auth landing both Login + CreateAccount push to
+> (`navigateToProgramPicker`); currently a deferred stub in `App/_DeferredScreenStubs.swift`. Reference impl
+> `../ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift` (+ program create/edit/invites). Run
+> the `question-asker` loop, **match the current web `/programs` hub** (memory
+> [[ios-matches-web-not-just-legacy]]) + faithful legacy iOS, delete the stub when it lands. **The user
+> verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the
+> local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
+>
+> **REMINDER for every iOS screen:** the web app is now a co-equal reference point — port to match what the
+> built web app ships, resolving cross-app divergences toward web parity unless there's a platform reason not
+> to (memory [[ios-matches-web-not-just-legacy]]). Read the sibling web page SPEC as the parity baseline.
 >
 > ### (history) Web surface CLOSED + LIVE on `rasifiters.com`
 > **The web app is DEPLOYED + LIVE on the custom domain `https://rasifiters.com` (run 49 + domain cutover,

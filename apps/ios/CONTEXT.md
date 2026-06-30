@@ -73,7 +73,33 @@ components) and/or **reboot** (clears the stale CoreSimulator launchd job). Gree
 Xcode → TestFlight → App Store (the user handles signing/upload). Bump the version one higher at push time.
 App config (`min_ios_version`) served by the backend `/app-config`.
 
+## Auth screens port (run 51, 2026-06-30)
+
+The iOS public/auth path — **`SplashView` · `LoginView` · `CreateAccountView`** — ported into
+`Features/{Onboarding,Auth}/` via question-asker (3 screen SPECs at `specs/pages/ios/{splash,login,
+create-account}/`); the `SplashView` deferred stub removed (Login/CreateAccount were never stubbed —
+`AppRootView` only instantiates Splash + ProgramPicker + the 2 widget views).
+
+**Stance — match the CURRENT built web app, not just legacy iOS** (the web is now a co-equal reference
+point; see the project memory). Faithful 1:1 to the legacy iOS screens **except** the cross-app divergences
+the web SPECs flagged for this port, all resolved toward web parity:
+1. **Real brand icon** — new `Shared/Components/BrandMark.swift` + `Assets.xcassets/BrandIcon.imageset`
+   (built from the `AppIcon` PNGs) replaces the legacy orange-circle/`chart.bar.fill` placeholder on all
+   three screens (closes web splash F3).
+2. **Login "Forgot your password?" link** → `APIConfig.forgotPasswordURL` (`rasifiters.com/forgot-password`)
+   opened in the browser — the reset always completes in-browser via the Supabase email link, so iOS opens
+   the live web recovery flow rather than duplicating it natively (closes web login F3).
+3. **CreateAccount — 4 web cleanups:** inline email-format validation + muted hint, a live password-policy
+   checklist (replacing the static hint), a muted mismatch hint, and autoFocus First Name. (Web's
+   authed→redirect cleanup is N/A — `AppRootView`'s `authToken` bifurcation already handles it.)
+
+**New deps (the only additions beyond the foundation):** `BrandMark.swift`, `BrandIcon.imageset`, and the
+`APIConfig.forgotPasswordURL` constant. Every other component (`AppInputField`, `AppPasswordToggleButton`,
+`AppGradient`, `Color.appOrange/appGreen`, `ProgramContext+Auth`, `APIClient.loginGlobal/registerAccount`)
+was already ported in the foundation (run 50).
+
 ## Status
-🟡 **Foundation scaffold ported (run 50)** — Xcode project + foundation copied into `apps/ios`, API repointed,
-`Features/` deferred (4 stubbed). **Build-green pending the local Xcode toolchain fix** (see §Toolchain note).
-Next: port the auth screens (Splash · Login · CreateAccount) via question-asker.
+🟡 **Auth screens ported (run 51)** — Splash · Login · CreateAccount in `Features/`, web-parity deviations
+applied, `SplashView` stub removed. **Build-green pending the local Xcode toolchain fix** (see §Toolchain
+note); symbols verified present (no duplicate types, `appGreen`/`adaptiveShadow`/`BrandMark` resolve).
+Next: port `ProgramPickerView` (the post-auth landing) + program create/edit/invites via question-asker.

@@ -17,6 +17,9 @@ enum APIConfig {
     static let webAppBaseURL = URL(string: "https://rasifiters.com")!
     static var privacyPolicyURL: URL { webAppBaseURL.appendingPathComponent("privacy-policy") }
     static var supportURL: URL { webAppBaseURL.appendingPathComponent("support") }
+    // Self-service password recovery lives on the web (Supabase emails a link to
+    // rasifiters.com/reset-password regardless of client); iOS Login opens this in the browser.
+    static var forgotPasswordURL: URL { webAppBaseURL.appendingPathComponent("forgot-password") }
 
     // Active base URL; debug uses local endpoints, release uses Render.
     static var activeBaseURL: URL {

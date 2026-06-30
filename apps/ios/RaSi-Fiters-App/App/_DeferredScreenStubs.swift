@@ -41,10 +41,9 @@ private struct ScaffoldPlaceholder: View {
 
 // MARK: - Deferred screens referenced by AppRootView
 
-/// DEFERRED (Features/Onboarding/SplashView.swift) — auth surface, next run.
-struct SplashView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Splash") }
-}
+// NOTE: SplashView landed (Features/Onboarding/SplashView.swift) — stub removed.
+// LoginView + CreateAccountView also landed (Features/Auth/) — they were never stubbed
+// (AppRootView only instantiates SplashView + ProgramPickerView + the two widget views).
 
 /// DEFERRED (Features/Home/ProgramPickerView.swift) — program picker flow.
 struct ProgramPickerView: View {
