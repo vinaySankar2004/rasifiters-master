@@ -42,6 +42,49 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS NOW COMPLETE (8 of 8).** The
+> **`members/health` page (32nd web page, 8th & LAST of the 8 deferred `/members` sub-routes — the per-member daily-health
+> log manager behind the `/members` landing's "View Health" card — CLOSES the group) is DONE** (2026-06-29): a faithful 1:1
+> port of the legacy ≈550-line **per-member daily-health manager**, the **near-exact WRITE twin of `members/workouts` (run
+> 45)** — a `PageShell` (`maxWidth="4xl"`) + `PageHeader` ("View Health" / the member `name` / `backHref="/members"` / an
+> **Export CSV** action) wrapping a controls `GlassCard` (sort field + direction `Select`s, a **Filter** button + active-filter
+> summary), the list states (`LoadingState`/`EmptyState`/the row list — one `GlassCard` per `MemberHealthItem` with `Sleep
+> {sleepLabel}` · date · `Diet {dietLabel}`, plus per-row **Edit**/**Delete**), a **Filter `Modal`** (start/end date, min/max
+> **sleep** hr+min, min/max **diet** `Select` 1–5, Clear-all), an **Edit `Modal`** (sleep time hr+min + diet `Select`; date
+> disabled; **0:00–24:00 + at-least-one-metric** validation), and a delete **`ConfirmDialog`**. **THE 2nd & last WRITE
+> SUB-ROUTE in the `/members` group** — over `fetchMemberHealthLogs` (`GET /daily-health-logs`) for the list and the two
+> mutations `updateDailyHealthLog` (`PUT /daily-health-logs`) + `deleteDailyHealthLog` (`DELETE /daily-health-logs`), both
+> gated by `requireDataEntryAllowed`. **KEY ROLE FINDING — `admin_only_data_entry` is LIVE here** (the read-vs-write-lock
+> axis, runs 31/36/40/45): this page WRITES, so `canEdit = !isDataEntryLocked(session, program) && (canViewAny || memberId
+> === loggedInUserId)` (`page.tsx:60`) — a single `canEdit` flag gates **both** Edit + Delete (the workouts twin split
+> `canDelete = canEdit`, same effect); the lock hides both buttons for any locked non-admin; the backend
+> `requireDataEntryAllowed` (`routes/logs.js:113, 124`) is the real boundary. **Same `canViewAny` per-member redirect**
+> (`page.tsx:79-84`) — staff view any member, a plain member only their own (else `router.push("/members")`). **F2 (the
+> run-40/43/45 MIRROR): the client redirect is STRICTER than the backend read path** — `GET /daily-health-logs` is
+> `authenticateToken`-only at the route + `ensureProgramAccess` + target-enrolled in the service, not which member a
+> non-staff requester may read. **D-SCOPE** = this page only — **8th-of-8, and it CLOSES the group** (COVERAGE `/members`
+> now COMPLETE 8/8). **D-DEPS = NO new dependency** — every import already ported across TWO families' modules:
+> `fetchMemberHealthLogs`/`MemberHealthItem` (`lib/api/members.ts:168, 64`, run 22), `deleteDailyHealthLog`/
+> `updateDailyHealthLog` (`lib/api/logs.ts:83, 66`, run 21), `sleepLabel`/`dietLabel`/`downloadCsv` (`lib/format.ts:38, 43,
+> 60` — **already shared**, NOT page-local), `isDataEntryLocked` (`lib/permissions.ts:21`), + all chrome incl.
+> `ConfirmDialog`/`Modal`/`Select`/`EmptyState`; sized per-FUNCTION (the import path is the source of truth, run 39/40/41/45).
+> The sweep ports only the page file. **Stance = faithful + 2 user-picked cleanups: D-C1** `window.confirm`→`ConfirmDialog`
+> (a `deleteTarget` state + the ported danger dialog, mirroring the workouts twin run 45 / `lifestyle/workouts` run 31);
+> **D-C2** tokenize the Delete button `bg-red-50 text-red-600` → `bg-rf-danger/10 text-rf-danger` (run 45/39). **NO hoist
+> cleanup** (unlike workouts' D-C2 — `sleepLabel`/`dietLabel` are already shared in `lib/format.ts`, not page-local; the
+> page-local `formatSleepHoursForFilter`/`splitSleepHours` are health-specific with no shared equivalent). Faithful otherwise
+> (D-S1 — same `force-dynamic` + `useClientSearchParams`, same `useAuthGuard()` + redirect, same React Query key + `enabled`
+> gate, same sort/filter/export markup + mutation payloads incl. **always-send `member_id`** (no workouts `member_name`
+> quirk) + nullable `sleep_hours`/`food_quality`, the rich sleep validation). **Zero backend work, NO feature bump** — all
+> three routes already mounted (`server.js:74`) + every api fn ported. `consumed_by=[web]` (iOS manages per-member health
+> natively). Flagged F1–F7 (`limit:0`→1000 coercion; client redirect stricter than backend read; always-send `member_id`
+> delta from the twin; NO lazy filter query — workouts F4 subtracted, no type vocabulary; NO list-query error state — only
+> mutation errors surface; Edit edits sleep+diet with at-least-one-metric guard, date disabled; rich page-local sleep
+> parsing). `npm run build` ✓ (`/members/health` prerendered, **5.64 kB** — largest members sub-route, the dual-modal +
+> ConfirmDialog write path, just above `workouts`' 5.2 kB). **Committed via `git-version` next; lessons run 46 appended.**
+> **NEXT = the `/members` group is COMPLETE (8/8) — the SUB-ROUTE layer continues with the remaining deferred groups (see
+> COVERAGE.md for the next hub).**
+
 > **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (7 of 8).** The
 > **`members/workouts` page (31st web page, 7th of the 8 deferred `/members` sub-routes — the per-member workout-log
 > manager behind the `/members` landing's Recent Workouts card) is DONE** (2026-06-29): a faithful 1:1 port of the legacy
