@@ -42,6 +42,47 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (4 of 8).** The
+> **`members/metrics` page (28th web page, 4th of the 8 deferred `/members` sub-routes — the program-wide Member
+> Performance Metrics dashboard behind the `/members` landing's metrics card) is DONE** (2026-06-29): a faithful 1:1
+> port of the legacy 430-line **metrics dashboard** — a `PageShell` + `PageHeader` ("Member Performance Metrics" /
+> `${filtered} members` / `backHref="/members"` / an **Export CSV** action) wrapping a search/controls `GlassCard`
+> (member-search input + Sort `Select` (9 fields) + Direction `Select` + Filters button), a grid of
+> `MemberMetricsCard`s (avatar · name · active-days · a **sort-coupled hero metric** · a 6-cell mini-grid · an amber
+> "Current streak Nd" flame badge), and a `Modal` filter sheet (date-range segmented control + 9 `FilterRange`
+> min/max pairs), over `fetchMemberMetrics` (`GET /member-metrics`). **Read + client-side CSV export only — NO write
+> path** → `admin_only_data_entry` **N/A**. **KEY ROLE FINDING: no page-level role gate at all** — `useAuthGuard()`
+> default, no admin redirect, no role-conditional UI; every role that *reaches* it sees the same program-wide grid.
+> **THE F2 ASYMMETRY IS INVERTED vs run-39:** the only link to `/members/metrics` is the landing's metrics card,
+> gated `{isProgramAdmin && …}` (`members/page.tsx:281`) — yet the page + backend allow any **active member**, so the
+> entry-link is **stricter** than the page/backend (run-39's `members/list` pill was *laxer* than the action). **F3
+> secure characteristic:** unlike the `/summary` analytics routes (F2 — `authenticateToken`-only), the service
+> `getMemberMetrics` enforces `ensureProgramAccess` → 403 for non-members (`memberAnalyticsService.js:74`); the route
+> carries only `authenticateToken`, the gate lives in the service. **D-SCOPE** = this page only — **4th-of-8, does
+> NOT close the group** (`history`/`streaks`/`workouts`/`health` still deferred). **D-DEPS = NO new dependency** —
+> `fetchMemberMetrics`/`MemberMetrics`/`MemberMetricsResponse` already live in `lib/api/members.ts:102` (ported
+> "vestigial-here" with the `/members` landing run 22; byte-identical, lines 1–130 verified) + every chrome leaf /
+> icon (`FlameIcon`/`SearchIcon`) / format helper (`initials`/`escapeCsv`/`downloadCsv`) already ported; the sweep
+> ports nothing but the page file. **Sized per-FUNCTION** — like run-41, the fn is in this page's **own** members
+> family (cf. runs 39/40's cross-family draw from `programs.ts`); the import path is the source of truth. **Stance =
+> faithful + 1 user-picked cleanup: D-C1** **full-tokenize** the amber flame badge — `bg-amber-200/70 text-amber-900`
+> → `bg-rf-warning/20 text-rf-warning` (the lone non-`rf` color; `rf-warning` exists `#f59e0b`/`#fbbf24`). User chose
+> FULL tokenize over keep-faithful (the run-27 amber-chip precedent) and over bg-only — so the flame badge is now
+> theme-aware. Faithful otherwise (D-S1 — same `useAuthGuard()` default / React Query key
+> `["members","metrics",programId,search,sort,direction,JSON.stringify(filterParams)]` + `enabled` gate /
+> **server-driven** sort/filter/search (F1 — not client filtering) / `MemberMetricsCard` hero-metric switch /
+> `MetricsFilterModal` + `FilterRange` markup / client-side `handleExport` CSV (F4)). **Zero backend work, NO feature
+> bump** — `GET /api/member-metrics` already mounted (`server.js:77`, `metricsRouter.get("/", authenticateToken)`) +
+> the api fn already ported. `consumed_by=[web]` (iOS surfaces member metrics natively). Flagged F1–F7 (server-driven
+> sort/filter/search not client; entry-link stricter than page/backend; per-program read authz IS enforced — secure;
+> client-side CSV export; sort-coupled hero metric; streak filters min-only; no `force-dynamic`/state-local).
+> `npm run build` ✓ (`/members/metrics` prerendered, **7.9 kB** — largest members sub-route, the filter modal + 9
+> ranges + CSV; no Recharts; Middleware 27.6 kB active). **Committed via `git-version` next; lessons run 42 appended
+> (promoted: "the entry-path asymmetry can invert — an entry-link STRICTER than the page/backend, the mirror of
+> run-39"; "the tokenize-cleanup spectrum's full-tokenize end is a legit user pick when an `rf-*` token exists, even
+> where the run-27 amber-chip precedent kept faithful — the user owns the bg/ink trade-off").** **NEXT = the
+> `/members` group continues: `history`/`streaks`/`workouts`/`health` (4 of 8 remaining).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (3 of 8).** The
 > **`members/invite` page (27th web page, 3rd of the 8 deferred `/members` sub-routes — the program-admin
 > invite-by-username form behind the `/members` landing's "Invite Member" pill) is DONE** (2026-06-29): a faithful
