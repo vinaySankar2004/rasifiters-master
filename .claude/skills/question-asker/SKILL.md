@@ -693,6 +693,22 @@ directly as a faithful port from the legacy reference app** — there is no inte
   `admin_only_data_entry` is **N/A** on a membership editor (it edits join-date/active-flag/removal, not workout/health
   data entry — the run-31/36 read-vs-write-lock axis says the lock follows whether the page does *logging*, not
   whether it writes at all).
+- **Run 41 — `members/invite` (the invite-by-username form): the cross-family-dep lesson is sized per-FUNCTION (the
+  page's OWN family is just as valid a source), and a load-bearing characteristic can be a deliberate error-swallow
+  for privacy — keep faithful, flag, never offer as a "fix".** Two durable patterns. **(a)** Runs 39/40 found a
+  sub-route's deps in a *different* feature family's module (`lib/api/programs.ts`, not the members family's
+  `members.ts`); run 41's `sendProgramInvite` lives in the page's **own** members family (`members.ts:204`, ported
+  vestigial-here with the `/members` landing run 22). The conclusion is identical — **grep each import's actual path,
+  size "no new dep" per-function** — but don't over-fit run-39/40 into "the dep always comes from elsewhere"; the
+  own-family module is the equally-common case. **(b) A faithful port's load-bearing characteristic can be a
+  deliberate error-swallow for privacy.** `members/invite`'s catch surfaces an error ONLY when the message contains
+  "network"; **every other failure** (username not found / already invited / blocked / a 403) is silently rendered as
+  "Invitation sent." with the field cleared — so the page never confirms whether a username exists (the visible
+  info-banner corroborates the intent). Recognize it as intent, keep it faithful, flag it as an F-row, and **never
+  offer it as a cleanup** — surfacing the real error would be the privacy regression. (Corollary, already known: the
+  nav-cleanup stayed un-offered — the page **stays put** after a send, showing the success box in place, so there's
+  no `router.back()`/`router.push` to make deterministic; run-40's "check the legacy nav calls first" generalizes to
+  "a page that doesn't navigate has no nav cleanup".)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
