@@ -12,9 +12,11 @@ const defaultLoginPath = loginMode === "app" ? "/auth/login/app" : "/auth/login/
 export const AUTH_LOGIN_PATH =
   process.env.NEXT_PUBLIC_AUTH_LOGIN_PATH ?? defaultLoginPath;
 
+// Privacy link for the auth flow (login / create-account). Points at the app's OWN public
+// privacy page on rasifiters.com — NOT the in-app /program/privacy page, and NOT the old
+// GitHub Pages URL. Overridable via NEXT_PUBLIC_PRIVACY_POLICY_URL at deploy.
 export const PRIVACY_POLICY_URL =
-  process.env.NEXT_PUBLIC_PRIVACY_POLICY_URL ??
-  "https://vinaysankar2004.github.io/RaSi-Fiters/";
+  process.env.NEXT_PUBLIC_PRIVACY_POLICY_URL ?? "/privacy-policy";
 
 // Support contact for the auth-recovery "No email on your account? Contact us" mailto fallback
 // (forgot-password page). PLACEHOLDER — may change; overridden by NEXT_PUBLIC_SUPPORT_EMAIL at deploy.
