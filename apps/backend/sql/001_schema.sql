@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.members (
     username      character varying(255) NOT NULL,
     first_name    character varying(255) NOT NULL,
     last_name     character varying(255) NOT NULL,
-    gender        character varying(10),
+    gender        character varying(32),
     global_role   text DEFAULT 'standard'::text NOT NULL,
     status        text DEFAULT 'active'::text NOT NULL,
     created_at    timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,

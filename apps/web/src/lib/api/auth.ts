@@ -88,6 +88,16 @@ export async function changePassword(token: string, newPassword: string) {
   });
 }
 
+// Self-service email change. Direct + password-confirmed: the backend re-auths the current password,
+// then updates Supabase auth.users + member_emails together. The session token stays valid afterward.
+export async function changeEmail(token: string, newEmail: string, password: string) {
+  return apiRequest<{ message?: string; email?: string }>("/auth/email", {
+    method: "PUT",
+    token,
+    body: { new_email: newEmail, password }
+  });
+}
+
 export async function deleteAccount(token: string) {
   return apiRequest<{ message?: string }>("/auth/account", {
     method: "DELETE",

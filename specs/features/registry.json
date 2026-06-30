@@ -2,7 +2,7 @@
   "$comment": "L4 machine registry — the shared-feature graph for RaSi Fiters. Empty until the first feature is documented via question-asker + committed via git-version. Each feature: { version, spec, status, consumed_by, depends_on, reference_impl: { app, paths } }. consumed_by lists which apps use it: ['web','ios'] (shared), ['web'] (web-only), or ['ios'] (ios-only). status: documented|built|deployed|retired. version is a label (semver) tracked here + in the SPEC Changelog + a git tag feature/<name>@vX.Y.Z — there are NO per-version folders. Page/screen specs are tracked separately in specs/pages/REGISTRY.md.",
   "features": {
     "auth": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/auth/SPEC.md",
       "status": "deployed",
       "consumed_by": ["web", "ios"],
@@ -21,7 +21,7 @@
       }
     },
     "members": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "spec": "specs/features/members/SPEC.md",
       "status": "built",
       "consumed_by": ["web", "ios"],

@@ -4,16 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth/auth-provider";
-import { deleteAccount as deleteAccountApi } from "@/lib/api/auth";
+import { deleteAccount as deleteAccountApi, changeEmail as changeEmailApi } from "@/lib/api/auth";
 import { fetchMemberProfile, updateMemberProfile, type MemberProfile } from "@/lib/api/members";
 import { initials } from "@/lib/format";
+import { GENDER_OPTIONS } from "@/lib/genders";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { Select } from "@/components/Select";
 
-const GENDER_OPTIONS = ["Male", "Female", "Non-binary", "Prefer not to say"] as const;
+// Same loose, deliberately-permissive email regex as the create-account / forgot-password pages.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -35,6 +38,14 @@ export default function ProfilePage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const normalizedGender = gender.trim();
+
+  // Email change (net-new): direct, password-confirmed. Its own state + messages so it doesn't collide
+  // with the name/gender Save flow above.
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [emailSuccess, setEmailSuccess] = useState(false);
 
   const profileQuery = useQuery({
     queryKey: ["account", "profile", session?.user.id],
@@ -96,6 +107,22 @@ export default function ProfilePage() {
     }
   });
 
+  const emailMutation = useMutation({
+    mutationFn: () => changeEmailApi(token, newEmail.trim(), emailPassword),
+    onSuccess: () => {
+      setEmailSuccess(true);
+      setShowEmailForm(false);
+      setNewEmail("");
+      setEmailPassword("");
+      if (session?.user.id) {
+        queryClient.invalidateQueries({ queryKey: ["account", "profile", session.user.id] });
+      }
+    },
+    onError: (error) => {
+      setEmailError(error instanceof Error ? error.message : "Unable to update email.");
+    }
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => deleteAccountApi(token),
     onSuccess: async () => {
@@ -113,6 +140,8 @@ export default function ProfilePage() {
   }, [firstName, lastName, session?.user.memberName, session?.user.username]);
 
   const canSave = firstName.trim().length > 0 && lastName.trim().length > 0 && !updateMutation.isPending;
+  const canSubmitEmail =
+    EMAIL_RE.test(newEmail.trim()) && emailPassword.length > 0 && !emailMutation.isPending;
 
   return (
     <>
@@ -161,22 +190,16 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="text-sm font-semibold text-rf-text">Gender</label>
-            <select
+            <Select
+              label="Gender"
               value={gender}
-              onChange={(event) => {
-                setGender(event.target.value);
+              options={[...GENDER_OPTIONS]}
+              placeholder="Select gender"
+              onChange={(value) => {
+                setGender(value);
                 markEdited();
               }}
-              className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
-            >
-              <option value="">Select gender</option>
-              {GENDER_OPTIONS.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
+            />
           </div>
 
           {errorMessage && <p className="text-sm font-semibold text-rf-danger">{errorMessage}</p>}
@@ -196,6 +219,83 @@ export default function ProfilePage() {
           >
             {updateMutation.isPending ? "Saving..." : "Save changes"}
           </button>
+
+          <div className="space-y-3 border-t border-rf-border pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-rf-text">Email</p>
+                <p className="truncate text-sm text-rf-text-muted">
+                  {profileQuery.data?.email ?? "—"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEmailForm((prev) => !prev);
+                  setEmailError(null);
+                  setEmailSuccess(false);
+                  setNewEmail("");
+                  setEmailPassword("");
+                }}
+                className="shrink-0 rounded-2xl border border-rf-border px-4 py-2 text-sm font-semibold text-rf-text"
+              >
+                {showEmailForm ? "Cancel" : "Change email"}
+              </button>
+            </div>
+
+            {emailSuccess && (
+              <p className="text-sm font-semibold text-rf-success">Email updated successfully.</p>
+            )}
+
+            {showEmailForm && (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-semibold text-rf-text">New email</label>
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(event) => {
+                      setNewEmail(event.target.value);
+                      if (emailError) setEmailError(null);
+                      if (emailSuccess) setEmailSuccess(false);
+                    }}
+                    className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-semibold text-rf-text">Current password</label>
+                  <input
+                    type="password"
+                    value={emailPassword}
+                    onChange={(event) => {
+                      setEmailPassword(event.target.value);
+                      if (emailError) setEmailError(null);
+                    }}
+                    className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+                    placeholder="Current password"
+                    autoComplete="current-password"
+                  />
+                </div>
+
+                {emailError && <p className="text-sm font-semibold text-rf-danger">{emailError}</p>}
+
+                <button
+                  type="button"
+                  disabled={!canSubmitEmail}
+                  onClick={() => {
+                    setEmailError(null);
+                    setEmailSuccess(false);
+                    emailMutation.mutate();
+                  }}
+                  className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
+                >
+                  {emailMutation.isPending ? "Updating..." : "Update email"}
+                </button>
+              </div>
+            )}
+          </div>
 
           {!isGlobalAdmin && (
             <div className="pt-4 border-t border-rf-border">

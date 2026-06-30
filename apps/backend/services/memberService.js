@@ -26,11 +26,18 @@ async function getMemberById(memberId) {
     const member = await Member.findByPk(memberId);
     if (!member) throw new AppError(404, "Member not found.");
 
+    // Surface the primary email (read-only here; changing it goes through PUT /auth/email, not the
+    // updateMember whitelist — SPEC members F6). Email lives in member_emails, not the members row.
+    const primaryEmail = await MemberEmail.findOne({
+        where: { member_id: memberId, is_primary: true }
+    });
+
     return {
         id: member.id,
         member_name: member.member_name,
         username: member.username,
         gender: member.gender,
+        email: primaryEmail?.email ?? null,
         date_joined: member.date_joined,
         global_role: member.global_role,
         created_at: member.created_at,
