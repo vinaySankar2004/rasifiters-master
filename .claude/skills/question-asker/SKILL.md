@@ -982,6 +982,37 @@ directly as a faithful port from the legacy reference app** — there is no inte
   isn't injected in `AppRootView` (only `programContext` is) but IS injected at the `@main` App level, so trace the
   injection up to `@main`, not just the nearest view (the dead-code drop of legacy's unreferenced `PlaceholderTab` is the
   run-7 pattern, cross-platform — grep refs in BOTH legacy + rebuilt before dropping).
+- **Run 58 — a cohesive CLUSTER of N screens is ONE run; a web-parity ADD sourced from an EXISTING endpoint the OTHER
+  client already uses is no-backend / no-feature-bump; the component-adoption cleanup is SELECTIVE; an iOS-only screen is
+  faithful-to-legacy-only.** The 4-screen account/settings cluster (`MyProfileView`/`ChangePasswordView`/
+  `AppearanceSettingsView`/`NotificationsSettingsView` — the `ProgramMyAccountSection` targets, run 57) ported in ONE run.
+  Four durable patterns. **(a) Scale run-47's cohesive-PAIR-is-one-run to an N-screen CLUSTER, even mixed-weight.** The
+  cluster IS the run: 2 decision-bearing screens (Profile, Password — web-parity work) + 2 trivial faithful ports
+  (Appearance, Notifications) in one run/commit, scope asked ONCE. Don't split a cohesive sibling set into N runs just
+  because the screens vary in weight — the shared navigator (`ProgramMyAccountSection`) + shared chrome make them one unit.
+  **(b) A web-parity ADD can be a whole capability ABSENT from legacy iOS but sourced from an EXISTING backend endpoint the
+  OTHER client (web) already consumes** — so it needs new CLIENT plumbing (an `APIClient` method + a `ProgramContext`
+  wrapper + an optional DTO field — Profile's email-change: `changeEmail` `PUT /auth/email` + `ChangeEmailResponse` +
+  optional `MemberDTO.email` via `fetchMemberById`) but **ZERO backend work and NO feature bump**. Distinguish from run-48
+  (a deferred-stub client landing → MINOR bump on the feature): there the endpoint had NO prior consumer; here web already
+  used `PUT /auth/email`, so adding iOS as a 2nd client is the run-19 "already satisfied server-side" shape — the versioned
+  artifacts are the page SPECs at v0.1.0, the feature SPECs untouched. Grep the iOS `APIClient`/DTO to confirm the client
+  method/field is genuinely MISSING (the ADD) vs already-ported, and confirm the backend endpoint pre-exists (web consumes
+  it) before sizing it as "no backend work". **(c) The component-adoption cleanup (D-C3 — adopt the foundation's shared
+  `AppInputField`/`AppPrimaryButton`/`AppDestructiveButton` over hand-rolled inline chrome) is SELECTIVE within a cluster:**
+  it applies to screens with text inputs + a generic CTA (Profile, Password) and is **N/A** to screens whose controls are
+  bespoke selection/status widgets with no shared equivalent (Appearance's mode rows, Notifications' status card +
+  conditional Enable/Open-Settings). Grep each screen's controls; record the N/A in its D-S1 (the cross-platform mirror of
+  run-27's selective-tokenize — applicability is per-screen, not per-cluster). The shared destructive button being a
+  solid-red capsule (more prominent than legacy's understated link AND web's outline-danger) is an accepted F-row, not a
+  reason to skip the adoption. **(d) An iOS-only screen (no web sibling — Notifications, push being `[ios]`-only) is
+  faithful-to-legacy-ONLY:** there is no parity reconcile and no behavior-diff to run, and the ABSENCE of a web sibling is
+  itself the finding (the cross-client mirror of run-53's "pure-nav screen has no behavior to diff" — here it's "no sibling
+  to diff"); state `consumed_by=[ios]` + "no web parity reference" in D-REF explicitly. Reconfirmed: role rules
+  code-answered for account screens (every role edits own account, no admin redirect; a client-only gate like
+  Delete-hidden-for-global_admin is an F-row; Password/Appearance/Notifications have NO role-conditional UI — the absence is
+  the finding); `admin_only_data_entry` N/A for account settings (not workout/health data entry); folder-synchronized Xcode
+  group auto-includes new files (run-51); trivial screens `cp`'d verbatim; build green-check the user's, symbols grep-verified.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

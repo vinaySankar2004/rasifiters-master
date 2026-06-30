@@ -2492,3 +2492,55 @@ in the legacy giant `AdminHomeHelpers.swift`, never in the foundation — run-55
 (`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/`ProgramWorkoutTypesSection`), an account/settings screen
 (`MyProfileView`/`ChangePasswordView`/`AppearanceSettingsView`/`NotificationsSettingsView`/`EditProgramInfoView`),
 `ProgramActionsSheet`, or a Summary/Members/Lifestyle detail view. Each its own "scope cut IS the run".
+
+## Run 58 — iOS account/settings cluster (MyProfile · ChangePassword · Appearance · Notifications) — 2026-06-30
+
+**Target:** the 4-screen account/settings cluster — the `ProgramMyAccountSection` (run 57) account-menu targets — ported
+into `apps/ios/.../Features/Home/Settings/` in ONE run; the 4 deferred stubs removed. The FIRST deferred-layer run after
+the closed 4-tab shell.
+
+**Surface map.** Three Explore agents (legacy iOS 4 screens · built web siblings + their SPEC F-rows · iOS foundation
+deps/stubs), then I verified the 2 heaviest legacy files (`MyProfileView` 243 LoC, `ChangePasswordView` 124) + the iOS
+`APIClient+Auth`/`+Members` + the web `profile/page.tsx` myself. Findings that reshaped the run: (1) legacy iOS
+`MyProfileView` has **no email field at all** while the built web `/program/profile` ships a read-only-email +
+password-confirmed change form (`PUT /auth/email`); (2) legacy iOS `ChangePasswordView` checks only `count >= 6` while
+web ships a 5-rule live checklist; (3) iOS `APIClient` had **no `changeEmail`** and `MemberDTO` had **no `email`** —
+the email parity would need new client plumbing against an EXISTING backend endpoint; (4) Appearance already matches web;
+Notifications is iOS-only (no web sibling).
+
+**4 decisions (one `AskUserQuestion` call):** D-SCOPE all 4 in one run · Profile email → add web-parity change form ·
+Password → adopt web's 5-rule checklist · Components → adopt shared `AppInputField`/`AppPrimaryButton`/`AppDestructiveButton`.
+
+**Decisions:** D-REF (per-screen legacy + web parity; Notifications iOS-only) · D-S1 (faithful 1:1 on all 4) ·
+**D-C1** (Profile web-parity email-change ADD — new `APIClient.changeEmail` `PUT /auth/email` + `ChangeEmailResponse` +
+`ProgramContext.changeEmail` + optional `MemberDTO.email` surfaced via `fetchMemberById`; mirrors web D-EMAIL,
+direct/no-verification-email) · **D-C2** (Password 5-rule live checklist replacing the 6-char hint — matches web +
+run-51 create-account + the backend `validatePassword`) · **D-C3** (adopt shared chrome on Profile+Password; N/A on the
+bespoke Appearance/Notifications controls) · D-DEPS (ONE new API-layer dep — the email ADD; no new view component).
+Flagged: Profile F1–F6, Password F1–F5, Appearance F1–F2, Notifications F1–F2. Role rules code-answered (every role,
+own account, no admin redirect; Delete hidden for global_admin; Password/Appearance/Notifications no role-conditional UI);
+`admin_only_data_entry` N/A for all 4 (account settings, not workout/health data entry).
+
+**New durable patterns (promoted to SKILL.md):**
+- A cohesive CLUSTER of N screens is ONE run (run-47 pair → 4-screen cluster), even when mixed-weight (2 decision-bearing
+  + 2 trivial); the cluster IS the run, ask the scope question once.
+- A web-parity ADD can be a whole capability ABSENT from legacy iOS but sourced from an EXISTING backend endpoint the
+  OTHER client (web) already consumes — so it needs new CLIENT plumbing (an `APIClient` method + a `ProgramContext`
+  wrapper + an optional DTO field) but ZERO backend work and NO feature bump (distinct from run-48's deferred-stub
+  client-landing MINOR bump: there the endpoint had no prior consumer; here web already used it, so a 2nd client is
+  no-bump — the run-19 "already satisfied server-side" shape).
+- The component-adoption cleanup (D-C3) is SELECTIVE within a cluster: it applies to screens with text inputs + a generic
+  CTA (→ `AppInputField`/`AppPrimaryButton`/`AppDestructiveButton`) and is N/A to screens whose controls are bespoke
+  selection/status widgets (Appearance's mode rows, Notifications' status card) — grep each screen's controls, don't
+  blanket-apply.
+- An iOS-only screen (no web sibling — Notifications) is faithful-to-legacy-only: there's no parity reconcile and no
+  behavior-diff, and the ABSENCE of a web sibling is itself the finding (the cross-client mirror of run-53's "no behavior
+  to diff" — here it's "no sibling to diff").
+
+**Mechanics:** folder-synchronized Xcode group (`Features/Home/Settings/` new dir auto-includes, run-51); the 2 trivial
+screens `cp`'d verbatim; build green-check the user's (Xcode), symbols grep-verified (4 views each defined once with no
+stub collision; `changeEmail`/`ChangeEmailResponse`/`MemberDTO.email`/`fetchMemberById`/`appGreen`/`appRed`/the 3 shared
+components/`AppSpacing`/`AppCornerRadius` all resolve).
+
+**Next:** the DEFERRED DETAIL/SECTION layer continues — a Program management section (3 stubs), `ProgramActionsSheet`/
+`EditProgramInfoView`, or a Summary (5) / Members (6) / Lifestyle (2) detail view. Each its own "scope cut IS the run".
