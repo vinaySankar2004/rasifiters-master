@@ -42,6 +42,24 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer has STARTED.** The **`program/edit` page
+> (11th web page, 1st of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1
+> port of the legacy **admin-only edit-program-details form** (name · status `Select` · start/end date · the
+> `admin_only_data_entry` toggle → `PUT /programs/:id` → back to `/program`). Non-admins are redirected to
+> `/program`; the backend `updateProgram` independently enforces a 403 + fires the live `program.updated` emit.
+> **D-SCOPE** = this page only (other 5 `/program/*` sub-routes still deferred). **D-DEPS** = ported the two new
+> shared-chrome leaf components **`ui/PageHeader.tsx` + `BackButton.tsx`** verbatim (single-sourced for all 6
+> `/program/*` sub-routes). **D-S1 faithful + 3 user-pinned cleanups: D-C1** client-side date-range validation
+> (block Save when `start >= end` — legacy saved a backwards range silently → 0% progress), **D-C2** hydrate the
+> active-program cache from the server `ProgramResponse` (not optimistic form state; carries `my_role`/`my_status`
+> over), **D-C3** skip a no-op PUT (short-circuit to `/program` when nothing changed). **Zero backend work, no
+> new api modules, NO feature bump** — `updateProgram` + the route + the emit all already shipped with
+> `programs`/`notifications`. Flagged F1–F4 (client JWT-decode admin gate; vestigial `status` default; date-shape
+> trust; no client throttle). `npm run build` ✓ (`/program/edit` prerendered, 5.7 kB — no Recharts; Middleware
+> 27.3 kB active). **Committed via `git-version` next; lessons run 25 appended.** **NEXT = the remaining 5
+> `/program/*` sub-routes (roles · profile · password · appearance · privacy), the 8 deferred `/members`
+> sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — public/auth path + the first protected route + ALL FOUR
 > WORKSPACE TABS done (2026-06-29): `splash` + `login` + `forgot-password` + `reset-password` + `create-account`
 > + `programs` + `summary` + `members` + `lifestyle` + `program`.** The auth-recovery path is END-TO-END (forgot → email → reset → login).
@@ -414,16 +432,18 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        workspace tabs: `summary` (read overview + desktop log-form modals) + `members` (per-member overview +
        role-gated "view as" picker, read-only) + `lifestyle` (read-only workout-type analytics + health-timeline
        overview) + `program` (4th & last tab — the settings hub: role-gated menu / non-admin read-only card +
-       Leave + Sign Out; all 4 bottom-nav tabs now resolve). **The workspace landing layer is complete.** Next:
-       the SUB-ROUTE layer — the 6 deferred `/program/*` sub-routes, the 8 deferred `/members` sub-routes, the 6
-       deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes._
+       Leave + Sign Out; all 4 bottom-nav tabs now resolve). **The workspace landing layer is complete + the
+       SUB-ROUTE layer has STARTED** — `program/edit` (admin-only details form → `PUT /programs/:id`; faithful +
+       3 cleanups; ported shared chrome `ui/PageHeader.tsx` + `BackButton.tsx`) done. Next: the remaining 5
+       `/program/*` sub-routes, the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or
+       the 2 deferred `/lifestyle` sub-routes._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
 
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **10** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **11** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
@@ -460,10 +480,16 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   D-SCOPE = landing only (6 `/program/*` sub-routes deferred), D-S1 faithful + D-C1 appearance label via
   `getStoredTheme()` + D-C2 extract duplicated `LeaveProgramButton` + D-C3 keep `computeProgramProgress` local;
   consumes `program-memberships`/`program-workouts`/`auth`, all endpoints already mounted, **no new deps, no feature
-  bump**) · iOS screen specs: **0**
+  bump**), `program/edit` (🏗️ v0.1.0 `[web]` — **SUB-ROUTE 1/6** of `/program/*`: the **admin-only**
+  edit-program-details form (name · status · start/end date · `admin_only_data_entry` toggle → `PUT /programs/:id`
+  → back to `/program`); non-admins redirected, backend 403 + live `program.updated` emit; D-SCOPE this page only,
+  D-DEPS port `ui/PageHeader.tsx` + `BackButton.tsx` verbatim (shared chrome for all 6 sub-routes), D-S1 faithful +
+  D-C1 client date-range validation + D-C2 hydrate active-program from server response + D-C3 skip no-op PUT;
+  consumes `programs`/`auth`, **no new api modules, no feature bump**) · iOS screen specs: **0**
   (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + ALL FOUR workspace tabs done
-  (workspace landing layer complete); next = the SUB-ROUTE layer: the 6 deferred `/program/*`, the 8 deferred
-  `/members`, the 6 deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes; see Next action_
+  (workspace landing layer complete); the SUB-ROUTE layer has STARTED (`program/edit` done); next = the remaining 5
+  `/program/*` (roles · profile · password · appearance · privacy), the 8 deferred `/members`, the 6 deferred
+  `/summary`, and/or the 2 deferred `/lifestyle` sub-routes; see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
 ## Open questions (carry until resolved)
