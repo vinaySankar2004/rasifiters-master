@@ -675,6 +675,24 @@ directly as a faithful port from the legacy reference app** — there is no inte
   asymmetry** (the landing's "View Members" pill shows for `!canViewAs` loggers/members, yet only global_admin can act
   on a row — so the pill-reachers see a purely informational list) and the **`status` (membership) vs `is_active`
   (account)** distinction (the list filters by one boolean, badges by the other).
+- **Run 40 — `members/detail` (the write twin of run-39's read page): the run-39 cross-family-dep lesson is sized
+  PER-FUNCTION, the nav-cleanup is CONDITIONAL, and a client gate can be STRICTER than the backend.** Three durable
+  patterns. **(a)** Run 39 found a sub-route's *read* fn (`fetchMembershipDetails`) in a different family's module
+  (`lib/api/programs.ts`, not the members family's `lib/api/members.ts`); run 40 — the editor that page links to —
+  took the *write* fns (`updateMembership`/`removeMembership`) from the **same** `programs.ts`. So "no new dependency"
+  is settled by the **import path per-function**, not per-family: two sibling pages of one family can draw different
+  fns from one unrelated module while never touching their own family's api file. Grep each import's actual path. **(b)
+  The deterministic-nav cleanup (runs 36–38) is CONDITIONAL — check the legacy nav calls first.** Runs 36–38 swapped
+  `router.back()` → `router.push(<fixed>)`; run 40's legacy ALREADY used `router.push("/members/list")` on both
+  success paths, so there was **nothing to clean** — don't offer (or invent) a nav cleanup that's already satisfied.
+  **(c) A CLIENT gate can be STRICTER than the backend — that's a faithful F-row, the inverse of the usual worry.**
+  `members/detail` redirects every non-global_admin on mount, but the service `updateMembership`/`removeMember` also
+  authorize a **program admin** of the target program (`membershipService.js:181-193`, `:304-311`). The stricter
+  client gate is kept (faithful); the backend is the real authorization boundary. We usually flag "client laxer than
+  backend" (a display-only JWT decode the server re-verifies); this is the mirror — flag it, keep both. And the lock:
+  `admin_only_data_entry` is **N/A** on a membership editor (it edits join-date/active-flag/removal, not workout/health
+  data entry — the run-31/36 read-vs-write-lock axis says the lock follows whether the page does *logging*, not
+  whether it writes at all).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
