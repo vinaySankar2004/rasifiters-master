@@ -42,6 +42,37 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/summary` CHART DRILL-DOWNS ARE NOW COMPLETE (3 of 6).** The
+> **`summary/workout-types` page (21st web page, 3rd of the 6 deferred `/summary` sub-routes — the LAST of the three
+> chart drill-downs) is DONE** (2026-06-29): faithful 1:1 port of the legacy **top workout types** detail behind the
+> summary landing's Workout Types card — one `GlassCard` with a single-series `BarChart` of session count per workout
+> type (`CHART_COLORS[0]`, X-axis labels hidden) **plus a ranked `<ul>` detail list** below (name · sessions · avg
+> min), over `workout_logs` via `GET /analytics/workouts/types`. **Same purest shape as `distribution`: no
+> `PeriodSelector`, NO `useState`, NO state; program-wide + program-to-date (no period, no `memberId`, no view-as, no
+> role logic — the ABSENCE of role-conditional UI is F2).** **Read-only** → `admin_only_data_entry` **N/A**. **D-SCOPE**
+> = this page only — **3rd-of-6, does NOT close the group** but **completes all 3 chart drill-downs** (`activity`+
+> `distribution`+this); the 3 log fallbacks `log-workout`/`log-health`/`bulk-log-workout` still deferred. **D-DEPS = NO
+> new dependency** (every import already ported — `fetchWorkoutTypes`+`WorkoutType` landed with the summary landing run
+> 21, all chrome + chart-theme earlier; the sweep ported nothing but the page itself). **Stance = faithful + 1
+> user-picked cleanup: D-C1** styled empty-state panel — upgrade the legacy plain `<p>`"No workouts logged yet." to
+> `distribution`'s `rf-surface-muted` panel so all 3 drill-downs share one empty-state look. **Run-34 predicate re-check
+> applied and came back CLEAN: the legacy `data.length === 0` predicate is ALREADY correct here** (this endpoint
+> returns a VARIABLE-LENGTH array, unlike distribution's always-7-keys → an empty array IS the empty case; only the
+> panel STYLING is the cleanup, not the predicate). **Run-33 twin cleanups SUBTRACTED: `<Legend>`+series-names NOT
+> applied** (single series — nothing to disambiguate); **dual-Y-axis NOT applied** (single counts series → one natural
+> axis). Faithful otherwise (D-S1 — same query key `["summary","workoutTypes",programId]`, `enabled` gate, hidden
+> X-axis ticks, the ranked list; already fully `rf-*` tokenized → NO tokenize cleanup). **Zero backend work, NO feature
+> bump** — `GET /api/analytics/workouts/types` already mounted (`routes/analytics.js:100`, `authenticateToken`-only) +
+> the api fn already ported. Flagged F1–F7 (no per-program read authz — analytics F2; no view-as/no `memberId`/no
+> period/no role logic — program-wide program-to-date; read-only → `admin_only_data_entry` N/A; route's `memberId`
+> branch dead from this client; **F5 — the detail page passes `limit=100` while the landing preview passes `limit=50`
+> under the SAME query key, so React Query dedupes them to one cache entry — latent, harmless in practice**; X-axis
+> labels hidden; program-to-date window). `npm run build` ✓ (`/summary/workout-types` prerendered, **2.07 kB** —
+> between distribution's 2.01 kB and activity's 2.31 kB; Recharts shared 208 kB; Middleware 27.5 kB active).
+> **Committed via `git-version` next; lessons run 35 appended.** **NEXT = the `/summary` group's LAST 3 sub-routes are
+> the mobile log fallbacks (`log-workout`/`log-health`/`bulk-log-workout` — standalone-page ports of the 3 desktop
+> modals already live on the landing); and/or the 8 deferred `/members` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the `/summary` SUB-ROUTE GROUP IS ADVANCING (2 of 6).** The
 > **`summary/distribution` page (20th web page, 2nd of the 6 deferred `/summary` sub-routes) is DONE** (2026-06-29):
 > faithful 1:1 port of the legacy **workout distribution by day-of-week** detail behind the summary landing's
