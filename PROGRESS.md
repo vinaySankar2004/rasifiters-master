@@ -30,9 +30,11 @@ ported + 2 net-new auth-recovery pages (`forgot-password`/`reset-password`) = 36
 `npm run build` ✓.** Every legacy route in `../rasifiters-webapp/src/app/**` now has a 1:1 rebuilt page (route-tree
 diff is clean). The four workspace-tab groups are done (`/summary` 6/6, `/members` 8/8, `/lifestyle` 2/2,
 `/program/*` 6/6) and the **public group is now complete** (`splash`/`login`/`forgot-password`/`reset-password`/
-`create-account`/`privacy-policy`/`support`). Remaining web work is the cross-cutting polish line (COVERAGE line 36:
-the INERT middleware ES256 fix, the `NotificationsGate` stub) — not pages. **Next surface: `ios` (SwiftUI) — see
-COVERAGE `## ios`.** Foundation history below.
+`create-account`/`privacy-policy`/`support`). **The `NotificationsGate` deferred stub is now REPLACED by the faithful
+web `notifications` client (run 48, 2026-06-29)** — so the web surface is **feature-complete**, not just page-complete.
+The only remaining web item is the INERT middleware ES256 note (already RESOLVED in run 20 — see the note below; not
+open). **Next: deploy `apps/web` to Vercel (no domain switch), then the `ios` (SwiftUI) surface — see COVERAGE
+`## ios`.** Foundation history below.
 
 **Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
 `npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
@@ -57,27 +59,28 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT THE WEB `notifications` FEATURE (user decision, 2026-06-29)
-> The web surface's **pages** are 100% done, but the webapp is **NOT feature-complete**: the
-> [`NotificationsGate`](apps/web/src/components/NotificationsGate.tsx) is still a `return null` **deferred stub** —
-> the web `notifications` client was never ported. **The user's chosen order is: (1) THIS session = port web
-> notifications, then (2) the session after = deploy to Vercel (NO domain switch — staging-ready cutover).** So do
-> NOT start iOS yet; the run-47 entry below saying "NEXT SURFACE = ios" is superseded by this banner.
+> ### ⏭️ ON "continue" → DEPLOY THE WEB APP TO VERCEL (no domain switch) — the web surface is now FEATURE-COMPLETE
+> **The web `notifications` client is PORTED (run 48, 2026-06-29) — the webapp is now genuinely feature-complete.**
+> The [`NotificationsGate`](apps/web/src/components/NotificationsGate.tsx) deferred stub is **replaced** by the
+> faithful port (`EventSource` SSE client w/ `?token=`, `unacknowledged` backfill, single-notification modal queue,
+> `acknowledge`-on-confirm, per-notification React Query invalidation). With pages 36/36 + the notifications client
+> live, **nothing functional remains on web**. Per the user's chosen order, the NEXT session is the **Vercel deploy**.
 >
-> **Scope of the notifications session (client-only — backend is fully live):** the backend `notifications` feature
-> is ported + deployed (SSE stream on Supabase JWKS, device register/unregister, broadcast, acknowledge — COVERAGE
-> line 22, live on `rasifiters-api.onrender.com`). Port the **web client**: the notifications client lib (the
-> `EventSource`/SSE client + `acknowledge` calls — not yet in `apps/web/src/lib/`) + **replace the `NotificationsGate`
-> stub** with the faithful port (open the SSE stream → hydrate the active program → render the notification
-> modal/bell). The `programs` client deps it leans on are already ported. Run it through `question-asker` → port →
-> `git-version`; it adds `web` to the notifications feature's `consumed_by` (a **MINOR bump** on that feature — NOT a
-> no-bump page run). Legacy ref: `../rasifiters-webapp/src/components/NotificationsGate.tsx` + its SSE/notifications
-> lib. After it lands, the webapp is genuinely feature-complete and ready to deploy.
+> **Deploy to Vercel WITHOUT switching the domain** (run the `deploy` skill): provision the Vercel project + deploy
+> `apps/web` to a Vercel-generated URL (e.g. `rasifiters-web.vercel.app`), wire env (API → the live Render backend
+> `rasifiters-api.onrender.com`, Supabase keys), apply the scope guardrails (record the Vercel project id in
+> `apps/web/CONTEXT.md` + the `deploy-scope-guard.sh` allow-list). The production/custom domain is left **UNPOINTED**
+> so the app is testable + transferable at any point with no rebuild — a staging-ready cutover. After the deploy,
+> **NEXT SURFACE = `ios` (SwiftUI)** — COVERAGE `## ios` (auth splash/login/create-account first).
 >
-> **Then (next session): deploy to Vercel WITHOUT switching the domain** — the `deploy` skill provisions the Vercel
-> project + deploys to a Vercel-generated URL (e.g. `rasifiters-web.vercel.app`), wires env (API → the live Render
-> backend, Supabase keys), applies the scope guardrails; the production/custom domain is left UNPOINTED so the app is
-> testable + transferable at any point with no rebuild.
+> **Run-48 detail (the notifications client port — DONE):** ported 3 files into `apps/web` (`lib/api/notifications.ts`
+> + `components/NotificationModal.tsx` verbatim, `components/NotificationsGate.tsx` replacing the stub) — **no new deps**
+> (every other import already ported). Faithful 1:1 (D-C5) + 2 user-picked reconciles: **D-C6** `isAuthRoute` now
+> includes the net-new `/forgot-password`+`/reset-password` public routes (runs 17–18); **D-C7** dropped the stray
+> no-op `["program","roles",programId]` invalidation key (no rebuilt query uses it; the broad `["program"]`
+> invalidation covers it) — verified the other legacy invalidation keys all land on live rebuilt query keys. Flagged
+> F7 (single-notification modal queue) + F8 (optimistic acknowledge). `npm run build` ✓ (39 static pages). A **MINOR
+> bump** on the notifications feature (web client landed). Committed via `git-version`; lessons run 48 appended.
 
 > **On "continue": Phase 3 `web` is COMPLETE — THE ENTIRE WEB SURFACE IS PORTED. NEXT SURFACE = `ios`.** The final
 > two web pages — the **public legal/contact pair `privacy-policy` + `support` (33rd & 34th web pages, run 47) —
