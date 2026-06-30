@@ -42,6 +42,39 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/summary` LOG FALLBACKS ARE ADVANCING (5 of 6).** The
+> **`summary/log-health` page (23rd web page, 5th of the 6 deferred `/summary` sub-routes — the 2nd of the 3 mobile
+> log fallbacks) is DONE** (2026-06-29): a **near-exact twin of the just-built `summary/log-workout` (run 36)** — a
+> faithful 1:1 port of the legacy 65-line standalone Log-daily-health page: a `PageShell` + `PageHeader` ("Log daily
+> health" / "Track sleep hours and diet quality for the day." / `backHref="/summary"`) wrapping the **already-built
+> `LogDailyHealthForm` in its `variant="page"` branch** (member `Select` or "You" panel · date · sleep hours+minutes ·
+> diet-quality 1–5 `Select` → `POST /daily-health-logs`). **The desktop modal counterpart already lives on the
+> `/summary` landing (run 21); the landing routes mobile → this page (`summary/page.tsx:216`).** **This is the 2nd
+> `/summary` sub-route where `admin_only_data_entry` is LIVE** (after `log-workout`): the page
+> `router.replace("/summary")`s a locked non-admin on mount (UX), and the backend `requireDataEntryAllowed` is the
+> real 403 (`routes/logs.js:91`). **Role logic is live**: `canLogForAny` (global_admin/admin/logger) shows the member
+> picker + may log for any member; a plain member gets a static "You" panel forced to own `userId`. **D-SCOPE** = this
+> page only — **5th-of-6, 2nd of the 3 log fallbacks, does NOT close the group** (only `bulk-log-workout` still
+> deferred). **D-DEPS = NO new dependency** (purest write-page shape — the whole `LogDailyHealthForm` incl. its
+> `variant="page"` branch, `addDailyHealthLog`, `PageShell`/`PageHeader`, `useAuthGuard`, `isDataEntryLocked`, the
+> member lookup fn all landed with the summary landing run 21 + the `/program/*` chrome; the sweep ported nothing but
+> the page file). **Unlike `log-workout`, the health form needs only the member lookup — NO workout-types lookup.**
+> **Stance = faithful + 1 user-picked cleanup: D-C1** deterministic-nav (match run 36) — swap the 2 legacy
+> `router.back()` calls (post-save success **and** the form `onClose`) for `router.push("/summary")` so all navigation
+> off the page is deterministic and matches the header BackButton (which already hardcodes `/summary`). **The lock
+> `router.replace("/summary")` is unchanged** (faithful). **"Reuse `refreshSummaryQueries`" re-confirmed REJECTED**
+> (same module-private one-liner as run 36 — not importable, nothing to reuse). Faithful otherwise (D-S1 — already
+> fully `rf-*` tokenized → NO tokenize cleanup). **Zero backend work, NO feature bump** — `POST /api/daily-health-logs`
+> already mounted (`server.js:74`) + gated. `consumed_by=[web]` (iOS has its own native log screen). Flagged F1–F6
+> (client JWT-decode role/lock drives the picker + redirect; `admin_only_data_entry` enforced in 2 places; no view-as;
+> member forced to own id for non-admins; no client throttle beyond `isPending`; the `LogDailyHealthForm` single-sourced
+> across modal + page; client-only at-least-one-metric `hasMetric` submit gate). `npm run build` ✓
+> (`/summary/log-health` prerendered, **2.4 kB** — no Recharts; Middleware 27.5 kB active). **Committed via
+> `git-version` next; lessons run 37 appended (promoted: "a near-exact twin run is confirm-only — recognize the twin,
+> transcribe its decision shape, enumerate only the deltas").** **NEXT = the LAST `/summary` sub-route + last log
+> fallback `bulk-log-workout` (the heavier `BulkLogWorkoutForm` ≤200-row page — CLOSES the `/summary` group); and/or
+> the 8 deferred `/members` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the `/summary` LOG FALLBACKS HAVE STARTED (4 of 6).** The
 > **`summary/log-workout` page (22nd web page, 4th of the 6 deferred `/summary` sub-routes — the 1st of the 3 mobile
 > log fallbacks) is DONE** (2026-06-29): faithful 1:1 port of the legacy 66-line standalone Log-workout page — a
