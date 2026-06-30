@@ -921,6 +921,32 @@ directly as a faithful port from the legacy reference app** — there is no inte
   page by read-vs-write (LIVE here — the landing has the log action cards); role rules same-for-all → stated not
   asked; build owned by the user (Xcode), symbols grep-verified (each card/type once, theme/context/DTO resolve,
   5 stubs collision-free).
+- **Run 55 — a tab-body port can carry a genuine NEW shared chrome dep even after a no-new-dep streak, and the
+  behavior-diff's ADD verdict is set by WHAT WEB DOES, not by whether iOS swallows.** `AdminMembersTab`/
+  `StandardMembersTab` (the Members tab body, iOS analogue of web `/members`) was the role-bifurcated twin port —
+  scope-cut-IS-the-run (2 tab bodies + 7 inline cards/picker/types ported; 6 forward-nav detail targets stubbed +
+  the existing `ActivityTimelineDetailView` stub extended with `memberId`/`showActiveSeries` defaults, run-53/54
+  stub-initializer lesson). Two durable patterns. **(a) Dep-purity is NOT guaranteed for a tab body just because
+  prior screens were "no new dependency" — a small reusable chrome component co-located in a legacy DEFERRED Detail
+  file isn't in the foundation.** `GlassButton` (28-line circular gradient icon button) lived in legacy's
+  `Detail/ActivityTimelineViews.swift` (a deferred file), so the foundation port (run 50, "page-independent infra")
+  never pulled it in; the first tab that needs it (run 55) ports it verbatim as new shared chrome → `Shared/Components/`.
+  This is the file-pair-split corollary (run 7/54) for SHARED COMPONENTS: the deferred-file half holds not just
+  detail VIEWS but reusable chrome the tab bodies depend on — grep the legacy import/usage against the foundation
+  before claiming no-new-dep, and don't assume the streak holds. (Same run: the `memberTimelinePoints` free func +
+  `SortField`/`SortDirection` ported now because the inline cards need them; the metrics-detail machinery
+  `MetricsFilters`/`SortSheet`/`FilterSheet`/`clamp` deferred WITH `MemberMetricsDetailView` — the file-pair split
+  WITHIN one bundled legacy file.) **(b) The behavior-diff's "add a web-parity banner?" verdict is decided by WEB's
+  behavior, not by whether iOS swallows.** Run-52 added an error banner because web `/programs` SURFACED errors while
+  iOS swallowed (gap → ADD). Run-55's `StandardMembersTab` ALSO sets an `errorMessage` it never renders — but the web
+  `/members` landing surfaces NO load errors either, so **both-swallow = parity = NO ADD** (faithful-swallow IS web
+  parity, the run-53 "behavior-diff comes back empty" shape, now on a data-FETCHING screen not a pure-nav shell). So
+  a set-but-never-rendered iOS `errorMessage` is only a parity GAP worth an ADD if WEB surfaces the same error; if web
+  swallows too, keep faithful + flag the vestigial state (F-row), don't add a banner. Reconfirmed: scope-cut-IS-the-run
+  for N deferred targets (run 21/50/52/53/54 — now 6 detail stubs + 1 extended); D-REF keep-iOS-native for a structural
+  idiom divergence the card-set already matches web on (run 52/53); read-only → `admin_only_data_entry` N/A (no log
+  cards, unlike Summary run 54 — the read-vs-write axis); role rules code-answered by the Admin*/Standard* split →
+  stated not asked; build owned by the user (Xcode), 20 new types grep-verified defined-exactly-once.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

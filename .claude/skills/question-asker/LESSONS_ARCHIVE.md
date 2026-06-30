@@ -2356,3 +2356,43 @@ symbols grep-verified (each card/type defined once, all theme/context/DTO symbol
 
 **Next:** another tab body — the **Members** pair (`AdminMembersTab`/`StandardMembersTab`, iOS analogue of web
 `/members`), or a **Summary detail view** (one of the 5 stubs). Each its own "scope cut IS the run".
+
+---
+
+## Run 55 — iOS `AdminMembersTab`/`StandardMembersTab` (the Members tab body, Tab 2 the iOS analogue of web `/members`)
+
+**Target:** the Members tab body of the iOS `AdminHomeView` shell — role-bifurcated `AdminMembersTab`
+(program/global admin) + `StandardMembersTab` (logger/member), the iOS analogue of the web `/members` landing.
+Ported into `apps/ios/.../Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,MemberOverviewPicker}.swift`
++ new `Shared/Components/GlassButton.swift` (SPEC `specs/pages/ios/admin-members/`). Run 55, 2026-06-30.
+
+**Sweep (3 Explore agents):** legacy iOS Members cluster (~6,400 lines across 13 files) · web `/members` parity
+baseline · iOS foundation deps. Verified the two tab bodies + `MemberCards.swift` + `MemberPickerOverviewView.swift`
++ `MemberMetricsViews.swift (MemberMetricsPreviewCard)` myself.
+
+**Decisions (all 3 = lead/faithful):**
+- **D-SCOPE** = scope cut IS the run: port the 2 tab bodies + 7 inline cards/picker/types (`MemberMetricsPreviewCard`,
+  `MemberOverviewCard`, `Member{History,Streak,Recent,Health}Card`, `MemberMetricsCard`, `MemberPickerView`,
+  `SortField`/`SortDirection`, `memberTimelinePoints`); defer the 6 forward-nav detail targets as `ScaffoldPlaceholder`
+  stubs + extend the existing `ActivityTimelineDetailView` stub.
+- **D-REF** = keep iOS-native (view-as sheet + `NavigationLink` push detail views vs web's single-page hub) — card
+  set + role gating already match web, so platform-idiom not parity gap (runs 52/53).
+- **D-S1** = faithful 1:1, **NO web-parity ADD** — both web AND legacy iOS swallow load errors → faithful-swallow IS
+  web parity (run-53 shape on a data-fetching screen; unlike run-52 ProgramPicker where only web surfaced → ADD).
+- **D-DEPS** = **ONE new dep** (`GlassButton` 28-line shared chrome, co-located in legacy's deferred
+  `ActivityTimelineViews.swift`, never dragged into the foundation; + `memberTimelinePoints` free func) — breaks the
+  iOS no-new-dep streak that held runs 51–54.
+
+**Read-only → `admin_only_data_entry` N/A** (no log cards, unlike Summary run 54). Role rules = Admin*/Standard*
+view-as table. Flagged F1–F7. Build green-check owned by the user (Xcode); 20 new types grep-verified
+defined-exactly-once, all DTO fields/loaders/`ActivityTimelinePoint` init resolve, no leftover Members stub.
+
+**New durable patterns promoted to SKILL.md Converged lessons:** (1) a tab-body port can carry a genuine NEW shared
+chrome dep even after a no-new-dep streak — a small reusable component co-located in a legacy DEFERRED Detail file
+isn't in the foundation; port it verbatim as new shared chrome. (2) The behavior-diff's ADD verdict is set by WHAT
+WEB DOES, not by whether iOS swallows: a set-but-never-rendered iOS `errorMessage` is only a parity GAP if web
+surfaces it; both-swallow = parity = no ADD (vs run-52's web-surfaces/iOS-swallows = gap → ADD).
+
+**Next:** another tab body — the **Lifestyle** pair (`AdminWorkoutTypesTab`/`StandardWorkoutTypesTab`) or the
+**Program** pair; OR a **Members detail view** (one of the 6 new stubs); OR a **Summary detail view** (5 stubs).
+Each its own "scope cut IS the run".
