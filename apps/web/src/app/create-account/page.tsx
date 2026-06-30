@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { BrandMark } from "@/components/BrandMark";
 import { Select } from "@/components/Select";
+import { GENDER_OPTIONS } from "@/lib/genders";
 import { login, registerAccount } from "@/lib/api/auth";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { decodeJwtPayload, resolveGlobalRole, type DecodedAuthToken } from "@/lib/auth/jwt";
@@ -28,13 +29,6 @@ import { PRIVACY_POLICY_URL } from "@/lib/config";
 
 // Inline email-format validation — same loose, deliberately-permissive regex as forgot-password (D-C1).
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const genderOptions = [
-  { value: "Female", label: "Female" },
-  { value: "Male", label: "Male" },
-  { value: "Non-binary", label: "Non-binary" },
-  { value: "Prefer not to say", label: "Prefer not to say" }
-];
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -210,7 +204,7 @@ export default function CreateAccountPage() {
 
           <Select
             value={gender}
-            options={genderOptions}
+            options={[...GENDER_OPTIONS]}
             onChange={setGender}
             placeholder="Gender (optional)"
             className="w-full"

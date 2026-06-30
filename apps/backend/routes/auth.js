@@ -109,6 +109,19 @@ router.put("/change-password", authenticateToken, async (req, res) => {
     }
 });
 
+// NET-NEW (profile page): self-service email change. Authenticated; password-confirmed direct change
+// (no legacy equivalent). authService.changeEmail keeps Supabase auth.users + member_emails in sync.
+router.put("/email", authenticateToken, async (req, res) => {
+    try {
+        const result = await authService.changeEmail(req.user.id, req.body.new_email, req.body.password);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[change-email] error:", err);
+        res.status(500).json({ error: "Server error during email change." });
+    }
+});
+
 router.delete("/account", authenticateToken, async (req, res) => {
     try {
         const result = await authService.deleteAccount(req.user.id);

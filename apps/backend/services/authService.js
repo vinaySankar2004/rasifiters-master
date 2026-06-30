@@ -262,6 +262,78 @@ async function changePassword(memberId, newPassword) {
     return { message: "Password changed successfully." };
 }
 
+// NET-NEW (auth SPEC / profile page): self-service email change. Has no legacy equivalent — email was
+// fixed at registration. DIRECT change (no verification email, email_confirm:true) to stay consistent
+// with register/createMember, and PASSWORD-CONFIRMED (re-auth the current password) since it is a
+// sensitive account change. Email lives in BOTH Supabase auth.users AND member_emails (login resolves
+// the member's email from member_emails), so both must move together. Compensating order mirrors
+// register: do the Supabase update first, then the DB update, and best-effort revert Supabase if the DB
+// write fails — so the two never drift. The current session JWT stays valid (sub/auth_user_id unchanged).
+async function changeEmail(memberId, newEmailRaw, password) {
+    const newEmail = normalizeEmail(newEmailRaw);
+    if (!newEmail || !EMAIL_RE.test(newEmail)) {
+        throw new AppError(400, "A valid email address is required.");
+    }
+    if (!password) throw new AppError(400, "Current password is required.");
+
+    const member = await Member.findByPk(memberId);
+    if (!member || !member.auth_user_id) throw new AppError(404, "Account not found.");
+
+    // Re-auth: verify the current password against the member's current email.
+    const currentEmail = await resolvePrimaryEmail(member.id);
+    if (!currentEmail) throw new AppError(404, "Account email not found.");
+    const { data: signInData, error: signInError } =
+        await supabaseAuth.auth.signInWithPassword({ email: currentEmail, password });
+    if (signInError || !signInData?.session) {
+        throw new AppError(401, "Current password is incorrect.");
+    }
+
+    if (newEmail === currentEmail) {
+        throw new AppError(400, "This is already your email.");
+    }
+
+    // Uniqueness: reject if the email belongs to a different member.
+    const existingEmail = await MemberEmail.findOne({ where: { email: newEmail } });
+    if (existingEmail && existingEmail.member_id !== member.id) {
+        throw new AppError(400, "Email already in use.");
+    }
+
+    // Apply to Supabase first (email_confirm:true → no verification step, parity with register).
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(member.auth_user_id, {
+        email: newEmail,
+        email_confirm: true
+    });
+    if (updateErr) throw new AppError(400, "Email already in use.");
+
+    // Then move the primary member_emails row. If this fails, revert Supabase so the two stay in sync.
+    const primary = await MemberEmail.findOne({
+        where: { member_id: member.id, is_primary: true }
+    });
+    const transaction = await sequelize.transaction();
+    try {
+        if (primary) {
+            await primary.update({ email: newEmail }, { transaction });
+        } else {
+            await MemberEmail.create(
+                { member_id: member.id, email: newEmail, is_primary: true },
+                { transaction }
+            );
+        }
+        await transaction.commit();
+    } catch (err) {
+        await transaction.rollback();
+        try {
+            await supabaseAdmin.auth.admin.updateUserById(member.auth_user_id, {
+                email: currentEmail,
+                email_confirm: true
+            });
+        } catch (_) { /* best-effort revert */ }
+        throw new AppError(500, "Failed to update email.");
+    }
+
+    return { message: "Email updated successfully.", email: newEmail };
+}
+
 // NET-NEW (auth SPEC v0.3.0 / D-C4): self-service password recovery — request step. Privacy-safe by
 // design (forgot-password page D-PLAN): ALWAYS returns the same generic 200 message, never revealing
 // whether the email maps to an account (no enumeration). Supabase is asked to send the recovery email
@@ -326,6 +398,7 @@ module.exports = {
     logout,
     register,
     changePassword,
+    changeEmail,
     requestPasswordReset,
     deleteAccount,
     upsertPushToken,

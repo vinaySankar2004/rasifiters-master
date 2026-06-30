@@ -78,6 +78,7 @@ export type MemberProfile = {
   member_name: string;
   username?: string;
   gender?: string | null;
+  email?: string | null;
   date_joined?: string | null;
   global_role?: string | null;
   created_at?: string | null;

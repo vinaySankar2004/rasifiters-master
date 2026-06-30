@@ -1,6 +1,6 @@
 # Feature: `members` — member directory, profiles, and admin lifecycle
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Reference impl (legacy):** `../../../backend` — `routes/members.js`, `services/memberService.js`,
 > `models/Member.js`, `models/MemberEmail.js`, `server.js:47`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken` / `isAdmin`).
@@ -48,8 +48,10 @@ All mounted at **`/api/members`** (legacy `server.js:47`). Handlers in `routes/m
 
 - **`GET /`** (`memberService.js:15-20`): a JSON array of **full `members` rows** — but with the
   migration-added `auth_user_id` column **excluded** to preserve the exact legacy shape (§7).
-- **`GET /:id`** (`memberService.js:26-35`): `{ id, member_name, username, gender, date_joined,
-  global_role, created_at, updated_at }` (`member_name`/`date_joined` are model virtuals).
+- **`GET /:id`** (`memberService.js`): `{ id, member_name, username, gender, email, date_joined,
+  global_role, created_at, updated_at }` (`member_name`/`date_joined` are model virtuals). **`email`** is the
+  primary `member_emails` row (`is_primary`), added so the web profile page can display it (read-only here —
+  changing email goes through `PUT /auth/email`, not the `updateMember` whitelist; F6 holds).
 - **`POST /`** (`memberService.js:56-63`, HTTP 201): `{ id, member_name, username, gender, date_joined,
   global_role }` — **shape preserved**; the change (§7) is internal (it also provisions auth).
 - **`PUT /:id`** (`memberService.js:95-100`): `{ message: "Profile updated successfully.", member_name,
@@ -94,7 +96,9 @@ block), `404` (member not found).
 Faithful names (R5); schema in `apps/backend/sql/001_schema.sql`.
 
 - **`members`** (owned — read + write) — `id` (preserved UUID), `username` (unique), `first_name`,
-  `last_name`, `gender`, `global_role` (`'standard'|'global_admin'`), `status`, `created_at`/`updated_at`,
+  `last_name`, `gender` (**`varchar(32)`** — widened from legacy `varchar(10)` via migration
+  `003_widen_gender_column.sql` so `"Prefer not to say"` fits), `global_role`
+  (`'standard'|'global_admin'`), `status`, `created_at`/`updated_at`,
   and the **migration-added** `auth_user_id uuid UNIQUE → auth.users(id)`. Virtuals: `member_name`
   (`first + " " + last`), `date_joined` (`created_at` as `YYYY-MM-DD`) — `models/Member.js`.
 - **`member_emails`** (read by the delete cascade; **written by `createMember`** in the rebuild) — `email`
@@ -171,6 +175,7 @@ update whitelist, and the `global_admin` delete block.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-06-30 | **`getMemberById` now returns the primary `email`** (resolved from `member_emails`, `is_primary`) so the web profile page can display it — additive read-shape change, backward-compatible (`updateMember` whitelist unchanged; email changes go through `PUT /auth/email`, F6 holds). **`members.gender` widened `varchar(10)`→`varchar(32)`** via migration `apps/backend/sql/003_widen_gender_column.sql` (+ `001_schema.sql` canonical line) so `"Prefer not to say"` (17 chars) stops erroring on save. MINOR (additive; consumers: web profile reads `email`, ios unaffected). Drives `program/profile` page v0.2.0. `node -c` ✓; migration applied by the user. |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the five `/api/members` routes + `memberService`. Decisions D-C1 (scope; `DELETE` cascade deferred → 501, auth `/account` pattern) / D-C2 (the one deliberate change — `createMember` wired to Supabase `createUser`, requires `email`) / D-REF (`consumed_by [web, ios]`; `POST`+`DELETE` called by neither client) / D-S1 (faithful except `createMember`; `getAllMembers` excludes `auth_user_id`). Flagged F1–F6. |
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — `services/memberService.js` (faithful `getAllMembers` w/ `auth_user_id` excluded, `getMemberById`, `updateMember`; **`createMember` wired to Supabase `admin.createUser` + requires `email`** per D-C2, reusing `authService.validatePassword`/`normalizeEmail`; `deleteMember`→501 per D-C1), `routes/members.js` (faithful 1:1), mounted `/api/members` in `server.js`. Module-load + route-stack boot check pass. Status 📄→🏗️ (no semver bump — the port matches the SPEC). |
 | 0.2.0 | 2026-06-28 | **Wired `DELETE /:id` (D-C1) — the 501 deferral is resolved.** The cross-feature cascade (destroy outbound invites + actored notifications, `handleMemberExit` per active membership/created program, notify remaining members, destroy the member) is single-sourced as `utils/programMemberships.cascadeMemberDeletion` and **shared verbatim** with `DELETE /api/auth/account`; after commit it best-effort deletes the Supabase auth user (the migration delta). Faithful to the legacy `deleteMember` body; minor bump (functionality previously 501). Boot check passes. |
