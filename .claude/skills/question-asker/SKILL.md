@@ -956,6 +956,32 @@ directly as a faithful port from the legacy reference app** — there is no inte
   data" with no error banner and legacy iOS swallows its `errorMessage` → both-swallow = parity = NO ADD (vs run-54
   Summary, where legacy iOS lacked the lock web showed → ADD). The verdict is set by WHAT WEB DOES — confirm web's
   behavior before adding.
+- **Run 57 — a tab body composed of SIBLING SECTIONS cuts scope BY SECTION (port the light/nav sections, defer the heavy
+  CRUD sections as INLINE stubs); and a run can CLOSE the whole multi-tab SHELL, not just a sub-route group.**
+  `AdminProgramTab`/`StandardProgramTab` (the iOS Program tab, Tab 4 = web `/program`) was the LAST tab body, and porting
+  it CLOSED the `AdminHomeView` 4-tab shell (Summary ✓54 · Members ✓55 · Lifestyle ✓56 · Program ✓57). Two durable
+  patterns. **(a) The "scope cut IS the run" axis covers INLINE-composed sub-views, not just forward-nav detail
+  targets.** Runs 54/55/56 deferred the `NavigationLink` DETAIL screens the cards push to; run 57 is the first to defer
+  SIBLING SECTIONS that compose the tab inline — `AdminProgramTab` is a `VStack` of 5 sections, so port the 2 light/nav
+  sections (`ProgramInfoSection` = select/edit/leave, `ProgramMyAccountSection` = account nav to already-deferred stubs)
+  + their `sectionHeader`/`settingsRow` helpers, and defer the 3 HEAVY management sections (`ProgramMemberManagementSection`
+  356 LoC / `ProgramRoleManagementSection` 291 / `ProgramWorkoutTypesSection` 370, each embedding its own roster/role-editor/
+  workout-CRUD detail) as `ScaffoldPlaceholder` stubs that render as compact centered blocks INLINE in the scroll (a
+  `ScaffoldPlaceholder` with no Spacers/frame takes its natural inline height). Size the cut by which sections are
+  light-nav vs heavy-CRUD. **(b) "Closes the group" (run 30/32/38/46/47/53) scales to the home SHELL** — the 4th-of-4
+  tab body closes the whole `TabView`; say "CLOSES the 4-tab home shell" in D-SCOPE + PROGRESS + COVERAGE, and the work
+  drops to the DEFERRED DETAIL/SECTION layer (management sections, account/settings screens, detail views), each its own
+  future "scope cut IS the run". Three reinforcements: **cross-file LOGIC-only de-dup is behavior-preserving, VISUAL is
+  not (run 22/23)** — the Leave-Program state machine + async + alerts were byte-identical across both tabs but the two
+  BUTTONS diverged (radius 14 inside-card vs radius 16 standalone), so extract the non-visual logic into a shared
+  `.leaveProgramConfirmation` modifier (which web's extracted `LeaveProgramButton` VALIDATES) and keep each button's
+  styling + `isLeaving`/`isPresented` @State inline; **D-REF keep-iOS-native can carry TWO divergences at once** (native
+  multi-screen management vs web's flat hub + iOS-only Notifications/Support account rows, push being `consumed_by=[ios]`)
+  — both kept native + flagged, the card set + role gating already match web → idiom not gap; **verify an
+  `@EnvironmentObject` dep is actually INJECTED before porting verbatim** — `ProgramMyAccountSection`'s `themeManager`
+  isn't injected in `AppRootView` (only `programContext` is) but IS injected at the `@main` App level, so trace the
+  injection up to `@main`, not just the nearest view (the dead-code drop of legacy's unreferenced `PlaceholderTab` is the
+  run-7 pattern, cross-platform — grep refs in BOTH legacy + rebuilt before dropping).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

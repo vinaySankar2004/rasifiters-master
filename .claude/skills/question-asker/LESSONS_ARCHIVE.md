@@ -2430,3 +2430,65 @@ Read-only → `admin_only_data_entry` N/A. Role rules = the Admin*/Standard* vie
 
 **Next:** the LAST tab body — the **Program** pair (`AdminProgramTab`/`StandardProgramTab`, iOS analogue of web
 `/program/*`); OR a detail view (the Lifestyle/Members/Summary deferred stubs). Each its own "scope cut IS the run".
+
+---
+
+## Run 57 — `AdminProgramTab`/`StandardProgramTab` (iOS Tab 4 "Program", the LAST tab body — CLOSES the 4-tab home shell)
+
+**Target:** the iOS Program tab, the analogue of web `/program`. Role-bifurcated: `AdminProgramTab` (program/global
+admin — `SummaryHeader` + 5 sections) vs `StandardProgramTab` (logger/member — read-only program-info card + Switch +
+Leave + account). Selected by `AdminHomeView`'s `isProgramAdmin`. **This run CLOSES the `AdminHomeView` 4-tab shell**
+(Summary ✓54 · Members ✓55 · Lifestyle ✓56 · Program ✓57).
+
+**Sweep:** 3 parallel `Explore` agents (legacy section map · web `/program` parity · rebuilt foundation deps) +
+own-grep verification. `AdminProgramTab` (53 LoC) composes `ProgramInfoSection` (180) + 3 heavy management sections
+(`ProgramMemberManagementSection` 356 · `ProgramRoleManagementSection` 291 · `ProgramWorkoutTypesSection` 370, each
+embedding its own roster/role-editor/workout-CRUD detail screens) + `ProgramMyAccountSection` (163). `StandardProgramTab`
+(369) is self-contained + shares `ProgramMyAccountSection`. Web parity: the iOS admin-menu-vs-read-only-card split
+ALREADY matches web's role variants; Leave-except-global-admin matches; error handling matches (both surface only the
+Leave-mutation error, swallow read errors).
+
+**Decisions:** D-SCOPE = port the 2 tab bodies + the 2 LIGHT sections (`ProgramInfoSection`, `ProgramMyAccountSection`) +
+`sectionHeader`/`settingsRow` helpers; defer the 3 HEAVY management sections as `ScaffoldPlaceholder` stubs. D-REF = keep
+iOS-native (native multi-screen management push-screens + iOS-only Notifications+Support account rows vs web's flat
+card→route hub — idiom, not a gap). D-S1 = faithful 1:1, NO web-parity ADD (both-swallow = parity, run-53/55/56 shape).
+Faithful + 3 pinned cleanups: D-C1 de-dup the verbatim-triplicated Leave logic into a shared `.leaveProgramConfirmation`
+modifier (mirrors web's extracted `LeaveProgramButton`); D-C2 drop the dead `PlaceholderTab` struct; D-C3 tokenize the 3
+bare `.blue` section accents → `appBlue`. D-DEPS = one small dep class (`sectionHeader`/`settingsRow` helpers co-located
+in the legacy giant `AdminHomeHelpers.swift`, never in the foundation — run-55/56 situation) + the new modifier. Read-only
+→ `admin_only_data_entry` N/A. Role rules code-answered → stated, not asked. Flagged F1–F7.
+
+**New durable patterns (promoted to SKILL.md):**
+1. **A tab body composed of SIBLING SECTIONS → the scope cut is BY SECTION (port the light/nav sections, defer the
+   heavy CRUD sections as inline `ScaffoldPlaceholder` stubs).** Prior tab-body runs (54/55/56) deferred forward-nav
+   DETAIL targets (`NavigationLink` destinations the cards push to); run 57 is the first to defer SIBLING SECTIONS that
+   compose the tab INLINE (`AdminProgramTab`'s `VStack` of 5 sections). The deferred section stubs render as compact
+   centered placeholder blocks IN the scroll (a `ScaffoldPlaceholder` with no Spacers/frame takes its natural inline
+   height — works inline, not just full-screen). The "scope cut IS the run" axis thus covers BOTH forward-nav targets
+   AND inline-composed sub-views; size the cut by which sections are light-nav (port) vs heavy-CRUD (defer).
+2. **A run can CLOSE a whole multi-tab SHELL, not just a sub-route group.** The "closes the group" lesson
+   (run 30/32/38/46/47/53) scales to the home shell: run 57 is the 4th-of-4 tab body, so it CLOSES the `AdminHomeView`
+   shell. Say "CLOSES the 4-tab home shell" in D-SCOPE + PROGRESS + COVERAGE; the work then drops to the DEFERRED
+   DETAIL/SECTION layer (management sections, account screens, detail views), each its own future "scope cut IS the run".
+
+**Reinforced (not re-promoted):**
+- **Cross-file LOGIC-only de-dup is behavior-preserving; cross-file VISUAL de-dup is not (run 22/23).** The Leave-Program
+  STATE MACHINE + async + alerts were byte-identical across `ProgramInfoSection` and `StandardProgramTab`, but the two
+  BUTTONS diverged (radius 14 inside-card vs radius 16 standalone). Extract the identical NON-visual logic into a shared
+  `.leaveProgramConfirmation` modifier; keep each button's distinct styling + its `isLeaving`/`isPresented` @State inline.
+  This matches web's extracted `LeaveProgramButton` — the web sibling's structure VALIDATES the iOS extraction.
+- **D-REF "keep iOS-native" can carry TWO divergences at once (structural + iOS-only rows), both kept native + flagged**
+  (run 52/53). Structural = native multi-screen management vs web's flat hub; iOS-only = Notifications + Support account
+  rows (push settings are `consumed_by=[ios]`; web's account menu omits them). The card set + role gating already match
+  web → idiom, not a parity gap.
+- **Dead-code drop (run 7) is cross-platform** — `PlaceholderTab` (legacy "Coming Soon" stub) is referenced by NOBODY in
+  the rebuilt 4-tab set → drop, don't port. Grep refs in BOTH legacy + rebuilt before dropping.
+- **Verify an `@EnvironmentObject` dep is actually INJECTED before porting verbatim** — `ProgramMyAccountSection` uses
+  `@EnvironmentObject var themeManager`; `AppRootView` injects only `programContext`, but `ThemeManager` IS injected at
+  the `@main` App level (`RaSi_Fiters_AppApp.swift`) → resolves, no crash. Trace the injection up to `@main`, not just
+  the nearest view, before assuming an environment dep is present.
+
+**Next:** the 4-tab shell is CLOSED. The work is now the DEFERRED DETAIL/SECTION layer — a Program management section
+(`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/`ProgramWorkoutTypesSection`), an account/settings screen
+(`MyProfileView`/`ChangePasswordView`/`AppearanceSettingsView`/`NotificationsSettingsView`/`EditProgramInfoView`),
+`ProgramActionsSheet`, or a Summary/Members/Lifestyle detail view. Each its own "scope cut IS the run".
