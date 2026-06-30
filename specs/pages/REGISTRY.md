@@ -37,13 +37,14 @@ history/workouts/streaks) · lifestyle (+ timeline/workouts).
 | splash | 🏗️ v0.1.0 | `auth` (root `authToken` bifurcation; no API) | [splash SPEC](ios/splash/SPEC.md) |
 | login | 🏗️ v0.1.0 | `auth` (`APIClient.loginGlobal()` `POST /auth/login/global`, `ProgramContext+Auth`) | [login SPEC](ios/login/SPEC.md) |
 | create-account | 🏗️ v0.1.0 | `auth` (`registerAccount()` `POST /auth/register` + `loginGlobal()`, `ProgramContext+Auth`) | [create-account SPEC](ios/create-account/SPEC.md) |
+| program-picker | 🏗️ v0.1.0 | `programs`/`invites` via `ProgramContext` (`fetchPrograms` `GET /programs`, `deleteProgram`, `updateMembershipStatus` `PUT /program-memberships`, `loadPendingInvites`/`loadMembershipDetails`/`loadLookupData`/`persistSession`/`signOut`) | [program-picker SPEC](ios/program-picker/SPEC.md) |
 
 > **Stance for all iOS screens:** match the CURRENT built web app, not just legacy iOS (web is a co-equal
 > reference point) — resolve cross-app divergences toward web parity. The auth path landed the real
 > `BrandMark` (vs the legacy placeholder), Login's "Forgot your password?" web-recovery link, and the 4
 > create-account cleanups; all `consumed_by=[ios]`, role N/A pre-auth.
 
-Inventory to document: ~~splash~~ · ~~login~~ · ~~create-account~~ · program-picker · admin-home (summary/members/
+Inventory to document: ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~program-picker~~ · admin-home (summary/members/
 lifestyle/program tabs, admin + standard variants) · member-detail (metrics/history/streaks/recent/health) ·
 settings (profile/password/appearance/notifications) · widgets (quick-add-workout, quick-add-health,
 ios-only) · notification-modal.

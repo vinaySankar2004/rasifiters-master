@@ -79,6 +79,34 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` post-auth landing: `ProgramPickerView` PORTED (run 52, 2026-06-30).** The **"My Programs"
+hub** — the first post-auth iOS screen — ported into `apps/ios/.../Features/Home/ProgramPickerView.swift`
+(SPEC `specs/pages/ios/program-picker/`), the deferred stub removed; the **7 forward-nav screens it navigates
+to are added as `ScaffoldPlaceholder` stubs** (`AdminHomeView`, `ProgramActionsSheet`, `EditProgramInfoView`,
+`MyProfileView`, `ChangePasswordView`, `AppearanceSettingsView`, `NotificationsSettingsView`). **D-SCOPE = the
+scope cut IS the run** (run-21/50 pattern, cross-platform): port the picker verbatim incl. its inline
+`ProgramCard`/`StatusPill`/`AccountMenuSheet`, defer everything it pushes to. **Faithful 1:1 D-S1** (the `List`
+of cards over `fetchPrograms`, `canOpen`/`canManage` role gating, swipe Edit/Delete, inline invite
+Accept/Decline via `updateMembershipStatus`, the floating "+" with the pending-invite badge, `applyProgram`
+hydration + `persistSession` → `AdminHomeView`, delete/sign-out `Alert`s) **+ ONE web-parity deviation D-C1: a
+visible error banner** — the legacy set `errorMessage` in `loadPrograms`/`deleteProgram`/`respondToInvite` but
+**never rendered it** (errors silently swallowed); the web hub surfaces query errors, so iOS now shows an
+additive red banner. **THE LOAD-BEARING DECISION — D-REF: keep iOS-native multi-screen navigation.** The web
+`/programs` hub renders the whole flow on ONE page (create/edit/invites/account as inline modals); iOS keeps
+native sheets + multi-screen navigation. Per memory [[ios-matches-web-not-just-legacy]] this is the
+**platform-idiom EXCEPTION** to web parity (resolve toward web UNLESS a platform reason) — the first iOS run
+where the lead answer is "keep native", recorded as D-REF + F7, NOT a reconcile-toward-web. **D-DEPS = no new
+dependency** (every service/model/component/theme symbol ported in the foundation run 50; `StatusPill` collision
+grep clean). Role rules = the `canOpen`/`canManage` table (global_admin opens/edits/deletes any; program admin
+own; logger/member open only; invited/requested accept/decline only); **`admin_only_data_entry` N/A** (read into
+`ProgramContext` for downstream log screens, never gates the picker). Flagged F1–F7 (errors-now-surfaced;
+deferred forward-nav stubs; vestigial `isDeleting`; client role gating; dual invite mechanisms; iOS-only account
+rows incl. Notifications+Support; single-page-hub layout not adopted). **The app target's build green-check is
+owned by the user (visual run in Xcode)** — symbols verified via grep (no `StatusPill`/component collisions,
+all `ProgramContext`/`ProgramDTO`/theme deps resolve), not a CLI build (memory
+[[ios-user-verifies-builds-visually]]). **Next: `AdminHomeView` (the post-pick home) or `ProgramActionsSheet`
+(create+invites), via `question-asker`.**
+
 **Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
 `npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
 providers, edge middleware). Ported the shared page-independent infra directly (not via `question-asker` —
@@ -102,17 +130,22 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT `ProgramPickerView` (the post-auth landing) via `question-asker`
-> **The iOS auth path is DONE (run 51, 2026-06-30)** — `SplashView`/`LoginView`/`CreateAccountView` ported
-> with web parity (real `BrandMark`, the "Forgot your password?" web-recovery link, the 4 create-account
-> cleanups). See the **Phase 4 — auth screens** entry above + the 3 SPECs at `specs/pages/ios/{splash,login,
-> create-account}/`. **NEXT = `ProgramPickerView`** — the post-auth landing both Login + CreateAccount push to
-> (`navigateToProgramPicker`); currently a deferred stub in `App/_DeferredScreenStubs.swift`. Reference impl
-> `../ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift` (+ program create/edit/invites). Run
-> the `question-asker` loop, **match the current web `/programs` hub** (memory
-> [[ios-matches-web-not-just-legacy]]) + faithful legacy iOS, delete the stub when it lands. **The user
-> verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the
-> local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
+> ### ⏭️ ON "continue" → PORT `AdminHomeView` (the post-pick home) OR `ProgramActionsSheet` (create+invites) via `question-asker`
+> **`ProgramPickerView` is DONE (run 52, 2026-06-30)** — the post-auth landing ("My Programs" hub) ported into
+> `apps/ios/.../Features/Home/ProgramPickerView.swift` (SPEC `specs/pages/ios/program-picker/`), the deferred
+> stub removed. Faithful 1:1 D-S1 **+ D-C1 a visible error banner** (the legacy set `errorMessage` but never
+> rendered it — web-parity fix). **KEY DECISION D-REF: keep iOS-native multi-screen navigation** — the web
+> `/programs` hub does the whole flow on ONE page (create/edit/invites/account as inline modals); iOS keeps
+> native sheets + navigation (swipe edit/delete, floating "+" → actions sheet, account sheet). This is a
+> **platform-idiom EXCEPTION to web parity** (memory [[ios-matches-web-not-just-legacy]]), not a gap (F7).
+> **NEXT = the 7 forward-nav screens the picker stubs** (`_DeferredScreenStubs.swift`): the biggest is
+> **`AdminHomeView`** (the post-pick home dashboard — the iOS analogue of the web `/summary` workspace; pushed
+> when a program card is opened); the next is **`ProgramActionsSheet`** (create program + invites — the "+"
+> floating button target). Also deferred: `EditProgramInfoView` + the 4 account screens (`MyProfileView`/
+> `ChangePasswordView`/`AppearanceSettingsView`/`NotificationsSettingsView`). Run `question-asker` per screen,
+> **match the current web sibling** + faithful legacy iOS, delete each stub when it lands. **The user verifies
+> the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI
+> toolchain. The pre-iOS web/deploy context is retained below for reference.
 >
 > **REMINDER for every iOS screen:** the web app is now a co-equal reference point — port to match what the
 > built web app ships, resolving cross-app divergences toward web parity unless there's a platform reason not
