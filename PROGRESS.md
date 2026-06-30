@@ -42,6 +42,51 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (6 of 8).** The
+> **`members/streaks` page (30th web page, 6th of the 8 deferred `/members` sub-routes — the per-member Streak Stats
+> detail behind the `/members` landing's Streak Stats card) is DONE** (2026-06-29): a faithful 1:1 port of the legacy
+> 84-line **per-member streak detail** — a `PageShell` + `PageHeader` ("Streak Stats" / the member `name` from the URL /
+> `backHref="/members"`) wrapping one `GlassCard` with two `metric-pill` tiles (Current / Longest, in days) over a
+> `flex-wrap` row of **milestone badges** (`{dayValue}d`, each achieved-or-not), over `fetchMemberStreaks`
+> (`GET /member-streaks`, target from URL `memberId`/`name`). **A CONFIRM-ONLY SIMPLER-TWIN of `members/history` (run 43)
+> — same per-member URL `memberId`/`name` scope + the IDENTICAL `canViewAny` role-redirect, but SUBTRACT the chart
+> machinery** (no `PeriodSelector`, no `BarChart`, no Recharts, no `period` in the query key, no chart-theme imports) —
+> the run-43 twin-collapse run in the SUBTRACT direction (run 33 subtracted twin cleanups; here the whole chart layer is
+> gone). **KEY ROLE FINDING (identical to history):** `canViewAny = isGlobalAdmin || my_role==="admin" ||
+> my_role==="logger"` (`page.tsx:23-24`); a non-staff user whose URL `memberId` is **not their own** is
+> `router.push("/members")`'d on mount (`:27-32`) — staff view any member, a plain member only their own. **F2 (the
+> run-40/43 MIRROR): the client redirect is STRICTER than the backend** — `getMemberStreaks` only enforces
+> `ensureProgramAccess` (403 non-member) + target-enrolled (404), NOT which member a non-staff requester may view
+> (`memberAnalyticsService.js:303-312`); any active member could fetch any enrolled member's streaks via the API directly,
+> only the client UI restricts it. **F3 secure characteristic:** unlike the `/summary` analytics routes (F2 —
+> `authenticateToken`-only), the service enforces per-program read authz — the route carries only `authenticateToken`
+> (`memberAnalytics.js:39`), the gate lives in the service (recurs). **F1 server-driven streak math** —
+> `currentStreakDays`/`longestStreakDays`/`milestones` all computed server-side (`computeStreaks` over distinct
+> `workout_logs.log_date` from program start; fixed milestone ladder), rendered verbatim. **Read-only → no write path →
+> `admin_only_data_entry` N/A.** **D-SCOPE** = this page only — **6th-of-8, does NOT close the group** (`workouts`/`health`
+> still deferred). **D-DEPS = NO new dependency** — `fetchMemberStreaks`/`MemberStreaks` already live in
+> `lib/api/members.ts:131` (ported "vestigial-here" with the `/members` landing run 22; byte-identical, the page's belated
+> consumer; own-family per-function, run-41) + every chrome leaf + the `metric-pill` CSS class (`globals.css:216`) + the
+> `rf-accent` token (`tailwind.config.ts:18`) already ported; the sweep ports nothing but the page file. **NO chart →
+> imports no Recharts.** **Stance = faithful + 1 user-picked cleanup: D-C1** **non-color milestone affordance** — achieved
+> badges, distinguished from unachieved in legacy by text color ONLY (`text-rf-accent` vs `text-rf-text-muted`), now also
+> carry a `✓` prefix (`aria-hidden`) + a faint `ring-1 ring-rf-accent/40` (the run-33 color-only-distinguished concern,
+> applied to badges). User chose faithful+affordance over pure-faithful. **NO empty-state cleanup** — history's D-C1
+> all-zero guard has NO analog (no chart; a zero-streak member still renders meaningful `0 days` + all-unachieved badges;
+> the milestone ladder is a fixed non-empty server list). **NO tokenize cleanup** (already fully `rf-*`); **NO nav cleanup**
+> (no `router.back()` — only the role-redirect + the `PageHeader` back link). Faithful otherwise (D-S1 — same
+> `force-dynamic` + `useClientSearchParams`, same `useAuthGuard()` + `canViewAny` redirect, same React Query key
+> `["members","streaks",programId,memberId]` + `enabled` gate, same two-pill + milestone markup, `maxWidth="3xl"`).
+> **Zero backend work, NO feature bump** — `GET /api/member-streaks` already mounted (`server.js:59`,
+> `streaksRouter.get("/", authenticateToken)`) + the api fn already ported. `consumed_by=[web]` (iOS surfaces member
+> streaks natively). Flagged F1–F5 (server-driven streak math; client redirect stricter than backend; per-program read
+> authz IS enforced — secure; `name` display-only defaults "Member"; no-`memberId` direct-nav is a degenerate no-op).
+> `npm run build` ✓ (`/members/streaks` prerendered, **2.24 kB** — below history's 2.95 kB, no Recharts; Middleware
+> 27.6 kB active). **Committed via `git-version` next; lessons run 44 appended (promoted: "run-43's twin-collapse runs
+> BOTH directions — here a twin recognized by SUBTRACTING its whole chart layer, not just a cleanup; the simpler twin
+> still transcribes the decision shape verbatim and the lone D-C is content-specific, here a non-color affordance for
+> color-only-distinguished badges").** **NEXT = the `/members` group continues: `workouts`/`health` (2 of 8 remaining).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (5 of 8).** The
 > **`members/history` page (29th web page, 5th of the 8 deferred `/members` sub-routes — the per-member Workout History
 > timeline behind the `/members` landing's History card) is DONE** (2026-06-29): a faithful 1:1 port of the legacy
