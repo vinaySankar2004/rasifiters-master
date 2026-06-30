@@ -57,6 +57,28 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
+> ### ⏭️ ON "continue" → PORT THE WEB `notifications` FEATURE (user decision, 2026-06-29)
+> The web surface's **pages** are 100% done, but the webapp is **NOT feature-complete**: the
+> [`NotificationsGate`](apps/web/src/components/NotificationsGate.tsx) is still a `return null` **deferred stub** —
+> the web `notifications` client was never ported. **The user's chosen order is: (1) THIS session = port web
+> notifications, then (2) the session after = deploy to Vercel (NO domain switch — staging-ready cutover).** So do
+> NOT start iOS yet; the run-47 entry below saying "NEXT SURFACE = ios" is superseded by this banner.
+>
+> **Scope of the notifications session (client-only — backend is fully live):** the backend `notifications` feature
+> is ported + deployed (SSE stream on Supabase JWKS, device register/unregister, broadcast, acknowledge — COVERAGE
+> line 22, live on `rasifiters-api.onrender.com`). Port the **web client**: the notifications client lib (the
+> `EventSource`/SSE client + `acknowledge` calls — not yet in `apps/web/src/lib/`) + **replace the `NotificationsGate`
+> stub** with the faithful port (open the SSE stream → hydrate the active program → render the notification
+> modal/bell). The `programs` client deps it leans on are already ported. Run it through `question-asker` → port →
+> `git-version`; it adds `web` to the notifications feature's `consumed_by` (a **MINOR bump** on that feature — NOT a
+> no-bump page run). Legacy ref: `../rasifiters-webapp/src/components/NotificationsGate.tsx` + its SSE/notifications
+> lib. After it lands, the webapp is genuinely feature-complete and ready to deploy.
+>
+> **Then (next session): deploy to Vercel WITHOUT switching the domain** — the `deploy` skill provisions the Vercel
+> project + deploys to a Vercel-generated URL (e.g. `rasifiters-web.vercel.app`), wires env (API → the live Render
+> backend, Supabase keys), applies the scope guardrails; the production/custom domain is left UNPOINTED so the app is
+> testable + transferable at any point with no rebuild.
+
 > **On "continue": Phase 3 `web` is COMPLETE — THE ENTIRE WEB SURFACE IS PORTED. NEXT SURFACE = `ios`.** The final
 > two web pages — the **public legal/contact pair `privacy-policy` + `support` (33rd & 34th web pages, run 47) —
 > are DONE** (2026-06-29) and **CLOSE the web surface**. Both are faithful 1:1 ports of the legacy public (pre-auth)
