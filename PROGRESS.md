@@ -42,6 +42,32 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/summary` SUB-ROUTE GROUP HAS STARTED (1 of 6).** The
+> **`summary/activity` page (19th web page, 1st of the 6 deferred `/summary` sub-routes) is DONE** (2026-06-29):
+> faithful 1:1 port of the legacy **workout activity timeline** detail behind the summary landing's Activity chart
+> card — a `PeriodSelector` (W/M/Y/P) over one `GlassCard` (range + daily-average header + a `BarChart` of workouts
+> and active-members per bucket, over `workout_logs` via `GET /analytics/timeline`). **A near-twin of
+> `lifestyle/timeline` but SIMPLER: no view-as picker, no `memberId` — PROGRAM-WIDE only** (data scope is not
+> per-member; `useAuthGuard()` default, **no role logic at all** — the ABSENCE of role-conditional UI is the
+> finding F2). **Read-only** → `admin_only_data_entry` **N/A**. **D-SCOPE** = this page only — **1st-of-6, does NOT
+> close the group** (`distribution`/`workout-types` + the 3 log fallbacks still deferred). **D-DEPS = NO new
+> dependency** (purest shape — every import already ported: `fetchActivityTimeline` landed with the summary landing
+> run 21, `PeriodSelector` with `lifestyle/timeline` run 32, all other chrome + chart-theme earlier; the sweep
+> ported nothing but the page itself). **Stance = faithful + 2 user-picked chart cleanups: D-C1** add `<Legend>` +
+> series names (`name="Workouts"`/`name="Active members"`; tooltip formatter keys off `name`) so the two
+> color-only-distinguished bars are labeled (mirrors timeline D-C3), **D-C2** empty-state guard
+> (`buckets.length===0` → "No data for this range yet." instead of an empty chart; mirrors timeline). **Dual-axis
+> NOT applied** (both series are counts → a single shared Y-axis is correct; deliberately omitted). Faithful
+> otherwise (D-S1 — same query key/`enabled` gate/header/inline axis ticks; already fully `rf-*` tokenized so NO
+> tokenize cleanup). **Zero backend work, NO feature bump** — `GET /api/analytics/timeline` already mounted
+> (`routes/analytics.js:60`, `authenticateToken`-only) + the api fn already ported. Flagged F1–F4 (no per-program
+> read authz on the timeline route — analytics F2; no view-as/no `memberId`/no role logic — program-wide; read-only
+> → `admin_only_data_entry` N/A; `daily_average` server-derived). `npm run build` ✓ (`/summary/activity`
+> prerendered, **2.31 kB** — smallest `/summary` route; Recharts shared 208 kB; Middleware 27.4 kB active).
+> **Committed via `git-version` next; lessons run 33 appended.** **NEXT = the `/summary` group continues:
+> `distribution` (next chart drill-down), `workout-types`, then the 3 mobile log fallbacks
+> (`log-workout`/`log-health`/`bulk-log-workout`); and/or the 8 deferred `/members` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the `/lifestyle` SUB-ROUTE GROUP IS NOW COMPLETE (2 of 2).** The
 > **`lifestyle/timeline` page (18th web page, 2nd & LAST `/lifestyle` sub-route) is DONE** (2026-06-29): faithful 1:1
 > port of the legacy **sleep + diet-quality health timeline** detail behind the lifestyle landing's timeline chart
