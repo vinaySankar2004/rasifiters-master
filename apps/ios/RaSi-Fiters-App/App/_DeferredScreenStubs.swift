@@ -70,15 +70,11 @@ struct QuickAddHealthWidgetEntryView: View {
 // SummaryChartCards.swift) — stub removed. The 5 detail screens its cards navigate OUT to remain
 // deferred (below) — stubbed here so the Summary tab compiles, each DELETED when its real screen lands.
 
-/// DEFERRED (Features/Home/Tabs/AdminOtherTabs.swift) — Tab 2 "Members", program-admin variant.
-struct AdminMembersTab: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Members (Admin)") }
-}
-
-/// DEFERRED (Features/Home/Tabs/StandardMembersTab.swift) — Tab 2 "Members", non-admin variant.
-struct StandardMembersTab: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Members") }
-}
+// NOTE: AdminMembersTab + StandardMembersTab landed (Features/Home/Tabs/AdminMembersTab.swift +
+// StandardMembersTab.swift + MemberCards.swift + MemberOverviewPicker.swift, run 55) — stubs removed.
+// The 6 detail screens their cards navigate OUT to remain deferred (below: MemberMetricsDetailView,
+// InviteMemberView, ProgramMembersListView, MemberStreakDetail, MemberRecentDetail, MemberHealthDetail),
+// stubbed so the Members tabs compile; each DELETED when its real screen lands.
 
 /// DEFERRED (Features/Home/Tabs/AdminOtherTabs.swift) — Tab 3 "Lifestyle", program-admin variant.
 struct AdminWorkoutTypesTab: View {
@@ -146,9 +142,13 @@ struct AddDailyHealthDetailView: View {
     var body: some View { ScaffoldPlaceholder(screen: "Add Daily Health") }
 }
 
-/// DEFERRED (Features/Home/Detail/ActivityTimelineViews.swift) — Summary activity-timeline card → expanded timeline.
+/// DEFERRED (Features/Home/Detail/ActivityTimelineViews.swift) — Summary activity-timeline card → expanded
+/// timeline. Also the target of the Members tab's `MemberHistoryCard` (run 55), which passes `memberId` +
+/// `showActiveSeries` — the defaults keep the run-54 AdminSummaryTab call site (`initialPeriod:` only) compiling.
 struct ActivityTimelineDetailView: View {
     var initialPeriod: AdminHomeView.Period
+    var memberId: String? = nil
+    var showActiveSeries: Bool = true
     var body: some View { ScaffoldPlaceholder(screen: "Activity Timeline") }
 }
 
@@ -162,4 +162,43 @@ struct DistributionByDayDetailView: View {
 struct WorkoutTypesDetailView: View {
     var types: [APIClient.WorkoutTypeDTO]
     var body: some View { ScaffoldPlaceholder(screen: "Workout Types") }
+}
+
+// MARK: - Deferred detail screens referenced by the Members tabs (run 55 — AdminMembersTab/StandardMembersTab)
+// The iOS analogues of the web /members sub-routes (metrics / invite / list+detail / streaks / workouts / health).
+// Initializers match the Members tab + card call sites so the tabs compile.
+
+/// DEFERRED (Features/Home/Detail/MemberMetricsViews.swift) — Members metrics-preview card → full metrics table.
+struct MemberMetricsDetailView: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Member Metrics") }
+}
+
+/// DEFERRED (Features/Home/Helpers/AdminHomeHelpers.swift) — Members "Invite" action → invite-by-username form.
+struct InviteMemberView: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Invite Member") }
+}
+
+/// DEFERRED (Features/Home/Tabs/MemberManagementSection.swift) — Members "View Members" action → roster list
+/// (→ MemberDetailEditView, global-admin only).
+struct ProgramMembersListView: View {
+    var body: some View { ScaffoldPlaceholder(screen: "View Members") }
+}
+
+/// DEFERRED (Features/Home/Detail/MemberDetailViews.swift) — Members streak card → streak detail + milestones.
+struct MemberStreakDetail: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Streak Stats") }
+}
+
+/// DEFERRED (Features/Home/Sheets/WorkoutSortFilterSheets.swift) — Members recent card → per-member workouts.
+struct MemberRecentDetail: View {
+    var memberId: String?
+    var memberName: String?
+    var body: some View { ScaffoldPlaceholder(screen: "View Workouts") }
+}
+
+/// DEFERRED (Features/Home/Sheets/HealthSortFilterSheets.swift) — Members health card → per-member health logs.
+struct MemberHealthDetail: View {
+    var memberId: String?
+    var memberName: String?
+    var body: some View { ScaffoldPlaceholder(screen: "View Health") }
 }
