@@ -2544,3 +2544,48 @@ components/`AppSpacing`/`AppCornerRadius` all resolve).
 
 **Next:** the DEFERRED DETAIL/SECTION layer continues — a Program management section (3 stubs), `ProgramActionsSheet`/
 `EditProgramInfoView`, or a Summary (5) / Members (6) / Lifestyle (2) detail view. Each its own "scope cut IS the run".
+
+## Run 59 — iOS program create/edit/invites cluster (ProgramActionsSheet + CreateProgramTabView + InvitesTabView + DeclineInviteDialog + InviteCard + EditProgramInfoView) — 2026-06-30
+
+**Target:** the program-picker's two deferred forward-nav targets (deferred since run 52) — `ProgramActionsSheet`
+(the "+" sheet: a tabbed Invites/Create container + its 3 sub-views) + the swipe-Edit `EditProgramInfoView`. Ported
+into `apps/ios/.../Features/Home/ProgramActions/`; 2 iOS SPECs; both deferred stubs removed.
+
+**Decisions:** D-REF (legacy iOS + web `programs`/`program-edit` parity; `consumed_by=[ios]`) · D-SCOPE (the cluster
+IS the run — run-58 cohesive-cluster precedent) · D-S1 (create + invites faithful 1:1 — both web AND legacy iOS agree
+→ faithful is web parity, NO ADD, the run-55/56 both-agree shape) · D-C1 (EditProgramInfoView web-parity
+admin-only-data-entry toggle ADD — iOS-client plumbing on `APIClient.updateProgram`+`ProgramContext.updateProgram`+
+`ProgramUpdateResponse`; ZERO backend, NO feature bump — web already PUTs it; the run-58 existing-endpoint-2nd-client
+shape; completes the run-54 lock story) · D-C2 (the 3 web Edit cleanups — date-range validation, hydrate-from-response,
+skip-no-op PUT) · D-DEPS (one new API-layer dep for the toggle; no new view component — `StatusPill` reused from
+ProgramPickerView top-level run 52, `ProgramDTO.admin_only_data_entry`/`ProgramContext.adminOnlyDataEntry` existed run 54).
+
+**New / reinforced patterns:**
+- A cohesive CLUSTER can mix a FAITHFUL-1:1 screen (create/invites — both clients agree, no ADD) with a
+  WEB-PARITY-ADD screen (edit — the toggle) in ONE run. Size each screen's stance independently (run-58 mixed-weight
+  cluster), and size the ADD's deps to the ONE screen that needs them — here the `adminOnlyDataEntry` plumbing serves
+  only EditProgramInfoView; ProgramActionsSheet adds nothing.
+- The run-27 "this page's whole job is to SET the flag → `admin_only_data_entry` is N/A as a GATE" inversion recurs
+  CROSS-PLATFORM on iOS: EditProgramInfoView EDITS the lock, so the lock never gates the editor (vs the sheet, which
+  creates/triages and also has the lock N/A — read-vs-write axis). State both N/A reasons explicitly.
+- A shared inline type a PRIOR run already lifted to TOP-LEVEL in a feature file (StatusPill, top-level in
+  ProgramPickerView since run 52 — NOT private) is REUSED IN PLACE by a later sibling — neither redefined (collision)
+  nor re-hoisted to `Shared/Components/` (run-55 GlassButton was MOVED because it was co-located in a deferred file;
+  StatusPill was already module-visible, so reuse-in-place is correct + cheaper). Grep the type's access level before
+  deciding move-vs-reuse-vs-redefine; flag the not-in-Shared/Components location as a low-risk hoist candidate (F-row).
+- The "both web AND legacy iOS agree → faithful IS web parity, NO ADD" verdict (run 55/56, on fetching screens) holds
+  on a WRITE surface too (the create form + invites flow): when both clients implement the same create fields + the
+  same Accept/Decline/Revoke + block-future-on-decline, there is no divergence to reconcile — don't manufacture one.
+- The 3 web Edit cleanups port cross-platform with iOS idioms: date-range validation compares `yyyy-MM-dd` strings
+  (day-granularity, same-day = error); hydrate-from-response lives in the `ProgramContext.updateProgram` wrapper (set
+  fields from `ProgramUpdateResponse`, not optimistic input); skip-no-op snapshots the loaded values on `onAppear` and
+  compares formatted strings so time-of-day differences don't trigger a false PUT.
+
+**Mechanics:** folder-synchronized Xcode group (new `Features/Home/ProgramActions/` dir auto-includes, run-51); the
+create/invites sub-views `cp`'d verbatim; build green-check the user's (Xcode), symbols grep-verified (each of the 6
+types defined exactly once, no `StatusPill` collision, `adminOnlyDataEntry` plumbed across both layers, call sites
+unchanged, both stubs removed).
+
+**Next:** the DEFERRED DETAIL/SECTION layer continues — the 3 Program management-section stubs
+(`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/`ProgramWorkoutTypesSection`), or a Summary (5) /
+Members (6) / Lifestyle (2) detail view. Each its own "scope cut IS the run".

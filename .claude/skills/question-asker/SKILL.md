@@ -1013,6 +1013,33 @@ directly as a faithful port from the legacy reference app** — there is no inte
   Delete-hidden-for-global_admin is an F-row; Password/Appearance/Notifications have NO role-conditional UI — the absence is
   the finding); `admin_only_data_entry` N/A for account settings (not workout/health data entry); folder-synchronized Xcode
   group auto-includes new files (run-51); trivial screens `cp`'d verbatim; build green-check the user's, symbols grep-verified.
+- **Run 59 — a cohesive CLUSTER can mix a FAITHFUL-1:1 screen with a WEB-PARITY-ADD screen in one run; decide each
+  screen's stance + scope the ADD's deps INDEPENDENTLY; reuse (don't re-hoist or redefine) a top-level inline type a
+  prior run already lifted out of its view; and the run-27 "this IS the write path for the flag" lock-N/A inversion
+  recurs cross-platform.** The program create/edit/invites cluster (`ProgramActionsSheet` + `CreateProgramTabView` +
+  `InvitesTabView`+`DeclineInviteDialog` + `InviteCard` + `EditProgramInfoView` — the picker's two run-52-deferred
+  forward-nav targets) ported in ONE run. Four durable patterns. **(a)** Run-58's mixed-WEIGHT cluster generalizes to
+  mixed-STANCE: `ProgramActionsSheet`'s create+invites is **faithful 1:1** (both web `/programs` Create/Invites tabs AND
+  legacy iOS agree → faithful IS web parity, NO ADD — the run-55/56 both-agree verdict, now confirmed on a WRITE
+  surface), while `EditProgramInfoView` takes a **web-parity ADD** (the admin-only-data-entry toggle). Decide each
+  screen's stance on its own behavior-diff; don't let one screen's ADD pull the cluster, and **scope the ADD's new deps
+  to the ONE screen that needs them** (the `adminOnlyDataEntry` plumbing serves only Edit; the sheet adds nothing). The
+  ADD is the run-58 shape — an existing endpoint the OTHER client already PUTs (`PUT /programs/:id` with the flag), so
+  iOS-client plumbing only (`APIClient.updateProgram` + `ProgramContext.updateProgram` + `ProgramUpdateResponse`), ZERO
+  backend, NO feature bump; it completes a multi-run capability arc (run-54 DISPLAYS the lock on Summary, run-59 SETS it
+  on Edit). **(b) The run-27 "this page's whole job is to SET the flag → `admin_only_data_entry` N/A as a GATE" inversion
+  recurs cross-platform** — EditProgramInfoView EDITS the lock so the lock never gates the editor; the sheet creates/
+  triages so the lock is N/A by the read-vs-write axis. State BOTH N/A reasons explicitly (one is "edits the flag", one
+  is "doesn't log"). **(c) A shared inline type a PRIOR run lifted to TOP-LEVEL in a feature file is REUSED IN PLACE,
+  not re-hoisted or redefined** — `StatusPill` has been top-level (non-private) in `ProgramPickerView` since run 52, so
+  `InviteCard` just uses it (grep its access level first: top-level → reuse; co-located-in-a-deferred-file → move to
+  `Shared/Components/` per run-55 `GlassButton`; redefining either way = collision). Flag the not-in-`Shared/Components/`
+  location as a low-risk hoist F-row, don't fix it mid-port. **(d) The web Edit cleanups port cross-platform with iOS
+  idioms** — date-range validation compares `yyyy-MM-dd` strings (day-granularity, same-day = error); hydrate-from-
+  response lives in the `ProgramContext.updateProgram` wrapper (set fields from the response DTO, not optimistic input);
+  skip-no-op snapshots the loaded values `onAppear` and compares formatted strings (time-of-day diffs don't trigger a
+  false PUT). Reconfirmed: scope-cut-IS-the-run for a cluster (run-58); folder-synced Xcode group auto-includes a new
+  `Features/Home/ProgramActions/` dir (run-51); create/invites sub-views `cp`'d verbatim; 6 types grep-verified defined-once.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
