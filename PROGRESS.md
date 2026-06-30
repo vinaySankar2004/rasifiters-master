@@ -42,6 +42,42 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (2 of 8).** The
+> **`members/detail` page (26th web page, 2nd of the 8 deferred `/members` sub-routes — the editor `members/list`
+> links to) is DONE** (2026-06-29): a faithful 1:1 port of the legacy 162-line **global_admin per-member editor** —
+> a `PageShell` + `PageHeader` ("Member Details" / `backHref="/members/list"`) wrapping a `GlassCard` identity block
+> (avatar · name · `@username` · a "Program Admin" line · gender / account-created) + two editable fields
+> (**Joined Program** `<input type=date>` · **Active Membership** checkbox) saved via `updateMembership`
+> (`PUT /program-memberships`, **`joined_at`+`is_active` ONLY** — not role/status), plus **Remove from program** →
+> `removeMember` (`DELETE`); both success paths → `router.push("/members/list")`. **global_admin-only** — every other
+> role is `router.push("/members")`'d on mount. **D-SCOPE** = this page only — **2nd-of-8, does NOT close the group**
+> (`invite`/`metrics`/`history`/`streaks`/`workouts`/`health` still deferred); it RESOLVES the forward-nav target of
+> `members/list`'s global_admin-only row click (run 39 F1). **KEY: this is the belated consumer of the WRITE fns** —
+> `updateMembership`/`removeMembership` live in `lib/api/programs.ts` (ported with the `program` family runs 24/26,
+> already used by `program/roles`), NOT the members landing's `lib/api/members.ts`; run 39 was the belated consumer
+> of the *read* fn `fetchMembershipDetails` from the same module, this page of the *write* fns → **D-DEPS = NO new
+> dependency** (every chrome leaf incl. `ConfirmDialog` already ported; the sweep ported nothing but the page file).
+> **`admin_only_data_entry` N/A** (membership editing, not workout/health logging — the lock gates the `/summary` log
+> forms, run 31/36 axis). **Nav already deterministic** (legacy uses `router.push("/members/list")`, not
+> `router.back()`) → **NO nav cleanup** (unlike runs 36–38). **Stance = faithful + 3 user-picked cleanups: D-C1**
+> `window.confirm("Remove … from the program?")` → the already-ported `ui/ConfirmDialog` (a `showRemoveConfirm` state
+> + danger/loading dialog; no rebuilt page uses `window.confirm` — keeping it would be the lone divergence, runs
+> 27/31), **D-C2** tokenize the Remove button's literal `bg-red-100 text-red-600` → `bg-rf-danger/10 text-rf-danger`
+> (matches the sibling `members/list` "Inactive" badge run 39 D-C1 — the only untokenized color on the page),
+> **D-C3** clear the stale `errorMessage` on field edit (both `onChange`s — legacy left it lingering until the next
+> submit, runs 27/28). Faithful otherwise (D-S1 — same `["members","details",programId]` query + `enabled` gate,
+> client-side `member.find(status==="active")`, `joinedAt`/`isActive` seeding, the global_admin redirect, the
+> partial PUT payload). **Zero backend work, NO feature bump** — all three `/program-memberships` routes already
+> mounted + `authenticateToken` (the PUT already consumed by `program/roles`). `consumed_by=[web]` (iOS edits
+> memberships natively). Flagged F1–F7 (**client gate global_admin-only is STRICTER than the backend** — the service
+> `updateMembership`/`removeMember` allow program admins too; no not-found empty state; shared query key with the
+> list — React-Query dedupe; PUT sends only join-date+active; one shared `isSaving` flag for both buttons; client
+> JWT-decode role drives the redirect only; no client throttle). `npm run build` ✓ (`/members/detail` prerendered,
+> **3.26 kB** — no Recharts; Middleware active). **Committed via `git-version` next; lessons run 40 appended
+> (promoted: "a sub-route's WRITE deps can already live in a different feature family's module — run 39 took the read
+> fn, this run the write fns from the SAME `lib/api/programs.ts`; the import path is the source of truth").** **NEXT =
+> the `/members` group continues: `invite`/`metrics`/`history`/`streaks`/`workouts`/`health` (6 of 8 remaining).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP HAS STARTED (1 of 8).** The
 > **`members/list` page (25th web page, 1st of the 8 deferred `/members` sub-routes) is DONE** (2026-06-29): a faithful
 > 1:1 port of the legacy 113-line **active-member roster** behind the `/members` landing's "View Members" pill — a
