@@ -800,6 +800,29 @@ directly as a faithful port from the legacy reference app** — there is no inte
   the user owns the DRY-vs-decoupling trade-off. Run-30 was "don't TRIM a shared doc to fit one surface"; run-47 is the
   symmetric "don't MERGE two shared copies into one component" — same principle, a shared legal/policy doc stays
   verbatim-per-route, coupling it is content governance, not a code cleanup.
+- **Run 48 — the web `notifications` CLIENT port (replaces the `NotificationsGate` deferred stub): a client port that
+  replaces a deferred stub is the MIRROR of the keystone backend run, the SPEC already documents it (realize, don't
+  re-spec), and a legacy client's cross-layer assumptions must be re-checked against the DIVERGED rebuild.** Three durable
+  patterns. **(a)** Run 5 ported the backend keystone that REPLACED the `utils/notifications.js` stub; run 48 is the
+  symmetric CLIENT move — replace the web `NotificationsGate` `return null` stub, the live SSE/alert path lights up. The
+  feature SPEC's `D-REF` (written at backend-port time) **already described the web `EventSource`+`NotificationModal`
+  queue**, so the run **realizes the spec**: SPEC churn is additive only (new `D-C`/`F` rows + a changelog row + a MINOR
+  bump; §1–§8 untouched) — the implementation analog of run-14's "the spec already documents it". Don't re-spec a feature
+  whose client the SPEC anticipated. **(b) A legacy client's cross-layer assumptions (React-Query invalidation keys, route
+  guard lists) must be re-checked against the rebuild that DIVERGED from legacy — port verbatim where they still LAND,
+  reconcile the few that drifted.** Grepping the rebuilt query layer showed it preserved almost every legacy invalidation
+  key shape → port verbatim, they land (run-35 "re-derive, the legacy fits" extended from empty-state predicates to
+  invalidation keys); the LONE drifted key (`["program","roles",…]` matched no rebuilt query) was **dropped** (D-C7 — the
+  broad `["program"]` invalidation covers it). The mirror: the legacy `isAuthRoute` guard list predated the rebuild's 2
+  net-new public auth routes → **add them** (D-C6, the run-19 "reconcile the rebuilt route set" generalized to a guard's
+  list). Both reconciles are deliberate D-row divergences, not faithful-literal — grep the rebuilt consumer of each
+  cross-layer reference before porting it. **(c) A feature-client port can be "no new dependency" even when the component
+  is stateful + opens a live connection** — the gate drags in nothing (every import already ported: `fetchPrograms`,
+  `lib/storage`, `broadcastActiveProgramUpdate`, `useAuth`); D-DEPS is about whether the deps are already ported, not how
+  stateful the component is (run-31). And the modal was already `rf-*` tokenized → no tokenize cleanup; the gate doesn't
+  navigate → no nav cleanup. `consumed_by` subtlety: the SPEC may already list the client (declared at backend-port time
+  from the legacy sweep) before it's actually wired — the run makes the declared consumption real; the MINOR bump is
+  justified by "the client lands + new D/F rows", not by a `consumed_by` edit.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

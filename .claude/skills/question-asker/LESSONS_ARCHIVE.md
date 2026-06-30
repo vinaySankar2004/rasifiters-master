@@ -2067,3 +2067,72 @@ it held: the pair really is two trivial public statics).
 `## ios` — auth splash/login/create-account first), OR the cross-cutting web polish (COVERAGE line 36 — the INERT
 middleware ES256 fix + the `NotificationsGate` stub). Neither is a page port; the per-page `question-asker` cadence pauses
 until the iOS screens begin.
+
+---
+
+## Run 48 — web `notifications` CLIENT port — replaces the `NotificationsGate` deferred stub (the mirror of the keystone backend run) — 2026-06-29
+
+**Target:** the web `notifications` client — replace the `apps/web` `NotificationsGate` `return null` deferred stub
+(foundation-scaffold, Phase-3 kickoff) with the faithful port of the legacy `NotificationsGate.tsx` +
+`NotificationModal.tsx` + `lib/api/notifications.ts`. A **FEATURE-client** run (not a page run): the SSE/EventSource
+client, `unacknowledged` backfill, single-notification modal queue, `acknowledge`-on-confirm, and the per-notification
+React Query invalidation. Backend already live (`rasifiters-api.onrender.com`).
+
+**Shape — a CLIENT port that REPLACES a deferred stub is the MIRROR of the keystone backend run (run 5).** Run 5
+ported the backend `notifications` keystone, which REPLACED the `utils/notifications.js` stub and lit up every emit
+call site. Run 48 is the symmetric client move: the web `NotificationsGate` stub is replaced and the live SSE/alert
+path lights up. **The feature SPEC already documented the client** — `D-REF` (written at backend-port time, run 5)
+already describes the web `EventSource` w/ `?token=` + `NotificationModal` single-notification queue. So the run
+**realizes the spec**, it does not re-spec: the SPEC churn is additive only — new `D-C5/6/7` rows + `F7/F8` + a
+changelog row + a MINOR bump; §1–§8 are untouched (they already anticipated the web client). This is the
+implementation analog of run-14's "the spec already documents it" — here for a client port, not a doc-only feature.
+
+**The 3-file port + no new deps.** New work = `lib/api/notifications.ts` (verbatim) + `components/NotificationModal.tsx`
+(verbatim — already `rf-*` tokenized, so NO tokenize cleanup) + `components/NotificationsGate.tsx` (the real gate
+replacing the stub). **Every other import was already ported** — `fetchPrograms` (`lib/api/programs.ts`), `lib/storage`,
+`broadcastActiveProgramUpdate` (`lib/use-active-program.ts`), `API_BASE_URL`, `useAuth` — confirmed by grep before
+sizing. So **D-DEPS = no new dependency beyond the 3 ported files** (the run-27/29/31 no-new-dep finding, now for a
+feature-client port: the gate is stateful + opens an SSE connection, yet drags in nothing). No `router` nav in the
+gate → NO nav cleanup (run-40/41 "a component that doesn't navigate has no nav cleanup").
+
+**THE LOAD-BEARING VERIFICATION — a legacy client's cross-layer assumptions (invalidation keys, route lists) must be
+re-checked against the DIVERGED rebuild; port verbatim where they still LAND, reconcile the few that drifted.** The
+legacy gate invalidates ~11 React Query keys on each notification. Grepping the rebuilt query layer (`grep -rn
+queryKey:`) showed the rebuild **preserved almost every legacy key shape** — `["programs"]`,
+`["program","membership-details",programId]`, `["members","list",programId]`, `["program","workouts",programId]`,
+`["members","metrics",programId,"preview"]`, `["invites",bool]` all match live rebuilt queries → **port verbatim, they
+land** (the run-35 "re-derive the predicate, and the legacy one already fits" extended from empty-state predicates to
+invalidation keys). The LONE drifted key — `["program","roles",programId]` — matches **no** rebuilt query (the roles
+page uses a different key) → a no-op. User chose **reconcile (D-C7): drop it** (the broad `["program"]` invalidation in
+the membership-event branch already covers the roles cache), over keep-faithful+flag. The mirror reconcile: the legacy
+`isAuthRoute` guard list (`["/login","/create-account","/splash"]`) predates the rebuild's 2 net-new public auth routes
+(`/forgot-password`+`/reset-password`, runs 17–18); user chose **add them (D-C6)** — the run-19 "rebuild added routes,
+reconcile the list" pattern, now for a guard's route list. Both reconciles are deliberate divergences-from-legacy
+recorded as D-rows, NOT faithful-literal.
+
+**Genuinely-open decision count = effectively ONE (the reconciles), + a stance confirm.** The mandate (port the web
+notifications client) + the faithful-rebuild stance were settled; the invalidation-keys concern dissolved on grounding
+(they mostly land verbatim). So a single `AskUserQuestion` of 2 Qs (stance + the isAuthRoute reconcile; the stray-key
+reconcile folded into the stance Q). Don't manufacture a scope question when the mandate already fixed scope (run-36).
+
+**F-rows (faithful kept):** F7 single-notification modal queue (`queue[0]`, oldest-first, not a list/bell);
+F8 optimistic acknowledge (pop before the POST resolves, re-fetch on failure). Both faithful 1:1, flagged not changed.
+
+**`consumed_by` note:** the SPEC already listed `[web, ios]` (written at run 5 from the legacy consumption sweep, before
+the web client was actually wired). So this run doesn't CHANGE `consumed_by` — it makes the already-declared web
+consumption real. The MINOR bump is justified by "the web client implementation lands + new D/F rows", not by a
+`consumed_by` edit. (PROGRESS had said "adds web to consumed_by" — the truer statement is "realizes the declared web
+consumption".)
+
+`npm run build` ✓ (39 static pages — +1 vs run 47's 38, the notifications client adds no route but the gate is now
+live on every page). Committed via `git-version` (MINOR bump on `notifications`); this entry appended.
+
+**Already-known patterns reconfirmed (not re-promoted):** no-new-dep sized per-FUNCTION via the import path
+(run 39/40/41/45); a component that doesn't navigate has no nav cleanup (run 40/41); already-`rf-*`-tokenized → no
+tokenize cleanup (run 29/30); don't manufacture a scope question the mandate settled (run 36); the run-35 "re-derive,
+legacy fits" generalized to invalidation keys; the run-19 "reconcile the rebuilt route set" generalized to a guard's
+route list.
+
+**Next:** the **`web` surface is FEATURE-complete** (pages 36/36 + the notifications client live). Per the user's order,
+NEXT = **deploy `apps/web` to Vercel (no domain switch)** via the `deploy` skill, then the **`ios` (SwiftUI) surface**.
+Neither is a page port; the per-page `question-asker` cadence stays paused until the iOS screens begin.
