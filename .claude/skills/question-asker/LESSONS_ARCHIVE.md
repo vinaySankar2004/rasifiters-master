@@ -1949,3 +1949,52 @@ editor this list links to), then `invite`/`metrics`/`history`/`streaks`/`workout
 **Already-known patterns reconfirmed (not re-promoted):** the read-vs-write-lock axis (runs 31/36/40 — `admin_only_data_entry` LIVE here because the page WRITES, unlike its four read-only siblings); client-stricter-than-backend is a faithful F-row (run 40/43 mirror); `window.confirm`→`ConfirmDialog` is the rebuild's established swap (run 31); the hoisted-`formatDuration` reuse (run 22); the red-button → `rf-danger` tokenize (run 39/40); the lazy-query and missing-error-state oddities kept faithful + flagged; a sub-route run that ADVANCES-but-does-not-close a group (run 39 — 7th of 8, `health` remains to CLOSE it).
 
 **Next:** the `/members` group's FINAL sub-route — `health` (1 of 8 remaining; CLOSES the group).
+
+---
+
+## Run 46 — `members/health` (web): per-member daily-health log manager — the WRITE twin of `members/workouts` (run 45), CLOSES the `/members` group (8 of 8)
+
+**Target:** `specs/pages/web/members/health/SPEC.md` — the 32nd web page, **8th & LAST** of the 8 deferred `/members`
+sub-routes; the per-member daily-health (sleep/diet) log manager behind the `/members` landing's "View Health" card.
+**It CLOSES the `/members` sub-route group (8/8).** Reference impl: `rasifiters-webapp/src/app/members/health/page.tsx`
+(≈550 lines).
+
+**Hypothesis corrected at the FIRST file-read.** The launch prompt guessed `members/health` was the chart-twin of
+`members/history` (run 43 — a `PeriodSelector` + `BarChart` timeline). Reading the legacy file proved it is instead the
+**near-exact WRITE twin of `members/workouts` (run 45)**: the same per-member log-MANAGER shape (sort + Filter modal +
+Export CSV header, a row list, an Edit modal, a delete confirm), not a chart. The directory-sibling naming (`history`,
+`health`) misled — the load-bearing structure is in the file, not the name. (Run-22's "a page named like X may actually
+be Y — verify the landing file yourself" axis, applied to a launch-prompt hypothesis: the skill's own opening-sweep
+verification supersedes the prompt's guess, recorded as the run's first finding, not carried forward.)
+
+**Decision shape transcribed from the run-45 twin; only the health-metric deltas authored.** Per the run-37/38
+twin-collapse: D-SCOPE (this page only; but 8th-of-8 → **CLOSES** the group, the run-30/32/38 corollary), D-REF
+(`consumed_by=[web]`), D-DEPS (no new dependency), D-WRITE (`admin_only_data_entry` LIVE — the read-vs-write-lock axis),
+D-S1 (faithful otherwise), and the cleanups all copy from workouts. Genuinely-open count = **ONE** (stance + cleanup
+set) → a single `AskUserQuestion`. The deltas from the twin are all CODE-DETERMINED (F-rows + D-S1 lines, not
+questions): two metrics (sleep + diet) vs one (duration); richer edit validation (sleep 0:00–24:00 + at-least-one-metric
+guard — the log-health run-37 `hasMetric` mirror); always-send `member_id` (no workouts `member_name`-only-for-others
+quirk); nullable `sleep_hours`/`food_quality`.
+
+**Durable pattern promoted:** **a twin run can SUBTRACT one of the twin's cleanups when that cleanup's PRECONDITION
+doesn't hold here — and at the DEPS level, the subtraction is "already shared, nothing to hoist".** Workouts (run 45)
+took D-C2 = "reuse the hoisted `formatDuration`" because its label helper was page-local-then-hoisted; `members/health`'s
+analogous label helpers (`sleepLabel`/`dietLabel`) are **already shared in `lib/format.ts`** (the legacy already imports
+them from there), so there is **no hoist cleanup to apply** — the twin's 3 cleanups collapse to 2. This is the
+DEPS-level mirror of run-33's "subtract a twin's chart cleanup that doesn't apply" (and run-34's predicate re-derive):
+re-test EACH of the twin's cleanups against THIS page's actual code, and drop the one whose precondition is absent.
+Conversely the two cleanups that DID transfer (D-C1 `window.confirm`→`ConfirmDialog`, D-C2 tokenize Delete →
+`rf-danger`) each still cite their precedent (run 45/31, run 45/39). **Corollary — a page can keep page-local helpers
+faithfully even on a "reuse shared util" run:** `formatSleepHoursForFilter` + `splitSleepHours` are genuinely
+health-specific (no shared equivalent), so they port verbatim, NOT hoisted — "reuse the shared copy" applies only when a
+shared copy exists; "don't manufacture a hoist" is the dual of run-22's hoist offer.
+
+**Already-known patterns reconfirmed (not re-promoted):** "no new dependency" sized per-FUNCTION across families (here
+two — `members.ts` run 22 + `logs.ts` run 21; run 39/40/41/45); the read-vs-write-lock axis (`admin_only_data_entry`
+LIVE because the page WRITES — runs 31/36/40/45); client-redirect-stricter-than-backend is a faithful F-row (run
+40/43/45 mirror); the at-least-one-metric submit guard (the log-health run-37 `hasMetric` mirror); no list-query error
+state kept faithful + flagged (run 45 F5); a sub-route run that CLOSES its group → flip COVERAGE `[~]`-row note to
+"COMPLETE (8 of 8)" + say so in D-SCOPE/PROGRESS (run 30/32/38).
+
+**Next:** the `/members` group is COMPLETE (8/8). The sub-route layer continues with the next deferred hub group (see
+`COVERAGE.md` for the remaining web pages).

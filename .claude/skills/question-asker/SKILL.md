@@ -759,6 +759,23 @@ directly as a faithful port from the legacy reference app** — there is no inte
   has it LIVE (gating `canEdit`/`canDelete`); the lock follows whether the page *mutates*, not its directory group. The
   "no list-query error state" (only mutation errors surface) is a faithful F-row — a write page need not mirror its read
   twins' `ErrorState`.
+- **Run 46 — `members/health` (the WRITE twin of `members/workouts` run 45, CLOSES the `/members` group 8/8): a twin run
+  SUBTRACTS one of the twin's cleanups when its PRECONDITION is absent — at the DEPS level that means "already shared,
+  nothing to hoist".** Workouts took D-C2 = "reuse the hoisted `formatDuration`" because its label helper was
+  page-local-then-hoisted; `members/health`'s label helpers (`sleepLabel`/`dietLabel`) are **already shared in
+  `lib/format.ts`** (the legacy already imports them from there), so there is **no hoist cleanup** — the twin's 3 cleanups
+  collapse to 2 (D-C1 `window.confirm`→`ConfirmDialog`, D-C2 tokenize Delete → `rf-danger`, each still citing run 45/31 /
+  45/39). This is the DEPS-level mirror of run-33's "subtract a twin's chart cleanup that doesn't apply" + run-34's
+  predicate re-derive: re-test EACH of the twin's cleanups against THIS page's actual code, drop the one whose
+  precondition is gone. **Corollary — don't manufacture a hoist; keep genuinely page-specific helpers verbatim**
+  (`members/health`'s `formatSleepHoursForFilter`/`splitSleepHours` have no shared equivalent → ported, not hoisted) —
+  the dual of run-22's hoist offer ("reuse the shared copy" applies only when a shared copy exists). And the
+  **launch-prompt hypothesis is superseded by the first file-read** (run-22 "verify the landing yourself"): the prompt
+  guessed health was the chart-twin of `members/history`, but reading the file proved it the manager-twin of
+  `members/workouts` — record the correction as the run's first finding, don't carry the guess forward. Reconfirmed (not
+  re-promoted): no-new-dep per-FUNCTION across families (run 39/40/41/45); read-vs-write-lock LIVE because the page WRITES
+  (run 31/36/40/45); client-stricter-than-backend faithful F-row (run 40/43/45); at-least-one-metric guard (log-health
+  run-37 mirror); a run CLOSING its group (run 30/32/38 — flip COVERAGE to "COMPLETE (8/8)", say so in D-SCOPE/PROGRESS).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
