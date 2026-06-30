@@ -1768,3 +1768,51 @@ updated + PROGRESS prepended. `npm run build` ✓ (`/summary/log-health` prerend
 27.5 kB active). **No feature bump, no new dependency.** **Next:** the LAST `/summary` sub-route + last log fallback
 `bulk-log-workout` (the heavier `BulkLogWorkoutForm` ≤200-row page — CLOSES the `/summary` group); and/or the 8
 deferred `/members` sub-routes.
+
+---
+
+## Run 38 — `summary/bulk-log-workout` (web page spec #24; `/summary` sub-route 6 of 6 — CLOSES the group; 3rd & final log fallback)
+
+**Target:** the standalone **Bulk-log-workouts** mobile fallback — a `PageShell` + `PageHeader` wrapping the already-built
+`BulkLogWorkoutForm` in its `variant="page"` branch (≤200-row table/cards → `POST /workout-logs/batch`). The 6th & LAST
+`/summary` sub-route; **closes the entire `/summary` sub-route group** (3 chart drill-downs + 3 log fallbacks).
+
+**Shape:** a **near-exact twin of runs 36/37** (the log fallbacks) — same `PageShell`/`PageHeader`/`<Form variant="page">`
+wrapper, same `canLogForAny` role derivation, same `admin_only_data_entry` `router.replace` lock guard, same
+`invalidateQueries(["summary"])` mutation, same D-C1 deterministic-nav cleanup (the two `router.back()` →
+`router.push("/summary")`). The run was confirm-only: a 4-file read (legacy page · the rebuilt `BulkLogWorkoutForm` · the
+two sibling rebuilt pages) + a consumption confirm (api fns + `ApiError.details` exported, route mounted+gated, batch
+service enforces the role 403, landing routes mobile→here `summary/page.tsx:211`) + a SINGLE stance `AskUserQuestion`.
+
+**The genuinely-new deltas (still code-determined → F-rows + a D-S1 note, NOT questions):**
+1. **Two-way mount redirect (the bulk-only member-bounce, F1)** — unlike the single-redirect siblings (lock → `/summary`
+   only), bulk ALSO bounces a non-admin/logger (`!canLogForAny`) to **`/summary/log-workout`** (`page.tsx:29-31`). Bulk
+   logging is admin/logger-only; the single-log page is where a plain member logs for self. Backend is the real guard
+   (`services/logService.js:191-192` — 403 "You do not have permission to bulk-log workouts.").
+2. **Heavier form + per-row error plumbing (F4/F5)** — `BulkLogWorkoutForm` takes `rowErrors?: BulkRowError[]` (no
+   `canSelectAnyMember`/`userId` — every reachable role is `canLogForAny`, so the form always shows a member `Select`);
+   the page parses `ApiError.details as BulkRowError[]` and the form maps them onto rows by submit order.
+3. Needs **both** lookups (member + workout-type), like `log-workout` (unlike `log-health`'s member-only).
+
+**Stance:** user picked **faithful + D-C1 nav** (match the two sibling fallbacks). The two lock/role `router.replace`
+redirects stay faithful (replace deliberately drops the bounced page from history).
+
+**New durable lesson (promoted):** *a near-exact twin can carry ONE genuinely-new but still CODE-DETERMINED behavioral
+shape (here the bulk-only second redirect to a sibling page) — recognize the twin, then the new shape lands as an F-row +
+a D-S1 line, not a question.* The twin-recognition collapse (run 37) holds even when the twin isn't byte-identical: the
+DECISION shape (D-SCOPE/D-REF/D-DEPS/D-S1/D-C1) still transcribes verbatim; only the §7/§10 prose absorbs the new shape.
+Don't mistake a new code-determined behavior for a new open decision — if reading the file answers it, it's an F-row.
+
+**Already-known patterns reconfirmed (not re-promoted):** confirm-only twin run (run 37); no-new-dep purest write-page
+shape (run 36 — the bulk form + api + chrome all landed with the summary landing run 21); zero-backend / no-feature-bump
+consuming page (the batch route + service + `addWorkoutLogsBatch` + `ApiError.details` rowErrors transport all already
+shipped); `admin_only_data_entry` LIVE on a write page (3rd & last `/summary` sub-route where the lock bites); a
+sub-route run can CLOSE its group — flip COVERAGE `[~]`→`[x]` and say so in D-SCOPE + PROGRESS (run 30/32 corollary);
+"not a cleanup" `refreshSummaryQueries` rejection (runs 36/37).
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-REF/D-DEPS/D-S1/D-C1; F1–F8; the "not a cleanup" `refreshSummaryQueries` note).
+COVERAGE summary row updated (bulk-log-workout ✓; **6 of 6 — group CLOSED**) + logging row updated + PROGRESS prepended.
+`npm run build` ✓ (`/summary/bulk-log-workout` prerendered, 1.38 kB — no Recharts, smallest write route; Middleware
+27.5 kB active). **No feature bump, no new dependency.** **Next:** the `/summary` group is now COMPLETE (6/6) — the
+SUB-ROUTE layer continues with the 8 deferred `/members` sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/
+`streaks`/`workouts`/`health`).

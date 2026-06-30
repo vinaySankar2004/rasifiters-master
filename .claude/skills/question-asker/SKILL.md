@@ -645,6 +645,20 @@ directly as a faithful port from the legacy reference app** — there is no inte
   lookup — member only, no workout-types; one extra F-row for the client-only at-least-one-metric submit gate;
   different title/subtitle). Twin-recognition (runs 23/28/33) extended to the purest case — a write page where even
   the cleanups transfer verbatim, so the run is transcribe-plus-delta.
+- **Run 38 — a near-exact twin can carry ONE genuinely-new but still CODE-DETERMINED behavioral shape; recognize the
+  twin, then the new shape lands as an F-row + a D-S1 line, NOT a question.** `summary/bulk-log-workout` (6th & LAST
+  `/summary` sub-route — CLOSES the group; 3rd & final log fallback) was a near-exact twin of runs 36/37 (same
+  `PageShell`/`PageHeader`/`<Form variant="page">` wrapper, same `canLogForAny`, same `admin_only_data_entry`
+  `router.replace` lock guard, same `invalidateQueries(["summary"])`, same D-C1 nav cleanup) — yet it differs in a
+  real way: a **two-way mount redirect** (lock → `/summary` AND `!canLogForAny` → `/summary/log-workout`, the bulk-only
+  member-bounce, since bulk-logging is admin/logger-only; backend `logService.js:191-192` is the real 403). The
+  twin-collapse (run 37) holds even when the twin isn't byte-identical: the DECISION shape
+  (D-SCOPE/D-REF/D-DEPS/D-S1/D-C1) still transcribes verbatim; only the §7/§10 prose absorbs the new shape. Don't
+  mistake a new code-determined behavior for a new open decision — if reading the file answers it (the redirect target,
+  the per-row `ApiError.details → BulkRowError[]` plumbing, the absence of `canSelectAnyMember`/`userId` on the bulk
+  form because every reachable role is `canLogForAny`), it's an F-row, not an `AskUserQuestion`. The genuinely-open
+  count stayed ONE (stance + D-C1), a single call. And a sub-route run can CLOSE its group (run 30/32 corollary):
+  flip COVERAGE `[~]`→`[x]`, say so in D-SCOPE + PROGRESS — the `/summary` layer is now 6/6.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
