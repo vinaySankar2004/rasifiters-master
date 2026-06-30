@@ -79,6 +79,37 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Lifestyle tab: `AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` PORTED (run 56, 2026-06-30).** The
+**third tab body** of the home shell — Tab 3 "Lifestyle", the iOS analogue of web `/lifestyle` — ported into
+`apps/ios/.../Features/Home/Tabs/{AdminWorkoutTypesTab,StandardWorkoutTypesTab,WorkoutTypesCards}.swift` + new
+`Shared/Components/AccentChip.swift` (SPEC `specs/pages/ios/admin-workout-types/`), the two Lifestyle deferred stubs
+removed. It is a **read-only role-bifurcated workout-type-analytics + health-timeline dashboard**: `AdminWorkoutTypesTab`
+(program/global admin — **view-as picker** w/ "None"/"Admin" none-row + 4 workout-type stat cards + popularity card +
+lifestyle-timeline card) vs `StandardWorkoutTypesTab` (logger/member — **own data only, no picker**), selected by
+`AdminHomeView`'s `isProgramAdmin`. **D-SCOPE = the scope cut IS the run** (run-21/50/52-55 pattern): port the 2 tab
+bodies + the 7 cards (`WorkoutTypesHeader` + 4 stat + `WorkoutTypePopularityCard` + `LifestyleTimelineCardSummary`) +
+`AccentChip`; **defer the 2 forward-nav targets as `ScaffoldPlaceholder` stubs** — `ViewWorkoutTypesListView` (the
+workout-type CRUD manager = web `/lifestyle/workouts`) + `LifestyleTimelineDetailView(initialPeriod:memberId:)` (the
+timeline detail = web `/lifestyle/timeline`). **D-REF = keep iOS-native** (the Lifestyle header's icon-only dumbbell
+`GlassButton` → manager vs web's labelled "Manage workouts"/"View workouts" pill — same destination, cosmetic idiom;
+the card set + role gating already match web, so not a parity gap). **D-S1 = faithful 1:1, NO web-parity ADD** (the
+run-53/55 shape on a fetching screen): both web `/lifestyle` (per-card "No data" empty states, no banner) AND legacy
+iOS swallow load errors, so **faithful-swallow IS web parity** — flag the vestigial `errorMessage` (F1), don't add a
+banner (unlike run-54 Summary where legacy iOS had a missing feature web showed). **D-DEPS = ONE small new dependency**:
+`AccentChip` (13-line capsule chip, co-located in the legacy giant `AdminHomeHelpers.swift`, never pulled into the
+foundation — the run-55 `GlassButton` situation) → `Shared/Components/`; everything else already ported (the
+`WorkoutPopularity*` logic/components run 50, `CardShell`/`ScrollableBarChart` run 54, `MemberPickerView`/`GlassButton`
+run 55, the analytics loaders/DTOs/theme run 50). **Read-only → `admin_only_data_entry` N/A** (no log cards, unlike
+Summary run 54 — the read-vs-write axis; the lock gates the deferred `ViewWorkoutTypesListView` write path). Role rules
+= the Admin*/Standard* view-as table. Flagged F1–F6 (vestigial swallowed `errorMessage`; highest-participation always
+program-wide even when a member is selected ~web F4; icon-only manage button vs web's labelled pill; client role gating;
+2 deferred forward-nav stubs; the Admin `hasUserChosenViewAs`/"Admin"-label state machine). **The app target's build
+green-check is owned by the user (visual run in Xcode)** — symbols verified via grep (each of the 12 new types defined
+exactly once, all DTO fields/loaders/`WorkoutPopularity*`/`CardShell` deps resolve, no leftover Lifestyle stub), not a
+CLI build (memory [[ios-user-verifies-builds-visually]]). **Next: the LAST tab body — the Program pair
+(`AdminProgramTab`/`StandardProgramTab`), OR a Summary/Members/Lifestyle detail view (the deferred stubs), via
+`question-asker`.**
+
 **Phase 4 — `ios` Members tab: `AdminMembersTab`/`StandardMembersTab` PORTED (run 55, 2026-06-30).** The **second
 tab body** of the home shell — Tab 2 "Members", the iOS analogue of web `/members` — ported into
 `apps/ios/.../Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,MemberOverviewPicker}.swift` +
@@ -224,25 +255,26 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT ANOTHER TAB BODY — the Lifestyle pair (`AdminWorkoutTypesTab`/`StandardWorkoutTypesTab`) or the Program pair, OR a Members/Summary detail view (the deferred stubs), via `question-asker`
-> **`AdminMembersTab`/`StandardMembersTab` is DONE (run 55, 2026-06-30)** — Tab 2 "Members", the iOS analogue of
-> web `/members`, ported into `apps/ios/.../Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,
-> MemberOverviewPicker}.swift` + new `Shared/Components/GlassButton.swift` (SPEC `specs/pages/ios/admin-members/`),
-> the two Members deferred stubs removed. **D-SCOPE = the scope cut IS the run**: ported the 2 role-bifurcated tab
-> bodies + the 7 inline cards/picker/types, **deferred the 6 forward-nav detail targets as `ScaffoldPlaceholder`
-> stubs** (`MemberMetricsDetailView`/`InviteMemberView`/`ProgramMembersListView`/`MemberStreakDetail`/
-> `MemberRecentDetail`/`MemberHealthDetail` — the iOS analogues of the web `/members` sub-routes) **+ extended the
-> existing `ActivityTimelineDetailView` stub** (`memberId`/`showActiveSeries` defaults keep the run-54 call site).
-> **D-REF = keep iOS-native** (view-as sheet + `NavigationLink` push details vs web single-page hub). **D-S1 =
-> faithful 1:1, NO web-parity ADD** — both web AND legacy iOS swallow load errors, so faithful-swallow IS web
-> parity (run-53 shape; unlike run-52 where only web surfaced → an ADD). **D-DEPS = ONE new dep** (`GlassButton`
-> co-located in a legacy deferred Detail file, never in the foundation; + `memberTimelinePoints`) — breaks the
-> no-new-dep streak. Read-only → `admin_only_data_entry` N/A. **NEXT = another tab body** — the role-bifurcated
-> **Lifestyle** pair (`AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` — the iOS analogue of web `/lifestyle`) or
-> the **Program** pair; **OR** a **Members detail view** (one of the 6 new stubs — the iOS metrics table / invite /
-> roster+editor / streak / per-member workouts / per-member health, the analogues of web `/members/{metrics,invite,
-> list+detail,streaks,workouts,health}`); **OR** a **Summary detail view** (one of the 5 stubs).
-> **Each Lifestyle/Program tab body drags in the `Tabs/Section` + `Detail/` + `Settings/` + `Sheets/`
+> ### ⏭️ ON "continue" → PORT THE LAST TAB BODY — the Program pair (`AdminProgramTab`/`StandardProgramTab`), OR a Summary/Members/Lifestyle detail view (the deferred stubs), via `question-asker`
+> **`AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` is DONE (run 56, 2026-06-30)** — Tab 3 "Lifestyle", the iOS
+> analogue of web `/lifestyle`, ported into `apps/ios/.../Features/Home/Tabs/{AdminWorkoutTypesTab,
+> StandardWorkoutTypesTab,WorkoutTypesCards}.swift` + new `Shared/Components/AccentChip.swift` (SPEC
+> `specs/pages/ios/admin-workout-types/`), the two Lifestyle deferred stubs removed. **D-SCOPE = the scope cut IS
+> the run**: ported the 2 role-bifurcated tab bodies + the 7 cards (`WorkoutTypesHeader` + 4 stat + popularity +
+> lifestyle-timeline), **deferred the 2 forward-nav targets as `ScaffoldPlaceholder` stubs** —
+> `ViewWorkoutTypesListView` (workout-type CRUD = web `/lifestyle/workouts`) + `LifestyleTimelineDetailView`
+> (timeline detail = web `/lifestyle/timeline`). **D-REF = keep iOS-native** (icon-only dumbbell `GlassButton` →
+> manager vs web's labelled "Manage/View workouts" pill — same destination, cosmetic idiom). **D-S1 = faithful 1:1,
+> NO web-parity ADD** — both web AND legacy iOS swallow load errors (web shows per-card "No data", no banner), so
+> faithful-swallow IS web parity (run-53/55 shape; unlike run-54 Summary where legacy iOS lacked a feature web
+> showed). **D-DEPS = ONE small new dep** (`AccentChip`, 13-line capsule chip co-located in the legacy giant helper
+> file, never in the foundation — the run-55 `GlassButton` situation); everything else already ported (run 50/54/55).
+> Read-only → `admin_only_data_entry` N/A. **NEXT = the LAST tab body** — the role-bifurcated **Program** pair
+> (`AdminProgramTab`/`StandardProgramTab` — the iOS analogue of web `/program/*`); **OR** a **detail view** (the
+> deferred stubs): a **Lifestyle** detail (`ViewWorkoutTypesListView` = web `/lifestyle/workouts` CRUD, or
+> `LifestyleTimelineDetailView` = web `/lifestyle/timeline`), a **Members** detail (one of the 6 — metrics table /
+> invite / roster+editor / streak / per-member workouts / per-member health), or a **Summary** detail (one of the 5).
+> **Each Program tab body / detail view drags in the `Tabs/Section` + `Detail/` + `Settings/` + `Sheets/`
 > universe** — expect each to be its own "scope cut IS the run" with further deferrals. **Also still deferred from
 > the picker**: `ProgramActionsSheet` (create+invites — the "+" target), `EditProgramInfoView`, and the 4 account
 > screens (`MyProfileView`/`ChangePasswordView`/`AppearanceSettingsView`/`NotificationsSettingsView`). Run

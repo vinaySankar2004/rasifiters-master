@@ -76,14 +76,19 @@ struct QuickAddHealthWidgetEntryView: View {
 // InviteMemberView, ProgramMembersListView, MemberStreakDetail, MemberRecentDetail, MemberHealthDetail),
 // stubbed so the Members tabs compile; each DELETED when its real screen lands.
 
-/// DEFERRED (Features/Home/Tabs/AdminOtherTabs.swift) — Tab 3 "Lifestyle", program-admin variant.
-struct AdminWorkoutTypesTab: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Lifestyle (Admin)") }
+/// DEFERRED (Features/Home/Tabs/WorkoutTypesSection.swift) — the workout-type CRUD manager
+/// (add/edit/delete/visibility), the iOS analogue of web `/lifestyle/workouts`. Reached via the
+/// Lifestyle header's dumbbell GlassButton (run 56). DELETED when its real screen lands.
+struct ViewWorkoutTypesListView: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Manage Workout Types") }
 }
 
-/// DEFERRED (Features/Home/Tabs/StandardWorkoutTypesTab.swift) — Tab 3 "Lifestyle", non-admin variant.
-struct StandardWorkoutTypesTab: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Lifestyle") }
+/// DEFERRED (Features/Home/Helpers/AdminHomeHelpers.swift) — the full sleep/diet timeline detail
+/// with a period selector, the iOS analogue of web `/lifestyle/timeline`. Reached via the Lifestyle
+/// timeline card (run 56). Carries the `(initialPeriod:memberId:)` initializer to match the call sites.
+struct LifestyleTimelineDetailView: View {
+    init(initialPeriod: AdminHomeView.Period, memberId: String? = nil) {}
+    var body: some View { ScaffoldPlaceholder(screen: "Lifestyle Timeline") }
 }
 
 /// DEFERRED (Features/Home/Tabs/AdminProgramTab.swift) — Tab 4 "Program", program-admin variant.
