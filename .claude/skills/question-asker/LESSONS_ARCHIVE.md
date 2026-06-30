@@ -1220,3 +1220,52 @@ Recharts; Middleware 27.3 kB active). SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C
 REGISTRY + COVERAGE ticked. **No feature bump.** **Next:** the remaining 4 `/program/*` sub-routes (profile ·
 password · appearance · privacy), the 8 deferred `/members`, the 6 deferred `/summary`, and/or the 2 deferred
 `/lifestyle` sub-routes.
+
+## Run 27 — `program/profile` (web page spec; 3rd of the 6 `/program/*` settings sub-routes)
+
+**Target.** The legacy `rasifiters-webapp/src/app/program/profile/page.tsx` (211 lines). Despite the
+`/program/*` path, it is **NOT a program-admin setting** like edit/roles — it's the signed-in user's **own "My
+Profile" account page**: an identity card (avatar/name/`@username`/role label), editable First/Last name + a
+native gender `<select>`, Save → `PUT /members/:id`, and a Delete Account section (hidden from global_admin) →
+`ConfirmDialog` → `DELETE /auth/account` → `signOut` → `/login`. `consumed_by = [web]` (page spec).
+
+**Stance chosen.** Faithful 1:1 + both offered cleanups: **D-C1** tokenize the success color
+(`text-emerald-600`→`text-rf-success`), **D-C2** clear the stale success/error message on field edit (legacy
+left "Profile updated successfully." lingering until the next Save). Flagged F1–F5 (client JWT-decode role
+label + delete gate; literal-amber avatar chip with no clean token; name-split heuristic; client-only delete
+gate vs `authenticateToken`-only backend route; no client throttle).
+
+**Durable patterns — reinforcement + ONE new nuance (promoted to SKILL.md).**
+1. **NEW — a route's PATH can lie about its OWNERSHIP, not just its CRUD-ness (extends run-22/23's
+   "name-lies").** Run-22/23 caught pages whose *name* implied management but were read-only dashboards. Run-27
+   is the ownership variant: `program/profile` sits under the `/program/*` admin-settings group yet edits the
+   *requester's own member record*, so — unlike its edit/roles siblings — it has **no admin redirect** and is
+   available to every role; the only role gate is hiding Delete from global_admin. The tell was in the FIRST
+   file read: `useAuthGuard({ requireProgram: false })` + no `isProgramAdmin` redirect `useEffect` (edit/roles
+   both have one). Don't inherit a sibling group's gating assumption — read THIS page's guard/redirect lines and
+   let them set the role rules. A read of the landing/page file beats the directory grouping.
+2. **The PUREST shape yet — "no new dependency" as its own D-DEPS row (purer than run-26).** Run-26 still landed
+   a 9-line chrome leaf. Run-27 landed **nothing but the page**: `PageShell`/`PageHeader`/`GlassCard`/
+   `ConfirmDialog`, `fetchMemberProfile`/`updateMemberProfile`, `deleteAccount`, `initials` were ALL already
+   ported — the members api fns were ported "vestigial-here" with the `/members` landing page (run 22), and this
+   page is finally their consumer. When that happens, record D-DEPS as "no new dependency" explicitly (it's the
+   clean signal that backend-coverage + earlier-page ports have fully amortized) and the sweep's whole job is to
+   CONFIRM the mounts (both endpoints) + grep the dep list, porting zero shared code.
+3. **The tokenize-the-colors cleanup is SELECTIVE within one page — offer only the sites with a clean token,
+   leave the rest faithful+flagged (run-26 discipline, now applied at sub-site granularity).** Same page had
+   two hardcoded-color sites: the success line `text-emerald-600` → clean map to `rf-success` (offered, taken),
+   AND the avatar chip `bg-amber-100 text-amber-600` → **no** clean token (amber-100 tint has no rf equivalent;
+   amber-600 ≠ `rf-accent` #ff8b1f or `rf-warning` #f59e0b) → kept faithful + flagged F2. Grep the palette
+   per-site, not per-page; a page can be partly-tokenizable.
+4. **A "clear stale feedback on edit" cleanup is a legit faithful-plus addition** (D-C2) — the legacy form only
+   reset its success/error banner at the next Save click, so an edited-but-unsaved field showed a stale "updated
+   successfully". A small `markEdited()` called from each field's `onChange` (guarded so it only fires when a
+   message is showing) is behavior-preserving for the happy path and fixes the stale-confirmation footgun. Same
+   class as run-25's additive client-side validation: a UX-correctness fix the legacy lacked, recorded as a
+   D-row, touching no wire contract → no feature bump.
+
+**Output.** `apps/web/src/app/program/profile/page.tsx` (faithful + D-C1/D-C2). `npm run build` ✓
+(`/program/profile` prerendered, 5.4 kB — no Recharts; Middleware active). SPEC v0.1.0
+(D-REF/D-SCOPE/D-DEPS/D-S1/D-C1/D-C2; F1–F5). Page COVERAGE ticked. **No feature bump, no new deps.** **Next:**
+the remaining 3 `/program/*` sub-routes (password · appearance · privacy), the 8 deferred `/members`, the 6
+deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes.

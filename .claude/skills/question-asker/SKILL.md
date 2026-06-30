@@ -473,6 +473,13 @@ directly as a faithful port from the legacy reference app** — there is no inte
   Members copy was already specialized (run-22's 2-variant `activePicker`), so extracting a shared `ui/` picker
   would carry BOTH tabs' union of props/branches (adds branches, doesn't remove them). Flag the dup (F-row,
   rebuild-cleanup candidate), recommend against extraction, let the user decide — they chose port-local + flag.
+  **Run 27 — the PATH can lie about OWNERSHIP, not just CRUD-ness.** A page can sit under an admin-settings
+  group's route prefix yet edit the *requester's own* record: `program/profile` lives under `/program/*`
+  (alongside the admin-only edit/roles) but is the user's own "My Profile" account page — so it has **no admin
+  redirect** and is available to **every** role (only Delete is hidden from global_admin). The tell is in the
+  FIRST file read: `useAuthGuard({ requireProgram: false })` + the ABSENCE of the `isProgramAdmin`-redirect
+  `useEffect` its siblings have. **Don't inherit a sibling group's gating assumption** — read THIS page's
+  guard/redirect lines and let them set §7's role rules; the directory grouping is not the authz boundary.
 - **Sub-routes of a deferred group land that group's shared chrome — size the dep port to the whole group, and
   check EACH sub-route, not just the first (runs 25–26).** When you build the sub-route layer under a hub, a page
   often drags in small chrome leaf components the landing pages never needed (run 25 `/program/edit`:
@@ -485,9 +492,15 @@ directly as a faithful port from the legacy reference app** — there is no inte
   endpoint (`PUT /programs/:id`) + its client fn + any emit all shipped with the owning feature — the sweep
   CONFIRMS the mount, ports nothing. It can go **one purer** (run 26): when a sibling LANDING page already dragged
   in the whole api module, the sweep `diff`s rebuilt-vs-legacy (byte-identical) and ports *only* the chrome leaf +
-  the page. And **a tokenize-the-colors cleanup needs a CLEAN token mapping or don't offer it — grep the palette
-  FIRST** (run 26: legacy hexes `#f59e0b`/`#3b82f6`/`#6b7280` mapped 1:1 to `rf-warning`/`rf-info`/`rf-text-muted`,
-  admin pixel-identical in light mode); no matching token = inventing one = scope creep. A foreground that must
+  the page. It can go **one purer still** (run 27): when every dep is already ported (the consuming page is the
+  belated consumer of api fns ported "vestigial-here" with an earlier sibling — run-22's members fns), record
+  D-DEPS as **"no new dependency"** and the sweep ports *nothing but the page itself*. And **a tokenize-the-colors
+  cleanup needs a CLEAN token mapping or don't offer it — grep the palette FIRST** (run 26: legacy hexes
+  `#f59e0b`/`#3b82f6`/`#6b7280` mapped 1:1 to `rf-warning`/`rf-info`/`rf-text-muted`, admin pixel-identical in
+  light mode); no matching token = inventing one = scope creep. **Tokenize SELECTIVELY within a page** (run 27):
+  one page had a success line `text-emerald-600` → clean `rf-success` (offered+taken) AND an avatar chip
+  `bg-amber-100 text-amber-600` → no rf equivalent (kept faithful+flagged) — grep the palette per-site, a page
+  can be partly-tokenizable. A foreground that must
   stay dark on a light accent (dark ink on amber) has no theme-flipping token → keep the literal ink, tokenize
   only the background/border (what flips). And **a
   settings/editor page whose whole job is to SET `admin_only_data_entry` makes that flag N/A as a GATE** — it's
