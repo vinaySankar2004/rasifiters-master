@@ -62,13 +62,20 @@ copy-paste-ready code, no "as needed"/TBD/figure-it-out.
   deploys as a Blueprint (`apps/backend/render.yaml`); this MCP is the create/inspect/deploy path.
 - **supabase-rasifiters** — read-only, scoped to the rasifiters project (`project_ref` is
   `TODO(provision)` until the Supabase project is created).
+- **xcode** — local **stdio** bridge (`xcrun mcpbridge`, Apple-native, Xcode 26.3+). The iOS build-check
+  path: builds the **open** `apps/ios` project + returns structured compiler diagnostics. Requires Xcode
+  running with the project open and **Settings → Intelligence → "Allow external agents to use Xcode tools"**
+  enabled. Native-only by choice — we do NOT add the community XcodeBuildMCP (~80 tools, simulator control
+  we don't want, heavy token cost). The user runs the simulator/visual checks; the MCP is for compile only.
+  See the `ios-build` skill.
 
-All three are OAuth-based remote HTTP MCPs — **no secrets in `.mcp.json`**; first use triggers a one-time
-browser login per server.
+The three HTTP servers are OAuth-based remote MCPs — **no secrets in `.mcp.json`**; first use triggers a
+one-time browser login per server. `xcode` is local (no auth, no network).
 
-**Use ONLY these project MCP servers in this workspace.** The claude.ai-managed connectors
-(`claude.ai Supabase`, `claude.ai Vercel`, `claude.ai Google Drive`) and `n8n` are **denied** in
-`.claude/settings.json` — they grant broad account-level access and bypass our scoping.
+**Use ONLY these project MCP servers in this workspace** (the three OAuth servers + the local `xcode`
+bridge). The claude.ai-managed connectors (`claude.ai Supabase`, `claude.ai Vercel`, `claude.ai Google
+Drive`) and `n8n` are **denied** in `.claude/settings.json` — they grant broad account-level access and
+bypass our scoping.
 
 **Scope guardrail.** Vercel + Render OAuth grant access to *all* account projects/services. The
 `deploy-scope-guard.sh` PreToolUse hook restricts `vercel`/`render` commands to the rasifiters
@@ -81,7 +88,9 @@ the product `CONTEXT.md` and fill the allow-list/scope in the hook.
 loop — writes both feature specs and page/screen specs incl. role-based view rules) · `deploy` (provision +
 deploy to Vercel/Render, create Supabase schema/buckets) · `audit` (web↔iOS parity check for shared
 features) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
-read-only doc-health cross-review; strict, report-only via plan mode). Each living skill keeps a slim
+read-only doc-health cross-review; strict, report-only via plan mode) · `ios-build` (the iOS compile-check
+loop via the native `xcode` MCP — build `apps/ios`, read structured diagnostics, fix, repeat; NO
+screenshots/simulator, the user runs those). Each living skill keeps a slim
 "Converged lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for the
 "concern → skill" map. (There is no `stitch` skill — we port code directly from the legacy app, not
 assemble it from modules.)

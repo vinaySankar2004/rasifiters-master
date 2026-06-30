@@ -11,6 +11,11 @@
     "supabase-rasifiters": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?read_only=true&project_ref=kpadxjekpiwfkqcxtrio"
+    },
+    "xcode": {
+      "type": "stdio",
+      "command": "xcrun",
+      "args": ["mcpbridge"]
     }
   }
 }
