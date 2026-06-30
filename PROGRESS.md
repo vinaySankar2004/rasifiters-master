@@ -42,6 +42,35 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP HAS STARTED (1 of 8).** The
+> **`members/list` page (25th web page, 1st of the 8 deferred `/members` sub-routes) is DONE** (2026-06-29): a faithful
+> 1:1 port of the legacy 113-line **active-member roster** behind the `/members` landing's "View Members" pill — a
+> `PageShell` + `PageHeader` ("Members" / program name / `backHref="/members"`) wrapping a search `GlassCard` + a grid
+> of `MemberRow` cards (avatar · name · `★` admin star · `@username` · an "Inactive" badge), over `fetchMembershipDetails`
+> (`GET /program-memberships/details`), client-filtered to `status==="active"` + a client-side name search. **D-SCOPE** =
+> this page only — **1st-of-8, does NOT close the group** (`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/
+> `health` still deferred). **KEY DEP FINDING: the core api dep came from a DIFFERENT feature family's already-ported
+> module** — `fetchMembershipDetails`/`MembershipDetail` live in `lib/api/programs.ts` (ported with the `program` landing
+> run 24 / `program/roles` run 26, already consumed by 2 live pages), **not** in the members landing's `lib/api/members.ts`
+> (run 22) — so **D-DEPS = NO new dependency** held even though the *members landing never touched this fn* (every chrome
+> leaf + `initials` also already ported; the sweep ported nothing but the page file). **Role logic fully code-answered:**
+> `useAuthGuard()` default, **no admin redirect** — every role sees the same roster; only `isGlobalAdmin` makes rows
+> clickable → the deferred `/members/detail?memberId=…` editor (forward-nav F4); read-only for all other roles.
+> **Read-only → `admin_only_data_entry` N/A.** **Stance = faithful + 1 user-picked cleanup: D-C1** tokenize the "Inactive"
+> badge's literal `bg-red-100 text-red-600` → theme-aware `bg-rf-danger/10 text-rf-danger` (the only untokenized color;
+> avatar/star/text all already `rf-*` → the run-27/28 selective-tokenize with exactly one site). Faithful otherwise
+> (D-S1 — same query key `["members","details",programId]`, `enabled` gate, `status==="active"` filter, client name
+> search, the `MemberRow` markup). **Zero backend work, NO feature bump** — `GET /program-memberships/details` already
+> mounted + `authenticateToken` (already consumed by the `program` landing + `program/roles`). `consumed_by=[web]` (iOS
+> roster native). Flagged F1–F5 (global_admin-only clickability + **entry-path asymmetry** — the pill shows for
+> `!canViewAs` loggers/members yet only global_admin can act on a row; `status` membership vs `is_active` account; client
+> filter/search; forward-nav to deferred `/members/detail`; client JWT-decode role drives display-only clickability).
+> `npm run build` ✓ (`/members/list` prerendered, **2.37 kB** — no Recharts; Middleware 27.5 kB active). **Committed via
+> `git-version` next; lessons run 39 appended (promoted: "a sub-route's CORE dependency can live in a DIFFERENT feature
+> family's already-ported module — grep the legacy file's actual import paths before sizing deps").** **NEXT = the
+> `/members` group continues: `detail` (the global_admin per-member editor this list links to), then `invite`/`metrics`/
+> `history`/`streaks`/`workouts`/`health` (7 of 8 remaining).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/summary` SUB-ROUTE GROUP IS NOW COMPLETE (6 of 6).** The
 > **`summary/bulk-log-workout` page (24th web page, 6th & LAST of the 6 deferred `/summary` sub-routes — the 3rd & final
 > mobile log fallback) is DONE** (2026-06-29): a **near-exact twin of the just-built `summary/log-workout`/`log-health`
