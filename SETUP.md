@@ -6,8 +6,9 @@ the MCP servers are OAuth-based.
 
 > Stack reminder (`METHODOLOGY.md` R2–R4): the backend is **Node/Express + Sequelize** (not
 > Python/FastAPI), the web app is **Next.js 14** on **Vercel**, the API runs on **Render** (Blueprint
-> `apps/backend/render.yaml`), and data + auth live on **Supabase**. Supabase is provisioned; Render +
-> Vercel are still `TODO(provision)`.
+> `apps/backend/render.yaml`), and data + auth live on **Supabase**. **All three are provisioned + LIVE
+> (2026-06-28/29):** Supabase (`kpadxjekpiwfkqcxtrio`), Render `rasifiters-api`
+> (`https://rasifiters-api.onrender.com`), Vercel `rasifiters` (`https://rasifiters.com`).
 
 ## 1. Clone
 

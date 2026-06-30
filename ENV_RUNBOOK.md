@@ -9,8 +9,11 @@
 
 Scope: the "RaSi Fiters" app, surfaces `backend` (Node/Express + Sequelize on **Render**), `web`
 (Next.js 14 on **Vercel**), `ios` (SwiftUI, App Store) — all sharing the **one** backend API. Data
-+ auth on **Supabase** (`METHODOLOGY.md` R1/R4). **Infra is NOT provisioned yet** — every concrete
-host name / project id / ref / key below is a **`TODO(provision)`** until created.
++ auth on **Supabase** (`METHODOLOGY.md` R1/R4). **Infra is provisioned + LIVE (2026-06-28/29):** Supabase
+ref `kpadxjekpiwfkqcxtrio`, Render service `rasifiters-api` = `srv-d90tgmv7f7vs73cudptg`
+(`https://rasifiters-api.onrender.com`), Vercel project `rasifiters` (team `personal-vinayak`) on
+`https://rasifiters.com`. Any `TODO(provision)` token still shown below in a command template is just a
+fill-in placeholder — substitute the concrete value from this list.
 
 > **Stack reminder (R2):** the backend is **Node/Express + Sequelize** — env is read via `dotenv`
 > from process env (`server.js` loads `.env` then `.env.local`), not a Python settings module. The

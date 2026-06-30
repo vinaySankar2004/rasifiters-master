@@ -16,7 +16,7 @@ implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}
   iOS uses `AppTheme`). _Record exact values in `apps/*/CONTEXT.md` as confirmed._
 - Support / legal: `rasifiters.com/support`, `rasifiters.com/privacy-policy` (public pages).
 
-## Infrastructure (Supabase + Render backend provisioned 2026-06-28; Vercel still `TODO(provision)`)
+## Infrastructure (all provisioned + LIVE: Supabase + Render backend 2026-06-28; Vercel web on `rasifiters.com` 2026-06-29)
 - **Supabase** — one project (DB + Auth + object storage). Org **RaSi Fiters** (`lxehyprifvuozciizlem`),
   project **rasifiters**, `project_ref` **`kpadxjekpiwfkqcxtrio`**, region `us-east-1`, status
   ACTIVE_HEALTHY. `SUPABASE_URL` = `https://kpadxjekpiwfkqcxtrio.supabase.co`. Filled into `.mcp.json`
@@ -30,8 +30,9 @@ implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}
   **LIVE** at `https://rasifiters-api.onrender.com` via Blueprint (`apps/backend/render.yaml`, GitHub
   auto-deploy). A **new** service; the legacy backend also ran on Render. `/api/auth` deployed + verified
   end-to-end 2026-06-28.
-- **Web → Vercel** — project `rasifiters-web` (`TODO(provision)`), team/scope `TODO(provision)`. Runs on a
-  temp domain until the `rasifiters.com` cutover.
+- **Web → Vercel** — project `rasifiters` (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team `personal-vinayak`.
+  **LIVE** at `https://rasifiters.com` (apex 308→`www`), git auto-deploy on `main`. Deployed + domain
+  cutover 2026-06-29. (The old legacy webapp project `rasi-fiters` was retired off the domain.)
 - **iOS** — App Store / TestFlight; bundle id `com.vinayaksankaranarayanan.RaSi-Fiters-App` (legacy).
 - **Push** — Apple Push Notification service (APNs), keys carried from the legacy backend (`APNS_*`).
 

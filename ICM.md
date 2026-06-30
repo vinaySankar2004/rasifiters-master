@@ -32,8 +32,10 @@ the source of truth for the faithful rebuild.
 | `ios` | SwiftUI (iOS 18.6) | App Store | The iOS client. |
 
 `web` and `ios` both consume `backend`. Supabase project ref: **`kpadxjekpiwfkqcxtrio`** (org `RaSi Fiters`
-/ `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). Render +
-Vercel are still `TODO(provision)`, filled by the `deploy` skill / `SETUP.md`.
+/ `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). **Both web +
+backend are PROVISIONED + LIVE (2026-06-29):** `web` → Vercel project `rasifiters` at
+**`https://rasifiters.com`**; `backend` → Render `rasifiters-api` at `https://rasifiters-api.onrender.com`.
+`ios` not yet built (next surface).
 
 ## Layer map
 

@@ -51,3 +51,4 @@ DerivedData/
 
 # NOTE: .mcp.json is intentionally NOT ignored — it carries no secrets and is
 # committed so a fresh clone gets the MCP servers out of the box.
+.vercel

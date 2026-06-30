@@ -22,8 +22,8 @@ ACTIVE_HEALTHY; `.mcp.json` repointed. **Schema applied + data/auth MIGRATED to 
 `apps/backend/render.yaml` (host = **Render, not Railway** — METHODOLOGY R7). Full auth round-trip green
 against migrated data (admin): login→200 (bcrypt password verified, ES256 JWT), guarded route via JWKS
 verify + `auth_user_id` mapping→200, garbage token→401, refresh→200, logout→200. Fixed a migration gap
-en route (placeholder members had no `member_emails` row → `002` migration + migrator patch). Vercel still
-deferred (no web code yet).
+en route (placeholder members had no `member_emails` row → `002` migration + migrator patch). Vercel was
+deferred at this point (no web code yet — now LIVE on `rasifiters.com`, see Phase 3).
 
 **Phase 3 — `web`: ALL PAGES PORTED (2026-06-29).** **The entire web surface is COMPLETE — 34/34 legacy pages
 ported + 2 net-new auth-recovery pages (`forgot-password`/`reset-password`) = 36 web page SPECs, all
@@ -33,10 +33,10 @@ diff is clean). The four workspace-tab groups are done (`/summary` 6/6, `/member
 `create-account`/`privacy-policy`/`support`). **The `NotificationsGate` deferred stub is now REPLACED by the faithful
 web `notifications` client (run 48, 2026-06-29)** — so the web surface is **feature-complete**, not just page-complete.
 The only remaining web item is the INERT middleware ES256 note (already RESOLVED in run 20 — see the note below; not
-open). **The web app is now DEPLOYED + LIVE on Vercel (run 49, 2026-06-29): project `rasifiters`
-(`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak`) at `https://rasifiters.vercel.app`, git auto-deploy on
-`main` wired (root `apps/web`, monorepo ignore-step), smoke test green.** **Next: the `ios` (SwiftUI) surface — see
-COVERAGE `## ios`.** Foundation history below.
+open). **The web app is DEPLOYED + LIVE on the custom domain `https://rasifiters.com` (run 49 + domain cutover,
+2026-06-29): Vercel project `rasifiters` (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak`), git
+auto-deploy on `main` wired (root `apps/web`, monorepo ignore-step), favicon/icons ported, smoke test green on the
+domain.** **Next: the `ios` (SwiftUI) surface — see COVERAGE `## ios`.** Foundation history below.
 
 **Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
 `npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
@@ -61,23 +61,27 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → START THE `ios` (SwiftUI) SURFACE — the web app is DEPLOYED + LIVE; web surface CLOSED
-> **The web app is DEPLOYED + LIVE on Vercel (run 49, 2026-06-29).** Project **`rasifiters`**
-> (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak` = `team_VWBSWxM5pHvWjCraHUWB73v5`) at
-> **`https://rasifiters.vercel.app`** (no custom-domain switch — `rasifiters.com` left UNPOINTED for a no-rebuild
-> cutover). **Git auto-deploy on `main` is WIRED**: repo `vinaySankar2004/rasifiters-master`, root `apps/web`,
-> monorepo ignore-step `git diff --quiet HEAD^ HEAD -- .` (only `apps/web/**` commits build). Env = 3 `NEXT_PUBLIC_*`
+> ### ⏭️ ON "continue" → START THE `ios` (SwiftUI) SURFACE — the web app is LIVE on `rasifiters.com`; web surface CLOSED
+> **The web app is DEPLOYED + LIVE on the custom domain `https://rasifiters.com` (run 49 + domain cutover,
+> 2026-06-29).** Project **`rasifiters`** (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak` =
+> `team_VWBSWxM5pHvWjCraHUWB73v5`), apex 308→`www.rasifiters.com`; also at `https://rasifiters.vercel.app`. **The
+> domain cutover moved `rasifiters.com` OFF the OLD legacy webapp Vercel project `rasi-fiters` → this `rasifiters`
+> project** (the old project served the legacy Netlify-era build; verify-by `forgot-password`/`reset-password` =
+> net-new routes). **Git auto-deploy on `main` is WIRED**: repo `vinaySankar2004/rasifiters-master`, root `apps/web`,
+> monorepo ignore-step `git diff --quiet HEAD^ HEAD -- .` (only `apps/web/**` commits build; canonical local
+> `.vercel/` link lives at the REPO ROOT — manual deploy from root, not `apps/web`). Env = 3 `NEXT_PUBLIC_*`
 > (Production): `NEXT_PUBLIC_API_ENV=prod`, `…API_BASE_URL_PROD=https://rasifiters-api.onrender.com/api`,
-> `…APP_URL=https://rasifiters.vercel.app` — **NO Supabase keys on the web side** (the app talks only to the Express
-> `/auth/*` proxy; no `@supabase` dep). Scope guard now locks vercel→`personal-vinayak` + project `rasifiters`.
-> **Smoke test green:** `/splash`·`/login`·`/privacy-policy`·`/support` → 200; `/summary`·`/members` unauth → 307 →
-> `/login?from=…` (edge guard armed); backend `/` → 200. **One unverified surface:** the signed-in web→backend proxy
-> round-trip (no test creds) — the backend auth round-trip itself was verified live in Phase 2. Details in
-> `apps/web/CONTEXT.md` §Deploy + the `deploy` skill LESSONS_ARCHIVE run 2.
+> `…APP_URL=https://rasifiters.com` — **NO Supabase keys on the web side** (the app talks only to the Express
+> `/auth/*` proxy; no `@supabase` dep). Backend CORS already allows `rasifiters.com`/`www`. Scope guard locks
+> vercel→`personal-vinayak` + project `rasifiters`. **Smoke test green on the domain:** public pages +
+> `/forgot-password`/`/reset-password` → 200; `/summary`·`/members` unauth → 307 → `/login?from=…` (edge guard
+> armed); `og:url`=rasifiters.com; `/favicon.ico` → 200 (logo — App Router icons ported); backend `/` → 200. **One
+> unverified surface:** the signed-in web→backend proxy round-trip (no test creds; user is live-testing). Details in
+> `apps/web/CONTEXT.md` §Deploy + the `deploy` skill LESSONS_ARCHIVE.
 >
 > **NEXT SURFACE = `ios` (SwiftUI)** — COVERAGE `## ios` (auth splash/login/create-account first). Reference impl
 > `../ios-mobile`. Use the `question-asker` loop per screen, port faithfully, point the app at the live Render API
-> (`rasifiters-api.onrender.com`) + `rasifiters.com` when the domain cuts over.
+> (`rasifiters-api.onrender.com`) + `rasifiters.com` (domain is now live).
 >
 > **SIDE-OP (off-ICM, 2026-06-29) — legacy backend write-block sunset (DONE).** The OLD backend
 > `rasi-fiters-api.onrender.com` (separate repo `vinaySankar2004/RaSi-Fiters` main, OLD Postgres — the one

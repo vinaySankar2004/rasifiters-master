@@ -120,3 +120,35 @@
 - New durable patterns promoted to Converged lessons: zsh no-word-split; Vercel rename keeps the old
   `.vercel.app` domain (add the new one + redeploy); grep the FE for a real supabase client before
   provisioning FE auth keys.
+
+### Run 3 — RaSi Fiters web: custom-domain cutover + favicon (2026-06-29) — POST-DEPLOY ✅
+- Context: user did the DNS "domain transfer" then said the site was live. It wasn't the new app — see below.
+- **The domain was attached to the WRONG (old) Vercel project.** `www.rasifiters.com` was on a SEPARATE
+  legacy project `rasi-fiters` (hyphen), serving the old Netlify-era build, NOT our `rasifiters` project.
+  It *looked* fine ("works, no input entry") because the OLD webapp hits the OLD backend, which we'd just
+  write-blocked — so the symptom mimicked the new app. **Always verify WHICH project serves a domain after a
+  "transfer"** — `vercel projects ls` shows the production URL per project; a net-new route is the cleanest
+  discriminator (here `/forgot-password` + `/reset-password` → 200 on the new build, 404 on the legacy one;
+  also `og:url=rasifiters.netlify.app` betrayed the old build). User moved the domain themselves
+  (project → project, one Vercel domain can only live on one project); verified the new app then served it.
+- **Manual `vercel deploy` from the repo ROOT with NO `.vercel` link creates a STRAY project** named after
+  the dir (`rasifiters-master`) instead of redeploying the real one. Because `rootDirectory=apps/web` was set
+  (for git deploys), the correct manual path is: link the REPO ROOT to the real project
+  (`vercel link --yes --project rasifiters` at root) THEN `vercel deploy --prod` from root → Vercel applies
+  `rootDirectory=apps/web` and builds the app. Deploying from `apps/web` cwd double-nests; deploying from an
+  unlinked root forks a new project. Cleanup: `DELETE /v9/projects/{name}?teamId=…` (the CLI `project rm` is
+  interactive, no `--yes`); removed the now-redundant `apps/web/.vercel` so the root link is canonical.
+- **Re-baking `NEXT_PUBLIC_APP_URL`:** swapped vercel.app→`https://rasifiters.com`, redeployed (fresh build,
+  not `redeploy` which reuses build output) — confirmed `og:url` flipped. NEXT_PUBLIC_* bake at build time.
+- **Favicon/icons were missing → browser tab + Vercel card showed the generic "N".** The foundation port
+  copied `public/brand/*.png` but missed the legacy `src/app/{favicon.ico,icon.png,apple-icon.png}` App
+  Router icon files, so `/favicon.ico` 404'd. Next App Router serves `/favicon.ico` ONLY if the file exists
+  under `app/`; `metadata.icons` adds `<link>` tags but does NOT create `/favicon.ico`. Ported the 3 legacy
+  files 1:1 (coexists with `metadata.icons` — legacy shipped both); pushed (apps/web subtree → git
+  auto-deploy); verified `/favicon.ico` → 200 `image/x-icon` on the domain.
+- What changed: `apps/web/src/app/{favicon.ico,icon.png,apple-icon.png}` (ported); `apps/web/CONTEXT.md`,
+  root `CONTEXT.md`, `ICM.md`, `PROGRESS.md` (domain live + APP_URL=rasifiters.com); this archive + SKILL.md
+  converged lessons.
+- New durable patterns promoted: verify which project serves a domain after a transfer; manual deploy from
+  the repo-root link (unlinked root forks a stray project); App Router `/favicon.ico` needs the file under
+  `app/` (metadata.icons ≠ favicon.ico).

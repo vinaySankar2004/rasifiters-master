@@ -246,6 +246,20 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
   `apps/web/apps/web` and fail.
 - **zsh doesn't word-split unquoted `$VAR`:** `S="--scope x"; vercel … $S` passes one arg `--scope x` →
   "unknown option". Inline multi-token flags (or use a bash array); don't stuff them in a var under zsh.
+- **Verify WHICH project serves a domain after a "transfer":** a DNS transfer points the domain at Vercel,
+  but the domain is attached to ONE project — easily the OLD one. `vercel projects ls` shows each project's
+  production URL; a net-new route is the cleanest discriminator (200 on the new build, 404 on the legacy).
+  A live-looking old app can mask the mismatch (esp. if the old + new backends behave alike). Move the domain
+  project→project to cut over.
+- **Manual deploy must run from the repo-root link, not `apps/web` and not an unlinked dir:** once
+  `rootDirectory=apps/web` is set, `vercel link --project <p>` at the REPO ROOT then `vercel deploy --prod`
+  from root is the only correct manual path. From `apps/web` cwd it double-nests; from an UNLINKED root it
+  forks a stray project named after the dir. Delete strays via `DELETE /v9/projects/{name}?teamId=…` (CLI
+  `project rm` is interactive). Keep the canonical `.vercel` at the repo root.
+- **App Router `/favicon.ico` needs the file under `app/`:** `metadata.icons` only emits `<link>` tags — it
+  does NOT create `/favicon.ico`, so the browser tab + Vercel card fall back to the generic icon. Ship
+  `app/{favicon.ico,icon.png,apple-icon.png}` (they coexist with `metadata.icons`). Verify `/favicon.ico`
+  → 200 on the live host.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:**
