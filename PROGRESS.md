@@ -42,9 +42,15 @@ storage, permissions, format, hooks), `globals.css`, layout/providers/shell chro
 brand assets. Deviations (all migration-justified, logged in `apps/web/CONTEXT.md` §Foundation port): host
 Netlify→Vercel (dropped `@netlify/plugin-nextjs`+`netlify.toml`, pkg renamed `rasifiters-web`); prod API
 default → our Render service; **`NotificationsGate` = deferred stub** (returns null until the web
-notifications feature lands — backend deferred-stub pattern); **`src/middleware.ts` faithfully ported but
-INERT + currently incompatible with Supabase ES256** (see Open questions). Next: the public/auth pages via
+notifications feature lands — backend deferred-stub pattern). Next: the public/auth pages via
 `question-asker`.
+
+> NOTE (the `src/middleware.ts` ES256 concern is RESOLVED): the foundation scaffold's edge middleware was
+> initially a faithful HS256 port (incompatible with Supabase's ES256 tokens — would have redirect-looped
+> every real session). This was **fixed in run 20** (the `programs` hub, the first protected route): per
+> D-C1 the middleware now **decodes + checks `exp` only** (no signature verify at the edge — the Express
+> backend JWKS-verifies every API call and owns all authz), which is ES256-safe. See `middleware.ts:56-80`.
+> Live + correct; not an open question.
 
 > NOTE: the user reset the Supabase DB password on 2026-06-28 — the value in the earlier scratchpad secrets
 > file is STALE; the live one is in the user's password manager + `tools/migrator/.env` (gitignored).
