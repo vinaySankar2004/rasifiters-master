@@ -42,6 +42,31 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/profile` page
+> (13th web page, 3rd of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1
+> port of the legacy page that — despite its `/program/*` path — is **NOT a program-admin setting** but the
+> signed-in user's **own "My Profile" account page** (identity card + editable first/last name + gender `<select>`
+> + Delete Account). **No admin redirect; available to every role** (the only role gate hides Delete Account from
+> global_admin); `useAuthGuard({ requireProgram: false })`. Save → `PUT /members/:id` (backend `updateMember`
+> enforces the own-profile-or-global_admin 403, partial-updates, returns the new `member_name` → mirrored into the
+> profile cache + the auth session); Delete → `ConfirmDialog` → `DELETE /auth/account` (the single-sourced
+> member-deletion cascade) → `signOut` → `/login`. **D-SCOPE** = this page only (other 3 `/program/*` sub-routes —
+> password/appearance/privacy — still deferred). **D-DEPS = NO new dependency** (the purest shape yet — every dep
+> already ported: `PageShell`/`PageHeader`/`GlassCard`/`ConfirmDialog`, `fetchMemberProfile`/`updateMemberProfile`,
+> `deleteAccount`, `initials`; the members api fns were ported "vestigial-here" with the `/members` landing page,
+> run 22 — this page is their belated consumer). **D-S1 faithful + 2 user-pinned cleanups: D-C1** tokenize the
+> success color (`text-emerald-600` → `text-rf-success`, theme-aware + symmetric with the `rf-danger` error line;
+> the avatar amber chip has no clean rf token → kept faithful + flagged F2), **D-C2** clear the stale success/error
+> message on field edit (legacy left "Profile updated successfully." lingering until the next Save). **Zero backend
+> work, NO feature bump** — both endpoints already mounted (`members` v0.2.0 `PUT /members/:id`; `auth` v0.2.0
+> `DELETE /auth/account` cascade). Flagged F1–F5 (client JWT-decode role label + delete gate; literal-amber avatar;
+> name-split heuristic; client-only delete gate vs `authenticateToken`-only backend route; no client throttle).
+> `npm run build` ✓ (`/program/profile` prerendered, 5.4 kB — no Recharts; Middleware active). **Committed via
+> `git-version` next; lessons run 27 appended (promoted: "the PATH can lie about OWNERSHIP not just CRUD-ness";
+> "no new dependency" as the purest D-DEPS; tokenize SELECTIVELY per-site).** **NEXT = the remaining 3 `/program/*`
+> sub-routes (password · appearance · privacy), the 8 deferred `/members` sub-routes, the 6 deferred `/summary`
+> sub-routes, and/or the 2 deferred `/lifestyle` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/roles` page
 > (12th web page, 2nd of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1
 > port of the legacy **admin-only role-management list** — the program's **active** members each rendered as a
@@ -458,8 +483,11 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        SUB-ROUTE layer is advancing** — `program/edit` (admin-only details form → `PUT /programs/:id`; faithful +
        3 cleanups; ported shared chrome `ui/PageHeader.tsx` + `BackButton.tsx`) + `program/roles` (admin-only
        role-management list → `PUT /program-memberships`; faithful + 3 cleanups: tokenize colors / optimistic
-       update / disable-all-while-pending; ported shared chrome `ui/LoadingState.tsx`) done. Next: the remaining 4
-       `/program/*` sub-routes, the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or
+       update / disable-all-while-pending; ported shared chrome `ui/LoadingState.tsx`) + `program/profile` (the
+       user's own "My Profile" account page — NOT admin-gated; first/last name + gender + Delete Account → `PUT
+       /members/:id` + `DELETE /auth/account`; faithful + 2 cleanups: tokenize success color / clear stale message
+       on edit; **no new deps — purest shape**) done. Next: the remaining 3 `/program/*` sub-routes (password ·
+       appearance · privacy), the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or
        the 2 deferred `/lifestyle` sub-routes._
 6. [ ] **`ios`** — feature/screen by feature/screen.
 7. [ ] **Cutover** — switch `rasifiters.com` (Vercel) + ship the iOS build.
@@ -467,7 +495,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **12** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **13** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
@@ -515,10 +543,16 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   `program.role_changed` emit; D-SCOPE this page only, D-DEPS port `ui/LoadingState.tsx` verbatim (shared chrome),
   D-S1 faithful + D-C1 tokenize role-button colors (`rf-warning`/`rf-info`/`rf-text-muted`) + D-C2 optimistic role
   update + D-C3 disable all buttons while in flight; consumes `program-memberships`/`auth`, **api modules already
-  ported, no feature bump**) · iOS screen specs: **0**
+  ported, no feature bump**), `program/profile` (🏗️ v0.1.0 `[web]` — **SUB-ROUTE 3/6** of `/program/*`: NOT a
+  program-admin setting but the signed-in user's **own "My Profile" account page** (first/last name + gender +
+  Delete Account) — no admin redirect, all roles, only Delete hidden from global_admin; Save → `PUT /members/:id`,
+  Delete → `DELETE /auth/account` cascade → `signOut` → `/login`; D-SCOPE this page only, **D-DEPS = no new
+  dependency** (purest shape — every dep already ported; members api fns were ported "vestigial-here" with
+  `/members`, run 22), D-S1 faithful + D-C1 tokenize success color → `rf-success` (avatar amber kept, F2) + D-C2
+  clear stale success/error on field edit; consumes `members`/`auth`, **no feature bump**) · iOS screen specs: **0**
   (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + ALL FOUR workspace tabs done
-  (workspace landing layer complete); the SUB-ROUTE layer has STARTED (`program/edit` done); next = the remaining 5
-  `/program/*` (roles · profile · password · appearance · privacy), the 8 deferred `/members`, the 6 deferred
+  (workspace landing layer complete); the SUB-ROUTE layer is advancing (`program/edit` · `roles` · `profile` done);
+  next = the remaining 3 `/program/*` (password · appearance · privacy), the 8 deferred `/members`, the 6 deferred
   `/summary`, and/or the 2 deferred `/lifestyle` sub-routes; see Next action_
 - Legacy surface coverage: see `COVERAGE.md` (all unchecked)
 
