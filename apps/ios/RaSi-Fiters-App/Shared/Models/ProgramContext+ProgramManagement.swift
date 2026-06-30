@@ -25,7 +25,7 @@ extension ProgramContext {
     }
 
     @MainActor
-    func updateProgram(name: String?, status: String?, startDate: Date?, endDate: Date?) async throws {
+    func updateProgram(name: String?, status: String?, startDate: Date?, endDate: Date?, adminOnlyDataEntry: Bool? = nil) async throws {
         guard let token = authToken, !token.isEmpty else {
             throw APIError(message: "No auth token")
         }
@@ -45,14 +45,23 @@ extension ProgramContext {
             name: name,
             status: status,
             startDate: startStr,
-            endDate: endStr
+            endDate: endStr,
+            adminOnlyDataEntry: adminOnlyDataEntry
         )
 
-        // Update local state
-        if let newName = name { self.name = newName }
-        if let newStatus = status { self.status = newStatus }
-        if let newStart = startDate { self.startDate = newStart }
-        if let newEnd = endDate { self.endDate = newEnd }
+        // Hydrate local state from the server response (the canonical row),
+        // not the optimistic form input (web parity — program/edit D-C2).
+        self.name = response.name
+        self.status = response.status
+        if let start = response.start_date, let d = formatter.date(from: start) {
+            self.startDate = d
+        }
+        if let end = response.end_date, let d = formatter.date(from: end) {
+            self.endDate = d
+        }
+        if let lock = response.admin_only_data_entry {
+            self.adminOnlyDataEntry = lock
+        }
     }
 
     @MainActor

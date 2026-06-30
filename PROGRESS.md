@@ -79,6 +79,40 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` program create/edit/invites cluster: 5 VIEWS PORTED (run 59, 2026-06-30).** The **program-picker's
+two deferred forward-nav targets** (deferred since run 52) — ported into `apps/ios/.../Features/Home/ProgramActions/`
+(2 iOS SPECs `specs/pages/ios/{program-actions,edit-program}/`), the 2 deferred stubs removed. **D-SCOPE = the cluster
+IS the run** (run-58 cohesive-cluster precedent): `ProgramActionsSheet` (the "+" sheet — a tabbed Invites/Create
+container) + its 3 sub-views (`CreateProgramTabView`, `InvitesTabView`+`DeclineInviteDialog`, `InviteCard`) + the
+swipe-Edit `EditProgramInfoView`, all in one run. **The create + invites surface is FAITHFUL 1:1 (D-S1)** — both web
+`/programs` (the Create + Invites tabs of the actions modal) AND legacy iOS agree on the create form (name/status/
+today+3mo dates, `POST /programs`) and the invites flow (role-bifurcated all-vs-my list, Accept/Decline/Revoke +
+block-future-on-decline modal, `PUT /program-memberships/invite-response`), so faithful-IS-web-parity (the run-55/56
+both-agree shape, NO ADD). **`EditProgramInfoView` resolves toward web parity** (memory [[ios-matches-web-not-just-legacy]]):
+**D-C1** the **web-parity admin-only-data-entry toggle** legacy iOS lacked entirely (completes the run-54 lock story —
+Summary DISPLAYS the lock, this is where you SET it) — a pure **iOS-client plumbing ADD** (`adminOnlyDataEntry` on
+`APIClient.updateProgram` + `ProgramContext.updateProgram` + `ProgramUpdateResponse`), **ZERO backend / NO feature bump**
+(the backend `PUT /programs/:id` already accepts it — web uses it; the run-58 existing-endpoint-2nd-client shape);
+**D-C2** the **3 web Edit cleanups** — date-range validation (`start >= end` → inline error + Save disabled, web D-C1),
+hydrate-from-server-response (the context sets fields from `ProgramUpdateResponse` not optimistic input, web D-C2), and
+skip-no-op-PUT (unchanged form → dismiss with no call, web D-C3). **D-DEPS = ONE new API-layer dep** (the toggle write
+path); **no new view component** — `StatusPill` reused from `ProgramPickerView` (top-level, run 52, NOT redefined),
+`ProgramDTO.admin_only_data_entry` + `ProgramContext.adminOnlyDataEntry` already existed (run 54), every other
+service/DTO/component ported in the foundation (run 50). **Role rules code-answered**: create = any authenticated role
+(no create-side gate, matches web); invites = `isGlobalAdmin` bifurcation (all-vs-my + grouped + revoke); edit = gated
+upstream at the picker's `canManage` swipe action (global_admin any / program admin own; loggers/members never reach it),
+the screen has NO internal gate (backend `PUT /programs/:id` is the boundary) → `admin_only_data_entry` **N/A** on both
+(the sheet creates/triages; the editor EDITS the flag — the run-27 "this IS the write path for the flag" inversion).
+Flagged: program-actions F1–F5 (picker's inline invite Accept/Decline coexists with the sheet's fuller surface; invite
+error surfaces only on the admin list; top-level `StatusPill` not in `Shared/Components/`; client role gating; create
+defaults + no create date validation) · edit-program F1–F5 (no internal role gate; init from context not a read endpoint;
+day-granularity date check; snapshot-based no-op; no client rate-limit). **The app target's build green-check is owned by
+the user (visual run in Xcode)** — symbols verified via grep (each of the 6 types defined exactly once, no `StatusPill`
+collision, `adminOnlyDataEntry` plumbed across both layers, call sites unchanged, both stubs removed), not a CLI build
+(memory [[ios-user-verifies-builds-visually]]). **Next: the DEFERRED DETAIL/SECTION layer continues** — the 3 Program
+management-section stubs (`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/`ProgramWorkoutTypesSection`),
+or a Summary (5) / Members (6) / Lifestyle (2) detail view, via `question-asker`.
+
 **Phase 4 — `ios` account/settings cluster: 4 SCREENS PORTED (run 58, 2026-06-30).** The **first DEFERRED layer**
 after the closed 4-tab shell — the **4-screen account/settings cluster** (`ProgramMyAccountSection` targets, run
 57) — ported into `apps/ios/.../Features/Home/Settings/{MyProfileView,ChangePasswordView,AppearanceSettingsView,
@@ -330,25 +364,25 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 ## Next action
 
 > ### ⏭️ ON "continue" → PORT A DEFERRED DETAIL VIEW / MANAGEMENT SECTION (the deferred stubs), via `question-asker`
-> **The 4-screen account/settings cluster is DONE (run 58, 2026-06-30)** — `MyProfileView` · `ChangePasswordView` ·
-> `AppearanceSettingsView` · `NotificationsSettingsView` ported into `apps/ios/.../Features/Home/Settings/` (4 SPECs
-> `specs/pages/ios/{my-profile,change-password,appearance,notifications}/`), the 4 deferred stubs removed. **D-SCOPE =
-> the cluster IS the run** (run-47 cohesive-cluster precedent). The 2 decision-bearing screens resolved toward web
-> parity: **Profile** gained the **web-parity email-change form** legacy iOS lacked (D-C1 — new `APIClient.changeEmail`
-> `PUT /auth/email` + `ProgramContext.changeEmail` + optional `MemberDTO.email` via `fetchMemberById`); **Password**
-> adopted the **web 5-rule live checklist** (D-C2). The 2 trivial screens are faithful 1:1 verbatim (Appearance matches
-> web; Notifications is iOS-only). **D-C3** adopt shared `AppInputField`/`AppPrimaryButton`/`AppDestructiveButton` on
-> Profile+Password (N/A on the bespoke Appearance/Notifications controls). **D-DEPS = one new API-layer dep** (the email
-> ADD); no new view component. Role rules code-answered (every role, own account, no admin redirect; Delete hidden for
-> global_admin); `admin_only_data_entry` N/A for all 4. **NEXT = the DEFERRED DETAIL / SECTION layer continues.** Pick
-> one (each its own "scope cut IS the run" with further deferrals): a **Program** management section
-> (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite, `ProgramRoleManagementSection` = web
-> `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts`); the picker's `ProgramActionsSheet`
-> (create+invites — the "+" target) or `EditProgramInfoView` (= web `/program/edit`); or a **Summary** (5 stubs) /
-> **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run `question-asker` per screen, **match the current web
-> sibling** + faithful legacy iOS, delete each stub when it lands. **The user verifies the build/run visually in Xcode**
-> (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI toolchain. The pre-iOS web/deploy context
-> is retained below for reference.
+> **The program create/edit/invites cluster is DONE (run 59, 2026-06-30)** — `ProgramActionsSheet` (the "+" sheet, tabbed
+> Invites/Create) + `CreateProgramTabView` + `InvitesTabView`+`DeclineInviteDialog` + `InviteCard` + the swipe-Edit
+> `EditProgramInfoView` ported into `apps/ios/.../Features/Home/ProgramActions/` (2 SPECs `specs/pages/ios/{program-actions,
+> edit-program}/`), the 2 deferred stubs removed. **D-SCOPE = the cluster IS the run** (run-58 precedent); the picker's two
+> deferred forward-nav targets (deferred since run 52). Create + invites = **faithful 1:1** (web `/programs` Create/Invites
+> tabs + legacy iOS agree → faithful is web parity, NO ADD). **Edit resolved toward web parity**: **D-C1** the web-parity
+> **admin-only-data-entry toggle** legacy iOS lacked (completes the run-54 lock story; iOS-client plumbing ADD —
+> `adminOnlyDataEntry` on `APIClient.updateProgram`+`ProgramContext.updateProgram`+`ProgramUpdateResponse`; **zero backend,
+> NO feature bump** — web already PUTs it) + **D-C2** the 3 web Edit cleanups (date-range validation, hydrate-from-response,
+> skip-no-op PUT). **D-DEPS = one new API-layer dep** (the toggle); no new view component (`StatusPill` reused, run 52;
+> `ProgramDTO.admin_only_data_entry`/`ProgramContext.adminOnlyDataEntry` existed, run 54). Role rules code-answered (create =
+> any role; invites = `isGlobalAdmin` bifurcation; edit gated upstream at the picker's `canManage`); `admin_only_data_entry`
+> N/A on both. **NEXT = the DEFERRED DETAIL / SECTION layer continues.** Pick one (each its own "scope cut IS the run" with
+> further deferrals): a **Program** management section (`ProgramMemberManagementSection` = web `/members/*`
+> roster+editor+invite, `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web
+> `/lifestyle/workouts`); or a **Summary** (5 stubs) / **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run
+> `question-asker` per screen, **match the current web sibling** + faithful legacy iOS, delete each stub when it lands.
+> **The user verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the
+> local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
 >
 > **REMINDER for every iOS screen:** the web app is now a co-equal reference point — port to match what the
 > built web app ships, resolving cross-app divergences toward web parity unless there's a platform reason not

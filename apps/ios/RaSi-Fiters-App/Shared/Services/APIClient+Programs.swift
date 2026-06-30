@@ -37,6 +37,7 @@ extension APIClient {
         let status: String
         let start_date: String?
         let end_date: String?
+        let admin_only_data_entry: Bool?
         let message: String?
     }
 
@@ -77,19 +78,20 @@ extension APIClient {
         return try JSONDecoder().decode(DeleteProgramResponse.self, from: data)
     }
 
-    func updateProgram(token: String, programId: String, name: String?, status: String?, startDate: String?, endDate: String?) async throws -> ProgramUpdateResponse {
+    func updateProgram(token: String, programId: String, name: String?, status: String?, startDate: String?, endDate: String?, adminOnlyDataEntry: Bool? = nil) async throws -> ProgramUpdateResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("programs/\(programId)"))
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         var body: [String: Any] = [:]
         if let name { body["name"] = name }
         if let status { body["status"] = status }
         if let startDate { body["start_date"] = startDate }
         if let endDate { body["end_date"] = endDate }
-        
+        if let adminOnlyDataEntry { body["admin_only_data_entry"] = adminOnlyDataEntry }
+
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         let data = try await data(for: request)
         return try JSONDecoder().decode(ProgramUpdateResponse.self, from: data)

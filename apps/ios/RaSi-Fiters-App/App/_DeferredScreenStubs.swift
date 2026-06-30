@@ -115,17 +115,10 @@ struct ProgramWorkoutTypesSection: View {
     var body: some View { ScaffoldPlaceholder(screen: "Workout Types") }
 }
 
-/// DEFERRED (Features/Home/ProgramActionsSheet.swift) — the create-program + invites sheet
-/// (the floating "+" button target). `onDismiss` reloads programs + pending invites.
-struct ProgramActionsSheet: View {
-    var onDismiss: () -> Void = {}
-    var body: some View { ScaffoldPlaceholder(screen: "Program Actions") }
-}
-
-/// DEFERRED (Features/Home/EditProgramInfoView.swift) — the swipe-to-edit program editor.
-struct EditProgramInfoView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Edit Program") }
-}
+// PORTED (run 59) — ProgramActionsSheet + CreateProgramTabView + InvitesTabView +
+// DeclineInviteDialog + InviteCard + EditProgramInfoView now live in
+// Features/Home/ProgramActions/. The two deferred stubs were removed. EditProgramInfoView
+// gained the web-parity admin-only-data-entry toggle + date-range validation + skip-no-op PUT.
 
 // NOTE: the 4 account/settings screens landed (Features/Home/Settings/MyProfileView.swift +
 // ChangePasswordView.swift + AppearanceSettingsView.swift + NotificationsSettingsView.swift, run 58) —
