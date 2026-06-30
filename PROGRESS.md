@@ -42,6 +42,40 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/summary` SUB-ROUTE GROUP IS NOW COMPLETE (6 of 6).** The
+> **`summary/bulk-log-workout` page (24th web page, 6th & LAST of the 6 deferred `/summary` sub-routes — the 3rd & final
+> mobile log fallback) is DONE** (2026-06-29): a **near-exact twin of the just-built `summary/log-workout`/`log-health`
+> (runs 36/37)** — a faithful 1:1 port of the legacy 68-line standalone Bulk-log-workouts page: a `PageShell` +
+> `PageHeader` ("Bulk log workouts" / "Add multiple sessions at once." / `backHref="/summary"`) wrapping the
+> **already-built `BulkLogWorkoutForm` in its `variant="page"` branch** (a ≤200-row table on desktop / stacked cards on
+> mobile — per-row member `Select` · workout-type `Select` · date · hours+minutes duration → `POST /workout-logs/batch`).
+> **The desktop modal counterpart already lives on the `/summary` landing (run 21); the landing routes mobile → this page
+> (`summary/page.tsx:211`).** **This is the 3rd & LAST `/summary` sub-route where `admin_only_data_entry` is LIVE** (after
+> `log-workout`, `log-health`). **KEY DELTA from the two single-log twins — a TWO-WAY mount redirect** (`page.tsx:25-32`,
+> both `router.replace`): (1) locked non-admin → `/summary`; (2) else a plain member (`!canLogForAny`) →
+> **`/summary/log-workout`** — **bulk logging is admin/logger-only**, so a member is bounced to the single-log page (the
+> backend batch service `logService.js:191-192` is the real 403: "You do not have permission to bulk-log workouts.").
+> **D-SCOPE** = this page only — **6th-of-6, the 3rd & final log fallback, and it CLOSES the `/summary` group** (all 3
+> chart drill-downs + all 3 log fallbacks now done). **D-DEPS = NO new dependency** (the whole `BulkLogWorkoutForm` incl.
+> its `variant="page"` branch, `addWorkoutLogsBatch`/`BulkWorkoutEntry`/`BulkRowError`, `ApiError.details` rowErrors
+> transport, `PageShell`/`PageHeader`, `useAuthGuard`, `isDataEntryLocked`, both lookup fns all landed with the summary
+> landing run 21 + the `/program/*` chrome; the sweep ported nothing but the page file). **Like `log-workout`, needs BOTH
+> the member AND workout-type lookups** (unlike `log-health`'s member-only). **Stance = faithful + 1 user-picked cleanup:
+> D-C1** deterministic-nav (match runs 36/37) — swap the 2 legacy `router.back()` calls (post-save success **and** the form
+> `onClose`) for `router.push("/summary")`; **both** lock/role `router.replace` redirects unchanged (faithful). **"Reuse
+> `refreshSummaryQueries`" re-confirmed REJECTED** (module-private one-liner, not importable). Faithful otherwise (D-S1 —
+> incl. the two-way redirect + the per-row `ApiError.details → BulkRowError[]` plumbing; already fully `rf-*` tokenized →
+> NO tokenize cleanup). **Zero backend work, NO feature bump** — `POST /api/workout-logs/batch` already mounted + gated
+> (`routes/logs.js:49`, `authenticateToken` + `requireDataEntryAllowed`). `consumed_by=[web]` (iOS native log screen).
+> Flagged F1–F8 (two-way redirect/member-bounce; client JWT-decode role; dual lock enforcement; no `canSelectAnyMember`/
+> `userId` on the bulk form; per-row errors matched by submit order; no throttle; shared single-sourced form; client-only
+> 200-row cap). `npm run build` ✓ (`/summary/bulk-log-workout` prerendered, **1.38 kB** — smallest write route, no
+> Recharts; Middleware 27.5 kB active). **Committed via `git-version` next; lessons run 38 appended (promoted: "a
+> near-exact twin can carry ONE genuinely-new but CODE-DETERMINED behavioral shape → it lands as an F-row + a D-S1 line,
+> not a question; the decision shape still transcribes verbatim").** **NEXT = the `/summary` group is COMPLETE (6/6) — the
+> SUB-ROUTE layer continues with the 8 deferred `/members` sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/
+> `streaks`/`workouts`/`health`).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/summary` LOG FALLBACKS ARE ADVANCING (5 of 6).** The
 > **`summary/log-health` page (23rd web page, 5th of the 6 deferred `/summary` sub-routes — the 2nd of the 3 mobile
 > log fallbacks) is DONE** (2026-06-29): a **near-exact twin of the just-built `summary/log-workout` (run 36)** — a
