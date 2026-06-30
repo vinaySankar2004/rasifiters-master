@@ -75,9 +75,10 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 > `/auth/*` proxy; no `@supabase` dep). Backend CORS already allows `rasifiters.com`/`www`. Scope guard locks
 > vercel→`personal-vinayak` + project `rasifiters`. **Smoke test green on the domain:** public pages +
 > `/forgot-password`/`/reset-password` → 200; `/summary`·`/members` unauth → 307 → `/login?from=…` (edge guard
-> armed); `og:url`=rasifiters.com; `/favicon.ico` → 200 (logo — App Router icons ported); backend `/` → 200. **One
-> unverified surface:** the signed-in web→backend proxy round-trip (no test creds; user is live-testing). Details in
-> `apps/web/CONTEXT.md` §Deploy + the `deploy` skill LESSONS_ARCHIVE.
+> armed); `og:url`=rasifiters.com; `/favicon.ico` → 200 (logo — App Router icons ported); backend `/` → 200. **The
+> signed-in web→backend proxy round-trip is now USER-VERIFIED LIVE (2026-06-30)** — profile edit (name/gender/email),
+> `PUT /auth/email`, and password recovery (forgot → email → reset → login, incl. Outlook) all green. Details in
+> `apps/web/CONTEXT.md` §Deploy + the `deploy` skill LESSONS_ARCHIVE + the 2026-06-30 Session-log entry.
 >
 > **NEXT SURFACE = `ios` (SwiftUI)** — COVERAGE `## ios` (auth splash/login/create-account first). Reference impl
 > `../ios-mobile`. Use the `question-asker` loop per screen, port faithfully, point the app at the live Render API
@@ -1274,6 +1275,23 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-30** — **Web polish + live-test fixes (post-launch side-quests; web surface stays CLOSED → next is `ios`).**
+  Three user-reported fixes against the LIVE site, all committed + deployed + manually verified by the user:
+  **(1) Profile page (`/program/profile`) gender fix + net-new email change** (commit `e4712d5`; **members→0.3.0**,
+  **auth→0.5.0**, profile page SPEC→0.2.0): swapped the raw native `<select>` for the shared `Select` + a shared
+  `lib/genders.ts` `GENDER_OPTIONS` (also adopted by create-account); **widened `members.gender` `varchar(10)`→`varchar(32)`**
+  via migration `apps/backend/sql/003_widen_gender_column.sql` (user ran it) so `"Prefer not to say"` (17 chars) stops
+  erroring on save; `getMemberById` now returns the primary `email`; net-new **`PUT /auth/email`** (`changeEmail` —
+  password-confirmed direct change keeping Supabase `auth.users` + `member_emails` in sync) + a profile email view/change form.
+  **(2) Password-recovery link bug** — the reset email landed on `localhost:3000` + `otp_expired`. **Root cause was Supabase
+  config, NOT code:** Site URL was still the dev default `http://localhost:3000` and the prod URL wasn't on the Redirect-URLs
+  allow-list, so Supabase dropped `redirect_to`. **Fixed in the Supabase dashboard** (Site URL → `https://rasifiters.com` +
+  allow-list `https://rasifiters.com/**`); recovery now works end-to-end **incl. Outlook**. A typed-6-digit-code variant was
+  built then **reverted** (`f12ff2d` → `29693ed`) once the magic link proved fine post-config; kept in history as a fallback if
+  a future inbox's link-scanner ever consumes the single-use link (would need free custom SMTP to edit the email template).
+  **(3)** The previously-"unverified" signed-in web→backend proxy round-trip is now **user-verified live** (profile save, email
+  change, password recovery all green). **NET DOC EFFECT: web is fully done + verified; `continue` → start `ios`.**
 
 - **2026-06-29 (pm-10)** — **Specced + ported the `program` page (10th web page) — the FOURTH & LAST WORKSPACE
   TAB (`/program`), the program settings hub. All 4 workspace tabs now live; the landing layer is complete.**
