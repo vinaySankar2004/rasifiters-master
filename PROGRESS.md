@@ -42,6 +42,40 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/summary` LOG FALLBACKS HAVE STARTED (4 of 6).** The
+> **`summary/log-workout` page (22nd web page, 4th of the 6 deferred `/summary` sub-routes — the 1st of the 3 mobile
+> log fallbacks) is DONE** (2026-06-29): faithful 1:1 port of the legacy 66-line standalone Log-workout page — a
+> `PageShell` + `PageHeader` ("Log workout" / "Pick member, workout, date, and duration." / `backHref="/summary"`)
+> wrapping the **already-built `LogWorkoutForm` in its `variant="page"` branch** (member `Select` or "You" panel ·
+> workout-type `Select` · date · hours+minutes duration → `POST /workout-logs`). **The desktop modal counterpart
+> already lives on the `/summary` landing (run 21); the landing routes mobile → this page (`summary/page.tsx:206`).**
+> **KEY: this is the 1st `/summary` sub-route where `admin_only_data_entry` is LIVE, not N/A** — the page
+> `router.replace("/summary")`s a locked non-admin on mount (UX), and the backend `requireDataEntryAllowed` is the
+> real 403 (`routes/logs.js:17-34`). **Role logic is live** (unlike the read-only chart drill-downs): `canLogForAny`
+> (global_admin/admin/logger) shows the member picker + may log for any member; a plain member gets a static "You"
+> panel forced to own `userId` (backend 403s "You can only log your own workouts." otherwise). **D-SCOPE** = this
+> page only — **4th-of-6, 1st of the 3 log fallbacks, does NOT close the group** (`log-health` + `bulk-log-workout`
+> still deferred). **D-DEPS = NO new dependency** (purest write-page shape — the whole `LogWorkoutForm` incl. its
+> `variant="page"` branch, `addWorkoutLog`, `PageShell`/`PageHeader`, `useAuthGuard`, `isDataEntryLocked`, the two
+> lookup fns all landed with the summary landing run 21 + the `/program/*` chrome; the sweep ported nothing but the
+> page file). **Stance = faithful + 1 user-picked cleanup: D-C1** deterministic-nav — swap the 2 legacy
+> `router.back()` calls (post-save success **and** the form `onClose`) for `router.push("/summary")` so all
+> navigation off the page is deterministic and matches the header BackButton (which already hardcodes `/summary`);
+> guards the direct-nav/refresh footgun. **The lock `router.replace("/summary")` is unchanged** (faithful — replace
+> deliberately drops the locked page from history). **"Reuse `refreshSummaryQueries`" was considered + REJECTED** —
+> it's a module-private one-liner in `summary/page.tsx:310` (`invalidateQueries(["summary"])`), byte-identical to
+> the faithful inline call and not importable; nothing to reuse. Faithful otherwise (D-S1 — same `canLogForAny`,
+> lock guard, mutation injecting `program_id`, `invalidateQueries(["summary"])`; already fully `rf-*` tokenized →
+> NO tokenize cleanup). **Zero backend work, NO feature bump** — `POST /api/workout-logs` already mounted + gated.
+> `consumed_by=[web]` (iOS has its own native log screen). Flagged F1–F5 (client JWT-decode role/lock drives the
+> picker + redirect; `admin_only_data_entry` enforced in 2 places — client redirect + backend 403; no view-as/
+> sessionStorage — member forced to own id for non-admins; no client throttle beyond `isPending`; the
+> `LogWorkoutForm` single-sourced across modal + page). `npm run build` ✓ (`/summary/log-workout` prerendered,
+> **1.33 kB** — smallest `/summary` route, no Recharts; Middleware 27.5 kB active). **Committed via `git-version`
+> next; lessons run 36 appended.** **NEXT = the `/summary` group's last 2 log fallbacks (`log-health` — standalone
+> port of the `LogDailyHealthForm` modal; `bulk-log-workout` — the heavier `BulkLogWorkoutForm` ≤200-row page);
+> and/or the 8 deferred `/members` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the `/summary` CHART DRILL-DOWNS ARE NOW COMPLETE (3 of 6).** The
 > **`summary/workout-types` page (21st web page, 3rd of the 6 deferred `/summary` sub-routes — the LAST of the three
 > chart drill-downs) is DONE** (2026-06-29): faithful 1:1 port of the legacy **top workout types** detail behind the
