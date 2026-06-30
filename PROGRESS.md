@@ -42,6 +42,28 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/roles` page
+> (12th web page, 2nd of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1
+> port of the legacy **admin-only role-management list** — the program's **active** members each rendered as a
+> `GlassCard` with Admin/Logger/Member toggle buttons → `PUT /program-memberships` `{program_id, member_id, role}`.
+> Non-admins are redirected to `/program`; the backend `updateMembership` independently enforces the 403, the
+> **"Cannot remove the last admin" 400**, and fires the live `program.role_changed` emit. **D-SCOPE** = this page
+> only (other 4 `/program/*` sub-routes still deferred). **D-DEPS** = ported one new shared-chrome leaf
+> **`ui/LoadingState.tsx`** verbatim (9 lines; reused by the remaining sub-routes). **D-S1 faithful + 3 user-pinned
+> cleanups: D-C1** tokenize the role-button colors (legacy fixed hexes `#f59e0b`/`#3b82f6`/`#6b7280` →
+> theme-aware `rf-warning`/`rf-info`/`rf-text-muted`; admin keeps dark ink on amber, light-mode `--rf-warning` ==
+> `#f59e0b` so admin is pixel-identical in light mode), **D-C2** optimistic role update (write the new role into
+> the `["program","roles",programId]` cache on click via `onMutate`, reconcile on settle, roll back on error;
+> legacy waited for the refetch), **D-C3** disable **all** role buttons while any update is in flight (gate on
+> `updateMutation.isPending`, not just the `updatingId` row). **Zero backend work, api modules already ported,
+> NO feature bump** — both routes + `fetchMembershipDetails`/`updateMembership` + the `program.role_changed` emit
+> all already shipped with `program-memberships`/`notifications`. Flagged F1–F5 (client JWT-decode admin gate;
+> client last-admin disable mirroring the backend 400; role-only PUT payload; raw name / default role label; no
+> client throttle beyond the in-flight lock). `npm run build` ✓ (`/program/roles` prerendered, 4.23 kB — no
+> Recharts; Middleware 27.3 kB active). **Committed via `git-version` next; lessons run 26 appended.** **NEXT =
+> the remaining 4 `/program/*` sub-routes (profile · password · appearance · privacy), the 8 deferred `/members`
+> sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer has STARTED.** The **`program/edit` page
 > (11th web page, 1st of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1
 > port of the legacy **admin-only edit-program-details form** (name · status `Select` · start/end date · the
@@ -433,8 +455,10 @@ app in the meantime (it's the pre-cutover sync, idempotent).
        role-gated "view as" picker, read-only) + `lifestyle` (read-only workout-type analytics + health-timeline
        overview) + `program` (4th & last tab — the settings hub: role-gated menu / non-admin read-only card +
        Leave + Sign Out; all 4 bottom-nav tabs now resolve). **The workspace landing layer is complete + the
-       SUB-ROUTE layer has STARTED** — `program/edit` (admin-only details form → `PUT /programs/:id`; faithful +
-       3 cleanups; ported shared chrome `ui/PageHeader.tsx` + `BackButton.tsx`) done. Next: the remaining 5
+       SUB-ROUTE layer is advancing** — `program/edit` (admin-only details form → `PUT /programs/:id`; faithful +
+       3 cleanups; ported shared chrome `ui/PageHeader.tsx` + `BackButton.tsx`) + `program/roles` (admin-only
+       role-management list → `PUT /program-memberships`; faithful + 3 cleanups: tokenize colors / optimistic
+       update / disable-all-while-pending; ported shared chrome `ui/LoadingState.tsx`) done. Next: the remaining 4
        `/program/*` sub-routes, the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or
        the 2 deferred `/lifestyle` sub-routes._
 6. [ ] **`ios`** — feature/screen by feature/screen.
@@ -443,7 +467,7 @@ app in the meantime (it's the pre-cutover sync, idempotent).
 ## Coverage snapshot
 
 - Shared features documented: **14** — `auth` (🚀 v0.4.0), `members` (🏗️ v0.2.0), `programs` (🏗️), `program-memberships` (🏗️ v0.2.0), `notifications` (🏗️), `invites` (🏗️), `workouts` (🏗️ `[ios]`), `program-workouts` (🏗️ `[web, ios]`), `workout-logs` (🏗️ `[web, ios]`), `daily-health-logs` (🏗️ `[web, ios]`), `analytics` (🏗️ `[web, ios]`), `analytics-v2` (🏗️ `[web, ios]`), `member-analytics` (🏗️ `[web, ios]`), `app-config` (🏗️ `[ios]`) — **backend feature coverage complete** (see `specs/features/REGISTRY.md`)
-- Web page specs: **11** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
+- Web page specs: **12** — `splash` (🏗️ v0.1.0 `[web]`), `login` (🏗️ v0.1.1 `[web]` — faithful + ONE
   addition: "Forgot password?" link → `/forgot-password`; + the `password-reset` confirmation banner),
   `forgot-password` (🏗️ v0.1.0 `[web]` — **net-new**: always-send + always-visible `mailto:` fallback +
   inline email validation; calls `POST /auth/forgot-password`, auth v0.3.0), `reset-password` (🏗️ v0.1.0
@@ -485,7 +509,13 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   → back to `/program`); non-admins redirected, backend 403 + live `program.updated` emit; D-SCOPE this page only,
   D-DEPS port `ui/PageHeader.tsx` + `BackButton.tsx` verbatim (shared chrome for all 6 sub-routes), D-S1 faithful +
   D-C1 client date-range validation + D-C2 hydrate active-program from server response + D-C3 skip no-op PUT;
-  consumes `programs`/`auth`, **no new api modules, no feature bump**) · iOS screen specs: **0**
+  consumes `programs`/`auth`, **no new api modules, no feature bump**), `program/roles` (🏗️ v0.1.0 `[web]` —
+  **SUB-ROUTE 2/6** of `/program/*`: the **admin-only** role-management list (active members → Admin/Logger/Member
+  buttons → `PUT /program-memberships`); non-admins redirected, backend 403 + "last admin" 400 + live
+  `program.role_changed` emit; D-SCOPE this page only, D-DEPS port `ui/LoadingState.tsx` verbatim (shared chrome),
+  D-S1 faithful + D-C1 tokenize role-button colors (`rf-warning`/`rf-info`/`rf-text-muted`) + D-C2 optimistic role
+  update + D-C3 disable all buttons while in flight; consumes `program-memberships`/`auth`, **api modules already
+  ported, no feature bump**) · iOS screen specs: **0**
   (see `specs/pages/REGISTRY.md`) — _public/auth path COMPLETE + first protected route + ALL FOUR workspace tabs done
   (workspace landing layer complete); the SUB-ROUTE layer has STARTED (`program/edit` done); next = the remaining 5
   `/program/*` (roles · profile · password · appearance · privacy), the 8 deferred `/members`, the 6 deferred
