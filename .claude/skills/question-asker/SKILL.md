@@ -539,6 +539,17 @@ directly as a faithful port from the legacy reference app** — there is no inte
   don't manufacture a tokenize cleanup on an already-tokenized page. **(b)** the `useAuthGuard`-reuse (run-20/28)
   generalizes to the inline `useAuth` + `useActiveProgram` + redirect TRIPLE — the hook also returns `program`,
   so one swap subsumes the redirect AND a separate `useActiveProgram` back-href call, deleting three imports.
+  **Run 30 — the purest-shape spectrum bottoms out at a fully-STATIC content page.** Runs 27→29 traced no-new-dep
+  → no-backend/API → client-only (just `localStorage`); `program/privacy` (a static Privacy Policy document) goes
+  one further: NO state, NO `localStorage`, NO storage of any kind — it reads nothing and writes nothing; the only
+  "state" is the `useAuthGuard` session check. §6 Data/API = "none, not even client storage"; §8 has exactly ONE
+  render (no loading/empty/error/pending) — state the floor explicitly, don't invent sections that can't occur.
+  Corollary: **keep a shared cross-surface legal/policy document VERBATIM; flag the surface mismatch as an F-row,
+  don't fork it.** The web privacy page intentionally describes iOS push/APNs behavior though web uses SSE and
+  registers no token — trimming the web-irrelevant clauses forks one shared legal doc into two (content
+  governance, not a code cleanup). Lead with "keep verbatim" (taken); record the mismatch + the hardcoded
+  effective-date/contact-email as faithful F-rows (a CMS/config-sourced policy is a rebuild feature). And a
+  sub-route run can CLOSE its group — when it's the Nth-of-N, say so in D-SCOPE (the `/program/*` layer is now 6/6).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

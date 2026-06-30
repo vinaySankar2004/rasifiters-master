@@ -1384,3 +1384,38 @@ account-synced; possible first-paint theme flash; **no role read at all**). No f
 (`/program/appearance` 3.06 kB — smallest sub-route yet). **No feature bump, no new deps.** **Next:** the LAST
 `/program/*` sub-route (privacy), the 8 deferred `/members`, the 6 deferred `/summary`, and/or the 2 deferred
 `/lifestyle` sub-routes.
+
+## Run 30 — web `program/privacy` (6th & LAST of 6 `/program/*` settings sub-routes) — 2026-06-29
+
+**Target:** `specs/pages/web/program/privacy/SPEC.md` — the **Privacy Policy** page, the sixth and final deferred
+`/program/*` settings sub-route. Legacy `rasifiters-webapp/src/app/program/privacy/page.tsx`: a fully static
+`PageShell` + `PageHeader` + one `GlassCard` of hardcoded policy prose; the only dynamic logic an auth redirect.
+With this page the **entire `/program/*` sub-route group (6 of 6) is complete.**
+
+**Shape:** confirm-only. Read the one legacy file in full (sweep confirmed every import already ported). One
+genuinely-open decision (the stance/cleanup) + one content-fidelity decision → a single 2-Q `AskUserQuestion`.
+User chose: **faithful + `useAuthGuard` cleanup** (D-C1) and **keep all content verbatim**.
+
+**Decisions:** D-REF (`consumed_by=[web]`; iOS Settings → Privacy Policy mirrors the same shared policy later) ·
+D-SCOPE (this page only — CLOSES the 6-of-6 group) · D-DEPS (no new dependency) · D-S1 (faithful 1:1; content
+verbatim, already fully tokenized — no tokenize cleanup) · D-C1 (reuse `useAuthGuard({ requireProgram: false })`
+over the inline `useAuth` + `useActiveProgram` + redirect `useEffect`). Flagged F1–F4.
+
+**New durable patterns (promoted to Converged lessons):**
+- **The purest-shape spectrum bottoms out at a fully-static content page.** Runs 27→29 traced "no new dep" →
+  "no backend/API" → "client-only (just `localStorage`)". Run 30 goes one step further: a static legal document
+  has NO state, NO `localStorage`, NO storage of any kind — it reads nothing and writes nothing. The §6 Data/API
+  section is "none, not even client storage"; the only "state" is the `useAuthGuard` session check. State the
+  floor explicitly; don't invent a state/edge-case section where there is exactly one render.
+- **Keep a shared cross-surface legal/policy document VERBATIM; flag the surface mismatch as an F-row, don't
+  fork it.** The web privacy page intentionally describes iOS push/APNs behavior even though the web client uses
+  SSE and registers no device token. Trimming the web-irrelevant clauses would fork one shared legal document
+  into two — a content-governance decision, not a code cleanup. Offer "keep verbatim" as the lead (taken) and
+  record the mismatch as a flagged characteristic (F1) + a content-review candidate. Generalizes: hardcoded
+  effective date + contact email are likewise faithful F-rows (a CMS-sourced policy is a rebuild feature).
+
+**Output:** SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1; F1–F4). COVERAGE + PROGRESS ticked; the `/program/*`
+group marked COMPLETE (6 of 6). `npm run build` ✓ (`/program/privacy` 2.44 kB — smallest sub-route yet, below
+`appearance`'s 3.06 kB). **No feature bump, no new deps.** **Next:** the SUB-ROUTE layer continues elsewhere —
+the 8 deferred `/members`, the 6 deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes (the
+`/program/*` group is done).
