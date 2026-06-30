@@ -79,6 +79,14 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 > `../ios-mobile`. Use the `question-asker` loop per screen, port faithfully, point the app at the live Render API
 > (`rasifiters-api.onrender.com`) + `rasifiters.com` when the domain cuts over.
 >
+> **SIDE-OP (off-ICM, 2026-06-29) — legacy backend write-block sunset (DONE).** The OLD backend
+> `rasi-fiters-api.onrender.com` (separate repo `vinaySankar2004/RaSi-Fiters` main, OLD Postgres — the one
+> the currently-shipped iOS app uses) now **blocks all new inputs** (mutations → HTTP 426 + "moved to the web,
+> use rasifiters.com, mobile beta coming soon"; reads + login/refresh/logout still work). ON by default in code
+> (commit `8f17188`; escape hatch `MAINTENANCE_MODE=false`). This freezes old-iOS→old-DB drift; the post-cutoff
+> rows were swept into Supabase via `tools/migrator` `npm run copy` (all tables reconcile). See memory
+> [[legacy-backend-write-block-sunset]]. Retired when the new iOS surface ships. **This does NOT change the next
+> action — still START `ios`.**
 > **Run-48 detail (the notifications client port — DONE):** ported 3 files into `apps/web` (`lib/api/notifications.ts`
 > + `components/NotificationModal.tsx` verbatim, `components/NotificationsGate.tsx` replacing the stub) — **no new deps**
 > (every other import already ported). Faithful 1:1 (D-C5) + 2 user-picked reconciles: **D-C6** `isAuthRoute` now
