@@ -2200,3 +2200,54 @@ user's steer). Role rules N/A (pre-auth) for all three — stated explicitly (ru
 
 **Next:** `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub), then
 program create/edit/invites. Match the web `/programs` hub + faithful legacy iOS.
+
+---
+
+## Run 52 — `ProgramPickerView` (ios) — the post-auth landing (the FIRST post-auth iOS screen)
+
+**Target:** the legacy iOS `Features/Home/ProgramPickerView.swift` — the "My Programs" hub a signed-in member lands
+on. First iOS screen ported AFTER its web twin (`/programs`) shipped, and the first post-auth iOS screen (the auth
+path splash→login→create-account closed in run 51). Sweep: read the legacy screen + stub in full, fanned 3 Explore
+agents (web `/programs` parity · ported iOS foundation deps · legacy Home cluster + backend routes).
+
+**Decisions:** D-SCOPE (picker only + stub the 7 forward-nav screens) · D-REF (keep iOS-native multi-screen nav — the
+web single-page-modal hub is a platform-idiom divergence, NOT a parity gap) · D-S1 (faithful 1:1) · D-C1 (ONE
+web-parity addition — a visible error banner; the legacy swallowed errors) · D-DEPS (no new dependency). One
+`AskUserQuestion` call (3 Qs: scope cut · web-parity-vs-platform-idiom · error display).
+
+**NEW durable pattern — a cross-app divergence can be a platform-idiom EXCEPTION to web parity (keep the NATIVE idiom),
+not a gap to reconcile.** Memory `ios-matches-web-not-just-legacy` says "resolve cross-app divergences toward web parity
+UNLESS there's a platform reason." Run 51's three divergences all resolved TOWARD web (brand icon, recovery link, the 4
+cleanups) — so "match web" read as near-unconditional. Run 52 is the first where the LEAD answer is the **platform-reason
+exception**: the web `/programs` hub renders the whole flow on ONE page (create/edit/invites/account as inline modals);
+the legacy iOS picker uses native multi-screen navigation + sheets (swipe edit/delete, a floating "+" → actions sheet, an
+account sheet). Collapsing iOS to web's single-page layout would fight the native idiom AND the legacy structure — so
+iOS-native wins, recorded as D-REF + an F-row (F7), NOT a reconcile-toward-web. The discipline: surface the divergence as
+its own question, lead with "keep iOS-native (platform-idiom)" when the divergence is STRUCTURE/navigation (not
+behavior/parity), and lead with "match web" only when it's a substantive parity item (run 51's icon/recovery/validation).
+Distinguish a STRUCTURAL/idiom divergence (keep native) from a PARITY divergence (match web) — they are different
+questions with opposite leads.
+
+**Corollary — a web-parity cleanup candidate isn't always a pre-flagged web-SPEC F-row; it can be a divergence you DISCOVER
+by diffing the legacy iOS BEHAVIOR against the web BEHAVIOR during the sweep.** Run 51's web-parity items came from web
+page SPEC F-rows that said "iOS gap to reconcile." Run 52's D-C1 (the error display) came from READING the legacy code
+(`errorMessage` set in `loadPrograms`/`deleteProgram`/`respondToInvite` but rendered nowhere → errors silently swallowed)
+and noticing the web hub surfaces query errors — a behavioral divergence with no pre-existing web F-row flagging it. So
+the sweep's job includes a behavior-diff (does iOS DO what web does for the same path?), not just transcribing the web
+SPEC's flagged gaps. When the answer is "web surfaces X, iOS swallows it," that's a candidate web-parity D-C. Implement it
+ADDITIVELY where the web pattern would hide content (web replaces the list on a load error; the iOS picker shows mutation
+errors alongside loaded cards, so an additive banner beats replace-the-list).
+
+**Reconfirmed (not re-promoted):** the scope cut IS the run for a screen that navigates OUT to N unbuilt screens — port
+the screen verbatim (incl. its inline components), add `ScaffoldPlaceholder` stubs for the N forward-nav targets so it
+compiles, defer each to its own port (run-21/50, now cross-platform: 7 stubs — `AdminHomeView`, `ProgramActionsSheet`,
+`EditProgramInfoView`, + 4 account screens). Dep-purity recurs at the iOS foundation boundary (run-31/48/51) — "no new
+dependency" confirmed by a foundation Explore agent (the iOS analogue of "grep the import paths"); a non-private inline
+type (`StatusPill`) needs a collision grep before it lands. Client role gating (`canOpen`/`canManage`) is a faithful
+F-row, backend re-authorizes (web programs F1 mirror). `admin_only_data_entry` N/A — read into context for downstream log
+screens, never gates the picker. Build green-check is the user's (memory `ios-user-verifies-builds-visually`) — verified
+symbols via grep, not a CLI build.
+
+**Next:** `AdminHomeView` (the post-pick home dashboard — the iOS analogue of the web `/summary` workspace) OR
+`ProgramActionsSheet` (create + invites) — both deferred stubs the picker navigates to. Match the web sibling + faithful
+legacy iOS.

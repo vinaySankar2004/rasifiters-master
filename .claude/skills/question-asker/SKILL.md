@@ -851,6 +851,30 @@ directly as a faithful port from the legacy reference app** — there is no inte
   screen's deps exist before sizing the run. (Mechanics: folder-synchronized Xcode groups → new files auto-include, no
   `pbxproj` edit; build green-check is the user's, memory `ios-user-verifies-builds-visually` — verify symbols via grep,
   not a CLI build. Role rules N/A pre-auth, stated explicitly.)
+- **Run 52 — `ProgramPickerView` (the FIRST post-auth iOS screen): a cross-app divergence can be a platform-idiom
+  EXCEPTION to web parity (keep the NATIVE idiom), not a gap to reconcile — and a web-parity cleanup can be DISCOVERED by
+  behavior-diffing the legacy iOS against web, not just transcribing the web SPEC's flagged F-rows.** Two durable
+  patterns. **(a) Distinguish a STRUCTURAL/idiom divergence (lead "keep iOS-native") from a PARITY divergence (lead "match
+  web") — opposite leads.** Memory `ios-matches-web-not-just-legacy` ("resolve toward web UNLESS a platform reason") read
+  as near-unconditional after run 51 (its 3 divergences all resolved toward web). Run 52 is the first where the LEAD answer
+  is the platform-reason exception: the web `/programs` hub renders the whole flow on ONE page (create/edit/invites/account
+  as inline modals); the legacy iOS picker uses native multi-screen navigation + sheets (swipe edit/delete, a floating "+"
+  → actions sheet, an account sheet). Collapsing to web's single-page layout fights the native idiom AND the legacy
+  structure → iOS-native wins, recorded as D-REF + an F-row, NOT a reconcile. Surface the divergence as its own question;
+  lead with "keep iOS-native" when it's STRUCTURE/navigation, lead with "match web" only when it's a substantive PARITY
+  item (run-51 icon/recovery/validation). **(b) A web-parity cleanup candidate isn't always a pre-flagged web-SPEC F-row —
+  it can be a divergence you DISCOVER by diffing the legacy iOS BEHAVIOR against web's during the sweep.** Run-51's
+  web-parity items came from web SPEC F-rows ("iOS gap to reconcile"); run-52's D-C1 (the error display) came from READING
+  the legacy code — `errorMessage` set in `loadPrograms`/`deleteProgram`/`respondToInvite` but rendered NOWHERE (errors
+  silently swallowed) — and noticing the web hub surfaces query errors, a behavioral divergence with no pre-existing web
+  F-row. So the sweep includes a behavior-diff ("does iOS DO what web does for the same path?"), and "web surfaces X, iOS
+  swallows it" is a candidate web-parity D-C. Implement ADDITIVELY where web's pattern would hide content (web replaces the
+  list on a load error; the iOS additive banner keeps mutation errors visible alongside loaded cards). Reconfirmed: the
+  scope cut IS the run for a screen that navigates OUT to N unbuilt screens — port the screen verbatim + add
+  `ScaffoldPlaceholder` stubs for the N forward-nav targets (run-21/50, now 7 stubs cross-platform); dep-purity confirmed
+  by a foundation Explore agent (run-31/48/51); a non-private inline type (`StatusPill`) needs a collision grep before it
+  lands; client role gating (`canOpen`/`canManage`) is a faithful F-row (web programs F1 mirror); `admin_only_data_entry`
+  N/A (read into context for downstream log screens, never gates the picker).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
