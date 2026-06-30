@@ -42,6 +42,30 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/appearance` page
+> (15th web page, 5th of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1 port
+> of the legacy **appearance/theme picker** — a `GlassCard` of three full-width option buttons (System / Light / Dark,
+> each an icon-chip + title + description + a ✓ on the active one) → writes `localStorage["rf:appearance"]` via the
+> foundation `setStoredTheme` (which `applyTheme`s immediately to `document.documentElement`). **The PUREST sub-route
+> yet — pure client-side: NO backend, NO API call at all, NO new dependency.** Despite living under `/program/*` it is
+> **NOT a program-admin setting** — it sets the *requester's own* client-side preference, has **no admin redirect, no
+> role gate, and no role-conditional UI whatsoever** (the ABSENCE of role logic is the finding, F3). It is the **write
+> side** of the contract the `/program` hub's appearance-label only *reads* (run-24 F5). `useAuthGuard({ requireProgram:
+> false })`. **D-SCOPE** = this page only (privacy — the 6th & LAST `/program/*` sub-route — still deferred). **D-DEPS =
+> NO new dependency** (purest shape — nothing dragged in, not even a chrome leaf: `PageShell`/`PageHeader`/`GlassCard`,
+> `IconMonitor`/`IconSun`/`IconMoon`, `lib/theme.ts`, `useAuthGuard` all already ported). **D-S1 faithful 1:1** — and
+> **already fully `rf-*` tokenized in legacy, so NO tokenize cleanup** (run-28's all-clean grep, here trivially: nothing
+> to tokenize). **The single cleanup D-C1** = reuse `useAuthGuard` over the legacy inline `useAuth` + `useActiveProgram`
+> + manual redirect `useEffect` (deletes the `useRouter`/`useAuth`/`useActiveProgram` imports; matches siblings
+> `profile`/`password`). **Zero backend work, NO feature bump** — no endpoint exists; the theme contract is wholly
+> client-side foundation infra. Flagged F1–F3 (device/browser-local preference, not account-synced; possible first-paint
+> theme flash; no role read at all). `npm run build` ✓ (`/program/appearance` prerendered, **3.06 kB** — smallest
+> sub-route yet, no Recharts; Middleware active). **Committed via `git-version` next; lessons run 29 appended (promoted:
+> "the PUREST shape — client-only page, no backend/API/dep at all"; "already-tokenized → no tokenize cleanup, the
+> trivial end of run-28's per-site grep"; "ABSENCE of role logic IS the §7 finding").** **NEXT = the LAST `/program/*`
+> sub-route (privacy), then the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2
+> deferred `/lifestyle` sub-routes.**
+>
 > **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/password` page
 > (14th web page, 4th of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1 port
 > of the legacy **change-password page** — a new + confirm password pair (Show/Hide on New only) + a live 5-rule
