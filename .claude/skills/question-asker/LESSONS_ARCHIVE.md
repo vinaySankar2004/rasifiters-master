@@ -2396,3 +2396,37 @@ surfaces it; both-swallow = parity = no ADD (vs run-52's web-surfaces/iOS-swallo
 **Next:** another tab body — the **Lifestyle** pair (`AdminWorkoutTypesTab`/`StandardWorkoutTypesTab`) or the
 **Program** pair; OR a **Members detail view** (one of the 6 new stubs); OR a **Summary detail view** (5 stubs).
 Each its own "scope cut IS the run".
+
+## Run 56 — iOS `AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` (the Lifestyle tab body, Tab 3 the iOS analogue of web `/lifestyle`) — 2026-06-30
+Ported into `apps/ios/.../Features/Home/Tabs/{AdminWorkoutTypesTab,StandardWorkoutTypesTab,WorkoutTypesCards}.swift`
++ new `Shared/Components/AccentChip.swift` (SPEC `specs/pages/ios/admin-workout-types/`). The two Lifestyle deferred
+stubs removed; two new forward-nav stubs added.
+
+**Shape:** a near-twin of run 55 (Members tab) — role-bifurcated tab pair (`AdminWorkoutTypesTab` view-as picker /
+`StandardWorkoutTypesTab` own-data) + cards + deferred details — so the decision shape transcribed; only the deltas
+were authored. **Read-only** workout-type-analytics + health-timeline dashboard (no log cards, unlike Summary run 54).
+
+**Decisions:** D-SCOPE = scope cut IS the run (port 2 tab bodies + 7 cards + `AccentChip`; defer
+`ViewWorkoutTypesListView` = web `/lifestyle/workouts` CRUD + `LifestyleTimelineDetailView` = web `/lifestyle/timeline`
+as `ScaffoldPlaceholder` stubs). D-REF = keep iOS-native (icon-only dumbbell `GlassButton` → manager vs web's labelled
+"Manage/View workouts" pill — same destination, cosmetic idiom; card set + role gating already match web). D-S1 =
+faithful 1:1, NO web-parity ADD (the run-53/55 shape: both web AND legacy iOS swallow load errors → faithful-swallow IS
+web parity; flag the vestigial `errorMessage`). D-DEPS = ONE small new dep (`AccentChip`, 13-line capsule chip
+co-located in the legacy giant `AdminHomeHelpers.swift`, never in the foundation — the run-55 `GlassButton` situation).
+Read-only → `admin_only_data_entry` N/A. Role rules = the Admin*/Standard* view-as table → stated, not asked.
+
+**Two reinforcements (both already converged from run 55 — not re-promoted):**
+1. **A tab body's HEAVY shared logic can already be in the foundation even when its card VIEWS aren't.** The
+   `WorkoutPopularity*` logic/components (sort/palette/`RankedBarList`/`SegmentedMetricPicker`) were ported into
+   `Shared/Components/` at the foundation run (50, "page-independent infra") because they are genuinely reusable
+   primitives; only the thin card *views* that wrap them lived in the giant helper file and needed porting now. So
+   the run-55 "grep the legacy import/usage against the foundation before claiming no-new-dep" cuts BOTH ways — the
+   one new dep (`AccentChip`) was even smaller than run 55's `GlassButton` because the expensive components were
+   already shared infra. Size the new dep per-COMPONENT against the foundation, not per-file.
+2. **The behavior-diff's no-ADD verdict (run 53/55) recurs on a fetching screen.** Web `/lifestyle` surfaces no
+   error banner (per-card "No data"); legacy iOS swallows its set-but-unrendered `errorMessage` too → both-swallow =
+   parity = NO ADD. Contrast run-54 Summary (legacy iOS lacked the `admin_only_data_entry` lock web showed → ADD a
+   whole feature). The verdict is set by WHAT WEB DOES; confirm web's behavior before adding.
+
+**Next:** the LAST tab body — the **Program** pair (`AdminProgramTab`/`StandardProgramTab`, iOS analogue of web
+`/program/*`); OR a detail view (the Lifestyle/Members/Summary deferred stubs). Each its own "scope cut IS the run".

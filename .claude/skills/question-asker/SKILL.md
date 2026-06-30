@@ -947,6 +947,15 @@ directly as a faithful port from the legacy reference app** — there is no inte
   idiom divergence the card-set already matches web on (run 52/53); read-only → `admin_only_data_entry` N/A (no log
   cards, unlike Summary run 54 — the read-vs-write axis); role rules code-answered by the Admin*/Standard* split →
   stated not asked; build owned by the user (Xcode), 20 new types grep-verified defined-exactly-once.
+  **Run 56 reconfirmed both (`AdminWorkoutTypesTab`/`StandardWorkoutTypesTab`, the Lifestyle tab, Tab 3 = web
+  `/lifestyle`) with two refinements: (a)** size the new dep PER-COMPONENT against the foundation, not per-file — a
+  tab body's HEAVY shared logic can already be foundation infra even when its card VIEWS aren't (the
+  `WorkoutPopularity*` sort/palette/`RankedBarList`/`SegmentedMetricPicker` landed run 50 as page-independent
+  primitives; only the thin wrapping card views needed porting, so the one new dep `AccentChip` was even smaller than
+  run-55's `GlassButton`). **(b)** the no-ADD verdict recurs on a fetching screen: web `/lifestyle` shows per-card "No
+  data" with no error banner and legacy iOS swallows its `errorMessage` → both-swallow = parity = NO ADD (vs run-54
+  Summary, where legacy iOS lacked the lock web showed → ADD). The verdict is set by WHAT WEB DOES — confirm web's
+  behavior before adding.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
