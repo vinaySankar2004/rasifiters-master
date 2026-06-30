@@ -2136,3 +2136,67 @@ route list.
 **Next:** the **`web` surface is FEATURE-complete** (pages 36/36 + the notifications client live). Per the user's order,
 NEXT = **deploy `apps/web` to Vercel (no domain switch)** via the `deploy` skill, then the **`ios` (SwiftUI) surface**.
 Neither is a page port; the per-page `question-asker` cadence stays paused until the iOS screens begin.
+
+---
+
+## Run 51 — iOS auth screens (Splash · Login · CreateAccount) — the FIRST surface with a co-equal built sibling
+
+**Target:** the iOS public/auth path — `SplashView` · `LoginView` · `CreateAccountView` — the first three iOS SCREEN
+specs (`specs/pages/ios/{splash,login,create-account}/`), the iOS analogue of the web public/auth path (runs 15–19).
+Ported into `apps/ios/.../Features/{Onboarding,Auth}/`; the `SplashView` deferred stub removed (Login/CreateAccount
+were never stubbed — `AppRootView` only instantiates Splash + ProgramPicker + the 2 widget views).
+
+**THE load-bearing new pattern — a co-equal SECOND reference shifts the lead stance from faithful-legacy to
+match-the-built-sibling.** Every prior run had ONE reference: the legacy app. The iOS surface is the first ported
+AFTER its sibling surface (web) was already built — so the **current web app is a co-equal reference point** (user
+steer mid-run, saved to memory `ios-matches-web-not-just-legacy`). This INVERTS the default stance: the lead is no
+longer "faithful 1:1 to legacy iOS" but **"match the CURRENT built web app"**. Concretely, the three cross-app
+divergences the WEB SPECs had already flagged as "iOS gap to reconcile at the iOS port" (splash F3 placeholder icon,
+login F3 missing recovery link, create-account F6 missing cleanups) became this run's pre-identified DECISIONS — the
+question round was "confirm each web-parity resolution", and all three resolved toward web. The web page SPECs'
+F-rows are a **work-list for the sibling port**: read them first, and each "web-first, iOS gap" F-row is a candidate
+D-row for the matching iOS screen. (This is the cross-surface generalization of the within-surface twin-recognition
+of runs 23/28/33 — but here the "twin" is the SAME screen on the OTHER client, and the lead flips to match it.)
+
+**Corollary — a platform's architecture can make a sibling's deviation N/A, not just transfer or subtract it.** Web
+create-account D-C2 added an `already-authed → /programs` redirect; on iOS that cleanup has **no analogue** because
+`AppRootView` already bifurcates on `authToken` at the root — an authed user never reaches the screen. So the
+match-the-sibling sweep yields three outcomes per sibling deviation: **transfer** (adopt it — the 4 create-account
+cleanups, the recovery link, the real icon), **subtract** (doesn't apply — none here), or **N/A by architecture**
+(the redirect — handled structurally elsewhere). Record the N/A explicitly as a D-C-note so the SPEC shows the
+sibling deviation was considered, not missed (the cross-client mirror of run-33's "subtract a twin's cleanup that
+doesn't apply").
+
+**Corollary — "match web" is scoped to BEHAVIOR/PARITY, not pixel-identical layout.** The real brand icon (parity)
+transferred; the icon SIZE stayed at the iOS layout value (120 splash / 90 login, vs web 150 / 128) — a cosmetic
+layout detail kept faithful to the iOS screen, flagged as an F-row. Same logic the web SPECs used for the type-speed
+divergence (splash F4, an accepted cosmetic cross-app difference). Distinguish the substantive parity item (real icon
+vs placeholder; recovery affordance present; validation behavior) from cosmetic platform-tuned values (sizes, timings)
+— match the former, keep the latter faithful + flagged.
+
+**Corollary — a cross-client capability whose completion is OWNED by the other client opens the browser, not a native
+rebuild.** Login's "Forgot your password?" decision had a real fork (native forgot-password screen vs open the web
+flow vs keep faithful). The deciding fact: the password RESET always completes in a browser regardless of client
+(Supabase emails a link to `rasifiters.com/reset-password` — auth SPEC D-C4/D-C5), so a native iOS request screen
+would still hand off to the browser for the reset. The lowest-scope, fully-faithful-to-web option is to open the live
+web flow (`APIConfig.forgotPasswordURL`) — keeps the run to 3 screens, reuses the web request page's `mailto:`
+fallback. Lead with "open the web flow" when the flow's terminal step is web-owned; offer the native rebuild as the
+heavier alternative.
+
+**Dep-purity recurs at the iOS foundation boundary (the run-31/48 pattern, cross-platform).** All three screens were
+"no new dependency" in the run-31 sense — every component (`AppInputField`, `AppPasswordToggleButton`, `AppGradient`,
+`Color.appOrange/appGreen`, `ProgramContext+Auth`, `APIClient.loginGlobal/registerAccount`) was ported in the
+foundation (run 50). The ONE new dep was the brand asset (`BrandMark.swift` + `BrandIcon.imageset`, built from the
+existing `AppIcon` PNGs) + a `forgotPasswordURL` constant — exactly the web-parity addition, not a legacy-port gap.
+The foundation inventory (a dedicated Explore agent over `apps/ios`) is the iOS analogue of "grep the import paths" —
+confirm each screen's deps exist in the ported foundation before sizing the run.
+
+**Mechanics:** the Xcode project uses folder-synchronized groups (run-50 fact) → new `.swift` files under
+`RaSi-Fiters-App/` auto-include, no `pbxproj` edit needed. Build green-check is the USER's (memory
+`ios-user-verifies-builds-visually`) — verified symbols present via grep (single type defs, no duplicate `SplashView`
+after stub removal, `appGreen`/`adaptiveShadow`/`BrandMark` resolve) instead of a CLI build. Genuinely-open decision
+count = 3 (the 3 cross-app divergences), one `AskUserQuestion` call (all leading with the web-parity option per the
+user's steer). Role rules N/A (pre-auth) for all three — stated explicitly (runs 15–16 splash/login precedent).
+
+**Next:** `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub), then
+program create/edit/invites. Match the web `/programs` hub + faithful legacy iOS.

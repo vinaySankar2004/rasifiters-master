@@ -823,6 +823,34 @@ directly as a faithful port from the legacy reference app** — there is no inte
   navigate → no nav cleanup. `consumed_by` subtlety: the SPEC may already list the client (declared at backend-port time
   from the legacy sweep) before it's actually wired — the run makes the declared consumption real; the MINOR bump is
   justified by "the client lands + new D/F rows", not by a `consumed_by` edit.
+- **Run 51 — the FIRST screen on a surface whose SIBLING surface is already built: the lead stance flips from
+  faithful-legacy to MATCH-THE-BUILT-SIBLING, and the sibling's flagged cross-app F-rows are this run's work-list.**
+  Every prior run had ONE reference (the legacy app). The iOS auth screens (`splash`/`login`/`create-account`) are the
+  first ported AFTER their web twins shipped — so the **current web app is a co-equal reference point** (user steer,
+  memory `ios-matches-web-not-just-legacy`). This INVERTS the default: lead with **"match the current built web app"**,
+  not "faithful 1:1 to legacy iOS". The web page SPECs' F-rows that say "web-first, iOS gap to reconcile at the iOS
+  port" (splash F3 placeholder icon, login F3 missing recovery link, create-account F6 missing cleanups) are
+  **pre-identified DECISIONS** — read the sibling SPEC first, and each such F-row becomes a candidate D-row for the
+  matching screen (the cross-CLIENT generalization of within-surface twin-recognition, runs 23/28/33 — the "twin" is
+  the same screen on the other client, and the lead flips to match it). Four corollaries. **(a) A sibling deviation has
+  THREE possible outcomes, not two — transfer, subtract, or N/A-by-architecture.** Web create-account's authed→redirect
+  cleanup (web D-C2) is **N/A on iOS** because `AppRootView` already bifurcates on `authToken` at the root (an authed
+  user never reaches the screen) — record it as an explicit D-C-note so the SPEC shows it was considered, not missed
+  (the cross-client mirror of run-33's "subtract a cleanup that doesn't apply"). **(b) "Match the sibling" is scoped to
+  BEHAVIOR/PARITY, not pixel-identical layout** — the real brand icon (parity) transferred, but the icon SIZE stayed at
+  the iOS layout value (kept faithful + flagged), the same call the web SPECs made for the cosmetic type-speed
+  divergence. Distinguish the substantive parity item from platform-tuned cosmetics; match the former, keep the latter
+  faithful. **(c) A cross-client capability whose TERMINAL step is owned by the other client opens the browser, not a
+  native rebuild** — iOS "Forgot your password?" leads with "open the live web flow" (`APIConfig.forgotPasswordURL`)
+  because the reset always completes in-browser regardless of client (Supabase emails a link to the web reset page);
+  a native request screen would still hand off to the browser, so the lowest-scope faithful-to-web option wins. Offer
+  the native rebuild as the heavier alternative. **(d) Dep-purity recurs at the foundation boundary (run-31/48,
+  cross-platform)** — all three screens were "no new dependency" because every component landed in the foundation
+  (run 50); the ONE new dep (a `BrandMark` component + brand asset) was the web-parity ADDITION, not a legacy-port gap.
+  The iOS analogue of "grep the import paths" is a dedicated Explore agent over the ported foundation — confirm each
+  screen's deps exist before sizing the run. (Mechanics: folder-synchronized Xcode groups → new files auto-include, no
+  `pbxproj` edit; build green-check is the user's, memory `ios-user-verifies-builds-visually` — verify symbols via grep,
+  not a CLI build. Role rules N/A pre-auth, stated explicitly.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
