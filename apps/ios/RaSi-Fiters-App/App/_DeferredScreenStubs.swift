@@ -91,14 +91,28 @@ struct LifestyleTimelineDetailView: View {
     var body: some View { ScaffoldPlaceholder(screen: "Lifestyle Timeline") }
 }
 
-/// DEFERRED (Features/Home/Tabs/AdminProgramTab.swift) — Tab 4 "Program", program-admin variant.
-struct AdminProgramTab: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Program (Admin)") }
+// NOTE: AdminProgramTab + StandardProgramTab landed (Features/Home/Tabs/AdminProgramTab.swift +
+// StandardProgramTab.swift + ProgramCards.swift, run 57) — stubs removed. They CLOSE the 4-tab home shell.
+// AdminProgramTab's 3 heavy management sections remain deferred (below: ProgramMemberManagementSection,
+// ProgramRoleManagementSection, ProgramWorkoutTypesSection), stubbed so the Admin tab compiles; each
+// DELETED when its real section lands.
+
+/// DEFERRED (Features/Home/Tabs/MemberManagementSection.swift) — AdminProgramTab's "Member Management"
+/// section: View Members (→ roster + MemberDetailEditView) + Invite (→ InviteMemberView). Web `/members/*`.
+struct ProgramMemberManagementSection: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Member Management") }
 }
 
-/// DEFERRED (Features/Home/Tabs/StandardProgramTab.swift) — Tab 4 "Program", non-admin variant.
-struct StandardProgramTab: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Program") }
+/// DEFERRED (Features/Home/Tabs/RoleManagementSection.swift) — AdminProgramTab's "Role Management" section
+/// (admin/logger lists + ManageRolesView). Web `/program/roles`. Gated by `canEditProgramData`.
+struct ProgramRoleManagementSection: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Role Management") }
+}
+
+/// DEFERRED (Features/Home/Tabs/WorkoutTypesSection.swift) — AdminProgramTab's "Workout Types" section
+/// (ViewWorkoutTypesListView CRUD + EditCustomWorkoutSheet). Web `/lifestyle/workouts`.
+struct ProgramWorkoutTypesSection: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Workout Types") }
 }
 
 /// DEFERRED (Features/Home/ProgramActionsSheet.swift) — the create-program + invites sheet

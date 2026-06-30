@@ -79,6 +79,45 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Program tab: `AdminProgramTab`/`StandardProgramTab` PORTED — the 4-tab home shell is COMPLETE
+(run 57, 2026-06-30).** The **fourth & LAST tab body** of the home shell — Tab 4 "Program", the iOS analogue of web
+`/program` — ported into `apps/ios/.../Features/Home/Tabs/{AdminProgramTab,StandardProgramTab,ProgramCards}.swift`
+(SPEC `specs/pages/ios/admin-program/`), the two Program deferred stubs removed. **This CLOSES the `AdminHomeView`
+4-tab shell** (Summary ✓ run 54 · Members ✓ run 55 · Lifestyle ✓ run 56 · Program ✓ this run). It is a
+**role-bifurcated program-settings + account hub**: `AdminProgramTab` (program/global admin — a sectioned scroll:
+`SummaryHeader` + `ProgramInfoSection` + 3 management sections + `ProgramMyAccountSection`) vs `StandardProgramTab`
+(logger/member — read-only program-info card + Switch + Leave + `ProgramMyAccountSection`), selected by `AdminHomeView`'s
+`isProgramAdmin`. **D-SCOPE = the scope cut IS the run** (run-21/50/52-56 pattern): port the 2 tab bodies + the 2 light
+sections (`ProgramInfoSection` = select/edit/leave, `ProgramMyAccountSection` = profile/password/appearance/notifications/
+privacy/support/sign-out) + the `sectionHeader`/`settingsRow` helpers; **defer the 3 heavy management sections as
+`ScaffoldPlaceholder` stubs** — `ProgramMemberManagementSection` (356 LoC, roster + `MemberDetailEditView` + invite = web
+`/members/*`), `ProgramRoleManagementSection` (291 LoC, `ManageRolesView` = web `/program/roles`),
+`ProgramWorkoutTypesSection` (370 LoC, workout-type CRUD = web `/lifestyle/workouts`). **D-REF = keep iOS-native** (the
+platform-idiom EXCEPTION, runs 52/53): native multi-screen management push-screens vs web's flat card→sub-route hub +
+iOS-only Notifications + Support account rows (push settings are `[ios]`-only) — same destinations + role gating match web
+→ idiom, not a parity gap. **D-S1 = faithful 1:1, NO web-parity ADD** — both web AND legacy iOS surface ONLY the
+Leave-mutation error + swallow read errors, so faithful-swallow IS web parity (the run-53/55/56 both-swallow shape; unlike
+run-52/54 where only web surfaced → an ADD). **Faithful + 3 pinned cleanups: D-C1** de-dup the verbatim-triplicated
+Leave-Program logic (`isLeaving` + `leaveError` + `leaveProgram()` async + confirm/error alerts) into ONE shared
+`.leaveProgramConfirmation()` view modifier — mirrors web's extracted `LeaveProgramButton`, behavior-preserving (each
+button keeps its own styling; only the identical non-visual logic is shared); **D-C2** drop the dead `PlaceholderTab`
+struct (referenced by nobody in the rebuilt 4-tab set — run-7 dead-code drop); **D-C3** tokenize the 3 bare `.blue`
+section accents → `Color.appBlue` (run-26 clean mapping; `statusColor` already tokenized). **D-DEPS = one small dep
+class** — the `sectionHeader`/`settingsRow` free helpers (co-located in the legacy giant `AdminHomeHelpers.swift`, never
+in the foundation — the run-55/56 `GlassButton`/`AccentChip` situation) + the new `.leaveProgramConfirmation` modifier
+(authored this run); everything else already ported (run 50/52/54: `SummaryHeader`, `ProgramPickerView`, `ThemeManager`
+injected at `@main`, `APIConfig` URLs, theme, all `ProgramContext` props/methods). **Read-only surface (no logging) →
+`admin_only_data_entry` N/A** (matches web; the lock gates `/summary` + the write sub-routes). Role rules = the
+Admin*/Standard* variant table (`canLeaveProgram = !isGlobalAdmin` F2; Role Management gated by `canEditProgramData`).
+Flagged F1–F7 (3 deferred management-section stubs; global_admin can't Leave; iOS-only Notifications+Support rows;
+native multi-screen vs web's flat hub; client role gating; duplicated read-only info layout kept; client-computed
+progress). **The app target's build green-check is owned by the user (visual run in Xcode)** — symbols verified via grep
+(each of the new types defined exactly once, all `ProgramContext`/theme/`SummaryHeader`/`APIConfig`/account-stub deps
+resolve, dead `PlaceholderTab` dropped, no leftover Program stub), not a CLI build (memory
+[[ios-user-verifies-builds-visually]]). **Next: the 4-tab shell is CLOSED — port a DEFERRED DETAIL/SECTION (a Program
+management section, an account/settings screen, `ProgramActionsSheet`, or a Summary/Members/Lifestyle detail), via
+`question-asker`.**
+
 **Phase 4 — `ios` Lifestyle tab: `AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` PORTED (run 56, 2026-06-30).** The
 **third tab body** of the home shell — Tab 3 "Lifestyle", the iOS analogue of web `/lifestyle` — ported into
 `apps/ios/.../Features/Home/Tabs/{AdminWorkoutTypesTab,StandardWorkoutTypesTab,WorkoutTypesCards}.swift` + new
@@ -255,32 +294,37 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT THE LAST TAB BODY — the Program pair (`AdminProgramTab`/`StandardProgramTab`), OR a Summary/Members/Lifestyle detail view (the deferred stubs), via `question-asker`
-> **`AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` is DONE (run 56, 2026-06-30)** — Tab 3 "Lifestyle", the iOS
-> analogue of web `/lifestyle`, ported into `apps/ios/.../Features/Home/Tabs/{AdminWorkoutTypesTab,
-> StandardWorkoutTypesTab,WorkoutTypesCards}.swift` + new `Shared/Components/AccentChip.swift` (SPEC
-> `specs/pages/ios/admin-workout-types/`), the two Lifestyle deferred stubs removed. **D-SCOPE = the scope cut IS
-> the run**: ported the 2 role-bifurcated tab bodies + the 7 cards (`WorkoutTypesHeader` + 4 stat + popularity +
-> lifestyle-timeline), **deferred the 2 forward-nav targets as `ScaffoldPlaceholder` stubs** —
-> `ViewWorkoutTypesListView` (workout-type CRUD = web `/lifestyle/workouts`) + `LifestyleTimelineDetailView`
-> (timeline detail = web `/lifestyle/timeline`). **D-REF = keep iOS-native** (icon-only dumbbell `GlassButton` →
-> manager vs web's labelled "Manage/View workouts" pill — same destination, cosmetic idiom). **D-S1 = faithful 1:1,
-> NO web-parity ADD** — both web AND legacy iOS swallow load errors (web shows per-card "No data", no banner), so
-> faithful-swallow IS web parity (run-53/55 shape; unlike run-54 Summary where legacy iOS lacked a feature web
-> showed). **D-DEPS = ONE small new dep** (`AccentChip`, 13-line capsule chip co-located in the legacy giant helper
-> file, never in the foundation — the run-55 `GlassButton` situation); everything else already ported (run 50/54/55).
-> Read-only → `admin_only_data_entry` N/A. **NEXT = the LAST tab body** — the role-bifurcated **Program** pair
-> (`AdminProgramTab`/`StandardProgramTab` — the iOS analogue of web `/program/*`); **OR** a **detail view** (the
-> deferred stubs): a **Lifestyle** detail (`ViewWorkoutTypesListView` = web `/lifestyle/workouts` CRUD, or
-> `LifestyleTimelineDetailView` = web `/lifestyle/timeline`), a **Members** detail (one of the 6 — metrics table /
-> invite / roster+editor / streak / per-member workouts / per-member health), or a **Summary** detail (one of the 5).
-> **Each Program tab body / detail view drags in the `Tabs/Section` + `Detail/` + `Settings/` + `Sheets/`
-> universe** — expect each to be its own "scope cut IS the run" with further deferrals. **Also still deferred from
-> the picker**: `ProgramActionsSheet` (create+invites — the "+" target), `EditProgramInfoView`, and the 4 account
-> screens (`MyProfileView`/`ChangePasswordView`/`AppearanceSettingsView`/`NotificationsSettingsView`). Run
-> `question-asker` per screen, **match the current web sibling** + faithful legacy iOS, delete each stub when it
-> lands. **The user verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) —
-> don't fight the local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
+> ### ⏭️ ON "continue" → the 4-tab home shell is COMPLETE — PORT A DETAIL VIEW / DEFERRED SECTION (the deferred stubs), via `question-asker`
+> **`AdminProgramTab`/`StandardProgramTab` is DONE (run 57, 2026-06-30) — Tab 4 "Program", the LAST tab body, which
+> CLOSES the `AdminHomeView` 4-tab shell** (Summary ✓54 · Members ✓55 · Lifestyle ✓56 · Program ✓57). Ported into
+> `apps/ios/.../Features/Home/Tabs/{AdminProgramTab,StandardProgramTab,ProgramCards}.swift` (SPEC
+> `specs/pages/ios/admin-program/`), the two Program deferred stubs removed. **D-SCOPE = the scope cut IS the run**:
+> ported the 2 role-bifurcated tab bodies + the 2 light sections (`ProgramInfoSection` = select/edit/leave +
+> `ProgramMyAccountSection` = profile/password/appearance/notifications/privacy/support/sign-out) + the
+> `sectionHeader`/`settingsRow` helpers, **deferred the 3 heavy management sections as `ScaffoldPlaceholder` stubs** —
+> `ProgramMemberManagementSection` (356 LoC, roster + `MemberDetailEditView` + invite = web `/members/*`),
+> `ProgramRoleManagementSection` (291 LoC, `ManageRolesView` = web `/program/roles`), `ProgramWorkoutTypesSection`
+> (370 LoC, workout-type CRUD = web `/lifestyle/workouts`). **D-REF = keep iOS-native** (native multi-screen
+> management push-screens vs web's flat card→sub-route hub; iOS-only Notifications + Support account rows — push
+> settings are `[ios]`-only; same destinations + role gating match web → platform idiom, not a gap). **D-S1 = faithful
+> 1:1, NO web-parity ADD** — both web AND legacy iOS surface ONLY the Leave-mutation error + swallow read errors →
+> faithful-swallow IS web parity (run-53/55/56 shape). **Faithful + 3 pinned cleanups: D-C1** de-dup the
+> verbatim-triplicated Leave-Program logic into a shared `.leaveProgramConfirmation()` modifier (mirrors web's
+> extracted `LeaveProgramButton`); **D-C2** drop the dead `PlaceholderTab` struct (referenced by nobody); **D-C3**
+> tokenize the 3 bare `.blue` section accents → `Color.appBlue`. **D-DEPS = one small dep class** (the
+> `sectionHeader`/`settingsRow` helpers co-located in the legacy giant `AdminHomeHelpers.swift`, never in the
+> foundation — the run-55/56 situation) + the new `.leaveProgramConfirmation` modifier; everything else already ported
+> (run 50/52/54). Read-only surface → `admin_only_data_entry` N/A. **NEXT = the home shell is CLOSED — the work now is
+> the DEFERRED DETAIL / SECTION layer.** Pick one (each its own "scope cut IS the run" with further deferrals): a
+> **Program** management section (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite,
+> `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts`);
+> the **account/settings** screens (`MyProfileView` = web `/program/profile`, `ChangePasswordView` =
+> `/program/password`, `AppearanceSettingsView` = `/program/appearance`, `NotificationsSettingsView` = iOS-native,
+> `EditProgramInfoView` = `/program/edit`); the picker's `ProgramActionsSheet` (create+invites — the "+" target); or
+> a **Summary** (5 stubs) / **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run `question-asker` per
+> screen, **match the current web sibling** + faithful legacy iOS, delete each stub when it lands. **The user verifies
+> the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI
+> toolchain. The pre-iOS web/deploy context is retained below for reference.
 >
 > **REMINDER for every iOS screen:** the web app is now a co-equal reference point — port to match what the
 > built web app ships, resolving cross-app divergences toward web parity unless there's a platform reason not
