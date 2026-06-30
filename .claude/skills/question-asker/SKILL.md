@@ -614,6 +614,26 @@ directly as a faithful port from the legacy reference app** — there is no inte
   pages share a React Query key but pass different fetch args (the landing's `limit=50` vs the detail's `limit=100`
   under `["summary","workoutTypes",programId]`), flag the dedupe-to-one-cache-entry** as a faithful-kept oddity
   (React Query dedupes by key, not by `queryFn` args).
+- **Run 36 — a modal already built on a landing becomes a standalone PAGE for free via the shared form's
+  pre-existing `variant` branch; a WRITE page can still be "no new dependency."** When an earlier landing run ported
+  a shared form with a dead `variant="page"` branch and flagged it as an F-row (summary F6), the sub-route run that
+  lights it up is the belated consumer: the sweep ports ONLY the page wrapper (`PageShell`/`PageHeader` + `<Form
+  variant="page" …/>`), nothing else — run-31's no-new-dep-on-a-stateful-page at its cleanest (the page body is one
+  component). Three corollaries: **(a) within ONE sub-route group `admin_only_data_entry` splits read-vs-write —
+  decide it per page, don't inherit the group's answer.** The 3 `/summary` chart drill-downs were read-only → lock
+  N/A (runs 33–35); the log fallbacks are the WRITE path → the lock is LIVE (client mount `router.replace("/summary")`
+  for locked non-admins + the backend `requireDataEntryAllowed` 403). §7's lock line is set by whether the page
+  *writes*, not by its directory group — the inverse of the read-only N/A finding. **(b) a "considered cleanup" can
+  be REJECTED once grounded — verify the reuse target's definition + export before offering "reuse X".** "Reuse
+  `refreshSummaryQueries` over raw `invalidateQueries(["summary"])`" dissolved: that helper is a module-PRIVATE
+  one-liner (`summary/page.tsx:310`), byte-identical to the faithful inline call and not importable — nothing to
+  reuse. Grep the helper before presenting the cleanup; record the rejection in a §9 "not a cleanup" note so it
+  isn't re-raised. **(c) deterministic-nav cleanup — when a page uses `router.back()` but a sibling control already
+  hardcodes the destination, swap to `router.push(<fixed>)` for consistency + to kill the direct-nav/refresh
+  footgun** (here the header BackButton already used `/summary`; post-save + form-close now match it; the lock
+  `router.replace` stays — replace intentionally drops the locked page from history). And the genuinely-open
+  decision count was ONE (scope fact-determined) → a single `AskUserQuestion` for stance + the one cleanup; don't
+  manufacture a scope question the user's page-pick already settled.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

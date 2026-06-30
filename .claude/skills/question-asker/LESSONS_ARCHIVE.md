@@ -1666,3 +1666,60 @@ row updated (workout-types ✓; 3 of 6, all chart drill-downs complete, group NO
 `/summary` group's last 3 sub-routes are the mobile log fallbacks (`log-workout`/`log-health`/`bulk-log-workout` —
 standalone-page ports of the 3 desktop modals already live on the landing); and/or the 8 deferred `/members`
 sub-routes.
+
+---
+
+## Run 36 — `summary/log-workout` (web page spec; the 1st of the 3 mobile log fallbacks, `/summary` sub-route 4 of 6)
+
+**Target:** the standalone full-page Log-workout form — the mobile fallback for the Add-workout action whose
+desktop counterpart is a modal on the `/summary` landing. Legacy: `rasifiters-webapp/src/app/summary/log-workout/
+page.tsx` (66 lines).
+
+**Sweep:** 3 parallel `Explore` agents (legacy page · rebuilt `LogWorkoutForm`+summary+chrome · backend route) +
+self-verified the two load-bearing files (`LogWorkoutForm.tsx`, the legacy `page.tsx`). Findings: the form ALREADY
+ships a `variant="page"` branch (`forms/LogWorkoutForm.tsx:146-148`) built for exactly this page — flagged dead on
+the summary landing (summary SPEC **F6**), now its belated consumer. Backend `POST /api/workout-logs` already
+mounted + gated (`authenticateToken` + `requireDataEntryAllowed`, `routes/logs.js:38`). Every dep already ported.
+
+**The genuinely-open decision count: ONE.** Scope is fact-determined (4th of 6, 1st of 3 log fallbacks, doesn't
+close the group; `consumed_by=[web]`). The only real choice was the stance + a single grounded nav cleanup → one
+`AskUserQuestion`, user picked **faithful + the deterministic-nav cleanup**.
+
+**Decisions:** D-SCOPE (this page; 4th-of-6; does NOT close group) · D-REF (`consumed_by=[web]`; iOS native log
+screen) · D-DEPS (**no new dependency** — purest write-page shape) · D-S1 (faithful 1:1) · **D-C1** (deterministic
+nav — the 2 `router.back()` → `router.push("/summary")`; the lock `router.replace` unchanged). F1–F5.
+
+**New durable patterns (promoted to Converged lessons):**
+- **A modal already built on a landing becomes a standalone PAGE for free via the form's pre-existing `variant`
+  branch — a WRITE page that is still "no new dependency."** When an earlier landing run ported a shared form
+  component with a dead `variant="page"` branch (flagged as an F-row then — summary F6), the sub-route run that
+  lights it up is the belated consumer: the sweep ports ONLY the page wrapper (`PageShell`/`PageHeader` + the
+  form's page variant), nothing else. This is run-31's "no-new-dep on a stateful page" at its cleanest — the page
+  is a thin wrapper whose entire body is `<Form variant="page" … />`.
+- **Within ONE sub-route group, `admin_only_data_entry` can be N/A for some siblings and LIVE for others — split
+  by read-vs-write, don't inherit the group's answer.** The 3 `/summary` chart drill-downs were read-only → lock
+  N/A (runs 33–35); the log fallbacks are the WRITE path → the lock is LIVE (client mount `router.replace` +
+  backend `requireDataEntryAllowed` 403). So §7's `admin_only_data_entry` line is decided per-page by whether the
+  page writes, not by the group it sits in. State it as the finding (the inverse of the read-only N/A note).
+- **A "considered cleanup" can be REJECTED once you ground it — verify the reuse target before offering it.** The
+  obvious "reuse `refreshSummaryQueries` over raw `invalidateQueries(["summary"])`" dissolved on inspection: that
+  helper is a module-PRIVATE one-liner inside `summary/page.tsx:310`, byte-identical to the faithful inline call
+  and not importable — there is nothing shared to reuse. Grep the candidate helper's definition + export before
+  presenting "reuse X" as a cleanup; a private, identical helper is a non-cleanup. Record the rejection in a §9
+  "not a cleanup" note so the next reviewer doesn't re-raise it.
+- **Deterministic-nav cleanup: when a page navigates via `router.back()` but a sibling control already hardcodes
+  the destination, swap to `router.push(<fixed>)` for consistency + to kill the direct-nav/refresh footgun.** Here
+  the header BackButton already used `/summary`; making post-save + form-close match it (and leaving the lock
+  `router.replace` alone — replace intentionally drops the locked page from history) is a coherent one-line D-C.
+
+**Already-known patterns reconfirmed (not re-promoted):** no-new-dep purest shape (runs 27→35, now on a write
+page), zero-backend / no-feature-bump consuming page (run 21), client JWT-decode role is display-only not a
+security boundary (summary F1), already-tokenized → no tokenize cleanup (run 29), sub-route does-not-close-group
+D-SCOPE (run 30 inverse), count the genuinely-open decisions / don't manufacture questions.
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-REF/D-DEPS/D-S1/D-C1; F1–F5; the "not a cleanup" `refreshSummaryQueries` note).
+COVERAGE summary row updated (log-workout ✓; 4 of 6, 1st log fallback done, group NOT closed) + logging row updated
++ PROGRESS prepended. `npm run build` ✓ (`/summary/log-workout` prerendered, 1.33 kB — smallest `/summary` route,
+no Recharts; Middleware 27.5 kB active). **No feature bump, no new dependency.** **Next:** the last 2 log fallbacks
+(`log-health` — standalone `LogDailyHealthForm`; `bulk-log-workout` — the heavier `BulkLogWorkoutForm` ≤200-row
+page); and/or the 8 deferred `/members` sub-routes.
