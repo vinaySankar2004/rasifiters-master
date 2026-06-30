@@ -1333,3 +1333,54 @@ throttle; Show toggles New only; no JWT re-issue on change).
 SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1/D-C2/D-C3; F1–F4). Page COVERAGE ticked. **No feature bump, no new
 deps.** **Next:** the remaining 2 `/program/*` sub-routes (appearance · privacy), the 8 deferred `/members`, the
 6 deferred `/summary`, and/or the 2 deferred `/lifestyle` sub-routes.
+
+---
+
+## Run 29 — web `program/appearance` (5th of 6 `/program/*` settings sub-routes) — 2026-06-29
+
+**Target:** the legacy appearance/theme picker (`rasifiters-webapp/src/app/program/appearance/page.tsx`, 91
+lines) — three full-width option buttons (System / Light / Dark) writing `localStorage["rf:appearance"]` via
+the foundation `lib/theme.ts` (`setStoredTheme` → `applyTheme`). Page/screen SPEC, `consumed_by=[web]`.
+
+**Shape: the PUREST sub-route yet — purer than run-27/28's "no new dep" runs.** The opening sweep found:
+- **No backend, no API, no network call at all** — the only persistence is `localStorage["rf:appearance"]`
+  (client-side foundation infra, owned by no feature SPEC). So "the sweep confirms the mount, ports nothing"
+  (run-21/26) reaches its limit: there is no mount to confirm.
+- **No new dependency, not even a chrome leaf** (runs 25–26 each dragged one in; run-27 dragged none but
+  consumed already-ported api fns) — here `PageShell`/`PageHeader`/`GlassCard`, the three icons, `lib/theme.ts`,
+  and `useAuthGuard` were ALL already ported. D-DEPS = "no new dependency," ports only the page.
+- **Already fully `rf-*` tokenized in legacy** → run-28's per-site palette grep comes back with NOTHING to do
+  (the trivial end of the selective-tokenize spectrum: run-27 partial, run-28 all-six-clean, run-29 nothing).
+
+**Questions:** the tight round collapsed to 2 (scope + stance/cleanup) — every other dimension was
+code-answered. User picked **this page only** (privacy = the 6th & last `/program/*`, deferred) + **faithful +
+the one `useAuthGuard` reuse cleanup**.
+
+**Decisions:** D-REF (`[web]`; iOS Settings → Appearance mirrors via `@AppStorage` later) · D-SCOPE (this page
+only) · D-DEPS (no new dependency — purest shape) · D-S1 (faithful 1:1; no tokenize cleanup) · D-C1 (reuse
+`useAuthGuard({ requireProgram: false })` over the inline `useAuth` + `useActiveProgram` + manual redirect —
+deletes 3 imports; matches siblings `profile`/`password`). F1–F3 (device/browser-local preference not
+account-synced; possible first-paint theme flash; **no role read at all**). No feature bump.
+
+**Promoted to Converged lessons:**
+- **The PUREST page shape — client-only, no backend/API/dep at all.** The "no feature bump, sweep confirms the
+  mount" pattern has a floor: a pure client-preference page (theme) has NO endpoint to confirm and NO dependency
+  to drag in. State it explicitly ("no API, no backend, no network call at all") — the sweep's job shrinks to
+  reading the one page file + confirming every import already exists. The D-DEPS row is "no new dependency"; the
+  data/API section says "none."
+- **Already-tokenized → no tokenize cleanup is the trivial end of run-28's per-site grep.** Runs 26→27→28→29
+  trace a spectrum: clean-mapping-tokenize (26) → selective per-site (27) → all-clean tokenize (28) → nothing to
+  tokenize (29, legacy already fully `rf-*`). The discipline is constant (grep the palette per-site); the
+  outcome varies down to zero. Don't manufacture a tokenize cleanup on an already-tokenized page.
+- **The ABSENCE of role-conditional UI IS the §7 finding (run-28 corollary, sharpened).** When a page reads no
+  JWT role, has no admin redirect, and renders byte-identically for every role, §7 is a "same for everyone"
+  table + the `admin_only_data_entry`-N/A note, and the finding to RECORD (an F-row) is precisely that absence —
+  it's not an omission, it's the characteristic. Skip the role question (run-4b).
+- **`useAuthGuard`-reuse generalizes to the inline `useAuth` + `useActiveProgram` + redirect triple** (run-20/28
+  extended): the hook returns `program` too, so it subsumes not just the redirect but also a separate
+  `useActiveProgram` call used for a back-href — one swap deletes three imports.
+
+**Output:** SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1; F1–F3). COVERAGE + PROGRESS ticked. `npm run build` ✓
+(`/program/appearance` 3.06 kB — smallest sub-route yet). **No feature bump, no new deps.** **Next:** the LAST
+`/program/*` sub-route (privacy), the 8 deferred `/members`, the 6 deferred `/summary`, and/or the 2 deferred
+`/lifestyle` sub-routes.

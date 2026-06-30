@@ -529,6 +529,16 @@ directly as a faithful port from the legacy reference app** — there is no inte
   touches `req.user.id`) makes the role-rules question fully code-answered — §7 is a "same for everyone" table +
   the `admin_only_data_entry`-N/A note, and you skip the role question (run-4b: if the answer wouldn't change the
   SPEC, drop it). The ABSENCE of role-conditional UI is itself the finding.
+  **Run 29 — the PUREST page shape: client-only, no backend / no API / no dep at all.** A pure client-preference
+  page (`program/appearance` — theme picker writing only `localStorage`) has the "no feature bump, sweep confirms
+  the mount" pattern at its FLOOR: there is NO endpoint to confirm AND no dependency to drag in (every import
+  already ported, not even a chrome leaf). State it explicitly — Data/API = "none"; D-DEPS = "no new dependency";
+  the sweep reads the one page file + confirms imports exist. Two corollaries: **(a)** the tokenize-cleanup
+  spectrum bottoms out — runs 26→27→28→29 go clean-mapping → selective-per-site → all-clean → **nothing to
+  tokenize** (legacy already fully `rf-*`); the per-site palette grep is constant, the outcome can be zero, so
+  don't manufacture a tokenize cleanup on an already-tokenized page. **(b)** the `useAuthGuard`-reuse (run-20/28)
+  generalizes to the inline `useAuth` + `useActiveProgram` + redirect TRIPLE — the hook also returns `program`,
+  so one swap subsumes the redirect AND a separate `useActiveProgram` back-href call, deleting three imports.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
