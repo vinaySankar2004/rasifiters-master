@@ -2251,3 +2251,46 @@ symbols via grep, not a CLI build.
 **Next:** `AdminHomeView` (the post-pick home dashboard — the iOS analogue of the web `/summary` workspace) OR
 `ProgramActionsSheet` (create + invites) — both deferred stubs the picker navigates to. Match the web sibling + faithful
 legacy iOS.
+
+---
+
+## Run 53 — `AdminHomeView` (the post-pick home SHELL, iOS) — 2026-06-30
+
+**Target:** the post-auth home screen `ProgramPickerView` pushes on `applyProgram`. **Reference:** legacy iOS
+`../ios-mobile/.../Features/Home/AdminHomeView.swift` + the web `(workspace)` group (`/summary`+`/members`+`/lifestyle`+`/program`).
+
+**The decisive sweep finding:** `AdminHomeView.swift` is **96 lines** (2.3 KB) — a native bottom `TabView` SHELL, NOT a
+dashboard. It hosts 4 tabs (Summary single · Members/Lifestyle/Program role-bifurcated `Admin*Tab`/`Standard*Tab` via
+`programContext.isProgramAdmin`), defines the nested `Period` enum (W/M/Y/P), and applies `.adaptiveTint()` +
+`navigationBarBackButtonHidden(true)`. The 7 tab bodies (8–14 KB each) drag in the whole `Tabs/Section`+`Detail/`+`Settings/`+
+`Sheets/` universe — essentially the entire web authed surface (30+ pages). Reading the LANDING file (96 lines) reframed the
+run from "port the dashboard" to "port the shell, defer the tabs" — the run-22 "verify the landing yourself" axis, now
+distinguishing a SHELL from a page.
+
+**Decisions (2 genuinely-open, 1 AskUserQuestion call of 2 Qs):**
+- **D-SCOPE — the scope cut IS the run.** Port the shell verbatim, defer the 7 tab bodies as `ScaffoldPlaceholder` stubs.
+  The `AdminSummaryTab` stub carries a `period: Binding<AdminHomeView.Period>` initializer to match the shell's
+  `AdminSummaryTab(period: $summaryPeriod)` call site (the other 6 are no-arg). (run-21/50/52 pattern, cross-platform)
+- **D-REF — keep iOS-native `TabView`.** Web = 4 top-level routes under a shared nav layout; iOS = one native bottom tab bar.
+  Platform-idiom EXCEPTION to web parity (memory `ios-matches-web-not-just-legacy`; run-52 D-REF shape). Tab set + order
+  already match web (Summary/Members/Lifestyle/Program), so it is a STRUCTURAL idiom divergence, not a parity gap. Lead "keep
+  iOS-native".
+- **D-S1 — faithful 1:1, NO web-parity deviation.** Unlike run-52 (which added an error banner because the legacy swallowed
+  errors web surfaces), the shell is PURE NAVIGATION — no data fetch, no error state, no behavior to diff vs web. So the
+  behavior-diff sweep (run-52) comes back empty → zero deviations. The absence of a deviation is itself the finding.
+- **D-DEPS — no new dependency.** `isProgramAdmin` (`ProgramContext.swift:269`) + `adaptiveTint()` (`AppTheme.swift:208`)
+  ported in the foundation (run 50); all 7 tab-body names collision-free (grep). Run ports the shell file + rewrites the stub
+  block.
+
+**Role rules:** the Admin*/Standard* variant table (global_admin + program admin → `Admin*Tab`; logger/member → `Standard*Tab`;
+Summary identical for all). `admin_only_data_entry` **N/A at the shell** — it gates *logging* deep in the deferred tab bodies,
+never the navigation (the run-31/36 read-vs-write-lock axis applied to a nav shell: a shell does no data entry).
+
+**Flagged F1–F4:** role bifurcation by physically-separate views (web gates within one component; iOS has distinct structs —
+faithful, the tab bodies resolve their own parity); the `workoutTypes` internal tag for the "Lifestyle" tab; 7 deferred tab
+stubs; `navigationBarBackButtonHidden(true)` (no back-swipe off home). Build green-check owned by the user (Xcode); symbols
+verified via grep (exactly one `AdminHomeView`, each tab body once, `AdminHomeView.Period` resolves, no leftover stub).
+
+**Next:** port a TAB BODY — `AdminSummaryTab` (the dashboard cards, iOS analogue of web `/summary`) is the natural first — or
+the still-deferred picker targets (`ProgramActionsSheet`/`EditProgramInfoView`/the 4 account screens). Each tab body is its own
+"scope cut IS the run".

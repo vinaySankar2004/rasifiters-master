@@ -875,6 +875,27 @@ directly as a faithful port from the legacy reference app** — there is no inte
   by a foundation Explore agent (run-31/48/51); a non-private inline type (`StatusPill`) needs a collision grep before it
   lands; client role gating (`canOpen`/`canManage`) is a faithful F-row (web programs F1 mirror); `admin_only_data_entry`
   N/A (read into context for downstream log screens, never gates the picker).
+- **Run 53 — a pure-NAVIGATION SHELL is the purest "scope cut IS the run": a 96-line container, ZERO web-parity
+  deviation (the behavior-diff sweep comes back empty), and the D-REF idiom divergence lives at the NAVIGATION-STRUCTURE
+  altitude.** Three durable patterns. **(a) Reading the LANDING file distinguishes a SHELL from a page (run-22 axis,
+  escalated).** `AdminHomeView` *named* like a dashboard is actually a 96-line bottom `TabView` shell hosting 4 tabs whose
+  bodies (8–14 KB each) drag in the whole authed surface (30+ web pages) — so the run is "port the shell, defer the 7 tab
+  bodies as stubs", not "port the dashboard". A `*Home`/`*View` name can hide a container; read the file before sizing. The
+  stub for a body the shell passes a binding to must carry the matching initializer (`AdminSummaryTab` needs
+  `period: Binding<AdminHomeView.Period>` to match the call site; the no-arg bodies don't) — and any nested type the bodies
+  reference (`AdminHomeView.Period`) ships WITH the shell so the stubs compile. **(b) A pure-nav screen has NO web-parity
+  deviation — the absence is the finding.** Run-52 added an error banner because its behavior-diff caught the legacy
+  swallowing errors web surfaces; run-53's shell does NO data fetch, NO error state, NO behavior at all, so the same
+  behavior-diff sweep comes back EMPTY → D-S1 is faithful-1:1 with zero D-C rows. Don't manufacture a web-parity cleanup on
+  a screen with no behavior to diff; report "pure nav, nothing to reconcile" explicitly. **(c) The run-52 D-REF
+  (keep-iOS-native vs match-web) recurs at a HIGHER altitude — the navigation STRUCTURE itself.** Run-52's idiom divergence
+  was sheets-vs-inline-modals within one hub; run-53's is the whole app's nav shape: web = 4 top-level routes under a nav
+  layout, iOS = one native bottom `TabView`. Same lead ("keep iOS-native" when it's STRUCTURE/idiom, not a PARITY item) —
+  and the tell that it's idiom-not-gap is that the tab SET + ORDER already match web (Summary/Members/Lifestyle/Program), so
+  only the container shape differs. Reconfirmed: scope-cut-IS-the-run for a shell hosting N deferred bodies (run-21/50/52,
+  now stubbing 7 tab bodies); dep-purity by grep (`isProgramAdmin`/`adaptiveTint` foundation symbols + collision-free
+  names); `admin_only_data_entry` N/A at a nav shell (a screen that does no data entry has the lock N/A — the read-vs-write
+  axis); role rules code-answered by the `@ViewBuilder` Admin*/Standard* switches (stated, not asked).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
