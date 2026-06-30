@@ -1125,3 +1125,50 @@ prerendered, 4.36 kB — no Recharts; Middleware 27.3 kB active; bottom-nav `/pr
 F1–F6). Page REGISTRY ticked. **No feature bump.** **Next:** the 6 deferred `/program/*` sub-routes, the 8
 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes, and/or the 2 deferred `/lifestyle`
 sub-routes — the workspace landing layer is now complete; remaining web work is all sub-routes.
+
+---
+
+## Run 25 — `program/edit` (web sub-route 1/6 of `/program/*`) · 2026-06-29
+
+**Target.** `/program/edit` — the admin-only edit-program-details form, the **first sub-route run** (the
+workspace landing layer being complete). Reached from the `/program` hub's "Edit Program Details" row. Spec
+kind = PAGE/SCREEN (web).
+
+**Sweep.** Legacy `program/` dir holds exactly the 6 sub-routes (edit/roles/profile/password/appearance/privacy).
+The edit page is self-contained (171 lines): name input · status `Select` · start/end date · `admin_only_data_entry`
+toggle → `updateProgram` → `PUT /programs/:id` → back to `/program`. Admin-only via a client `useEffect` redirect
+(non-admin → `/program`). Verified the rebuilt stack: `updateProgram` + `Program` type (all fields) + `Select` +
+`PageShell`/`GlassCard` + `saveActiveProgram` + `useAuthGuard` all already ported; backend `updateProgram` fully
+ported (handles all 5 fields, 403 program-admin gate, **live** `program.updated` emit). The **only** missing deps:
+`ui/PageHeader.tsx` → its child `components/BackButton.tsx` (both tiny leaf chrome, used by ALL 6 `/program/*`
+sub-routes).
+
+**Decisions.** D-REF `[web]` (iOS Settings→Edit mirrors later) · **D-SCOPE** this page only (5 sub-routes still
+deferred) · **D-DEPS** port `PageHeader` + `BackButton` verbatim as shared chrome (single-sourced for the siblings) ·
+D-S1 faithful 1:1 · **D-C1** client-side date-range validation (block Save when `start >= end`) · **D-C2** hydrate
+the active-program cache from the server `ProgramResponse` not optimistic form state · **D-C3** skip a no-op PUT.
+F1–F4 (client JWT-decode admin gate; vestigial `status` default; date-shape trust; no client throttle).
+
+**Durable patterns — reinforcement, nothing new to promote.**
+1. **First sub-route of a deferred group → the new "shared chrome" port is the D-DEPS row, sized to the WHOLE
+   group, not just this page.** `PageHeader`/`BackButton` are foundation chrome for all 6 `/program/*` sub-routes;
+   porting them verbatim NOW (run-19/20 "page drags in shared deps, port whole") front-loads the cost so siblings
+   reuse them. Confirm the transitive dep chain first (`PageHeader`→`BackButton`) so you don't miss a leaf.
+2. **"Faithful + cleanups" with NO named target → run the pinning multiSelect (run 6/14/22).** User picked the
+   change-now stance generically, so I offered 3 concrete code-grounded cleanups; user took all 3. The cleanup
+   classes here: **additive client-side validation** (D-C1 — a guard legacy lacked, low-risk), **server-truth
+   hydration** (D-C2 — the run-11 client-copy-vs-server-copy call, resolved toward the canonical server row), and
+   **skip-redundant-write** (D-C3). None touch the wire contract → still **no feature bump**.
+3. **The "zero backend work, no feature bump" consuming page (run 21) in its purest form again** — `updateProgram`
+   + the route + the `program.updated` emit all shipped with `programs`/`notifications`; the page SPEC at v0.1.0 is
+   the only versioned artifact. The sweep's job was to CONFIRM the endpoint is mounted, not port it.
+4. **Role rules fully code-answered → state, don't ask.** The admin-only redirect + backend 403 settle §7
+   entirely; `admin_only_data_entry` is **N/A as a gate** here precisely because this is the page that SETS it
+   (the value being edited, not a lock on the editor). Said so explicitly.
+
+**Output.** `apps/web/src/app/program/edit/page.tsx` (faithful + D-C1/D-C2/D-C3) + new shared
+`components/ui/PageHeader.tsx` + `components/BackButton.tsx` (verbatim). `npm run build` ✓ (`/program/edit`
+prerendered, 5.7 kB — no Recharts; Middleware 27.3 kB active). SPEC v0.1.0 (D-REF/D-SCOPE/D-DEPS/D-S1/D-C1/D-C2/
+D-C3; F1–F4). Page REGISTRY + COVERAGE ticked. **No feature bump.** **Next:** the remaining 5 `/program/*`
+sub-routes (roles · profile · password · appearance · privacy), the 8 deferred `/members`, the 6 deferred
+`/summary`, and/or the 2 deferred `/lifestyle` sub-routes.

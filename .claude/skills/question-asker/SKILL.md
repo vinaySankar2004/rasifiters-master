@@ -473,6 +473,23 @@ directly as a faithful port from the legacy reference app** — there is no inte
   Members copy was already specialized (run-22's 2-variant `activePicker`), so extracting a shared `ui/` picker
   would carry BOTH tabs' union of props/branches (adds branches, doesn't remove them). Flag the dup (F-row,
   rebuild-cleanup candidate), recommend against extraction, let the user decide — they chose port-local + flag.
+- **The FIRST sub-route of a deferred group lands that group's shared chrome — size the dep port to the whole
+  group, not just this page (run 25).** When you start the sub-route layer under a hub (run 25: `/program/edit`,
+  first of 6 `/program/*` settings sub-routes), the page often drags in small chrome leaf components the landing
+  pages never needed (`ui/PageHeader.tsx` → its child `components/BackButton.tsx`). Port them **verbatim now as
+  shared chrome** (the run-19/20 "port whole shared dep" pattern) because the 5 siblings reuse them — front-load
+  the cost once; record it as a **D-DEPS** row scoped to the group. **Confirm the transitive chain first**
+  (PageHeader→BackButton) so you don't miss a leaf. The rest of a sub-route run is usually the purest "zero
+  backend work, no feature bump" shape (run 21): the hub's write endpoint (`PUT /programs/:id`) + its client fn
+  + any emit all shipped with the owning feature — the sweep CONFIRMS the mount, ports nothing. And **a
+  settings/editor page whose whole job is to SET `admin_only_data_entry` makes that flag N/A as a GATE** — it's
+  the value being edited, not a lock on the editor; say so explicitly in §7 (the inverse of the read-only-page
+  "N/A because no write path" answer — here it's "N/A because this IS the write path for the flag itself").
+  Role rules otherwise fully code-answered by an admin-only `useEffect` redirect + the backend 403 → state §7,
+  don't ask. **"Faithful + cleanups" with no named target → still run the run-6/14/22 pinning multiSelect**
+  (run 25 took all 3: additive client-side validation the legacy lacked, server-truth hydration over optimistic
+  form state — the run-11 client-vs-server call resolved toward the canonical row, and skip-redundant-write);
+  none touch the wire contract → no feature bump.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
