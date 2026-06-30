@@ -569,6 +569,22 @@ directly as a faithful port from the legacy reference app** — there is no inte
   yet still "no new dependency" because the api module landed vestigial-here with an earlier sibling (run 21) and
   every chrome leaf with the `/program/*` sub-routes — D-DEPS = no-new-dep is about whether the deps are already
   ported, not how stateful the page is.
+- **Run 32 — dep-purity and faithful-vs-change are INDEPENDENT axes; a near-zero-dep page can still be a
+  deliberate CHANGE-NOW run.** `/lifestyle/timeline` closed the `/lifestyle` group as the purest detail page (1
+  page file + 1 verbatim chrome leaf `PeriodSelector.tsx`; `fetchHealthTimeline` + the backend route already
+  shipped) — yet the user took a change-now stance with 3 cleanups. Don't assume a pure-DEPS page is also a
+  pure-faithful port; ask the stance regardless. Three corollaries: **(a) a "change now" option that names a
+  cleanup only as an EXAMPLE ("e.g. …") has NOT committed it — run the pinning multiSelect** (run-6/14/25
+  protocol) to lock the exact set; the run-25 "stance option names the cleanup → skip pinning" applies only when
+  the option commits to a *specific* change. **(b) a faithful chart port can fix a latent VISUAL bug as the
+  cleanup** — mixed-unit series on one shared Y-axis (sleep-hours ≈0–12 vs diet-quality 1–5 flattened the diet
+  line); the fix is a dual Y-axis (one scale per unit) + `<Legend>` + unit labels, the chart analogue of run-11's
+  TZ cleanup (faithful data, clearer presentation). When series share an axis but not a unit, surface it. **(c) a
+  detail sub-route with NO view-as picker takes its data scope purely from the URL param the LANDING passes**
+  (`resolvedMemberId`: URL `memberId` → that; else admin → program-wide; else own id) — the landing owns member
+  selection; an admin landing here directly sees program-wide. The tell (run-27/31 axis): absence of both a picker
+  AND an admin-redirect `useEffect`. And it CLOSES the group (run-30 corollary): flip COVERAGE `[~]`→`[x]`, say so
+  in D-SCOPE + PROGRESS.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

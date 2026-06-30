@@ -1472,3 +1472,38 @@ D-C1 (`window.confirm` → `ConfirmDialog`) · D-C2 (clear stale error on both m
 `npm run build` ✓ (`/lifestyle/workouts` 4.82 kB — no Recharts; Middleware 27.4 kB active). **No feature bump,
 no new deps.** **Next:** `/lifestyle/timeline` (closes the group), the 8 deferred `/members`, and/or the 6
 deferred `/summary` sub-routes.
+
+## Run 32 — `lifestyle/timeline` (web page spec; 18th web page, 2nd & LAST `/lifestyle` sub-route — CLOSES the group) — 2026-06-29
+
+**Target:** the sleep + diet-quality health-timeline detail behind the `/lifestyle` landing's timeline chart card.
+**Shape:** the purest detail sub-route yet — 1 page file + 1 chrome leaf (`PeriodSelector.tsx`) to port; everything
+else already present (`fetchHealthTimeline` byte-identical, landed run 23; `GET /analytics/health/timeline` mounted
+`routes/analytics.js:74`). Read-only → `admin_only_data_entry` N/A; **no view-as picker** (scope from URL `memberId`
+the landing passes); no admin redirect. Zero backend work, no feature bump.
+
+**Decisions:** D-SCOPE this page only, **closes the `/lifestyle` group (2/2)**; D-DEPS one verbatim chrome leaf
+`ui/PeriodSelector.tsx` (`.segmented-control` CSS already in `globals.css`); D-S1 faithful (already `rf-*` tokenized
+→ no tokenize cleanup). **Stance = CHANGE NOW** — user took all 3 offered chart cleanups: D-C2 dual Y-axis (sleep-hrs
+left `[0,sleepMax*1.1]`, diet-1–5 right `[0,5]` — fixes the legacy single-shared-axis scale-mixing), D-C3 `<Legend>`,
+D-C4 axis unit labels.
+
+**New durable patterns (promoted to SKILL.md):**
+- **A "change now" stance with NO firm named cleanup → run the pinning multiSelect (run-6/14/25 protocol).** I
+  offered dual-Y-axis only as an *example* inside the change-now option, so it wasn't a committed single target — a
+  follow-up multiSelect locked the exact set (all 3 taken; unselected would stay faithful + flagged). The run-25
+  "stance option NAMES the cleanup → no pinning round" only applies when the option commits to a *specific* change;
+  an "e.g."-qualified example does not commit it.
+- **The purest detail-page shape can still take cleanups — purity is about DEPS, not stance.** Runs 27→31 traced
+  D-DEPS down to "no/one new dep"; this run shows a near-zero-dep page can still be a deliberate CHANGE-NOW run. The
+  two axes (dep-purity vs faithful-vs-change) are independent — don't assume a pure page is also a pure-faithful port.
+- **A faithful chart port can fix a latent VISUAL bug as the cleanup — mixed-unit series on one Y-axis.** Legacy
+  plotted sleep-hours (≈0–12) and diet-quality (1–5) on one shared `[0, max-of-both]` axis, flattening the diet line.
+  The change-now fix is a dual Y-axis (one scale per unit) + a Legend + unit labels — the chart analogue of run-11's
+  TZ cleanup (faithful numbers, clearer presentation). When the series share an axis but not a unit, surface it.
+- **A sub-route run CLOSES its group when it's the Nth-of-N (run-30 corollary, now for `/lifestyle` 2/2).** Flip the
+  COVERAGE row marker `[~]`→`[x]` and say "closes the group" in D-SCOPE + PROGRESS.
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-DEPS/D-S1/D-C1–C4; F1–F5). COVERAGE row flipped `[~]`→`[x]` (group complete) +
+PROGRESS ticked. `npm run build` ✓ (`/lifestyle/timeline` 2.68 kB; Recharts shared; Middleware 27.4 kB active). **No
+feature bump, one verbatim chrome-leaf dep.** **Next:** the 8 deferred `/members` and/or 6 deferred `/summary`
+sub-routes (the `/lifestyle` group is now done).
