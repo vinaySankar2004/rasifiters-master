@@ -42,6 +42,49 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (5 of 8).** The
+> **`members/history` page (29th web page, 5th of the 8 deferred `/members` sub-routes — the per-member Workout History
+> timeline behind the `/members` landing's History card) is DONE** (2026-06-29): a faithful 1:1 port of the legacy
+> 93-line **per-member history detail** — a `PageShell` + `PageHeader` ("Workout History" / the member `name` from the
+> URL / `backHref="/members"`) wrapping a `PeriodSelector` (W/M/Y/P) over one `GlassCard` (Range label + Daily-avg
+> header + a single-series workouts `BarChart`), over `fetchMemberHistory` (`GET /member-history`, target from URL
+> `memberId`/`name`). **A near-twin of `summary/activity` (run 33 — same PeriodSelector + single-series workouts
+> BarChart) but PER-MEMBER (URL `memberId`/`name`, like `lifestyle/timeline` run 32) AND it HAS a role-redirect** —
+> the genuine delta from BOTH twins (run-32 `lifestyle/timeline` explicitly had NONE). **KEY ROLE FINDING:**
+> `canViewAny = isGlobalAdmin || my_role==="admin" || my_role==="logger"` (`page.tsx:32-33`); a non-staff user whose
+> URL `memberId` is **not their own** is `router.push("/members")`'d on mount (`:37-42`) — staff view any member, a
+> plain member only their own. **F2 (the run-40 MIRROR): the client redirect is STRICTER than the backend** —
+> `getMemberHistory` only enforces `ensureProgramAccess` (403 non-member) + target-enrolled (404), NOT which member a
+> non-staff requester may view (`memberAnalyticsService.js:264-270`); any active member could fetch any enrolled
+> member's history via the API directly, only the client UI restricts it. **F3 secure characteristic:** unlike the
+> `/summary` analytics routes (F2 — `authenticateToken`-only), the service enforces per-program read authz — the
+> route carries only `authenticateToken`, the gate lives in the service (run-42 F3, recurs). **Read-only → no write
+> path → `admin_only_data_entry` N/A.** **D-SCOPE** = this page only — **5th-of-8, does NOT close the group**
+> (`streaks`/`workouts`/`health` still deferred). **D-DEPS = NO new dependency** — `fetchMemberHistory`/
+> `MemberHistoryPoint`/`MemberHistoryResponse` already live in `lib/api/members.ts:126` (ported "vestigial-here" with
+> the `/members` landing run 22; byte-identical, lines 20–130 verified — its belated consumer; own-family per-function,
+> run-41) + `PeriodSelector` ported verbatim with `lifestyle/timeline` (run 32) + every chrome leaf / chart-theme token
+> already ported; the sweep ports nothing but the page file. **Stance = faithful + 1 user-picked cleanup: D-C1**
+> **all-zero empty-state guard** — when `data.buckets` every `workouts === 0` (a member who logged nothing in the
+> range; the backend always returns a FULL window of buckets so `buckets.length` is never 0) render "No workouts logged
+> in this range." instead of flat zero bars — matches `summary/activity`'s empty-state (run-33 D-C2) but **keyed off the
+> SUM, not `buckets.length`** (the run-34 predicate-vs-shape lesson — re-derived, came back needing the sum form).
+> User chose faithful+guard over pure-faithful. **Twin cleanups SUBTRACTED (run-33):** `<Legend>`+series-names NOT
+> applied (single counts series — nothing to disambiguate), dual-Y-axis NOT applied (single counts series → one natural
+> axis); **NO tokenize cleanup** (already fully `rf-*`). Faithful otherwise (D-S1 — same `force-dynamic` +
+> `useClientSearchParams`, same `useAuthGuard()` + `canViewAny` redirect, same React Query key
+> `["members","history",programId,memberId,period]` + `enabled` gate, same `PeriodSelector` default `"week"`, same
+> Range/Daily-avg header + `BarChart` markup). **Zero backend work, NO feature bump** — `GET /api/member-history`
+> already mounted (`server.js:78`, `historyRouter.get("/", authenticateToken)`) + the api fn already ported.
+> `consumed_by=[web]` (iOS surfaces member history natively). Flagged F1–F5 (server-driven window not client
+> re-bucketing; client redirect stricter than backend; per-program read authz IS enforced — secure; `name` display-only
+> defaults "Member"; no-`memberId` direct-nav is a degenerate no-op). `npm run build` ✓ (`/members/history` prerendered,
+> **2.95 kB**; Recharts shared; Middleware 27.6 kB active). **Committed via `git-version` next; lessons run 43 appended
+> (promoted: "a near-twin can differ from BOTH its twins by ONE structural feature — here a role-redirect neither
+> `summary/activity` nor `lifestyle/timeline` had; recognize the twin, then ADD the one delta as a D-S1 line + F-row,
+> the mirror of run-33's SUBTRACT").** **NEXT = the `/members` group continues: `streaks`/`workouts`/`health` (3 of 8
+> remaining).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (4 of 8).** The
 > **`members/metrics` page (28th web page, 4th of the 8 deferred `/members` sub-routes — the program-wide Member
 > Performance Metrics dashboard behind the `/members` landing's metrics card) is DONE** (2026-06-29): a faithful 1:1
