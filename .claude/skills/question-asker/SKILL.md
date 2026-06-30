@@ -729,6 +729,23 @@ directly as a faithful port from the legacy reference app** — there is no inte
   flag the dark-mode contrast risk), full-tokenize (fully theme-aware, changes the look) — and don't pre-decide; the
   recommendation can lose. The per-site palette grep (runs 26→27→28→29) is the constant; the *outcome* spans
   keep-faithful → selective → all-clean → full-tokenize and is a real fork, not a mechanical default.
+- **Run 43 — `members/history` (the per-member workout-history timeline): a near-twin can differ from BOTH its twins by
+  ONE structural feature → recognize the twins, then ADD the one delta — the mirror of run-33's SUBTRACT.** The page
+  reused `summary/activity`'s (run 33) `PeriodSelector` + single-series workouts `BarChart` AND `lifestyle/timeline`'s
+  (run 32) per-member URL-`memberId`/`name` scope — yet it carries a **role-redirect neither twin had** (`canViewAny =
+  global_admin || admin || logger`; a plain member viewing another member's `memberId` is `router.push("/members")`'d —
+  run-32 `lifestyle/timeline` explicitly had NO redirect, run-33 `summary/activity` was program-wide with no role logic
+  at all). So twin-collapse (runs 23/28/33/37/38) runs BOTH directions: **subtract** the simpler twin's cleanups that
+  don't apply (run-33: `<Legend>`/dual-axis killed by the single counts series) AND **add** the one structural feature
+  the richer page introduces, landing it as a D-S1 line + an F-row, not an open question (reading the file answers it).
+  Two reinforced corollaries: **(a)** the redirect is a fresh instance of the run-40 **client-stricter-than-backend**
+  F-row — the page bounces a non-staff user from another member's history, but `getMemberHistory` only enforces
+  `ensureProgramAccess` + target-enrolled (any active member could fetch any enrolled member's history via the API
+  directly); flag the asymmetry, name the looser backend as the real boundary, keep both. **(b)** the run-34
+  predicate-vs-shape re-derive recurs and MUST be done even on a twin's transferred cleanup: `summary/activity`'s
+  empty-state guard transferred in INTENT, but its CONDITION had to be re-keyed off the **sum** (`buckets.some(b =>
+  b.workouts > 0)`), not `buckets.length`, because `getMemberHistory` always returns a full window of buckets so
+  `length` is never 0 — copying the twin's `length===0` verbatim would have been a silent no-op.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
