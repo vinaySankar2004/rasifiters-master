@@ -42,6 +42,47 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (3 of 8).** The
+> **`members/invite` page (27th web page, 3rd of the 8 deferred `/members` sub-routes — the program-admin
+> invite-by-username form behind the `/members` landing's "Invite Member" pill) is DONE** (2026-06-29): a faithful
+> 1:1 port of the legacy 97-line **invite form** — a `PageShell` + `PageHeader` ("Invite Member" / "Enter the exact
+> username to send a program invitation." / `backHref="/members"`) wrapping a `modal-surface` card with a
+> `@`-prefixed username `<input>`, a **privacy info-banner**, error/success lines, and a "Send Invitation" button →
+> `sendProgramInvite` (`POST /program-memberships/invite`, body `{program_id, username}`). **program-admin /
+> global_admin-only** — every other role is `router.push("/members")`'d on mount; the landing's "Invite Member"
+> pill is gated identically (`canInvite = isProgramAdmin`) → **entry path matches the redirect** (consistent,
+> unlike run-39's `members/list` asymmetric pill). **D-SCOPE** = this page only — **3rd-of-8, does NOT close the
+> group** (`metrics`/`history`/`streaks`/`workouts`/`health` still deferred). **D-DEPS = NO new dependency** —
+> `sendProgramInvite` already lives in `lib/api/members.ts:204` (ported "vestigial-here" with the `/members`
+> landing run 22; this page is its belated consumer) + all chrome (`PageShell`/`PageHeader`) already ported; the
+> sweep ports nothing but the page file. **KEY: the run-39/40 cross-family-dep lesson is sized per-FUNCTION** —
+> run-39 found a sub-route's *read* fn in a different family's module; here the fn is in this page's **own** members
+> family. The import path is the source of truth either way. **`admin_only_data_entry` N/A** (inviting is
+> role-gated, not workout/health logging — the lock gates the `/summary` log forms; run-31/40 read-vs-write-lock
+> axis: the lock follows whether the page does *logging*). **Nav already deterministic** (stays on the page after a
+> send, showing the success box in place; the only nav off the page is the `PageHeader` back link or the non-admin
+> redirect) → **NO nav cleanup** (like run 40). **Stance = faithful + 2 user-picked cleanups: D-C1** tokenize the
+> success box `bg-green-50 text-green-600` → `bg-rf-success/10 text-rf-success` (the lone untokenized color; the
+> error line already uses `rf-danger` — matches `members/list` run-39 D-C1 / `members/detail` run-40 D-C2
+> selective-tokenize), **D-C2** clear the stale `errorMessage` on field edit (the `onChange` cleared `showSuccess`
+> but not `errorMessage` — legacy left a prior network error lingering; matches runs 27/28/40). Faithful otherwise
+> (D-S1 — same `isProgramAdmin` gate + redirect, same `canSubmit`, same imperative `handleSend` with local state /
+> no React Query, same privacy-safe catch). **THE LOAD-BEARING CHARACTERISTIC (F1, kept faithful):** the catch
+> block surfaces an error **only** when the message contains "network"; **every other failure** (username not
+> found / already invited / blocked / 403) is silently **rendered as "Invitation sent."** with the field cleared —
+> deliberate privacy-safety (the page won't confirm whether a username exists; the info-banner says so). **Zero
+> backend work, NO feature bump** — `POST /api/program-memberships/invite` already mounted (`server.js:69`,
+> `authenticateToken`-only) + the program-admin/global_admin/self authz + the live `program.invite` notification
+> emit live in `inviteService.sendInvite`. `consumed_by=[web]` (iOS invites natively). Flagged F1–F5
+> (swallow-errors-as-success privacy intent; client redirect is the only client gate, backend 403 is the real
+> boundary; no inline username validation/existence check by design; one-shot imperative call no React Query; stays
+> on page after success → no nav cleanup). `npm run build` ✓ (`/members/invite` prerendered, **2.29 kB** — no
+> Recharts; Middleware active). **Committed via `git-version` next; lessons run 41 appended (promoted: "the
+> cross-family-dep lesson is sized per-FUNCTION not per-family — a page's own-family module is just as valid a
+> source"; "a port's load-bearing characteristic can be a deliberate error-swallow for privacy — keep faithful,
+> flag, never offer to 'fix'").** **NEXT = the `/members` group continues: `metrics`/`history`/`streaks`/`workouts`/
+> `health` (5 of 8 remaining).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/members` SUB-ROUTE GROUP IS ADVANCING (2 of 8).** The
 > **`members/detail` page (26th web page, 2nd of the 8 deferred `/members` sub-routes — the editor `members/list`
 > links to) is DONE** (2026-06-29): a faithful 1:1 port of the legacy 162-line **global_admin per-member editor** —
