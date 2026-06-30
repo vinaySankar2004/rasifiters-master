@@ -42,6 +42,30 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/program/*` SUB-ROUTE GROUP IS NOW COMPLETE (6 of 6).** The
+> **`program/privacy` page (16th web page, 6th & LAST `/program/*` settings sub-route) is DONE** (2026-06-29): faithful
+> 1:1 port of the legacy **Privacy Policy** — a single static `GlassCard` of policy prose (effective date 2026-03-02,
+> the nine sections: information collected/used/shared, retention, security, choices, children's privacy, changes,
+> contact `geethasankar78@gmail.com`). **The PUREST page in the rebuild — even purer than run-29 `appearance`: fully
+> static content with NO state, NO `localStorage`, NO API, NO backend, and NO new dependency** (`appearance` at least
+> writes `localStorage`; this reads/writes nothing). **Despite living under `/program/*` it is NOT a program-admin
+> setting** — a read-only legal document available to **every** role with **no admin redirect and no role-conditional
+> UI at all** (the ABSENCE of role logic is the finding, F4). `useAuthGuard({ requireProgram: false })`. **D-SCOPE** =
+> this page only — **and it CLOSES the group** (the 6th & last `/program/*` sub-route; the entire sub-route layer is
+> now complete). **D-DEPS = NO new dependency** (`PageShell`/`PageHeader`/`GlassCard` + `useAuthGuard` all already
+> ported — not even a chrome leaf). **D-S1 faithful 1:1** — content kept **verbatim** (user decision: "keep all content
+> verbatim"), and **already fully `rf-*` tokenized in legacy, so NO tokenize cleanup**. **The single cleanup D-C1** =
+> reuse `useAuthGuard` over the legacy inline `useAuth` + `useActiveProgram` + manual redirect `useEffect` (deletes the
+> `useRouter`/`useAuth`/`useActiveProgram`/`useEffect` imports; matches siblings `profile`/`password`/`appearance`).
+> **Zero backend work, NO feature bump** — no endpoint exists; the page is static markup. Flagged F1–F4 (the shared
+> cross-surface policy intentionally describes iOS push/APNs on web; the policy is auth-gated; hardcoded effective
+> date + contact email; no role read at all). `npm run build` ✓ (`/program/privacy` prerendered, **2.44 kB** —
+> smallest sub-route yet, below `appearance`'s 3.06 kB; Middleware 27.4 kB active). **Committed via `git-version` next;
+> lessons run 30 appended (promoted: "the purest shape bottoms out at a fully-static page — no state/storage/API at
+> all"; "keep a shared cross-surface legal doc verbatim, flag the surface-mismatch as an F-row not a fork").** **NEXT =
+> the SUB-ROUTE layer continues elsewhere: the 8 deferred `/members` sub-routes, the 6 deferred `/summary` sub-routes,
+> and/or the 2 deferred `/lifestyle` sub-routes (the `/program/*` group is done).**
+>
 > **On "continue": Phase 3 `web` in progress — the SUB-ROUTE layer is advancing.** The **`program/appearance` page
 > (15th web page, 5th of the 6 deferred `/program/*` settings sub-routes) is DONE** (2026-06-29): faithful 1:1 port
 > of the legacy **appearance/theme picker** — a `GlassCard` of three full-width option buttons (System / Light / Dark,
