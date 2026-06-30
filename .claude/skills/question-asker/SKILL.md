@@ -594,7 +594,15 @@ directly as a faithful port from the legacy reference app** — there is no inte
   reflexively port a twin's cleanup list — re-test EACH against THIS page (run-26's "don't offer a cleanup without a
   clean basis", now applied to a twin's cleanups). The unit-agnostic clarity cleanups DO transfer (`<Legend>` +
   series names so color-only-distinguished bars are labeled; the empty-state guard); the unit-specific one
-  (dual-axis) does not. Recognize the twin to go fast, then subtract what doesn't apply.
+  (dual-axis) does not. Recognize the twin to go fast, then subtract what doesn't apply. **Run 34 extended this: a
+  twin cleanup that DOES transfer may still need its PREDICATE re-derived for THIS page's data shape — copying it
+  verbatim can be a no-op-then-bug.** `summary/distribution` (2nd `/summary` sub-route, purer than `activity` — no
+  `PeriodSelector`, no `useState`) reused `activity`'s empty-state guard, but `activity`'s `buckets.length === 0`
+  never fires here because the distribution endpoint **always returns all 7 weekday keys** — so the guard had to key
+  off the **sum** (`data.every(d => d.value === 0)`) instead. The cleanup's INTENT carries; its CONDITION must be
+  re-checked against the endpoint's response shape (grep the service's return value). And the run-33 subtraction
+  recurs: distribution's **single** bar series killed the `<Legend>`+series-names cleanup (nothing to disambiguate)
+  AND the dual-axis (one natural axis). A near-twin can be simpler than its already-simplified twin.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

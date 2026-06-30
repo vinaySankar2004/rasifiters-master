@@ -1549,3 +1549,55 @@ group NOT closed) + PROGRESS prepended. `npm run build` ✓ (`/summary/activity`
 `/summary` route; Recharts shared 208 kB; Middleware 27.4 kB active). **No feature bump, no new dependency.**
 **Next:** `summary/distribution` (next chart drill-down), `workout-types`, the 3 mobile log fallbacks; and/or the 8
 deferred `/members` sub-routes.
+
+---
+
+## Run 34 — `summary/distribution` (web), the 2nd of 6 `/summary` sub-routes (2026-06-29)
+
+**Target:** the **workout distribution by day-of-week** detail behind the summary landing's Distribution chart
+card. A SECOND near-twin in the `/summary` group (after run-33 `activity`) — and the **purest page in the group
+yet**.
+
+**Sweep (read-only):** legacy `summary/distribution/page.tsx` (73 lines) — `useAuthGuard()` default → `{token,
+programId}`; one `useQuery(["summary","distribution",programId])` → `fetchDistributionByDay`; maps the
+`{Sunday…Saturday}` record to `[{day,value}]`; one `GlassCard` with a **single** `BarChart` of `value`
+(`CHART_COLORS[2]`); Loading/Error. Backend `routes/analytics.js:89` `v1Router GET /distribution/day`
+(`authenticateToken`-only) → `getDistributionByDay(programId)` = program-wide **all-time** `COUNT(*)` by weekday
+over active memberships, **always returns all 7 keys** (0 if none; `analytics` D-C3 bucketed in explicit UTC). The
+api fn + `DistributionByDay` type already ported byte-identical with the summary landing (run 21); all chrome
+already ported. **No new dependency — the sweep ported nothing but the page itself.**
+
+**The 2-Q round (scope cut + stance; role rules NOT asked — fully code-answered):**
+- **D-SCOPE** = this page only — 2nd of 6, does NOT close the group (`workout-types` + 3 log fallbacks still deferred).
+- **Stance** = faithful + 1 cleanup (D-C1 all-zero empty-state guard). User picked the cleanup option.
+
+**The KEY confirmation (run-33's "subtract twin cleanups" applied AGAIN, harder):** of `activity`'s 2 cleanups,
+**ONE didn't transfer and ONE adapted**:
+- **`<Legend>` + series names — NOT applied.** `activity` added it because it has TWO color-only-distinguished bars;
+  distribution has a **single** series, so there is nothing to disambiguate (the subtitle already says "Workouts").
+- **Empty-state guard — ADAPTED, not copied.** `activity` keys off `buckets.length === 0`; distribution's backend
+  **always returns all 7 keys**, so `data.length` is never 0 — the guard had to key off the **sum** being 0
+  (`data.every(d => d.value === 0)`) to catch the all-zero-bars case. Same intent, different predicate.
+- **dual-Y-axis — NOT applied** (single counts series → one natural axis; the run-32 unit-mismatch trigger absent).
+
+So: a near-twin can be SIMPLER than its already-simplified twin, and a cleanup that "transfers" may need its
+predicate re-derived for THIS page's data shape — copying it verbatim would have been a no-op-then-bug
+(`data.length===0` never fires here).
+
+**Already-known patterns reconfirmed (not re-promoted):** no-new-dep purest shape (runs 27→33), read-only page →
+`admin_only_data_entry` N/A + ABSENCE-of-role-logic IS the finding (runs 22/32/33), already-tokenized → no tokenize
+cleanup (run 29), zero-backend / no-feature-bump consuming page (run 21), sub-route run does-not-close-the-group
+D-SCOPE (run 30 inverse).
+
+**New durable pattern (promoted to SKILL.md, folded into the run-33 lesson):**
+- **A "transferring" twin cleanup may need its PREDICATE re-derived for this page's data shape — copying it verbatim
+  can be a no-op-then-bug.** `activity`'s `buckets.length === 0` empty-state guard had to become a `sum === 0`
+  guard on `distribution` because that endpoint always returns all 7 weekday keys (`data.length` is never 0). The
+  cleanup's INTENT carries; its CONDITION must be re-checked against the endpoint's response shape. (Generalizes
+  run-33's "subtract cleanups that don't apply" to "and re-derive the predicate of the ones that do".)
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-DEPS/D-S1/D-C1; F1–F5; the "not applied" twin-cleanups note). COVERAGE summary
+row updated (distribution ✓; 2nd of 6, group NOT closed) + PROGRESS prepended. `npm run build` ✓
+(`/summary/distribution` prerendered, 2.01 kB — smallest `/summary` route, below `activity`'s 2.31 kB; Recharts
+shared 208 kB; Middleware 27.4 kB active). **No feature bump, no new dependency.** **Next:** `summary/workout-types`
+(last chart drill-down), the 3 mobile log fallbacks; and/or the 8 deferred `/members` sub-routes.
