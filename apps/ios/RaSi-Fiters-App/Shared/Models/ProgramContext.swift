@@ -76,6 +76,8 @@ final class ProgramContext: ObservableObject {
     @Published var memberMetricsRangeStart: Date?
     @Published var memberMetricsRangeEnd: Date?
     @Published var globalRole: String = "standard"
+    /// Active program's `admin_only_data_entry` flag (web parity: drives the Summary data-lock banner + disabled log cards).
+    @Published var adminOnlyDataEntry: Bool = false
     @Published var selectedMemberOverview: APIClient.MemberMetricsDTO?
     @Published var memberHistory: [APIClient.MemberHistoryPoint] = []
     @Published var memberHistoryLabel: String = ""
@@ -272,6 +274,11 @@ final class ProgramContext: ObservableObject {
 
     var canEditProgramData: Bool {
         isProgramAdmin
+    }
+
+    /// Web parity (`isDataEntryLocked`): the lock bites only non-admins when the program flag is on.
+    var dataEntryLocked: Bool {
+        adminOnlyDataEntry && !isProgramAdmin
     }
 
     var loggedInUserInitials: String {

@@ -9,6 +9,7 @@ extension ProgramContext {
         activeMembers = program.active_members ?? 0
         atRiskMembers = 0
         programId = program.id
+        adminOnlyDataEntry = program.admin_only_data_entry ?? false
         if let role = program.my_role {
             loggedInUserProgramRole = role
         }

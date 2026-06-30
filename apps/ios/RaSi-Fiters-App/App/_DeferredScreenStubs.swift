@@ -66,12 +66,9 @@ struct QuickAddHealthWidgetEntryView: View {
 
 // MARK: - Deferred tab bodies referenced by AdminHomeView (the 4-tab home shell)
 
-/// DEFERRED (Features/Home/Tabs/AdminSummaryTab.swift) — Tab 1 "Summary" (single, all roles).
-/// Carries the `period` binding to match the shell's `AdminSummaryTab(period: $summaryPeriod)` call site.
-struct AdminSummaryTab: View {
-    @Binding var period: AdminHomeView.Period
-    var body: some View { ScaffoldPlaceholder(screen: "Summary") }
-}
+// NOTE: AdminSummaryTab landed (Features/Home/Tabs/AdminSummaryTab.swift + SummaryCards.swift +
+// SummaryChartCards.swift) — stub removed. The 5 detail screens its cards navigate OUT to remain
+// deferred (below) — stubbed here so the Summary tab compiles, each DELETED when its real screen lands.
 
 /// DEFERRED (Features/Home/Tabs/AdminOtherTabs.swift) — Tab 2 "Members", program-admin variant.
 struct AdminMembersTab: View {
@@ -133,4 +130,36 @@ struct AppearanceSettingsView: View {
 /// DEFERRED (Features/Settings/NotificationsSettingsView.swift) — account-menu → Notifications.
 struct NotificationsSettingsView: View {
     var body: some View { ScaffoldPlaceholder(screen: "Notifications") }
+}
+
+// MARK: - Deferred detail screens referenced by AdminSummaryTab (the Summary tab's NavigationLink targets)
+// The iOS analogues of the web /summary sub-routes (log-workout / log-health / activity / distribution /
+// workout-types). Initializers match the AdminSummaryTab call sites so the tab compiles.
+
+/// DEFERRED (Features/Home/Detail/AddWorkoutDetailView.swift) — Summary "Add workout" card → log-workout form.
+struct AddWorkoutDetailView: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Add Workout") }
+}
+
+/// DEFERRED (Features/Home/Detail/AddDailyHealthDetailView.swift) — Summary "Log daily health" card → log-health form.
+struct AddDailyHealthDetailView: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Add Daily Health") }
+}
+
+/// DEFERRED (Features/Home/Detail/ActivityTimelineViews.swift) — Summary activity-timeline card → expanded timeline.
+struct ActivityTimelineDetailView: View {
+    var initialPeriod: AdminHomeView.Period
+    var body: some View { ScaffoldPlaceholder(screen: "Activity Timeline") }
+}
+
+/// DEFERRED (Features/Home/Detail/WorkoutDistributionViews.swift) — Summary distribution card → expanded distribution.
+struct DistributionByDayDetailView: View {
+    var points: [DistributionPoint]
+    var body: some View { ScaffoldPlaceholder(screen: "Workout Distribution") }
+}
+
+/// DEFERRED (Features/Home/Detail/WorkoutTypesDetailViews.swift) — Summary workout-types card → expanded breakdown.
+struct WorkoutTypesDetailView: View {
+    var types: [APIClient.WorkoutTypeDTO]
+    var body: some View { ScaffoldPlaceholder(screen: "Workout Types") }
 }

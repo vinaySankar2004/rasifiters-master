@@ -79,6 +79,38 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Summary dashboard: `AdminSummaryTab` PORTED (run 54, 2026-06-30).** The **first tab body** of
+the home shell — Tab 1 "Summary", the iOS analogue of web `/summary` — ported into
+`apps/ios/.../Features/Home/Tabs/{AdminSummaryTab,SummaryCards,SummaryChartCards}.swift` (SPEC
+`specs/pages/ios/admin-summary/`), the `AdminSummaryTab` deferred stub removed. It is a scrollable,
+**drag-reorderable** grid of **10 cards** (program-progress `CompletionRing` · MTD participation/workouts/
+duration/avg stat cards · activity-timeline + distribution **Swift Charts** · top-workout-types dot list · the
+two log action cards) over the **already-ported** analytics loaders (`ProgramContext+Analytics` + DTOs landed in
+the foundation run 50 — **zero backend work, no new api fn**). **D-SCOPE = the scope cut IS the run** (run-21/50/
+52/53 pattern, cross-platform): port the grid + all 10 cards (charts render live), **defer the 5 `NavigationLink`
+detail targets as `ScaffoldPlaceholder` stubs** (`AddWorkoutDetailView`, `AddDailyHealthDetailView`,
+`ActivityTimelineDetailView`, `DistributionByDayDetailView`, `WorkoutTypesDetailView` — the iOS analogues of the
+web `/summary` sub-routes, each a later run). **D-REF = keep iOS-native** (a reorderable card grid + native
+drill-downs vs web's fixed grid + routes/modals — platform idiom; the card set + MTD stats already match web).
+**Faithful 1:1 D-S1 + TWO web-parity ADDs (both user-picked):** **D-C1** a **visible error banner** — legacy set
+`errorMessage` (`AdminSummaryTab.swift:88`) but rendered it NOWHERE; web shows `ErrorState` (the run-52
+swallow-vs-surface mirror); **D-C2** the **`admin_only_data_entry` landing treatment** — a 🔒 banner (verbatim
+`DATA_LOCK_MESSAGE`) + dimmed/non-navigating log cards when `dataEntryLocked`, **absent from legacy iOS entirely**
+(it relied on the backend 403); required wiring `ProgramDTO.admin_only_data_entry` → new
+`ProgramContext.adminOnlyDataEntry`/`dataEntryLocked` (web `isDataEntryLocked` = flag-on && not-admin). **D-DEPS =
+no new dependency for the dashboard** (every analytics loader/DTO/theme/progress-computed ported in the
+foundation; newly ported WITH the cards because they lived only in deferred Detail files: `ScrollableBarChart`,
+`DistributionPoint`/`distributionPoints`, `DistributionChartOverlay`, `typeColor`/`barColor`). Role rules = **same
+for every role** (no role-conditional cards; matches web), `admin_only_data_entry` **LIVE on the landing** (D-C2).
+Flagged F1–F7 (iOS-only drag-reorder + `UserDefaults` persistence; vestigial `period`/`timelinePeriod` bindings —
+no selector renders, matches web F4/F5; 5 deferred detail stubs; 4×-duplicated inline `changeBadge`;
+`ChartOverlay`→`DistributionChartOverlay` rename; vestigial `SummaryCardType.span`; client-only lock UI).
+**The app target's build green-check is owned by the user (visual run in Xcode)** — symbols verified via grep
+(each card/type defined exactly once, all theme/context/DTO symbols resolve, the 5 detail stubs collision-free,
+no leftover Summary stub), not a CLI build (memory [[ios-user-verifies-builds-visually]]). **Next: another tab
+body — the Members pair (`AdminMembersTab`/`StandardMembersTab`), or a Summary detail view (the 5 stubs), via
+`question-asker`.**
+
 **Phase 4 — `ios` post-pick home shell: `AdminHomeView` PORTED (run 53, 2026-06-30).** The **post-auth home
 shell** — the iOS analogue of the web `(workspace)` group — ported into
 `apps/ios/.../Features/Home/AdminHomeView.swift` (SPEC `specs/pages/ios/admin-home/`), the deferred stub
@@ -160,24 +192,28 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT A TAB BODY — `AdminSummaryTab` (the dashboard, iOS analogue of web `/summary`) via `question-asker`
-> **`AdminHomeView` is DONE (run 53, 2026-06-30)** — the post-pick home **shell** (a 96-line native bottom
-> `TabView`, NOT a dashboard) ported into `apps/ios/.../Features/Home/AdminHomeView.swift` (SPEC
-> `specs/pages/ios/admin-home/`), the deferred stub removed. **D-SCOPE = the scope cut IS the run**: ported the
-> 4-tab shell verbatim (Summary single · Members/Lifestyle/Program role-bifurcated via `isProgramAdmin`; the
-> nested `Period` enum), **deferred the 7 tab bodies as `ScaffoldPlaceholder` stubs**. **D-REF = keep
-> iOS-native `TabView`** (web's 4-top-level-routes nav is a platform-idiom divergence — tab set/order already
-> match web). Faithful 1:1 D-S1 (pure nav, no API, no web-parity deviation); D-DEPS no new dependency.
-> **NEXT = port a TAB BODY** — the 7 the shell stubs (`_DeferredScreenStubs.swift`): `AdminSummaryTab` (the
-> dashboard cards — the iOS analogue of web `/summary`, the natural first), then the role-bifurcated
-> Members/Lifestyle/Program pairs. **Each tab body drags in the `Tabs/Section` + `Detail/` + `Settings/` +
-> `Sheets/` universe** (the whole authed surface) — expect each to be its own "scope cut IS the run" with
-> further deferrals. **Also still deferred from the picker**: `ProgramActionsSheet` (create+invites — the "+"
-> target), `EditProgramInfoView`, and the 4 account screens (`MyProfileView`/`ChangePasswordView`/
-> `AppearanceSettingsView`/`NotificationsSettingsView`). Run `question-asker` per screen, **match the current
-> web sibling** (`/summary` group) + faithful legacy iOS, delete each stub when it lands. **The user verifies
-> the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI
-> toolchain. The pre-iOS web/deploy context is retained below for reference.
+> ### ⏭️ ON "continue" → PORT ANOTHER TAB BODY — the Members pair (`AdminMembersTab`/`StandardMembersTab`) OR a Summary detail view (the 5 stubs), via `question-asker`
+> **`AdminSummaryTab` is DONE (run 54, 2026-06-30)** — Tab 1 "Summary", the iOS analogue of web `/summary`,
+> ported into `apps/ios/.../Features/Home/Tabs/{AdminSummaryTab,SummaryCards,SummaryChartCards}.swift` (SPEC
+> `specs/pages/ios/admin-summary/`), the deferred stub removed. **D-SCOPE = the scope cut IS the run**: ported
+> the drag-reorderable grid + all 10 cards (Swift Charts render live), **deferred the 5 `NavigationLink` detail
+> targets as `ScaffoldPlaceholder` stubs** (`AddWorkoutDetailView`/`AddDailyHealthDetailView`/
+> `ActivityTimelineDetailView`/`DistributionByDayDetailView`/`WorkoutTypesDetailView` — the iOS analogues of the
+> web `/summary` sub-routes). **D-REF = keep iOS-native** (reorderable grid + native drill-downs vs web routes/
+> modals). Faithful 1:1 D-S1 **+ 2 web-parity ADDs**: D-C1 visible error banner (legacy swallowed it), D-C2 the
+> `admin_only_data_entry` 🔒 banner + dimmed log cards (absent in legacy iOS; wired `ProgramDTO`→`ProgramContext`).
+> D-DEPS no new dep for the dashboard (the analytics layer landed in the foundation; `ScrollableBarChart`/
+> `DistributionPoint`/`typeColor` ported with the cards). **NEXT = another tab body** — the role-bifurcated
+> **Members** pair (`AdminMembersTab`/`StandardMembersTab` — the iOS analogue of web `/members`) is the natural
+> next, then Lifestyle + Program; **OR** a **Summary detail view** (one of the 5 stubs — the iOS log forms +
+> chart drill-downs, the analogues of web `/summary/{log-workout,log-health,activity,distribution,workout-types}`).
+> **Each Members/Lifestyle/Program tab body drags in the `Tabs/Section` + `Detail/` + `Settings/` + `Sheets/`
+> universe** — expect each to be its own "scope cut IS the run" with further deferrals. **Also still deferred from
+> the picker**: `ProgramActionsSheet` (create+invites — the "+" target), `EditProgramInfoView`, and the 4 account
+> screens (`MyProfileView`/`ChangePasswordView`/`AppearanceSettingsView`/`NotificationsSettingsView`). Run
+> `question-asker` per screen, **match the current web sibling** + faithful legacy iOS, delete each stub when it
+> lands. **The user verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) —
+> don't fight the local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
 >
 > **REMINDER for every iOS screen:** the web app is now a co-equal reference point — port to match what the
 > built web app ships, resolving cross-app divergences toward web parity unless there's a platform reason not

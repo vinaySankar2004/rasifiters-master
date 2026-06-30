@@ -14,6 +14,7 @@ extension APIClient {
         let enrollments_closed: Bool?
         let my_role: String?
         let my_status: String?
+        let admin_only_data_entry: Bool?
     }
 
     struct CreateProgramResponse: Decodable {
