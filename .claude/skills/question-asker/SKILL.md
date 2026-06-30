@@ -709,6 +709,26 @@ directly as a faithful port from the legacy reference app** — there is no inte
   nav-cleanup stayed un-offered — the page **stays put** after a send, showing the success box in place, so there's
   no `router.back()`/`router.push` to make deterministic; run-40's "check the legacy nav calls first" generalizes to
   "a page that doesn't navigate has no nav cleanup".)
+- **Run 42 — `members/metrics` (the program-wide metrics dashboard): the entry-path asymmetry can INVERT, and the
+  tokenize spectrum's full-tokenize end is a legit user pick even where a prior run kept faithful.** Two durable
+  patterns. **(a) The run-39 entry-path asymmetry inverts.** Run-39's `members/list` had a landing pill LAXER than
+  the action (the "View Members" pill showed for roles that then couldn't act on a row). Run-42's `members/metrics`
+  is the mirror: the only link to the page is the landing's metrics card gated `{isProgramAdmin && …}`
+  (`members/page.tsx:281`), yet the page has **no role gate** (`useAuthGuard()` default, no redirect, no
+  role-conditional UI) and the backend `getMemberMetrics` enforces only `ensureProgramAccess` — so the entry-link is
+  **STRICTER** than the page/backend (any active member who navigates directly gets the full program-wide
+  leaderboard). Either direction is a faithful F-row — flag the mismatch, name the real boundary (the backend
+  service), keep both; don't "fix" the page to match the link. (Corollary, the secure characteristic: member-analytics
+  routes carry `authenticateToken` at the router but enforce `ensureProgramAccess` in the SERVICE — unlike the
+  `/summary` analytics' route-only `authenticateToken` (run-13 F2); grep the SERVICE, not just the route, for the
+  per-program read gate.) **(b) The tokenize-cleanup spectrum's FULL-tokenize end is the user's to pick, even against
+  a prior keep-faithful precedent.** Run-27 kept an amber chip faithful (dark-ink-on-light-amber has no clean
+  theme-flipping token); run-42's identical-shape amber flame badge (`bg-amber-200/70 text-amber-900`) was
+  **full-tokenized** to `bg-rf-warning/20 text-rf-warning` because `rf-warning` exists and the user owns the bg/ink
+  contrast trade-off. Offer all three — keep-faithful (lead, cite the precedent), bg-only (theme-aware bg, kept ink,
+  flag the dark-mode contrast risk), full-tokenize (fully theme-aware, changes the look) — and don't pre-decide; the
+  recommendation can lose. The per-site palette grep (runs 26→27→28→29) is the constant; the *outcome* spans
+  keep-faithful → selective → all-clean → full-tokenize and is a real fork, not a mechanical default.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
