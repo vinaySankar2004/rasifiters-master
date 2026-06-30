@@ -1816,3 +1816,47 @@ COVERAGE summary row updated (bulk-log-workout ✓; **6 of 6 — group CLOSED**)
 27.5 kB active). **No feature bump, no new dependency.** **Next:** the `/summary` group is now COMPLETE (6/6) — the
 SUB-ROUTE layer continues with the 8 deferred `/members` sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/
 `streaks`/`workouts`/`health`).
+
+## Run 39 — `members/list` (web page spec #25; `/members` sub-route 1 of 8 — opens the group) — 2026-06-29
+
+**Target:** the **active-member roster** behind the `/members` landing's "View Members" pill — a `PageShell` +
+`PageHeader` ("Members" / program name / `backHref="/members"`) wrapping a search `GlassCard` + a grid of `MemberRow`
+cards over `fetchMembershipDetails` (`GET /program-memberships/details`), client-filtered to `status==="active"` +
+client name search. **1st** of the eight deferred `/members` sub-routes; the entry point to the deferred
+`/members/detail` editor (global_admin-only row click).
+
+**Shape:** the **purest no-new-dep read page** — 113-line legacy file, every import already ported, the sweep ports
+nothing but the page file. Confirm-style run: read the legacy page in full + confirm each dep exists + a SINGLE stance
+`AskUserQuestion`. Genuinely-open decision count = ONE (stance + the one tokenize cleanup); scope (this page; 1st of 8)
+and deps (none) are fact-determined; role rules fully code-answered.
+
+**The key dep finding (the new wrinkle):** a `/members` sub-route's CORE api dependency came from a **different feature
+family's** already-ported module — `fetchMembershipDetails`/`MembershipDetail` live in `lib/api/programs.ts` (ported
+with the `program` landing run 24 / `program/roles` run 26, already consumed by 2 live pages), **not** in the members
+landing's `lib/api/members.ts` (run 22 ported that for the analytics cards). So "no new dependency" held even though the
+*members landing* never touched this fn. Lesson: when sizing a sub-route's deps, grep the actual import paths — the
+legacy file's imports may point at a sibling family's module, not the landing's own.
+
+**Stance:** user picked **faithful + D-C1 tokenize** — the "Inactive" badge's literal `bg-red-100 text-red-600` →
+theme-aware `bg-rf-danger/10 text-rf-danger` (the soft-tinted danger pill; the only untokenized color on the page;
+avatar/star/text all already `rf-*`). The runs 27/28/29 tokenize-spectrum recurs: here a single per-site grep found ONE
+untokenizable literal → one clean swap (not all-clean like run 28, not nothing like run 29).
+
+**Role rules — fully code-answered (no question):** `useAuthGuard()` default, **no admin redirect**; every role sees the
+same roster; only `isGlobalAdmin` makes rows clickable → `/members/detail`. `admin_only_data_entry` **N/A** (read-only
+list — the run-22/33 read-only-dashboard finding). Notable F-row: an **entry-path asymmetry** — the landing's "View
+Members" pill shows when `!canViewAs` (loggers/members) yet only global_admin can act on a row, so the roles that reach
+the page via the pill see a purely informational list while global_admin (who arrives by other nav) gets the clickable
+version. The `status` (membership) vs `is_active` (account) distinction is a second faithful F-row.
+
+**Already-known patterns reconfirmed (not re-promoted):** no-new-dep purest read page (runs 27/29/31); selective per-site
+tokenize cleanup (runs 27/31); read-only page → `admin_only_data_entry` N/A (runs 22/33); a sub-route run OPENS a new
+group (the inverse of run 30/32/38's "closes the group" — say "1st of N, does not close" in D-SCOPE); zero-backend /
+no-feature-bump consuming page (the route already mounted + gated, already consumed by 2 live pages); client-side
+filter/search over already-loaded rows (the run-21 client-vs-server call — here the page is read-only so it's a flagged
+characteristic, not a decision).
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-REF/D-DEPS/D-S1/D-C1; F1–F5). COVERAGE members-dashboard row updated (list ✓; 1 of 8)
++ PROGRESS prepended. `npm run build` ✓ (`/members/list` prerendered, 2.37 kB — no Recharts; Middleware 27.5 kB active).
+**No feature bump, no new dependency.** **Next:** the `/members` sub-route group continues — `detail` (the global_admin
+editor this list links to), then `invite`/`metrics`/`history`/`streaks`/`workouts`/`health`.

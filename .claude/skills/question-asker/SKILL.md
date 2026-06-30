@@ -659,6 +659,22 @@ directly as a faithful port from the legacy reference app** — there is no inte
   form because every reachable role is `canLogForAny`), it's an F-row, not an `AskUserQuestion`. The genuinely-open
   count stayed ONE (stance + D-C1), a single call. And a sub-route run can CLOSE its group (run 30/32 corollary):
   flip COVERAGE `[~]`→`[x]`, say so in D-SCOPE + PROGRESS — the `/summary` layer is now 6/6.
+- **Run 39 — a sub-route's CORE dependency can live in a DIFFERENT feature family's already-ported module — grep the
+  legacy file's actual import paths before sizing deps.** `members/list` (1st of the 8 `/members` sub-routes) imported
+  `fetchMembershipDetails`/`MembershipDetail` from `@/lib/api/programs` — ported with the `program` landing run 24 /
+  `program/roles` run 26 (already consumed by 2 live pages), **not** from the members landing's `lib/api/members.ts`
+  (run 22). So "no new dependency" held even though the *members landing never touched this fn*. Don't assume a
+  sub-route's deps come from its OWN family's landing-run port — the import path is the source of truth; the run-19/20
+  "page drags in shared deps" pattern includes deps already landed by an unrelated sibling. The rest was the purest
+  no-new-dep read page (runs 27/29/31): a 113-line confirm-style port, genuinely-open count = ONE (stance + one
+  tokenize cleanup — the "Inactive" badge `bg-red-100 text-red-600` → `bg-rf-danger/10 text-rf-danger`, the run-27/28
+  selective-tokenize with exactly one untokenizable site). Role rules fully code-answered: no admin redirect, every
+  role sees the same roster, only `isGlobalAdmin` gets clickable rows → the deferred `/members/detail`;
+  `admin_only_data_entry` N/A (read-only — run 22/33). And the inverse of run 30/32/38's "closes the group": a run can
+  OPEN a group — say "1st of N, does not close" in D-SCOPE. Two faithful F-rows worth noting: an **entry-path
+  asymmetry** (the landing's "View Members" pill shows for `!canViewAs` loggers/members, yet only global_admin can act
+  on a row — so the pill-reachers see a purely informational list) and the **`status` (membership) vs `is_active`
+  (account)** distinction (the list filters by one boolean, badges by the other).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
