@@ -1601,3 +1601,68 @@ row updated (distribution ✓; 2nd of 6, group NOT closed) + PROGRESS prepended.
 (`/summary/distribution` prerendered, 2.01 kB — smallest `/summary` route, below `activity`'s 2.31 kB; Recharts
 shared 208 kB; Middleware 27.4 kB active). **No feature bump, no new dependency.** **Next:** `summary/workout-types`
 (last chart drill-down), the 3 mobile log fallbacks; and/or the 8 deferred `/members` sub-routes.
+
+---
+
+## Run 35 — `summary/workout-types` (web), the 3rd of 6 `/summary` sub-routes — LAST chart drill-down (2026-06-29)
+
+**Target:** `summary/workout-types` page — the **top workout types** detail behind the summary landing's Workout
+Types card (legacy `rasifiters-webapp/src/app/summary/workout-types/page.tsx`, 80 lines). Third of the six deferred
+`/summary` sub-routes; the **last of the three chart drill-downs** (`activity`+`distribution`+this), so it
+completes the drill-down trio (the remaining 3 are the mobile log fallbacks).
+
+**Shape:** one `GlassCard` with a **single-series** `BarChart` of session count per workout type
+(`CHART_COLORS[0]`, X-axis labels hidden via `tick={false}` — names are long) **plus a ranked `<ul>` detail list**
+below (name · sessions · avg min). `useAuthGuard()` default → `useQuery(["summary","workoutTypes",programId])` →
+`fetchWorkoutTypes(token, programId, 100)`. **Same purest shape as `distribution`:** no `PeriodSelector`, NO
+`useState`, NO state; program-wide + program-to-date (no period, no `memberId`, no view-as, no role logic). The
+sweep ported NOTHING but the page itself (every import already ported — `fetchWorkoutTypes`+`WorkoutType` landed
+with the summary landing run 21).
+
+**Questions:** the tight confirm-heavy shape, 2 Qs (scope + stance). User picked **this page only** (3rd of 6,
+does-not-close-group) + **faithful + the one group-consistency cleanup**.
+
+**Decisions:** D-SCOPE (this page only) · D-DEPS (no new dependency) · D-S1 (faithful 1:1) · **D-C1 styled
+empty-state panel** — upgrade the legacy plain `<p>` to `distribution`'s `rf-surface-muted` panel so all 3
+drill-downs share one empty-state look.
+
+**The run-34 predicate re-check came back CLEAN — the key lesson of this run.** Run 34 had to CHANGE
+`activity`'s `buckets.length===0` guard to a `sum===0` guard because the distribution endpoint always returns 7
+keys. So this run dutifully re-checked workout-types' empty-state predicate against ITS endpoint shape — and
+found the legacy `data.length === 0` is **already correct**: `getWorkoutTypes` returns a **variable-length array**
+(`[]` when no workouts), so an empty array IS the empty case. The cleanup here is therefore **STYLING only** (the
+panel), NOT the predicate. The run-34 discipline ("re-derive a transferring cleanup's predicate against this
+page's response shape") is the constant; the OUTCOME varies — sometimes the predicate already fits and only the
+presentation is the cleanup. Don't over-correct a predicate that's already right.
+
+**Twin cleanups subtracted (run 33):** `<Legend>`+series-names NOT applied (single series — nothing to
+disambiguate); dual-Y-axis NOT applied (single counts series → one natural axis). Already fully `rf-*` tokenized →
+no tokenize cleanup (run 29).
+
+**New flag worth noting (F5):** the detail page passes `limit=100` while the landing preview passes `limit=50`
+under the **SAME** query key `["summary","workoutTypes",programId]`. React Query dedupes by key (not by `queryFn`
+args), so the two share ONE cache entry — whichever mounts first wins until refetch. Latent inconsistency, harmless
+in practice (50 ≤ 100; real programs rarely exceed 50 types). A per-limit cache key would be a rebuild cleanup. The
+lesson: **when two pages share a query key but pass different fetch args, flag the dedupe** — it's a faithful-kept
+oddity easy to miss.
+
+**Already-known patterns reconfirmed (not re-promoted):** no-new-dep purest shape (runs 27→34), read-only →
+`admin_only_data_entry` N/A + ABSENCE-of-role-logic IS the finding (runs 22/32/33/34), already-tokenized → no
+tokenize cleanup (run 29), zero-backend / no-feature-bump consuming page (run 21), subtract twin cleanups that
+don't apply (run 33), sub-route does-not-close-group D-SCOPE (run 30 inverse).
+
+**New durable pattern (promote to the run-33/34 lesson):**
+- **The run-34 predicate re-check can come back CLEAN — sometimes a transferring cleanup's legacy predicate is
+  already correct for THIS page, so only the STYLING/presentation is the cleanup, not the condition.** Re-derive
+  the predicate every time (the discipline), but don't manufacture a predicate change when the legacy one already
+  fits the endpoint's response shape (`data.length===0` is right for a variable-length array; it was wrong only
+  for distribution's always-7-keys). Corollary: **when two pages share a React Query key but pass different fetch
+  args (limit 50 vs 100), flag the dedupe-to-one-cache-entry** as a faithful-kept oddity.
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-DEPS/D-S1/D-C1; F1–F7; the "not applied" twin-cleanups note). COVERAGE summary
+row updated (workout-types ✓; 3 of 6, all chart drill-downs complete, group NOT closed) + PROGRESS prepended.
+`npm run build` ✓ (`/summary/workout-types` prerendered, 2.07 kB — between distribution's 2.01 kB and activity's
+2.31 kB; Recharts shared 208 kB; Middleware 27.5 kB active). **No feature bump, no new dependency.** **Next:** the
+`/summary` group's last 3 sub-routes are the mobile log fallbacks (`log-workout`/`log-health`/`bulk-log-workout` —
+standalone-page ports of the 3 desktop modals already live on the landing); and/or the 8 deferred `/members`
+sub-routes.

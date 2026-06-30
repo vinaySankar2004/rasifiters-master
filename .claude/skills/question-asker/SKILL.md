@@ -602,7 +602,18 @@ directly as a faithful port from the legacy reference app** — there is no inte
   off the **sum** (`data.every(d => d.value === 0)`) instead. The cleanup's INTENT carries; its CONDITION must be
   re-checked against the endpoint's response shape (grep the service's return value). And the run-33 subtraction
   recurs: distribution's **single** bar series killed the `<Legend>`+series-names cleanup (nothing to disambiguate)
-  AND the dual-axis (one natural axis). A near-twin can be simpler than its already-simplified twin.
+  AND the dual-axis (one natural axis). A near-twin can be simpler than its already-simplified twin. **Run 35
+  closed the loop: the run-34 predicate re-check can come back CLEAN — re-derive every time, but don't manufacture
+  a predicate change when the legacy one already fits.** `summary/workout-types` (3rd `/summary` sub-route, LAST
+  chart drill-down, near-twin of `distribution`) dutifully re-checked its empty-state guard and found the legacy
+  `data.length === 0` is *already correct* — `getWorkoutTypes` returns a **variable-length array** (`[]` when
+  empty), so an empty array IS the empty case (unlike distribution's always-7-keys, where `data.length` never
+  fires). So the cleanup was STYLING only (match distribution's `rf-surface-muted` panel), NOT the predicate. The
+  discipline (re-derive the predicate against THIS endpoint's response shape) is the constant; the OUTCOME varies —
+  sometimes it already fits. `<Legend>`/dual-axis stayed subtracted (single counts series). Corollary: **when two
+  pages share a React Query key but pass different fetch args (the landing's `limit=50` vs the detail's `limit=100`
+  under `["summary","workoutTypes",programId]`), flag the dedupe-to-one-cache-entry** as a faithful-kept oddity
+  (React Query dedupes by key, not by `queryFn` args).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
