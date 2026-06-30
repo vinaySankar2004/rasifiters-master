@@ -42,6 +42,31 @@ INERT + currently incompatible with Supabase ES256** (see Open questions). Next:
 
 ## Next action
 
+> **On "continue": Phase 3 `web` in progress — the `/lifestyle` SUB-ROUTE GROUP IS NOW COMPLETE (2 of 2).** The
+> **`lifestyle/timeline` page (18th web page, 2nd & LAST `/lifestyle` sub-route) is DONE** (2026-06-29): faithful 1:1
+> port of the legacy **sleep + diet-quality health timeline** detail behind the lifestyle landing's timeline chart
+> card — a `PeriodSelector` (W/M/Y/P) over one `GlassCard` (range + daily-avg-sleep/diet header + a `ComposedChart`
+> of sleep hours as bars + diet quality 1–5 as a line, over `daily_health_logs`). **Read-only** → `admin_only_data_entry`
+> **N/A**. **KEY SHAPE: no view-as picker on this page** (unlike the `/lifestyle`/`/members` landings) — data scope
+> comes purely from the URL `memberId` the landing passes (`resolvedMemberId`: URL `memberId` → that; else admin →
+> program-wide; else own id); **no admin redirect**, available to every role (F2). `useAuthGuard()` default
+> (`requireProgram: true`). **D-SCOPE** = this page only — **and it CLOSES the `/lifestyle` group** (2nd & last
+> sub-route; landing run 23 + `workouts` run 31 + this). **D-DEPS** = ONE new chrome leaf **`ui/PeriodSelector.tsx`**
+> ported verbatim (D-C1; the `.segmented-control` CSS class was already in `globals.css`); every other import already
+> ported — `fetchHealthTimeline` landed byte-identical with the landing (run 23). **Stance = CHANGE NOW** (user picked
+> all 3 offered chart cleanups): **D-C2** dual Y-axis (sleep-hrs on a left axis `[0, sleepMax*1.1]`, diet-1–5 on a
+> right axis `[0,5]` — fixes the legacy single-shared-axis scale-mixing F3 where the diet line sat flat under the
+> bars), **D-C3** add a `<Legend>` (series carry `name="Sleep"`/`name="Diet"`; tooltip formatter keys off `name`),
+> **D-C4** axis unit labels ("hrs" / "/ 5"). Faithful otherwise (D-S1 — same `resolvedMemberId`/query-key/`enabled`
+> gate/header/empty-state/`force-dynamic`; already fully `rf-*` tokenized so NO tokenize cleanup). **Zero backend work,
+> NO feature bump** — `GET /api/analytics/health/timeline` already mounted (`routes/analytics.js:74`,
+> `authenticateToken`-only) + the api fn already ported. Flagged F1–F5 (backend has no per-program read authz on the
+> timeline route — analytics F2; no view-as picker; client JWT-decode role gate; `admin_only_data_entry` N/A; diet
+> right-axis hard-pinned `[0,5]`). `npm run build` ✓ (`/lifestyle/timeline` prerendered, **2.68 kB**; Recharts shared;
+> Middleware 27.4 kB active). **Committed via `git-version` next; lessons run 32 appended.** **NEXT = the SUB-ROUTE layer
+> continues elsewhere: the 8 deferred `/members` sub-routes and/or the 6 deferred `/summary` sub-routes (the `/lifestyle`
+> group is now done — all 3 of landing + workouts + timeline).**
+>
 > **On "continue": Phase 3 `web` in progress — the `/lifestyle` SUB-ROUTE GROUP HAS STARTED (1 of 2).** The
 > **`lifestyle/workouts` page (17th web page, 1st of the 2 deferred `/lifestyle` sub-routes) is DONE** (2026-06-29):
 > faithful 1:1 port of the legacy **workout-TYPE management** screen behind the `/lifestyle` landing's "Manage
