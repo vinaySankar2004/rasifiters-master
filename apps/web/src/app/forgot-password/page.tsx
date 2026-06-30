@@ -31,7 +31,6 @@ export default function ForgotPasswordPage() {
   const { session, isBootstrapping } = useAuth();
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const trimmedEmail = email.trim();
@@ -55,8 +54,9 @@ export default function ForgotPasswordPage() {
 
     try {
       await requestPasswordReset(trimmedEmail);
-      // Always show the same generic confirmation regardless of whether the email exists (no enumeration).
-      setSubmitted(true);
+      // Always proceed to the code step regardless of whether the email exists (no enumeration) — the
+      // email is carried so the user only types the code + new password next.
+      router.push(`/reset-password?email=${encodeURIComponent(trimmedEmail)}`);
     } catch (error) {
       // A genuine failure (network / 500) isn't account-existence info — surface a neutral retry message
       // and keep the contact fallback below prominent.
@@ -83,16 +83,11 @@ export default function ForgotPasswordPage() {
         <div className="mt-8 text-center">
           <h1 className="text-2xl font-semibold text-rf-text sm:text-3xl">Reset your password</h1>
           <p className="mt-2 text-sm font-semibold text-rf-text-muted sm:text-base">
-            Enter your email and we&apos;ll send you a link to reset it.
+            Enter your email and we&apos;ll send you a code to reset it.
           </p>
         </div>
 
-        {submitted ? (
-          <div className="mt-10 w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-700 sm:text-base">
-            If an account with that email exists, we&apos;ve sent a password reset link. Check your inbox
-            (and your spam folder).
-          </div>
-        ) : (
+        {(
           <form onSubmit={handleSubmit} className="mt-10 flex w-full flex-col gap-4">
             <label className="input-shell flex items-center gap-3 rounded-2xl px-4 py-3">
               <input
@@ -123,7 +118,7 @@ export default function ForgotPasswordPage() {
               disabled={!canSubmit}
               className="button-primary button-primary--dark-white mt-2 inline-flex min-h-[50px] items-center justify-center rounded-full px-8 text-base font-semibold"
             >
-              {isLoading ? "Sending..." : "Send reset link"}
+              {isLoading ? "Sending..." : "Send reset code"}
             </button>
           </form>
         )}

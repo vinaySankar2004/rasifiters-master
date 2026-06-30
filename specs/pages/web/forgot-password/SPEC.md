@@ -1,7 +1,9 @@
 # Page: `forgot-password` (web) — request a password reset (auth-recovery, step 1)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/forgot-password` (reached from the `/login` "Forgot your password?" link — login SPEC D-C1).
+> **v0.2.0:** recovery now emails a **typed 6-digit code** (not a magic link — Outlook Safe Links was
+> pre-consuming the single-use link). On submit this page routes to `/reset-password?email=…` to enter the code.
 > **Reference impl (legacy):** **NONE — 100% net-new.** No `/forgot-password` exists on either legacy
 > client (web or iOS); confirmed `question-asker` run 16. This page exists only because the migration to
 > Supabase Auth enables self-service recovery (the whole reason that provider was chosen).
@@ -133,4 +135,5 @@ visitor never sees the page (redirected to `/programs`).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-06-30 | **Magic-link → typed 6-digit code.** Copy now says "send you a **code**" / "Send reset code"; on a successful `requestPasswordReset` the page **routes to `/reset-password?email=…`** (carrying the email, still privacy-safe — navigates regardless of account existence) instead of showing an inline "check your inbox" panel. The always-visible mailto fallback is unchanged. Driven by `auth` v0.6.0 (Outlook Safe Links pre-consumed the single-use link → `otp_expired`). `npx tsc --noEmit` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 17) — the **third web page spec** (after splash, login) and the **first net-new page** (no legacy reference; recovery existed on neither client). Documents `/forgot-password`: email-only field with **inline format validation** (D-C2), **always-send + generic success** (privacy-safe, no enumeration), an **always-visible `mailto:` contact fallback** for placeholder no-email accounts (D-C1), reset routed **through Express** (R1, D-C3), already-authed → `/programs` redirect. Consumes `auth` v0.3.0 (`requestPasswordReset()` `POST /auth/forgot-password`). **Scope (D-SCOPE): page + the one backend route this run; `/reset-password` + `POST /auth/reset-password` next run.** Flagged F1–F5 (form flash; no client rate-limit; iOS recovery gap; reset-page forward dependency; placeholder support email). Ported `apps/web/src/app/forgot-password/page.tsx` + `SUPPORT_EMAIL` (`config.ts`) + `requestPasswordReset()` (`api/auth.ts`); `npm run build` ✓ (`/forgot-password` prerendered, 3.94 kB). |

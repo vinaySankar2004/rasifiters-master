@@ -68,15 +68,15 @@ export async function requestPasswordReset(email: string) {
   });
 }
 
-// Self-service password recovery — reset (consume) step. The /reset-password page extracts the Supabase
-// recovery access_token from the email-link fragment and passes it here as the Bearer token; the backend
-// (authenticateToken + changePassword) sets the new password. R1: the client never embeds Supabase — the
-// token round-trips through Express. A 401 means the recovery link expired/was invalid.
-export async function resetPassword(accessToken: string, newPassword: string) {
+// Self-service password recovery — reset (consume) step via a typed 6-digit code. The /reset-password page
+// collects the email (carried from forgot-password), the code from the recovery email, and the new
+// password; the backend verifyOtp-consumes the code and sets the password. Public (the code is the proof).
+// A 401 means the code is invalid or expired. Switched off the magic link because email scanners
+// (Outlook Safe Links) pre-consumed the single-use link.
+export async function resetPasswordWithCode(email: string, code: string, newPassword: string) {
   return apiRequest<{ message?: string }>("/auth/reset-password", {
     method: "POST",
-    token: accessToken,
-    body: { new_password: newPassword }
+    body: { email, code, new_password: newPassword }
   });
 }
 

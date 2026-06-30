@@ -3,20 +3,20 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { BrandMark } from "@/components/BrandMark";
-import { resetPassword } from "@/lib/api/auth";
+import { resetPasswordWithCode } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
-import { useAuth } from "@/lib/auth/auth-provider";
 
-// NET-NEW page (no legacy reference) — the SECOND step of the Supabase-Auth self-service recovery path,
-// the destination of the reset email's link. See specs/pages/web/reset-password/SPEC.md.
+// NET-NEW page (no legacy reference) — the SECOND step of the Supabase-Auth self-service recovery path.
+// See specs/pages/web/reset-password/SPEC.md.
 //
-// Flow (auth SPEC D-C5): Supabase uses the IMPLICIT flow, so the email link lands here with the recovery
-// session in the URL fragment (#access_token=...&type=recovery). This page reads that fragment, shows a
-// new-password form, and forwards the access_token as the Bearer to POST /auth/reset-password — the client
+// Flow (auth SPEC D-C5, revised): recovery now uses a typed 6-digit CODE, not a magic link — email
+// scanners (Outlook Safe Links) were pre-consuming the single-use link. The user arrives here from
+// forgot-password with their email in the query string (?email=…), enters the code from the recovery
+// email + a new password, and POSTs to /auth/reset-password { email, code, new_password }. The client
 // never embeds Supabase (R1). On success the user is sent to /login to sign in with the new password.
 
 // Mirrors the server-side validatePassword policy (authService.js): >=8 chars, a lowercase, an uppercase,
@@ -24,18 +24,15 @@ import { useAuth } from "@/lib/auth/auth-provider";
 const isStrongPassword = (pw: string) =>
   pw.length >= 8 && /[a-z]/.test(pw) && /[A-Z]/.test(pw) && /[0-9]/.test(pw);
 
-// Where login confirms the reset (a new ?reason banner case on the login page).
+// Where login confirms the reset (a ?reason banner case on the login page).
 const LOGIN_AFTER_RESET = "/login?reason=password-reset";
 
-export default function ResetPasswordPage() {
+function ResetPasswordInner() {
   const router = useRouter();
-  const { session, isBootstrapping } = useAuth();
+  const searchParams = useSearchParams();
+  const email = (searchParams.get("email") ?? "").trim();
 
-  // The recovery access_token, read once from the URL fragment on mount. `undefined` = not yet parsed,
-  // `null` = parsed but absent/invalid (show the "link expired" state).
-  const [accessToken, setAccessToken] = useState<string | null | undefined>(undefined);
-  const [linkError, setLinkError] = useState<string | null>(null);
-
+  const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -43,65 +40,27 @@ export default function ResetPasswordPage() {
   const [submitted, setSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Parse the recovery session from the URL fragment, then scrub it from the address bar so the token
-  // doesn't linger in history. Supabase puts either the session (#access_token=...&type=recovery) or an
-  // error (#error=...&error_description=...) in the fragment.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.location.hash.startsWith("#")
-      ? window.location.hash.slice(1)
-      : window.location.hash;
-    const params = new URLSearchParams(raw);
-
-    const error = params.get("error_description") || params.get("error");
-    const token = params.get("access_token");
-
-    if (error) {
-      setLinkError(error.replace(/\+/g, " "));
-      setAccessToken(null);
-    } else if (token) {
-      setAccessToken(token);
-    } else {
-      setAccessToken(null);
-    }
-
-    if (window.location.hash) {
-      window.history.replaceState(null, "", window.location.pathname + window.location.search);
-    }
-  }, []);
-
-  // Consistent with splash/login/forgot: an already-authenticated visitor is sent to /programs — but
-  // NOT when a recovery token is present (a logged-in user who clicked a reset link should still reset).
-  useEffect(() => {
-    if (!isBootstrapping && session && accessToken === null && !linkError) {
-      router.replace("/programs");
-    }
-  }, [isBootstrapping, session, accessToken, linkError, router]);
-
+  const codeDigits = useMemo(() => code.replace(/\D/g, ""), [code]);
   const passwordStrong = useMemo(() => isStrongPassword(password), [password]);
   const passwordsMatch = confirm.length > 0 && password === confirm;
   const showPolicyHint = password.length > 0 && !passwordStrong;
   const showMatchHint = confirm.length > 0 && !passwordsMatch;
-  const canSubmit = Boolean(accessToken) && passwordStrong && passwordsMatch && !isLoading;
+  const canSubmit =
+    Boolean(email) && codeDigits.length === 6 && passwordStrong && passwordsMatch && !isLoading;
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!canSubmit || !accessToken) return;
+    if (!canSubmit) return;
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      await resetPassword(accessToken, password);
+      await resetPasswordWithCode(email, codeDigits, password);
       setSubmitted(true);
-      // Brief confirmation, then to login to sign in with the new password.
       setTimeout(() => router.replace(LOGIN_AFTER_RESET), 2200);
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
-        // The recovery token expired / was already used — only a fresh link can recover.
-        setAccessToken(null);
-        setLinkError(
-          "This password reset link has expired or has already been used. Request a new one below."
-        );
+        setErrorMessage("That code is invalid or has expired. Request a new one below.");
       } else if (error instanceof Error && error.message) {
         // e.g. the server password-policy 400 — surface it inline.
         setErrorMessage(error.message);
@@ -112,8 +71,6 @@ export default function ResetPasswordPage() {
       setIsLoading(false);
     }
   };
-
-  const showForm = accessToken !== null && !linkError;
 
   return (
     <div className="relative flex min-h-screen flex-col items-center px-6 pb-12 pt-14 sm:px-10 sm:pt-20">
@@ -128,7 +85,9 @@ export default function ResetPasswordPage() {
         <div className="mt-8 text-center">
           <h1 className="text-2xl font-semibold text-rf-text sm:text-3xl">Set a new password</h1>
           <p className="mt-2 text-sm font-semibold text-rf-text-muted sm:text-base">
-            Choose a new password for your account.
+            {email
+              ? `Enter the 6-digit code we sent to ${email} and choose a new password.`
+              : "Choose a new password for your account."}
           </p>
         </div>
 
@@ -136,25 +95,35 @@ export default function ResetPasswordPage() {
           <div className="mt-10 w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-700 sm:text-base">
             Your password has been reset. Redirecting you to login…
           </div>
-        ) : linkError ? (
+        ) : !email ? (
           <div className="mt-10 w-full">
             <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm font-semibold text-amber-700 sm:text-base">
-              {linkError}
+              Start the reset from the forgot-password page so we know which account to recover.
             </div>
             <div className="mt-6 text-center text-sm sm:text-base">
               <Link
                 href="/forgot-password"
                 className="font-semibold text-rf-accent transition hover:text-rf-accent-strong"
               >
-                Request a new reset link
+                Request a reset code
               </Link>
             </div>
           </div>
-        ) : !showForm ? (
-          // accessToken still undefined (parsing) — render nothing extra to avoid a flash.
-          <div className="mt-10 h-6" />
         ) : (
           <form onSubmit={handleSubmit} className="mt-10 flex w-full flex-col gap-4">
+            <label className="input-shell flex items-center gap-3 rounded-2xl px-4 py-3">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                placeholder="6-digit code"
+                value={code}
+                onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                className="w-full bg-transparent text-sm font-medium tracking-[0.4em] text-rf-text placeholder:tracking-normal placeholder:text-rf-text-muted focus:outline-none sm:text-base"
+              />
+            </label>
+
             <label className="input-shell flex items-center gap-3 rounded-2xl px-4 py-3">
               <input
                 type={showPassword ? "text" : "password"}
@@ -209,6 +178,15 @@ export default function ResetPasswordPage() {
             >
               {isLoading ? "Saving..." : "Reset password"}
             </button>
+
+            <div className="text-center text-sm sm:text-base">
+              <Link
+                href="/forgot-password"
+                className="font-semibold text-rf-accent transition hover:text-rf-accent-strong"
+              >
+                Request a new code
+              </Link>
+            </div>
           </form>
         )}
 
@@ -222,5 +200,13 @@ export default function ResetPasswordPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }

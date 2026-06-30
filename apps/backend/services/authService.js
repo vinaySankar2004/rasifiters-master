@@ -245,6 +245,41 @@ async function register({ username, password, first_name, last_name, email, gend
     }
 }
 
+// NET-NEW (auth SPEC D-C5, revised): self-service password recovery — RESET (consume) step via a typed
+// 6-digit OTP CODE rather than a magic link. WHY the change: the recovery email's single-use link was
+// being pre-fetched + consumed by email scanners (Microsoft Defender "Safe Links" on Outlook), so the
+// user's click hit an already-used → "otp_expired" link. A code can't be "clicked" by a scanner, and with
+// no link there's also no redirect to misconfigure. The forgot step is unchanged (resetPasswordForEmail);
+// the "Reset Password" email template is edited in the Supabase dashboard to present {{ .Token }} (the
+// code) instead of {{ .ConfirmationURL }}. Privacy-safe: a wrong/expired code 401s identically whether or
+// not the email maps to an account (no enumeration). Clients never embed Supabase (R1) — this runs here.
+async function resetPasswordWithOtp({ email, code, new_password }) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!normalizedEmail || !code || !new_password) {
+        throw new AppError(400, "email, code, and new_password are required.");
+    }
+
+    const passwordError = validatePassword(new_password);
+    if (passwordError) throw new AppError(400, passwordError);
+
+    // Verify + consume the single-use recovery OTP. Any failure → a single generic 401.
+    const { data, error } = await supabaseAuth.auth.verifyOtp({
+        email: normalizedEmail,
+        token: String(code).trim(),
+        type: "recovery"
+    });
+    if (error || !data?.user) {
+        throw new AppError(401, "Invalid or expired code.");
+    }
+
+    const { error: updateErr } = await supabaseAdmin.auth.admin.updateUserById(data.user.id, {
+        password: new_password
+    });
+    if (updateErr) throw new AppError(400, "Server error during password reset.");
+
+    return { message: "Password reset successfully." };
+}
+
 async function changePassword(memberId, newPassword) {
     if (!newPassword) throw new AppError(400, "new_password is required.");
 
@@ -398,6 +433,7 @@ module.exports = {
     logout,
     register,
     changePassword,
+    resetPasswordWithOtp,
     changeEmail,
     requestPasswordReset,
     deleteAccount,

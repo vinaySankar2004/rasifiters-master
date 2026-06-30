@@ -1,13 +1,16 @@
 # Page: `reset-password` (web) — set a new password (auth-recovery, step 2)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
-> **Route:** `/reset-password` (the destination of the password-reset **email link**; `PASSWORD_RESET_REDIRECT_URL`).
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Route:** `/reset-password` (the **code-entry step**, reached from `/forgot-password` with `?email=…`).
+> **v0.2.0:** rewritten from a magic-link landing (Bearer `access_token` in the URL fragment) to a **typed
+> 6-digit code** form — Outlook Safe Links was pre-consuming the single-use link. Reads `email` from the
+> query string; POSTs `{ email, code, new_password }` to `/auth/reset-password`.
 > **Reference impl (legacy):** **NONE — 100% net-new.** No `/reset-password` exists on either legacy
 > client (web or iOS); confirmed `question-asker` runs 16–17. Exists only because the migration to Supabase
 > Auth enables self-service recovery.
-> **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) v0.4.0 — `resetPassword()`
-> (`POST /auth/reset-password`); the foundation `useAuth` context (`session`, `isBootstrapping`) for the
-> already-authed redirect.
+> **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) v0.6.0 — `resetPasswordWithCode()`
+> (`POST /auth/reset-password` `{ email, code, new_password }`). (The already-authed redirect was dropped
+> in the rewrite — the page is wrapped in `<Suspense>` for `useSearchParams`.)
 > **Cross-app:** none yet — iOS has **no** recovery screen (login SPEC F3). Web-first; iOS mirrors later.
 > **Stance:** **net-new, built to the D-PLAN contract** (login SPEC §9 D-PLAN) — the **reset (consume) step**
 > that pairs with `forgot-password` (the request step). Faithful to the **sibling** auth pages' chrome (D-S1).
@@ -139,4 +142,5 @@ token is redirected to `/programs`; one **with** a token may still reset (F4).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-06-30 | **Magic-link landing → typed 6-digit code form.** Reads `email` from `useSearchParams` (page wrapped in `<Suspense>`); fields are a 6-digit code + new password + confirm (reusing the policy/match hints + show/hide); submits `resetPasswordWithCode(email, code, password)` → `POST /auth/reset-password` `{ email, code, new_password }`. 401 → inline "code invalid/expired, request a new one"; success → `/login?reason=password-reset`. Removed the implicit-flow URL-fragment/`access_token`/Bearer machinery and the already-authed redirect. Missing `?email=` → "request a reset code" → `/forgot-password`. Driven by `auth` v0.6.0 (Outlook Safe Links pre-consumed the single-use link). `npx tsc --noEmit` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 18) — the **fourth web page spec** and the **second net-new page** (the reset/consume step pairing with `forgot-password`). Documents `/reset-password`: reads the Supabase recovery `access_token` from the implicit-flow URL **fragment** (D-C4), a **new-password + confirm form with an inline policy hint** (D-C3), forwards the token as Bearer to **`POST /auth/reset-password`** which reuses `authenticateToken` + `changePassword` (D-C1), then **in-page success → `/login?reason=password-reset`** (D-C2). Reset routed **through Express** (R1). Consumes `auth` v0.4.0. Flagged F1–F6 (bootstrap flash; no client rate-limit; iOS recovery gap; authed-with-token may reset; token in fragment; fixed redirect timing). Ported `apps/web/src/app/reset-password/page.tsx` + `resetPassword()` (`api/auth.ts`) + the login `password-reset` banner (login SPEC → v0.1.1); `npm run build` ✓ (`/reset-password` prerendered, 4.28 kB). **The auth-recovery path is now end-to-end** (forgot → email → reset → login). |
