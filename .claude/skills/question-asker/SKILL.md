@@ -634,6 +634,17 @@ directly as a faithful port from the legacy reference app** — there is no inte
   `router.replace` stays — replace intentionally drops the locked page from history). And the genuinely-open
   decision count was ONE (scope fact-determined) → a single `AskUserQuestion` for stance + the one cleanup; don't
   manufacture a scope question the user's page-pick already settled.
+- **Run 37 — a NEAR-EXACT twin run is confirm-only: recognize the twin, transcribe its decision shape, enumerate
+  only the deltas.** `summary/log-health` was structurally identical to the just-built `summary/log-workout` (run
+  36) — same `PageShell`+`PageHeader`+`<Form variant="page">` wrapper, same `canLogForAny` role logic, same
+  `admin_only_data_entry` `router.replace` lock guard, same `invalidateQueries(["summary"])` mutation, same D-C1
+  nav cleanup. So the run collapsed to a 3-file read (legacy page · the rebuilt form · the sibling rebuilt page) +
+  a consumption confirm (api fn ported, route mounted+gated, landing routes mobile→here), a SINGLE stance
+  `AskUserQuestion`, and a SPEC that mirrors the sibling §-by-§. Don't re-derive D-SCOPE/D-REF/D-DEPS/D-S1/D-C1 —
+  copy them; the only authored content is the DELTAS (here: the health form instead of the workout form; one fewer
+  lookup — member only, no workout-types; one extra F-row for the client-only at-least-one-metric submit gate;
+  different title/subtitle). Twin-recognition (runs 23/28/33) extended to the purest case — a write page where even
+  the cleanups transfer verbatim, so the run is transcribe-plus-delta.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

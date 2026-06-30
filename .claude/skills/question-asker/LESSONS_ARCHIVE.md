@@ -1723,3 +1723,48 @@ COVERAGE summary row updated (log-workout ✓; 4 of 6, 1st log fallback done, gr
 no Recharts; Middleware 27.5 kB active). **No feature bump, no new dependency.** **Next:** the last 2 log fallbacks
 (`log-health` — standalone `LogDailyHealthForm`; `bulk-log-workout` — the heavier `BulkLogWorkoutForm` ≤200-row
 page); and/or the 8 deferred `/members` sub-routes.
+
+## Run 37 — `summary/log-health` (web page spec; the 2nd of the 3 mobile log fallbacks, `/summary` sub-route 5 of 6) — 2026-06-29
+
+**Target:** the standalone full-page Log-daily-health form — the mobile fallback for the Log-health action whose
+desktop counterpart is a modal on the `/summary` landing. Legacy: `rasifiters-webapp/src/app/summary/log-health/
+page.tsx` (65 lines). A near-exact twin of run-36 `summary/log-workout`.
+
+**Sweep:** read the 3 load-bearing files directly (legacy page · rebuilt `LogDailyHealthForm` · sibling rebuilt
+`log-workout/page.tsx`) + confirmed consumption (`addDailyHealthLog` ported `lib/api/logs.ts:49`; backend `POST
+/api/daily-health-logs` mounted `server.js:74` + gated `authenticateToken`+`requireDataEntryAllowed` `routes/logs.js:91`;
+landing routes mobile → `/summary/log-health`, desktop → modal `summary/page.tsx:216`). The form ALREADY ships a
+`variant="page"` branch (`forms/LogDailyHealthForm.tsx:162-164`) — its belated consumer, same as run 36. Every dep
+already ported; the sweep ports nothing but the page file.
+
+**Shape vs the run-36 twin:** identical wrapper (`PageShell`+`PageHeader`+`<Form variant="page">`), identical
+`canLogForAny` role logic, identical `admin_only_data_entry` `router.replace("/summary")` lock guard, identical
+`invalidateQueries(["summary"])` mutation. Differences: the HEALTH form (member/date/sleep-time/diet-quality) instead
+of the workout form; the form needs only the member lookup (NO workout-types lookup — one fewer dependency surface);
+an extra F-row (F6 — the client-only at-least-one-metric `hasMetric` submit gate). Title/subtitle differ.
+
+**Decisions:** ONE genuinely-open decision (the stance + D-C1 nav cleanup) → a single `AskUserQuestion`. Scope was
+fact-determined by the user's page-pick (run-36 lesson). User chose **faithful + D-C1** (match run 36): swap the two
+legacy `router.back()` (post-save success `page.tsx:39` + form `onClose` `page.tsx:57`) → `router.push("/summary")`;
+lock `router.replace` unchanged. The "reuse `refreshSummaryQueries`" non-cleanup re-confirmed rejected (same
+module-private one-liner). Already fully `rf-*` tokenized → no tokenize cleanup.
+
+**New durable lesson (promoted):** *a near-exact twin run is confirm-only — copy the twin's decision shape verbatim,
+then enumerate only the deltas (form swap, one-fewer-lookup, one extra F-row).* Twin recognition (run-23/28/33)
+applied to a WRITE page: when the legacy file is structurally identical to a just-built sibling, the sweep is a
+3-file read + a consumption confirm, the question is a single stance/cleanup `AskUserQuestion`, and the SPEC mirrors
+the sibling's §-by-§ with the deltas swapped in. Don't re-derive D-SCOPE/D-REF/D-DEPS/D-S1/D-C1 — recognize the twin,
+transcribe, delta.
+
+**Already-known patterns reconfirmed (not re-promoted):** no-new-dep purest write-page shape (run 36); zero-backend /
+no-feature-bump consuming page (run 21); `admin_only_data_entry` LIVE on a write page vs N/A on the read-only
+drill-downs, decided per-page by whether it writes (run 36); deterministic-nav D-C1 (run 36); client JWT-decode role
+is display-only not a security boundary; shared form single-sourced across modal+page; count the genuinely-open
+decisions / don't manufacture a scope question the page-pick already settled.
+
+**Output:** SPEC v0.1.0 (D-SCOPE/D-REF/D-DEPS/D-S1/D-C1; F1–F6; the "not a cleanup" `refreshSummaryQueries` note).
+COVERAGE summary row updated (log-health ✓; **5 of 6**, 2 of 3 log fallbacks done, group NOT closed) + logging row
+updated + PROGRESS prepended. `npm run build` ✓ (`/summary/log-health` prerendered, 2.4 kB — no Recharts; Middleware
+27.5 kB active). **No feature bump, no new dependency.** **Next:** the LAST `/summary` sub-route + last log fallback
+`bulk-log-workout` (the heavier `BulkLogWorkoutForm` ≤200-row page — CLOSES the `/summary` group); and/or the 8
+deferred `/members` sub-routes.
