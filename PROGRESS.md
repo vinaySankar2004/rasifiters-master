@@ -33,8 +33,10 @@ diff is clean). The four workspace-tab groups are done (`/summary` 6/6, `/member
 `create-account`/`privacy-policy`/`support`). **The `NotificationsGate` deferred stub is now REPLACED by the faithful
 web `notifications` client (run 48, 2026-06-29)** — so the web surface is **feature-complete**, not just page-complete.
 The only remaining web item is the INERT middleware ES256 note (already RESOLVED in run 20 — see the note below; not
-open). **Next: deploy `apps/web` to Vercel (no domain switch), then the `ios` (SwiftUI) surface — see COVERAGE
-`## ios`.** Foundation history below.
+open). **The web app is now DEPLOYED + LIVE on Vercel (run 49, 2026-06-29): project `rasifiters`
+(`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak`) at `https://rasifiters.vercel.app`, git auto-deploy on
+`main` wired (root `apps/web`, monorepo ignore-step), smoke test green.** **Next: the `ios` (SwiftUI) surface — see
+COVERAGE `## ios`.** Foundation history below.
 
 **Phase 3 — `web`: STARTED (2026-06-29).** **Foundation scaffold ported + builds green** (`apps/web`,
 `npm run build` ✓ — Next.js 14 App Router, TS strict, Tailwind `rf-*` tokens, React Query + Auth + Theme
@@ -59,19 +61,23 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → DEPLOY THE WEB APP TO VERCEL (no domain switch) — the web surface is now FEATURE-COMPLETE
-> **The web `notifications` client is PORTED (run 48, 2026-06-29) — the webapp is now genuinely feature-complete.**
-> The [`NotificationsGate`](apps/web/src/components/NotificationsGate.tsx) deferred stub is **replaced** by the
-> faithful port (`EventSource` SSE client w/ `?token=`, `unacknowledged` backfill, single-notification modal queue,
-> `acknowledge`-on-confirm, per-notification React Query invalidation). With pages 36/36 + the notifications client
-> live, **nothing functional remains on web**. Per the user's chosen order, the NEXT session is the **Vercel deploy**.
+> ### ⏭️ ON "continue" → START THE `ios` (SwiftUI) SURFACE — the web app is DEPLOYED + LIVE; web surface CLOSED
+> **The web app is DEPLOYED + LIVE on Vercel (run 49, 2026-06-29).** Project **`rasifiters`**
+> (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak` = `team_VWBSWxM5pHvWjCraHUWB73v5`) at
+> **`https://rasifiters.vercel.app`** (no custom-domain switch — `rasifiters.com` left UNPOINTED for a no-rebuild
+> cutover). **Git auto-deploy on `main` is WIRED**: repo `vinaySankar2004/rasifiters-master`, root `apps/web`,
+> monorepo ignore-step `git diff --quiet HEAD^ HEAD -- .` (only `apps/web/**` commits build). Env = 3 `NEXT_PUBLIC_*`
+> (Production): `NEXT_PUBLIC_API_ENV=prod`, `…API_BASE_URL_PROD=https://rasifiters-api.onrender.com/api`,
+> `…APP_URL=https://rasifiters.vercel.app` — **NO Supabase keys on the web side** (the app talks only to the Express
+> `/auth/*` proxy; no `@supabase` dep). Scope guard now locks vercel→`personal-vinayak` + project `rasifiters`.
+> **Smoke test green:** `/splash`·`/login`·`/privacy-policy`·`/support` → 200; `/summary`·`/members` unauth → 307 →
+> `/login?from=…` (edge guard armed); backend `/` → 200. **One unverified surface:** the signed-in web→backend proxy
+> round-trip (no test creds) — the backend auth round-trip itself was verified live in Phase 2. Details in
+> `apps/web/CONTEXT.md` §Deploy + the `deploy` skill LESSONS_ARCHIVE run 2.
 >
-> **Deploy to Vercel WITHOUT switching the domain** (run the `deploy` skill): provision the Vercel project + deploy
-> `apps/web` to a Vercel-generated URL (e.g. `rasifiters-web.vercel.app`), wire env (API → the live Render backend
-> `rasifiters-api.onrender.com`, Supabase keys), apply the scope guardrails (record the Vercel project id in
-> `apps/web/CONTEXT.md` + the `deploy-scope-guard.sh` allow-list). The production/custom domain is left **UNPOINTED**
-> so the app is testable + transferable at any point with no rebuild — a staging-ready cutover. After the deploy,
-> **NEXT SURFACE = `ios` (SwiftUI)** — COVERAGE `## ios` (auth splash/login/create-account first).
+> **NEXT SURFACE = `ios` (SwiftUI)** — COVERAGE `## ios` (auth splash/login/create-account first). Reference impl
+> `../ios-mobile`. Use the `question-asker` loop per screen, port faithfully, point the app at the live Render API
+> (`rasifiters-api.onrender.com`) + `rasifiters.com` when the domain cuts over.
 >
 > **Run-48 detail (the notifications client port — DONE):** ported 3 files into `apps/web` (`lib/api/notifications.ts`
 > + `components/NotificationModal.tsx` verbatim, `components/NotificationsGate.tsx` replacing the stub) — **no new deps**

@@ -74,3 +74,49 @@
 - New durable patterns promoted to Converged lessons: Render false-green (confirm a NEW deploy id);
   Blueprint provisions AND auto-wires in one step; `buildFilter` is repo-root-relative; `sync:false`
   secrets are dashboard-owned.
+
+### Run 2 — RaSi Fiters web → Vercel (2026-06-29) — FIRST DEPLOY ✅
+- Targets: **web → Vercel only.** Project `rasifiters` (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team
+  `personal-vinayak` (`team_VWBSWxM5pHvWjCraHUWB73v5`), live at `https://rasifiters.vercel.app`. No
+  custom-domain switch (staging-ready; `rasifiters.com` left unpointed). Backend already live on Render.
+- What the deploy actually needed: **3 env vars, NO secrets, NO Supabase keys.** The web app has no
+  `@supabase` dep / no `createClient` — it talks ONLY to the Express backend `/auth/*` proxy. So the whole
+  env contract (there's no `.env.example`; `src/lib/config.ts` IS the contract) is the 8 `NEXT_PUBLIC_*`,
+  of which only 3 need non-default values: `NEXT_PUBLIC_API_ENV=prod` (else config falls back to
+  `127.0.0.1:5001` localBase — the silent footgun), `NEXT_PUBLIC_API_BASE_URL_PROD=…onrender.com/api`,
+  `NEXT_PUBLIC_APP_URL=https://rasifiters.vercel.app` (metadataBase/og:url only). The skill's generic
+  "Supabase anon/JWT keys on the FE" step is N/A for THIS app — always grep the FE for an actual supabase
+  client before provisioning FE auth keys.
+- Flow: `vercel link --yes --project … --scope personal-vinayak` (creates) → set the 3 env (Production) →
+  `vercel deploy --prod` (built in 48s, 39 routes) → smoke test. Then git auto-deploy: PATCH
+  `rootDirectory=apps/web` + `commandForIgnoringBuildStep=git diff --quiet HEAD^ HEAD -- .` via REST →
+  `vercel git connect https://github.com/vinaySankar2004/rasifiters-master` → verified `link.repo` +
+  `productionBranch=main` + rootDirectory + ignoreCmd.
+- Gotchas hit + the fix:
+  - **zsh does NOT word-split unquoted `$VAR`** — `S="--scope x"; vercel … $S` passed `--scope x` as ONE
+    arg → "unknown option". Inline the flags (or use a bash array); never stuff multi-token flags in a
+    var in zsh.
+  - **Renaming a Vercel project does NOT swap its auto-assigned `<name>.vercel.app` domain.** PATCH
+    `{"name":"rasifiters"}` succeeded but `rasifiters.vercel.app` 404'd while `rasifiters-web.vercel.app`
+    stayed the live prod domain. Fix: POST `/v10/projects/{id}/domains {"name":"rasifiters.vercel.app"}`
+    then redeploy `--prod` to alias the latest build to it. The old domain persists (harmless).
+  - **`NEXT_PUBLIC_*` are inlined at build time** — the prod URL must be known + set in env BEFORE the
+    build that bakes it. The stable prod alias is `<project>.vercel.app`, so it's predictable pre-deploy;
+    on a rename, re-set `NEXT_PUBLIC_APP_URL` + redeploy (a runtime env edit alone won't re-bake it).
+  - **rootDirectory vs CLI-cwd double-nest:** with `rootDirectory=apps/web` set for git deploys, a manual
+    `vercel deploy` must run from the REPO ROOT (deploying from `apps/web` cwd would look for
+    `apps/web/apps/web`). Recorded in CONTEXT.md.
+  - Root `/` is a verbatim Server-Component `redirect("/splash")` → returns a 307 with NO curl-visible
+    `Location` (Next RSC encodes the redirect for the client); `/splash` is 200 and browsers land fine.
+    Not a deploy defect — don't chase it.
+- Verified: `/splash`·`/login`·`/privacy-policy`·`/support` → 200; `/summary`·`/members` unauth → 307 →
+  `/login?from=…` (edge decode+expiry guard armed); `og:url` baked to the live origin; Render backend
+  `/` → 200. NOT exercised: signed-in web→backend proxy round-trip (no test creds) — backend auth
+  round-trip itself was verified live in Phase 2.
+- What changed: `apps/web/CONTEXT.md` (Deploy/Stack/Status — IDs + URL + git-deploy + smoke test),
+  `deploy-scope-guard.sh` (VERCEL_SCOPE=`personal-vinayak`, allow-list = project `rasifiters`/id),
+  this skill's SKILL.md (team-slug + supabase-ref placeholders filled, project renamed `rasifiters-web`→
+  `rasifiters`), `PROGRESS.md` (next action → iOS surface).
+- New durable patterns promoted to Converged lessons: zsh no-word-split; Vercel rename keeps the old
+  `.vercel.app` domain (add the new one + redeploy); grep the FE for a real supabase client before
+  provisioning FE auth keys.

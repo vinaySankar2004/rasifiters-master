@@ -8,7 +8,8 @@ the only intended change is the auth path (Supabase-issued tokens via the backen
 ## Stack
 - Next.js 14 (App Router) · React 18 · TypeScript · Tailwind (theme via `rf-*` CSS vars)
 - TanStack React Query (server state) · Recharts (charts) · Framer Motion (animation)
-- Host: **Vercel** (`rasifiters-web`, `TODO(provision)`); temp domain until the `rasifiters.com` cutover
+- Host: **Vercel** (project `rasifiters` = `prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak`);
+  live at **`https://rasifiters.vercel.app`** — temp domain until the `rasifiters.com` cutover
 
 ## Surface (~33 routes, from the legacy app)
 - **Public:** `/`, `/splash`, `/login`, `/create-account`, `/privacy-policy`, `/support`
@@ -27,11 +28,29 @@ analytics, notifications) are `specs/features/` it consumes.
 - Roles drive UI: `global_admin`, per-program `admin` / `logger` / `member`; `admin_only_data_entry`
   disables logging UI for non-admins.
 
-## Deploy
-Vercel project `rasifiters-web`, `--scope TODO(provision)`. See the `deploy` skill. Env (from
-`src/lib/config.ts`): `NEXT_PUBLIC_API_ENV=prod` + `NEXT_PUBLIC_API_BASE_URL_PROD` → the Render API
-(`https://rasifiters-api.onrender.com/api`); `NEXT_PUBLIC_APP_URL` → the live web origin (metadata base).
-`JWT_SECRET` is **no longer used** — `src/middleware.ts` was changed to decode + expiry only (see Foundation port, resolved 2026-06-29), so no edge secret is needed.
+## Deploy (PROVISIONED + LIVE 2026-06-29)
+Vercel project **`rasifiters`** (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team **`personal-vinayak`**
+(`team_VWBSWxM5pHvWjCraHUWB73v5`), `--scope personal-vinayak`. Live at **`https://rasifiters.vercel.app`**
+(no custom-domain switch — staging-ready; `rasifiters.com` left UNPOINTED for a no-rebuild cutover).
+**Git auto-deploy is WIRED**: repo `vinaySankar2004/rasifiters-master`, production branch `main`,
+Root Directory `apps/web`, monorepo ignore-step `git diff --quiet HEAD^ HEAD -- .` (only `apps/web/**`
+commits build; unrelated commits record a 0s Canceled skip). A push to `main` touching the web subtree
+rebuilds + deploys; manual deploy = `vercel deploy --prod --scope personal-vinayak` **from the repo root**
+(rootDirectory is `apps/web`, so a CLI deploy from `apps/web` cwd would double-nest).
+
+Env (Production, from `src/lib/config.ts`): `NEXT_PUBLIC_API_ENV=prod` + `NEXT_PUBLIC_API_BASE_URL_PROD`
+→ the Render API (`https://rasifiters-api.onrender.com/api`); `NEXT_PUBLIC_APP_URL=https://rasifiters.vercel.app`
+(metadata base). The other `NEXT_PUBLIC_*` (login mode/path, privacy-policy URL, support email) use their
+`config.ts` defaults. **No Supabase keys on the web side** — the web app talks ONLY to the Express backend
+`/auth/*` proxy (no `@supabase` dep, no `createClient`). `JWT_SECRET` is **no longer used** —
+`src/middleware.ts` was changed to decode + expiry only (see Foundation port, resolved 2026-06-29), so no
+edge secret is needed.
+
+Smoke test (2026-06-29, deploy `dpl_9cCVSNUUKpaoo5KB6iU5biByCcqq`): `/splash`·`/login`·`/privacy-policy`·
+`/support` → 200; `/summary`·`/members` unauth → 307 → `/login?from=…` (edge guard armed); `og:url`
+baked to `https://rasifiters.vercel.app`; Render backend `/` → 200. NOT exercised: the signed-in
+web→backend proxy round-trip (no test credentials) — the backend auth round-trip itself was verified live
+in Phase 2.
 
 ## Foundation port (Phase 3 kickoff, 2026-06-29)
 
@@ -61,6 +80,11 @@ Faithful (verbatim) otherwise: all of `src/lib/*`, `globals.css`, theme/tailwind
 shell chrome, the icon library, and the API client + auth API module.
 
 ## Status
+🚀 **DEPLOYED + LIVE on Vercel (2026-06-29)** — project `rasifiters` at `https://rasifiters.vercel.app`,
+git auto-deploy on `main` wired; smoke test green (public pages 200, protected routes guard-bounce, backend
+healthy). The web surface is feature-complete (36/36 pages + the notifications client). The signed-in
+web→backend proxy round-trip is the one unverified surface (no test creds). History:
+
 🏗️ foundation scaffolded + builds green (2026-06-29). **7 pages ported** via the `question-asker` page loop:
 the public/auth path (`splash` → `login` → `forgot-password` → `reset-password` → `create-account`), the
 `programs` hub (first protected route), and `summary` (first workspace tab — program-overview dashboard + the

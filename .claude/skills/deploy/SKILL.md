@@ -16,9 +16,9 @@ The faithful-rebuild reference is the LEGACY app at
 `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/{rasifiters-webapp, ios-mobile, backend}`.
 
 ## Prereqs (confirm first — STOP if any fail)
-- **Vercel CLI** installed (`vercel --version` → 54.x) + authed (`vercel whoami`). The web app deploys via CLI. **Pin the team with `--scope TODO(provision: vercel-team-slug)` on EVERY vercel command** — the CLI's default active team is often a personal account; never rely on it.
+- **Vercel CLI** installed (`vercel --version` → 54.x) + authed (`vercel whoami`). The web app deploys via CLI. **Pin the team with `--scope personal-vinayak` on EVERY vercel command** — the CLI's default active team is often a personal account; never rely on it.
 - **Render**: the backend deploys as a **Blueprint** (`apps/backend/render.yaml`, IaC) — NOT a CLI push. The primary path is GitHub-connected auto-deploy (Dashboard → New → Blueprint → pick the repo → Blueprint path `apps/backend/render.yaml`); on the first sync Render prompts for every `sync: false` secret. Alternatives/inspection: the hosted `render` MCP (`https://mcp.render.com/mcp`, OAuth, sees all workspace services), the REST API (`Authorization: Bearer $RENDER_API_KEY`, base `https://api.render.com/v1`), and the optional local `render` CLI. Render injects `PORT` (default `10000`); the app must bind `0.0.0.0` (server.js does).
-- **Supabase**: the rasifiters Supabase project `supabase-rasifiters` (ref `TODO(provision: supabase-project-ref)`). `DATABASE_URL` + the `SUPABASE_*` keys come from the user. Repoint the `supabase-rasifiters` MCP `project_ref` once provisioned.
+- **Supabase**: the rasifiters Supabase project `supabase-rasifiters` (ref `kpadxjekpiwfkqcxtrio`). `DATABASE_URL` + the `SUPABASE_*` keys come from the user. Repoint the `supabase-rasifiters` MCP `project_ref` once provisioned.
 - The app's `.env.example` is the **env-var contract** — read it first.
 - **Auth = Supabase Auth (not Clerk).** Express proxies Supabase Auth, verifies Supabase JWTs, and maps users via `members.auth_user_id` (legacy member UUIDs preserved; bcrypt-hash import). There is no Clerk instance, no `pk_test`/`pk_live`, no Clerk webhook.
 
@@ -46,14 +46,14 @@ backend env · domain form a consistent set:
 Each app is a subfolder, so set the **Root Directory** per project/service:
 | Target | Source dir | Platform |
 |--------|-----------|----------|
-| `rasifiters-web` | `apps/web`     | Vercel (team `TODO(provision: vercel-team-slug)`) |
+| `rasifiters` | `apps/web`     | Vercel (team `personal-vinayak`) |
 | `rasifiters-api` | `apps/backend` | Render (Blueprint `apps/backend/render.yaml`, `rootDir: apps/backend`) |
 | iOS (`ios`)      | `apps/ios`     | not web-deployed — ships via Xcode/App Store; points at `rasifiters.com` / the Render API |
 
 ## Workflow (per app)
 1. **Web → Vercel (CLI):**
    - `cd apps/web`
-   - `vercel link --scope TODO(provision: vercel-team-slug)` → create/link the project (name `rasifiters-web`).
+   - `vercel link --scope personal-vinayak` → create/link the project (name `rasifiters`).
    - Set **Root Directory** to this subfolder (project setting or `vercel.json`).
    - Env: for each name in `.env.example`, `vercel env add <NAME> production --scope <team>` (repeat for preview/dev as needed). **Values per §Env discipline.**
    - `vercel deploy --prod --scope <team>` (or rely on git auto-deploy once linked).
@@ -232,6 +232,20 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
 - **Provision in build-order, not all-at-once:** if an app has no portable code yet, creating its
   Vercel/Render shell just adds an empty project — do Supabase first (unblocks the migrator), stand up
   Render/Vercel when the app actually has code to deploy.
+- **Grep the FE for a real Supabase client before provisioning FE auth keys:** the web app talks only to
+  the Express `/auth/*` proxy (no `@supabase` dep / no `createClient`), so its Vercel env is just the
+  `NEXT_PUBLIC_*` app vars — no anon/JWT keys. The generic "Supabase keys on the FE" step is per-app;
+  verify it applies. Silent footgun: omit `NEXT_PUBLIC_API_ENV=prod` and `config.ts` falls back to the
+  `127.0.0.1` localBase.
+- **Renaming a Vercel project keeps its old `<name>.vercel.app` domain:** PATCH `{"name":…}` does NOT
+  re-assign the auto domain — the new `<name>.vercel.app` 404s until you POST it as a project domain
+  (`/v10/projects/{id}/domains`) and redeploy `--prod` to alias it. `NEXT_PUBLIC_*` bake at build time, so
+  re-set `NEXT_PUBLIC_APP_URL` + redeploy on a rename (a runtime env edit alone won't re-bake the origin).
+- **rootDirectory vs CLI-cwd double-nest:** once `rootDirectory=apps/web` is set for git deploys, a manual
+  `vercel deploy` must run from the REPO ROOT — deploying from the `apps/web` cwd makes Vercel look for
+  `apps/web/apps/web` and fail.
+- **zsh doesn't word-split unquoted `$VAR`:** `S="--scope x"; vercel … $S` passes one arg `--scope x` →
+  "unknown option". Inline multi-token flags (or use a bash array); don't stuff them in a var under zsh.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:**

@@ -6,13 +6,13 @@
 # to the model).
 #
 # Allow-list (see the `deploy` skill):
-#   web:     Vercel project `rasifiters-web`   (team/scope `TODO(provision)`)
+#   web:     Vercel project `rasifiters` = prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u
+#            (team/scope `personal-vinayak` = team_VWBSWxM5pHvWjCraHUWB73v5; PROVISIONED 2026-06-29)
 #   backend: Render web service `rasifiters-api` = srv-d90tgmv7f7vs73cudptg (PROVISIONED 2026-06-28)
 #
 # This hook BLOCKS any vercel/render command that names a non-rasifiters target: a `render` command
 # referencing a `srv-…`/`dpl-…` id that is NOT ours, and (for vercel) any `--scope` that isn't the
-# rasifiters team once set. After Vercel provisioning: replace TODO_RASIFITERS_VERCEL_SCOPE with the
-# real team slug.
+# rasifiters team.
 
 input=$(cat)
 cmd=$(printf '%s' "$input" | python3 -c "import json,sys; print(json.load(sys.stdin).get('tool_input',{}).get('command',''))" 2>/dev/null)
@@ -31,8 +31,8 @@ if printf '%s' "$cmd" | grep -qiE '(^|[^[:alnum:]])render([^[:alnum:]]|$)'; then
   fi
 fi
 
-# TODO(provision): once the Vercel team slug is known, set it here and uncomment the --scope check.
-VERCEL_SCOPE="TODO_RASIFITERS_VERCEL_SCOPE"
+# The rasifiters Vercel team slug (set at web provisioning, 2026-06-29).
+VERCEL_SCOPE="personal-vinayak"
 
 # If a vercel --scope is present, it must match the rasifiters team.
 if [ "$VERCEL_SCOPE" != "TODO_RASIFITERS_VERCEL_SCOPE" ] \
