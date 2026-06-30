@@ -60,10 +60,47 @@ struct QuickAddHealthWidgetEntryView: View {
 
 // MARK: - Deferred screens referenced by ProgramPickerView (forward-nav targets)
 
-/// DEFERRED (Features/Home/AdminHomeView.swift) — the post-pick home dashboard
-/// (the iOS analogue of the web `/summary` workspace). Pushed when a program card is opened.
-struct AdminHomeView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Admin Home") }
+// NOTE: AdminHomeView landed (Features/Home/AdminHomeView.swift) — stub removed.
+// It is a TabView SHELL; the 7 tab bodies it hosts remain deferred (below) — stubbed
+// here so the shell compiles, each DELETED the moment its real tab lands.
+
+// MARK: - Deferred tab bodies referenced by AdminHomeView (the 4-tab home shell)
+
+/// DEFERRED (Features/Home/Tabs/AdminSummaryTab.swift) — Tab 1 "Summary" (single, all roles).
+/// Carries the `period` binding to match the shell's `AdminSummaryTab(period: $summaryPeriod)` call site.
+struct AdminSummaryTab: View {
+    @Binding var period: AdminHomeView.Period
+    var body: some View { ScaffoldPlaceholder(screen: "Summary") }
+}
+
+/// DEFERRED (Features/Home/Tabs/AdminOtherTabs.swift) — Tab 2 "Members", program-admin variant.
+struct AdminMembersTab: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Members (Admin)") }
+}
+
+/// DEFERRED (Features/Home/Tabs/StandardMembersTab.swift) — Tab 2 "Members", non-admin variant.
+struct StandardMembersTab: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Members") }
+}
+
+/// DEFERRED (Features/Home/Tabs/AdminOtherTabs.swift) — Tab 3 "Lifestyle", program-admin variant.
+struct AdminWorkoutTypesTab: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Lifestyle (Admin)") }
+}
+
+/// DEFERRED (Features/Home/Tabs/StandardWorkoutTypesTab.swift) — Tab 3 "Lifestyle", non-admin variant.
+struct StandardWorkoutTypesTab: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Lifestyle") }
+}
+
+/// DEFERRED (Features/Home/Tabs/AdminProgramTab.swift) — Tab 4 "Program", program-admin variant.
+struct AdminProgramTab: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Program (Admin)") }
+}
+
+/// DEFERRED (Features/Home/Tabs/StandardProgramTab.swift) — Tab 4 "Program", non-admin variant.
+struct StandardProgramTab: View {
+    var body: some View { ScaffoldPlaceholder(screen: "Program") }
 }
 
 /// DEFERRED (Features/Home/ProgramActionsSheet.swift) — the create-program + invites sheet

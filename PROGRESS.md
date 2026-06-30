@@ -79,6 +79,36 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` post-pick home shell: `AdminHomeView` PORTED (run 53, 2026-06-30).** The **post-auth home
+shell** — the iOS analogue of the web `(workspace)` group — ported into
+`apps/ios/.../Features/Home/AdminHomeView.swift` (SPEC `specs/pages/ios/admin-home/`), the deferred stub
+removed. It is a **96-line native bottom `TabView`** (NOT a dashboard): 4 tabs — **Summary** (single,
+`AdminSummaryTab`) · **Members** · **Lifestyle** (internal tag `workoutTypes`) · **Program** — the latter
+three **role-bifurcated** `Admin*Tab`/`Standard*Tab` via `programContext.isProgramAdmin`; plus the nested
+`AdminHomeView.Period` enum (W/M/Y/P) the tab bodies bind to, `.adaptiveTint()`, and
+`navigationBarBackButtonHidden(true)`. **D-SCOPE = the scope cut IS the run** (run-21/50/52 pattern,
+cross-platform): port the shell verbatim, **defer the 7 tab bodies as `ScaffoldPlaceholder` stubs**
+(`AdminSummaryTab` carries a `period: Binding<AdminHomeView.Period>` initializer to match the shell's call
+site). The 7 tab bodies drag in the whole `Tabs/Section` + `Detail/` + `Settings/` + `Sheets/` universe —
+essentially the entire web `/summary`+`/members`+`/lifestyle`+`/program` surface (30+ web pages). **D-REF =
+keep iOS-native `TabView`** — the web workspace is 4 top-level routes under a shared nav layout; iOS collapses
+that into one native bottom tab bar. **Platform-idiom EXCEPTION to web parity** (run-52 D-REF; memory
+[[ios-matches-web-not-just-legacy]]) — tab set + order already match web (Summary/Members/Lifestyle/Program),
+so it is a structural idiom divergence, not a parity gap; lead "keep iOS-native". **Faithful 1:1 otherwise
+(D-S1)** — no web-parity deviation (the shell is pure navigation, fetches nothing, has no behavior to diff vs
+web — unlike run-52's silent-error-swallow banner). **D-DEPS = no new dependency** (`isProgramAdmin`
+`ProgramContext.swift:269`, `adaptiveTint()` `AppTheme.swift:208` both ported in the foundation run 50; all 7
+tab-body names collision-free). **Role rules** = the Admin*/Standard* variant table (global_admin + program
+admin → `Admin*Tab`; logger/member → `Standard*Tab`; Summary identical for all); **`admin_only_data_entry`
+N/A at the shell** (it gates *logging* deep in the deferred tab bodies, never the navigation). Flagged F1–F4
+(role bifurcation by physically-separate views; the `workoutTypes` internal tag for "Lifestyle"; 7 deferred
+tab stubs; `navigationBarBackButtonHidden`). **The app target's build green-check is owned by the user (visual
+run in Xcode)** — symbols verified via grep (exactly one `AdminHomeView`, each tab body defined once,
+`AdminHomeView.Period` resolves, no leftover stub), not a CLI build (memory
+[[ios-user-verifies-builds-visually]]). **Next: port a TAB BODY — `AdminSummaryTab` (the dashboard cards, the
+iOS analogue of web `/summary`) is the natural first — or `ProgramActionsSheet`/`EditProgramInfoView` (the
+still-deferred picker forward-nav targets), via `question-asker`.**
+
 **Phase 4 — `ios` post-auth landing: `ProgramPickerView` PORTED (run 52, 2026-06-30).** The **"My Programs"
 hub** — the first post-auth iOS screen — ported into `apps/ios/.../Features/Home/ProgramPickerView.swift`
 (SPEC `specs/pages/ios/program-picker/`), the deferred stub removed; the **7 forward-nav screens it navigates
@@ -130,20 +160,22 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT `AdminHomeView` (the post-pick home) OR `ProgramActionsSheet` (create+invites) via `question-asker`
-> **`ProgramPickerView` is DONE (run 52, 2026-06-30)** — the post-auth landing ("My Programs" hub) ported into
-> `apps/ios/.../Features/Home/ProgramPickerView.swift` (SPEC `specs/pages/ios/program-picker/`), the deferred
-> stub removed. Faithful 1:1 D-S1 **+ D-C1 a visible error banner** (the legacy set `errorMessage` but never
-> rendered it — web-parity fix). **KEY DECISION D-REF: keep iOS-native multi-screen navigation** — the web
-> `/programs` hub does the whole flow on ONE page (create/edit/invites/account as inline modals); iOS keeps
-> native sheets + navigation (swipe edit/delete, floating "+" → actions sheet, account sheet). This is a
-> **platform-idiom EXCEPTION to web parity** (memory [[ios-matches-web-not-just-legacy]]), not a gap (F7).
-> **NEXT = the 7 forward-nav screens the picker stubs** (`_DeferredScreenStubs.swift`): the biggest is
-> **`AdminHomeView`** (the post-pick home dashboard — the iOS analogue of the web `/summary` workspace; pushed
-> when a program card is opened); the next is **`ProgramActionsSheet`** (create program + invites — the "+"
-> floating button target). Also deferred: `EditProgramInfoView` + the 4 account screens (`MyProfileView`/
-> `ChangePasswordView`/`AppearanceSettingsView`/`NotificationsSettingsView`). Run `question-asker` per screen,
-> **match the current web sibling** + faithful legacy iOS, delete each stub when it lands. **The user verifies
+> ### ⏭️ ON "continue" → PORT A TAB BODY — `AdminSummaryTab` (the dashboard, iOS analogue of web `/summary`) via `question-asker`
+> **`AdminHomeView` is DONE (run 53, 2026-06-30)** — the post-pick home **shell** (a 96-line native bottom
+> `TabView`, NOT a dashboard) ported into `apps/ios/.../Features/Home/AdminHomeView.swift` (SPEC
+> `specs/pages/ios/admin-home/`), the deferred stub removed. **D-SCOPE = the scope cut IS the run**: ported the
+> 4-tab shell verbatim (Summary single · Members/Lifestyle/Program role-bifurcated via `isProgramAdmin`; the
+> nested `Period` enum), **deferred the 7 tab bodies as `ScaffoldPlaceholder` stubs**. **D-REF = keep
+> iOS-native `TabView`** (web's 4-top-level-routes nav is a platform-idiom divergence — tab set/order already
+> match web). Faithful 1:1 D-S1 (pure nav, no API, no web-parity deviation); D-DEPS no new dependency.
+> **NEXT = port a TAB BODY** — the 7 the shell stubs (`_DeferredScreenStubs.swift`): `AdminSummaryTab` (the
+> dashboard cards — the iOS analogue of web `/summary`, the natural first), then the role-bifurcated
+> Members/Lifestyle/Program pairs. **Each tab body drags in the `Tabs/Section` + `Detail/` + `Settings/` +
+> `Sheets/` universe** (the whole authed surface) — expect each to be its own "scope cut IS the run" with
+> further deferrals. **Also still deferred from the picker**: `ProgramActionsSheet` (create+invites — the "+"
+> target), `EditProgramInfoView`, and the 4 account screens (`MyProfileView`/`ChangePasswordView`/
+> `AppearanceSettingsView`/`NotificationsSettingsView`). Run `question-asker` per screen, **match the current
+> web sibling** (`/summary` group) + faithful legacy iOS, delete each stub when it lands. **The user verifies
 > the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the local CLI
 > toolchain. The pre-iOS web/deploy context is retained below for reference.
 >
