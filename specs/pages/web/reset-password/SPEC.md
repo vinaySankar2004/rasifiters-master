@@ -1,6 +1,6 @@
 # Page: `reset-password` (web) — set a new password (auth-recovery, step 2)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/reset-password` (the destination of the password-reset **email link**; `PASSWORD_RESET_REDIRECT_URL`).
 > **Reference impl (legacy):** **NONE — 100% net-new.** No `/reset-password` exists on either legacy
 > client (web or iOS); confirmed `question-asker` runs 16–17. Exists only because the migration to Supabase
@@ -36,8 +36,10 @@ is where the link lands and the password is actually reset. Without it the reque
   `PASSWORD_RESET_REDIRECT_URL` = `<web-origin>/reset-password#access_token=…&type=recovery`). A direct
   visit (no fragment) shows the "link invalid/expired" state.
 - **Leaves to:** `/login?reason=password-reset` (on success — the login page shows a green confirmation
-  banner) · `/forgot-password` ("Request a new reset link", from the invalid-link state) · `/login`
-  ("Back to login") · `/programs` (already-authed auto-redirect, when no recovery token is present).
+  banner) · `/forgot-password` ("Request a new reset link", from the invalid-link state) · `/programs`
+  (already-authed auto-redirect, when no recovery token is present). **No standalone "Back to login" link**
+  (D-C5) — this page is the shared destination of the reset email opened by **both** web and iOS clients,
+  so a web-only login link would strand iOS users.
 
 ## 4. Contents / sections
 
@@ -53,7 +55,7 @@ is where the link lands and the password is actually reset. Without it the reque
 | Submit button | "Reset password" / "Saving…" (`isLoading`); disabled until a valid token + strong + matching passwords (`canSubmit`). | `reset-password/page.tsx` |
 | Success state | On success the form is **replaced** by a green "Your password has been reset. Redirecting you to login…" banner; auto-redirects to `/login?reason=password-reset` after ~2.2s. | `reset-password/page.tsx` |
 | Invalid-link state | Amber banner ("This password reset link has expired or is invalid…") + a "Request a new reset link" → `/forgot-password`. Shown when the fragment carries an error, no token, or a submit returns 401. | `reset-password/page.tsx` |
-| Back link | "Back to login" → `/login` (always visible). | `reset-password/page.tsx` |
+| ~~Back link~~ | **Removed (D-C5, v0.1.1)** — no standalone "Back to login" link, since this page is opened by both web and iOS clients. Navigation is covered by the success auto-redirect and the invalid-link "Request a new reset link". | `reset-password/page.tsx` |
 
 **Submit flow:** guard `canSubmit` (token present && strong && matching && !loading) →
 `resetPassword(accessToken, newPassword)` (`POST /auth/reset-password`, token as Bearer) → on resolve show
@@ -122,6 +124,7 @@ token is redirected to `/programs`; one **with** a token may still reset (F4).
 | **D-C2** | **In-page success → login.** On success show a green banner, then redirect to `/login?reason=password-reset` (a new positive banner case on login — login SPEC v0.1.1) so the user signs in fresh with the new password. Recovery stays separate from login; no Supabase session is embedded in the client (clean R1 fit) — auto-login was the rejected alternative. | User answer (post-reset dest = "In-page success → login"); login SPEC v0.1.1 banner; METHODOLOGY R1. |
 | **D-C3** | **New-password + Confirm-password + inline policy hint.** Two fields with a shared Show/Hide toggle, an inline password-policy hint mirroring the server `validatePassword` (≥8, upper/lower/digit), and a match hint; submit disabled until valid + matching. Consistent with forgot-password's inline-validation divergence (D-C2) and the mandated "validate passwords" direction. | User answer (form fields = "New + Confirm + policy hint"); `authService.js` `validatePassword`; forgot-password SPEC D-C2. |
 | **D-C4** | **Recovery token via the implicit-flow URL fragment, forwarded through Express (R1).** supabase-js defaults to (and is pinned to) the **implicit** flow, so the email link lands with the session in the fragment — consumable by any browser (PKCE would need the code verifier on the server-side initiating client). The page reads the fragment, scrubs it from history, and round-trips the token through Express. | `@supabase/supabase-js` 2.108.2 default; `config/supabase.js` `flowType: "implicit"` (auth SPEC D-C5); METHODOLOGY R1. |
+| **D-C5** | **No standalone "Back to login" link (client-neutral destination).** Removed in v0.1.1: this page is the destination of the reset email's link, now opened by **both** web and iOS clients (iOS's request step is native — see `forgot-password` iOS mirror), so a web-only `/login` link would strand an iOS user on the web login. The page stays fully navigable without it — success auto-redirects to `/login?reason=password-reset` and the invalid-link state offers "Request a new reset link". `forgot-password` keeps its "Back to login" (web-only entry). | User request (2026-06-30); paired iOS `ForgotPasswordView` native request screen; `reset-password/page.tsx`. |
 | **D-S1** | **Faithful to the sibling auth pages' look & feel.** Reuses login/splash/forgot chrome verbatim — `BrandMark`, the `motion.div` fade-in, `input-shell` fields, the `Show/Hide` toggle, `button-primary--dark-white` CTA, `rf-*` tokens, the same redirect-when-authed pattern. No new design language. | `apps/web/src/app/{login,splash,forgot-password}/page.tsx`; `globals.css`. |
 
 ## 10. Flagged characteristics kept as-is
@@ -130,7 +133,7 @@ token is redirected to `/programs`; one **with** a token may still reset (F4).
 |----|----------------|-------|----------------------------|
 | **F1** | **No bootstrap loading gate — brief flash possible** (same as login F2 / forgot F1). The page renders immediately; the `/programs` redirect (for an authed visitor without a token) fires only after `!isBootstrapping`. | `reset-password/page.tsx` (the redirect `useEffect`) | Kept (faithful to siblings) — cosmetic. |
 | **F2** | **No client-side rate limiting** on reset submits (mirrors auth SPEC F4). Supabase rate-limits its own auth ops; the recovery token is single-use/short-lived. | `reset-password/page.tsx`; auth SPEC F4 | Kept — any throttling belongs server-side. |
-| **F3** | **iOS has no recovery screen** — web-first; the iOS recovery flow is added at the iOS auth port. | iOS `LoginView.swift`; `MyAccountSection.swift` (`supportURL`) | **Yes — iOS gap** to close when recovery is mirrored to iOS. |
+| **F3** | **iOS has a native recovery *request* screen, not a native reset screen** (2026-06-30). iOS's `ForgotPasswordView` natively runs the request step (`POST /auth/forgot-password`); the **set-new-password step stays on this web page** — the emailed link opens `rasifiters.com/reset-password` in the browser for both clients (hence D-C5). No native reset (would need Universal Links + Supabase redirect config). | iOS `Features/Auth/ForgotPasswordView.swift`, `LoginView.swift` | Partial — a fully-native iOS reset (deep-link the recovery token) remains a future option. |
 | **F4** | **An already-authenticated visitor *with* a recovery token is allowed to reset** (the `/programs` redirect is suppressed when a token is present), since a logged-in user who clicked a reset link still intends to reset. The redirect only fires for an authed visitor with no token. | `reset-password/page.tsx` (redirect guard `accessToken === null`) | Kept — sensible; an uncommon combination. |
 | **F5** | **Recovery token lives in the URL fragment on arrival** (Supabase implicit flow). Fragments aren't sent to the server, and the page scrubs it from history immediately, but it transits the browser. | `reset-password/page.tsx` (fragment parse + `history.replaceState`); auth SPEC D-C5 | Kept (the implicit flow is required by our backend-initiated architecture — D-C4). |
 | **F6** | **Auto-redirect timing is fixed (~2.2s)** before navigating to login on success — a long-enough glance at the confirmation, but not user-dismissable. | `reset-password/page.tsx` (`setTimeout`) | Kept — a rebuild could add a "Go to login now" button. |
@@ -139,4 +142,5 @@ token is redirected to `/programs`; one **with** a token may still reset (F4).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-06-30 | **Removed the standalone "Back to login" link** (D-C5, F3) — this page is the reset email's destination, now opened by **both** web and iOS clients (iOS's request step became native — `apps/ios/.../Features/Auth/ForgotPasswordView.swift`), so a web-only login link would strand iOS users. Page stays navigable via the success auto-redirect + the invalid-link "Request a new reset link". `/forgot-password` keeps its "Back to login". No behavior change to the reset flow itself. `apps/web/src/app/reset-password/page.tsx`. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 18) — the **fourth web page spec** and the **second net-new page** (the reset/consume step pairing with `forgot-password`). Documents `/reset-password`: reads the Supabase recovery `access_token` from the implicit-flow URL **fragment** (D-C4), a **new-password + confirm form with an inline policy hint** (D-C3), forwards the token as Bearer to **`POST /auth/reset-password`** which reuses `authenticateToken` + `changePassword` (D-C1), then **in-page success → `/login?reason=password-reset`** (D-C2). Reset routed **through Express** (R1). Consumes `auth` v0.4.0. Flagged F1–F6 (bootstrap flash; no client rate-limit; iOS recovery gap; authed-with-token may reset; token in fragment; fixed redirect timing). Ported `apps/web/src/app/reset-password/page.tsx` + `resetPassword()` (`api/auth.ts`) + the login `password-reset` banner (login SPEC → v0.1.1); `npm run build` ✓ (`/reset-password` prerendered, 4.28 kB). **The auth-recovery path is now end-to-end** (forgot → email → reset → login). |

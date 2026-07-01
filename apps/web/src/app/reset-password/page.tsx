@@ -212,14 +212,12 @@ export default function ResetPasswordPage() {
           </form>
         )}
 
-        <div className="mt-6 text-center text-sm sm:text-base">
-          <Link
-            href="/login"
-            className="font-semibold text-rf-accent transition hover:text-rf-accent-strong"
-          >
-            Back to login
-          </Link>
-        </div>
+        {/*
+          No "Back to login" link here (unlike /forgot-password): this page is the shared destination of
+          the reset email's link, opened by BOTH web and iOS users, so a web-only login link would strand
+          iOS users. The success state auto-redirects to /login and the expired state offers a fresh link,
+          so the page stays navigable without it.
+        */}
       </motion.div>
     </div>
   );

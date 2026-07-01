@@ -30,6 +30,10 @@ extension APIClient {
         let message: String
     }
 
+    struct ForgotPasswordResponse: Decodable {
+        let message: String?
+    }
+
     struct ChangeEmailResponse: Decodable {
         let message: String?
         let email: String?
@@ -122,6 +126,18 @@ extension APIClient {
 
         let data = try await data(for: request)
         return try JSONDecoder().decode(RegisterResponse.self, from: data)
+    }
+
+    /// Triggers a Supabase password-reset email via the Express proxy. Privacy-safe: the backend always
+    /// returns a generic 200 regardless of whether the email maps to an account (no enumeration), so the
+    /// caller shows the same confirmation either way. Mirrors the web `POST /auth/forgot-password` flow.
+    func requestPasswordReset(email: String) async throws -> ForgotPasswordResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/forgot-password"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(["email": email])
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(ForgotPasswordResponse.self, from: data)
     }
 
     func refreshSession(refreshToken: String) async throws -> TokenRefreshResponse {

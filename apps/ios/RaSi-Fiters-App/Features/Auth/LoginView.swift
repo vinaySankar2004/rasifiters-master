@@ -80,12 +80,16 @@ struct LoginView: View {
                 .adaptiveShadow(radius: 8, y: 4)
                 .disabled(isLoading || identifier.isEmpty || password.isEmpty)
 
-                // Self-service password recovery (matches web). The reset completes in the
-                // browser regardless of client (Supabase emails a link to rasifiters.com/reset-password),
-                // so iOS opens the live web recovery flow rather than duplicating it natively.
-                Link("Forgot your password?", destination: APIConfig.forgotPasswordURL)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundColor(.appOrange)
+                // Self-service password recovery — the email-request step is native (ForgotPasswordView).
+                // The emailed link still opens rasifiters.com/reset-password in the browser to set the new
+                // password (that shared page is client-neutral; the set-new-password step isn't duplicated).
+                NavigationLink {
+                    ForgotPasswordView()
+                } label: {
+                    Text("Forgot your password?")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(.appOrange)
+                }
 
                 HStack(spacing: 6) {
                     Text("New here?")

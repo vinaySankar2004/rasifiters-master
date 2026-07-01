@@ -17,9 +17,15 @@ enum APIConfig {
     static let webAppBaseURL = URL(string: "https://rasifiters.com")!
     static var privacyPolicyURL: URL { webAppBaseURL.appendingPathComponent("privacy-policy") }
     static var supportURL: URL { webAppBaseURL.appendingPathComponent("support") }
-    // Self-service password recovery lives on the web (Supabase emails a link to
-    // rasifiters.com/reset-password regardless of client); iOS Login opens this in the browser.
-    static var forgotPasswordURL: URL { webAppBaseURL.appendingPathComponent("forgot-password") }
+
+    // Recovery contact fallback — for migrated placeholder (no-email) accounts that can't receive a reset
+    // email. Matches the web forgot-password page's mailto fallback (NEXT_PUBLIC_SUPPORT_EMAIL default).
+    static let supportEmail = "vinay.sankara@gmail.com"
+    static var supportMailtoURL: URL {
+        let subject = "RaSi Fiters — account recovery help"
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        return URL(string: "mailto:\(supportEmail)?subject=\(subject)")!
+    }
 
     // Active base URL; debug uses local endpoints, release uses Render.
     static var activeBaseURL: URL {
