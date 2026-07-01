@@ -23,6 +23,13 @@ struct AdminSummaryTab: View {
     private let dataLockMessage =
         "Admin-only data entry is on for this program. Only program admins can add, edit, or delete data."
 
+    /// Web parity (`canLogForAny`, summary/page.tsx): the Bulk-add card is admin/logger-only.
+    private var canLogForAny: Bool {
+        programContext.globalRole == "global_admin"
+            || programContext.loggedInUserProgramRole == "admin"
+            || programContext.loggedInUserProgramRole == "logger"
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             Color.appBackground
@@ -162,7 +169,10 @@ struct AdminSummaryTab: View {
         var rows: [[SummaryCardType]] = []
         var currentRow: [SummaryCardType] = []
 
-        for card in cardOrder {
+        // Bulk-add is admin/logger-only (web parity); hide it for plain members.
+        let visibleOrder = cardOrder.filter { $0 != .bulkAdd || canLogForAny }
+
+        for card in visibleOrder {
             if card.requiresFullWidth {
                 if !currentRow.isEmpty {
                     rows.append(currentRow)
@@ -198,6 +208,19 @@ struct AdminSummaryTab: View {
                     AddWorkoutDetailView()
                 } label: {
                     AddWorkoutCard()
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        case .bulkAdd:
+            if programContext.dataEntryLocked {
+                BulkAddWorkoutCard()
+                    .frame(maxWidth: .infinity)
+                    .opacity(0.5)
+            } else {
+                NavigationLink {
+                    BulkAddWorkoutDetailView()
+                } label: {
+                    BulkAddWorkoutCard()
                         .frame(maxWidth: .infinity)
                 }
             }
@@ -293,13 +316,18 @@ struct AdminSummaryTab: View {
             let savedTypes = saved.compactMap { SummaryCardType(rawValue: $0) }
             let missing = SummaryCardType.defaultOrder.filter { !savedTypes.contains($0) }
             var merged = savedTypes + missing
-            if let dailyIndex = merged.firstIndex(of: .addDailyHealth),
-               let workoutIndex = merged.firstIndex(of: .addWorkout),
-               dailyIndex != workoutIndex + 1 {
-                let item = merged.remove(at: dailyIndex)
-                let insertIndex = min(workoutIndex + 1, merged.count)
-                merged.insert(item, at: insertIndex)
+            // Keep the action cards grouped in order: addWorkout → bulkAdd → addDailyHealth.
+            func reposition(_ card: SummaryCardType, after anchor: SummaryCardType) {
+                guard let anchorIndex = merged.firstIndex(of: anchor),
+                      let cardIndex = merged.firstIndex(of: card) else { return }
+                if cardIndex != anchorIndex + 1 {
+                    let item = merged.remove(at: cardIndex)
+                    let newAnchorIndex = merged.firstIndex(of: anchor) ?? anchorIndex
+                    merged.insert(item, at: min(newAnchorIndex + 1, merged.count))
+                }
             }
+            reposition(.bulkAdd, after: .addWorkout)
+            reposition(.addDailyHealth, after: .bulkAdd)
             cardOrder = merged
         } else {
             cardOrder = SummaryCardType.defaultOrder

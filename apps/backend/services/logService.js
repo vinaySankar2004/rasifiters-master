@@ -174,9 +174,10 @@ async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_nam
 }
 
 /** Bulk-insert workout logs for many member/workout/date rows in one atomic transaction.
- *  Duplicate (member, workout, date) rows — within the batch and against existing logs — are
- *  summed. Admin/logger only. Returns per-row errors (mapped by original index) on validation
- *  failure so the client can highlight bad rows. */
+ *  Duplicate (member, workout, date) rows — within the batch OR against an existing log — are
+ *  REJECTED (never summed): the endpoint returns 409 with per-row `rowErrors` (field "duplicate")
+ *  naming every offending row so the client can highlight them, and writes nothing. Admin/logger
+ *  only. Field-validation failures likewise return per-row errors mapped by original index. */
 async function addWorkoutLogsBatch({ program_id, entries }, requester) {
     if (!program_id) throw new AppError(400, "program_id is required.");
     if (!Array.isArray(entries) || entries.length === 0) {
@@ -217,7 +218,8 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
         throw err;
     }
 
-    // ── Pre-aggregate by (member, lowercased workout, date), summing durations ──
+    // ── Group by (member, lowercased workout, date). A member/workout/date is unique
+    //    (DB PK), so we REJECT collisions rather than summing durations onto them. ──
     const groupsMap = new Map();
     entries.forEach((entry, index) => {
         const workoutName = entry.workout_name.trim();
@@ -225,7 +227,6 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
         const existing = groupsMap.get(key);
         const duration = Number(entry.duration);
         if (existing) {
-            existing.duration += duration;
             existing.rowIndexes.push(index);
         } else {
             groupsMap.set(key, {
@@ -238,6 +239,26 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
         }
     });
     const groups = [...groupsMap.values()];
+
+    // In-batch duplicates: two+ rows for the same member/workout/date. Flag every offending row.
+    const duplicateErrors = [];
+    for (const g of groups) {
+        if (g.rowIndexes.length > 1) {
+            for (const index of g.rowIndexes) {
+                duplicateErrors.push({
+                    index,
+                    field: "duplicate",
+                    message:
+                        "Duplicate row — this member already has this workout on this date in another row."
+                });
+            }
+        }
+    }
+    if (duplicateErrors.length) {
+        const err = new AppError(409, "Some rows duplicate an existing record.");
+        err.rowErrors = duplicateErrors;
+        throw err;
+    }
 
     // ── Atomic writes ──
     return sequelize.transaction(async (transaction) => {
@@ -277,9 +298,9 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
             }
         }
 
-        let created = 0;
-        let updated = 0;
-        let total_minutes = 0;
+        // Collision check against existing logs — reject (don't merge) if a record already
+        // exists for this member/workout/date. Collect ALL offenders before any write.
+        const existingErrors = [];
         for (const g of groups) {
             const pw = workoutCache.get(g.workout_name.trim().toLowerCase());
             const existing = await WorkoutLog.findOne({
@@ -287,25 +308,41 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
                 transaction
             });
             if (existing) {
-                existing.duration = (existing.duration || 0) + g.duration;
-                await existing.save({ transaction });
-                updated++;
-            } else {
-                await WorkoutLog.create({
-                    program_id,
-                    member_id: g.member_id,
-                    program_workout_id: pw.id,
-                    log_date: g.date,
-                    duration: g.duration
-                }, { transaction });
-                created++;
+                for (const index of g.rowIndexes) {
+                    existingErrors.push({
+                        index,
+                        field: "duplicate",
+                        message:
+                            "A workout already exists for this member, workout, and date. It can't be added to — remove or edit the existing record."
+                    });
+                }
             }
+        }
+        if (existingErrors.length) {
+            const err = new AppError(409, "Some rows duplicate an existing record.");
+            err.rowErrors = existingErrors;
+            throw err;
+        }
+
+        // No collisions — every accepted group is a fresh insert.
+        let created = 0;
+        let total_minutes = 0;
+        for (const g of groups) {
+            const pw = workoutCache.get(g.workout_name.trim().toLowerCase());
+            await WorkoutLog.create({
+                program_id,
+                member_id: g.member_id,
+                program_workout_id: pw.id,
+                log_date: g.date,
+                duration: g.duration
+            }, { transaction });
+            created++;
             total_minutes += g.duration;
         }
 
         return {
             created,
-            updated,
+            updated: 0,
             total_minutes,
             groups: groups.length,
             total_entries: entries.length

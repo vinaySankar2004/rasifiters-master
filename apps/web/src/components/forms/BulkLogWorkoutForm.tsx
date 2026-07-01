@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { fetchProgramMembers } from "@/lib/api/programs";
 import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
 import type { BulkRowError, BulkWorkoutEntry } from "@/lib/api/logs";
@@ -181,6 +181,19 @@ export function BulkLogWorkoutForm({
     return map;
   }, [rowErrors, submittedOrder]);
 
+  // Row-level backend errors (e.g. duplicate collisions) that aren't tied to a single field.
+  const backendRowLevelByUid = useMemo(() => {
+    const map = new Map<number, string>();
+    if (!rowErrors) return map;
+    for (const err of rowErrors) {
+      if (mapBackendField(err.field)) continue; // field-scoped errors handled above
+      const uid = submittedOrder[err.index];
+      if (uid === undefined) continue;
+      map.set(uid, err.message);
+    }
+    return map;
+  }, [rowErrors, submittedOrder]);
+
   // Live client errors win over (possibly stale) backend errors on the same field.
   const errorsForRow = (r: Row): Partial<Record<FieldKey, string>> => ({
     ...(backendByUid.get(r.uid) ?? {}),
@@ -249,8 +262,12 @@ export function BulkLogWorkoutForm({
               <tbody>
                 {rows.map((r) => {
                   const errs = errorsForRow(r);
+                  const rowLevelError = backendRowLevelByUid.get(r.uid);
                   return (
-                    <tr key={r.uid} className="align-top">
+                    <Fragment key={r.uid}>
+                    <tr
+                      className={`align-top ${rowLevelError ? "[&>td]:bg-rf-danger/5" : ""}`}
+                    >
                       <td className="min-w-[150px] px-2 py-1">
                         <Select
                           value={r.memberId}
@@ -302,6 +319,14 @@ export function BulkLogWorkoutForm({
                         </button>
                       </td>
                     </tr>
+                    {rowLevelError && (
+                      <tr>
+                        <td colSpan={5} className="px-2 pb-2">
+                          <FieldError message={rowLevelError} />
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -317,8 +342,12 @@ export function BulkLogWorkoutForm({
         ) : (
           rows.map((r, index) => {
             const errs = errorsForRow(r);
+            const rowLevelError = backendRowLevelByUid.get(r.uid);
             return (
-              <div key={r.uid} className="space-y-3 rounded-2xl border border-rf-border bg-rf-surface p-4">
+              <div
+                key={r.uid}
+                className={`space-y-3 rounded-2xl border bg-rf-surface p-4 ${rowLevelError ? "border-rf-danger" : "border-rf-border"}`}
+              >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold text-rf-text">Entry {index + 1}</p>
                   <button
@@ -372,6 +401,7 @@ export function BulkLogWorkoutForm({
                     <FieldError message={errs.duration} />
                   </div>
                 </div>
+                {rowLevelError && <FieldError message={rowLevelError} />}
               </div>
             );
           })

@@ -104,7 +104,7 @@ final class APIClient {
         return (data, http)
     }
 
-    private func refreshAccessTokenIfPossible() async throws -> String? {
+    func refreshAccessTokenIfPossible() async throws -> String? {
         if let existing = inflightRefreshTask {
             return try await existing.value
         }

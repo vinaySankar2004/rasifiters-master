@@ -135,6 +135,83 @@ extension APIClient {
         _ = try await data(for: request)
     }
 
+    // MARK: - Bulk workout logging
+
+    struct BulkWorkoutEntry: Encodable {
+        let member_id: String
+        let workout_name: String
+        let date: String
+        let duration: Int
+    }
+
+    struct BulkRowError: Decodable {
+        let index: Int
+        let field: String
+        let message: String
+    }
+
+    struct BulkWorkoutResult: Decodable {
+        let created: Int
+        let updated: Int
+        let total_minutes: Int
+        let groups: Int
+        let total_entries: Int
+    }
+
+    /// Thrown on a non-2xx batch response. Carries the per-row errors so the form can highlight
+    /// the offending rows (duplicate collisions, field validation) by their submitted index.
+    struct BulkWorkoutError: LocalizedError {
+        let message: String
+        let rowErrors: [BulkRowError]
+        var errorDescription: String? { message }
+    }
+
+    private struct BulkWorkoutErrorPayload: Decodable {
+        let error: String?
+        let message: String?
+        let rowErrors: [BulkRowError]?
+    }
+
+    /// Bulk-log workouts. Duplicate (member, workout, date) rows — in the batch or against an
+    /// existing log — are rejected server-side with a 409 + `rowErrors` (never merged).
+    /// Uses `rawData(for:)` so the per-row error body survives (the shared `data(for:)` collapses
+    /// errors to a flat message).
+    func addWorkoutLogsBatch(token: String, programId: String, entries: [BulkWorkoutEntry]) async throws -> BulkWorkoutResult {
+        func buildRequest(bearer: String) throws -> URLRequest {
+            var request = URLRequest(url: baseURL.appendingPathComponent("workout-logs/batch"))
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+            let body: [String: Any] = [
+                "program_id": programId,
+                "entries": entries.map { [
+                    "member_id": $0.member_id,
+                    "workout_name": $0.workout_name,
+                    "date": $0.date,
+                    "duration": $0.duration
+                ] }
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
+            return request
+        }
+
+        var (data, http) = try await rawData(for: try buildRequest(bearer: token))
+
+        // One refresh + retry on 401, mirroring data(for:) — but preserving the error body.
+        if http.statusCode == 401, let fresh = try? await refreshAccessTokenIfPossible() {
+            (data, http) = try await rawData(for: try buildRequest(bearer: fresh))
+            if http.statusCode == 401 { authFailureHandler?() }
+        }
+
+        guard 200..<300 ~= http.statusCode else {
+            let payload = try? JSONDecoder().decode(BulkWorkoutErrorPayload.self, from: data)
+            let message = payload?.error ?? payload?.message ?? "Request failed (\(http.statusCode))"
+            throw BulkWorkoutError(message: message, rowErrors: payload?.rowErrors ?? [])
+        }
+        return try JSONDecoder().decode(BulkWorkoutResult.self, from: data)
+    }
+
     func deleteWorkoutLog(token: String, programId: String, memberId: String, workoutName: String, date: String) async throws {
         var request = URLRequest(url: baseURL.appendingPathComponent("workout-logs"))
         request.httpMethod = "DELETE"
