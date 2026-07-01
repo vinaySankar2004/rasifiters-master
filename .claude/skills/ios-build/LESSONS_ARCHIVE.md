@@ -235,3 +235,14 @@ specific "list navigator issues" tool must be called after the build tool.
   synchronized folder group compiled with no `project.pbxproj` edit. iOS-26 `.glassProminent` button style
   gated behind `if #available(iOS 26.0, *)` with a `.borderedProminent` fallback compiled clean on the
   18.6 SDK floor.
+
+## Run 74 — 2026-07-01 — Apple Health sync respects the admin lock (D-LOCK)
+- **Change built:** new `ProgramContext.isDataEntryLocked(programId:)` predicate; workout sync gates locked
+  programs + holds the anchor (`lockHeld` / new static `pendingWorkoutLockHeld`) in
+  `ProgramContext+HealthKit.swift`; sleep sync skips locked in `+HealthKitSleep.swift`; defensive commit
+  guards + lockHeld reset in `+HealthSyncGating.swift`; `AppleHealthSettingsView.swift` renders locked
+  programs non-selectable (shared `programRow` builder) + Sync-Now note.
+- **Result:** `BuildProject(tabIdentifier: windowtab2)` → built successfully, 0 errors, 23.4s. Filtered
+  `XcodeListNavigatorIssues` (warning, pattern on the touched files) → 0 new warnings.
+- **Confirmed (no new lessons):** tab id `windowtab2` fetched fresh via `XcodeListWindows`. Edits to
+  existing files only (no new .swift). Pure edit-in-place change compiled clean first try.
