@@ -37,15 +37,19 @@ function rowDuration(r: Row) {
   return rowHours(r) * 60 + rowMinutes(r);
 }
 
-function isEmptyRow(r: Row) {
-  return !r.memberId && !r.workoutName && !r.hours && !r.minutes;
+/** A row counts as empty (and is skipped on submit) when none of its own fields are filled.
+ *  When the member column is hidden (`ignoreMember`), the pre-seeded self member_id is not
+ *  considered a "filled" field, so a fresh member row still reads as empty until they type. */
+function isEmptyRow(r: Row, ignoreMember: boolean) {
+  const memberEmpty = ignoreMember || !r.memberId;
+  return memberEmpty && !r.workoutName && !r.hours && !r.minutes;
 }
 
-function isValidRow(r: Row) {
+function isValidRow(r: Row, ignoreMember: boolean) {
   const h = rowHours(r);
   const m = rowMinutes(r);
   return (
-    r.memberId.trim().length > 0 &&
+    (ignoreMember || r.memberId.trim().length > 0) &&
     r.workoutName.trim().length > 0 &&
     r.date.trim().length > 0 &&
     h >= 0 &&
@@ -56,10 +60,10 @@ function isValidRow(r: Row) {
 }
 
 /** Live, field-level validation messages for a non-empty row. Empty rows are ignored. */
-function clientRowErrors(r: Row): Partial<Record<FieldKey, string>> {
-  if (isEmptyRow(r)) return {};
+function clientRowErrors(r: Row, ignoreMember: boolean): Partial<Record<FieldKey, string>> {
+  if (isEmptyRow(r, ignoreMember)) return {};
   const errors: Partial<Record<FieldKey, string>> = {};
-  if (!r.memberId) errors.member = "Select a member";
+  if (!ignoreMember && !r.memberId) errors.member = "Select a member";
   if (!r.workoutName) errors.workout = "Select a workout";
   if (!r.date) errors.date = "Pick a date";
   const h = rowHours(r);
@@ -85,9 +89,11 @@ function mapBackendField(field: string): FieldKey | null {
   }
 }
 
-export function BulkLogWorkoutForm({
+export function LogWorkoutsForm({
   programId,
   token,
+  canSelectAnyMember,
+  selfMemberId,
   onClose,
   onSubmit,
   isSaving,
@@ -97,6 +103,10 @@ export function BulkLogWorkoutForm({
 }: {
   programId: string;
   token: string;
+  /** Admin/logger/global-admin → per-row member picker. Plain member → member column hidden, self only. */
+  canSelectAnyMember: boolean;
+  /** The logged-in member's id — seeded into every row when the member column is hidden. */
+  selfMemberId?: string;
   onClose: () => void;
   onSubmit: (entries: BulkWorkoutEntry[]) => void;
   isSaving: boolean;
@@ -104,12 +114,14 @@ export function BulkLogWorkoutForm({
   rowErrors?: BulkRowError[] | null;
   variant?: "modal" | "page";
 }) {
+  const ignoreMember = !canSelectAnyMember;
   const [members, setMembers] = useState<{ id: string; member_name: string }[]>([]);
   const [workouts, setWorkouts] = useState<{ workout_name: string }[]>([]);
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [submittedOrder, setSubmittedOrder] = useState<number[]>([]);
   const nextUid = useRef(0);
+  const seededRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -148,14 +160,30 @@ export function BulkLogWorkoutForm({
     setRows((prev) => {
       if (prev.length >= MAX_ROWS) return prev;
       const baseDate = prev[prev.length - 1]?.date || todayStr();
+      const seedMemberId = ignoreMember ? selfMemberId ?? "" : "";
       const additions: Row[] = [];
       const room = Math.min(count, MAX_ROWS - prev.length);
       for (let i = 0; i < room; i += 1) {
-        additions.push({ uid: nextUid.current++, memberId: "", workoutName: "", date: baseDate, hours: "", minutes: "" });
+        additions.push({
+          uid: nextUid.current++,
+          memberId: seedMemberId,
+          workoutName: "",
+          date: baseDate,
+          hours: "",
+          minutes: ""
+        });
       }
       return [...prev, ...additions];
     });
   };
+
+  // Start with one ready-to-fill row so the form is usable immediately (both roles).
+  useEffect(() => {
+    if (seededRef.current) return;
+    seededRef.current = true;
+    addRows(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const updateRow = (uid: number, patch: Partial<Row>) => {
     setRows((prev) => prev.map((r) => (r.uid === uid ? { ...r, ...patch } : r)));
@@ -197,11 +225,11 @@ export function BulkLogWorkoutForm({
   // Live client errors win over (possibly stale) backend errors on the same field.
   const errorsForRow = (r: Row): Partial<Record<FieldKey, string>> => ({
     ...(backendByUid.get(r.uid) ?? {}),
-    ...clientRowErrors(r)
+    ...clientRowErrors(r, ignoreMember)
   });
 
-  const nonEmptyRows = rows.filter((r) => !isEmptyRow(r));
-  const validRows = nonEmptyRows.filter(isValidRow);
+  const nonEmptyRows = rows.filter((r) => !isEmptyRow(r, ignoreMember));
+  const validRows = nonEmptyRows.filter((r) => isValidRow(r, ignoreMember));
   const invalidCount = nonEmptyRows.length - validRows.length;
   const canSubmit = validRows.length > 0 && invalidCount === 0 && !isSaving;
 
@@ -215,7 +243,7 @@ export function BulkLogWorkoutForm({
   );
 
   const handleSubmit = () => {
-    const included = rows.filter((r) => !isEmptyRow(r) && isValidRow(r));
+    const included = rows.filter((r) => !isEmptyRow(r, ignoreMember) && isValidRow(r, ignoreMember));
     if (included.length === 0) return;
     setSubmittedOrder(included.map((r) => r.uid));
     onSubmit(
@@ -228,14 +256,17 @@ export function BulkLogWorkoutForm({
     );
   };
 
-  const noLookups = lookupsLoaded && (memberOptions.length === 0 || workoutOptions.length === 0);
+  const noWorkouts = lookupsLoaded && workoutOptions.length === 0;
+  const noMembers = lookupsLoaded && canSelectAnyMember && memberOptions.length === 0;
+  const noLookups = noWorkouts || noMembers;
   const atMax = rows.length >= MAX_ROWS;
+  const columnCount = canSelectAnyMember ? 5 : 4;
 
   const content = (
     <>
       {noLookups && (
         <p className="rounded-2xl bg-rf-surface-muted px-4 py-3 text-sm text-rf-text-muted">
-          {memberOptions.length === 0
+          {noMembers
             ? "No active members in this program yet."
             : "No workout types available for this program yet."}
         </p>
@@ -250,7 +281,7 @@ export function BulkLogWorkoutForm({
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-rf-text-muted">
-                  <th className="px-2 pb-2 font-semibold">Member</th>
+                  {canSelectAnyMember && <th className="px-2 pb-2 font-semibold">Member</th>}
                   <th className="px-2 pb-2 font-semibold">Workout type</th>
                   <th className="px-2 pb-2 font-semibold">Date</th>
                   <th className="px-2 pb-2 font-semibold">Duration</th>
@@ -268,16 +299,18 @@ export function BulkLogWorkoutForm({
                     <tr
                       className={`align-top ${rowLevelError ? "[&>td]:bg-rf-danger/5" : ""}`}
                     >
-                      <td className="min-w-[150px] px-2 py-1">
-                        <Select
-                          value={r.memberId}
-                          options={memberOptions}
-                          onChange={(v) => updateRow(r.uid, { memberId: v })}
-                          placeholder="Member"
-                          searchable
-                        />
-                        <FieldError message={errs.member} />
-                      </td>
+                      {canSelectAnyMember && (
+                        <td className="min-w-[150px] px-2 py-1">
+                          <Select
+                            value={r.memberId}
+                            options={memberOptions}
+                            onChange={(v) => updateRow(r.uid, { memberId: v })}
+                            placeholder="Member"
+                            searchable
+                          />
+                          <FieldError message={errs.member} />
+                        </td>
+                      )}
                       <td className="min-w-[150px] px-2 py-1">
                         <Select
                           value={r.workoutName}
@@ -321,7 +354,7 @@ export function BulkLogWorkoutForm({
                     </tr>
                     {rowLevelError && (
                       <tr>
-                        <td colSpan={5} className="px-2 pb-2">
+                        <td colSpan={columnCount} className="px-2 pb-2">
                           <FieldError message={rowLevelError} />
                         </td>
                       </tr>
@@ -358,17 +391,19 @@ export function BulkLogWorkoutForm({
                     Remove
                   </button>
                 </div>
-                <div>
-                  <Select
-                    label="Member"
-                    value={r.memberId}
-                    options={memberOptions}
-                    onChange={(v) => updateRow(r.uid, { memberId: v })}
-                    placeholder="Select member"
-                    searchable
-                  />
-                  <FieldError message={errs.member} />
-                </div>
+                {canSelectAnyMember && (
+                  <div>
+                    <Select
+                      label="Member"
+                      value={r.memberId}
+                      options={memberOptions}
+                      onChange={(v) => updateRow(r.uid, { memberId: v })}
+                      placeholder="Select member"
+                      searchable
+                    />
+                    <FieldError message={errs.member} />
+                  </div>
+                )}
                 <div>
                   <Select
                     label="Workout type"
@@ -428,8 +463,15 @@ export function BulkLogWorkoutForm({
 
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-rf-text-muted">
-          {validRows.length} {validRows.length === 1 ? "row" : "rows"} • {distinctMembers}{" "}
-          {distinctMembers === 1 ? "member" : "members"} • {totalMinutes} min total
+          {validRows.length} {validRows.length === 1 ? "row" : "rows"}
+          {canSelectAnyMember && (
+            <>
+              {" • "}
+              {distinctMembers} {distinctMembers === 1 ? "member" : "members"}
+            </>
+          )}
+          {" • "}
+          {totalMinutes} min total
         </p>
         <button
           type="button"
@@ -451,9 +493,9 @@ export function BulkLogWorkoutForm({
     <div className="modal-surface w-full max-w-3xl rounded-3xl p-6 md:max-w-4xl">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-rf-text">Bulk log workouts</h2>
+          <h2 className="text-lg font-semibold text-rf-text">Add workouts</h2>
           <p className="mt-1 text-sm text-rf-text-muted">
-            Add a row per session — member, workout, date, and duration — then save them all at once.
+            Add a row per session{canSelectAnyMember ? " — member, workout, date, and duration" : " — workout, date, and duration"} — then save them all at once.
           </p>
         </div>
         <button

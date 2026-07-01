@@ -1,21 +1,26 @@
 //
-//  BulkAddWorkoutDetailView.swift
+//  AddWorkoutsDetailView.swift
 //  RaSi-Fiters-App
 //
-//  Summary "Bulk add" card → the multi-row bulk-log form. The iOS analogue of the web
-//  BulkLogWorkoutForm (apps/web/src/components/forms/BulkLogWorkoutForm.tsx): add a row per
-//  session (member · workout · date · duration) and save them all at once via POST
-//  /workout-logs/batch. Faithful to web parity — the admin_only_data_entry mount guard,
-//  role-gated member selection, success refresh, and per-row error highlighting.
+//  Summary "Add workouts" card → the unified multi-row workout-log form (formerly split into a
+//  single "Add workout" and an admin-only "Bulk add"). The iOS analogue of the web LogWorkoutsForm
+//  (apps/web/src/components/forms/LogWorkoutsForm.tsx): add a row per session and save them all at
+//  once via POST /workout-logs/batch.
+//
+//  Role behaviour:
+//   • Admin / logger / global-admin → a per-row member picker (log for anyone).
+//   • Plain member → the member column is hidden; every row is implicitly themselves (member_id is
+//     seeded with the logged-in member and the backend enforces "own rows only").
 //
 //  Duplicate (member, workout, date) rows — within the batch OR against an existing log — are
 //  rejected server-side (409 + rowErrors, field "duplicate"); this view highlights those rows
-//  red and shows the message, never silently merging.
+//  red and shows the message, never silently merging. Nothing saves unless every row is valid
+//  (all-or-nothing).
 //
 
 import SwiftUI
 
-struct BulkAddWorkoutDetailView: View {
+struct AddWorkoutsDetailView: View {
     @EnvironmentObject var programContext: ProgramContext
     @Environment(\.dismiss) private var dismiss
 
@@ -51,6 +56,10 @@ struct BulkAddWorkoutDetailView: View {
             || programContext.loggedInUserProgramRole == "logger"
     }
 
+    /// True when the member column is hidden (plain member) — the seeded self member_id then does
+    /// not count toward a row being "filled".
+    private var ignoreMember: Bool { !canSelectAnyMember }
+
     private var workoutOptions: [String] {
         if programContext.programId != nil {
             return programContext.programWorkouts.filter { !$0.is_hidden }.map { $0.workout_name }
@@ -67,12 +76,24 @@ struct BulkAddWorkoutDetailView: View {
     private var distinctMembers: Int { Set(validRows.map { $0.memberId }).count }
     private var totalMinutes: Int { validRows.reduce(0) { $0 + rowDuration($1) } }
 
+    private var summaryLine: String {
+        let rowsPart = "\(validRows.count) \(validRows.count == 1 ? "row" : "rows")"
+        let minutesPart = "\(totalMinutes) min total"
+        if canSelectAnyMember {
+            let membersPart = "\(distinctMembers) \(distinctMembers == 1 ? "member" : "members")"
+            return "\(rowsPart) • \(membersPart) • \(minutesPart)"
+        }
+        return "\(rowsPart) • \(minutesPart)"
+    }
+
     // MARK: - Body
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.lg) {
-                Text("Add a row per session — member, workout, date, and duration — then save them all at once.")
+                Text(canSelectAnyMember
+                        ? "Add a row per session — member, workout, date, and duration — then save them all at once."
+                        : "Add a row per session — workout, date, and duration — then save them all at once.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
@@ -97,7 +118,7 @@ struct BulkAddWorkoutDetailView: View {
                         .foregroundColor(.appRed)
                 }
 
-                Text("\(validRows.count) \(validRows.count == 1 ? "row" : "rows") • \(distinctMembers) \(distinctMembers == 1 ? "member" : "members") • \(totalMinutes) min total")
+                Text(summaryLine)
                     .font(.footnote)
                     .foregroundColor(.secondary)
 
@@ -111,7 +132,7 @@ struct BulkAddWorkoutDetailView: View {
             }
             .padding(20)
         }
-        .navigationTitle("Bulk add")
+        .navigationTitle("Add workouts")
         .navigationBarTitleDisplayMode(.inline)
         .adaptiveBackground()
         .task {
@@ -165,8 +186,15 @@ struct BulkAddWorkoutDetailView: View {
                 .buttonStyle(.plain)
             }
 
-            LogFieldLabel("Member")
-            memberField(row)
+            // Members log only for themselves, so the member field is hidden for them entirely.
+            if canSelectAnyMember {
+                LogFieldLabel("Member")
+                Button { memberPickerRowId = row.id } label: {
+                    LogFieldRow(text: row.memberName.isEmpty ? "Select member" : row.memberName,
+                                isPlaceholder: row.memberName.isEmpty,
+                                systemIcon: "chevron.up.chevron.down")
+                }
+            }
 
             LogFieldLabel("Workout")
             Button { workoutPickerRowId = row.id } label: {
@@ -202,22 +230,6 @@ struct BulkAddWorkoutDetailView: View {
             RoundedRectangle(cornerRadius: AppCornerRadius.lg, style: .continuous)
                 .stroke(hasError ? Color.appRed : Color(.systemGray4).opacity(0.6), lineWidth: hasError ? 1.5 : 1)
         )
-    }
-
-    @ViewBuilder
-    private func memberField(_ row: BulkRow) -> some View {
-        if canSelectAnyMember {
-            Button { memberPickerRowId = row.id } label: {
-                LogFieldRow(text: row.memberName.isEmpty ? "Select member" : row.memberName,
-                            isPlaceholder: row.memberName.isEmpty,
-                            systemIcon: "chevron.up.chevron.down")
-            }
-        } else {
-            LogFieldRow(text: row.memberName.isEmpty ? (programContext.loggedInUserName ?? "You") : row.memberName,
-                        isPlaceholder: false,
-                        systemIcon: "lock.fill",
-                        locked: true)
-        }
     }
 
     private var emptyState: some View {
@@ -267,17 +279,18 @@ struct BulkAddWorkoutDetailView: View {
     private func rowDuration(_ r: BulkRow) -> Int { rowHours(r) * 60 + rowMinutes(r) }
 
     private func isEmptyRow(_ r: BulkRow) -> Bool {
-        r.memberId.isEmpty && r.workoutName.isEmpty && r.hoursText.isEmpty && r.minutesText.isEmpty
+        let memberEmpty = ignoreMember || r.memberId.isEmpty
+        return memberEmpty && r.workoutName.isEmpty && r.hoursText.isEmpty && r.minutesText.isEmpty
     }
 
     private func isValidRow(_ r: BulkRow) -> Bool {
-        !r.memberId.isEmpty && !r.workoutName.isEmpty && rowMinutes(r) < 60 && rowDuration(r) > 0
+        (ignoreMember || !r.memberId.isEmpty) && !r.workoutName.isEmpty && rowMinutes(r) < 60 && rowDuration(r) > 0
     }
 
     /// Live client-side validation message for a non-empty row (nil when valid or empty).
     private func clientRowError(_ r: BulkRow) -> String? {
         if isEmptyRow(r) { return nil }
-        if r.memberId.isEmpty { return "Select a member" }
+        if !ignoreMember && r.memberId.isEmpty { return "Select a member" }
         if r.workoutName.isEmpty { return "Select a workout" }
         if rowMinutes(r) >= 60 { return "Minutes must be 0–59" }
         if rowDuration(r) <= 0 { return "Add a duration" }
@@ -297,11 +310,10 @@ struct BulkAddWorkoutDetailView: View {
         var additions: [BulkRow] = []
         for _ in 0..<room {
             var row = BulkRow(id: nextUid, date: baseDate)
-            // Plain members log only for themselves — prefill + lock.
-            if !canSelectAnyMember, let userId = programContext.loggedInUserId,
-               let me = programContext.members.first(where: { $0.id == userId }) {
-                row.memberId = me.id
-                row.memberName = me.member_name
+            // Plain members log only for themselves — seed member_id with the logged-in member.
+            if ignoreMember {
+                row.memberId = programContext.loggedInUserId ?? ""
+                row.memberName = programContext.loggedInUserName ?? ""
             }
             additions.append(row)
             nextUid += 1

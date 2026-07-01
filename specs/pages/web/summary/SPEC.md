@@ -1,12 +1,12 @@
 # Page: `summary` (web) — the program workspace overview (first tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary` — **the first bottom-nav tab** of a program's workspace; the screen you land on
 > after selecting a program on the hub (`saveActiveProgram` → `router.push("/summary")`). Sibling tabs
 > (`/members`, `/lifestyle`, `/program`) and the 6 summary sub-routes are **not** in this run (deferred).
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/page.tsx`
 > (+ ported deps `lib/api/{summary,logs,program-workouts}.ts`, `components/ui/{ErrorState,Input,Button}.tsx`,
-> `components/forms/{LogWorkoutForm,BulkLogWorkoutForm,LogDailyHealthForm}.tsx`).
+> `components/forms/{LogWorkoutsForm,LogDailyHealthForm}.tsx`).
 > **Consumes (features):** [`analytics`](../../../features/analytics/SPEC.md) (7 of the 8 reads),
 > [`analytics-v2`](../../../features/analytics-v2/SPEC.md) (MTD participation),
 > [`workout-logs`](../../../features/workout-logs/SPEC.md) + [`daily-health-logs`](../../../features/daily-health-logs/SPEC.md)
@@ -25,9 +25,11 @@
 The **program workspace overview** — the dashboard for the active program. It shows program progress, an
 activity-timeline chart, four month-to-date stat cards (participation, total workouts, total duration, avg
 duration), a workout-by-day distribution chart, and the top workout types; and it is the **primary data-entry
-surface** — three action cards open modal forms to log a single workout, bulk-log many workouts, or log daily
-health. Used by **every enrolled member** of the active program; which action cards appear + whether they're
-enabled varies by role and the `admin_only_data_entry` lock (§7).
+surface** — **two** action cards open modal forms: **Add workouts** (a unified multi-row form — log one or
+many sessions at once) and **Log daily health**. Used by **every enrolled member** of the active program;
+the member picker inside "Add workouts" + whether the cards are enabled varies by role and the
+`admin_only_data_entry` lock (§7). (Prior to 2026-07-01 there were three cards — a single "Add workout" + an
+admin-only "Bulk add"; these merged into the one multi-row "Add workouts", `workout-logs` D-C8.)
 
 ## 2. Why it exists
 
@@ -47,8 +49,10 @@ real screen — the first web surface to consume the analytics + logging backend
   the 4 workspace tabs (Summary / Members / Lifestyle / Program). The Members / Lifestyle / Program tabs +
   the 6 summary sub-routes are **forward dependencies** (F2).
 - **Leaves to:** `/summary/activity` · `/summary/distribution` · `/summary/workout-types` (detail cards), and
-  on **mobile** `/summary/log-workout` · `/summary/log-health` · `/summary/bulk-log-workout` (the action cards
-  route to pages instead of opening modals). All six are **not yet built** (F2).
+  on **mobile** `/summary/log-workout` (the unified "Add workouts" form) · `/summary/log-health` (the action
+  cards route to pages instead of opening modals). The 3 detail cards are **not yet built** (F2);
+  `/summary/log-workout` + `/summary/log-health` are built. (`/summary/bulk-log-workout` was removed in the
+  2026-07-01 merge.)
 
 ## 4. Contents / sections
 
@@ -59,24 +63,23 @@ real screen — the first web surface to consume the analytics + logging backend
 | Program Progress | `GlassCard` with an SVG circular gauge (`progress_percent`), elapsed/total days, a `StatusBadge`, and elapsed/remaining day counts. | summary/page.tsx:186, 337-396 |
 | Activity Timeline | Clickable card → `/summary/activity`; a Recharts `BarChart` of workouts + active members over the **week** (label + daily average). | summary/page.tsx:187-192, 489-536 |
 | Data-lock banner | Shown when `dataEntryLocked` — 🔒 + `DATA_LOCK_MESSAGE`. | summary/page.tsx:195-200 |
-| Action cards | **Add workout** + **Log daily health** always; **Bulk add** only when `canLogForAny`. Each `disabled={dataEntryLocked}`; on desktop opens a modal, on mobile routes to a sub-page. | summary/page.tsx:202-217, 398-459 |
+| Action cards | **Add workouts** + **Log daily health** (two cards, both always shown to every role). Each `disabled={dataEntryLocked}`; on desktop opens a modal, on mobile routes to a sub-page. | summary/page.tsx (cards region + `AddWorkoutCard`/`AddHealthCard`) |
 | Stat cards (4) | `StatCard` ×4: MTD Participation (`participation_pct`, `active/total`), Total Workouts, Total Duration (hrs), Avg Duration (min) — each with a `change_pct` delta. | summary/page.tsx:219-256, 461-487 |
 | Distribution | Clickable card → `/summary/distribution`; a `BarChart` of workouts by day of week (Sun–Sat). | summary/page.tsx:259, 538-576 |
 | Workout Types | Clickable card → `/summary/workout-types`; top 6 types by sessions, or an empty hint. | summary/page.tsx:260, 578-604 |
-| Log Workout modal | `Modal` + `LogWorkoutForm` (member/workout/date/duration → `addWorkoutLog`). | summary/page.tsx:264-275 |
-| Bulk Log modal | `Modal` + `BulkLogWorkoutForm` (multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). | summary/page.tsx:277-291 |
-| Log Health modal | `Modal` + `LogDailyHealthForm` (member/date/sleep/diet → `addDailyHealthLog`). | summary/page.tsx:293-304 |
+| Add Workouts modal | `Modal` + `LogWorkoutsForm` (unified multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). Admin/logger get a per-row member picker; a plain member has the member column hidden and each row seeded to self (`canSelectAnyMember` / `selfMemberId`). | summary/page.tsx (Add-workouts modal) |
+| Log Health modal | `Modal` + `LogDailyHealthForm` (member/date/sleep/diet → `addDailyHealthLog`). | summary/page.tsx (Log-health modal) |
 
 **Data flow.** Eight read queries fire on mount (`enabled: !!token && !!programId`), keyed under
-`["summary", …]`. The three mutations each `invalidateQueries(["summary"])` on success and close their modal
-(summary/page.tsx:105-144, 309-311). The
+`["summary", …]`. The two write mutations (`workoutsMutation` batch + `dailyHealthMutation`) each
+`invalidateQueries(["summary"])` on success and close their modal. The
 period is a fixed `"week"` const on the landing — the period selector lives on the deferred
 `/summary/activity` detail page (F4).
 
 ## 5. Components + features consumed
 
 - **Ported-with-this-page (D-S1, verbatim):** `lib/api/{summary, logs, program-workouts}.ts` (whole modules)
-  + `components/ui/{ErrorState, Input, Button}.tsx` + `components/forms/{LogWorkoutForm, BulkLogWorkoutForm,
+  + `components/ui/{ErrorState, Input, Button}.tsx` + `components/forms/{LogWorkoutsForm,
   LogDailyHealthForm}.tsx`. All transitive deps already in the foundation (`cn`, `useIsMobile`, `Select`,
   `apiRequest`, `fetchProgramMembers`, `chart-theme`).
 - **Already-ported, reused:** `useAuthGuard` (default `requireProgram:true`), `useActiveProgram` /
@@ -116,12 +119,12 @@ Roles derive from `session.user.globalRole` (client JWT, F1) + the active progra
 
 | Role | Sees | Can do |
 |------|------|--------|
-| **global_admin / program admin / logger** | The full overview + **all three** action cards (incl. **Bulk add**). | Log a workout / bulk-log / log health **for any member** (the forms expose a member picker, `canSelectAnyMember=true`). |
-| **member** (active, non-admin/logger) | The full overview + **Add workout** and **Log daily health** only (**no Bulk add**). | Log **only for themselves** (member fixed to `userId`, no picker). |
+| **global_admin / program admin / logger** | The full overview + **both** action cards (**Add workouts** + **Log daily health**). | In "Add workouts", a **per-row member picker** (`canSelectAnyMember=true`) — log for **any** active member; multiple rows per submit. |
+| **member** (active, non-admin/logger) | The full overview + the same **two** cards. | Log **only for themselves** — in "Add workouts" the member column is **hidden** and each row is seeded to `selfMemberId` (backend enforces own-rows-only, `workout-logs` D-C8). |
 | **any enrolled role, read** | All charts + stats are visible to every enrolled member regardless of role. | — |
 
 **`admin_only_data_entry`:** when **on** and the user is **not** a program/global admin
-(`dataEntryLocked`), the 🔒 lock banner shows and **all three action cards are disabled** — reads stay fully
+(`dataEntryLocked`), the 🔒 lock banner shows and **both action cards are disabled** — reads stay fully
 visible. The backend `requireDataEntryAllowed` middleware is the real guard (403); this only drives the
 disabled UI + messaging.
 
@@ -152,16 +155,17 @@ disabled UI + messaging.
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) drives `canLogForAny` + the Bulk-add card visibility + `canSelectAnyMember` — display/gating only; the backend re-verifies + re-authorizes (and `requireDataEntryAllowed` enforces the lock) on every call. Same posture as the hub's F1. | `summary/page.tsx:51-54` | Kept (faithful) — not a security boundary. |
-| **F2** | **Forward navigation to not-yet-built routes** — the detail cards → `/summary/{activity,distribution,workout-types}`, the mobile action cards → `/summary/{log-workout,log-health,bulk-log-workout}`, and the sibling bottom-nav tabs (`/members`, `/lifestyle`, `/program`). These 404 until their specs land. | `summary/page.tsx:191`, 205-215, 259-260; `shell.tsx` | Kept (faithful) — targets ported in later runs. |
-| **F3** | **Vestigial-here api fns** — the whole `logs.ts` (`update/delete` workout + health log fns) and `program-workouts.ts` (toggle/add/edit/delete management fns) modules are ported (D-S1) but `/summary` uses only `addWorkoutLog` / `addWorkoutLogsBatch` / `addDailyHealthLog` / `fetchProgramWorkouts`. The rest light up on the deferred member-detail / workout-types pages. | `lib/api/logs.ts:66-114`, `lib/api/program-workouts.ts:16-55` | Kept (faithful) — extra fns belong to later pages. |
+| **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) drives `canLogForAny` (→ the per-row member picker / `canSelectAnyMember`) — display/gating only; the backend re-verifies + re-authorizes (and `requireDataEntryAllowed` enforces the lock, `addWorkoutLogsBatch` enforces own-rows-only per D-C8) on every call. Same posture as the hub's F1. | `summary/page.tsx:51-54` | Kept (faithful) — not a security boundary. |
+| **F2** | **Forward navigation to not-yet-built routes** — the detail cards → `/summary/{activity,distribution,workout-types}` and the sibling bottom-nav tabs (`/members`, `/lifestyle`, `/program`). These 404 until their specs land. (The mobile `/summary/log-workout` + `/summary/log-health` action routes ARE built.) | `summary/page.tsx` (detail cards + `shell.tsx`) | Kept (faithful) — targets ported in later runs. |
+| **F3** | **Vestigial-here api fns** — the whole `logs.ts` (single `addWorkoutLog` + `update/delete` workout + health log fns) and `program-workouts.ts` (toggle/add/edit/delete management fns) modules are ported (D-S1) but `/summary` now uses only `addWorkoutLogsBatch` / `addDailyHealthLog` / `fetchProgramWorkouts` (the single `addWorkoutLog` is no longer wired into any web UI — the widget-less web app leaves it dead). The rest light up on the deferred member-detail / workout-types pages. | `lib/api/logs.ts`, `lib/api/program-workouts.ts` | Kept (faithful) — extra fns belong to later pages / the retired single-add path. |
 | **F4** | **No period selector on the landing** — `summaryPeriod` is a fixed `"week"` const; the activity timeline always shows the week view. The week/month/year/program selector lives on the deferred `/summary/activity` detail page. | `summary/page.tsx:47` | Kept (faithful) — by design; the selector is on the detail page. |
 | **F5** | **Over-fetched-but-unused summary fields** — `fetchAnalyticsSummary` returns the full `AnalyticsSummary` (timeline, distribution, members, totals, top_performers, top_workout_types) but the landing reads only `program_progress`; the other top-line numbers come from the dedicated endpoints. | `summary/page.tsx:186`, `lib/api/summary.ts:104-107` | Kept (faithful) — the extra fields feed the deferred detail pages. |
-| **F6** | **The forms' `variant="page"` branch is dead here** — `LogWorkoutForm` / `BulkLogWorkoutForm` / `LogDailyHealthForm` each support a `"page"` variant for the mobile sub-route pages; `/summary` only ever renders them as `"modal"`. | `forms/LogWorkoutForm.tsx:146`, `BulkLogWorkoutForm.tsx:416`, `LogDailyHealthForm.tsx:162` | Kept (faithful) — the `"page"` branch lights up when the mobile log pages land. |
+| **F6** | **The forms' `variant="page"` branch** — `LogWorkoutsForm` / `LogDailyHealthForm` each support a `"page"` variant for the mobile sub-route pages; `/summary` renders them as `"modal"`, while `/summary/log-workout` (+ log-health) render the `"page"` variant. | `forms/LogWorkoutsForm.tsx`, `LogDailyHealthForm.tsx` | Kept (faithful) — both variants now in use (modal on desktop, page on mobile). |
 | **F7** | **No client-side rate limiting** on the log/bulk-log/health mutations (consistent with the auth pages' + hub's no-throttle posture). | `summary/page.tsx:105-144` | Kept (faithful) — throttling belongs server-side. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 21) — the **seventh web page spec**, the program workspace **Summary** overview (first bottom-nav tab; where a selected program lands). Documents the read overview (program-progress gauge, activity-timeline chart, 4 MTD stat cards, distribution chart, workout-types list) + the **desktop write path** (3 modal forms: log workout / bulk-log / log daily health). Consumes `analytics` + `analytics-v2` (8 reads) + `workout-logs` + `daily-health-logs` (3 writes) + `program-workouts`/`program-memberships` (form lookups) + `auth`. Decisions: **D-REF** (`consumed_by=[web]`; iOS Summary tab mirrors later) · **D-SCOPE** (landing + 3 forms this run; the 6 sub-route pages deferred) · **D-S1** (faithful 1:1) · **D-C1** (one typed cleanup — `ProgramProgressCard` `any`→`AnalyticsSummary`). Flagged F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; vestigial-here api fns; week-only landing period; over-fetched summary fields; dead `variant="page"` form branch; no client rate-limit). Ported `apps/web/src/app/summary/page.tsx` + `lib/api/{summary,logs,program-workouts}.ts` + `components/ui/{ErrorState,Input,Button}.tsx` + `components/forms/{LogWorkoutForm,BulkLogWorkoutForm,LogDailyHealthForm}.tsx`. `npm run build` ✓ (`/summary` prerendered, 107 kB — Recharts; Middleware 27.2 kB active). |
+| 0.2.0 | 2026-07-01 | **Merged the single "Add workout" + admin-only "Bulk add" cards into one multi-row "Add workouts" card/form** (`components/forms/LogWorkoutsForm.tsx`, replacing `LogWorkoutForm` + `BulkLogWorkoutForm`, both deleted). The unified form always posts to `addWorkoutLogsBatch`; admin/logger get a per-row member picker, a plain member has the member column hidden with each row seeded to `selfMemberId` (backed by `workout-logs` D-C8 — members may batch-log their own rows). Summary now shows **two** action cards (Add workouts + Log daily health), both to every role. Removed the `/summary/bulk-log-workout` mobile route; `/summary/log-workout` now renders the unified form. Updated §1/§3/§4/§5/§7/§10 (F1/F2/F3/F6). `npx tsc --noEmit` ✓. |
+| 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 21) — the **seventh web page spec**, the program workspace **Summary** overview (first bottom-nav tab; where a selected program lands). Documents the read overview (program-progress gauge, activity-timeline chart, 4 MTD stat cards, distribution chart, workout-types list) + the **desktop write path** (3 modal forms: log workout / bulk-log / log daily health). Consumes `analytics` + `analytics-v2` (8 reads) + `workout-logs` + `daily-health-logs` (3 writes) + `program-workouts`/`program-memberships` (form lookups) + `auth`. Decisions: **D-REF** (`consumed_by=[web]`; iOS Summary tab mirrors later) · **D-SCOPE** (landing + 3 forms this run; the 6 sub-route pages deferred) · **D-S1** (faithful 1:1) · **D-C1** (one typed cleanup — `ProgramProgressCard` `any`→`AnalyticsSummary`). Flagged F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; vestigial-here api fns; week-only landing period; over-fetched summary fields; dead `variant="page"` form branch; no client rate-limit). Ported `apps/web/src/app/summary/page.tsx` + `lib/api/{summary,logs,program-workouts}.ts` + `components/ui/{ErrorState,Input,Button}.tsx` + `components/forms/{LogWorkoutsForm,LogDailyHealthForm}.tsx`. `npm run build` ✓ (`/summary` prerendered, 107 kB — Recharts; Middleware 27.2 kB active). |

@@ -202,8 +202,14 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
 
     // The admin_only_data_entry lock is enforced upstream by requireDataEntryAllowed (D-C5).
 
+    // Admin/logger/global-admin may log for anyone; a plain member may batch-log ONLY their own rows.
     const canLogForAny = await resolveLogPermissions(program_id, requester);
-    if (!canLogForAny) throw new AppError(403, "You do not have permission to bulk-log workouts.");
+    if (!canLogForAny) {
+        const loggingForOthers = entries.some((e) => e?.member_id !== requester?.id);
+        if (loggingForOthers) {
+            throw new AppError(403, "You can only log workouts for yourself.");
+        }
+    }
 
     // ── Per-row input validation (no DB work yet) ──
     const rowErrors = [];

@@ -18,7 +18,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `invites` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/invites.js`, `services/inviteService.js`, `models/{ProgramInvite,ProgramInviteBlock}.js`) | [invites/SPEC.md](invites/SPEC.md) |
 | `workouts` | 0.1.1 | 🏗️ | `ios` | `backend` (`routes/workouts.js`, `services/workoutService.js` [library half], `models/Workout.js`) | [workouts/SPEC.md](workouts/SPEC.md) |
 | `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
-| `workout-logs` | 0.2.1 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
+| `workout-logs` | 0.3.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
 | `daily-health-logs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/logs.js` [health half], `services/logService.js` [health half + `parseOptionalNumber`], `models/DailyHealthLog.js`) | [daily-health-logs/SPEC.md](daily-health-logs/SPEC.md) |
 | `analytics` | 0.1.1 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v1 half], `services/analyticsService.js` [v1 + shared helpers], `utils/{dateRange,queryHelpers}.js`) | [analytics/SPEC.md](analytics/SPEC.md) |
 | `analytics-v2` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v2 half], `services/analyticsService.js` [v2 fns]) | [analytics-v2/SPEC.md](analytics-v2/SPEC.md) |

@@ -1,6 +1,6 @@
 # Feature: `workout-logs` — logging workouts (single, batch, edit, delete)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Provenance (legacy, archived):** `backend` — `routes/logs.js` (the **`workoutLogRouter`** half only — the
 > file is shared with `daily-health-logs`, §7/D-C1), `services/logService.js` (the **workout-log** functions
 > + the shared log helpers), `models/WorkoutLog.js`, `server.js` (`/api/workout-logs` mount).
@@ -29,9 +29,12 @@ get recorded against a program for a date. This SPEC owns the **`workoutLogRoute
 `program_id + member_id + program_workout_id + log_date`):
 
 1. **Add one workout log** — `POST /api/workout-logs`. Self, or any active member for admins/loggers. 201.
-2. **Bulk-add workout logs** — `POST /api/workout-logs/batch`. Admin/logger only; atomic; duplicate rows
-   (within the batch OR against an existing log) are **rejected** — 409 with per-row `rowErrors`
-   (`field: "duplicate"`), no writes (D-C6). Also returns per-row errors on validation failure.
+2. **Bulk-add workout logs** — `POST /api/workout-logs/batch`. Admin/logger for **any** active member; a
+   plain **member may batch-log their own rows** (every `entry.member_id` must equal the requester, else
+   403 — **D-C8**). Atomic; duplicate rows (within the batch OR against an existing log) are **rejected** —
+   409 with per-row `rowErrors` (`field: "duplicate"`), no writes (D-C6). Also returns per-row errors on
+   validation failure. This is now the **single write path** for the unified "Add workouts" form on both
+   clients (the single `POST /` stays for the quick-add widget only).
 3. **Edit a workout log** — `PUT /api/workout-logs`. Updates the duration of an existing (member, workout,
    date) row.
 4. **Delete a workout log** — `DELETE /api/workout-logs`. Removes a (member, workout, date) row.
@@ -62,7 +65,7 @@ branching — it is not a pass/fail gate, so it is not hoistable — see §7).
 | # | Route | Legacy handler | Auth (effective) | Purpose |
 |---|-------|----------------|------------------|---------|
 | 1 | `POST /` | `logs.js:22-31` → `addWorkoutLog` (`logService.js:139-192`) | self; admin/logger for any active member; blocked if program locked & non-admin | Add one log. 201. Resolves the `program_workouts` row (lazy-create). |
-| 2 | `POST /batch` | `logs.js:49-62` → `addWorkoutLogsBatch` (`logService.js`) | admin/logger only; blocked if locked & non-admin | Atomic bulk insert; **rejects** duplicate (member, workout, date) rows — in-batch or against an existing log — with 409 + `rowErrors` (`field: "duplicate"`), writing nothing (D-C6); also returns `rowErrors` (mapped by original index) on field validation failure. |
+| 2 | `POST /batch` | `logs.js:49-62` → `addWorkoutLogsBatch` (`logService.js`) | admin/logger for any active member; **member for own rows only** (every `entry.member_id` == requester, else 403 — D-C8); blocked if locked & non-admin | Atomic bulk insert; **rejects** duplicate (member, workout, date) rows — in-batch or against an existing log — with 409 + `rowErrors` (`field: "duplicate"`), writing nothing (D-C6); also returns `rowErrors` (mapped by original index) on field validation failure. |
 | 3 | `PUT /` | `logs.js:48-57` → `updateWorkoutLog` (`logService.js:334-368`) | self; admin/logger for others; blocked if locked & non-admin | Update an existing log's duration. |
 | 4 | `DELETE /` | `logs.js:59-68` → `deleteWorkoutLog` (`logService.js:370-407`) | self; admin/logger for others; blocked if locked & non-admin | Delete a log. |
 
@@ -100,8 +103,10 @@ lock code + message (one ordering nuance flagged, §10 F6).
   row; `WorkoutLog.create`. **No duplicate handling** — a second log for the same (program, member,
   workout, date) hits the composite PK → 500 (§10 F2; batch rejects with 409 + `rowErrors`, this does not).
 - **Bulk add** (`logService.js:198-332`) — require `program_id` (400) + non-empty `entries` array (400) +
-  `entries.length ≤ 200` (400). Lock via D-C5 middleware. `canLogForAny` required (403 — admin/logger only).
-  Per-row input validation collecting `rowErrors` (member_id string, workout_name non-empty, valid
+  `entries.length ≤ 200` (400). Lock via D-C5 middleware. **Authorization (D-C8):** admin/logger/global-admin
+  (`canLogForAny`) may log for anyone; otherwise a plain member is allowed **iff every `entry.member_id`
+  equals the requester's id** (403 "You can only log workouts for yourself." if any row targets another
+  member). Per-row input validation collecting `rowErrors` (member_id string, workout_name non-empty, valid
   `YYYY-MM-DD` via `isValidDateString`, positive-integer duration). Group by `member|lower(workout)|date`;
   any key appearing in **>1 row is an in-batch duplicate** → 409 + `rowErrors` (`field: "duplicate"`) for
   every offending index (D-C6). In one transaction: every distinct member must be active (else `rowErrors`);
@@ -206,8 +211,10 @@ drop + four user-chosen cleanups); everything else is preserved verbatim.
 **What stays (faithful 1:1):** the four routes + their `authenticateToken` gate, the inline per-member
 permission logic and its 403/404 messages, the lazy `program_workouts` resolution/creation, the batch
 pre-aggregation + `rowErrors` contract + the 200-row cap, the name-based
-`program_workouts`/member resolution in edit/delete, the response shapes, and the error contract. **The one
-deliberate behavior change is D-C6** — batch duplicates are rejected (409 + `rowErrors`), no longer summed.
+`program_workouts`/member resolution in edit/delete, the response shapes, and the error contract. **The
+deliberate behavior changes are D-C6** — batch duplicates are rejected (409 + `rowErrors`), no longer
+summed — **and D-C8** — `POST /batch` now also serves plain members logging their own rows (was
+admin/logger-only), powering the merged "Add workouts" form.
 
 ## 8. Dependencies
 
@@ -219,23 +226,25 @@ deliberate behavior change is D-C6** — batch duplicates are rejected (409 + `r
   by name) · [`members`](../members/SPEC.md) (`findMemberByDisplayName`, the `member_name` virtual).
 - **Downstream / referenced (not owned here):** the analytics + member-analytics features aggregate
   `workout_logs`; `daily-health-logs` shares the same file pair + the same log helpers (§7 D-C1).
-- **Consumers:** **`web` + `ios`** — the core trio (`POST /`, `PUT /`, `DELETE /`) used 1:1 by both;
-  **`POST /batch` is now used by both** — web's bulk-log form/modal and iOS's Summary "Bulk add" card
-  (`BulkAddWorkoutDetailView` → `APIClient.addWorkoutLogsBatch`, added 2026-06-30; F4 superseded).
-  - **web:** `POST /` — `lib/api/logs.ts:42` (`addWorkoutLog`), called from `summary/log-workout/page.tsx:37`
-    + `summary/page.tsx:113` (the single-log form/modal). `POST /batch` — `lib/api/logs.ts:24`
-    (`addWorkoutLogsBatch`), from `summary/bulk-log-workout/page.tsx:36` + `summary/page.tsx:126` (bulk
-    form/modal). `PUT /` — `lib/api/logs.ts:109`, from `members/workouts/page.tsx:156` (edit). `DELETE /` —
-    `lib/api/logs.ts:98`, from `members/workouts/page.tsx:140` (delete). Web calls neither GET route (reads
-    history via `/api/member-recent`).
-  - **ios:** `POST /` — `APIClient+Workouts.swift:119-136` (`addWorkoutLog`), from
-    `Features/Home/Helpers/AdminHomeHelpers.swift:2092` (`AddWorkoutDetailView`) + the quick-add widget
+- **Consumers:** **`web` + `ios`** — the core trio (`POST /`, `PUT /`, `DELETE /`) + **`POST /batch` as the
+  unified workout-add write path** on both. As of 2026-07-01 the two Summary workout cards (single "Add
+  workout" + admin-only "Bulk add") are **merged into one multi-row "Add workouts" form** that always posts
+  to `/batch` (members log their own rows, D-C8); the single `POST /` is retained only for the iOS quick-add
+  widget.
+  - **web:** `POST /batch` — `lib/api/logs.ts:24` (`addWorkoutLogsBatch`), from the unified
+    `components/forms/LogWorkoutsForm.tsx` (opened by `summary/page.tsx` desktop modal + `summary/log-workout/page.tsx`
+    mobile route). `PUT /` — `lib/api/logs.ts:109`, from `members/workouts/page.tsx:156` (edit). `DELETE /` —
+    `lib/api/logs.ts:98`, from `members/workouts/page.tsx:140` (delete). `POST /` (`addWorkoutLog`) is still
+    exported in `lib/api/logs.ts` but no longer wired into the UI. Web calls neither GET route (reads history
+    via `/api/member-recent`).
+  - **ios:** `POST /batch` — `APIClient+Workouts.swift` (`addWorkoutLogsBatch`), from the unified
+    `Features/Home/Detail/AddWorkoutsDetailView.swift` (Summary "Add workouts" card). `POST /` —
+    `APIClient+Workouts.swift:119-136` (`addWorkoutLog`), now only the quick-add widget
     `QuickAddWorkoutWidgetEntryView.swift:517` (loops over program ids). `DELETE /` —
     `APIClient+Workouts.swift:138-153`, via `ProgramContext+WorkoutManagement.swift:14`, from
     `WorkoutSortFilterSheets.swift:378` (member history) + the widget rollback
     `QuickAddWorkoutWidgetEntryView.swift:575`. `PUT /` — `APIClient+Workouts.swift:155-181`, from
-    `HealthSortFilterSheets.swift:975` (`WorkoutLogEditSheet`). iOS implements **no** batch method and
-    neither GET route.
+    `HealthSortFilterSheets.swift:975` (`WorkoutLogEditSheet`). iOS calls neither GET route.
 
 ## 9. Decisions made
 
@@ -247,8 +256,9 @@ deliberate behavior change is D-C6** — batch duplicates are rejected (409 + `r
 | **D-C4** | **De-dup the requester-membership lookups** — `deleteWorkoutLog` computes `canDeleteOther` once (legacy called `resolveLogPermissions` at `:386` **and** `:400`), hoisted above the `member_name` privacy pre-check (so a not-enrolled requester's 403 can surface one step before legacy's post-lookup 404 — F9); `addWorkoutLog` inlines a single requester-membership read (`canLogForAny` + reuse for the self-target active check, replacing one `resolveLogPermissions` call); with D-C5 each live fn fetches the requester membership ≤ once. Shared `resolveLogPermissions`/`isProgramAdmin` signatures unchanged (kept for batch/edit + daily-health). | `logService.js:386, 400, 168, 149`; user cleanup choice; CLAUDE.md no-N+1. |
 | **D-C5** | **Hoist the `admin_only_data_entry` lock into a `requireDataEntryAllowed` route middleware** (resolve-or-pass-through: `program_id` absent / program missing / not-locked / program-admin → `next()`; resolved + locked + non-admin → 403 with the legacy message). Mounted on all 4 routes after `authenticateToken`. `resolveLogPermissions` stays inline (boolean, drives per-member branching — not hoistable). One residual ordering nuance accepted (F6). | `logService.js:146, 207, 340, 374` (inline `assertDataEntryAllowed`); user cleanup choice (with caveat); CLAUDE.md non-breaking + program-workouts D-C2 precedent. |
 | **D-C6** | **Deliberate behavior change — batch REJECTS duplicates instead of summing them.** `addWorkoutLogsBatch` no longer merges a duplicate (member, workout, date) into an existing/earlier row's duration. Any collision — a key repeated **within the batch** OR one that **already exists** in `workout_logs` — is a hard **409** with per-row `rowErrors` (`field: "duplicate"`), collected across all offenders and thrown before any write (transaction commits nothing). `updated` in the response is therefore always 0. Both clients highlight the offending rows red (web `BulkLogWorkoutForm` row-level error; iOS `BulkAddWorkoutDetailView` red row border + message). Shared across web + iOS by fixing the one backend service (keeps the two clients 1:1). | User request 2026-06-30 (the silent duration-merge was surprising/unwanted); composite PK `workout_logs_pkey`; `logService.js addWorkoutLogsBatch`; web `client.ts:92` (`rowErrors`→`details`); iOS `APIClient.BulkWorkoutError`. |
-| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — the trio `POST /`, `PUT /`, `DELETE /` used 1:1 by both clients; **`POST /batch` is now used by both** (web bulk form + iOS Bulk-add card, 2026-06-30 — was web-only, F4 superseded); the two GET routes are called by neither (dropped, D-C1). | Web sweep (`lib/api/logs.ts` + summary/members pages) + iOS sweep (`APIClient+Workouts.swift` + `BulkAddWorkoutDetailView`); Explore agents. |
-| **D-S1** | **Stance = faithful 1:1 except the cleanups above + the one deliberate behavior change D-C6** (D-C1 scope+drops, D-C2–D-C5 cleanups, **D-C6 batch rejects duplicates**). Lazy `program_workouts` resolution, the batch pre-aggregation + `rowErrors` + 200-cap, name-based resolution, the no-duplicate-handling single add, response shapes, and the error contract are otherwise preserved; oddities are flagged (§10). | Whole-half review; §7; D-C6 user request. |
+| **D-C8** | **Deliberate change — `POST /batch` accepts plain members logging their OWN rows.** Was admin/logger-only (`canLogForAny` required → 403). Now: if the requester is not `canLogForAny`, the batch is allowed **iff every `entry.member_id` equals the requester's id**; any foreign row → `403 "You can only log workouts for yourself."`. Admin/logger/global-admin path unchanged. Enables the **merged multi-row "Add workouts" form** (this replaces the separate single "Add workout" + admin-only "Bulk add" on both clients — members get a multi-row form with the member column hidden and each row seeded to self). Enforced in Express (auth model, no RLS); the `admin_only_data_entry` lock (D-C5 middleware) still applies first. | User request 2026-07-01 (people do multiple workout types per day, want one entry point); `logService.js addWorkoutLogsBatch` auth block; web `LogWorkoutsForm` + iOS `AddWorkoutsDetailView`. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — the trio `POST /`, `PUT /`, `DELETE /` used 1:1 by both clients; **`POST /batch` is the unified workout-add write path for both** (the merged "Add workouts" form; members log their own rows per D-C8, 2026-07-01; superseding the 2026-06-30 admin-only bulk card, F4). The single `POST /` remains only for the iOS quick-add widget. The two GET routes are called by neither (dropped, D-C1). | Web sweep (`lib/api/logs.ts` + summary pages) + iOS sweep (`APIClient+Workouts.swift` + `AddWorkoutsDetailView`); Explore agents. |
+| **D-S1** | **Stance = faithful 1:1 except the cleanups above + the deliberate behavior changes D-C6/D-C8** (D-C1 scope+drops, D-C2–D-C5 cleanups, **D-C6 batch rejects duplicates**, **D-C8 batch serves members' own rows**). Lazy `program_workouts` resolution, the batch pre-aggregation + `rowErrors` + 200-cap, name-based resolution, the no-duplicate-handling single add, response shapes, and the error contract are otherwise preserved; oddities are flagged (§10). | Whole-half review; §7; D-C6/D-C8 user requests. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -257,7 +267,7 @@ deliberate behavior change is D-C6** — batch duplicates are rejected (409 + `r
 | **F1** | **Two GET routes were dead** — `GET /` (logs by date+programId) and `GET /member/:memberName` are called by neither client (both read history via `/api/member-recent`). Dropped (D-C1), distinct (not byte-dups), recorded for the parity audit. | `logs.js:11-20, 70-79`; `logService.js:108-137, 409-429` | Changed (dropped). |
 | **F2** | **Single `addWorkoutLog` has no duplicate handling** — a second log for the same (program, member, program_workout, date) collides on the composite PK → 500. `addWorkoutLogsBatch` now **rejects** duplicates cleanly (409 + `rowErrors`, D-C6) rather than 500-ing; single-add still relies on the raw PK collision. | `logService.js` (single add) vs batch | Kept (faithful) — single add still 500s on a repeat; batch is the graceful path (D-C6). |
 | **F3** | **Logging lazily materializes a `program_workouts` row** for an unseen workout name (`resolveProgramWorkout` matches the library, reuses/upgrades a custom row, else creates) — shared with `program-workouts` (its §10 F4). So logging a brand-new name silently creates the program workout. | `logService.js:66-104` | Kept (faithful) — intended; lets logging accept free-text workout names. |
-| **F4** | ~~**`POST /batch` is web-only.**~~ **Superseded 2026-06-30 (D-C6 work):** iOS now consumes `POST /batch` via the Summary "Bulk add" card (`BulkAddWorkoutDetailView` → `APIClient.addWorkoutLogsBatch`), matching the web bulk-log form. The quick-add **widget** still loops single `POST /` calls across program ids (its per-program-id fan-out is a different shape, unchanged). | iOS `BulkAddWorkoutDetailView.swift`, `APIClient+Workouts.swift` (`addWorkoutLogsBatch`); widget `QuickAddWorkoutWidgetEntryView.swift:517, 575`; web `bulk-log-workout/page.tsx:36` | Reconciled — main-app bulk-add is now at web parity; widget fan-out kept as-is. |
+| **F4** | ~~**`POST /batch` is web-only.**~~ → iOS adopted it 2026-06-30 (bulk card) → **2026-07-01 (D-C8): `POST /batch` is the unified workout-add path on both clients.** The single "Add workout" + admin-only "Bulk add" cards are merged into one multi-row "Add workouts" form (`LogWorkoutsForm` / `AddWorkoutsDetailView`) that always posts to `/batch`; members log their own rows. The quick-add **widget** still loops single `POST /` calls across program ids (per-program-id fan-out, a different shape, unchanged). | iOS `AddWorkoutsDetailView.swift`, `APIClient+Workouts.swift` (`addWorkoutLogsBatch`); web `LogWorkoutsForm.tsx`; widget `QuickAddWorkoutWidgetEntryView.swift:517, 575` | Reconciled — one form, both clients at parity; widget fan-out kept as-is. |
 | **F5** | **`addWorkoutLog`'s `member_id` path skips the member-exists check** — it trusts `bodyMemberId` and only the active-participant 404 guards it, whereas the `member_name` path does a `findMemberByDisplayName` 404. Minor asymmetry between the two target-resolution paths. | `logService.js:151-166, 168-171` | Kept (faithful) — the membership check covers the practical case. |
 | **F6** | **D-C5 ordering nuance** — for a **locked** program + a **non-admin** + an otherwise-invalid body, the hoisted middleware returns `403` where legacy returned the handler's `400` (validation ran before the lock). Accepted with the hoist; `program_id`-absent / program-missing still pass through. | `routes/logs.js` (new middleware) vs `logService.js:140-146` | Changed (D-C5) — the accepted residual. |
 | **F7** | **Legacy single-log duration was `isNaN`-only + `parseInt`** — silently accepted negatives and truncated fractions. Fixed by **D-C2** (positive-integer); recorded as the legacy behavior. | `logService.js:144, 181` | Changed (D-C2). |
@@ -268,6 +278,7 @@ deliberate behavior change is D-C6** — batch duplicates are rejected (409 + `r
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-07-01 | **D-C8 — `POST /batch` now accepts plain members logging their OWN rows** (deliberate change, user request). Was admin/logger-only (`canLogForAny` → 403). Now if the requester is not `canLogForAny`, the batch is allowed **iff every `entry.member_id` equals the requester's id**; any foreign row → `403 "You can only log workouts for yourself."`. Admin/logger/global-admin path unchanged; the `admin_only_data_entry` lock (D-C5) still applies first; the atomic 409-on-duplicate contract (D-C6) is unchanged. This makes `POST /batch` the **single workout-add write path** for the merged multi-row "Add workouts" form on both clients (single "Add workout" + admin-only "Bulk add" cards retired; the single `POST /` remains only for the iOS quick-add widget). Backend: one auth-block change in `services/logService.js addWorkoutLogsBatch`. Clients: web `LogWorkoutsForm` (replaces `LogWorkoutForm`+`BulkLogWorkoutForm`) + iOS `AddWorkoutsDetailView` (replaces `AddWorkoutDetailView`+`BulkAddWorkoutDetailView`), member column hidden + rows seeded to self. Updated §1/§3/§4/§7/§8, F4, D-REF, D-S1; added D-C8. Blast-radius: dependents `[daily-health-logs, analytics, analytics-v2, member-analytics]` read `workout_logs` data only (unaffected); consumers `[web, ios]` both updated in-change. |
 | 0.2.1 | 2026-06-30 | **D-C7 — `addWorkoutLog` returns a friendly `409` on a composite-PK collision** instead of a generic 500 (deliberate change; enables the [`apple-health`](../apple-health/SPEC.md) skip-on-conflict sync). `services/logService.js` wraps `WorkoutLog.create` in `try/catch` for Sequelize's `UniqueConstraintError` → `AppError(409, "A log for this workout already exists on this date.")` (the route already maps `AppError.statusCode`). The single-POST duplicate path now matches the batch endpoint's 409 semantics; the manual single-log form shows the friendlier message and Apple Health sync treats 409 as an expected skip. No schema/route-shape change. Blast-radius: consumers `[web, ios]` (both benefit); dependents read `workout_logs` data only (unaffected). |
 | 0.2.0 | 2026-06-30 | **D-C6 — batch now REJECTS duplicates instead of summing them** (deliberate behavior change, user request). `addWorkoutLogsBatch` (`services/logService.js`) no longer merges a duplicate (member, workout, date) into an existing/earlier row: any collision — repeated **within the batch** or **already present** in `workout_logs` — is a **409** with per-row `rowErrors` (`field: "duplicate"`), collected across all offenders and thrown before any write; `updated` is now always 0. **iOS now consumes `POST /batch`** — new Summary "Bulk add" card → `BulkAddWorkoutDetailView` (multi-row form, red row highlight on collision) + `APIClient.addWorkoutLogsBatch` (F4 superseded; batch was web-only). **Web** `BulkLogWorkoutForm` gains a row-level red highlight for `field:"duplicate"`. Updated §1/§3/§4/§5/§7/§8, F2, F4, D-REF, D-S1. Blast-radius: dependents `[daily-health-logs, analytics, analytics-v2, member-analytics]` read `workout_logs` data only (unaffected); consumers `[web, ios]` both updated in-change. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker`. Documents the workout-logging write surface (`/api/workout-logs`) — the `workoutLogRouter` half of the shared `routes/logs.js` + the workout-log functions of `logService.js` + the shared log helpers. Decisions: **D-C1** (scope = workout-log half; `daily-health-logs` → next feature, same file pair reunited; **drop the two dead GET routes** called by neither client) · **D-C2** (positive-integer single-log duration) · **D-C3** (collapse the member-auth double-check) · **D-C4** (de-dup the membership lookups, incl. `deleteWorkoutLog`'s double `resolveLogPermissions`) · **D-C5** (hoist the `admin_only_data_entry` lock into a `requireDataEntryAllowed` resolve-or-pass-through middleware, preserving the 403; one ordering nuance accepted) · **D-REF** (`consumed_by = [web, ios]`; trio 1:1, `POST /batch` web-only) · **D-S1** (faithful otherwise). Flagged F1–F9. No auth/stack migration delta (model + schema already ported). |

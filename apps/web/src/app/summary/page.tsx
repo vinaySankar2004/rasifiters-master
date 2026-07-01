@@ -17,10 +17,9 @@ import {
   AnalyticsSummary,
   WorkoutType
 } from "@/lib/api/summary";
-import { addDailyHealthLog, addWorkoutLog, addWorkoutLogsBatch, BulkRowError, BulkWorkoutEntry } from "@/lib/api/logs";
+import { addDailyHealthLog, addWorkoutLogsBatch, BulkRowError, BulkWorkoutEntry } from "@/lib/api/logs";
 import { ApiError } from "@/lib/api/client";
-import { LogWorkoutForm } from "@/components/forms/LogWorkoutForm";
-import { BulkLogWorkoutForm } from "@/components/forms/BulkLogWorkoutForm";
+import { LogWorkoutsForm } from "@/components/forms/LogWorkoutsForm";
 import { LogDailyHealthForm } from "@/components/forms/LogDailyHealthForm";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { isDataEntryLocked, DATA_LOCK_MESSAGE } from "@/lib/permissions";
@@ -46,8 +45,7 @@ export default function SummaryPage() {
 
   const isMobile = useIsMobile();
   const summaryPeriod: PeriodKey = "week";
-  const [showWorkoutForm, setShowWorkoutForm] = useState(false);
-  const [showBulkForm, setShowBulkForm] = useState(false);
+  const [showWorkoutsForm, setShowWorkoutsForm] = useState(false);
   const [showHealthForm, setShowHealthForm] = useState(false);
   const canLogForAny =
     session?.user.globalRole === "global_admin" ||
@@ -103,31 +101,12 @@ export default function SummaryPage() {
     enabled: !!token && !!programId
   });
 
-  const workoutLogMutation = useMutation({
-    mutationFn: (payload: {
-      member_id?: string;
-      member_name?: string;
-      workout_name: string;
-      date: string;
-      duration: number;
-    }) => {
-      return addWorkoutLog(token, {
-        program_id: programId,
-        ...payload
-      });
-    },
-    onSuccess: async () => {
-      await refreshSummaryQueries(queryClient);
-      setShowWorkoutForm(false);
-    }
-  });
-
-  const bulkWorkoutMutation = useMutation({
+  const workoutsMutation = useMutation({
     mutationFn: (entries: BulkWorkoutEntry[]) =>
       addWorkoutLogsBatch(token, { program_id: programId, entries }),
     onSuccess: async () => {
       await refreshSummaryQueries(queryClient);
-      setShowBulkForm(false);
+      setShowWorkoutsForm(false);
     }
   });
 
@@ -200,17 +179,11 @@ export default function SummaryPage() {
             </div>
           )}
 
-          <div className={`grid gap-5 md:grid-cols-2 ${canLogForAny ? "lg:grid-cols-3" : ""}`}>
+          <div className="grid gap-5 md:grid-cols-2">
             <AddWorkoutCard
               disabled={dataEntryLocked}
-              onClick={() => (isMobile ? router.push("/summary/log-workout") : setShowWorkoutForm(true))}
+              onClick={() => (isMobile ? router.push("/summary/log-workout") : setShowWorkoutsForm(true))}
             />
-            {canLogForAny && (
-              <BulkAddWorkoutCard
-                disabled={dataEntryLocked}
-                onClick={() => (isMobile ? router.push("/summary/bulk-log-workout") : setShowBulkForm(true))}
-              />
-            )}
             <AddHealthCard
               disabled={dataEntryLocked}
               onClick={() => (isMobile ? router.push("/summary/log-health") : setShowHealthForm(true))}
@@ -262,30 +235,19 @@ export default function SummaryPage() {
           </div>
         </div>
 
-        <Modal open={showWorkoutForm} onClose={() => setShowWorkoutForm(false)}>
-          <LogWorkoutForm
+        <Modal open={showWorkoutsForm} onClose={() => setShowWorkoutsForm(false)}>
+          <LogWorkoutsForm
             canSelectAnyMember={canLogForAny}
+            selfMemberId={session?.user.id}
             programId={programId}
             token={token}
-            userId={session?.user.id}
-            onClose={() => setShowWorkoutForm(false)}
-            onSubmit={(payload) => workoutLogMutation.mutate(payload)}
-            isSaving={workoutLogMutation.isPending}
-            errorMessage={workoutLogMutation.isError ? (workoutLogMutation.error as Error).message : null}
-          />
-        </Modal>
-
-        <Modal open={showBulkForm} onClose={() => setShowBulkForm(false)}>
-          <BulkLogWorkoutForm
-            programId={programId}
-            token={token}
-            onClose={() => setShowBulkForm(false)}
-            onSubmit={(entries) => bulkWorkoutMutation.mutate(entries)}
-            isSaving={bulkWorkoutMutation.isPending}
-            errorMessage={bulkWorkoutMutation.isError ? (bulkWorkoutMutation.error as Error).message : null}
+            onClose={() => setShowWorkoutsForm(false)}
+            onSubmit={(entries) => workoutsMutation.mutate(entries)}
+            isSaving={workoutsMutation.isPending}
+            errorMessage={workoutsMutation.isError ? (workoutsMutation.error as Error).message : null}
             rowErrors={
-              bulkWorkoutMutation.error instanceof ApiError
-                ? (bulkWorkoutMutation.error.details as BulkRowError[] | undefined) ?? null
+              workoutsMutation.error instanceof ApiError
+                ? (workoutsMutation.error.details as BulkRowError[] | undefined) ?? null
                 : null
             }
           />
@@ -408,31 +370,10 @@ function AddWorkoutCard({ onClick, disabled }: { onClick: () => void; disabled?:
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/25 text-lg font-bold">+</div>
         <span className="text-sm font-semibold">›</span>
       </div>
-      <h3 className="mt-4 text-xl font-bold">Add workout</h3>
-      <p className="mt-2 text-sm text-black/70">Quick add a session and keep progress up to date.</p>
+      <h3 className="mt-4 text-xl font-bold">Add workouts</h3>
+      <p className="mt-2 text-sm text-black/70">Log one or many sessions at once and keep progress up to date.</p>
       <div className="mt-6 inline-flex items-center rounded-full bg-black/15 px-4 py-2 text-sm font-semibold">
-        Log session
-      </div>
-    </button>
-  );
-}
-
-function BulkAddWorkoutCard({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="h-full rounded-3xl bg-gradient-to-br from-violet-400 via-violet-500 to-purple-600 p-6 text-left text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/25 text-lg font-bold">≡</div>
-        <span className="text-sm font-semibold">›</span>
-      </div>
-      <h3 className="mt-4 text-xl font-bold">Bulk add</h3>
-      <p className="mt-2 text-sm text-white/80">Log many sessions for different members at once.</p>
-      <div className="mt-6 inline-flex items-center rounded-full bg-white/20 px-4 py-2 text-sm font-semibold">
-        Add multiple
+        Log sessions
       </div>
     </button>
   );

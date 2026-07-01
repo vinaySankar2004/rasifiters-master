@@ -2,7 +2,7 @@
 //  LogFormComponents.swift
 //  RaSi-Fiters-App
 //
-//  Small shared chrome for the two Summary log forms (AddWorkoutDetailView +
+//  Small shared chrome for the Summary log forms (AddWorkoutsDetailView +
 //  AddDailyHealthDetailView) — a field label, a tappable/locked bordered field row,
 //  and the shared yyyy-MM-dd formatter. Ported run 60 (question-asker, D-C2 shared chrome).
 //

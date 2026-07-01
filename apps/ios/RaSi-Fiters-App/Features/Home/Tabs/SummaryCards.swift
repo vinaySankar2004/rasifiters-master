@@ -416,11 +416,11 @@ struct AddWorkoutCard: View {
                     .font(.subheadline.weight(.bold))
             }
 
-            Text("Add workout")
+            Text("Add workouts")
                 .font(.title3.weight(.bold))
                 .foregroundColor(.black)
 
-            Text("Quick add a session and keep progress up to date.")
+            Text("Log one or many sessions at once and keep progress up to date.")
                 .font(.subheadline)
                 .foregroundColor(.black.opacity(0.65))
                 .multilineTextAlignment(.leading)
@@ -433,7 +433,7 @@ struct AddWorkoutCard: View {
                     .fill(Color.appOrange)
                     .frame(height: 38)
                     .overlay(
-                        Label("Log session", systemImage: "bolt.fill")
+                        Label("Log sessions", systemImage: "bolt.fill")
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(.black)
                             .padding(.horizontal, 14)
@@ -516,70 +516,10 @@ struct AddDailyHealthCard: View {
     }
 }
 
-struct BulkAddWorkoutCard: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(0.2))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: "line.3.horizontal")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .foregroundColor(Color.white.opacity(0.7))
-                    .font(.subheadline.weight(.bold))
-            }
-
-            Text("Bulk add")
-                .font(.title3.weight(.bold))
-                .foregroundColor(.white)
-
-            Text("Log many sessions for different members at once.")
-                .font(.subheadline)
-                .foregroundColor(Color.white.opacity(0.75))
-                .multilineTextAlignment(.leading)
-                .padding(.bottom, 4)
-
-            Spacer(minLength: 0)
-
-            HStack(spacing: 10) {
-                Capsule()
-                    .fill(Color.white.opacity(0.2))
-                    .frame(height: 38)
-                    .overlay(
-                        Label("Add multiple", systemImage: "plus")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 14)
-                    )
-            }
-        }
-        .padding()
-        .background(
-            LinearGradient(
-                colors: [Color.appPurple, Color.appPurpleLight],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .mask(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.appPurple.opacity(0.25), lineWidth: 1)
-        )
-        .frame(height: 230, alignment: .topLeading)
-    }
-}
-
 // MARK: - Card ordering model
 
 enum SummaryCardType: String, CaseIterable, Hashable {
     case addWorkout
-    case bulkAdd
     case addDailyHealth
     case programProgress
     case mtdParticipation
@@ -592,7 +532,7 @@ enum SummaryCardType: String, CaseIterable, Hashable {
 
     var span: Int {
         switch self {
-        case .addWorkout, .bulkAdd, .addDailyHealth, .programProgress, .activityTimeline, .distributionByDay, .workoutTypes:
+        case .addWorkout, .addDailyHealth, .programProgress, .activityTimeline, .distributionByDay, .workoutTypes:
             return 2
         default:
             return 1
@@ -601,7 +541,7 @@ enum SummaryCardType: String, CaseIterable, Hashable {
 
     var requiresFullWidth: Bool {
         switch self {
-        case .programProgress, .activityTimeline, .addWorkout, .bulkAdd, .addDailyHealth, .distributionByDay, .workoutTypes:
+        case .programProgress, .activityTimeline, .addWorkout, .addDailyHealth, .distributionByDay, .workoutTypes:
             return true
         default:
             return false
@@ -611,7 +551,6 @@ enum SummaryCardType: String, CaseIterable, Hashable {
     static var defaultOrder: [SummaryCardType] = [
         .programProgress,
         .addWorkout,
-        .bulkAdd,
         .addDailyHealth,
         .mtdParticipation,
         .totalWorkouts,
