@@ -121,6 +121,26 @@
   `.vercel.app` domain (add the new one + redeploy); grep the FE for a real supabase client before
   provisioning FE auth keys.
 
+### Run 4 — web reset-password client-neutral (native iOS forgot-password) (2026-06-30) — REDEPLOY on existing infra ✅
+- Targets: **web → Vercel `rasifiters` only** (`dpl_CaaPzRUfNer5JtgXwCf2o334sPdu`, READY, aliased
+  `www.rasifiters.com`). Backend **NOT** deployed (no `apps/backend` change — the iOS native forgot-password
+  reuses the existing `POST /auth/forgot-password`; Render correctly skips). iOS ships via Xcode (user).
+- What the deploy needed: nothing new — a plain code redeploy (removed the `/reset-password` "Back to login"
+  link). No env/secret/schema/bucket/auth change. Verified before provisioning anything: grepped the diff,
+  confirmed backend untouched → zero new infra.
+- **Push-tip footgun HIT (as documented):** the push to `main` had the `chore(skills): ios-build lessons`
+  commit as its TIP, which has NO `apps/web` diff — so Vercel's ignore-build-step
+  (`git diff --quiet HEAD^ HEAD -- .`, rootDir `apps/web`) would CANCEL the git-triggered web build even
+  though the web change was in the *earlier* commit. Fix used: **manual `vercel deploy --prod --scope
+  personal-vinayak --yes` from the REPO ROOT** (the canonical `.vercel` link lives there; rootDir is
+  `apps/web`, so deploying from `apps/web` cwd would double-nest). Build 35s, aliased clean.
+- Smoke test: `/reset-password` → 200, `grep -c "Back to login"` = **0** (removed), "Set a new password"
+  still present; `/forgot-password` → "Back to login" = **1** (kept, web-only entry). Confirmed the served
+  HTML reflects the change end-to-end.
+- Lesson reinforced: when a session ends on a docs/lessons `chore` commit, the web git-deploy self-cancels —
+  either order the app-touching commit as the push tip, or just do the manual prod deploy from root (cleaner
+  than the PATCH-ignore-step dance for a one-off).
+
 ### Run 3 — RaSi Fiters web: custom-domain cutover + favicon (2026-06-29) — POST-DEPLOY ✅
 - Context: user did the DNS "domain transfer" then said the site was live. It wasn't the new app — see below.
 - **The domain was attached to the WRONG (old) Vercel project.** `www.rasifiters.com` was on a SEPARATE
