@@ -58,6 +58,9 @@ struct AdminHomeView: View {
         }
         .adaptiveTint()
         .navigationBarBackButtonHidden(true)
+        .edgeSwipeToReturn {
+            programContext.returnToMyPrograms = true
+        }
         .task {
             if programContext.isHealthKitEnabled {
                 await programContext.performHealthKitSync()
