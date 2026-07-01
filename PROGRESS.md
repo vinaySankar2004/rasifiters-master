@@ -25,20 +25,28 @@
 
 ## Next action
 
-> ### ⏭️ ON "continue" → TestFlight prep for `ios`
+> ### ⏭️ TestFlight prep for `ios` — IN PROGRESS (status as of 2026-06-30)
 
-The rebuild + cleanup are done. Remaining path to ship:
+Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
 
-1. **Move the repo** (this cleanup's final step, done by Claude at session end): `rasifiters-master` →
-   `~/Desktop/rasifiters-master` (standalone; legacy no longer a sibling). Reopen Claude there to continue.
-2. **Apple Health user to-do** (before that feature works): run migration
-   `apps/backend/sql/004_seed_healthkit_workout_types.sql` on Supabase; in Xcode add the **HealthKit
-   (Background Delivery)** + **Background Modes (fetch)** capabilities + enable HealthKit on the App ID;
-   on-device test (Simulator has no HealthKit) + App Store privacy config.
-3. **TestFlight build:** bump the iOS version/build (currently `1.3.0/40` — user bumps +1 at push time);
-   **flip `APNS_PRODUCTION=true` on Render** (`tools/render-env.sh set APNS_PRODUCTION true && tools/render-env.sh deploy`)
-   — TestFlight/App-Store builds get production APNs tokens (`ENV_RUNBOOK.md` §3). Archive + upload in Xcode.
-4. **Pre-cutover backend smoke-tests** (batched; needs a live admin JWT the user supplies) if not already
+1. [x] **Move the repo** → `~/Desktop/rasifiters-master` (standalone; legacy no longer a sibling).
+2. [x] **Run migration `apps/backend/sql/004_seed_healthkit_workout_types.sql` on Supabase** — done by user.
+3. [x] **iOS HealthKit + Background capabilities** — CONFIRMED already present in the project config (not a
+   pending to-do): `RaSi-Fiters-App.entitlements` carries `com.apple.developer.healthkit` +
+   `com.apple.developer.healthkit.background-delivery`; `Info.plist` carries `UIBackgroundModes=[fetch]` plus
+   the two `NSHealth*UsageDescription` strings. Still user-side in the developer portal / App Store Connect:
+   enable HealthKit on the App ID (if not already), on-device test (Simulator has no HealthKit), App Store
+   privacy config.
+4. [ ] **Flip `APNS_PRODUCTION=true` on Render — NOT done yet.**
+   `tools/render-env.sh set APNS_PRODUCTION true && tools/render-env.sh deploy` — TestFlight/App-Store builds
+   get production APNs tokens (`ENV_RUNBOOK.md` §3). Related: the entitlements `aps-environment` is
+   `development`; Xcode automatic signing forces `production` for the distribution/Archive build, so no source
+   edit is needed — just confirm on the archived build.
+5. [ ] **Bump the iOS version/build — NOT done yet.** Currently `1.3.0` / `40` (`MARKETING_VERSION` /
+   `CURRENT_PROJECT_VERSION` in `apps/ios/RaSi-Fiters-App.xcodeproj/project.pbxproj`); user bumps +1 in Xcode
+   at archive time.
+6. [ ] **Archive + upload** in Xcode → TestFlight.
+7. [ ] **Pre-cutover backend smoke-tests** (batched; needs a live admin JWT the user supplies) if not already
    covered by the web signed-in round-trip.
 
 ## Build sequence
