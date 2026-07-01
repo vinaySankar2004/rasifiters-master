@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Admin Program Tab (Tab 4, program/global-admin variant)
 // Faithful 1:1 port of ios-mobile Features/Home/Tabs/AdminProgramTab.swift.
-// The 3 management sections (Member/Role/WorkoutTypes) are deferred ScaffoldPlaceholder stubs (D-SCOPE).
+// The 3 management sections (Member/Role/WorkoutTypes) live in Features/Home/ProgramManagement/ (run 62).
 
 struct AdminProgramTab: View {
     @EnvironmentObject var programContext: ProgramContext

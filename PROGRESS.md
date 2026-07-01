@@ -10,6 +10,22 @@
 
 ## Current phase
 
+**Phase 4 — `ios` widgets: PORTED (run 65, 2026-06-30) → THE iOS DEFERRED LAYER IS CLOSED.** The **last 2 deferred
+stubs** — `QuickAddWorkoutWidgetEntryView` + `QuickAddHealthWidgetEntryView` (the Home-Screen widget deep-link
+targets `AppRootView` presents on `WidgetRoute.quickAdd{Workout,Health}`) — ported into
+`apps/ios/.../Features/Widgets/` (+ shared `WidgetQuickAddComponents.swift`), and **`App/_DeferredScreenStubs.swift`
+DELETED** (no stubs remain). They are **multi-program** forms (log the same workout/health across every selected
+active program with shared-member/-workout intersection + per-program **rollback** + exit-to-My-Programs), **iOS-only**
+(`consumed_by=[ios]`; no web sibling → faithful-to-legacy-only, run-58 shape). **Change-now run** (user-picked): **D-C1
+per-program `admin_only_data_entry` lock** (net-new `widgetProgramLockedForLogging`; locked programs disabled +
+lock-badged + un-selectable — completes the run-54/60/63 lock arc), **D-C2 shared chrome** (`LogFieldLabel`/`LogFieldRow`/
+`AppInputField`/`AppPrimaryButton`; appOrange/appBlue CTAs → label-capsule), **D-C3 shared scaffold**
+(`WidgetQuickAddComponents.swift`, the widget analogue of run-60 `LogFormComponents.swift`); no new foundation dep, no
+feature bump. 2 iOS SPECs at `specs/pages/ios/widget-quick-add-{workout,health}/`. **Native build GREEN via the xcode MCP
+(0 errors).** Two stale `ScaffoldPlaceholder` comments in `AdminProgramTab`/`AdminSummaryTab` tidied. **Next: the iOS
+surface is code-complete — remaining items are cross-app parity polish (see COVERAGE `## ios` cross-cutting) + the
+user's visual/TestFlight pass; consider a `health-check` / `audit` sweep.**
+
 **Phase 1 — Provisioning + migration: DONE.** Scaffolding done. **Supabase provisioned** (2026-06-28): org
 `RaSi Fiters` (`lxehyprifvuozciizlem`), project `rasifiters` ref **`kpadxjekpiwfkqcxtrio`**, `us-east-1`,
 ACTIVE_HEALTHY; `.mcp.json` repointed. **Schema applied + data/auth MIGRATED to Supabase** (2026-06-28): all
@@ -1815,6 +1831,30 @@ app in the meantime (it's the pre-cutover sync, idempotent).
   both in `tools/migrator/.env`). All four backend env values are now in hand for the Render deploy.
 
 ## Session log (newest first)
+
+- **2026-06-30 (run 65)** — **Ported the 2 iOS widget entry views → the iOS DEFERRED LAYER IS CLOSED.** `question-asker`
+  on the last 2 deferred stubs (`QuickAddWorkout`/`QuickAddHealthWidgetEntryView`, the Home-Screen widget deep-link
+  targets). Sweep: read both legacy views in full (~620 LoC each), confirmed `AppRootView` already instantiates them +
+  every dep (6 API methods w/ matching signatures, 3 DTOs, `SearchablePickerSheet`/`adaptiveBackground`/theme colors,
+  `ProgramContext.widgetRoute`/`returnToMyPrograms`/`loggedInUser*`/`isGlobalAdmin`) is in the foundation → **no new
+  foundation dep**. Biggest finding: **iOS-only — no web sibling** (web's bulk-log is multi-row/single-program; these are
+  multi-*program*), so faithful-to-legacy-only (run-58 shape). User chose a **change-now** run: **(D-C1)** a **per-program
+  `admin_only_data_entry` lock** — net-new `widgetProgramLockedForLogging(program, isGlobalAdmin)` = `admin_only_data_entry
+  && !isProgramAdmin` per `ProgramDTO` (the widget is multi-program/pre-pick so `ProgramContext.dataEntryLocked` can't be
+  used); locked programs render disabled + lock-badged + un-selectable + are dropped from the selection on sync —
+  completes the run-54/60/63 lock arc onto the widget path; **(D-C2)** adopt shared chrome (`LogFieldLabel`/`LogFieldRow`/
+  `AppInputField`/`AppPrimaryButton`; the appOrange/appBlue CTAs unify to the label-capsule button + `.opacity(valid?1:0.5)`
+  for the disabled state — matches run-60); **(D-C3)** extract a shared scaffold `WidgetQuickAddComponents.swift` (header ·
+  program selector · member field · success toast · `WidgetMemberOption` · lock helper — the widget analogue of run-60
+  `LogFormComponents.swift`). Kept faithful: the multi-program save loop, shared-member/-workout **intersection**,
+  partial-failure **rollback**, sanitized sleep + at-least-one-metric (health), and the **exit-to-My-Programs** flow (the
+  widget's deep-link identity — NOT converted to run-60's immediate dismiss). Wrote 2 iOS SPECs
+  (`specs/pages/ios/widget-quick-add-{workout,health}/` v0.1.0); **deleted `App/_DeferredScreenStubs.swift`** (both stubs
+  removed, no stubs remain) + tidied 2 stale `ScaffoldPlaceholder` comments in `AdminProgramTab`/`AdminSummaryTab`.
+  **Native build GREEN via the xcode MCP (0 errors, 18 s)** + symbols grep-verified (all new types defined once, no
+  collisions). No feature bump (page SPECs v0.1.0; endpoints pre-exist — the Summary log forms consume them). Ticked
+  COVERAGE (widgets `[x]` → **iOS deferred layer CLOSED**). Not committed yet (use `git-version`). Next: iOS surface is
+  code-complete — cross-app parity polish + the user's visual/TestFlight pass; consider a `health-check`/`audit` sweep.
 
 - **2026-06-30** — **Web polish + live-test fixes (post-launch side-quests; web surface stays CLOSED → next is `ios`).**
   Three user-reported fixes against the LIVE site, all committed + deployed + manually verified by the user:

@@ -51,11 +51,12 @@ all 9 category extensions, `KeychainService`, `SessionStore`, `NotificationStrea
 2. **`Features/` deferred** — all 37 feature-screen files were removed; they are ported per-screen via
    question-asker in later runs (auth splash/login/create-account first). The legacy originals stay readable
    at `../../../ios-mobile/RaSi-Fiters-App/Features/**`.
-3. **`App/_DeferredScreenStubs.swift`** — the only foundation→feature coupling is `AppRootView`'s four view
-   instantiations (`SplashView`, `ProgramPickerView`, `QuickAddWorkoutWidgetEntryView`,
-   `QuickAddHealthWidgetEntryView`). This temp file provides minimal placeholder `View`s for exactly those
-   four so the scaffold compiles, keeping `AppRootView` itself **byte-faithful**. The iOS analogue of web's
-   `NotificationsGate` deferred stub — each stub is deleted when its real screen lands.
+3. **`App/_DeferredScreenStubs.swift`** — **DELETED (run 65, 2026-06-30): the iOS deferred layer is CLOSED.** It
+   was the only foundation→feature coupling — placeholder `View`s for the four screens `AppRootView` instantiates
+   (`SplashView`, `ProgramPickerView`, `QuickAddWorkoutWidgetEntryView`, `QuickAddHealthWidgetEntryView`), the iOS
+   analogue of web's `NotificationsGate` stub. Each stub was deleted as its real screen landed; the last two (the
+   widget entry views) landed run 65 in `Features/Widgets/`, so the file is gone and every feature screen is now
+   ported. `AppRootView` stayed **byte-faithful** throughout.
 4. **Stripped** `xcuserdata`/`*.xcuserstate`/`.DS_Store` from the copy; added `apps/ios/.gitignore`.
 
 **Build:** target = `RaSi-Fiters-App` scheme. See §Toolchain note below for the local Xcode caveat.

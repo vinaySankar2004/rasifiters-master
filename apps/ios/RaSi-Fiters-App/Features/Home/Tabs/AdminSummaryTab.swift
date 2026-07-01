@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 // + two web-parity reconciles vs the built web /summary surface:
 //   • a visible error banner (legacy captured `errorMessage` but rendered it nowhere)
 //   • the `admin_only_data_entry` data-lock treatment (lock banner + disabled log cards) — absent from legacy iOS.
-// The five NavigationLink detail targets remain deferred ScaffoldPlaceholder stubs.
+// The five NavigationLink detail targets live in Features/Home/Detail/ (runs 60–61).
 
 struct AdminSummaryTab: View {
     @EnvironmentObject var programContext: ProgramContext
