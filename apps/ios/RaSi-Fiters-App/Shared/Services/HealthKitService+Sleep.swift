@@ -15,9 +15,10 @@ import HealthKit
 /// stored properties; `sleepStore` must outlive the call so its observer keeps delivering.
 extension HealthKitService {
 
-    /// How many days back each sync re-queries, so a night revised after the fact (late watch sync) is
-    /// recomputed and overwritten. Floored at the sleep connect date so first-enable never backfills years.
-    static let sleepLookbackDays = 3
+    /// How many days back each sync re-queries. A rolling ~2-week window so recent + revised nights flow
+    /// in (a night revised after a late watch sync is recomputed and overwritten); per-program window
+    /// scoping at write time bounds which of these nights actually land in each program.
+    static let sleepRecentDays = 14
 
     private static let sleepStore = HKHealthStore()
     private static var sleepObserverQuery: HKObserverQuery?
@@ -37,13 +38,16 @@ extension HealthKitService {
 
     // MARK: - Fetch (rolling window)
 
-    /// Re-query sleep samples across the last `sleepLookbackDays` (floored at the connect date) so each
-    /// night is always recomputed from its full sample set. Returns the raw category samples; filtering
-    /// to asleep-only stages happens in `aggregateSleep(_:)`.
-    func fetchSleepSamples(firstSyncCutoff: Date?) async throws -> [HKCategorySample] {
+    /// Re-query sleep samples across the last `sleepRecentDays` so each night is recomputed from its full
+    /// sample set. Starts at the START OF DAY `sleepRecentDays` ago (so the earliest night is whole) — NOT
+    /// floored at the connect date, which previously collapsed the window to `[today, today]` when a user
+    /// connected the same day and silently synced nothing. Which of these nights land in a program is
+    /// decided per-program at write time. Returns raw category samples; asleep/in-bed filtering happens in
+    /// `aggregateSleep(_:)`.
+    func fetchSleepSamples() async throws -> [HKCategorySample] {
         let now = Date()
-        let lookbackStart = Calendar.current.date(byAdding: .day, value: -Self.sleepLookbackDays, to: now) ?? now
-        let start = max(lookbackStart, firstSyncCutoff ?? Date.distantPast)
+        let startOfToday = Calendar.current.startOfDay(for: now)
+        let start = Calendar.current.date(byAdding: .day, value: -Self.sleepRecentDays, to: startOfToday) ?? startOfToday
         let predicate = HKQuery.predicateForSamples(withStart: start, end: now, options: [])
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -71,22 +75,34 @@ extension HealthKitService {
         let hours: Double     // total time asleep, 2 decimals, clamped to 0...24
     }
 
-    /// Keep only the "asleep" stages (exclude in-bed / awake), bucket by the local calendar date of each
-    /// sample's END time (the "day you woke up"), sum durations, convert to hours (2 dp, clamped 0...24).
-    /// Uses the local calendar to match the workout aggregator's `yyyy-MM-dd` handling.
+    /// Total *time asleep* per night, bucketed by the local calendar date of each sample's END time (the
+    /// "day you woke up"), 2 dp, clamped 0...24. Prefers the precise asleep stages (core/deep/REM/
+    /// unspecified); when a night has NO stage data — e.g. sleep added manually in the Health app or an
+    /// iPhone-only "In Bed" schedule with no watch — it falls back to that night's `.inBed` duration so
+    /// the night still syncs. Watch nights carry both, and asleep wins, so there's no double-count.
     func aggregateSleep(_ samples: [HKCategorySample]) -> [AggregatedSleep] {
         let formatter = DateFormatter()
         formatter.calendar = Calendar.current
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
 
-        var grouped: [String: Double] = [:]
-        for sample in samples where Self.isAsleep(sample.value) {
+        var asleepByDate: [String: Double] = [:]
+        var inBedByDate: [String: Double] = [:]
+        for sample in samples {
             let date = formatter.string(from: sample.endDate)
-            grouped[date, default: 0] += sample.endDate.timeIntervalSince(sample.startDate)
+            let duration = sample.endDate.timeIntervalSince(sample.startDate)
+            if Self.isAsleep(sample.value) {
+                asleepByDate[date, default: 0] += duration
+            } else if sample.value == HKCategoryValueSleepAnalysis.inBed.rawValue {
+                inBedByDate[date, default: 0] += duration
+            }
         }
 
-        return grouped.map { date, seconds in
+        let dates = Set(asleepByDate.keys).union(inBedByDate.keys)
+        return dates.compactMap { date in
+            let asleep = asleepByDate[date, default: 0]
+            let seconds = asleep > 0 ? asleep : inBedByDate[date, default: 0]
+            guard seconds > 0 else { return nil }
             let hours = min(max(seconds / 3600.0, 0), 24)
             return AggregatedSleep(date: date, hours: (hours * 100).rounded() / 100)
         }

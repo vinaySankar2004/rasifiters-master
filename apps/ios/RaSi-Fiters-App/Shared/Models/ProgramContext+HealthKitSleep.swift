@@ -77,7 +77,7 @@ extension ProgramContext {
 
         let samples: [HKCategorySample]
         do {
-            samples = try await HealthKitService.shared.fetchSleepSamples(firstSyncCutoff: sleepSyncConnectDate)
+            samples = try await HealthKitService.shared.fetchSleepSamples()
         } catch {
             // Couldn't read HealthKit (e.g. permission not granted) — retry on the next trigger.
             return
@@ -91,11 +91,15 @@ extension ProgramContext {
         }
 
         let programIds = sleepSyncProgramIds
+        // Each night only writes to a program whose [start, end] window covers it (no cross-program bleed).
+        let windows = await loadSyncWindows(for: programIds, token: token)
         var created = 0
         var hadRetryable = false
 
         for night in aggregated {
             for programId in programIds {
+                guard let window = windows[programId],
+                      ProgramContext.date(night.date, isWithin: window) else { continue }
                 let outcome = await APIClient.shared.writeHealthKitSleepLog(
                     token: token,
                     logDate: night.date,

@@ -1,6 +1,6 @@
 # Feature: `apple-health` — Apple Health (HealthKit) workout + sleep auto-sync (iOS)
 
-> **Status:** 🏗️ built (`apps/ios/` + backend touchpoints) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `ios`
+> **Status:** 🏗️ built (`apps/ios/` + backend touchpoints) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `ios`
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` **PR #4** (`apple-health` branch) —
 > `HealthKitService.swift`, `HealthKitWorkoutTypeMap.swift`, `ProgramContext+HealthKit.swift`,
 > `AppleHealthSettingsView.swift`. Ported to `apps/ios` and **corrected for our stack** (curated library +
@@ -49,7 +49,9 @@ library name — a synced log always resolves to a library-backed program workou
   `004`; `.other`/unknown → `"Other Workout"`.
 - **Sync** (`ProgramContext.performHealthKitSync`) — per (aggregated workout × selected program) call
   `APIClient.writeHealthKitWorkoutLog` → `POST /api/workout-logs`; classify each result; advance the anchor
-  only on success; post a local notification on new logs / failure.
+  only on success; post a local notification on new logs / failure. Each workout is written to a program
+  **only if its date falls in that program's `[start_date, end_date]` window** (D-S5) — out-of-window
+  workouts are skipped, not scattered across every selected program.
 - **Triggers** — app launch, auth change, foreground (`AppRootView`), program entry (`AdminHomeView`),
   program-picker load (`ProgramPickerView`), and HealthKit background delivery.
 
@@ -60,14 +62,19 @@ library name — a synced log always resolves to a library-backed program workou
   keys (`healthkit.sleep.*`: enabled, program ids, connect date, last-sync date/count). Independent of the
   workout toggle but on the **same** `AppleHealthSettingsView` screen.
 - **Rolling-window fetch** (`HealthKitService.fetchSleepSamples`) — a plain `HKSampleQuery` over the last
-  `sleepLookbackDays` (=3), floored at the sleep connect date. **Not anchored** (see D-S1).
-- **Aggregation** (`HealthKitService.aggregateSleep`) — keep only the *asleep* stages
-  (`asleepUnspecified/Core/Deep/REM`; exclude `inBed`/`awake`), bucket by the **local calendar date of each
-  sample's end** (the day you woke up), sum → hours (2 dp, clamped `0…24`).
+  `sleepRecentDays` (=14), from the **start of that day** to now. **Not** floored at the connect date
+  (that floor collapsed the window to `[today, today]` on same-day connect and synced nothing) and **not
+  anchored** (see D-S1). Which nights land where is decided per-program at write time.
+- **Aggregation** (`HealthKitService.aggregateSleep`) — prefer the precise *asleep* stages
+  (`asleepUnspecified/Core/Deep/REM`), bucket by the **local calendar date of each sample's end** (the day
+  you woke up), sum → hours (2 dp, clamped `0…24`). **In-Bed fallback (D-S6):** a night with no stage data
+  (manual / iPhone-only sleep) uses its `.inBed` duration instead, so it still syncs; watch nights carry
+  both and asleep wins (no double-count).
 - **Sync** (`ProgramContext.performSleepSync`) — per (night × selected program) call
   `APIClient.writeHealthKitSleepLog` → `POST /api/daily-health-logs`, and on **409** fall back to
-  `PUT /api/daily-health-logs` to overwrite `sleep_hours` only. Notify on genuinely new nights (`.created`);
-  overwrites (`.updated`) are silent.
+  `PUT /api/daily-health-logs` to overwrite `sleep_hours` only. Each night is written to a program **only
+  if its date falls in that program's `[start_date, end_date]` window** (D-S5). Notify on genuinely new
+  nights (`.created`); overwrites (`.updated`) are silent.
 - **Triggers** — same set as workouts (launch / auth / foreground / program entry) plus a sleep observer
   query. Background delivery frequency is `.hourly` (Apple's cap for non-glucose category types), vs
   workouts' `.immediate`.
@@ -124,10 +131,12 @@ None. HealthKit entitlements (`com.apple.developer.healthkit` + `…background-d
 | **D7** | **Sync-result = local notification + in-app status**, only on new (≥1) or failure; silent otherwise. | user decision. |
 | **D-BE** | **409-on-PK-collision** in `addWorkoutLog` (the one backend code change). | needed for clean skip vs retry. |
 | **D-FIX** | **Anchor committed only after successful sync** (fixes a data-loss bug in the reference PR). | code review of the PR. |
-| **D-S1** | **Sleep uses a rolling look-back window + overwrite, NOT an anchor.** A night is stitched from many incremental category samples, so an anchor delivers fragments, not the whole night; re-querying the last 3 nights and recomputing from the full sample set is correct + idempotent under overwrite. | user decision (always-overwrite) + HealthKit sleep sample model. |
+| **D-S1** | **Sleep uses a rolling look-back window + overwrite, NOT an anchor.** A night is stitched from many incremental category samples, so an anchor delivers fragments, not the whole night; re-querying the last **14 days** (from the start of the earliest day) and recomputing from the full sample set is correct + idempotent under overwrite. The window is **not** floored at the connect date (that floor collapsed same-day connects to `[today, today]` and synced nothing). | user decision (always-overwrite) + HealthKit sleep sample model; same-day-connect bug fix (0.3.0). |
 | **D-S2** | **Sleep metric = time asleep**, stored in `sleep_hours`, **HealthKit always overwrites** it (diet untouched) via POST-then-PUT-on-409 on the existing endpoints — **no backend change**. | user decision. |
 | **D-S3** | **Separate "Sync Sleep" toggle on the same settings screen** — own permission, own program selection, own `healthkit.sleep.*` defaults; independent of the workout sync. | user decision. |
 | **D-S4** | **Notify only on genuinely new nights** (`.created`); overwrites (`.updated`) are silent — mirrors the workout "notify on new" rule so the hourly re-sync isn't noisy. | user decision (D7 parity). |
+| **D-S5** | **Per-program date-window write-scoping (workouts + sleep).** An aggregated item is written to a selected program **only if its date ∈ `[start_date, min(end_date, today)]`** for that program. Pure client-side (`ProgramContext.loadSyncWindows`, using `ProgramDTO.start_date/end_date`); backend still accepts any date. Fixes cross-program bleed ("synced 42 from eons ago"). If program windows can't be resolved (offline), the workout sync leaves its anchor uncommitted to avoid dropping data. | user decision (0.3.0). |
+| **D-S6** | **In-Bed fallback for sleep** — a night with no asleep-stage samples uses its `.inBed` duration so manual / iPhone-only sleep still syncs (asleep wins when both exist). | user decision (0.3.0). |
 
 ## 9. Flagged characteristics kept as-is
 
@@ -150,4 +159,5 @@ source/provenance column so HealthKit sleep could spare manually-entered nights 
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1.0 | 2026-06-30 | Initial SPEC + build. Ported PR #4's HealthKit sync to `apps/ios`, corrected for our curated `workouts_library`: additive library seed (migration `004`, D1/D2/D4/D5), full `HKWorkoutActivityType` map (16 reuse + ~63 new, invariant-verified), skip-on-conflict (D3) via a new 409-on-PK-collision in `addWorkoutLog` (D-BE), anchor-integrity fix (D-FIX), and a sync-result local notification (D7). iOS builds clean; user runs migration `004` + the Xcode capability/App-Store steps. `consumed_by=[ios]`. |
+| 0.3.0 | 2026-07-01 | **Per-program date-window scoping + sleep-sync fixes.** (1) Both workouts + sleep now write an item to a selected program **only if its date ∈ that program's `[start_date, min(end_date, today)]`** (D-S5) — client-side via new `ProgramContext+HealthKitWindows.swift` (`loadSyncWindows`/`localYMD`/`date(_:isWithin:)`), reading `ProgramDTO.start_date/end_date`; fixes cross-program bleed ("synced 42 from eons ago"). Workout sync leaves its anchor uncommitted if windows can't be resolved (no data drop). (2) Sleep now actually syncs: `fetchSleepSamples` drops the connect-date floor (which collapsed same-day connects to `[today, today]`) → rolling **14-day** window from start-of-day (D-S1 revised, `sleepLookbackDays`→`sleepRecentDays`). (3) **In-Bed fallback** (D-S6) — nights without watch stage data use `.inBed` duration so manual / iPhone-only sleep syncs. No backend/migration change. iOS builds clean. |
 | 0.2.0 | 2026-07-01 | **Sleep auto-sync (net-new, iOS-only).** Separate "Sync Sleep" toggle on the same settings screen (D-S3) reads `HKCategoryType(.sleepAnalysis)` and writes nightly *time asleep* to `daily_health_logs.sleep_hours` (D-S2). Rolling 3-night look-back re-query + upsert-overwrite instead of an anchor (D-S1); asleep-stage-only aggregation bucketed by local wake-date (F4); POST-then-PUT-on-409 reuses the existing daily-health endpoints with **no backend change** (D-S2). Notify only on new nights (D-S4). Overwrite is destructive to manual sleep (F5). New files: `HealthKitService+Sleep.swift`, `APIClient+DailyHealth.swift`, `ProgramContext+HealthKitSleep.swift`; Info.plist `NSHealthShareUsageDescription` broadened to mention sleep. iOS builds clean (0 errors). No migration, no Render/Vercel deploy. |

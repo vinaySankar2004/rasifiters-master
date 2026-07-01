@@ -87,11 +87,21 @@ extension ProgramContext {
 
         let aggregated = HealthKitService.shared.aggregate(fetch.workouts)
         let programIds = healthKitSyncProgramIds
+        // Each workout only writes to a program whose [start, end] window covers its date — keeps
+        // out-of-window ("eons ago") workouts from landing in a program that doesn't span them.
+        let windows = await loadSyncWindows(for: programIds, token: token)
+        if windows.isEmpty {
+            // Couldn't resolve any program window (e.g. offline background trigger) — do NOT commit the
+            // anchor, or these workouts would be dropped for good. Retry on the next trigger.
+            return
+        }
         var created = 0
         var hadRetryable = false
 
         for workout in aggregated {
             for programId in programIds {
+                guard let window = windows[programId],
+                      ProgramContext.date(workout.date, isWithin: window) else { continue }
                 let outcome = await APIClient.shared.writeHealthKitWorkoutLog(
                     token: token,
                     memberName: memberName,

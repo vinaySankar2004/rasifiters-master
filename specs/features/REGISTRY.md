@@ -24,7 +24,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `analytics-v2` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/analytics.js` [v2 half], `services/analyticsService.js` [v2 fns]) | [analytics-v2/SPEC.md](analytics-v2/SPEC.md) |
 | `member-analytics` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberAnalytics.js`, `services/memberAnalyticsService.js`, `services/analyticsService.js` [3 re-exported helpers]) | [member-analytics/SPEC.md](member-analytics/SPEC.md) |
 | `app-config` | 0.1.0 | 🏗️ | `ios` | `backend` (`server.js` [inline `GET /api/app-config` + `MIN_IOS_VERSION`]) | [app-config/SPEC.md](app-config/SPEC.md) |
-| `apple-health` | 0.2.0 | 🏗️ | `ios` | `ios` (`HealthKitService(+Sleep).swift`, `HealthKitWorkoutTypeMap.swift`, `APIClient+DailyHealth.swift`, `ProgramContext+HealthKit(Sleep).swift`, `AppleHealthSettingsView.swift`; provenance: PR #4 workouts + net-new sleep) | [apple-health/SPEC.md](apple-health/SPEC.md) |
+| `apple-health` | 0.3.0 | 🏗️ | `ios` | `ios` (`HealthKitService(+Sleep).swift`, `HealthKitWorkoutTypeMap.swift`, `APIClient+DailyHealth.swift`, `ProgramContext+HealthKit(Sleep/Windows).swift`, `AppleHealthSettingsView.swift`; provenance: PR #4 workouts + net-new sleep) | [apple-health/SPEC.md](apple-health/SPEC.md) |
 
 _First feature documented via `question-asker` (Phase 2 kickoff). `auth` gates everything else: it owns
 the `/api/auth/*` routes, the Supabase-JWT verify middleware, and the authorization gates, and carries the

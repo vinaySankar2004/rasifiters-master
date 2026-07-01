@@ -80,6 +80,8 @@ sync, not blocked in this UI.
 - **Nothing new** → status date updates, no notification (D7 / D-S4).
 - **New workouts / new sleep nights / failure** → local notification + count/date update.
 - **Sleep overwrite** → re-syncing an already-logged night updates `sleep_hours` silently (no notification).
+- **Out-of-window date** → a workout/night whose date is outside a selected program's `[start_date, end_date]`
+  is **not** written to that program (D-S5); it still lands in any other selected program that spans it.
 - **Notification permission denied** → in-app status only (no banner), never nags.
 
 ## 9. Decisions made
