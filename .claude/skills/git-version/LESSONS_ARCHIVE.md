@@ -66,3 +66,28 @@ the workspace DRY standard while staying behavior-faithful (each caller keeps it
 **Three tags this run:** `feature/{auth,members,program-memberships}@v0.2.0`; verified each registry node's
 current version has a matching tag (6 nodes, all current). **Push:** lightweight tags → `git push` then
 `git push origin <tag>...` by name (not `--follow-tags`).
+
+### 2026-06-30 — Run: `notifications` APNs creds provisioned (D-C4→D-C8 @ v0.2.1)
+**Shape:** a *config/ops enablement of a previously-deferred decision* — the APNs push path shipped
+fully-coded at the original port (D-C4) but with **no credentials**, so `getProvider()` returned `null`
+and push was a graceful no-op. This run the user created a token-based APNs Auth Key at Apple + entered the
+four `APNS_*` values in the Render Dashboard; nothing in `apps/**` code changed. **Bump call = PATCH
+(0.2.0→0.2.1), NOT MINOR.** Contrast the 2026-06-28 delete-cascade run (501→200 = a real behavior delta in
+owned code → MINOR): here **zero code changed** — the enablement is external platform config flipping a
+`null` provider to a live one, plus an additive §9 decision row (D-C8) + §6 env doc. No
+owned-interface / `depends_on` / `consumed_by` / `reference_impl` change → blast-radius (dependents
+programs/program-memberships/invites; apps web/ios) is FYI, not a gate. **Lesson: distinguish "deferred
+CODE became functional" (MINOR) from "deferred CONFIG got supplied, code already shipped" (PATCH) — the
+discriminator is whether any owned `reference_impl` code/behavior moved, not whether the user-visible
+capability turned on.** **Dependent cross-ref prose:** updated `app-config/SPEC.md` §6 (explicitly a
+"cross-reference index, NOT owned here") to reflect notifications' new state → **no bump for app-config**;
+only `notifications` bumped (matches the converged "cross-ref prose = no-bump docs" lesson). **Staging
+discipline:** the tree started the session clean but mid-run gained a batch of **unrelated in-progress
+HealthKit files** (new services + `logService.js` + several iOS views + modified `.entitlements`/
+`Info.plist`). Staged ONLY the 7 intended paths by explicit `git add <file>…` — verified `git status`
+still showed the HealthKit WIP unstaged (16 dirty entries) before committing. **Never `git add -A` when the
+tree holds work you didn't author.** **Platform-secret reality:** the `render` MCP returned `400` on every
+call (incl. no-param `list_workspaces`) and `RENDER_API_KEY` was unset → could NOT set the env vars from
+this session; the functional half is a manual Render-Dashboard step. Recorded the provisioning in docs +
+committed, and flagged the dashboard entry + log-verification as the remaining user action rather than
+claiming push was verified live.
