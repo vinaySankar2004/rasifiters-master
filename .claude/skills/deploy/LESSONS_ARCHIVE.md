@@ -16,6 +16,25 @@
 
 ## Runs
 
+### Run 5 — splash tap-to-skip (web + iOS) (2026-06-30) — REDEPLOY on existing infra ✅
+- Targets: **web → Vercel `rasifiters` only** (`dpl_8915e42Qb4kDDtmtpq5u8SixRM1y`, READY, prod, aliased
+  `rasifiters.com`/`www`). Backend **NOT** deployed (no `apps/backend` change — splash makes no API call;
+  Render correctly skips). iOS ships via Xcode (user) — compile-checked clean via `ios-build` run 68.
+- What the deploy needed: nothing new — a pure client-side code redeploy (tap-to-skip on the splash intro).
+  No env/secret/schema/bucket/auth change. Grepped the diff first → only `apps/web/src/app/splash/page.tsx`
+  + page specs; zero new infra.
+- **Push-tip footgun HIT AGAIN (as documented):** the push tip was `chore(skills): ios-build lessons — run
+  68` (no `apps/web` diff), so the git-triggered web build **Canceled** (confirmed via `vercel list`: 26s-old
+  deploy, 2s, Canceled). Fix: **manual `vercel deploy --prod --scope personal-vinayak` from the REPO ROOT**
+  (canonical `.vercel` there; rootDir `apps/web`). Build READY in one shot, aliased clean.
+- Verify done (headless): `rasifiters.com/splash` → **200**; root → 307→www (expected). Headline absent from
+  server HTML is EXPECTED — it types char-by-char client-side from `useState("")`, so SSR ships it empty.
+  The tap behavior itself is client-JS → owed to the user's manual live test.
+- Flip call: 🚀 web live; the tap-to-skip interaction is user-verified in-browser / in-simulator (client-side,
+  not headless-checkable).
+- New durable pattern promoted: none — reinforces the existing "push-tip docs-chore self-cancels the web
+  git-deploy; manual prod deploy from root is the clean one-off fix" lesson (now hit on runs 4 AND 5).
+
 ### Run 1 — RaSi Fiters Supabase provisioning (2026-06-28) — PROVISION (no code deploy) ✅
 - Targets: **Supabase only.** Created org `RaSi Fiters` (`lxehyprifvuozciizlem`) + project `rasifiters`
   (ref `kpadxjekpiwfkqcxtrio`, `us-east-1`, ACTIVE_HEALTHY). Railway/Vercel deferred — `apps/web` +
