@@ -119,6 +119,10 @@ extension ProgramContext {
                 let key = ProgramContext.sleepExclusionKey(programId: programId, date: night.date)
                 if excluded.contains(key) { continue }   // user un-checked this once — never write it
 
+                // Program is admin-locked for this viewer → skip. No anchor to hold; the rolling
+                // look-back window re-fetches this night once the program is unlocked.
+                if isDataEntryLocked(programId: programId) { continue }
+
                 if confirmed.contains(programId) {
                     let outcome = await APIClient.shared.writeHealthKitSleepLog(
                         token: token, logDate: night.date, sleepHours: night.hours,
@@ -138,7 +142,10 @@ extension ProgramContext {
             }
         }
 
-        for programId in programIds where !confirmed.contains(programId) && pageRows[programId] == nil {
+        for programId in programIds
+            where !confirmed.contains(programId)
+               && pageRows[programId] == nil
+               && !isDataEntryLocked(programId: programId) {
             markProgramConfirmed(programId, flow: .sleep)
         }
 

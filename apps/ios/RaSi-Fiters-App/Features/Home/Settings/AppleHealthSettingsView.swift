@@ -168,35 +168,14 @@ struct AppleHealthSettingsView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(programContext.programs, id: \.id) { program in
-                        let isSelected = programContext.healthKitSyncProgramIds.contains(program.id)
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                if isSelected {
-                                    programContext.healthKitSyncProgramIds.remove(program.id)
-                                } else {
-                                    programContext.healthKitSyncProgramIds.insert(program.id)
-                                }
-                                programContext.persistHealthKitSettings()
+                        programRow(program, isSelected: programContext.healthKitSyncProgramIds.contains(program.id)) {
+                            if programContext.healthKitSyncProgramIds.contains(program.id) {
+                                programContext.healthKitSyncProgramIds.remove(program.id)
+                            } else {
+                                programContext.healthKitSyncProgramIds.insert(program.id)
                             }
-                        } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 22))
-                                    .foregroundColor(isSelected ? .appOrange : Color(.tertiaryLabel))
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(program.name)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundColor(Color(.label))
-                                    Text(program.status ?? "Active")
-                                        .font(.caption)
-                                        .foregroundColor(Color(.secondaryLabel))
-                                }
-                                Spacer()
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
+                            programContext.persistHealthKitSettings()
                         }
-                        .buttonStyle(.plain)
 
                         if program.id != programContext.programs.last?.id {
                             Divider().padding(.leading, 50)
@@ -207,6 +186,44 @@ struct AppleHealthSettingsView: View {
                 .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
             }
         }
+    }
+
+    /// One selectable program row shared by the workout + sleep selectors. An admin-locked program
+    /// (per `isDataEntryLocked`) renders with a lock icon + caption, dimmed and non-selectable — it
+    /// can't receive synced data, so mirror the widget forms' lock affordance.
+    @ViewBuilder
+    private func programRow(_ program: APIClient.ProgramDTO, isSelected: Bool,
+                            onToggle: @escaping () -> Void) -> some View {
+        let locked = programContext.isDataEntryLocked(programId: program.id)
+        Button {
+            guard !locked else { return }
+            withAnimation(.easeInOut(duration: 0.15)) { onToggle() }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: locked ? "lock.fill" : (isSelected ? "checkmark.circle.fill" : "circle"))
+                    .font(.system(size: 22))
+                    .foregroundColor(locked ? Color(.tertiaryLabel) : (isSelected ? .appOrange : Color(.tertiaryLabel)))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(program.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Color(.label))
+                    Text(locked ? "Admin-only — can't sync" : (program.status ?? "Active"))
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .opacity(locked ? 0.6 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(locked)
+    }
+
+    /// Count of currently-selected programs that are admin-locked for this viewer (won't sync).
+    private func lockedSelectedCount(_ ids: Set<String>) -> Int {
+        ids.filter { programContext.isDataEntryLocked(programId: $0) }.count
     }
 
     // MARK: - Sync status
@@ -251,6 +268,14 @@ struct AppleHealthSettingsView: View {
             }
             .background(cardBackground)
             .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+
+            let lockedCount = lockedSelectedCount(programContext.healthKitSyncProgramIds)
+            if lockedCount > 0 {
+                Text("\(lockedCount) program\(lockedCount == 1 ? "" : "s") are admin-locked and won't sync")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .padding(.horizontal, 4)
+            }
         }
     }
 
@@ -380,35 +405,14 @@ struct AppleHealthSettingsView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(programContext.programs, id: \.id) { program in
-                        let isSelected = programContext.sleepSyncProgramIds.contains(program.id)
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                if isSelected {
-                                    programContext.sleepSyncProgramIds.remove(program.id)
-                                } else {
-                                    programContext.sleepSyncProgramIds.insert(program.id)
-                                }
-                                programContext.persistSleepSyncSettings()
+                        programRow(program, isSelected: programContext.sleepSyncProgramIds.contains(program.id)) {
+                            if programContext.sleepSyncProgramIds.contains(program.id) {
+                                programContext.sleepSyncProgramIds.remove(program.id)
+                            } else {
+                                programContext.sleepSyncProgramIds.insert(program.id)
                             }
-                        } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                                    .font(.system(size: 22))
-                                    .foregroundColor(isSelected ? .appOrange : Color(.tertiaryLabel))
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(program.name)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundColor(Color(.label))
-                                    Text(program.status ?? "Active")
-                                        .font(.caption)
-                                        .foregroundColor(Color(.secondaryLabel))
-                                }
-                                Spacer()
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
+                            programContext.persistSleepSyncSettings()
                         }
-                        .buttonStyle(.plain)
 
                         if program.id != programContext.programs.last?.id {
                             Divider().padding(.leading, 50)
@@ -463,6 +467,14 @@ struct AppleHealthSettingsView: View {
             }
             .background(cardBackground)
             .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+
+            let lockedCount = lockedSelectedCount(programContext.sleepSyncProgramIds)
+            if lockedCount > 0 {
+                Text("\(lockedCount) program\(lockedCount == 1 ? "" : "s") are admin-locked and won't sync")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .padding(.horizontal, 4)
+            }
         }
     }
 

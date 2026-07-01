@@ -66,6 +66,9 @@ extension ProgramContext {
     // Swift extensions can't add instance stored properties (there's a single `ProgramContext`).
     static var pendingWorkoutAnchor: HKQueryAnchor?
     static var pendingWorkoutHadRetryable = false
+    // Set when an in-window workout was skipped because its target program is admin-locked for this
+    // viewer. Holds the anchor (like the offline case) so the held workouts re-sync once unlocked.
+    static var pendingWorkoutLockHeld = false
 
     @MainActor
     func performHealthKitSync() async {
@@ -111,6 +114,7 @@ extension ProgramContext {
 
         var created = 0
         var hadRetryable = false
+        var lockHeld = false                                          // an in-window workout hit an admin-locked program
         var pageRows: [String: [PendingSyncConfirmation.Row]] = [:]   // unconfirmed programs → review rows
         let confirmed = confirmedProgramIds(.workouts)
         let excluded = excludedKeys(.workouts)
@@ -122,6 +126,10 @@ extension ProgramContext {
                 let key = ProgramContext.workoutExclusionKey(
                     programId: programId, date: workout.date, workoutName: workout.workoutName)
                 if excluded.contains(key) { continue }   // user un-checked this once — never write it
+
+                // Program is admin-locked for this viewer → skip the write, don't collect a review
+                // row, and hold the anchor so this in-window workout re-syncs once it's unlocked.
+                if isDataEntryLocked(programId: programId) { lockHeld = true; continue }
 
                 if confirmed.contains(programId) {
                     // Steady state: this program was already confirmed → write silently as before.
@@ -145,8 +153,12 @@ extension ProgramContext {
             }
         }
 
-        // Unconfirmed programs that produced no rows (0-row first sync) confirm silently.
-        for programId in programIds where !confirmed.contains(programId) && pageRows[programId] == nil {
+        // Unconfirmed programs that produced no rows (0-row first sync) confirm silently — but never
+        // a locked program (nothing was written to it; leave it to review when it unlocks).
+        for programId in programIds
+            where !confirmed.contains(programId)
+               && pageRows[programId] == nil
+               && !isDataEntryLocked(programId: programId) {
             markProgramConfirmed(programId, flow: .workouts)
         }
 
@@ -154,8 +166,9 @@ extension ProgramContext {
 
         let pages = buildConfirmationPages(pageRows)
         if pages.isEmpty {
-            // Nothing to confirm — behave exactly like the steady-state sync (commit + notify).
-            if !hadRetryable { HealthKitService.shared.commitAnchor(fetch.newAnchor) }
+            // Nothing to confirm — behave exactly like the steady-state sync (commit + notify). Hold
+            // the anchor if a lock deferred an in-window workout, so it re-syncs after the unlock.
+            if !hadRetryable && !lockHeld { HealthKitService.shared.commitAnchor(fetch.newAnchor) }
             lastHealthKitSyncDate = Date()
             persistHealthKitSettings()
             if hadRetryable { HealthKitSyncNotifier.notifyFailure() }
@@ -168,6 +181,7 @@ extension ProgramContext {
         // deferred flow leaves the anchor uncommitted so the same batch is safely re-offered next trigger.
         ProgramContext.pendingWorkoutAnchor = fetch.newAnchor
         ProgramContext.pendingWorkoutHadRetryable = hadRetryable
+        ProgramContext.pendingWorkoutLockHeld = lockHeld
         persistHealthKitSettings()
         enqueuePendingConfirmation(PendingSyncConfirmation(flow: .workouts, pages: pages))
     }
@@ -176,13 +190,15 @@ extension ProgramContext {
     /// `finishConfirmation` when the user finishes every workout page. Clears the stash either way.
     @MainActor
     func commitPendingWorkoutAnchorIfClean() {
-        if !ProgramContext.pendingWorkoutHadRetryable, let anchor = ProgramContext.pendingWorkoutAnchor {
+        if !ProgramContext.pendingWorkoutHadRetryable, !ProgramContext.pendingWorkoutLockHeld,
+           let anchor = ProgramContext.pendingWorkoutAnchor {
             HealthKitService.shared.commitAnchor(anchor)
             lastHealthKitSyncDate = Date()
             persistHealthKitSettings()
         }
         ProgramContext.pendingWorkoutAnchor = nil
         ProgramContext.pendingWorkoutHadRetryable = false
+        ProgramContext.pendingWorkoutLockHeld = false
     }
 
     // MARK: - Persistence
@@ -236,5 +252,6 @@ extension ProgramContext {
         clearExcludedKeys(.workouts)
         ProgramContext.pendingWorkoutAnchor = nil
         ProgramContext.pendingWorkoutHadRetryable = false
+        ProgramContext.pendingWorkoutLockHeld = false
     }
 }

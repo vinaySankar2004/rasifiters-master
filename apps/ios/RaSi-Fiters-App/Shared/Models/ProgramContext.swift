@@ -302,6 +302,18 @@ final class ProgramContext: ObservableObject {
         adminOnlyDataEntry && !isProgramAdmin
     }
 
+    /// Per-program data-entry lock, by id — the multi-program sync analogue of `dataEntryLocked`
+    /// (mirrors the widget's `widgetProgramLockedForLogging`). Locked iff the program's
+    /// `admin_only_data_entry` is on AND the viewer is neither a global admin nor that program's admin.
+    /// Fail-open when the program isn't loaded; the backend 403 (`requireDataEntryAllowed`) is the
+    /// backstop. Used by the Apple Health syncs, which target many programs at once.
+    func isDataEntryLocked(programId: String) -> Bool {
+        guard let program = programs.first(where: { $0.id == programId }) else { return false }
+        guard program.admin_only_data_entry == true else { return false }
+        let isAdmin = isGlobalAdmin || (program.my_role?.lowercased() == "admin")
+        return !isAdmin
+    }
+
     var loggedInUserInitials: String {
         guard let name = loggedInUserName else { return "?" }
         return name

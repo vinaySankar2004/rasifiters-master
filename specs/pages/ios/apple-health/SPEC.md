@@ -90,6 +90,11 @@ sync, not blocked in this UI.
 - **Sleep overwrite** → re-syncing an already-logged night updates `sleep_hours` silently (no notification).
 - **Out-of-window date** → a workout/night whose date is outside a selected program's `[start_date, end_date]`
   is **not** written to that program (D-S5); it still lands in any other selected program that spans it.
+- **Admin-locked program** → a program with `admin_only_data_entry` on (and the viewer not its admin) is shown
+  **non-selectable** in both program lists — lock icon + "Admin-only — can't sync", dimmed — and is pre-skipped
+  by the sync (feature D-LOCK). Sync Now shows "N program(s) are admin-locked and won't sync" when any selected
+  program is locked. A workout logged while a program is locked is held (anchor not advanced) and re-syncs on
+  unlock; sleep re-syncs via its 14-day window.
 - **Notification permission denied** → in-app status only (no banner), never nags.
 
 ## 9. Decisions made
@@ -98,7 +103,7 @@ sync, not blocked in this UI.
 |----|----------|----------|
 | **D-REF** | Reference = PR #4 `AppleHealthSettingsView.swift`; iOS-only, `consumed_by=[ios]`. | PR #4; web has no Apple Health. |
 | **D-ADAPT** | Adapt to our `ProgramDTO` (`status` optional → "Active"), theme tokens, and `fetchPrograms`; add the availability guard. | `APIClient+Programs.swift`; `AppTheme.swift`. |
-| **D-ROLE** | No role read — same for all; self-only sync; locked programs skipped at the server. | `apple-health` feature; `requireDataEntryAllowed`. |
+| **D-ROLE** | The client now **reads** the per-program admin lock (`isDataEntryLocked`) to render locked programs non-selectable and pre-skip them in sync; the server 403 (`requireDataEntryAllowed`) remains the backstop (feature D-LOCK). (Was: "no role read; locked programs skipped at the server" — corrected in 0.5.0.) | `apple-health` feature D-LOCK; `requireDataEntryAllowed`. |
 | **D-ENTRY** | Second entry point (in-program **My Account**) opens the **same** screen with **no** auto-scoping — the program list shows the real saved state, identical to the main-level entry. (Auto-selecting the current program was considered and rejected as confusing.) | `ProgramMyAccountSection`; `AppleHealthSettingsView()`. |
 | **D-CONF** | First-sync review is a **separate full-screen modal** (`HealthSyncConfirmationView`) presented globally from `AppRootView`, **not** UI inside this settings screen — so it appears no matter which entry (Account menu or in-program) or trigger started the sync. Full gating/exclusion/defer semantics live in the feature SPEC (D-CONF). | feature `apple-health` D-CONF; `AppRootView` `.fullScreenCover`. |
 
@@ -118,3 +123,4 @@ sync, not blocked in this UI.
 | 0.2.0 | 2026-07-01 | Added a second **Sleep** section on the same screen (own connect/programs/status/disconnect, moon iconography, "Nights Synced") wired to the new sleep sync (`startSleepSync`/`performSleepSync`/`clearSleepSyncSettings`), independent of workouts (D-S3, F3). Header subheading now "workouts and sleep". iOS builds clean. |
 | 0.3.0 | 2026-07-01 | Added a second entry point — the in-program **My Account** section (`ProgramMyAccountSection`) now shows an "Apple Health" row that opens the **same** screen with identical behavior (no auto-scoping; the program list reflects real saved state, D-ENTRY). iOS builds clean. |
 | 0.4.0 | 2026-07-01 | First sync of an unconfirmed program now opens a separate full-screen **confirmation** (`HealthSyncConfirmationView`, presented from `AppRootView`) — one program per page, selectable rows, glass-tick confirm/advance, dismiss = defer — instead of writing silently (new state in §8; D-CONF). Applies to both Connect and Sync Now while a program is unconfirmed, for workouts + sleep. Full semantics in feature `apple-health` D-CONF. iOS builds clean; user live-tested. |
+| 0.5.0 | 2026-07-01 | Both program selectors now render an **admin-locked** program (feature D-LOCK) non-selectable — lock icon + "Admin-only — can't sync", dimmed via a shared `programRow` builder — and each Sync Status section shows "N program(s) are admin-locked and won't sync" when a selected program is locked. D-ROLE corrected (the client now reads the lock; server 403 is the backstop). New §8 edge case. iOS builds clean. |

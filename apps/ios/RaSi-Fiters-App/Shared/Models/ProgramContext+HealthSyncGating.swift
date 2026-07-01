@@ -153,6 +153,7 @@ extension ProgramContext {
             } else {
                 ProgramContext.pendingWorkoutAnchor = nil      // deferred — drop stash uncommitted
                 ProgramContext.pendingWorkoutHadRetryable = false
+                ProgramContext.pendingWorkoutLockHeld = false
             }
         }
         promoteDeferredConfirmation()
@@ -183,6 +184,7 @@ extension ProgramContext {
 
         let windows = await loadSyncWindows(for: [page.id], token: token)
         guard let window = windows[page.id] else { return false }      // offline / unscopable → retry
+        if isDataEntryLocked(programId: page.id) { return false }       // locked mid-review → retry, stay unconfirmed
 
         addExcludedKeys(page.rows.filter { !$0.isChecked }.map(\.exclusionKey), flow: .workouts)
 
@@ -217,6 +219,7 @@ extension ProgramContext {
 
         let windows = await loadSyncWindows(for: [page.id], token: token)
         guard let window = windows[page.id] else { return false }
+        if isDataEntryLocked(programId: page.id) { return false }       // locked mid-review → retry, stay unconfirmed
 
         addExcludedKeys(page.rows.filter { !$0.isChecked }.map(\.exclusionKey), flow: .sleep)
 
