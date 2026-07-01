@@ -5,6 +5,25 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 73 — Apple Health in-program entry point (apple-health page 0.3.0) (2026-07-01)
+
+**Context.** The "Apple Health" settings row only existed on the main-level account sheet
+(`AccountMenuSheet`); the in-program **My Account** section had none. Added the row to
+`ProgramMyAccountSection` (`ProgramCards.swift`, between Notifications and Privacy Policy) as a
+`NavigationLink` to `AppleHealthSettingsView()` — same screen, identical behavior, no pre-selection.
+(An initial cut auto-scoped the current program into both sync sets via an `autoScopeProgramId` param;
+the user rejected it as confusing, so it was reverted to the plain screen. D-ENTRY.)
+
+**Build.** `XcodeListWindows` → `windowtab2` (fetched fresh). `BuildProject` → built successfully,
+**0 errors** (both the auto-scope cut and the reverted plain cut). `XcodeListNavigatorIssues` → 0.
+
+**Lesson.** Two entry points to one settings screen is just a second `NavigationLink` to the same view —
+no param, no shared-state seeding. Simpler than scoping and the state is honestly reflected. When a
+"smart default" mutates persisted shared state on appear, prefer showing reality; users read auto-checks
+as bugs.
+
+---
+
 ## Run 72 — Month timeline charts fit-to-width (cut-off-at-15 fix) (2026-07-01)
 
 **Context.** User reported the M (Month) tab of the two timeline drill-downs (Workout Activity Timeline,
