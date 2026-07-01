@@ -5,6 +5,28 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 72 — Month timeline charts fit-to-width (cut-off-at-15 fix) (2026-07-01)
+
+**Context.** User reported the M (Month) tab of the two timeline drill-downs (Workout Activity Timeline,
+Lifestyle Timeline) "cut off at day 15" and didn't fit ~30 days. Root cause: `ScrollableBarChart` sized
+content to `count × (minBarWidth+barGap)` ≈ 540pt for a month → overflowed the ~350pt screen → horizontal
+scroll hid days 16-31. W/Y/P (≤12 bars) fit, so only M broke. The "0 data" symptom was NOT a bug —
+`resolveTimelineWindow` uses calendar-month (1st→last), and today being the 1st means a legitimately empty
+window (faithful per analytics SPEC D-S1/F1; user chose to keep it). Web is fine (Recharts ResponsiveContainer).
+
+**Change.** Added an opt-in `fill: Bool` to `ScrollableBarChart` + changed its closure to `(CGFloat) -> Content`
+so it hands back the resolved bar width (keeps `.fixed(barWidth)` consistent with the fitted plot). The 2
+timeline detail views pass `fill: period == .month`; the 4 other call sites (summary cards, distribution,
+workout-types) just take `{ _ in }` — byte-for-byte unchanged. axisValues(.month) left as-is.
+
+**Build.** `XcodeListWindows` → `windowtab2`; `BuildProject` → built successfully, 34.9s, 0 errors;
+`XcodeListNavigatorIssues(severity:error)` → 0. Closure-signature change compiled clean across all 6 sites.
+
+**Lesson (durable, already in Converged):** tab id was `windowtab2` this session (varies) — fetched fresh.
+No new pattern to promote. Hand-off: user does the visual M-tab check in the simulator.
+
+---
+
 ## Run 71 — Apple Health per-program window scoping + sleep-sync fix (apple-health 0.3.0) (2026-07-01)
 
 **Context.** Fixed two sync bugs. (1) Sleep never wrote: `fetchSleepSamples` floored its window at the
