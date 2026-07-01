@@ -43,6 +43,9 @@ struct AppRootView: View {
                 if programContext.isHealthKitEnabled {
                     await programContext.performHealthKitSync()
                 }
+                if programContext.isSleepSyncEnabled {
+                    await programContext.performSleepSync()
+                }
             }
         }
         .onChange(of: programContext.authToken) { _, _ in
@@ -52,9 +55,13 @@ struct AppRootView: View {
                     if programContext.isHealthKitEnabled {
                         await programContext.performHealthKitSync()
                     }
+                    if programContext.isSleepSyncEnabled {
+                        await programContext.performSleepSync()
+                    }
                 } else {
                     programContext.stopNotificationStream()
                     programContext.stopHealthKitSync()
+                    programContext.stopSleepSync()
                 }
             }
         }
@@ -80,6 +87,9 @@ struct AppRootView: View {
                     programContext.startNotificationStreamIfNeeded()
                     if programContext.isHealthKitEnabled {
                         await programContext.performHealthKitSync()
+                    }
+                    if programContext.isSleepSyncEnabled {
+                        await programContext.performSleepSync()
                     }
                     let settings = await UNUserNotificationCenter.current().notificationSettings()
                     if settings.authorizationStatus == .denied {

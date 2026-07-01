@@ -14,9 +14,10 @@
 - **`web`** — COMPLETE + LIVE on `https://rasifiters.com` (Vercel `rasifiters`, git auto-deploy on `main`).
   34 page SPECs (legacy-parity + the net-new `forgot-password`/`reset-password` recovery pages); signed-in
   proxy round-trip user-verified live (profile edit, email change, password recovery).
-- **`ios`** — CODE-COMPLETE. All screens + widgets + Apple Health auto-sync ported; the deferred-stub layer is
-  closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS screen SPECs. Visual/runtime
-  verification is the user's, in Xcode — memory [[ios-user-verifies-builds-visually]].
+- **`ios`** — CODE-COMPLETE. All screens + widgets + Apple Health auto-sync (workouts **+ sleep**, the latter
+  net-new in `apple-health` 0.2.0 → `daily_health_logs.sleep_hours`, no backend/migration change) ported; the
+  deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS screen SPECs.
+  Visual/runtime verification is the user's, in Xcode — memory [[ios-user-verifies-builds-visually]].
 - **Data/auth** — Supabase (`kpadxjekpiwfkqcxtrio`) provisioned; schema + 48/48 members migrated (bcrypt
   hashes imported, no resets). The one-time migrator was removed post-cutover.
 - **Legacy detachment (2026-06-30)** — the repo now stands alone: SPEC `Reference impl` headers → `Provenance`

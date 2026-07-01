@@ -6,6 +6,7 @@ import SwiftUI
 struct AppleHealthSettingsView: View {
     @EnvironmentObject var programContext: ProgramContext
     @State private var isSyncing = false
+    @State private var isSleepSyncingNow = false
 
     private var isAvailable: Bool { HealthKitService.shared.isAvailable }
 
@@ -17,6 +18,7 @@ struct AppleHealthSettingsView: View {
                 if !isAvailable {
                     unavailableRow
                 } else {
+                    // ── Workouts ──
                     VStack(spacing: 12) {
                         if programContext.isHealthKitEnabled {
                             connectedRow
@@ -29,6 +31,25 @@ struct AppleHealthSettingsView: View {
                         programSelectionSection
                         syncStatusSection
                         disconnectSection
+                    }
+
+                    Divider().padding(.vertical, 4)
+
+                    // ── Sleep (independent toggle, same screen) ──
+                    sleepHeader
+
+                    VStack(spacing: 12) {
+                        if programContext.isSleepSyncEnabled {
+                            sleepConnectedRow
+                        } else {
+                            sleepConnectButton
+                        }
+                    }
+
+                    if programContext.isSleepSyncEnabled {
+                        sleepProgramSelectionSection
+                        sleepSyncStatusSection
+                        sleepDisconnectSection
                     }
                 }
 
@@ -55,7 +76,7 @@ struct AppleHealthSettingsView: View {
             Text("Apple Health")
                 .font(.title2.weight(.bold))
                 .foregroundColor(Color(.label))
-            Text("Automatically sync workouts from Apple Health")
+            Text("Automatically sync workouts and sleep from Apple Health")
                 .font(.subheadline)
                 .foregroundColor(Color(.secondaryLabel))
         }
@@ -277,6 +298,211 @@ struct AppleHealthSettingsView: View {
             .overlay(cardBorder(.appRed.opacity(0.3)))
         }
         .buttonStyle(.plain)
+    }
+
+    // MARK: - Sleep header
+
+    private var sleepHeader: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Sleep")
+                .font(.title3.weight(.bold))
+                .foregroundColor(Color(.label))
+            Text("Automatically log your nightly time asleep")
+                .font(.subheadline)
+                .foregroundColor(Color(.secondaryLabel))
+        }
+    }
+
+    // MARK: - Sleep connect button
+
+    private var sleepConnectButton: some View {
+        Button {
+            programContext.startSleepSync()
+        } label: {
+            HStack(spacing: 14) {
+                iconCircle(systemName: "moon.fill", tint: .appBlue)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Connect Sleep")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Color(.label))
+                    Text("Grant access to read your sleep")
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+                Spacer()
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.appBlue)
+            }
+            .padding(14)
+            .background(cardBackground)
+            .overlay(cardBorder(.appBlue.opacity(0.3)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Sleep connected row
+
+    private var sleepConnectedRow: some View {
+        HStack(spacing: 14) {
+            iconCircle(systemName: "moon.fill", tint: .appGreen)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Connected")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(Color(.label))
+                Text("Apple Health sleep will sync automatically")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(cardBackground)
+        .overlay(cardBorder(.appGreen.opacity(0.3)))
+    }
+
+    // MARK: - Sleep program selection
+
+    private var sleepProgramSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sync to Programs")
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(Color(.secondaryLabel))
+
+            if programContext.programs.isEmpty {
+                Text("No programs available. Join or create a program first.")
+                    .font(.caption)
+                    .foregroundColor(Color(.tertiaryLabel))
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(cardBackground)
+                    .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(programContext.programs, id: \.id) { program in
+                        let isSelected = programContext.sleepSyncProgramIds.contains(program.id)
+                        Button {
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                if isSelected {
+                                    programContext.sleepSyncProgramIds.remove(program.id)
+                                } else {
+                                    programContext.sleepSyncProgramIds.insert(program.id)
+                                }
+                                programContext.persistSleepSyncSettings()
+                            }
+                        } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                    .font(.system(size: 22))
+                                    .foregroundColor(isSelected ? .appOrange : Color(.tertiaryLabel))
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(program.name)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundColor(Color(.label))
+                                    Text(program.status ?? "Active")
+                                        .font(.caption)
+                                        .foregroundColor(Color(.secondaryLabel))
+                                }
+                                Spacer()
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+
+                        if program.id != programContext.programs.last?.id {
+                            Divider().padding(.leading, 50)
+                        }
+                    }
+                }
+                .background(cardBackground)
+                .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+            }
+        }
+    }
+
+    // MARK: - Sleep sync status
+
+    private var sleepSyncStatusSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sync Status")
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(Color(.secondaryLabel))
+
+            VStack(spacing: 0) {
+                statusRow(title: "Last Synced", value: lastSleepSyncLabel)
+                Divider().padding(.leading, 14)
+                statusRow(title: "Nights Synced", value: "\(programContext.lastSleepSyncCount)")
+                Divider().padding(.leading, 14)
+
+                Button {
+                    isSleepSyncingNow = true
+                    Task {
+                        await programContext.performSleepSync()
+                        isSleepSyncingNow = false
+                    }
+                } label: {
+                    HStack {
+                        Text("Sync Now")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.appOrange)
+                        Spacer()
+                        if isSleepSyncingNow {
+                            ProgressView().scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.appOrange)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+                .disabled(isSleepSyncingNow)
+            }
+            .background(cardBackground)
+            .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+        }
+    }
+
+    // MARK: - Sleep disconnect
+
+    private var sleepDisconnectSection: some View {
+        Button {
+            programContext.clearSleepSyncSettings()
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color.appRedLight)
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "moon.zzz.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.appRed)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Disconnect Sleep")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.appRed)
+                    Text("Stop syncing sleep and clear settings")
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+                Spacer()
+            }
+            .padding(14)
+            .background(cardBackground)
+            .overlay(cardBorder(.appRed.opacity(0.3)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var lastSleepSyncLabel: String {
+        guard let date = programContext.lastSleepSyncDate else { return "Never" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
     }
 
     // MARK: - Shared styling

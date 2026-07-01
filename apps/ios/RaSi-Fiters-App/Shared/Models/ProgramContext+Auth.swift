@@ -47,6 +47,7 @@ extension ProgramContext {
         }
 
         restoreHealthKitSettings()
+        restoreSleepSyncSettings()
     }
 
     func persistSession() {

@@ -1,6 +1,6 @@
 # Screen: `apple-health` (ios) — the account-menu "Apple Health" settings screen
 
-> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s `AccountMenuSheet` → "Apple Health"
 > (`AccountDestination.appleHealth` → `AppleHealthSettingsView()`).
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift`.
@@ -14,9 +14,10 @@
 
 ## 1. What it is + who uses it
 
-The **Apple Health settings screen** — connect toggle, per-program sync selection, sync status (last synced /
+The **Apple Health settings screen** — **two independent sections on one screen**: a **Workouts** section and
+a **Sleep** section, each with its own connect toggle, per-program sync selection, sync status (last synced /
 count / Sync Now), and disconnect. Reached from the account menu. **iOS-only.** Available to every
-authenticated role (a member syncs their **own** workouts).
+authenticated role (a member syncs their **own** workouts + sleep).
 
 ## 2. Why it exists
 
@@ -34,13 +35,19 @@ screen is the configuration surface.
 
 | Block | What | `file:line` |
 |-------|------|-------------|
-| Header | "Apple Health" + subheading. | `AppleHealthSettingsView.swift` header |
+| Header | "Apple Health" + subheading (now "workouts and sleep"). | `AppleHealthSettingsView.swift` header |
 | Unavailable row | Shown when `HealthKitService.shared.isAvailable == false`. | `unavailableRow` |
-| Connect button | When not connected → `programContext.startHealthKitSync()`. | `connectButton` |
-| Connected row | When connected — green "Connected" card. | `connectedRow` |
-| Program selection | Multi-select over `programContext.programs`; toggles `healthKitSyncProgramIds` + persists. | `programSelectionSection` |
-| Sync status | Last Synced (relative), Workouts Synced (count), Sync Now (`performHealthKitSync`). | `syncStatusSection` |
-| Disconnect | `programContext.clearHealthKitSettings()`. | `disconnectSection` |
+| **Workouts** — Connect button | When not connected → `programContext.startHealthKitSync()`. | `connectButton` |
+| **Workouts** — Connected row | When connected — green "Connected" card. | `connectedRow` |
+| **Workouts** — Program selection | Multi-select; toggles `healthKitSyncProgramIds` + persists. | `programSelectionSection` |
+| **Workouts** — Sync status | Last Synced (relative), Workouts Synced (count), Sync Now (`performHealthKitSync`). | `syncStatusSection` |
+| **Workouts** — Disconnect | `programContext.clearHealthKitSettings()`. | `disconnectSection` |
+| **Sleep** — header | "Sleep" + "log your nightly time asleep". | `sleepHeader` |
+| **Sleep** — Connect button | When sleep off → `programContext.startSleepSync()` (own permission prompt). | `sleepConnectButton` |
+| **Sleep** — Connected row | Green "Connected" card (moon icon). | `sleepConnectedRow` |
+| **Sleep** — Program selection | Independent multi-select; toggles `sleepSyncProgramIds` + persists. | `sleepProgramSelectionSection` |
+| **Sleep** — Sync status | Last Synced (relative), **Nights** Synced (count), Sync Now (`performSleepSync`). | `sleepSyncStatusSection` |
+| **Sleep** — Disconnect | `programContext.clearSleepSyncSettings()`. | `sleepDisconnectSection` |
 
 ## 5. Components + features consumed
 
@@ -50,8 +57,9 @@ screen is the configuration surface.
 
 ## 6. Data / API
 
-- **`GET /api/programs`** on appear (refresh the program list). The sync writes (`POST /api/workout-logs`) are
-  owned by the `apple-health` feature, not issued from this view directly.
+- **`GET /api/programs`** on appear (refresh the program list). The sync writes — workouts
+  (`POST /api/workout-logs`) and sleep (`POST`/`PUT /api/daily-health-logs`) — are owned by the
+  `apple-health` feature, not issued from this view directly.
 
 ## 7. Role-based view rules
 
@@ -68,9 +76,10 @@ sync, not blocked in this UI.
 - **Unavailable device** (iPad/Simulator) → unavailable row, no connect.
 - **Not connected** → connect button only.
 - **Connected, no programs** → "No programs available" empty state.
-- **Sync Now in flight** → spinner, button disabled.
-- **Nothing new** → status date updates, no notification (D7).
-- **New workouts / failure** → local notification (D7) + count/date update.
+- **Sync Now in flight** → spinner, button disabled (workouts + sleep have independent spinners).
+- **Nothing new** → status date updates, no notification (D7 / D-S4).
+- **New workouts / new sleep nights / failure** → local notification + count/date update.
+- **Sleep overwrite** → re-syncing an already-logged night updates `sleep_hours` silently (no notification).
 - **Notification permission denied** → in-app status only (no banner), never nags.
 
 ## 9. Decisions made
@@ -86,10 +95,12 @@ sync, not blocked in this UI.
 | ID | Characteristic | Where | Cleanup candidate? |
 |----|----------------|-------|--------------------|
 | **F1** | iOS-only screen — no web sibling (Apple Health unavailable on web). | `AppleHealthSettingsView.swift` | Kept (faithful). |
-| **F2** | Program selection persists immediately on tap (no explicit save). | `programSelectionSection` | Kept (matches the PR UX). |
+| **F2** | Program selection persists immediately on tap (no explicit save). | `programSelectionSection` / `sleepProgramSelectionSection` | Kept (matches the PR UX). |
+| **F3** | Workouts + Sleep are fully independent (separate toggles, permissions, program sets) but share one screen — no combined "connect all". | both sections | Kept (user decision D-S3). |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1.0 | 2026-06-30 | Initial SPEC + build. Ported PR #4's Apple Health settings screen to `apps/ios`, wired into `ProgramPickerView`'s account menu (`AccountDestination.appleHealth`); adapted to `ProgramDTO`/theme tokens, added an availability guard. Consumes the `apple-health` feature. iOS-only; role N/A. Build green-check owned by the user (Xcode). |
+| 0.2.0 | 2026-07-01 | Added a second **Sleep** section on the same screen (own connect/programs/status/disconnect, moon iconography, "Nights Synced") wired to the new sleep sync (`startSleepSync`/`performSleepSync`/`clearSleepSyncSettings`), independent of workouts (D-S3, F3). Header subheading now "workouts and sleep". iOS builds clean. |

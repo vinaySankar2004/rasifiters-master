@@ -40,7 +40,7 @@ history/workouts/streaks) · lifestyle (+ timeline/workouts).
 | program-picker | 🏗️ v0.1.0 | `programs`/`invites` via `ProgramContext` (`fetchPrograms` `GET /programs`, `deleteProgram`, `updateMembershipStatus` `PUT /program-memberships`, `loadPendingInvites`/`loadMembershipDetails`/`loadLookupData`/`persistSession`/`signOut`) | [program-picker SPEC](ios/program-picker/SPEC.md) |
 | admin-home (shell) | 🏗️ v0.1.0 | pure nav — `ProgramContext.isProgramAdmin` for the 4-tab `Admin*/Standard*` bifurcation; no API | [admin-home SPEC](ios/admin-home/SPEC.md) |
 | admin-summary (tab) | 🏗️ v0.1.0 | `analytics`/`analytics-v2` via `ProgramContext+Analytics` (MTD + timeline + distribution + workout-types loaders); `programs` (`ProgramDTO.admin_only_data_entry` → data-lock). 5 detail views stubbed | [admin-summary SPEC](ios/admin-summary/SPEC.md) |
-| apple-health | 🏗️ v0.1.0 | `apple-health` (HealthKit sync via `ProgramContext+HealthKit`) + `programs` (`fetchPrograms`); reached from the account menu | [apple-health SPEC](ios/apple-health/SPEC.md) |
+| apple-health | 🏗️ v0.2.0 | `apple-health` (HealthKit workout + sleep sync via `ProgramContext+HealthKit`/`+HealthKitSleep`) + `programs` (`fetchPrograms`); two independent sections (Workouts + Sleep); reached from the account menu | [apple-health SPEC](ios/apple-health/SPEC.md) |
 
 > **Stance for all iOS screens:** match the CURRENT built web app, not just legacy iOS (web is a co-equal
 > reference point) — resolve cross-app divergences toward web parity. The auth path landed the real

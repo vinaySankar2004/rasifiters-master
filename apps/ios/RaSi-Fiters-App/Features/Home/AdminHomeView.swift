@@ -62,6 +62,9 @@ struct AdminHomeView: View {
             if programContext.isHealthKitEnabled {
                 await programContext.performHealthKitSync()
             }
+            if programContext.isSleepSyncEnabled {
+                await programContext.performSleepSync()
+            }
         }
     }
 

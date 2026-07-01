@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSHealthShareUsageDescription</key>
-	<string>RaSi Fit'ers reads your workout data from Apple Health to automatically log workouts to your fitness programs.</string>
+	<string>RaSi Fit'ers reads your workout and sleep data from Apple Health to automatically log workouts and nightly sleep to your fitness programs.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>RaSi Fit'ers does not write data to Apple Health, but this permission is required by the system.</string>
 	<key>UIBackgroundModes</key>

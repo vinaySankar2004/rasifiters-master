@@ -121,6 +121,12 @@ final class ProgramContext: ObservableObject {
     @Published var lastHealthKitSyncDate: Date?
     @Published var lastHealthKitSyncCount: Int = 0
 
+    // Apple Health (HealthKit) SLEEP auto-sync — independent toggle; see ProgramContext+HealthKitSleep.swift
+    @Published var isSleepSyncEnabled: Bool = false
+    @Published var sleepSyncProgramIds: Set<String> = []
+    @Published var lastSleepSyncDate: Date?
+    @Published var lastSleepSyncCount: Int = 0
+
     var notificationStreamClient: NotificationStreamClient?
     var notificationIds: Set<String> = []
     let notificationDateFormatter = ISO8601DateFormatter()

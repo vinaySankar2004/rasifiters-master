@@ -25,6 +25,12 @@ enum HealthKitSyncNotifier {
         post(title: "Apple Health", body: "Synced \(count) \(noun) from Apple Health.")
     }
 
+    static func notifySleepSuccess(count: Int) {
+        guard count > 0 else { return }
+        let noun = count == 1 ? "night" : "nights"
+        post(title: "Apple Health", body: "Synced \(count) \(noun) of sleep from Apple Health.")
+    }
+
     static func notifyFailure() {
         post(title: "Apple Health", body: "Apple Health sync failed — we'll retry automatically.")
     }
