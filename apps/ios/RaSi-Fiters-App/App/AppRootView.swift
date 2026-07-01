@@ -135,6 +135,15 @@ struct AppRootView: View {
             ForcedUpdateModalView(minimumVersion: programContext.minimumSupportedVersion)
                 .interactiveDismissDisabled(true)
         }
+        .fullScreenCover(
+            item: Binding(
+                get: { programContext.authToken != nil ? programContext.pendingSyncConfirmation : nil },
+                set: { programContext.pendingSyncConfirmation = $0 }
+            )
+        ) { confirmation in
+            HealthSyncConfirmationView(confirmation: confirmation)
+                .environmentObject(programContext)
+        }
         .alert(
             "You're offline",
             isPresented: Binding(

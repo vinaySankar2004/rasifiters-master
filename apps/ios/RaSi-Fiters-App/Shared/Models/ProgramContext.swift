@@ -127,6 +127,12 @@ final class ProgramContext: ObservableObject {
     @Published var lastSleepSyncDate: Date?
     @Published var lastSleepSyncCount: Int = 0
 
+    // First-time Apple Health sync confirmation — see PendingSyncConfirmation + ProgramContext+HealthSyncGating.
+    // `pendingSyncConfirmation` is the flow currently presented (globally, from AppRootView); a sleep flow
+    // computed while workouts are showing waits in `deferredSleepConfirmation` (workouts get priority).
+    @Published var pendingSyncConfirmation: PendingSyncConfirmation?
+    var deferredSleepConfirmation: PendingSyncConfirmation?
+
     var notificationStreamClient: NotificationStreamClient?
     var notificationIds: Set<String> = []
     let notificationDateFormatter = ISO8601DateFormatter()

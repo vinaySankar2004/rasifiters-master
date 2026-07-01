@@ -41,6 +41,8 @@ extension ProgramContext {
                     isSleepSyncEnabled = true
                     if sleepSyncConnectDate == nil {
                         UserDefaults.standard.set(Date(), forKey: SleepKitDefaultsKeys.connectDate)
+                        // Fresh (re)connect: re-gate every program so this first sync is reviewed again.
+                        clearConfirmedPrograms(.sleep)
                     }
                     persistSleepSyncSettings()
                 }
@@ -72,8 +74,14 @@ extension ProgramContext {
               let token = authToken, !token.isEmpty,
               !sleepSyncProgramIds.isEmpty else { return }
 
+        // A sleep confirmation (presented or queued behind workouts) is already awaiting the user — don't
+        // recompute; resume on the next trigger after it closes.
+        if pendingSyncConfirmation?.flow == .sleep || deferredSleepConfirmation != nil { return }
+
         ProgramContext.isSleepSyncing = true
         defer { ProgramContext.isSleepSyncing = false }
+
+        pruneSleepExcludedKeys()   // drop excluded nights that have aged out of the rolling window
 
         let samples: [HKCategorySample]
         do {
@@ -93,40 +101,58 @@ extension ProgramContext {
         let programIds = sleepSyncProgramIds
         // Each night only writes to a program whose [start, end] window covers it (no cross-program bleed).
         let windows = await loadSyncWindows(for: programIds, token: token)
+        if windows.isEmpty {
+            // Couldn't resolve any window (offline) — don't fall through to silent-confirm the programs.
+            return
+        }
+
         var created = 0
         var hadRetryable = false
+        var pageRows: [String: [PendingSyncConfirmation.Row]] = [:]
+        let confirmed = confirmedProgramIds(.sleep)
+        let excluded = excludedKeys(.sleep)
 
         for night in aggregated {
             for programId in programIds {
                 guard let window = windows[programId],
                       ProgramContext.date(night.date, isWithin: window) else { continue }
-                let outcome = await APIClient.shared.writeHealthKitSleepLog(
-                    token: token,
-                    logDate: night.date,
-                    sleepHours: night.hours,
-                    programId: programId,
-                    memberId: loggedInUserId
-                )
-                switch outcome {
-                case .created:
-                    created += 1
-                case .updated, .skipped:
-                    break                               // overwrite / permanent — success but silent
-                case .retryable:
-                    hadRetryable = true
+                let key = ProgramContext.sleepExclusionKey(programId: programId, date: night.date)
+                if excluded.contains(key) { continue }   // user un-checked this once — never write it
+
+                if confirmed.contains(programId) {
+                    let outcome = await APIClient.shared.writeHealthKitSleepLog(
+                        token: token, logDate: night.date, sleepHours: night.hours,
+                        programId: programId, memberId: loggedInUserId)
+                    switch outcome {
+                    case .created: created += 1
+                    case .updated, .skipped: break
+                    case .retryable: hadRetryable = true
+                    }
+                } else {
+                    pageRows[programId, default: []].append(PendingSyncConfirmation.Row(
+                        title: "Sleep",
+                        subtitle: "\(ProgramContext.displayDate(night.date)) · \(ProgramContext.formatHours(night.hours))",
+                        exclusionKey: key,
+                        payload: .sleep(night)))
                 }
             }
+        }
+
+        for programId in programIds where !confirmed.contains(programId) && pageRows[programId] == nil {
+            markProgramConfirmed(programId, flow: .sleep)
         }
 
         lastSleepSyncDate = Date()
         lastSleepSyncCount += created
         persistSleepSyncSettings()
 
-        if hadRetryable {
-            HealthKitSyncNotifier.notifyFailure()
-        } else {
-            HealthKitSyncNotifier.notifySleepSuccess(count: created)    // no-op when created == 0
+        let pages = buildConfirmationPages(pageRows)
+        if pages.isEmpty {
+            if hadRetryable { HealthKitSyncNotifier.notifyFailure() }
+            else { HealthKitSyncNotifier.notifySleepSuccess(count: created) }   // no-op when created == 0
+            return
         }
+        enqueuePendingConfirmation(PendingSyncConfirmation(flow: .sleep, pages: pages))
     }
 
     // MARK: - Persistence
@@ -173,5 +199,9 @@ extension ProgramContext {
         defaults.removeObject(forKey: SleepKitDefaultsKeys.lastSyncDate)
         defaults.removeObject(forKey: SleepKitDefaultsKeys.lastSyncCount)
         defaults.removeObject(forKey: SleepKitDefaultsKeys.connectDate)
+
+        // Drop first-sync gating so a future reconnect reviews everything fresh.
+        clearConfirmedPrograms(.sleep)
+        clearExcludedKeys(.sleep)
     }
 }

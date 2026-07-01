@@ -80,6 +80,11 @@ sync, not blocked in this UI.
 - **Not connected** → connect button only.
 - **Connected, no programs** → "No programs available" empty state.
 - **Sync Now in flight** → spinner, button disabled (workouts + sleep have independent spinners).
+- **First sync of an unconfirmed program** → instead of writing silently, a full-screen **confirmation**
+  (`HealthSyncConfirmationView`, presented from `AppRootView`) reviews the rows one program per page with a
+  glass tick to confirm + advance; unchecked rows are excluded, dismiss defers (re-offers next trigger).
+  Applies to both Connect and later Sync Now while a program is still unconfirmed (feature D-CONF). A 0-row
+  first sync confirms silently (no modal).
 - **Nothing new** → status date updates, no notification (D7 / D-S4).
 - **New workouts / new sleep nights / failure** → local notification + count/date update.
 - **Sleep overwrite** → re-syncing an already-logged night updates `sleep_hours` silently (no notification).
@@ -95,6 +100,7 @@ sync, not blocked in this UI.
 | **D-ADAPT** | Adapt to our `ProgramDTO` (`status` optional → "Active"), theme tokens, and `fetchPrograms`; add the availability guard. | `APIClient+Programs.swift`; `AppTheme.swift`. |
 | **D-ROLE** | No role read — same for all; self-only sync; locked programs skipped at the server. | `apple-health` feature; `requireDataEntryAllowed`. |
 | **D-ENTRY** | Second entry point (in-program **My Account**) opens the **same** screen with **no** auto-scoping — the program list shows the real saved state, identical to the main-level entry. (Auto-selecting the current program was considered and rejected as confusing.) | `ProgramMyAccountSection`; `AppleHealthSettingsView()`. |
+| **D-CONF** | First-sync review is a **separate full-screen modal** (`HealthSyncConfirmationView`) presented globally from `AppRootView`, **not** UI inside this settings screen — so it appears no matter which entry (Account menu or in-program) or trigger started the sync. Full gating/exclusion/defer semantics live in the feature SPEC (D-CONF). | feature `apple-health` D-CONF; `AppRootView` `.fullScreenCover`. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -111,3 +117,4 @@ sync, not blocked in this UI.
 | 0.1.0 | 2026-06-30 | Initial SPEC + build. Ported PR #4's Apple Health settings screen to `apps/ios`, wired into `ProgramPickerView`'s account menu (`AccountDestination.appleHealth`); adapted to `ProgramDTO`/theme tokens, added an availability guard. Consumes the `apple-health` feature. iOS-only; role N/A. Build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-01 | Added a second **Sleep** section on the same screen (own connect/programs/status/disconnect, moon iconography, "Nights Synced") wired to the new sleep sync (`startSleepSync`/`performSleepSync`/`clearSleepSyncSettings`), independent of workouts (D-S3, F3). Header subheading now "workouts and sleep". iOS builds clean. |
 | 0.3.0 | 2026-07-01 | Added a second entry point — the in-program **My Account** section (`ProgramMyAccountSection`) now shows an "Apple Health" row that opens the **same** screen with identical behavior (no auto-scoping; the program list reflects real saved state, D-ENTRY). iOS builds clean. |
+| 0.4.0 | 2026-07-01 | First sync of an unconfirmed program now opens a separate full-screen **confirmation** (`HealthSyncConfirmationView`, presented from `AppRootView`) — one program per page, selectable rows, glass-tick confirm/advance, dismiss = defer — instead of writing silently (new state in §8; D-CONF). Applies to both Connect and Sync Now while a program is unconfirmed, for workouts + sleep. Full semantics in feature `apple-health` D-CONF. iOS builds clean; user live-tested. |
