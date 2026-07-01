@@ -7,16 +7,18 @@
 
 ## Current phase
 
-**Rebuild COMPLETE across all three surfaces; repo detached from legacy + docs slimmed (2026-06-30). Next: TestFlight.**
+**Rebuild COMPLETE across all three surfaces; repo detached from legacy + docs slimmed. Next: TestFlight + make the GitHub repo public (2026-07-01).**
 
 - **`backend`** — DEPLOYED + LIVE on Render (`rasifiters-api`, `https://rasifiters-api.onrender.com`); auth
   round-trip verified live against migrated data. All backend features ported (`specs/features/REGISTRY.md`).
 - **`web`** — COMPLETE + LIVE on `https://rasifiters.com` (Vercel `rasifiters`, git auto-deploy on `main`).
   34 page SPECs (legacy-parity + the net-new `forgot-password`/`reset-password` recovery pages); signed-in
   proxy round-trip user-verified live (profile edit, email change, password recovery).
-- **`ios`** — CODE-COMPLETE. All screens + widgets + Apple Health auto-sync (workouts **+ sleep**, the latter
-  net-new in `apple-health` 0.2.0 → `daily_health_logs.sleep_hours`, no backend/migration change) ported; the
-  deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS screen SPECs.
+- **`ios`** — CODE-COMPLETE (runs 50→74). All screens + widgets + Apple Health auto-sync (workouts **+ sleep**,
+  the latter net-new in `apple-health` 0.2.0 → `daily_health_logs.sleep_hours`, no backend/migration change)
+  ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS
+  screen SPECs. `apple-health` polished to **0.5.0** (2026-07-01): per-program date-window scoping (0.3.0),
+  gated first-sync confirmation (0.4.0), and admin-lock-aware sync (0.5.0) — all iOS-only, no backend change.
   Visual/runtime verification is the user's, in Xcode — memory [[ios-user-verifies-builds-visually]].
 - **Data/auth** — Supabase (`kpadxjekpiwfkqcxtrio`) provisioned; schema + 48/48 members migrated (bcrypt
   hashes imported, no resets). The one-time migrator was removed post-cutover.
@@ -26,7 +28,7 @@
 
 ## Next action
 
-> ### ⏭️ TestFlight prep for `ios` — IN PROGRESS (status as of 2026-06-30)
+> ### ⏭️ TestFlight prep for `ios` + go-public — IN PROGRESS (status as of 2026-07-01)
 
 Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
 
@@ -68,6 +70,8 @@ Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
 
 ## Open items (carry until resolved)
 
+- **Make the GitHub repo public** — pre-public health check done 2026-07-01 (no tracked secrets; contact emails
+  kept as-is per user; cosmetic infra-identifier anonymization applied). Flip visibility when ready.
 - **iOS runtime + TestFlight** is the user's pass (visual in Xcode; Simulator has no HealthKit).
 - **`APNS_PRODUCTION`** must flip to `true` at first TestFlight/App-Store distribution (else `BadDeviceToken`
   + the token is auto-pruned).

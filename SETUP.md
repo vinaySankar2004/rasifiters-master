@@ -13,7 +13,7 @@ the MCP servers are OAuth-based.
 ## 1. Clone
 
 ```bash
-git clone git@github.com:vinaySankar2004/rasifiters-master.git
+git clone git@github.com:<your-account>/rasifiters-master.git   # or the HTTPS URL of your fork/clone
 cd rasifiters-master
 ```
 

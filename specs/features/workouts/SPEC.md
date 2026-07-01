@@ -1,6 +1,6 @@
 # Feature: `workouts` — the global workout library (admin CRUD + read)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.1 · **Apps (`consumed_by`):** `ios`
 > **Provenance (legacy, archived):** `backend` — `routes/workouts.js`, `services/workoutService.js`
 > (the **global-library** functions only — the file is shared with `program-workouts`, §7/D-C1),
 > `models/Workout.js`, `server.js` (`/api/workouts` mount).

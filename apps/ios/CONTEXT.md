@@ -109,7 +109,7 @@ the web SPECs flagged for this port, all resolved toward web parity:
 was already ported in the foundation (run 50).
 
 ## Status
-🟡 **Auth screens ported (run 51)** — Splash · Login · CreateAccount in `Features/`, web-parity deviations
-applied, `SplashView` stub removed. **Build-green pending the local Xcode toolchain fix** (see §Toolchain
-note); symbols verified present (no duplicate types, `appGreen`/`adaptiveShadow`/`BrandMark` resolve).
-Next: port `ProgramPickerView` (the post-auth landing) + program create/edit/invites via question-asker.
+🟢 **Code-complete (runs 50→74).** All screens + widgets + Apple Health auto-sync (workouts + sleep) ported;
+the deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS screen
+SPECs. Next: TestFlight — bump the version/build, flip `APNS_PRODUCTION=true`, archive + upload (see
+`PROGRESS.md` for the live checklist). Visual/runtime verification is the user's, in Xcode.

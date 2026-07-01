@@ -25,13 +25,13 @@ and standalone (the original app it was ported from is archived, not tracked her
     Migrations live in `apps/backend/sql/`, reviewed/run by the user (never direct SQL from Claude).
   - **Auth** = Supabase Auth; the Express backend proxies it + verifies its JWTs (R1).
   - **Object storage** = Supabase Storage (only if/when needed; the legacy app has no blobs today).
-- **API (`backend`) → Render** — web service `rasifiters-api` (`srv-d90tgmv7f7vs73cudptg`),
-  **LIVE** at `https://rasifiters-api.onrender.com` via Blueprint (`apps/backend/render.yaml`, GitHub
-  auto-deploy). A **new** service; the legacy backend also ran on Render. `/api/auth` deployed + verified
-  end-to-end 2026-06-28.
-- **Web → Vercel** — project `rasifiters` (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team `personal-vinayak`.
-  **LIVE** at `https://rasifiters.com` (apex 308→`www`), git auto-deploy on `main`. Deployed + domain
-  cutover 2026-06-29. (The old legacy webapp project `rasi-fiters` was retired off the domain.)
+- **API (`backend`) → Render** — web service `rasifiters-api`, **LIVE** at
+  `https://rasifiters-api.onrender.com` via Blueprint (`apps/backend/render.yaml`, GitHub auto-deploy).
+  A **new** service; the legacy backend also ran on Render. `/api/auth` deployed + verified end-to-end
+  2026-06-28. (Service ID + deploy detail: canonical home `apps/backend/CONTEXT.md`.)
+- **Web → Vercel** — project `rasifiters`, **LIVE** at `https://rasifiters.com` (apex 308→`www`), git
+  auto-deploy on `main`. Deployed + domain cutover 2026-06-29 (the old legacy project was retired off the
+  domain). (Project/team IDs + deploy detail: canonical home `apps/web/CONTEXT.md`.)
 - **iOS** — App Store / TestFlight; bundle id `com.app.rasifiters` (the build target + APNs topic).
 - **Push** — Apple Push Notification service (APNs). **Provisioned 2026-06-30** — fresh token-based Auth
   Key (`.p8`, Key ID `RA353TA52W`, Team `VSTTF2AM22`); `APNS_*` in Render (`sync:false`). iOS push live.
