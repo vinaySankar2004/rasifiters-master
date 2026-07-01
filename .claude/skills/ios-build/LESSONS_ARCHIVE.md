@@ -5,6 +5,30 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 67 — native forgot-password request screen (2026-06-30)
+
+**Context.** Made the iOS "Forgot your password?" recovery *request* step native: new
+`Features/Auth/ForgotPasswordView.swift` (mirrors the web `/forgot-password` page — inline email
+validation, generic no-enumeration confirmation, `mailto:` contact fallback), new
+`APIClient.requestPasswordReset(email:)` → `POST /auth/forgot-password`, `APIConfig` gained
+`supportEmail`/`supportMailtoURL` and dropped the now-unused `forgotPasswordURL`, and `LoginView` swapped
+its browser `Link` for a `NavigationLink → ForgotPasswordView()`.
+
+**Build.** `BuildProject(tabIdentifier: "windowtab1")` → **built successfully, 0 errors** in 17.3s. The
+brand-new `ForgotPasswordView.swift` compiled with no `project.pbxproj` edit (synchronized folder group —
+reconfirms the converged lesson).
+
+**Warnings (both pre-existing, not from this change):** (1) `LoginView.swift:20` deprecated
+`NavigationLink(destination:isActive:)` — that's the legacy program-picker link, NOT my new closure-form
+`NavigationLink { }`; (2) the known `CFBundleVersion` app-extension mismatch (widget target). No new
+warnings from the added file.
+
+**Lesson.** When a screen's warning fires on a *line* you didn't touch, check it against the diff before
+"fixing" — `XcodeListNavigatorIssues` reports the file/line but not authorship; here the fresh-vitality
+deprecation was legacy code the build just re-surfaced.
+
+---
+
 ## Run 66 — bulk-add card + duplicate-rejection (2026-06-30)
 
 **Context.** Ported the web Bulk-add card to the iOS Summary tab (new `BulkAddWorkoutDetailView` multi-row
