@@ -5,6 +5,27 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 70 — Apple Health SLEEP auto-sync (apple-health 0.2.0) (2026-07-01)
+
+**Context.** Added nightly sleep sync mirroring the workout HealthKit path but writing to
+`daily_health_logs.sleep_hours`. New files: `HealthKitService+Sleep.swift` (auth for
+`HKCategoryType(.sleepAnalysis)`, rolling 3-night `HKSampleQuery`, asleep-stage aggregation by local
+wake-date, `.hourly` background delivery), `APIClient+DailyHealth.swift` (POST-then-PUT-on-409 upsert,
+outcome classify), `ProgramContext+HealthKitSleep.swift` (separate `healthkit.sleep.*` defaults +
+`performSleepSync`). Modified: `ProgramContext` (4 sleep `@Published`), `ProgramContext+Auth` (restore),
+`AppRootView`/`AdminHomeView` (triggers), `AppleHealthSettingsView` (second Sleep section, same screen),
+`HealthKitSyncNotifier` (nights), Info.plist (broadened share-usage string). No backend/migration change.
+
+**Build.** `windowtab2` this session. `BuildProject` → built successfully, **0 errors**, 34.1s.
+`XcodeListNavigatorIssues` filtered to Sleep|HealthKit|DailyHealth → 0 warnings from the new code.
+
+**Lessons.** (1) **Swift extensions can't add instance stored properties** — the sleep observer query +
+its `HKHealthStore` are held as `private static` on the `HealthKitService` extension (the type is a
+singleton, so a static is equivalent and compiles cleanly in a separate file). (2) `try? await` on a
+func returning `String?` **flattens** (Swift 5+) to `String?`, so the workout refresh-on-401 pattern
+copies verbatim into the sleep writer with no double-optional. (3) New synchronized-group files compiled
+with no pbxproj edit (as expected). (4) Same session, tab id was `windowtab2` again — still fetched fresh.
+
 ## Run 69 — merge "Bulk add" into a unified "Add workouts" (2026-07-01)
 
 **Context.** Collapsed the two Summary workout entry points into one multi-row "Add workouts" flow (web +
