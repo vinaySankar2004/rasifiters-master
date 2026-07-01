@@ -9,6 +9,18 @@
 Before ending a run, capture what you learned: a detect/bump call that was non-obvious, a
 blast-radius reverse-scan subtlety, a dangling-edge case, anything awkward in staging/tagging.
 
+### 2026-07-01 — Run: `workout-logs` v0.3.0 (D-C8, single+bulk merge)
+A feature that spans **backend + both clients + 2 page SPECs** still maps to **one** feature bump: only
+`services/logService.js` is a `reference_impl` path for `workout-logs`, so the changeset → `workout-logs`
+0.2.1→**0.3.0** (MINOR — new documented D-C8 behavior, backward-compatible auth relaxation on the batch
+endpoint). The two page SPECs (`specs/pages/web/summary`, `specs/pages/ios/log-workout`) are **page** specs,
+not registry features — bump their own header/§Changelog inline, they don't touch registry.json. Blast-radius
+dependents (`daily-health-logs`/`analytics`/`analytics-v2`/`member-analytics`) only *read* `workout_logs`
+data, so a write-path auth change is FYI, not a gate. Staged explicitly (file-by-file, incl. the 4 deletions
++ 2 renames Git auto-detected `R`); skills-lessons split into their own `chore(skills)` commit per protocol.
+Tags-invariant note: `feature/*` count (29) > node count (15) is EXPECTED — historical per-version tags
+accumulate (workout-logs has 4); the equality invariant is a backfill-era guard, not a per-run check.
+
 ### 2026-06-28 — Run 1: `auth` SPEC commit (first feature)
 New feature, no prior version → **v0.1.0**. Split into a `docs(auth)` feature commit (SPEC + registry +
 REGISTRY + COVERAGE + PROGRESS) tagged `feature/auth@v0.1.0`, and a separate `chore(skills)` commit for
