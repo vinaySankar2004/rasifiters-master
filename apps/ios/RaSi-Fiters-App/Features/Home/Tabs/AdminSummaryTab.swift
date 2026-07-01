@@ -88,6 +88,11 @@ struct AdminSummaryTab: View {
             restoreOrder()
             Task { await programContext.loadLookupData() }
         }
+        // Web parity: a log-workout / log-health save bumps the token → reload the summary analytics
+        // (the iOS analogue of web's `invalidateQueries(["summary"])`). Run 60, D-C3.
+        .onChange(of: programContext.summaryRefreshToken) { _, _ in
+            Task { await load() }
+        }
     }
 
     // MARK: - Web-parity banners

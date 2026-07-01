@@ -127,18 +127,12 @@ struct ProgramWorkoutTypesSection: View {
 // password checklist); Appearance + Notifications are faithful 1:1 ports (Notifications is iOS-only).
 
 // MARK: - Deferred detail screens referenced by AdminSummaryTab (the Summary tab's NavigationLink targets)
-// The iOS analogues of the web /summary sub-routes (log-workout / log-health / activity / distribution /
-// workout-types). Initializers match the AdminSummaryTab call sites so the tab compiles.
+// The iOS analogues of the web /summary sub-routes (activity / distribution / workout-types).
+// Initializers match the AdminSummaryTab call sites so the tab compiles.
 
-/// DEFERRED (Features/Home/Detail/AddWorkoutDetailView.swift) — Summary "Add workout" card → log-workout form.
-struct AddWorkoutDetailView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Add Workout") }
-}
-
-/// DEFERRED (Features/Home/Detail/AddDailyHealthDetailView.swift) — Summary "Log daily health" card → log-health form.
-struct AddDailyHealthDetailView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Add Daily Health") }
-}
+// NOTE: AddWorkoutDetailView + AddDailyHealthDetailView landed (Features/Home/Detail/AddWorkoutDetailView.swift +
+// AddDailyHealthDetailView.swift + LogFormComponents.swift, run 60) — the two Summary log forms. Stubs removed.
+// They gained the web-parity admin_only_data_entry mount guard + shared chrome + success-refresh + inline errors.
 
 /// DEFERRED (Features/Home/Detail/ActivityTimelineViews.swift) — Summary activity-timeline card → expanded
 /// timeline. Also the target of the Members tab's `MemberHistoryCard` (run 55), which passes `memberId` +

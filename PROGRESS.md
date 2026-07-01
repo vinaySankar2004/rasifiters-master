@@ -79,6 +79,40 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Summary log forms: `AddWorkoutDetailView`/`AddDailyHealthDetailView` PORTED (run 60, 2026-06-30).**
+The **two Summary log-action-card targets** (deferred stubs since run 54) — ported into
+`apps/ios/.../Features/Home/Detail/{AddWorkoutDetailView,AddDailyHealthDetailView,LogFormComponents}.swift` (2 iOS SPECs
+`specs/pages/ios/{log-workout,log-health}/`), the 2 deferred stubs removed. These are the app's **core data-entry flows**
+and the **live targets of `admin_only_data_entry`**. **D-SCOPE = the cluster IS the run** (run-58/59 cohesive-cluster
+precedent): both near-twin log forms in one run. **D-S1 = faithful 1:1** — both web (`/summary/log-workout` + `/log-health`,
+runs 36/37) AND legacy iOS agree on the form shape (member picker/self-lock, workout+duration / sleep+diet, at-least-one-
+metric health gate), so faithful IS web parity (the run-55/56 both-agree verdict, now on the WRITE surface); the forms call
+`APIClient.shared.addWorkoutLog`/`addDailyHealthLog` **directly** (as legacy does). **+ 4 web-parity/consistency deviations
+(all user-picked):** **D-C1** the **web-parity `admin_only_data_entry` mount guard** — `.task` `dismiss()`es when
+`dataEntryLocked`, the iOS analogue of web's `router.replace("/summary")`; **legacy iOS had NO lock handling** (relied on the
+backend 403) → this **completes the run-54 lock arc** (Summary DISPLAYS the lock + disables the cards, run 54; these forms
+are the write path it protects — defensive parity since the card is already disabled). **D-C2** adopt the foundation's shared
+chrome (`AppInputField` for the number fields — extended with a non-breaking `keyboardType` param — + `AppPrimaryButton` for
+Save; pickers stay `SearchablePickerSheet` as legacy), the run-31/58 "match the rebuild's established pattern". **D-C3**
+success UX → web parity: on save, bump the **new `ProgramContext.summaryRefreshToken`** (the Summary tab reloads via
+`.onChange`) + `dismiss()`, **dropping the legacy success Alert** — the iOS analogue of web's `invalidateQueries(["summary"])`.
+**D-C4** inline errors on BOTH forms (an `appRed` line), **dropping the legacy health form's error Alert** (legacy was
+internally inconsistent — workout inline, health Alert; web is inline). **D-DEPS = NO new view component** — every API method
+(`addWorkoutLog`/`addDailyHealthLog`), DTO, and `dataEntryLocked` (run 54) already existed; the only additions are 2 tiny
+foundation touches (`AppInputField.keyboardType`, `ProgramContext.summaryRefreshToken` + the `AdminSummaryTab.onChange`
+observer) + the shared `LogFormComponents.swift` (label/row/`yyyy-MM-dd` formatter used by both forms). **Role rules
+code-answered:** `canSelectAnyMember` (global_admin/admin/**logger**) shows the member picker + may log for any member; a plain
+member is **locked to self** (auto-selected via `loggedInUserId`); backend `resolveLogPermissions` is the real boundary.
+**`admin_only_data_entry` = LIVE (write path)** — note `canSelectAnyMember` includes logger but `isProgramAdmin` (the lock
+exemption) does NOT, so a logger can log for any member yet is locked out when the flag is on (matches web + backend). Flagged:
+log-workout F1–F5 (client role gate UI-only; program_id always-passed; workout-picker source bifurcation; no client rate-limit;
+coarse full-reload refresh) · log-health F1–F5 (client role gate; at-least-one-metric client gate + backend 409 duplicate;
+first-member auto-select fallback; explicit-null food_quality; coarse refresh). **The app target's build green-check is owned by
+the user (visual run in Xcode)** — symbols verified via grep (each of the new types defined exactly once, both stubs removed,
+zero-arg call sites unchanged, `summaryRefreshToken`/`keyboardType`/`dataEntryLocked`/all chrome+API deps resolve), not a CLI
+build (memory [[ios-user-verifies-builds-visually]]). **Next: the remaining Summary detail stubs (the 3 chart drill-downs) or a
+Program management section, via `question-asker`.**
+
 **Phase 4 — `ios` program create/edit/invites cluster: 5 VIEWS PORTED (run 59, 2026-06-30).** The **program-picker's
 two deferred forward-nav targets** (deferred since run 52) — ported into `apps/ios/.../Features/Home/ProgramActions/`
 (2 iOS SPECs `specs/pages/ios/{program-actions,edit-program}/`), the 2 deferred stubs removed. **D-SCOPE = the cluster
@@ -364,23 +398,24 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 ## Next action
 
 > ### ⏭️ ON "continue" → PORT A DEFERRED DETAIL VIEW / MANAGEMENT SECTION (the deferred stubs), via `question-asker`
-> **The program create/edit/invites cluster is DONE (run 59, 2026-06-30)** — `ProgramActionsSheet` (the "+" sheet, tabbed
-> Invites/Create) + `CreateProgramTabView` + `InvitesTabView`+`DeclineInviteDialog` + `InviteCard` + the swipe-Edit
-> `EditProgramInfoView` ported into `apps/ios/.../Features/Home/ProgramActions/` (2 SPECs `specs/pages/ios/{program-actions,
-> edit-program}/`), the 2 deferred stubs removed. **D-SCOPE = the cluster IS the run** (run-58 precedent); the picker's two
-> deferred forward-nav targets (deferred since run 52). Create + invites = **faithful 1:1** (web `/programs` Create/Invites
-> tabs + legacy iOS agree → faithful is web parity, NO ADD). **Edit resolved toward web parity**: **D-C1** the web-parity
-> **admin-only-data-entry toggle** legacy iOS lacked (completes the run-54 lock story; iOS-client plumbing ADD —
-> `adminOnlyDataEntry` on `APIClient.updateProgram`+`ProgramContext.updateProgram`+`ProgramUpdateResponse`; **zero backend,
-> NO feature bump** — web already PUTs it) + **D-C2** the 3 web Edit cleanups (date-range validation, hydrate-from-response,
-> skip-no-op PUT). **D-DEPS = one new API-layer dep** (the toggle); no new view component (`StatusPill` reused, run 52;
-> `ProgramDTO.admin_only_data_entry`/`ProgramContext.adminOnlyDataEntry` existed, run 54). Role rules code-answered (create =
-> any role; invites = `isGlobalAdmin` bifurcation; edit gated upstream at the picker's `canManage`); `admin_only_data_entry`
-> N/A on both. **NEXT = the DEFERRED DETAIL / SECTION layer continues.** Pick one (each its own "scope cut IS the run" with
-> further deferrals): a **Program** management section (`ProgramMemberManagementSection` = web `/members/*`
-> roster+editor+invite, `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web
-> `/lifestyle/workouts`); or a **Summary** (5 stubs) / **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run
-> `question-asker` per screen, **match the current web sibling** + faithful legacy iOS, delete each stub when it lands.
+> **The Summary log forms are DONE (run 60, 2026-06-30)** — `AddWorkoutDetailView` + `AddDailyHealthDetailView` (the app's
+> **core data-entry flows**, live targets of `admin_only_data_entry`) ported into `apps/ios/.../Features/Home/Detail/` +
+> `LogFormComponents.swift` (2 SPECs `specs/pages/ios/{log-workout,log-health}/`), the 2 deferred stubs removed. **D-SCOPE =
+> the cluster IS the run** (run-58/59 precedent). **D-S1 = faithful 1:1** (web `/summary/log-workout`+`/log-health` + legacy
+> iOS agree → faithful IS web parity; direct `APIClient.shared.add*` calls) **+ 4 user-picked deviations**: **D-C1** web-parity
+> `admin_only_data_entry` mount guard (`.task` `dismiss()` when `dataEntryLocked` — legacy had none; completes the run-54 lock
+> arc on the write path) · **D-C2** adopt shared `AppInputField`(+`keyboardType`)/`AppPrimaryButton` chrome · **D-C3** success →
+> bump new `ProgramContext.summaryRefreshToken` (Summary reloads via `.onChange`) + `dismiss` (drop success Alert; ≈ web
+> `invalidateQueries(["summary"])`) · **D-C4** inline errors (drop health's error Alert). **D-DEPS = no new view component** (2
+> tiny foundation touches + shared `LogFormComponents.swift`; all API/DTO/`dataEntryLocked` already ported run 50/54). Role
+> rules: `canSelectAnyMember` (global_admin/admin/logger) picker vs member self-lock; **`admin_only_data_entry` LIVE (write
+> path)** — logger locked out too. **NEXT = the DEFERRED DETAIL / SECTION layer continues.** Pick one (each its own "scope cut
+> IS the run" with further deferrals): the **3 remaining Summary chart drill-downs** (`ActivityTimelineDetailView` [also a
+> Members target] / `DistributionByDayDetailView` / `WorkoutTypesDetailView` — read-only, over already-ported analytics
+> loaders); a **Program** management section (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite,
+> `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts`); or a
+> **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run `question-asker` per screen, **match the current web
+> sibling** + faithful legacy iOS, delete each stub when it lands.
 > **The user verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the
 > local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
 >

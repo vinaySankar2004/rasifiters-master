@@ -78,6 +78,9 @@ final class ProgramContext: ObservableObject {
     @Published var globalRole: String = "standard"
     /// Active program's `admin_only_data_entry` flag (web parity: drives the Summary data-lock banner + disabled log cards).
     @Published var adminOnlyDataEntry: Bool = false
+    /// Bumped by the log-workout / log-health forms on a successful save; the Summary tab observes it to
+    /// reload its analytics — the iOS analogue of web's `invalidateQueries(["summary"])` (run 60, D-C3).
+    @Published var summaryRefreshToken: Int = 0
     @Published var selectedMemberOverview: APIClient.MemberMetricsDTO?
     @Published var memberHistory: [APIClient.MemberHistoryPoint] = []
     @Published var memberHistoryLabel: String = ""
