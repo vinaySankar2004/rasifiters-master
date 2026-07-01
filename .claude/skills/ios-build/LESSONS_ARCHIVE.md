@@ -5,6 +5,24 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 69 — merge "Bulk add" into a unified "Add workouts" (2026-07-01)
+
+**Context.** Collapsed the two Summary workout entry points into one multi-row "Add workouts" flow (web +
+iOS). iOS: new `AddWorkoutsDetailView.swift` (repurposed from the old `BulkAddWorkoutDetailView`) that
+hides the per-row member field for plain members and seeds each row's `member_id` with the logged-in
+member (`ignoreMember = !canSelectAnyMember` gates `isEmptyRow`/`isValidRow`/`clientRowError`); deleted
+`BulkAddWorkoutDetailView.swift` + `AddWorkoutDetailView.swift`; removed the `.bulkAdd` `SummaryCardType`
+case + `BulkAddWorkoutCard` + the admin-only visibility filter; retitled the orange card/nav to "Add
+workouts"; pointed the `.addWorkout` NavigationLink at the new view.
+
+**Build.** `windowtab2` this session (NOT windowtab1 — fetch fresh every run). `BuildProject` → built
+successfully, 0 errors, 43.8s. Only warning is the known widget CFBundleVersion 25≠40 mismatch (ignore).
+
+**Lessons.** (1) tab id varies per session — promoted to Converged lessons. (2) Deleting `.swift` files
+from the synchronized folder group Just Works via the open Xcode — no pbxproj edit, same as adding.
+(3) Removing an enum case (`SummaryCardType.bulkAdd`) is safe against persisted UserDefaults order:
+`compactMap(SummaryCardType.init(rawValue:))` silently drops the stale `"bulkAdd"` string on restore.
+
 ## Run 68 — tap-to-skip the splash intro animation (2026-06-30)
 
 **Context.** Added a "fast-forward" affordance to the signed-out splash typewriter animation on both

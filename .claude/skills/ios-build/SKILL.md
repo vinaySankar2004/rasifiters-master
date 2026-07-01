@@ -69,9 +69,10 @@ The user owns the visual/runtime confirmation in the simulator.
 - **Tool names (confirmed live):** build = `mcp__xcode__BuildProject`, structured issues =
   `mcp__xcode__XcodeListNavigatorIssues` (filter by `severity`/`glob`/`pattern`), raw log =
   `mcp__xcode__GetBuildLog`. All require a **`tabIdentifier`** — get it from
-  `mcp__xcode__XcodeListWindows` first (currently `windowtab1` for the open `RaSi-Fiters-App.xcodeproj`).
-- **Invocation:** `BuildProject(tabIdentifier: "windowtab1")` — no scheme/destination arg needed; it builds
-  the open instance and returns `{buildResult, elapsedTime, errors[], fullLogPath}`. ~18s clean.
+  `mcp__xcode__XcodeListWindows` first. **The tab id varies per session** (seen `windowtab1` and
+  `windowtab2`) — always fetch it fresh, never hardcode.
+- **Invocation:** `BuildProject(tabIdentifier: <fresh id>)` — no scheme/destination arg needed; it builds
+  the open instance and returns `{buildResult, elapsedTime, errors[], fullLogPath}`. ~18–44s clean.
 - **Open-Xcode path avoids the `actool`/CoreSimulator issue** — the MCP build through the running Xcode
   builds clean where raw `xcodebuild` fails. Confirmed.
 - **New `.swift` files** added under the `apps/ios` synchronized folder group are picked up by the open
