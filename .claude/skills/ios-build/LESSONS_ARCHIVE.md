@@ -5,6 +5,27 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 68 — tap-to-skip the splash intro animation (2026-06-30)
+
+**Context.** Added a "fast-forward" affordance to the signed-out splash typewriter animation on both
+surfaces (user request; web + iOS mirror each other). iOS: `SplashViewModel` gained `isSkipped` + a
+`skip()` method that snaps `displayedHeadline`/`displayedSubheadline` to the full strings and flips
+`isHeadlineComplete`/`isCTAVisible` in one `withAnimation`; the `type()` loop now checks `isSkipped`
+before and after each `Task.sleep` so no stray character lands post-skip; `start()` guards after each
+`type()` to short-circuit the inter-phase sleeps. `SplashView`'s `ZStack` got `.contentShape(Rectangle())`
++ `.onTapGesture { viewModel.skip() }` (whole-screen tap; the inner Sign-in `NavigationLink` keeps its own
+tap, and `skip()` no-ops once `isCTAVisible`).
+
+**Build.** `BuildProject(tabIdentifier: "windowtab1")` → **built successfully, 0 errors** in 17.0s. Edit
+was in an existing file, no `project.pbxproj` change. Web side typechecked clean via `tsc --noEmit`.
+
+**Lesson.** `.contentShape(Rectangle())` on the ZStack is the clean way to make an otherwise-transparent
+container fully tappable without adding a `Color.clear` hit-target layer — first instinct (insert a
+`Color.clear`) was unnecessary and reverted. Child gestures (the Sign-in link) still win over the parent
+`onTapGesture`, so no conflict.
+
+---
+
 ## Run 67 — native forgot-password request screen (2026-06-30)
 
 **Context.** Made the iOS "Forgot your password?" recovery *request* step native: new
