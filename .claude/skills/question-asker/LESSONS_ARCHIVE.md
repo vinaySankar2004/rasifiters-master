@@ -2798,3 +2798,47 @@ defined-once + 4 stubs removed. `consumed_by=[ios]`, no feature bump (page SPECs
 
 **Next:** the DEFERRED layer is nearly closed — 1 Lifestyle stub (`LifestyleTimelineDetailView` = web `/lifestyle/timeline`)
 + 2 widget entry views (`QuickAddWorkout`/`QuickAddHealthWidgetEntryView`). Each its own "scope cut IS the run".
+
+## Run 64 — iOS Lifestyle timeline detail (LifestyleTimelineDetailView), the last non-widget stub
+
+**Target:** the deferred `LifestyleTimelineDetailView` (the sleep/diet health-timeline drill-down, iOS analogue of web
+`/lifestyle/timeline`), reached from the Lifestyle tab timeline card (run 56). Single leaf view — D-SCOPE = its own run.
+
+**Sweep (3 Explore agents):** legacy iOS view (`AdminHomeHelpers.swift:1133-1332`) + its 2 co-located helpers
+(`HealthHeaderStats`/`HealthCalloutView` in the deferred `ActivityTimelineViews.swift`) · web twin SPEC + rebuilt page
+(the 3 run-32 chart cleanups: dual Y-axis, Legend, axis unit labels) · ported iOS foundation (nearly everything already
+ported; the run-61 `ChartDetailComponents.swift` header explicitly deferred the health variants "to the future
+lifestyle-timeline detail run"). Verified the load-bearing files myself: the legacy view uses a **single shared Y-axis**
+(`yMax = max(sleep, food)`, `.chartYScale(0...yMax*1.1)`) — the exact scale-mixing bug web fixed — but is otherwise
+**richer** than web (native drag callout, horizontal scroll, period selector). Confirmed web SURFACES load errors
+(`timelineQuery.isError && <ErrorState>`) while legacy iOS SWALLOWS (`errorMessage` set, rendered nowhere).
+
+**3 questions (1 AskUserQuestion call), all resolved toward the recommended:**
+1. Chart Y-axis → **Keep native + dual-axis fix** (preserve interactivity, scale diet onto its own 0–5 axis).
+2. Error banner → **Add web-parity error banner** (web surfaces, legacy swallows — run-52/54).
+3. Clarity cleanups (multiSelect) → **BOTH** axis unit labels + Legend (user picked the Legend too, overriding my
+   "redundant given header+callout" recommendation).
+
+**Decisions:** D-REF keep iOS-native (richer than web, run-52/53/61 exception) · D-SCOPE single leaf view · D-S1 faithful
+1:1 native + 4 web-parity chart deviations (no tokenize — legacy already used `Color.appBlue`/`appGreen`) · D-C1 dual Y-axis
+(scale diet, sleep leading / diet trailing 0–5) · D-C2 web-parity error banner (run-54 `AdminSummaryTab` shape) · D-C3 axis
+unit labels ("hrs"/"/ 5") · D-C4 chart Legend (`chartForegroundStyleScale`) · D-DEPS small new dep (the 2 co-located health
+helpers only; API/DTO/loader/`ScrollableBarChart`/shared chart helpers all reused-not-redefined). Flagged F1 (no
+per-program read authz, backend) · F2 (`onDisappear` reloads to week) · F3 (no view-as picker — scope from card `memberId`,
+gated upstream) · F4 (diet axis pinned 0–5).
+
+**New durable pattern (promoted):** a **richer-iOS view can still adopt ONE specific web bug-fix** — "keep native" (D-REF,
+the interaction/structure) and "apply web's parity fix" (D-C, the shared pre-fix defect) are NOT mutually exclusive. Run 61
+established "iOS richer → keep native"; run 64 refines it: the view keeps its native richness AND adopts web's dual-axis fix
+because it shares web's ONE pre-fix bug (single shared Y-axis flattening). Separate the axes: "keep native" governs the
+INTERACTION; "match web" governs the specific shared DEFECT. Corollary: the user can OVERRIDE a "would-subtract as
+redundant" recommendation (run-33) toward full parity — lead with the recommendation, honor the override (the Legend).
+
+**Reconfirmed:** the co-located-helper D-DEPS pattern (run-55/56/61) — a prior run's file header can pre-name exactly which
+deferred helpers a future run will port; scale the new dep to just those. Behavior-diff sets the error-banner verdict by
+WHAT WEB DOES (web surfaces → ADD, run-52/54; unlike run-55/56 both-swallow → no ADD). Read-only → `admin_only_data_entry`
+N/A. `consumed_by=[ios]`, no feature bump (page SPEC v0.1.0; endpoint pre-exists — web consumes it). Build owned by the user
+(Xcode); 3 new types grep-verified defined-once, stub removed, both call sites match the init.
+
+**Next:** the DEFERRED layer is down to the **2 widget entry views** (`QuickAddWorkoutWidgetEntryView`/
+`QuickAddHealthWidgetEntryView`) — the last iOS cluster, its own "scope cut IS the run".

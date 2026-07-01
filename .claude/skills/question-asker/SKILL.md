@@ -1151,6 +1151,30 @@ directly as a faithful port from the legacy reference app** — there is no inte
   only redirect web needs (URL-addressable routes) is N/A in-view because iOS gates member selection upstream at the cards
   (run 43/53/55) → read views carry no redirect (F-row); client-stricter-at-entry F-rows (run 40/42/43); `consumed_by=[ios]`,
   no feature bump (page SPECs v0.1.0; every endpoint pre-exists); build owned by the user, 20 types grep-verified defined-once + 4 stubs removed.
+- **Run 64 — a RICHER-iOS view can STILL adopt ONE specific web bug-fix: "keep native" (D-REF) and "apply web's parity
+  fix" (D-C) are NOT mutually exclusive when iOS shares web's PRE-fix defect.** `LifestyleTimelineDetailView` (the sleep/diet
+  timeline, iOS analogue of web `/lifestyle/timeline`, the last non-widget deferred stub) is **richer** than web (native
+  drag callout + horizontal scroll + period selector → run-61 keep-native) YET shares web's ONE pre-fix bug: a **single
+  shared Y-axis** (`yMax = max(sleep, food)`) that flattened the diet 1–5 line under the sleep-hours bars — the exact
+  scale-mixing web deliberately fixed (run-32 D-C2 dual-axis). Run 61 established "iOS richer → keep native"; run 64 refines
+  it: **separate the axes of the decision** — "keep native" governs the INTERACTION/structure (kept all the callout/scroll/
+  period richness), "match web" governs the specific shared DEFECT (scaled the diet series onto its own 0–5 axis: sleep
+  leading, diet trailing). Don't let a keep-native D-REF suppress a genuine shared-bug fix, and don't let a web-parity fix
+  drag the whole view toward web's flatter idiom — they compose. Three corollaries. **(a) The user can OVERRIDE a
+  "would-subtract as redundant" recommendation (run-33) toward FULL web parity — lead with the recommendation, honor the
+  override.** I flagged web's Legend (D-C4) as redundant on iOS (the `HealthHeaderStats` + `HealthCalloutView` already
+  color-label Sleep/Diet); the user picked it anyway → implement it (`chartForegroundStyleScale`). Offer the subtract as the
+  lead, but the parity-maximizing pick is the user's. **(b) The co-located-helper D-DEPS pattern (run-55/56/61) can be
+  PRE-NAMED by a prior run's file header — scale the new dep to exactly those.** The run-61 `ChartDetailComponents.swift`
+  header explicitly said `HealthCalloutView`/`HealthHeaderStats` "belong to the future lifestyle-timeline detail run"; run 64
+  ported exactly those 2 (~50 LoC) into that file, everything else (API/DTO/loader/`ScrollableBarChart`/every shared chart
+  helper) reused-not-redefined. Grep a prior sibling's file header for pre-deferred helpers before sizing the new dep.
+  **(c) The error-banner verdict is still set by WHAT WEB DOES (run-52/54/55/56)** — web `/lifestyle/timeline` SURFACES load
+  errors (`isError && <ErrorState>`) while legacy iOS SWALLOWS (`errorMessage` set, rendered nowhere) → ADD the banner (the
+  run-52/54 gap shape, run-54 `AdminSummaryTab` banner reused); confirm web's actual behavior (grep the page), don't assume.
+  Reconfirmed: D-SCOPE single-leaf-view-is-the-run; read-only → `admin_only_data_entry` N/A; no role-conditional UI (scope
+  from the card's `memberId`, gated upstream); `consumed_by=[ios]`, no feature bump (page SPEC v0.1.0; endpoint pre-exists);
+  build owned by the user (Xcode), 3 new types grep-verified defined-once + stub removed + both call sites match the init.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
