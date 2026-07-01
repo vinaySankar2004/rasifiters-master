@@ -24,12 +24,21 @@ fill-in placeholder — substitute the concrete value from this list.
 ## 1. How to INSPECT current values
 
 **Render (backend API):** Dashboard → the `rasifiters-api` service → **Environment** (lists every var;
-values revealable). Programmatic / keys-only audit via the REST API:
+values revealable). Programmatic — use the repo helper **`tools/render-env.sh`** (list/get/set/deploy/status,
+scoped to the one rasifiters service):
 ```
-curl -s https://api.render.com/v1/services/<TODO(provision):serviceId>/env-vars \
+tools/render-env.sh list                 # keys only — no values leaked
+tools/render-env.sh set APNS_KEY -        # upsert, reading the (secret) value from stdin
+```
+The helper (and any raw REST call) authenticates via **`$RENDER_API_KEY`** — a personal Render API key
+(`rnd_…` from Render → Account Settings → API Keys), stored in **`~/.zshenv`** (`export RENDER_API_KEY=…`),
+so it's picked up by every shell and **never committed**. Raw REST equivalent:
+```
+curl -s https://api.render.com/v1/services/srv-d90tgmv7f7vs73cudptg/env-vars \
   -H "Authorization: Bearer $RENDER_API_KEY" | jq -r '.[].envVar.key'   # keys only — no values leaked
 ```
-(The hosted `render` MCP and the optional `render` CLI can also list env.)
+(The hosted `render` MCP works interactively but 400s in non-interactive/headless sessions — prefer the
+API-key helper there.)
 
 > **Render env-var values are readable** (dashboard "reveal", and the REST API returns raw values) —
 > they are *not* sealed/write-only. To audit/compare without leaking, list **keys only** (the `jq`
@@ -98,7 +107,7 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | `APNS_KEY_ID` | APNs auth-key id | no | **provisioned `RA353TA52W`** (fresh token-based Auth Key for this rebuild; legacy was `F9C876PZ9K`). Push for iOS (the `apn` lib). |
 | `APNS_TEAM_ID` | Apple team id | no | `VSTTF2AM22` (unchanged — same Apple account). |
 | `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | `com.app.rasifiters` — must match the app's `aps-environment` entitlement / build target. |
-| `APNS_KEY` | base64 of the `.p8` auth key | **secret** | **provisioned 2026-06-30** — base64 of `AuthKey_RA353TA52W.p8`, entered in the Render Dashboard (`sync:false`), **never** in git. Real secret → get from the user / password manager. (Or a Render **Secret File** at `/etc/secrets/`.) |
+| `APNS_KEY` | base64 of the `.p8` auth key | **secret** | **SET & LIVE 2026-06-30** — base64 of `AuthKey_RA353TA52W.p8`, set in Render via `tools/render-env.sh` (`sync:false`), **never** in git. Real secret → get from the user / password manager. (Or a Render **Secret File** at `/etc/secrets/`.) |
 | `APNS_KEY_PATH` | filesystem path to the `.p8` (local dev only) | no | legacy local-only (`backend/secrets/auth_key.p8`). **Not used on Render** — use `APNS_KEY` (base64) or a Secret File instead. |
 | `APNS_PRODUCTION` | `true`/`false` → APNs prod vs sandbox gateway | no | defaults to `NODE_ENV==='production'`. Set **`false`** while testing an Xcode dev build (sandbox device token); **`true`** (or unset) for TestFlight/App Store. Mismatch → `BadDeviceToken` + the token is pruned. |
 | ~~`JWT_SECRET`~~ | (was: HS256 secret to sign+verify self-issued access tokens) | secret | **RETIRED at R1** — identity moves to Supabase Auth; verification uses `SUPABASE_JWT_SECRET`/JWKS. The legacy value `my_secret_key` is a dev placeholder, not a real secret. |
