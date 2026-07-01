@@ -1,8 +1,8 @@
 # Page: `program/privacy` (web) — Privacy Policy (program-settings sub-route 6 of 6 — LAST)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/privacy` — the **Privacy Policy** document: a single static `GlassCard` of policy prose
-> (effective date, information-collected/used/shared, retention, security, choices, children's privacy, contact),
+> (effective date, information-collected/used/shared, Apple Health, retention, security, choices, children's privacy, contact),
 > the **sixth and LAST** of the deferred `/program/*` settings sub-routes (reached from the
 > [`program`](../SPEC.md) hub's account menu).
 > **Despite living under `/program/*` it is NOT a program-admin setting** like
@@ -17,17 +17,18 @@
 > **Cross-app:** the same policy is surfaced natively on iOS (Settings → Privacy Policy) and is the shared
 > cross-surface legal document (it intentionally describes the iOS push/APNs behavior even on web — F1); parity
 > audited at the iOS port.
-> **Stance:** faithful 1:1 port **+ one small cleanup** (D-C1 reuse `useAuthGuard`). Content kept verbatim;
-> cross-surface oddities flagged §10.
+> **Stance:** faithful 1:1 port **+ one small cleanup** (D-C1 reuse `useAuthGuard`) **+ one deliberate
+> 2026-07-01 content update** (D-AH: Apple Health/HealthKit disclosure for App-Store review). Content
+> otherwise verbatim; cross-surface oddities flagged §10.
 
 ---
 
 ## 1. What it is + who uses it
 
 The **Privacy Policy** page for the signed-in member: a `PageShell` + `PageHeader` ("Privacy Policy", subtitle
-"Effective date: 2026-03-02") over a single `GlassCard padding="lg"` containing the full policy prose — sections
-for *Information we collect*, *How we use information*, *Sharing of information*, *Data retention*, *Security*,
-*Your choices*, *Children's privacy*, *Changes to this policy*, and *Contact us* (`geethasankar78@gmail.com`).
+"Effective date: 2026-07-01") over a single `GlassCard padding="lg"` containing the full policy prose — sections
+for *Information we collect*, *How we use information*, *Apple Health*, *Sharing of information*, *Data retention*,
+*Security*, *Your choices*, *Children's privacy*, *Changes to this policy*, and *Contact us* (`geethasankar78@gmail.com`).
 Used by **any authenticated user** to read the policy; there is **no admin gate and no role redirect** — the only
 guard is `!session?.token → /login` (now via `useAuthGuard`, D-C1). It is **read-only** — nothing on the page is
 interactive except the header Back button.
@@ -45,7 +46,7 @@ and no per-user state** — so it never touches the backend or another member, a
   the policy with no program selected); there is **no role redirect** (every role may read it).
 - **Reached via:** the [`program`](../SPEC.md) hub's account menu (`router.push("/program/privacy")`).
 - **Chrome:** `PageShell maxWidth="3xl"` (wider than `appearance`'s `2xl` — it's a text document) + `PageHeader`
-  (title "Privacy Policy", subtitle "Effective date: 2026-03-02", `backHref = program?.id ? "/program" :
+  (title "Privacy Policy", subtitle "Effective date: 2026-07-01", `backHref = program?.id ? "/program" :
   "/programs"` — back to the hub if a program is active, else the programs list). No bottom nav (sub-route, not a
   workspace tab).
 - **Leaves to:** `/program` or `/programs` on Back; otherwise stays in place (no other navigation, no actions).
@@ -54,9 +55,9 @@ and no per-user state** — so it never touches the backend or another member, a
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Privacy Policy" + "Effective date: 2026-03-02" subtitle + Back → `/program` or `/programs`. | privacy/page.tsx:25-29 |
-| Policy card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`) wrapping the intro paragraph + the nine titled policy sections. | privacy/page.tsx:31-134 |
-| Section | Each section: a `text-base font-semibold text-rf-text` heading + either a paragraph or a `list-disc` `<ul>` of points (collect / use / share / retain / secure / choices / children / changes / contact). | privacy/page.tsx:38-133 |
+| Header | `PageHeader` "Privacy Policy" + "Effective date: 2026-07-01" subtitle + Back → `/program` or `/programs`. | privacy/page.tsx:14-18 |
+| Policy card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`) wrapping the intro paragraph + the ten titled policy sections. | privacy/page.tsx:20-134 |
+| Section | Each section: a `text-base font-semibold text-rf-text` heading + either a paragraph or a `list-disc` `<ul>` of points (collect / use / apple-health / share / retain / secure / choices / children / changes / contact). | privacy/page.tsx:27-133 |
 
 ## 5. Components + consumed features
 
@@ -106,21 +107,22 @@ and no per-user state** — so it never touches the backend or another member, a
 | **D-REF** | `consumed_by = [web]` for this page spec; iOS surfaces the same policy natively (Settings → Privacy Policy) and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec); the shared policy text intentionally describes iOS push/APNs behavior on both surfaces (F1). | legacy `program/privacy/page.tsx`; iOS `Features/Settings/` |
 | **D-SCOPE** | **This page only — and it CLOSES the group.** Port `/program/privacy` faithful 1:1; it is the **6th & last** `/program/*` sub-route, so with it the entire `/program/*` sub-route layer is complete. | per-page cadence; [`program` SPEC §3](../SPEC.md) |
 | **D-DEPS** | **No new dependency** — `PageShell`/`PageHeader`/`GlassCard` and `useAuthGuard` are **all already ported**. The run-29 purest shape, here even purer: a fully static page with no state and no storage, not even a chrome leaf to drag in. | `components/ui/`; [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
-| **D-S1** | **Faithful 1:1** otherwise — the policy prose (effective date, all nine sections, the contact email) is ported **verbatim** (already fully `rf-*` tokenized in legacy — **no tokenize cleanup needed**), as is `PageShell maxWidth="3xl"` and `backHref = program?.id ? "/program" : "/programs"`. Content kept exactly as legacy (user decision: "keep all content verbatim"). | privacy/page.tsx |
+| **D-S1** | **Faithful 1:1** to legacy otherwise (the one intentional post-rebuild change is **D-AH**) — the policy prose (all ten sections incl. the Apple Health section, the contact email) is otherwise **verbatim** (already fully `rf-*` tokenized in legacy — **no tokenize cleanup needed**), as is `PageShell maxWidth="3xl"` and `backHref = program?.id ? "/program" : "/programs"`. Content otherwise exactly as legacy (user decision: "keep all content verbatim"). | privacy/page.tsx |
+| **D-AH** | **Deliberate post-rebuild update (2026-07-01): add an *Apple Health* disclosure + bump the effective date to 2026-07-01.** The net-new iOS `apple-health` feature reads workouts + sleep from HealthKit; App-Store/TestFlight review requires the policy to disclose it (read-only, only for auto-logging, never sold/advertised/shared with third parties, user-revocable). Added as the 3rd section (after *How we use information*) plus an Apple-Health clause in the fitness collect-bullet, a new *How we use* bullet, and the *Sharing* no-sell line. Applied **identically** to the byte-identical public [`privacy-policy`](../../privacy-policy/SPEC.md) (duplication parity preserved). NOT a legacy port — a called-out change per CLAUDE.md; iOS needs no rebuild (it links to this policy URL). | privacy/page.tsx:32, 44, 52-58, 78 |
 | **D-C1** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + `useActiveProgram` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches siblings [`profile`](../profile/SPEC.md)/[`password`](../password/SPEC.md)/[`appearance`](../appearance/SPEC.md) exactly; the hook subsumes the redirect AND returns `program` for the back-href, deleting the `useRouter`/`useAuth`/`useActiveProgram`/`useEffect` imports. Legacy predated the foundation hook. | privacy/page.tsx:11-21; [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
 
 ## 10. Flagged characteristics (kept as-is)
 
 - **F1 — the policy describes iOS push/APNs behavior even on the web surface.** The shared cross-surface document
-  references collecting an APNs device token and Apple's Push Notification service (privacy/page.tsx:46, 57, 69-72),
+  references collecting an APNs device token and Apple's Push Notification service (privacy/page.tsx:35, 47, 69-71),
   but the web client uses SSE, not APNs, and registers no device token. Faithful — it is one shared legal document
   across both surfaces; trimming web-irrelevant clauses would fork the policy. Kept verbatim (user decision);
   content-review candidate, not a code cleanup.
 - **F2 — the policy is gated behind auth.** `/program/privacy` requires a session (redirects to `/login`),
   unlike a typical always-public privacy page; a separate public `/privacy-policy` route exists for the pre-auth
   path. Faithful — legacy also placed this copy behind auth under `/program/*`.
-- **F3 — hardcoded effective date + contact email.** The effective date `2026-03-02` and contact
-  `geethasankar78@gmail.com` are literal strings in the JSX (privacy/page.tsx:27, 132); updating the policy means
+- **F3 — hardcoded effective date + contact email.** The effective date `2026-07-01` and contact
+  `geethasankar78@gmail.com` are literal strings in the JSX (privacy/page.tsx:16, 132); updating the policy means
   editing the page. Faithful; a CMS/config-sourced policy would be a rebuild feature, not a cleanup.
 - **F4 — no role is read at all.** Like `appearance`/`password`, this page has no role-conditional UI — the
   ABSENCE of role logic is the finding; §7 is "same for everyone." Faithful.
@@ -129,4 +131,5 @@ and no per-user state** — so it never touches the backend or another member, a
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-01 | **Deliberate content update (D-AH)** ahead of iOS TestFlight/App-Store submission: added an **Apple Health** section disclosing the net-new iOS `apple-health` HealthKit read (workouts + sleep — read-only, used only for auto-logging, never sold/advertised/shared with third parties, user-revocable), an Apple-Health clause in the fitness collect-bullet, a *How we use* auto-log bullet, and the *Sharing* no-sell line; bumped the **effective date → 2026-07-01**; light clarity polish. Applied **identically** to the byte-identical public [`privacy-policy`](../../privacy-policy/SPEC.md). **No iOS change** — the app links to this policy URL. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 30) — the **sixteenth web page spec**, the **sixth & LAST of the deferred `/program/*` settings sub-routes** (the `/program/*` group is now complete). The **Privacy Policy** document — a fully static `GlassCard` of policy prose; **not** a program-admin setting (no admin redirect; available to every role; no role-conditional UI at all). The **purest page in the rebuild: static content with no state, no `localStorage`, no API, no backend, and no new dependency** (purer even than the run-29 `appearance` picker). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Privacy Policy mirrors the same shared policy later) · **D-SCOPE** (this page only — CLOSES the 6-of-6 `/program/*` group) · **D-DEPS** (no new dependency — purest shape) · **D-S1** (faithful 1:1; content verbatim, already fully tokenized, no tokenize cleanup) · **D-C1** (reuse `useAuthGuard({ requireProgram: false })` over the inline redirect). Flagged F1–F4 (shared iOS-push text on web; auth-gated policy; hardcoded date/email; no role read at all). Consumes only foundation chrome + `useAuthGuard`; **no feature bump.** Ported `apps/web/src/app/program/privacy/page.tsx`. `npm run build` ✓. |
