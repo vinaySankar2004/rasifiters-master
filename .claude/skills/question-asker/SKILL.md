@@ -1040,6 +1040,32 @@ directly as a faithful port from the legacy reference app** — there is no inte
   skip-no-op snapshots the loaded values `onAppear` and compares formatted strings (time-of-day diffs don't trigger a
   false PUT). Reconfirmed: scope-cut-IS-the-run for a cluster (run-58); folder-synced Xcode group auto-includes a new
   `Features/Home/ProgramActions/` dir (run-51); create/invites sub-views `cp`'d verbatim; 6 types grep-verified defined-once.
+- **Run 60 — a cross-view web-parity BEHAVIOR with no existing iOS signal → add a minimal published token + observer;
+  the chrome-adoption cleanup can need a small non-breaking foundation-component EXTENSION; and a lock GUARD is worth
+  adding even when the entry point is already disabled (defensive parity completing a multi-run arc).** The two Summary
+  log forms (`AddWorkoutDetailView`/`AddDailyHealthDetailView`, iOS analogues of web `/summary/log-workout`+`/log-health`,
+  the app's core WRITE path) ported as a cohesive cluster (run-58/59) — faithful 1:1 (both web AND legacy iOS agree on
+  the form shape → faithful IS web parity, run-55/56, now on a write surface; direct `APIClient.shared.add*` calls) + 4
+  user-picked deviations. Five durable patterns. **(a) Web's `invalidateQueries(["summary"])` has no automatic iOS
+  analogue** — SwiftUI `.task` does NOT re-fire on a `NavigationLink` pop, so a successful log leaves the Summary stale.
+  The honest low-coupling fix: a `@Published var summaryRefreshToken: Int` on `ProgramContext`, bumped by the form on
+  success, observed by the tab (`.onChange { load() }`). Don't couple the form to the tab's private loaders; don't reload
+  on `.onAppear` (fires on tab switches too). Flag it as a COARSE full-reload vs web's keyed invalidation (F-row,
+  rebuild candidate). **(b) The chrome-adoption cleanup (run-58 D-C3) can require a small NON-BREAKING extension of an
+  existing shared component** — `AppInputField` lacked `keyboardType`; add an optional param with a `.default` fallback
+  (existing call sites unchanged), not a fork or a fragile propagating modifier; record it in D-DEPS. **(c) Legacy
+  internal INCONSISTENCY resolves toward web AND self-consistency** — the two legacy forms disagreed (workout inline
+  error, health error `Alert`); web is uniformly inline, so "match web" also unifies the pair (both inline) — name both
+  wins in the D-row. **(d) A web-parity lock GUARD is worth adding even when the ENTRY POINT is already disabled** — the
+  Summary card is already dimmed + non-navigating when `dataEntryLocked` (run 54), so the form's `.task` `dismiss()`
+  guard is belt-and-suspenders, exactly like web's `router.replace` (also redundant); add it — it completes the run-54
+  lock arc (DISPLAY the lock, run 54 → GUARD the write path, run 60) and defends against direct-nav. **(e) Two distinct
+  role predicates can coexist on one screen — the lock exemption is the NARROWER one.** `canSelectAnyMember` (member
+  picker) = global_admin||admin||**logger**; `isProgramAdmin` (the `dataEntryLocked` exemption) = admin||global_admin,
+  EXCLUDES logger — so a logger logs for any member yet is locked out when the flag is on (matches backend
+  `requireDataEntryAllowed`). Grep the exact predicate per use; don't conflate "select any member" with "exempt from the
+  lock". Reconfirmed: cluster-IS-the-run (run-58/59); `admin_only_data_entry` LIVE because the page WRITES (run-31/36/45,
+  read-vs-write axis); folder-synced Xcode group auto-includes the new files; build owned by the user, symbols grep-verified.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

@@ -2589,3 +2589,59 @@ unchanged, both stubs removed).
 **Next:** the DEFERRED DETAIL/SECTION layer continues — the 3 Program management-section stubs
 (`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/`ProgramWorkoutTypesSection`), or a Summary (5) /
 Members (6) / Lifestyle (2) detail view. Each its own "scope cut IS the run".
+
+---
+
+## Run 60 — iOS Summary log forms (`AddWorkoutDetailView` + `AddDailyHealthDetailView`)
+
+**Target:** the two Summary log-action-card `NavigationLink` targets (deferred stubs since run 54), the iOS
+analogues of web `/summary/log-workout` + `/log-health`. The app's **core data-entry flows** and the live
+targets of `admin_only_data_entry`. Ported into `apps/ios/.../Features/Home/Detail/` + a shared
+`LogFormComponents.swift`; both stubs removed. 2 iOS SPECs.
+
+**Shape:** cohesive-cluster-IS-the-run (run-58/59) — two near-twin write forms in one run. Faithful 1:1
+(both web AND legacy iOS agree on the form shape → faithful IS web parity, run-55/56 both-agree verdict, now
+on the WRITE surface) + 4 user-picked deviations. Direct `APIClient.shared.add*` calls (as legacy does) →
+no service-module dep.
+
+**Decisions:** D-SCOPE (both forms one run) · D-S1 (faithful 1:1) · **D-C1** web-parity
+`admin_only_data_entry` mount guard (`.task` `dismiss()` when `dataEntryLocked` — legacy had NO lock handling;
+completes the run-54 lock arc on the write path) · **D-C2** adopt shared `AppInputField`(+ new `keyboardType`
+param)/`AppPrimaryButton` chrome (run-31/58) · **D-C3** success → bump new `ProgramContext.summaryRefreshToken`
+(Summary reloads via `.onChange`) + `dismiss` (drop the success Alert; ≈ web `invalidateQueries(["summary"])`)
+· **D-C4** inline errors on both (drop health's error Alert) · **D-DEPS** no new view component (2 tiny
+foundation touches + shared `LogFormComponents.swift`; all API/DTO/`dataEntryLocked` already ported run 50/54).
+
+**New/durable patterns:**
+1. **A cross-view web-parity behavior with no existing signal → add a minimal published token + observer.**
+   Web's `invalidateQueries(["summary"])` refetches the summary on a successful log; iOS `.task` does NOT
+   re-fire on a NavigationLink pop, so there was no automatic refresh. The honest low-coupling analogue: a
+   `@Published var summaryRefreshToken: Int` on `ProgramContext`, bumped by the forms on success, observed by
+   `AdminSummaryTab.onChange { load() }`. Don't couple the form to the tab's private loaders; don't reload on
+   every `.onAppear` (fires on tab switches too). Flag it as a COARSE full-reload (not web's keyed
+   invalidation) — a rebuild candidate (F-row).
+2. **The chrome-adoption cleanup (run-58 D-C3) can require a small NON-BREAKING foundation-component
+   extension.** `AppInputField` had no `keyboardType`; the number fields need `.numberPad`. Add an optional
+   param with a `.default` fallback (existing call sites unchanged) rather than forking the component or
+   applying a fragile propagating modifier. Cross-platform mirror of the web "port a shared chrome leaf"
+   pattern — but here it's a tiny ENHANCEMENT to an existing shared component, recorded in D-DEPS.
+3. **Legacy internal INCONSISTENCY resolves toward web AND self-consistency.** The two legacy forms disagreed
+   with each other (workout = inline error, health = error Alert); web is uniformly inline. "Match web" here
+   also unifies the pair (both inline) — a two-birds cleanup. When siblings diverge from each other, the
+   web-parity pick usually also makes them consistent; name both wins in the D-row.
+4. **A web-parity lock guard is worth adding even when the ENTRY POINT is already disabled — defensive
+   parity that completes a multi-run arc.** The Summary card is already dimmed + non-navigating when
+   `dataEntryLocked` (run 54), so the form's mount guard is belt-and-suspenders — exactly like web's
+   `router.replace` (also redundant with the disabled card). Add it: it mirrors web, closes the run-54 lock
+   story on the actual write path, and defends against future direct-nav. The lock ADD spans the DISPLAY
+   (run 54, Summary) → the WRITE guard (run 60, the forms) — a capability arc across runs.
+5. **Two distinct role predicates can coexist on one screen — the lock exemption is the NARROWER one.**
+   `canSelectAnyMember` = global_admin || admin || **logger** (drives the member picker); `isProgramAdmin` =
+   admin || global_admin (the `dataEntryLocked` exemption) EXCLUDES logger. So a logger can log for any
+   member yet is locked out when the flag is on — matches web + the backend `requireDataEntryAllowed`
+   (`isProgramAdmin`). Don't conflate "can select any member" with "exempt from the lock"; grep the exact
+   predicate for each.
+
+**Next:** the remaining Summary chart drill-downs (`ActivityTimelineDetailView` / `DistributionByDayDetailView`
+/ `WorkoutTypesDetailView`), a Program management section, or a Members/Lifestyle detail view. Each its own
+"scope cut IS the run".
