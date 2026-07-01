@@ -204,10 +204,19 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
   `value:` vars sync from the YAML.
 - **rootDirectory before git-connect (Vercel):** set it via the REST API first, or the first git build runs
   from repo root and fails. The CLI cannot set rootDirectory.
-- **Ignored-build-step skips by the PUSH-TIP commit's diff,** not the whole pushed range — if the tip is a
-  docs/lessons chore with no web diff, Vercel CANCELS the web build even when an earlier commit changed web.
-  Fix: make the app-touching commit the push tip, or PATCH `commandForIgnoringBuildStep` → `""`,
-  `vercel redeploy <HEAD-deployment-uid>`, poll READY, then PATCH the ignore step back.
+- **Ignored-build-step skips by the PUSH-TIP commit's diff,** not the whole pushed range — the ignore command
+  is `git diff --quiet HEAD^ HEAD -- .` (only `HEAD^..HEAD`, scoped to `rootDirectory=apps/web`). So if the
+  push TIP is a docs/lessons `chore` with no web diff, Vercel SKIPS the web build even when an earlier commit
+  in the same push changed `apps/web` — production silently stays on the prior deployment (confirmed
+  2026-07-01: the `git-version`/`ios-build` lesson commits landed after the web feature commit → no build).
+  **Prevent:** when a push changes `apps/web`, make an app-touching commit the push tip — i.e. commit the
+  `chore(skills)` lessons FIRST or in a separate later push, not as the tip of a web-feature push.
+  **Recover (simplest — used 2026-07-01):** `vercel deploy --prod --yes` from the **repo root** (linked
+  `.vercel/` there) — the CLI uploads the working tree and force-builds, bypassing the git ignore step
+  entirely; ~30s build, aliases `www.rasifiters.com` on READY. (Heavier alternative: PATCH
+  `commandForIgnoringBuildStep` → `""`, `vercel redeploy <uid>`, poll READY, PATCH back.)
+  **Always confirm** the new production deployment's source commit in the dashboard/`vercel inspect` — a
+  stale "Created Nh ago" on an old commit means the auto-build never fired.
 - **Verify END-TO-END through the live web proxy,** not just the backend — a backend curl can be green while
   the web server-side proxy 500s (e.g. an auth helper throwing without its session middleware).
 - **Vercel "Sensitive" env vars are write-only** — unreadable by `vercel env pull` or the decrypt API. You

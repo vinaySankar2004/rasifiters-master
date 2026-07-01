@@ -16,6 +16,29 @@
 
 ## Runs
 
+### Run 6 — unified "Add workouts" (web + iOS + backend) (2026-07-01) — REDEPLOY on existing infra ✅
+- Targets: **web → Vercel `rasifiters`** (`dpl_AdPBg3tbfE3pYx97cd1fJ9P1Duvw`, READY, prod, aliased
+  `www.rasifiters.com`; ~31s build). **backend → Render `rasifiters-api`** auto-deploys on the push
+  (`apps/backend/services/logService.js` changed); Render MCP had no workspace selected this session so
+  status was dashboard-owed, not MCP-verified. iOS ships via Xcode (user); compiled clean via `ios-build`
+  run 69.
+- What the deploy needed: nothing new — pure code redeploy (merge single+bulk workout-add → one multi-row
+  form; backend batch-auth relaxation D-C8). No env/secret/schema/bucket change.
+- **Gotcha hit + fix — the ignored-build-step PUSH-TIP skip (already a Converged lesson, now confirmed +
+  simplified):** the push ended with two `chore(skills)` lesson commits (no `apps/web` diff) after the web
+  feature commit. Vercel's `commandForIgnoringBuildStep` = `git diff --quiet HEAD^ HEAD -- .` diffs ONLY the
+  tip commit → skipped the web build; production stayed on the 3h-old deployment (old commit `124bfc2`, user
+  screenshot). **Fix:** `vercel deploy --prod --yes` from the **repo root** — force-builds from the working
+  tree, bypassing the git ignore step; READY in ~30s, aliased `www.rasifiters.com`. Simpler than the
+  previously-documented PATCH-ignore→redeploy→PATCH-back dance.
+- Verify done (headless): `next build` locally ✓ + Vercel remote build ✓ (route list confirms
+  `/summary/bulk-log-workout` removed, `/summary/log-workout` present). Owed: signed-in visual on `/summary`
+  (user) + Render deploy-id confirmation (MCP blocked this session).
+- Flip call: 🚀 web live + verified; backend 🏗️ pending user's Render-dashboard glance.
+- New durable pattern promoted: enhanced the ignored-build-step Converged lesson with the **prevention**
+  (don't end a web-changing push on a docs/skills commit) + the **simplest recovery** (`vercel deploy --prod`
+  from repo root).
+
 ### Run 5 — splash tap-to-skip (web + iOS) (2026-06-30) — REDEPLOY on existing infra ✅
 - Targets: **web → Vercel `rasifiters` only** (`dpl_8915e42Qb4kDDtmtpq5u8SixRM1y`, READY, prod, aliased
   `rasifiters.com`/`www`). Backend **NOT** deployed (no `apps/backend` change — splash makes no API call;
