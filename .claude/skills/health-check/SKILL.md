@@ -126,6 +126,15 @@ structural — overall healthy / needs attention"); and which items, if approved
   The real invariant is `registry.version` == the SPEC **§12 Changelog top entry** == the highest
   `feature/<f>@*` git tag. Ignore "max-semver-in-file" comparisons (they catch prose cross-refs to other
   features' versions) — Explore inventory agents tend to raise these as bogus alarms.
+- **A SPEC's line-3 `Version:` prose header is a DISTINCT drift class from the sync invariant** — it can lag
+  while the invariant above (changelog top == registry == tag) is perfectly in sync. Before flagging a
+  "version mismatch", check the changelog top: if it agrees with registry+tag, this is a one-token
+  header-field fix, NOT a sync break. (Run 2: `workouts` header 0.1.0 vs synced 0.1.1; `apple-health` header
+  0.3.0 vs synced 0.5.0.)
+- **After a fast build sprint, check the orientation docs first.** A burst of runs (e.g. iOS runs 50→74 in
+  ~2 days) predictably freezes the L1 map (`ICM.md`) + the lowest-churn `CONTEXT.md` §Status ("Next: port
+  X…"), while the append-only logs (SPEC changelogs, registry, git tags) stay correct. Staleness concentrates
+  in the human-written current-state prose, not the mechanical records.
 - **reference_impl.paths (registry.json) are rasifiters-app paths** — they resolve in
   `apps/<web|backend|ios>/` (the repo's own code). The original app is archived/detached and is NOT a
   reference. SPEC `Provenance` headers name the archived original as history (past-tense prose, not a live
