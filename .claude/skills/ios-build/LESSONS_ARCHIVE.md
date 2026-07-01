@@ -5,6 +5,29 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 74 — edge swipe-back to program list (2026-07-01)
+
+**Context.** Getting out of a program (`AdminHomeView`, the 4-tab `TabView`) back to the "My Programs"
+list was hard — every screen sets `.navigationBarBackButtonHidden(true)`, which also kills the native
+edge swipe-back. Added a left-edge `UIScreenEdgePanGestureRecognizer` via a new
+`Shared/Components/EdgeSwipeToReturn.swift` (`.edgeSwipeToReturn { }` modifier), attached once on the
+`AdminHomeView` TabView. On completion it finds the selected tab's nested `UINavigationController`:
+`viewControllers.count > 1` → `popViewController` (one level back); at tab root → set
+`programContext.returnToMyPrograms = true` (the existing return idiom that `ProgramPickerView` observes).
+Scope confirmed with user: return-to-list **only at tab root**; sub-screens pop one level.
+
+**Build.** `XcodeListWindows` → `windowtab2` (fresh). `BuildProject` → built successfully, **0 errors**,
+22s. `XcodeListNavigatorIssues` on the two changed files → only the known widget `CFBundleVersion`
+warning (pre-existing, ignore); no new warnings.
+
+**Lesson.** SwiftUI `TabView` = `UITabBarController`, each tab's `NavigationStack` = a nested
+`UINavigationController`. One custom edge recognizer that reads `selectedViewController`'s nav depth and
+dispatches (pop vs. app-level return) is cleaner than re-enabling + arbitrating the two levels of
+disabled native pop gestures. `UIScreenEdgePanGestureRecognizer` fires only at the screen edge, so it
+does not fight in-content chart `DragGesture` scrubbing.
+
+---
+
 ## Run 73 — Apple Health in-program entry point (apple-health page 0.3.0) (2026-07-01)
 
 **Context.** The "Apple Health" settings row only existed on the main-level account sheet
