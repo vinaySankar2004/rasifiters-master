@@ -95,12 +95,12 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | `PORT` | HTTP listen port | no | legacy default `5001` (`server.js`). **Render injects `PORT` (default `10000`)** — never set it; `server.js` binds `process.env.PORT` on `0.0.0.0`. |
 | `MIN_IOS_VERSION` | min iOS app version, served at `GET /api/app-config` | no | legacy `1.2.0`; force-upgrade gate for the iOS client. Keep. |
 | `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | legacy hardcoded in `server.js` (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`). **Externalize to env at rebuild**; the iOS client is native (no CORS). `TODO(provision)` final list. |
-| `APNS_KEY_ID` | APNs auth-key id | no | legacy `F9C876PZ9K`. Push for iOS (the `apn` lib). |
-| `APNS_TEAM_ID` | Apple team id | no | legacy `VSTTF2AM22`. |
-| `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | legacy `com.app.rasifiters`. |
-| `APNS_KEY` | base64 of the `.p8` auth key (production form) | **secret** | legacy commented form (`APNS_KEY=LS0tLS1CRUdJTi…`). On Render, ship the key as a **base64 env var** (or a Render **Secret File** at `/etc/secrets/`), not a repo file path. `TODO(provision)`. |
+| `APNS_KEY_ID` | APNs auth-key id | no | **provisioned `RA353TA52W`** (fresh token-based Auth Key for this rebuild; legacy was `F9C876PZ9K`). Push for iOS (the `apn` lib). |
+| `APNS_TEAM_ID` | Apple team id | no | `VSTTF2AM22` (unchanged — same Apple account). |
+| `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | `com.app.rasifiters` — must match the app's `aps-environment` entitlement / build target. |
+| `APNS_KEY` | base64 of the `.p8` auth key | **secret** | **provisioned 2026-06-30** — base64 of `AuthKey_RA353TA52W.p8`, entered in the Render Dashboard (`sync:false`), **never** in git. Real secret → get from the user / password manager. (Or a Render **Secret File** at `/etc/secrets/`.) |
 | `APNS_KEY_PATH` | filesystem path to the `.p8` (local dev only) | no | legacy local-only (`backend/secrets/auth_key.p8`). **Not used on Render** — use `APNS_KEY` (base64) or a Secret File instead. |
-| `APNS_PRODUCTION` | `true`/`false` → APNs prod vs sandbox gateway | no | legacy commented; set `true` for App Store builds. `TODO(provision)`. |
+| `APNS_PRODUCTION` | `true`/`false` → APNs prod vs sandbox gateway | no | defaults to `NODE_ENV==='production'`. Set **`false`** while testing an Xcode dev build (sandbox device token); **`true`** (or unset) for TestFlight/App Store. Mismatch → `BadDeviceToken` + the token is pruned. |
 | ~~`JWT_SECRET`~~ | (was: HS256 secret to sign+verify self-issued access tokens) | secret | **RETIRED at R1** — identity moves to Supabase Auth; verification uses `SUPABASE_JWT_SECRET`/JWKS. The legacy value `my_secret_key` is a dev placeholder, not a real secret. |
 | ~~`REFRESH_TOKEN_TTL_DAYS`~~ | (was: TTL for rows in the `refresh_tokens` table) | no | **RETIRED at R1** — Supabase Auth owns refresh tokens; the legacy `refresh_tokens` table + `/api/auth/refresh` self-issue path go away (the proxy forwards Supabase's refresh). Legacy value `90`. |
 

@@ -14,7 +14,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `members` | 0.3.0 | 🏗️ | `web` `ios` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
 | `programs` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programs.js`, `services/programService.js`, `models/{Program,ProgramMembership}.js`) | [programs/SPEC.md](programs/SPEC.md) |
 | `program-memberships` | 0.2.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
-| `notifications` | 0.2.0 | 🏗️ | `web` `ios` | `backend` (`routes/notifications.js`, `utils/{notifications,notificationStreams,pushNotifications}.js`, `models/{Notification,NotificationRecipient,MemberPushToken}.js`) | [notifications/SPEC.md](notifications/SPEC.md) |
+| `notifications` | 0.2.1 | 🏗️ | `web` `ios` | `backend` (`routes/notifications.js`, `utils/{notifications,notificationStreams,pushNotifications}.js`, `models/{Notification,NotificationRecipient,MemberPushToken}.js`) | [notifications/SPEC.md](notifications/SPEC.md) |
 | `invites` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/invites.js`, `services/inviteService.js`, `models/{ProgramInvite,ProgramInviteBlock}.js`) | [invites/SPEC.md](invites/SPEC.md) |
 | `workouts` | 0.1.0 | 🏗️ | `ios` | `backend` (`routes/workouts.js`, `services/workoutService.js` [library half], `models/Workout.js`) | [workouts/SPEC.md](workouts/SPEC.md) |
 | `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
@@ -38,7 +38,8 @@ ports fully functional); `getPrograms` keeps its raw SQL verbatim (D-S2); `admin
 (`createMemberAndEnroll` fixed→loginable D-C2; two dead routes dropped D-C3); notification emits deferred via
 a stub D-C4. `notifications` (**the keystone**) follows: 6 `/api/notifications` routes + the emit engine —
 faithful except one migration delta (the SSE stream auth swaps symmetric `jwt.verify` → Supabase JWKS,
-D-C2) and deferred APNs creds (D-C4, push no-ops gracefully). Porting it **replaced** the deferred
+D-C2) and initially-deferred APNs creds (D-C4 → resolved by D-C8 2026-06-30: key provisioned, iOS push
+live). Porting it **replaced** the deferred
 `utils/notifications.js` stub, so the programs/memberships emits now fire unchanged; `POST /broadcast` is kept
 but vestigial (called by neither client, F1). `invites` (the co-mounted other half of `/api/program-memberships`)
 follows: 4 invite routes (`POST /invite`, `GET /my-invites`, `GET /all-invites`, `PUT /invite-response`) +

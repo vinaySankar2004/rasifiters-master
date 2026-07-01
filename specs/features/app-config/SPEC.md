@@ -88,10 +88,10 @@ single-sourced there. **Push is `consumed_by = [ios]` only** — the web client 
 | Unregister | iOS `APIClient+Auth.swift:79-91` → `DELETE /api/notifications/device` → `authService.removePushToken` | device route |
 | Store | `member_push_tokens` table (`platform:'ios'`, unique `device_token`) — owned by [`notifications`](../notifications/SPEC.md) §5 | DB |
 | Dispatch | `utils/pushNotifications.js` (`sendPushToMembers`, APNs `apn.Provider`) — owned by [`notifications`](../notifications/SPEC.md) §3 | APNs |
-| Env | `APNS_*` (`sync:false`, **creds deferred** — notifications D-C4) → `getProvider()→null` ⇒ push is a logged no-op; tokens still persist for retroactive push | `render.yaml` |
+| Env | `APNS_*` (`sync:false`; **creds provisioned 2026-06-30** — notifications D-C8, Key ID `RA353TA52W`) → `getProvider()` returns a live provider ⇒ iOS push fires | `render.yaml` |
 
-All push code is ported and faithful; the only deferral is the APNs **credentials** (notifications D-C4) —
-SSE + DB delivery + token persistence are fully live.
+All push code is ported and faithful; the APNs **credentials** were provisioned 2026-06-30 (notifications
+D-C8), so end-to-end iOS push is now live alongside SSE + DB delivery + token persistence.
 
 ## 7. Flags / env
 

@@ -33,8 +33,9 @@ implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}
 - **Web → Vercel** — project `rasifiters` (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team `personal-vinayak`.
   **LIVE** at `https://rasifiters.com` (apex 308→`www`), git auto-deploy on `main`. Deployed + domain
   cutover 2026-06-29. (The old legacy webapp project `rasi-fiters` was retired off the domain.)
-- **iOS** — App Store / TestFlight; bundle id `com.vinayaksankaranarayanan.RaSi-Fiters-App` (legacy).
-- **Push** — Apple Push Notification service (APNs), keys carried from the legacy backend (`APNS_*`).
+- **iOS** — App Store / TestFlight; bundle id `com.app.rasifiters` (the build target + APNs topic).
+- **Push** — Apple Push Notification service (APNs). **Provisioned 2026-06-30** — fresh token-based Auth
+  Key (`.p8`, Key ID `RA353TA52W`, Team `VSTTF2AM22`); `APNS_*` in Render (`sync:false`). iOS push live.
 
 ## Migration source
 - Legacy DB: Postgres on **Render** (`rasi_fiters_db`). The temporary `tools/migrator/` reads from it and
