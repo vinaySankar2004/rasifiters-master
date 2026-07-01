@@ -6,7 +6,7 @@
 > **Active Membership** checkbox → `updateMembership`; **Remove from program** → `removeMember`. **2nd** of the
 > eight deferred `/members` sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`)
 > and the **target** of `members/list`'s global_admin-only row click.
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/detail/page.tsx` (162 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/detail/page.tsx` (162 lines).
 > **Consumes (features):** [`program-memberships`](../../../../features/program-memberships/SPEC.md)
 > (`GET /program-memberships/details`, `PUT /program-memberships`, `DELETE /program-memberships` — all
 > `authenticateToken`; already mounted) via the already-ported `lib/api/programs.ts`

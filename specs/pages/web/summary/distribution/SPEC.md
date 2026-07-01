@@ -5,7 +5,7 @@
 > six deferred `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's **Workout Distribution**
 > chart card). One `GlassCard` with a single `BarChart` plotting the program's total workout count per weekday
 > (Sun → Sat). **Read-only, program-wide** (no period selector, no view-as picker, no `memberId`, no state).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/summary/distribution/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/distribution/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/distribution/day`
 > — `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:89`) via the
 > already-ported `lib/api/summary.ts` `fetchDistributionByDay` (landed verbatim with the [`summary`](../SPEC.md)

@@ -54,7 +54,7 @@ not re-validating business logic:
   rasifiters-api.onrender.com/api`), Supabase-token auth path.
 - **Parity with web** — the ported screen + the net-new pages (auth: forgot/reset-password equivalents, the
   small extra functionalities) match the web app's behavior/contract 1:1. Cross-check against the web SPECs
-  / `../rasifiters-webapp` when a behavior is ambiguous. Flag divergences; don't "improve" silently.
+  (`specs/pages/web/**`) when a behavior is ambiguous. Flag divergences; don't "improve" silently.
 The user owns the visual/runtime confirmation in the simulator.
 
 ## Hard rules

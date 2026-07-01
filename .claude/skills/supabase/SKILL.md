@@ -22,7 +22,7 @@ hooks load).
 
 - `psql` on PATH (`psql --version` → 16.x).
 - `apps/backend/.env` exists with a `DATABASE_URL` line. If missing, recreate it from the user's
-  password manager, `tools/migrator/.env` (`TARGET_DATABASE_URL`), or the Render service's env:
+  password manager or the Render service's env:
   ```bash
   cd apps/backend
   # From the Render REST API (keys+values; needs RENDER_API_KEY + the service id):

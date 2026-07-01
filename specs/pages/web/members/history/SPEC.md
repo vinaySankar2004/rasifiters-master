@@ -5,7 +5,7 @@
 > `/members` landing's "Workout History" card. A `PeriodSelector` (W/M/Y/P) over a single-series workouts
 > `BarChart`. **5th** of the eight deferred `/members` sub-routes
 > (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`); does **not** close the group.
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/history/page.tsx` (93 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/history/page.tsx` (93 lines).
 > **Consumes (features):** [`member-analytics`](../../../../features/member-analytics/SPEC.md)
 > (`GET /member-history` — `authenticateToken` route + service-level `ensureProgramAccess` + target-enrolled check;
 > already mounted) via the already-ported `lib/api/members.ts` `fetchMemberHistory`;

@@ -8,10 +8,10 @@
 > features + pages, with Claude Code (+ Vercel / Render / Supabase MCPs) as the operator.
 >
 > This is the **ICM-methodology rebuild of "RaSi Fiters"** — a fitness program tracker
-> (Members ↔ Programs ↔ Workouts/logs) with **web + iOS clients sharing ONE backend API**. The
-> "reference implementation" for every feature is the **legacy app** at
-> `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/{rasifiters-webapp, ios-mobile, backend}` —
-> the rebuild is a faithful **1:1** migration (R2), not a redesign.
+> (Members ↔ Programs ↔ Workouts/logs) with **web + iOS clients sharing ONE backend API**. The rebuild
+> was a faithful **1:1** migration (R2) of the original app, not a redesign; it is now complete and this
+> repo stands alone. The original app is archived — each SPEC's `Provenance` header records where it was
+> ported from, as history.
 
 ## ICM layer model
 
@@ -41,7 +41,7 @@ backend is its own L2 room with its own CONTEXT.md, env, and deploy target.
 Each `specs/features/<feature>/SPEC.md` documents the feature so any surface can rebuild it. Full file
 set (rolled out as the contract proves out — shipped features are single-file SPECs today):
 - **SPEC.md** — what it is · why · functionality · feature list · data/schema touchpoints · flags/env
-  · dependencies · the **reference-implementation pointer** (canonical app+paths).
+  · dependencies · the **provenance pointer** (the app + paths it was ported from).
 - **FLOWS.md** — user flows + key path sequences.
 - **SCHEMA.md** — tables/columns/migrations this feature owns or touches.
 - **QUESTIONS.md** — the questions to ask before building/porting (auth? brand?
@@ -49,22 +49,22 @@ set (rolled out as the contract proves out — shipped features are single-file 
 - **CHANGELOG.md** — semver history + audit notes.
 
 > RaSi is a shared-backend app, so most feature SPECs touch **all three** rooms: the backend route(s)
-> + model(s), the web client surface, and the iOS client surface. The SPEC's reference-implementation
-> pointer names the legacy paths in each of `{backend, rasifiters-webapp, ios-mobile}`. But a feature
-> can also be **client-specific** — its `consumed_by` may be `[web]` or `[ios]` only (e.g. iOS
-> widgets / deep links are ios-only) — so not every SPEC touches all three rooms.
+> + model(s), the web client surface, and the iOS client surface. The SPEC's provenance header records
+> the original paths it was ported from in each of `{backend, rasifiters-webapp, ios-mobile}` (archived).
+> But a feature can also be **client-specific** — its `consumed_by` may be `[web]` or `[ios]` only (e.g.
+> iOS widgets / deep links are ios-only) — so not every SPEC touches all three rooms.
 
 ## Page/screen-spec template (web + iOS pages)
 
 A **page/screen SPEC** lives at `specs/pages/{web,ios}/<page>/SPEC.md` and documents a single
-page/screen so it can be ported faithfully from the reference app. Like features, a page is tied to a
+page/screen; it was ported faithfully from the original app. Like features, a page is tied to a
 surface (`web` or `ios`). **Role-based view rules are first-class for RaSi** — what each role sees /
 can do on a page is a load-bearing part of the contract, not an afterthought. Sections:
 
 1. **What it is + who uses it** — one-line identity and the audience (which roles land here).
 2. **Why it exists** — the job the page does in the product.
 3. **Route/location** — which app (`web`/`ios`) + the path/route (and the legacy equivalent).
-4. **Contents/sections** — the blocks on the page, top to bottom; cite the reference-impl `file:line`
+4. **Contents/sections** — the blocks on the page, top to bottom; cite the provenance `file:line`
    for each block.
 5. **Components + shared features consumed** — the shared components and feature SPECs this page
    draws on (link them).
@@ -108,6 +108,7 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 | Implement a documented feature/page → port directly from the reference app | hand-written code (faithful 1:1 port; no stitch step), committed via `git-version` |
 | Commit + version + registry + blast-radius (Vision §C/§F) | `git-version` skill |
 | Cross-surface feature diff / drift catch (Vision §E) | `audit` skill (web↔iOS parity per feature) |
+| iOS compile-check loop (build `apps/ios`, read diagnostics, fix) | `ios-build` skill (native `xcode` MCP; compile-only) |
 | Inspect/query the Supabase DB read-only | `supabase` skill (Supabase MCP-first) |
 | Periodic doc-health cross-review (drift / redundancy / structure) | `health-check` skill (read-only, report-only via plan mode) |
 
@@ -133,7 +134,7 @@ Two classes of doc carry dated/strikethrough entries; the discipline differs:
 
 | Class | Docs | Rule |
 |-------|------|------|
-| **Durable / append-only** (the audit trail) | METHODOLOGY decision log (R-entries), feature SPEC §12 Changelogs, `<skill>/LESSONS_ARCHIVE.md`, `PROGRESS.md` milestone logs, `ENV_RUNBOOK.md` strikethrough rows | **Append, never prune.** History is the value; mark superseded entries, don't delete them. |
+| **Durable / append-only** (the audit trail) | METHODOLOGY decision log (R-entries), feature SPEC §12 Changelogs, `<skill>/LESSONS_ARCHIVE.md`, `PROGRESS_ARCHIVE.md` (the condensed run history), `ENV_RUNBOOK.md` strikethrough rows | **Append, never prune.** History is the value; mark superseded entries, don't delete them. |
 | **Volatile / prune-on-resolve** (current state only) | `ICM.md` "How to operate here" (Open follow-ups) + any "current state / next steps" list | **Don't accumulate.** On resolve: strike `~~item~~` + `DONE <date>` for one session of visibility, then **delete it on the next pass that touches the doc.** `CONTEXT.md` holds no logs at all — reference data only. |
 
 **Doc blast-radius check** (required before deleting any volatile-doc log entry — the doc-side
@@ -147,7 +148,7 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
 
 ---
 
-## Decisions log (R1 → R6) — the audit trail
+## Decisions log (R1 → R7) — the audit trail
 
 > RaSi's decision log starts fresh at the locked scaffolding decisions. Append new R-entries here as
 > the rebuild proceeds; never prune. The Higgins ICM's own R-history (its gen-4→gen-5 cutover) is not
@@ -167,11 +168,11 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   table, `REFRESH_TOKEN_TTL_DAYS`.
 - **2026-06-28 R2 — Keep the Node/Express + Sequelize backend; faithful 1:1 rebuild.** The backend is
   **NOT** rewritten in another stack — wherever the Higgins ICM source says FastAPI / uvicorn / Python /
-  pip / `requirements.txt`, read it as **Node / Express / npm / `package.json`**. The legacy
-  `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/backend` (Express + Sequelize, `pg`, `bcrypt`,
-  `apn`) is the reference implementation; the rebuild reproduces its routes, models, and behavior 1:1,
+  pip / `requirements.txt`, read it as **Node / Express / npm / `package.json`**. The legacy backend
+  (Express + Sequelize, `pg`, `bcrypt`, `apn`) was the reference implementation; the rebuild reproduces
+  its routes, models, and behavior 1:1,
   documenting + de-drifting as it goes (rebuild-as-audit). Same stance for the clients: the legacy
-  `rasifiters-webapp` (Next.js 14) and `ios-mobile` (SwiftUI) are the canonical references for `web`
+  `rasifiters-webapp` (Next.js 14) and `ios-mobile` (SwiftUI) were the canonical references for `web`
   and `ios`.
 - **2026-06-28 R3 — Apps = `web` + `ios` + a shared `backend`.** One app, "RaSi Fiters", with three
   surfaces (called apps). `web` (Next.js, Vercel) and `ios` (SwiftUI, App Store) are **clients of the
@@ -184,8 +185,8 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   `*.oregon-postgres.render.com`). The web app moves off Netlify (legacy `netlify.toml`) to **Vercel**.
   The database moves to **Supabase Postgres** (same project also provides Supabase Auth per R1). iOS
   ships through the App Store and uses **APNs** for push (the legacy `apn`-based push path is preserved).
-  Infra is provisioned in build-order — concrete Render/Vercel IDs are `TODO(provision)` until each app
-  has code to deploy (Supabase is provisioned; see `SETUP.md` + `ENV_RUNBOOK.md`).
+  Infra is provisioned in build-order — concrete Render/Vercel IDs were pending until each app had code
+  to deploy; all three are now provisioned + live (IDs in `CONTEXT.md` §Infrastructure).
 - **2026-06-28 R5 — No table prefixes; keep the legacy plain schema names.** Unlike the Higgins ICM
   (which re-prefixes to `<prefix>_gen_5_*`), RaSi keeps the **legacy plain table names** —
   `members`, `member_credentials`, `programs`, `program_memberships`, `program_invites`, `workouts`,

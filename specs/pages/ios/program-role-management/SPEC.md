@@ -6,9 +6,9 @@
 > Roles** nav row → `ManageRolesView` (the per-member role picker).
 > **File:** `apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/RoleManagementSection.swift`
 > (section + `ManageRolesView`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/RoleManagementSection.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/RoleManagementSection.swift`.
 > **Web parity reference:** [`web program/roles`](../../web/program/roles/SPEC.md).
-> **Consumes (features):** [`memberships`](../../../features/memberships/SPEC.md) — `fetchMembershipDetails`,
+> **Consumes (features):** [`program-memberships`](../../../features/program-memberships/SPEC.md) — `fetchMembershipDetails`,
 > `updateMembership(role:)`.
 > **Stance:** faithful 1:1 port of legacy iOS. **D-REF (the run's load-bearing call): KEEP iOS-NATIVE** —
 > the per-member spinner lock + refresh-after is kept over web's optimistic-write + rollback + cross-row

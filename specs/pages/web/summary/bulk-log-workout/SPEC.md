@@ -5,7 +5,7 @@
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **6th & LAST** of the six deferred
 > `/summary` sub-routes and the **3rd & final of the 3 log fallbacks** — **this CLOSES the `/summary` sub-route group**
 > (all 3 chart drill-downs `activity`/`distribution`/`workout-types` + all 3 log fallbacks `log-workout`/`log-health`/this).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/summary/bulk-log-workout/page.tsx` (68 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/bulk-log-workout/page.tsx` (68 lines).
 > **Consumes (features):** [`workout-logs`](../../../../features/workout-logs/SPEC.md) (`POST /workout-logs/batch` —
 > `authenticateToken` + `requireDataEntryAllowed`; already mounted `routes/logs.js:49`) via the already-ported
 > `lib/api/logs.ts` `addWorkoutLogsBatch`; [`program-memberships`](../../../../features/program-memberships/SPEC.md)

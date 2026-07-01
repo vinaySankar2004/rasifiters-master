@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** the root view once `authToken` is set — `AppRootView.swift:11-14` shows `ProgramPickerView()`
 > inside a `NavigationStack`. Both `LoginView` + `CreateAccountView` flip the root here on success.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift`.
 > **Web parity reference:** [`web programs`](../../web/programs/SPEC.md) — same hub concept (program cards +
 > invites + create + account menu).
 > **Consumes (features):** [`programs`/`invites` via `ProgramContext`] — `APIClient.fetchPrograms()`

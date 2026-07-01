@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's streak card
 > (`MemberCards.swift:50`, `NavigationLink { MemberStreakDetail() }`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Detail/MemberDetailViews.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/MemberDetailViews.swift`
 > (`MemberStreakDetail` + `WrapChips`, lines 5–107).
 > **Web parity reference:** [`web members/streaks`](../../web/members/streaks/SPEC.md) — same current/longest tiles +
 > milestone badge ladder over server-computed streak math.

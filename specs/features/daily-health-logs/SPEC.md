@@ -1,7 +1,7 @@
 # Feature: `daily-health-logs` — logging daily sleep + diet (CRUD)
 
 > **Status:** 📄 documented (SPEC only — not yet ported) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/logs.js` (the **`dailyHealthLogRouter`** half — the
+> **Provenance (legacy, archived):** `backend` — `routes/logs.js` (the **`dailyHealthLogRouter`** half — the
 > file is shared with `workout-logs`, §7/D-C1), `services/logService.js` (the **daily-health** functions +
 > the daily-health-only `parseOptionalNumber` helper), `models/DailyHealthLog.js`, `server.js`
 > (`/api/daily-health-logs` mount).
@@ -206,7 +206,7 @@ the error contract.
 | **D-C1** | **Scope = the daily-health half only; append to the existing file pair.** Add the four daily-health fns + `parseOptionalNumber` to `services/logService.js`, the `dailyHealthLogRouter` (4 routes) to `routes/logs.js` (export both routers), mount `/api/daily-health-logs`. The `workout-logs` half + the shared helpers + the `requireDataEntryAllowed` middleware are reused, not re-created. | `routes/logs.js:81-125`; `logService.js:433-638` + `:49-53` (`parseOptionalNumber`); COVERAGE L21; workout-logs SPEC D-C1. |
 | **D-C2** | **Reuse `workout-logs`' `requireDataEntryAllowed` middleware** for the `admin_only_data_entry` lock on the 3 write routes (`GET` ungated); the write fns drop their inline `assertDataEntryAllowed`. Both halves enforce the lock identically. Resolve-or-pass-through; 403 + message preserved 1:1; one ordering nuance accepted (F4). | `logService.js:447, 585, 616` (inline `assertDataEntryAllowed`); workout-logs D-C5; user decision (consistency). |
 | **D-C3** | **Tidy `updateDailyHealthLog` to a single `body` param** — legacy took `(parsed, requester, rawBody)` called with `req.body` twice; the port takes `(body, requester)` and derives the destructure + the `hasOwnProperty` presence flags from one object. Behavior identical (absent-vs-null preserved). | `logService.js:568, 573-574`; `routes/logs.js:107`; user cleanup choice. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — all four routes used 1:1 by both clients, **no divergence**. `GET`'s `limit` differs per caller (web 10/0, iOS 1000) but the route is identical. | Web sweep (`lib/api/{logs,members}.ts` + summary/members pages) + iOS sweep (`APIClient+Health.swift` + widget); Explore agents. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — all four routes used 1:1 by both clients, **no divergence**. `GET`'s `limit` differs per caller (web 10/0, iOS 1000) but the route is identical. | Web sweep (`lib/api/{logs,members}.ts` + summary/members pages) + iOS sweep (`APIClient+Health.swift` + widget); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 except D-C2 + D-C3.** The 409-on-duplicate add, one-row-per-day PK, sleep/diet validation, filter/sort/limit query, synthetic GET id + `{items,total,filters}` shape, and partial-update absent-vs-null semantics are preserved; oddities are flagged (§10), not otherwise touched. | Whole-half review; §7. |
 
 ## 10. Flagged characteristics kept as-is

@@ -4,7 +4,7 @@
 > **Location:** pushed from the Lifestyle tab's timeline card (`LifestyleTimelineCardSummary`) —
 > `StandardWorkoutTypesTab.swift` (`memberId: loggedInUserId`) **and** `AdminWorkoutTypesTab.swift`
 > (`memberId: selectedMember?.id`), `NavigationLink { LifestyleTimelineDetailView(initialPeriod:.week, memberId:) }`.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
 > (`LifestyleTimelineDetailView`, lines 1133-1332); helpers in `Features/Home/Detail/ActivityTimelineViews.swift`
 > (`HealthHeaderStats` :4, `HealthCalloutView` :116).
 > **Web parity reference:** [`web lifestyle/timeline`](../../web/lifestyle/timeline/SPEC.md) — same sleep-hours bars +

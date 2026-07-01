@@ -11,7 +11,7 @@
 > `localStorage`, no API, no backend, and no new dependency** — purer even than the run-29 `appearance` picker
 > (which at least writes `localStorage`). With this page the **entire `/program/*` sub-route group (6 of 6) is
 > complete.**
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/program/privacy/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/program/privacy/page.tsx`.
 > **Consumes (features):** none beyond the foundation — `PageShell`/`PageHeader`/`GlassCard` + `useAuthGuard`.
 > No feature SPEC is involved; the policy text is hardcoded page content.
 > **Cross-app:** the same policy is surfaced natively on iOS (Settings → Privacy Policy) and is the shared
@@ -54,9 +54,9 @@ and no per-user state** — so it never touches the backend or another member, a
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Privacy Policy" + "Effective date: 2026-03-02" subtitle + Back → `/program` or `/programs`. | [privacy/page.tsx:25-29](../../../../../../rasifiters-webapp/src/app/program/privacy/page.tsx#L25) |
-| Policy card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`) wrapping the intro paragraph + the nine titled policy sections. | [privacy/page.tsx:31-134](../../../../../../rasifiters-webapp/src/app/program/privacy/page.tsx#L31) |
-| Section | Each section: a `text-base font-semibold text-rf-text` heading + either a paragraph or a `list-disc` `<ul>` of points (collect / use / share / retain / secure / choices / children / changes / contact). | [privacy/page.tsx:38-133](../../../../../../rasifiters-webapp/src/app/program/privacy/page.tsx#L38) |
+| Header | `PageHeader` "Privacy Policy" + "Effective date: 2026-03-02" subtitle + Back → `/program` or `/programs`. | privacy/page.tsx:25-29 |
+| Policy card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`) wrapping the intro paragraph + the nine titled policy sections. | privacy/page.tsx:31-134 |
+| Section | Each section: a `text-base font-semibold text-rf-text` heading + either a paragraph or a `list-disc` `<ul>` of points (collect / use / share / retain / secure / choices / children / changes / contact). | privacy/page.tsx:38-133 |
 
 ## 5. Components + consumed features
 
@@ -106,8 +106,8 @@ and no per-user state** — so it never touches the backend or another member, a
 | **D-REF** | `consumed_by = [web]` for this page spec; iOS surfaces the same policy natively (Settings → Privacy Policy) and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec); the shared policy text intentionally describes iOS push/APNs behavior on both surfaces (F1). | legacy `program/privacy/page.tsx`; iOS `Features/Settings/` |
 | **D-SCOPE** | **This page only — and it CLOSES the group.** Port `/program/privacy` faithful 1:1; it is the **6th & last** `/program/*` sub-route, so with it the entire `/program/*` sub-route layer is complete. | per-page cadence; [`program` SPEC §3](../SPEC.md) |
 | **D-DEPS** | **No new dependency** — `PageShell`/`PageHeader`/`GlassCard` and `useAuthGuard` are **all already ported**. The run-29 purest shape, here even purer: a fully static page with no state and no storage, not even a chrome leaf to drag in. | `components/ui/`; [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
-| **D-S1** | **Faithful 1:1** otherwise — the policy prose (effective date, all nine sections, the contact email) is ported **verbatim** (already fully `rf-*` tokenized in legacy — **no tokenize cleanup needed**), as is `PageShell maxWidth="3xl"` and `backHref = program?.id ? "/program" : "/programs"`. Content kept exactly as legacy (user decision: "keep all content verbatim"). | [privacy/page.tsx](../../../../../../rasifiters-webapp/src/app/program/privacy/page.tsx) |
-| **D-C1** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + `useActiveProgram` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches siblings [`profile`](../profile/SPEC.md)/[`password`](../password/SPEC.md)/[`appearance`](../appearance/SPEC.md) exactly; the hook subsumes the redirect AND returns `program` for the back-href, deleting the `useRouter`/`useAuth`/`useActiveProgram`/`useEffect` imports. Legacy predated the foundation hook. | [privacy/page.tsx:11-21](../../../../../../rasifiters-webapp/src/app/program/privacy/page.tsx#L11); [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
+| **D-S1** | **Faithful 1:1** otherwise — the policy prose (effective date, all nine sections, the contact email) is ported **verbatim** (already fully `rf-*` tokenized in legacy — **no tokenize cleanup needed**), as is `PageShell maxWidth="3xl"` and `backHref = program?.id ? "/program" : "/programs"`. Content kept exactly as legacy (user decision: "keep all content verbatim"). | privacy/page.tsx |
+| **D-C1** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + `useActiveProgram` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches siblings [`profile`](../profile/SPEC.md)/[`password`](../password/SPEC.md)/[`appearance`](../appearance/SPEC.md) exactly; the hook subsumes the redirect AND returns `program` for the back-href, deleting the `useRouter`/`useAuth`/`useActiveProgram`/`useEffect` imports. Legacy predated the foundation hook. | privacy/page.tsx:11-21; [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
 
 ## 10. Flagged characteristics (kept as-is)
 

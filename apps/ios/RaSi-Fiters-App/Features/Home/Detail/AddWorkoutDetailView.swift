@@ -6,7 +6,7 @@
 //  web /summary/log-workout. Ported run 60 via question-asker (faithful 1:1 to the
 //  legacy iOS form + web parity: the admin_only_data_entry mount guard [D-C1],
 //  shared chrome [D-C2], success refresh [D-C3], inline errors [D-C4]).
-//  Reference: ../../ios-mobile/.../Features/Home/Helpers/AdminHomeHelpers.swift (AddWorkoutDetailView).
+//  Reference: ios-mobile/.../Features/Home/Helpers/AdminHomeHelpers.swift (AddWorkoutDetailView).
 //
 
 import SwiftUI

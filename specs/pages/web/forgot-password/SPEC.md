@@ -2,7 +2,7 @@
 
 > **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/forgot-password` (reached from the `/login` "Forgot your password?" link — login SPEC D-C1).
-> **Reference impl (legacy):** **NONE — 100% net-new.** No `/forgot-password` exists on either legacy
+> **Provenance (legacy, archived):** **NONE — 100% net-new.** No `/forgot-password` exists on either legacy
 > client (web or iOS); confirmed `question-asker` run 16. This page exists only because the migration to
 > Supabase Auth enables self-service recovery (the whole reason that provider was chosen).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) v0.3.0 — `requestPasswordReset()`

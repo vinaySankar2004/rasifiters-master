@@ -6,7 +6,7 @@
 > daily-health-log list, each row **editable** (sleep + diet modal) and **deletable**. **8th & LAST** of the eight
 > deferred `/members` sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`) — **it
 > CLOSES the group** (8/8).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/health/page.tsx` (≈550 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/health/page.tsx` (≈550 lines).
 > **Consumes (features):** [`member-analytics`](../../../../features/member-analytics/SPEC.md)
 > (`GET /daily-health-logs`, the list read) via the already-ported `lib/api/members.ts` `fetchMemberHealthLogs`;
 > [`daily-health-logs`](../../../../features/daily-health-logs/SPEC.md) (`PUT`+`DELETE /daily-health-logs`, both gated

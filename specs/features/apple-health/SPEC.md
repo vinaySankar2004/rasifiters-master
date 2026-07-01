@@ -1,7 +1,7 @@
 # Feature: `apple-health` — Apple Health (HealthKit) workout auto-sync (iOS)
 
 > **Status:** 🏗️ built (`apps/ios/` + backend touchpoints) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `ios`
-> **Reference impl:** `vinaySankar2004/RaSi-Fiters` **PR #4** (`apple-health` branch, legacy `ios-mobile/`) —
+> **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` **PR #4** (`apple-health` branch) —
 > `HealthKitService.swift`, `HealthKitWorkoutTypeMap.swift`, `ProgramContext+HealthKit.swift`,
 > `AppleHealthSettingsView.swift`. Ported to `apps/ios` and **corrected for our stack** (curated library +
 > robust error handling), not a 1:1 copy.
@@ -86,7 +86,7 @@ None. HealthKit entitlements (`com.apple.developer.healthkit` + `…background-d
 | **D1** | **Additive + map** — no library renames, no `program_workouts`/`workout_logs` migration; add missing Apple types, reuse close equivalents. | user decision; live-library read (25 rows). |
 | **D2** | **Seed all ~76 non-deprecated `HKWorkoutActivityType`** + `Other Workout` (migration `004`, 65 new rows). | user decision; Apple docs enum. |
 | **D3** | **Skip on conflict** — never overwrite/sum an existing log (reverses the PR's add→update fallback). | user decision. |
-| **D4** | **Reconcile against the live production library**, not the test seed. | live DB read via `tools/migrator/.env` `TARGET_DATABASE_URL`. |
+| **D4** | **Reconcile against the live production library**, not the test seed. | live DB read via the gitignored `DATABASE_URL` (see the `supabase` skill). |
 | **D5** | **New rows use Apple Title-Case names**; the map's target set ⊆ library (verified). | invariant check (79 targets ⊆ 90 names). |
 | **D6** | **iOS-only** sync; library additions surface in web + iOS pickers (expected). | Apple Health is iOS-only. |
 | **D7** | **Sync-result = local notification + in-app status**, only on new (≥1) or failure; silent otherwise. | user decision. |

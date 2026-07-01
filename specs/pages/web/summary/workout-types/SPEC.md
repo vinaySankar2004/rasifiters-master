@@ -6,7 +6,7 @@
 > **Workout Types** card). One `GlassCard` with a single-series `BarChart` of sessions per workout type **plus a
 > ranked `<ul>` detail list** below (name · sessions · avg minutes). **Read-only, program-wide, program-to-date**
 > (no period selector, no view-as picker, no `memberId`, no state).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/summary/workout-types/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/workout-types/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/workouts/types`
 > — `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:100`) via the
 > already-ported `lib/api/summary.ts` `fetchWorkoutTypes` (landed verbatim with the [`summary`](../SPEC.md)

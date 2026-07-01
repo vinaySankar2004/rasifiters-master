@@ -10,10 +10,8 @@ description: Provision + deploy a RaSi Fiters app — the web app to its Vercel 
 
 ## Where to run
 **From a session rooted at `rasifiters-master/`** — only there do the scoped project MCPs
-(`vercel`, `render`, `supabase-rasifiters`) + deny rules load. Legacy-app reference context is
-auto-available via `.claude/settings.local.json` `additionalDirectories` (or `claude --add-dir ..`).
-The faithful-rebuild reference is the LEGACY app at
-`/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/{rasifiters-webapp, ios-mobile, backend}`.
+(`vercel`, `render`, `supabase-rasifiters`) + deny rules load. The repo is standalone; no external
+reference directories are needed.
 
 ## Prereqs (confirm first — STOP if any fail)
 - **Vercel CLI** installed (`vercel --version` → 54.x) + authed (`vercel whoami`). The web app deploys via CLI. **Pin the team with `--scope personal-vinayak` on EVERY vercel command** — the CLI's default active team is often a personal account; never rely on it.

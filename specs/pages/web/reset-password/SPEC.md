@@ -2,7 +2,7 @@
 
 > **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/reset-password` (the destination of the password-reset **email link**; `PASSWORD_RESET_REDIRECT_URL`).
-> **Reference impl (legacy):** **NONE — 100% net-new.** No `/reset-password` exists on either legacy
+> **Provenance (legacy, archived):** **NONE — 100% net-new.** No `/reset-password` exists on either legacy
 > client (web or iOS); confirmed `question-asker` runs 16–17. Exists only because the migration to Supabase
 > Auth enables self-service recovery.
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) v0.4.0 — `resetPassword()`

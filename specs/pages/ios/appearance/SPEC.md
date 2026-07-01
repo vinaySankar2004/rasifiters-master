@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (run 57) → "Appearance"
 > `NavigationLink → AppearanceSettingsView().environmentObject(themeManager)`.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Settings/AppearanceSettingsView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/AppearanceSettingsView.swift`.
 > **Web parity reference:** [`web program/appearance`](../../web/program/appearance/SPEC.md) — same
 > System/Light/Dark device-local picker.
 > **Consumes (features):** none — pure client preference (`ThemeManager` → `UserDefaults`).

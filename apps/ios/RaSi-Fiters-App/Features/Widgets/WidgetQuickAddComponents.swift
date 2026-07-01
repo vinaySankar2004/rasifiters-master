@@ -12,7 +12,7 @@
 //  it extracts reusable VIEW chrome + helper types, NOT a shared view model — each form keeps its
 //  own @State + multi-program save/rollback logic (the load-bearing widget behavior).
 //
-//  Reference (legacy): ../../../ios-mobile/RaSi-Fiters-App/Features/Widgets/{QuickAddWorkout,
+//  Reference (legacy): ios-mobile/RaSi-Fiters-App/Features/Widgets/{QuickAddWorkout,
 //  QuickAddHealth}WidgetEntryView.swift.
 //
 

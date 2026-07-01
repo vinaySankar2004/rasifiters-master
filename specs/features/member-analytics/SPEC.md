@@ -1,7 +1,7 @@
 # Feature: `member-analytics` — per-member analytics (metrics · history · streaks · recent)
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/memberAnalytics.js` (the 4 routers),
+> **Provenance (legacy, archived):** `backend` — `routes/memberAnalytics.js` (the 4 routers),
 > `services/memberAnalyticsService.js` (the 4 fns + helpers), `services/analyticsService.js` (re-export the 3
 > shared timeline helpers it imports — D-C2), `server.js` (the 4 `/api/member-*` mounts).
 > **Depends on:** [`auth`](../auth/SPEC.md) (`authenticateToken` on every route) ·
@@ -207,7 +207,7 @@ are already UTC-correct (`T00:00:00Z` parsing + `getUTC*`), unlike analytics v1.
 | **D-C2** | **Re-export the 3 timeline helpers** (`resolveTimelineWindow`/`buildBuckets`/`bucketKey`) from `analyticsService.js` and import them here, exactly as legacy did (faithful restoration of the legacy export surface; single-sourced, not duplicated). Records a `depends_on: analytics` edge; tiny additive change to the built `analytics` feature (patch bump). | `memberAnalyticsService.js:4`; legacy `analyticsService.js` exports `:17-19`; ported `analyticsService.js` `module.exports:583-597` (helpers present as consts, un-exported). User answer (faithful re-export). |
 | **D-C3** | **Cleanup C1 — extract the shared access prelude** (validate→`ensureProgramAccess`→target-enrolled `404`) shared by history/streaks/recent into `assertMemberAccess`. Pure refactor; all 400/403/404 statuses + messages preserved 1:1; streaks keeps its extra `Program.findOne`. Not applied to `getMemberMetrics`. | `memberAnalyticsService.js:261-270` / `:303-312` / `:343-352` (identical preludes). User pinned C1. |
 | **D-C4** | **Cleanup C2 — guard null `program.start_date` in `getMemberStreaks`** (mirror `getMemberMetrics`' `:70` guard; fall back to epoch lower bound). Only the null-`start_date` edge changes (was a 500 via Invalid-Date `.toISOString()`); happy-path numbers identical. | `memberAnalyticsService.js:317` (unguarded) vs `:70` (guarded). User pinned C2. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — all 4 routes used 1:1 by both clients, **no divergence**, no dead routes (`member-recent` is the shared workout-history read). | Web sweep (`members/{page,metrics,history,streaks,workouts}.tsx`) + iOS sweep (`APIClient+Members.swift` + `ProgramContext+Members.swift` + the member tabs); Explore agents. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — all 4 routes used 1:1 by both clients, **no divergence**, no dead routes (`member-recent` is the shared workout-history read). | Web sweep (`members/{page,metrics,history,streaks,workouts}.tsx`) + iOS sweep (`APIClient+Members.swift` + `ProgramContext+Members.swift` + the member tabs); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 verbatim except D-C2/D-C3/D-C4.** Every aggregation, the in-memory rollup/search/filter/sort, `computeStreaks`, the MTD/streak math, the synthetic recent-`id`, and the error contract ported exactly; no UTC cleanup (dates already UTC-correct). Remaining oddities flagged (§10). | Whole-service review; §7. |
 
 ## 10. Flagged characteristics kept as-is

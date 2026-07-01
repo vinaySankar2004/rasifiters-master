@@ -5,7 +5,7 @@
 > pill (program-admin / global_admin only). A single `@`-prefixed username `<input>` + privacy info-banner →
 > `sendProgramInvite`. **3rd** of the eight deferred `/members` sub-routes
 > (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`); does **not** close the group.
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/invite/page.tsx` (97 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/invite/page.tsx` (97 lines).
 > **Consumes (features):** [`invites`](../../../../features/invites/SPEC.md)
 > (`POST /program-memberships/invite` — `authenticateToken`; already mounted) via the already-ported
 > `lib/api/members.ts` `sendProgramInvite`; [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard`).

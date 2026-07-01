@@ -15,7 +15,7 @@ import { decodeJwtPayload, resolveGlobalRole, type DecodedAuthToken } from "@/li
 import { PRIVACY_POLICY_URL } from "@/lib/config";
 
 // Faithful port of the legacy web create-account page
-// (../../../../../rasifiters-webapp/src/app/create-account/page.tsx) with the auth-recovery-plan
+// (rasifiters-webapp/src/app/create-account/page.tsx) with the auth-recovery-plan
 // deviations + sign-off cleanups. See specs/pages/web/create-account/SPEC.md.
 //
 // Deviations from legacy (all decided in question-asker run 19):

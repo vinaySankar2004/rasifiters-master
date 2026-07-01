@@ -1,7 +1,7 @@
 # rasifiters-master — Claude Code Project Rules
 
-The ICM repo for the **RaSi Fiters** rebuild — one app, three surfaces (`web`, `ios`, `backend`),
-documented as specs then ported faithfully from the legacy app. Markdown is the source of truth; Claude
+The ICM repo for **RaSi Fiters** — one app, three surfaces (`web`, `ios`, `backend`), documented as
+specs and ported faithfully from the original app (now archived). Markdown is the source of truth; Claude
 Code (with Vercel / Render / Supabase MCPs) is the operator. Read **`PROGRESS.md`** (current state) and
 **`ICM.md`** (L1 map) first, then **`SETUP.md`** if this is a fresh clone.
 
@@ -9,11 +9,12 @@ Methodology (the "why" + decision log + feature-spec contract) lives in-repo at 
 operational how-to lives in `.claude/skills/`. Current state + open follow-ups: `ICM.md` ("How to operate
 here").
 
-## The mission (faithful rebuild)
+## The mission (faithful rebuild — complete, now standalone)
 
-We are recreating the existing RaSi Fiters app **1:1** — same features, same behavior — on a new stack
-(Supabase DB + Auth, Render API, Vercel web). The **reference implementation** is the legacy app at
-`../{rasifiters-webapp, ios-mobile, backend}`. Default stance for every feature is **faithful-as-is**;
+RaSi Fiters was rebuilt **1:1** — same features, same behavior — on a new stack (Supabase DB + Auth,
+Render API, Vercel web) from the original app. That rebuild is complete and **this repo stands alone**:
+the app code under `apps/` is the source of truth, and the legacy app it was ported from is **archived and
+no longer tracked here**. Default stance for any remaining or future work stays **faithful-as-is** —
 deliberate changes are called out explicitly in the SPEC (§9/§10). Don't "improve" silently.
 
 ## Database Write Policy
@@ -33,12 +34,10 @@ credentials) and `members` gains an `auth_user_id` column mapping to `auth.users
 
 ## Auth model (the load-bearing migration detail)
 
-Auth = **Supabase Auth**, but the **Express backend stays the auth-facing API**: it proxies Supabase Auth
-(login/refresh/logout) and **verifies Supabase-issued JWTs** in middleware, mapping `sub` → a member via
-`members.auth_user_id`. Existing `members.id` UUIDs are preserved (all FKs/data migrate untouched).
-Passwords migrate by **bcrypt-hash import** into `auth.users` (users keep their passwords). Username login
-is preserved via privacy-safe server-side username→email resolution. Authorization (program admin/logger
-checks) stays in Express exactly as today — we do not rely on RLS. See `METHODOLOGY.md` R1.
+Auth = **Supabase Auth** with the **Express backend as the auth-facing API** — it proxies Supabase Auth
+and **verifies Supabase-issued JWTs**, mapping `sub` → a member via `members.auth_user_id`. Full rationale
+and the migration details (preserved `members.id` UUIDs, bcrypt-hash password import, username→email
+resolution, authorization stays in Express — no RLS) are the single source of truth in **`METHODOLOGY.md` R1**.
 
 ## Workspace Standards
 
@@ -60,8 +59,8 @@ copy-paste-ready code, no "as needed"/TBD/figure-it-out.
 - **vercel** — `https://mcp.vercel.com` (account-level OAuth; all projects in the team).
 - **render** — `https://mcp.render.com/mcp` (account/workspace-level OAuth; all services). The backend
   deploys as a Blueprint (`apps/backend/render.yaml`); this MCP is the create/inspect/deploy path.
-- **supabase-rasifiters** — read-only, scoped to the rasifiters project (`project_ref` is
-  `TODO(provision)` until the Supabase project is created).
+- **supabase-rasifiters** — read-only, scoped to the rasifiters project (`project_ref` in
+  `CONTEXT.md` §Infrastructure).
 - **xcode** — local **stdio** bridge (`xcrun mcpbridge`, Apple-native, Xcode 26.3+). The iOS build-check
   path: builds the **open** `apps/ios` project + returns structured compiler diagnostics. Requires Xcode
   running with the project open and **Settings → Intelligence → "Allow external agents to use Xcode tools"**
@@ -92,20 +91,19 @@ read-only doc-health cross-review; strict, report-only via plan mode) · `ios-bu
 loop via the native `xcode` MCP — build `apps/ios`, read structured diagnostics, fix, repeat; NO
 screenshots/simulator, the user runs those). Each living skill keeps a slim
 "Converged lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for the
-"concern → skill" map. (There is no `stitch` skill — we port code directly from the legacy app, not
-assemble it from modules.)
+"concern → skill" map. (There is no `stitch` skill — code was ported directly from the legacy app, not
+assembled from modules.)
 
-**Run sessions rooted HERE (`rasifiters-master/`).** The legacy reference apps in the parent
-`../RaSi-Fiters/{rasifiters-webapp, ios-mobile, backend}` stay readable via
-`.claude/settings.local.json` `additionalDirectories` (machine-local) or `claude --add-dir ..`.
+**Run sessions rooted HERE (`rasifiters-master/`).** The legacy apps are archived and no longer
+referenced by this repo — no external directories need to be added.
 
 ## Structure
 
 ```
 ICM.md  METHODOLOGY.md  CLAUDE.md  SETUP.md  ENV_RUNBOOK.md  COVERAGE.md  PROGRESS.md
+PROGRESS_ARCHIVE.md                          (condensed run history, one line per run; not auto-loaded)
 CONTEXT.md                                   (project: brand + infra + migration source)
 apps/<web|ios|backend>/CONTEXT.md
 specs/features/REGISTRY.md, registry.json, <feature>/SPEC.md
 specs/pages/<web|ios>/<page>/SPEC.md
-tools/migrator/                              (temporary Render-PG → Supabase migrator)
 ```

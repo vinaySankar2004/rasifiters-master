@@ -6,7 +6,7 @@
 > [`program`](../SPEC.md) hub's "My Account" row). **Despite living under `/program/*` it is NOT a
 > program-admin setting** like [`edit`](../edit/SPEC.md)/[`roles`](../roles/SPEC.md) — it edits the *requester's
 > own member record* and is therefore available to **every** role (no admin redirect).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/program/profile/page.tsx`.
 > **Consumes (features):** [`members`](../../../../features/members/SPEC.md) (`fetchMemberProfile` → `GET
 > /members/:id`; `updateMemberProfile` → `PUT /members/:id` — the backend service enforces the
 > own-profile-or-global_admin 403 and partial-updates `first_name`/`last_name`/`gender`), and
@@ -28,7 +28,7 @@ member's name, `@username`, and a role label; an editable **First name** / **Las
 picker (the shared `Select`); a **Save changes** button; an **Account email** block (current email +
 password-confirmed **Change email** form); and — for everyone **except** a global admin — a **Delete Account**
 section. Used by **any authenticated user** to edit their own profile; there is **no admin gate and no
-redirect** ([profile/page.tsx:18-20](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L18)).
+redirect** (profile/page.tsx:18-20).
 The backend `updateMember` independently enforces that you can only update your own profile (or global_admin
 anyone).
 
@@ -56,9 +56,9 @@ best-effort Supabase `admin.deleteUser`).
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "My Profile" + Back → `/program` or `/programs`. | [profile/page.tsx:111-112](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L111) |
-| Identity card | Avatar pill (`initials`), `First Last` (or `memberName`), `@username`, role label. | [profile/page.tsx:114-126](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L114) |
-| Name fields | First name / Last name inputs (`input-shell`), 2-up on `sm`. | [profile/page.tsx:128-147](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L128) |
+| Header | `PageHeader` "My Profile" + Back → `/program` or `/programs`. | profile/page.tsx:111-112 |
+| Identity card | Avatar pill (`initials`), `First Last` (or `memberName`), `@username`, role label. | profile/page.tsx:114-126 |
+| Name fields | First name / Last name inputs (`input-shell`), 2-up on `sm`. | profile/page.tsx:128-147 |
 | Gender | Shared **`Select`** (D-GENDER) — "Select gender" placeholder + the shared `GENDER_OPTIONS` (`lib/genders.ts`). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Error / success | Inline `rf-danger` error line; **`rf-success`** "Profile updated successfully." (D-C1). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Save | "Save changes" (`bg-rf-accent text-black`); disabled unless both names present + not pending. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
@@ -109,7 +109,7 @@ best-effort Supabase `admin.deleteUser`).
 
 | Role | Access | Notes |
 |------|--------|-------|
-| **global_admin** | Edits own profile. **Delete Account hidden.** | `roleLabel` = "Global Admin"; `!isGlobalAdmin` gate hides Delete ([profile/page.tsx:183](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L183)). |
+| **global_admin** | Edits own profile. **Delete Account hidden.** | `roleLabel` = "Global Admin"; `!isGlobalAdmin` gate hides Delete (profile/page.tsx:183). |
 | **program admin** | Edits own profile + Delete Account. | `roleLabel` = "Program Admin" (`program.my_role === "admin"`). |
 | **logger** | Edits own profile + Delete Account. | `roleLabel` = "Member" (no logger-specific label). |
 | **member** | Edits own profile + Delete Account. | `roleLabel` = "Member". |
@@ -143,27 +143,27 @@ best-effort Supabase `admin.deleteUser`).
 | **D-REF** | `consumed_by = [web]` for this page spec; the iOS Settings → My Profile screen mirrors the same form and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec). | legacy `program/profile/page.tsx`; iOS `Features/Settings/` |
 | **D-SCOPE** | **This page only.** Port `/program/profile` faithful 1:1; the other three `/program/*` sub-routes (password/appearance/privacy) remain their own deferred rows. | per-page cadence; [`program` SPEC §3](../SPEC.md) |
 | **D-DEPS** | **No new dependency** — `PageShell`/`PageHeader`/`GlassCard`/`ConfirmDialog`, `fetchMemberProfile`/`updateMemberProfile`, `deleteAccount`, `initials` are all already ported (the run-26-or-purer shape). The members api fns were ported "vestigial-here" with the `members` landing page (run 22); this page is their consumer. | [lib/api/members.ts](../../../../../../apps/web/src/lib/api/members.ts); `components/ui/` |
-| **D-S1** | **Faithful 1:1** otherwise — same identity card, native gender `<select>`, name-split seed, own-id `PUT /members/:id`, session+cache mirror, global_admin-hides-Delete gate, and `ConfirmDialog` delete → `signOut` → `/login`. | [profile/page.tsx](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx) |
-| **D-C1** | **Tokenize the success color** — `text-emerald-600` → `text-rf-success` (`#2fb861` light / `#36c56f` dark) so the success line is theme-aware and symmetric with the `rf-danger` error line. (The **avatar chip** `bg-amber-100`/`text-amber-600` + the amber role label have **no clean `rf` token** — amber-100 has no tint token and amber-600 ≠ `rf-accent`/`rf-warning` — so they stay faithful + flagged, F2.) | [profile/page.tsx:167](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L167); `globals.css` `--rf-success` |
-| **D-C2** | **Clear the stale success/error message on field edit** — reset `showSuccess`/`errorMessage` when First name / Last name / Gender changes, so a prior "Profile updated successfully." doesn't linger over freshly-edited-but-unsaved fields. Legacy only cleared them at the *next* Save click ([profile/page.tsx:35,166,173-176](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L35)). | legacy lingering `showSuccess` |
+| **D-S1** | **Faithful 1:1** otherwise — same identity card, native gender `<select>`, name-split seed, own-id `PUT /members/:id`, session+cache mirror, global_admin-hides-Delete gate, and `ConfirmDialog` delete → `signOut` → `/login`. | profile/page.tsx |
+| **D-C1** | **Tokenize the success color** — `text-emerald-600` → `text-rf-success` (`#2fb861` light / `#36c56f` dark) so the success line is theme-aware and symmetric with the `rf-danger` error line. (The **avatar chip** `bg-amber-100`/`text-amber-600` + the amber role label have **no clean `rf` token** — amber-100 has no tint token and amber-600 ≠ `rf-accent`/`rf-warning` — so they stay faithful + flagged, F2.) | profile/page.tsx:167; `globals.css` `--rf-success` |
+| **D-C2** | **Clear the stale success/error message on field edit** — reset `showSuccess`/`errorMessage` when First name / Last name / Gender changes, so a prior "Profile updated successfully." doesn't linger over freshly-edited-but-unsaved fields. Legacy only cleared them at the *next* Save click (profile/page.tsx:35,166,173-176). | legacy lingering `showSuccess` |
 | **D-GENDER** | **Gender uses the shared `Select` + a shared `GENDER_OPTIONS`** (`lib/genders.ts`, also adopted by create-account so the two pages can't drift), replacing the faithful native `<select>`. The user reported it "looked wrong" — the native control clashed with the styled inputs. Backed by **widening `members.gender` `varchar(10)` → `varchar(32)`** (migration 003): the legacy column couldn't store `"Prefer not to say"` (17 chars), so that option errored on save — a genuine latent bug fixed here. | user request; [Select.tsx](../../../../../../apps/web/src/components/Select.tsx); `sql/003_widen_gender_column.sql` |
 | **D-EMAIL** | **Net-new email view + change** — has no legacy equivalent (email was fixed at registration). Chosen model: **direct** change (applies immediately, `email_confirm:true` — consistent with register/createMember; email delivery is limited per the auth-recovery work) and **password-confirmed** (re-auth the current password — a safeguard for a sensitive change). `getMemberById` returns the primary email; `PUT /auth/email` keeps Supabase `auth.users` + `member_emails` in sync. iOS `MyProfileView` port is a follow-up. | user request; [authService.changeEmail](../../../../../../apps/backend/services/authService.js); auth SPEC |
 
 ## 10. Flagged characteristics (kept as-is)
 
-- **F1 — role label + Delete-gate from JWT-decoded role** ([profile/page.tsx:24-29,183](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L24)).
+- **F1 — role label + Delete-gate from JWT-decoded role** (profile/page.tsx:24-29,183).
   `isGlobalAdmin`/`roleLabel` derive from the decoded JWT (`session.user.globalRole` + `program.my_role`); the
   Delete Account button is hidden for global_admin **client-side only**. Recurring across the rebuild. Kept
   (the authoritative update guard is the backend 403; see F4 for the delete side).
-- **F2 — avatar chip + role label use literal Tailwind amber** ([profile/page.tsx:116,124](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L116)).
+- **F2 — avatar chip + role label use literal Tailwind amber** (profile/page.tsx:116,124).
   `bg-amber-100 text-amber-600` (avatar) and `text-amber-600` (role label) are fixed light-palette colors with
   no clean `rf` token to map onto (unlike the success line, D-C1). Kept verbatim; rebuild-cleanup candidate if
   a branded-tint token is introduced.
-- **F3 — name round-trips through a space-split heuristic** ([profile/page.tsx:47-50](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L47)).
+- **F3 — name round-trips through a space-split heuristic** (profile/page.tsx:47-50).
   `first = parts[0]`, `last = parts.slice(1).join(" ")` — a single-word `member_name` yields an empty last name
   and `canSave` then blocks Save until one is typed; multi-word last names re-join correctly. Faithful.
 - **F4 — Delete Account is gated only on the client; the backend `DELETE /auth/account` is `authenticateToken`
-  only** ([profile/page.tsx:183](../../../../../../rasifiters-webapp/src/app/program/profile/page.tsx#L183);
+  only** (profile/page.tsx:183;
   [auth.js:112](../../../../../../apps/backend/routes/auth.js#L112)).
   Hiding the button from a global_admin is a UI convention; the route itself would delete any authed caller's
   own account. Faithful (matches legacy + the auth SPEC's cascade design).

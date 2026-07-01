@@ -2,7 +2,7 @@
 
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `LoginView`'s "New here? Create an account" link (`NavigationLink → CreateAccountView()`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Auth/CreateAccountView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Auth/CreateAccountView.swift`.
 > **Web parity reference:** [`web create-account`](../../web/create-account/SPEC.md) — same field set +
 > register-then-login; the 4 web cleanups now mirrored.
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `APIClient.registerAccount()`

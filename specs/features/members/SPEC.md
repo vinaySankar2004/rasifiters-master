@@ -1,7 +1,7 @@
 # Feature: `members` — member directory, profiles, and admin lifecycle
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/members.js`, `services/memberService.js`,
+> **Provenance (legacy, archived):** `backend` — `routes/members.js`, `services/memberService.js`,
 > `models/Member.js`, `models/MemberEmail.js`, `server.js:47`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken` / `isAdmin`).
 > **One deliberate change** (the rest is faithful): `createMember` now creates a **loginable** member via
@@ -157,7 +157,7 @@ update whitelist, and the `global_admin` delete block.
 |----|----------|----------|
 | **D-C1** | **Scope = the five `/api/members` routes + `memberService`.** The `deleteMember` cross-feature cascade (invites / notifications / membership-exit) is single-sourced in `utils/programMemberships.cascadeMemberDeletion` (owned by `program-memberships`) and **WIRED** now those features are ported; `DELETE /:id` additionally deletes the Supabase auth user after commit. Shared verbatim with the auth `/account` cascade. | `memberService.js:147-179`; `utils/programMemberships.js:cascadeMemberDeletion`; auth SPEC D-C1. |
 | **D-C2** | **`createMember` is wired to Supabase `createUser` + requires an explicit `email`** so admin-created members can log in — the single deliberate change. Mirrors the ported `authService.register`. | `memberService.js:38-69` (legacy gap); `apps/backend/services/authService.js:172-233`; user decision. |
-| **D-REF** | **Reference impl = legacy `../../../backend`** (`routes/members.js`, `services/memberService.js`, the two models, `server.js:47`). **`consumed_by = [web, ios]`** for the read + self-update routes; **`POST` and `DELETE` are called by neither client** (vestigial — kept for API parity, §10 F1). | Web + iOS consumption sweep (Explore agents); `members.js`. |
+| **D-REF** | **Reference impl = legacy `backend`** (`routes/members.js`, `services/memberService.js`, the two models, `server.js:47`). **`consumed_by = [web, ios]`** for the read + self-update routes; **`POST` and `DELETE` are called by neither client** (vestigial — kept for API parity, §10 F1). | Web + iOS consumption sweep (Explore agents); `members.js`. |
 | **D-S1** | **Stance = faithful 1:1 except `createMember`.** Response shapes, gates, filtering/ordering, virtuals preserved; `getAllMembers` excludes the migration-added `auth_user_id` to keep the legacy shape. Other oddities are kept and flagged (§10), not fixed. | Whole-module review; §7. |
 
 ## 10. Flagged characteristics kept as-is

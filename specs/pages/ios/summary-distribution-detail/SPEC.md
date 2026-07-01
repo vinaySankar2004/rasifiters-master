@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s distribution card
 > (`AdminSummaryTab.swift:260-270`, `NavigationLink { DistributionByDayDetailView(points:) }`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Detail/WorkoutDistributionViews.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/WorkoutDistributionViews.swift`
 > (`DistributionByDayDetailView`, lines 271-372).
 > **Web parity reference:** [`web summary/distribution`](../../web/summary/distribution/SPEC.md) — same 7-weekday
 > bars, all-time, program-wide; iOS is **richer** (native tap-callout).

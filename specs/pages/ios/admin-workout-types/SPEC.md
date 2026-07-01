@@ -5,7 +5,7 @@
 > the web `/lifestyle` workspace tab. Role-bifurcated by `programContext.isProgramAdmin`:
 > `AdminWorkoutTypesTab` (program/global admin — view-as picker) vs `StandardWorkoutTypesTab` (logger/member —
 > own data only).
-> **Reference impl (legacy iOS):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/StandardWorkoutTypesTab.swift`
+> **Reference impl (legacy iOS):** `ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/StandardWorkoutTypesTab.swift`
 > (both tab structs) + the cards in `.../Features/Home/Helpers/AdminHomeHelpers.swift`.
 > **Web sibling (co-equal reference):** [`specs/pages/web/lifestyle/SPEC.md`](../../web/lifestyle/SPEC.md) —
 > the built `/lifestyle` read dashboard. Per memory `ios-matches-web-not-just-legacy` this run matches the

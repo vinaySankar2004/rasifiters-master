@@ -4,7 +4,7 @@
 > **Location:** presented as a `.sheet` from `ProgramPickerView`'s floating **"+"** button
 > (`ProgramPickerView.swift:148-156`, badge = pending-invite count); `onDismiss` reloads programs +
 > pending invites.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/{ProgramActionsSheet,CreateProgramTabView,InvitesTabView,InviteCardView}.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/{ProgramActionsSheet,CreateProgramTabView,InvitesTabView,InviteCardView}.swift`.
 > **Web parity reference:** [`web programs`](../../web/programs/SPEC.md) — the create flow (`CreateProgramTab`)
 > + the invites flow (`InvitesTab`/`InviteCard`/decline modal) live inline on the web `/programs` hub.
 > **Consumes (features):** [`programs`](../../../features/programs/SPEC.md) — `createProgram()`

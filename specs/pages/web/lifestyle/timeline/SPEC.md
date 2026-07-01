@@ -6,7 +6,7 @@
 > chart card). A `PeriodSelector` (W/M/Y/P) over one `GlassCard`: a range/daily-average header + a `ComposedChart`
 > plotting sleep hours (bars) and diet quality 1–5 (line). **Read-only.** Porting it **closes the `/lifestyle`
 > group (2 of 2).**
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/lifestyle/timeline/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/lifestyle/timeline/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/health/timeline`
 > — `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:74`) via the
 > already-ported `lib/api/lifestyle.ts` `fetchHealthTimeline` (landed verbatim with the

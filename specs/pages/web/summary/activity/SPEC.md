@@ -5,7 +5,7 @@
 > `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's **Activity** chart card). A
 > `PeriodSelector` (W/M/Y/P) over one `GlassCard`: a range/daily-average header + a `BarChart` plotting workouts
 > and active members per bucket. **Read-only, program-wide** (no view-as picker, no `memberId`).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/summary/activity/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/activity/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/timeline` —
 > `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:60`) via the
 > already-ported `lib/api/summary.ts` `fetchActivityTimeline` (landed verbatim with the [`summary`](../SPEC.md)

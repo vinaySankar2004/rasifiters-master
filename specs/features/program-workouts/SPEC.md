@@ -1,7 +1,7 @@
 # Feature: `program-workouts` — a program's workout list (visibility toggles + custom CRUD)
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/programWorkouts.js`, `services/workoutService.js`
+> **Provenance (legacy, archived):** `backend` — `routes/programWorkouts.js`, `services/workoutService.js`
 > (the **program-scoped** functions only — the file is shared with `workouts`, §7/D-C1),
 > `models/ProgramWorkout.js`, `server.js` (`/api/program-workouts` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`) · the
@@ -204,7 +204,7 @@ guard, the unfiltered (`is_hidden`-inclusive) list, the response shapes, and the
 |----|----------|----------|
 | **D-C1** | **Scope = the program-scoped half only** — `routes/programWorkouts.js` (the six `/api/program-workouts` routes) + the six program-scoped functions (`getProgramWorkouts`/`toggleGlobalWorkoutVisibility`/`toggleCustomWorkoutVisibility`/`addCustomWorkout`/`editCustomWorkout`/`deleteCustomWorkout`) split from the shared `workoutService.js`. The library functions belong to [`workouts`](../workouts/SPEC.md) (already ported). | `workoutService.js:5-28` (library) vs `:30-229` (program); COVERAGE line 19; workouts SPEC D-C1; user decision. |
 | **D-C2** | **Hoist the per-action admin authorization into a shared `requireProgramAdmin` route middleware** (the single deliberate change), mounted on routes 2–6; `GET` stays ungated. Middleware is **resolve-or-pass-through**: `global_admin` passes; resolve `program_id` from body or by loading the `ProgramWorkout`; pass through when unresolvable so the service emits its native 400/404; 403 only on a resolved non-admin. Service functions drop their inline admin blocks. Status codes preserved 1:1. | Inline checks `workoutService.js:79-84, 118-123, 142-147, 181-186, 215-220`; user decision (hoist + resolve-or-pass-through); CLAUDE.md non-breaking. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — all six routes used 1:1 by both clients, no divergence. `GET` additionally feeds log forms, the program dashboard, member-workout filters, and the iOS quick-add widget. | Web sweep (`lifestyle/workouts/page.tsx` + 4 GET readers) + iOS sweep (`WorkoutTypesSection.swift` + widget); Explore agents. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — all six routes used 1:1 by both clients, no divergence. `GET` additionally feeds log forms, the program dashboard, member-workout filters, and the iOS quick-add widget. | Web sweep (`lifestyle/workouts/page.tsx` + 4 GET readers) + iOS sweep (`WorkoutTypesSection.swift` + widget); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 except the authz hoist (D-C2).** Routes, ordering, the merge + dual-meaning id, lazy materialization, wrong-type 400s, dedup pre-checks, the delete in-use guard, the unfiltered list, response shapes, and the error contract are preserved; oddities are flagged (§10), not fixed. | Whole-module review; §7. |
 
 ## 10. Flagged characteristics kept as-is

@@ -10,7 +10,7 @@
 > [`reset-password`](../../reset-password/SPEC.md) form** (same new+confirm + policy checklist), minus the
 > URL-fragment recovery token (here the user is already signed in, so the session bearer authorizes the change),
 > and a sibling of [`profile`](../profile/SPEC.md) (run 27).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/program/password/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/program/password/page.tsx`.
 > **Consumes (features):** [`auth`](../../../../features/auth/SPEC.md) (`changePassword` → `PUT
 > /auth/change-password` — `authenticateToken` + the single-sourced `changePassword` service fn that re-validates
 > the password policy and updates it via Supabase `admin.updateUserById`; plus `useAuthGuard`).
@@ -29,7 +29,7 @@ lowercase · one number · passwords match — each turning `rf-success` when me
 and an **Update Password** button (disabled until the whole policy passes + not in flight). Used by **any
 authenticated user** to change their own password; there is **no admin gate and no role redirect** — the only
 guard is `!session?.token → /login`
-([password/page.tsx:25-29](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L25)). The
+(password/page.tsx:25-29). The
 backend independently re-validates the policy and updates only the **caller's own** Supabase user (`req.user.id`).
 
 ## 2. Why it exists
@@ -55,12 +55,12 @@ sign-up paths share (single-sourced).
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Change Password" + subtitle + Back → `/program` or `/programs`. | [password/page.tsx:48-52](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L48) |
-| New password | `input-shell` field (`type` flips with `showPassword`) + a Show/Hide toggle button. | [password/page.tsx:55-76](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L55) |
-| Confirm password | `input-shell` field, always `type="password"`. | [password/page.tsx:78-88](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L78) |
-| Policy checklist | 5 `<p>` rows, each gaining **`text-rf-success`** when its rule is met (D-C1). | [password/page.tsx:90-96](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L90) |
-| Error / success | Inline `rf-danger` error line; **`rf-success`** "Password updated successfully." (D-C1). | [password/page.tsx:98-99](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L98) |
-| Update | "Update Password" (`bg-rf-accent text-black`); disabled unless `validation.isValid` + not pending; clears both messages then mutates. | [password/page.tsx:101-114](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L101) |
+| Header | `PageHeader` "Change Password" + subtitle + Back → `/program` or `/programs`. | password/page.tsx:48-52 |
+| New password | `input-shell` field (`type` flips with `showPassword`) + a Show/Hide toggle button. | password/page.tsx:55-76 |
+| Confirm password | `input-shell` field, always `type="password"`. | password/page.tsx:78-88 |
+| Policy checklist | 5 `<p>` rows, each gaining **`text-rf-success`** when its rule is met (D-C1). | password/page.tsx:90-96 |
+| Error / success | Inline `rf-danger` error line; **`rf-success`** "Password updated successfully." (D-C1). | password/page.tsx:98-99 |
+| Update | "Update Password" (`bg-rf-accent text-black`); disabled unless `validation.isValid` + not pending; clears both messages then mutates. | password/page.tsx:101-114 |
 
 ## 5. Components + consumed features
 
@@ -121,14 +121,14 @@ sign-up paths share (single-sourced).
 | **D-REF** | `consumed_by = [web]` for this page spec; the iOS Settings → Change Password screen mirrors the same form and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec). | legacy `program/password/page.tsx`; iOS `Features/Settings/` |
 | **D-SCOPE** | **This page only.** Port `/program/password` faithful 1:1; the remaining two `/program/*` sub-routes (appearance/privacy) remain their own deferred rows. | per-page cadence; [`program` SPEC §3](../SPEC.md) |
 | **D-DEPS** | **No new dependency** — `PageShell`/`PageHeader`/`GlassCard`, `changePassword`, `useAuthGuard` are all already ported (the run-27 purest shape). `changePassword` + the `PUT /auth/change-password` route shipped with `auth`; `reset-password` already proved the shared `changePassword` service fn. | [lib/api/auth.ts:83](../../../../../../apps/web/src/lib/api/auth.ts#L83); `components/ui/` |
-| **D-S1** | **Faithful 1:1** otherwise — same new/confirm fields, Show/Hide toggle on New only, the 5-row live `validatePassword` checklist, `canSubmit` gating, clear-both-then-mutate submit, form-clears-on-success, and `backHref = program?.id ? "/program" : "/programs"`. | [password/page.tsx](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx) |
-| **D-C1** | **Tokenize the success/checklist color** — `text-emerald-600` → `text-rf-success` (`#2fb861` light / `#36c56f` dark) at **all six sites** (the 5 met-rule checklist states + the success line) so they are theme-aware and symmetric with the `rf-danger` error line. (Mirrors `profile` D-C1; clean token mapping exists — no literal-amber holdout here, unlike profile's avatar chip.) | [password/page.tsx:91-95,99](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L91); `globals.css` `--rf-success` |
-| **D-C2** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches sibling [`profile`](../profile/SPEC.md) exactly; the hook subsumes the inline redirect (and provides `program` for the back-href + `token` for the mutation). Legacy predated the foundation hook. | [password/page.tsx:14-29](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L14); [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
-| **D-C3** | **Clear the stale success/error message on field edit** — reset `successMessage`/`errorMessage` when New password / Confirm changes, so a prior "Password updated successfully." doesn't linger over the cleared fields. Legacy only cleared them at the *next* Update click ([password/page.tsx:36,103-110](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L36)). Mirrors `profile` D-C2. | legacy lingering `successMessage` |
+| **D-S1** | **Faithful 1:1** otherwise — same new/confirm fields, Show/Hide toggle on New only, the 5-row live `validatePassword` checklist, `canSubmit` gating, clear-both-then-mutate submit, form-clears-on-success, and `backHref = program?.id ? "/program" : "/programs"`. | password/page.tsx |
+| **D-C1** | **Tokenize the success/checklist color** — `text-emerald-600` → `text-rf-success` (`#2fb861` light / `#36c56f` dark) at **all six sites** (the 5 met-rule checklist states + the success line) so they are theme-aware and symmetric with the `rf-danger` error line. (Mirrors `profile` D-C1; clean token mapping exists — no literal-amber holdout here, unlike profile's avatar chip.) | password/page.tsx:91-95,99; `globals.css` `--rf-success` |
+| **D-C2** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches sibling [`profile`](../profile/SPEC.md) exactly; the hook subsumes the inline redirect (and provides `program` for the back-href + `token` for the mutation). Legacy predated the foundation hook. | password/page.tsx:14-29; [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
+| **D-C3** | **Clear the stale success/error message on field edit** — reset `successMessage`/`errorMessage` when New password / Confirm changes, so a prior "Password updated successfully." doesn't linger over the cleared fields. Legacy only cleared them at the *next* Update click (password/page.tsx:36,103-110). Mirrors `profile` D-C2. | legacy lingering `successMessage` |
 
 ## 10. Flagged characteristics (kept as-is)
 
-- **F1 — client `validatePassword` duplicates the server policy** ([password/page.tsx:117-134](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L117);
+- **F1 — client `validatePassword` duplicates the server policy** (password/page.tsx:117-134;
   [authService.js:60](../../../../../../apps/backend/services/authService.js#L60)). The 5-rule checklist mirrors
   the backend `validatePassword` for live UX; the backend re-validates authoritatively (400 on mismatch). The
   two copies can drift (e.g. the client also requires `matches`, which the server can't check). Faithful — a
@@ -136,7 +136,7 @@ sign-up paths share (single-sourced).
   reset-password all carry their own mirror).
 - **F2 — no client-side rate-limit / debounce** on Update beyond the `isPending` disable. Recurring across the
   rebuild. Kept.
-- **F3 — Show/Hide reveals only the New password field** ([password/page.tsx:63-72](../../../../../../rasifiters-webapp/src/app/program/password/page.tsx#L63)).
+- **F3 — Show/Hide reveals only the New password field** (password/page.tsx:63-72).
   Confirm stays `type="password"` with no toggle, so a Show'd new password can't be visually diffed against a
   masked confirm. Faithful; minor UX nit, rebuild-cleanup candidate.
 - **F4 — `changePassword` does not re-issue the session JWT** ([lib/api/auth.ts:83](../../../../../../apps/web/src/lib/api/auth.ts#L83);

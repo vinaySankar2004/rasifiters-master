@@ -1,7 +1,7 @@
 # Feature: `program-memberships` — enrollment, roles, status & the member-exit cascade
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/memberships.js`, `services/membershipService.js`,
+> **Provenance (legacy, archived):** `backend` — `routes/memberships.js`, `services/membershipService.js`,
 > `utils/programMemberships.js` (`handleMemberExit`), `models/ProgramMembership.js`, `server.js:49`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (`authenticateToken` + the program-admin authz pattern) ·
 > [`members`](../members/SPEC.md) (`Member` model + the `createMember` Supabase pattern reused by D-C2) ·
@@ -202,7 +202,7 @@ nulling), and the outcome-message composition. Error contract preserved.
 | **D-C2** | **`createMemberAndEnroll` is fixed to a loginable create** (Supabase `admin.createUser` + require `email`), mirroring members D-C2, then enrolls in the same transaction. Kept though vestigial. | `membershipService.js:27-96` (legacy bug); `apps/backend/services/memberService.js:42-101`; user decision. |
 | **D-C3** | **Drop the two dead routes** `GET /available` + `POST /enroll` — called by no client (web has no method; iOS methods are dormant). Not ported. | `membershipService.js:122-141, 171-239`; web + iOS consumption sweep (Explore agents). |
 | **D-C4** | **Defer all membership-event notification emits** → guarded no-op, wired when `notifications` lands; membership/cascade logic ports fully functional (the `programs` D-C1 pattern). | `membershipService.js:331-342, 398-406, 477-490`; `utils/programMemberships.js:72-135`; programs SPEC D-C1. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — `GET /members`, `GET /details`, `PUT /`, `DELETE /`, `PUT /leave` are live on both; `POST /` + the two dropped routes are called by neither. **Cross-app:** `DELETE /` and member-detail edit are **global-admin-only on both** clients; `PUT /leave` is member-facing on both. No divergence (the gates match). | Web + iOS consumption sweep; `members/detail` + `MemberManagementSection.swift:66`. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — `GET /members`, `GET /details`, `PUT /`, `DELETE /`, `PUT /leave` are live on both; `POST /` + the two dropped routes are called by neither. **Cross-app:** `DELETE /` and member-detail edit are **global-admin-only on both** clients; `PUT /leave` is member-facing on both. No divergence (the gates match). | Web + iOS consumption sweep; `members/detail` + `MemberManagementSection.swift:66`. |
 | **D-S1** | **Stance = faithful except D-C2 (fix) + D-C3 (drop 2).** The invite-table writes are ported (models exist); the authz matrix, last-admin guard, and `handleMemberExit` cascade are faithful; other oddities flagged (§10), not changed. | Whole-module review; §7. |
 
 ## 10. Flagged characteristics kept as-is

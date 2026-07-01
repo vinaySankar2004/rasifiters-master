@@ -30,14 +30,9 @@ psql "$SUPABASE_DATABASE_URL" -f apps/backend/sql/001_schema.sql
 
 Re-running is safe (every statement is `IF NOT EXISTS`).
 
-## After the schema exists
+## Data + auth migration (historical)
 
-Run the data + auth migration from [`tools/migrator/`](../../../tools/migrator/) — it copies the legacy
-rows (preserving `members.id` UUIDs) and imports bcrypt credentials into Supabase Auth, backfilling
-`members.auth_user_id`.
-
-## Order of operations (whole cutover)
-
-1. Apply `001_schema.sql` (this dir) to the Supabase project.
-2. `tools/migrator/` → `npm run migrate` (copy data → import auth → report).
-3. Point the rebuilt backend at Supabase; verify signed-in path.
+The one-time data + auth migration ran at cutover (2026-06-28): the original rows were copied
+(preserving `members.id` UUIDs) and bcrypt credentials imported into Supabase Auth, backfilling
+`members.auth_user_id`. The migrator that performed it has since been removed. Ongoing schema changes
+are the numbered files above, applied by the user in order.

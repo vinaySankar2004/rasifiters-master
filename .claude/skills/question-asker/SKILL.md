@@ -18,12 +18,12 @@ resolved its scope boundary, guardrails, and faithful-vs-change stance with the 
 
 ## Where to run
 From a session rooted at `rasifiters-master/`. Cite `file:line` from the **surface being documented**.
-The faithful-rebuild reference implementation is the LEGACY app at
-`/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/{rasifiters-webapp, ios-mobile, backend}` —
-cite it as the baseline being faithfully ported. RaSi Fiters is ONE app with three surfaces (**apps**):
-- **web** — Next.js 14 App Router (legacy: `rasifiters-webapp/src/app/**`, e.g. `summary/`, `members/`, `program/`, `lifestyle/`).
-- **ios** — SwiftUI (legacy: `ios-mobile/RaSi-Fiters-App/Features/**`, e.g. `Home/`, `Auth/`, `Onboarding/`).
-- **backend** — Node/Express + Sequelize (legacy: `backend/routes/**`, e.g. `members.js`, `workouts.js`, `analytics.js`, `auth.js`).
+The rebuild is complete and standalone — the implementation under `apps/` is the source of truth (each
+existing SPEC's `Provenance` header records the archived original it was ported from, as history). RaSi
+Fiters is ONE app with three surfaces (**apps**):
+- **web** — Next.js 14 App Router (`apps/web/src/app/**`, e.g. `summary/`, `members/`, `program/`, `lifestyle/`).
+- **ios** — SwiftUI (`apps/ios/RaSi-Fiters-App/Features/**`, e.g. `Home/`, `Auth/`, `Onboarding/`).
+- **backend** — Node/Express + Sequelize (`apps/backend/routes/**`, e.g. `members.js`, `workouts.js`, `analytics.js`, `auth.js`).
 
 ## Prereqs (confirm first)
 - **Know the target.** Confirm with the user exactly which page/view/route/module this run covers.
@@ -168,9 +168,9 @@ The loop's answers become two SPEC sections:
   load-bearing parsers/transforms that ripple across neighbors, web-vs-iOS divergences left intact.
   Each cites `file:line` and notes whether it's a rebuild cleanup candidate.
 Then present the surface map + draft decisions for sign-off, tick `COVERAGE.md`
-(`[x]` fully covered, `[~]` partial with the owning split spelled out), and note the reference impl
-(which legacy path it faithfully ports). After the SPEC is signed off, the code is **implemented
-directly as a faithful port from the legacy reference app** — there is no intermediate assembly step.
+(`[x]` fully covered, `[~]` partial with the owning split spelled out), and note the `Provenance` header
+where one applies (the archived original a port came from). After the SPEC is signed off, the code is
+**implemented directly** — there is no intermediate assembly step.
 
 ### 6. AskUserQuestion mapping (mechanics)
 - **1–4 questions per call, 2–4 options each.** The 6 generic questions → 2 rounds; the tight

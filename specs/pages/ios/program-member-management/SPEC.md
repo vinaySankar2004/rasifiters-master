@@ -6,11 +6,11 @@
 > `MemberDetailEditView`) + **Invite Member** (`canEditProgramData` → `InviteMemberView`).
 > **Files:** `apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/MemberManagementSection.swift`
 > (section + `ProgramMembersListView` + `MemberDetailEditView`) + `InviteMemberView.swift`.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/MemberManagementSection.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/MemberManagementSection.swift`
 > + `.../Features/Home/Helpers/AdminHomeHelpers.swift` (`InviteMemberView`, line 1659).
 > **Web parity reference:** [`web members/list`](../../web/members/list/SPEC.md) (roster) ·
 > [`web members/detail`](../../web/members/detail/SPEC.md) (editor) · [`web members/invite`](../../web/members/invite/SPEC.md) (invite).
-> **Consumes (features):** [`memberships`](../../../features/memberships/SPEC.md) (`fetchMembershipDetails`,
+> **Consumes (features):** [`program-memberships`](../../../features/program-memberships/SPEC.md) (`fetchMembershipDetails`,
 > `updateMembership`, `removeMember`) · [`invites`](../../../features/invites/SPEC.md) (`sendProgramInvite`).
 > **Stance:** faithful 1:1 port of legacy iOS **+ 2 cross-platform cleanups** (clear-stale-error-on-edit, tokenize
 > bare colors). The global-admin-only detail gate + invite privacy-swallow match BOTH legacy iOS **and** web.

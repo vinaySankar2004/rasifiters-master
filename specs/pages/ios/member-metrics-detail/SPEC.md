@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's metrics-preview card
 > (`AdminMembersTab.swift:45`, `NavigationLink { MemberMetricsDetailView() }`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Detail/MemberMetricsViews.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/MemberMetricsViews.swift`
 > (`MemberMetricsDetailView`, lines 218–404) + `MemberPickerOverviewView.swift` (`MetricsFilters`/`SortSheet`/
 > `FilterSheet`, lines 236–410).
 > **Web parity reference:** [`web members/metrics`](../../web/members/metrics/SPEC.md) — same searchable + server-sorted +

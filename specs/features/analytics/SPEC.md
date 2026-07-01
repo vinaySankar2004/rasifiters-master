@@ -1,7 +1,7 @@
 # Feature: `analytics` (v1) — program-level read aggregations
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.1 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/analytics.js` (the **`v1Router`** half only — the
+> **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v1Router`** half only — the
 > file is shared with `analytics-v2`, §7/D-C1), `services/analyticsService.js` (the **v1** functions + the
 > shared date/bucket helpers), `utils/dateRange.js` + `utils/queryHelpers.js` (analytics-only helpers),
 > `server.js` (`/api/analytics` mount).
@@ -204,7 +204,7 @@ contract, and the error contract (incl. the plain-`Error`→500 paths). The numb
 | **D-C2** | **Drop the dead `participation/mtd` v1 route + `getParticipationMTD`** — called by neither client (both use the v2 variant). | `analytics.js:25-34`, `analyticsService.js:255-282`; web + iOS sweeps (both → `analytics-v2/participation/mtd`). |
 | **D-C3** | **UTC-fix the distribution weekday bucketing** — add `{ timeZone: "UTC" }` to `getDistributionByDay` + `getSummary.distribution_by_day` (numeric correctness; unchanged on a UTC server). | `analyticsService.js:188, 434`; user cleanup choice. |
 | **D-C4** | **UTC-fix the timeline chart labels** — `bucketLabel` formats with `{ timeZone: "UTC" }` (+ UTC-construct the month-branch date); display-only. | `analyticsService.js:22-30`; user cleanup choice. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — the 8 live routes used 1:1 by both clients, no divergence (`limit` value + optional `memberId` vary per call site, but the route is identical). | Web sweep (`summary/lifestyle` pages + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`ProgramContext+Analytics.swift` + tabs); Explore agents. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — the 8 live routes used 1:1 by both clients, no divergence (`limit` value + optional `memberId` vary per call site, but the route is identical). | Web sweep (`summary/lifestyle` pages + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`ProgramContext+Analytics.swift` + tabs); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 verbatim except D-C2–D-C4.** Every aggregation query, the bucketing/windowing, all response shapes, the MTD-vs-`period` split, and the error contract are ported exactly; remaining oddities flagged (§10). | Whole v1-half review; §7. |
 
 ## 10. Flagged characteristics kept as-is

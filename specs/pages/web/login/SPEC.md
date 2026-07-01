@@ -2,7 +2,7 @@
 
 > **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/login` (reached from `/splash` Sign-in CTA, a middleware redirect when a session is missing/expired, or `/reset-password` on a successful reset).
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/login/page.tsx` (+ `components/BrandMark.tsx`).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/login/page.tsx` (+ `components/BrandMark.tsx`).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `login()` (`POST /auth/login/global`),
 > the foundation `useAuth` context (`session`, `setSession`, `isBootstrapping`), and the client JWT helpers
 > (`decodeJwtPayload` / `resolveGlobalRole`).
@@ -40,18 +40,18 @@ and now the **entry to password recovery** (the migration-added "Forgot your pas
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Brand logo | `BrandMark` (size 128) — `app-icon.png` in a rounded circle, centered. | [login/page.tsx:88](../../../../../rasifiters-webapp/src/app/login/page.tsx#L88); `BrandMark.tsx` |
-| Heading + subheading | "Welcome Back" / "Login to access your fitness dashboard". | [login/page.tsx:90-95](../../../../../rasifiters-webapp/src/app/login/page.tsx#L90) |
+| Brand logo | `BrandMark` (size 128) — `app-icon.png` in a rounded circle, centered. | login/page.tsx:88; `BrandMark.tsx` |
+| Heading + subheading | "Welcome Back" / "Login to access your fitness dashboard". | login/page.tsx:90-95 |
 | Session / reset alert (conditional) | Amber banner when `?reason=expired` ("Your session expired…") or `?reason=invalid` ("We could not verify your session…"); a **green** banner when `?reason=password-reset` ("Your password has been reset. Sign in with your new password.") — the recovery-flow confirmation (v0.1.1, set by `/reset-password`). | `apps/web/src/app/login/page.tsx` (reason block) |
-| Identifier input | Text input, placeholder "Username or Email", `autoComplete="username"`. | [login/page.tsx:107-116](../../../../../rasifiters-webapp/src/app/login/page.tsx#L107) |
-| Password input + toggle | Password input with a Show/Hide text button (`showPassword`), `autoComplete="current-password"`. | [login/page.tsx:118-134](../../../../../rasifiters-webapp/src/app/login/page.tsx#L118) |
-| Error banner (conditional) | Red box with the caught error message (default "Unable to login. Try again."). | [login/page.tsx:136-140](../../../../../rasifiters-webapp/src/app/login/page.tsx#L136) |
-| Submit button | "Login" / "Signing in…" (when `isLoading`); disabled while `!canSubmit \|\| isLoading`. | [login/page.tsx:142-148](../../../../../rasifiters-webapp/src/app/login/page.tsx#L142) |
+| Identifier input | Text input, placeholder "Username or Email", `autoComplete="username"`. | login/page.tsx:107-116 |
+| Password input + toggle | Password input with a Show/Hide text button (`showPassword`), `autoComplete="current-password"`. | login/page.tsx:118-134 |
+| Error banner (conditional) | Red box with the caught error message (default "Unable to login. Try again."). | login/page.tsx:136-140 |
+| Submit button | "Login" / "Signing in…" (when `isLoading`); disabled while `!canSubmit \|\| isLoading`. | login/page.tsx:142-148 |
 | **"Forgot your password?" link** | **MIGRATION ADDITION (not in legacy)** — `next/link` → `/forgot-password`, placed below the form. | `apps/web/src/app/login/page.tsx` (added block); see D-C1 |
-| Sign-up link | "New here? **Create an account**" → `/create-account`. | [login/page.tsx:151-159](../../../../../rasifiters-webapp/src/app/login/page.tsx#L151) |
-| Footer | "Training hard? Login to track your progress." + a "Privacy Policy" link → `PRIVACY_POLICY_URL`. | [login/page.tsx:161-168](../../../../../rasifiters-webapp/src/app/login/page.tsx#L161) |
+| Sign-up link | "New here? **Create an account**" → `/create-account`. | login/page.tsx:151-159 |
+| Footer | "Training hard? Login to track your progress." + a "Privacy Policy" link → `PRIVACY_POLICY_URL`. | login/page.tsx:161-168 |
 
-**Submit flow** ([login/page.tsx:44-78](../../../../../rasifiters-webapp/src/app/login/page.tsx#L44)): guard
+**Submit flow** (login/page.tsx:44-78): guard
 `canSubmit && !isLoading` → `login(identifier.trim(), password)` → `decodeJwtPayload` → `resolveGlobalRole`
 → build session `{ token, refreshToken, user{ id, username, memberName, globalRole } }` → `setSession` →
 `router.push("/programs")`. Errors caught → red banner; `finally` clears `isLoading`.
@@ -107,7 +107,7 @@ applies only after a program is selected).
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../rasifiters-webapp/src/app/login/page.tsx` (+ `BrandMark.tsx`). `consumed_by = [web]`.** **Cross-app:** iOS `LoginView.swift` is functionally identical (single "Username or Email" identifier + password + Show/Hide, same `/auth/login/global` call) — the only divergence is the new "Forgot password?" link, which web gains first per the auth-recovery plan and iOS mirrors later (F3). | `login/page.tsx`; iOS `LoginView.swift:1-192`, `APIClient+Auth.swift:50`; user answer (web-first auth recovery). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/login/page.tsx` (+ `BrandMark.tsx`). `consumed_by = [web]`.** **Cross-app:** iOS `LoginView.swift` is functionally identical (single "Username or Email" identifier + password + Show/Hide, same `/auth/login/global` call) — the only divergence is the new "Forgot password?" link, which web gains first per the auth-recovery plan and iOS mirrors later (F3). | `login/page.tsx`; iOS `LoginView.swift:1-192`, `APIClient+Auth.swift:50`; user answer (web-first auth recovery). |
 | **D-S1** | **Stance = faithful 1:1, no behavior change to the existing form.** Port `login/page.tsx` verbatim — identifier+password, Show/Hide, `canSubmit` gate, JWT decode + `resolveGlobalRole`, session build, `/programs` redirect, `?reason` banner, create-account + Privacy links. Oddities → §10 flags, not changes. | `login/page.tsx:1-173`; user answer (faithful as-is). |
 | **D-C1** | **ONE migration addition — a "Forgot your password?" link → `/forgot-password`**, placed below the form. This is the only deviation from the faithful port; it's the entry point to the new Supabase-Auth recovery flow (the whole reason for adopting Supabase Auth). Legacy and iOS have no such link. | User requirement (auth self-service); legacy has zero recovery flow (both clients); `apps/web/src/app/login/page.tsx`. |
 | **D-PLAN** | **Auth-recovery path plan (scope: login page only this run; the rest follow).** Resolved with the user so the link's destination + mechanics are pinned: (1) **forgot-password page** = **always-send + always-visible contact link** — always call Supabase `resetPasswordForEmail` (privacy-safe "if an account exists, a link was sent"; no enumeration) AND always show a "No email on your account? Contact us" `mailto:` (support = **`vinay.sankara@gmail.com`**, a **placeholder that may change**, wired as a config value); (2) the **reset flow runs through the Express backend** (METHODOLOGY R1 — clients never embed Supabase) → new routes (e.g. `POST /auth/forgot-password`, `POST /auth/reset-password`) + a **MINOR bump on the `auth` feature SPEC**; (3) **sign-up email becomes mandatory + format-validated** (forward-only — existing/placeholder accounts untouched). Each is its **own** follow-up spec/port. | User answers (4-Q decision round, 2026-06-29); auth SPEC §3/§10 (no reset route today; `resetPasswordForEmail` unused); members SPEC D-C2 (register already requires email + creates a loginable Supabase user). |
@@ -116,11 +116,11 @@ applies only after a program is selected).
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **Client-side JWT decode without signature verification.** The page base64-decodes the token for `id`/`username`/`role` display only; trust rests on the backend re-verifying every authed call. | [login/page.tsx:52-58](../../../../../rasifiters-webapp/src/app/login/page.tsx#L52); `jwt.ts` | Kept (faithful) — display/role-hint only; not a security boundary. |
-| **F2** | **No bootstrap loading gate — brief form flash for authenticated users.** The form renders immediately; the redirect to `/programs` only fires after `!isBootstrapping`, so a returning signed-in user can glimpse the form before redirect. | [login/page.tsx:38-42](../../../../../rasifiters-webapp/src/app/login/page.tsx#L38) | Kept (faithful) — cosmetic flash; a rebuild could gate render on `isBootstrapping`/`session`. |
+| **F1** | **Client-side JWT decode without signature verification.** The page base64-decodes the token for `id`/`username`/`role` display only; trust rests on the backend re-verifying every authed call. | login/page.tsx:52-58; `jwt.ts` | Kept (faithful) — display/role-hint only; not a security boundary. |
+| **F2** | **No bootstrap loading gate — brief form flash for authenticated users.** The form renders immediately; the redirect to `/programs` only fires after `!isBootstrapping`, so a returning signed-in user can glimpse the form before redirect. | login/page.tsx:38-42 | Kept (faithful) — cosmetic flash; a rebuild could gate render on `isBootstrapping`/`session`. |
 | **F3** | **No "Forgot password?" on iOS (and none in legacy web).** The recovery link is web-first per the auth plan; iOS `LoginView` has no recovery entry (its only recovery affordance is a `supportURL` contact link in Settings). To be reconciled at the iOS login port. | iOS `LoginView.swift:1-192`; `MyAccountSection.swift:107-110` (`supportURL`) | **Yes — iOS gap** to close when the auth-recovery path is mirrored to iOS. |
-| **F4** | **No client-side rate limiting / lockout.** Repeated failed logins only surface the backend error; no attempt throttling on the page (mirrors auth SPEC F4). | [login/page.tsx:71-74](../../../../../rasifiters-webapp/src/app/login/page.tsx#L71) | Kept (faithful) — any throttling belongs server-side. |
-| **F5** | **No inline field validation.** Empty/whitespace fields only disable the button (`canSubmit`); there's no "email looks invalid" hint (the identifier is intentionally username-or-email, resolved server-side). | [login/page.tsx:26-29](../../../../../rasifiters-webapp/src/app/login/page.tsx#L26) | Kept (faithful) — identifier is dual-purpose; validation would be misleading. |
+| **F4** | **No client-side rate limiting / lockout.** Repeated failed logins only surface the backend error; no attempt throttling on the page (mirrors auth SPEC F4). | login/page.tsx:71-74 | Kept (faithful) — any throttling belongs server-side. |
+| **F5** | **No inline field validation.** Empty/whitespace fields only disable the button (`canSubmit`); there's no "email looks invalid" hint (the identifier is intentionally username-or-email, resolved server-side). | login/page.tsx:26-29 | Kept (faithful) — identifier is dual-purpose; validation would be misleading. |
 
 ## 11. Changelog
 

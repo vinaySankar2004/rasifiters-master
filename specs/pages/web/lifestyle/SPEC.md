@@ -5,7 +5,7 @@
 > screen: it is a **read-only** workout-type-analytics + health-timeline overview with the same role-gated
 > **"view as"** picker as the Members tab. The workout-type CRUD (the write path) and the full timeline detail
 > are **sub-routes, deferred** (see §3).
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx`
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/lifestyle/page.tsx`
 > (+ ported deps `lib/api/lifestyle.ts`, `components/ui/EmptyState.tsx`).
 > **Consumes (features):** [`analytics`](../../../features/analytics/SPEC.md) (`workouts/types` popularity +
 > `health/timeline`), [`analytics-v2`](../../../features/analytics-v2/SPEC.md)
@@ -59,16 +59,16 @@ the tab. It is the landing/hub for the lifestyle cluster — the entry point tha
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "Lifestyle" + active program name; a **Manage workouts** / **View workouts** pill (→ `/lifestyle/workouts`; label flips on `canAddWorkouts`, both nav to the same route). | [lifestyle/page.tsx:169-185](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L169) |
-| View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "Admin" / "Member"). | [lifestyle/page.tsx:187-197](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L187) |
-| Empty hint | `!canViewAs && !loggedInUserId` → `EmptyState` "Unable to identify the logged-in member." | [lifestyle/page.tsx:199-201](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L199) |
-| Stat: Total workout types | `WorkoutStatCard` (amber) — distinct exercise count, program-to-date. | [lifestyle/page.tsx:205-223](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L205) |
-| Stat: Most popular | `WorkoutStatCard` (violet) — top workout name + session count. | [lifestyle/page.tsx:224-239](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L224) |
-| Stat: Longest duration | `WorkoutStatCard` (red) — workout name + avg minutes. | [lifestyle/page.tsx:242-258](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L242) |
-| Stat: Highest participation | `WorkoutStatCard` (green) — workout name + `participation_pct`% of members. **Always program-wide** (ignores the view-as member). | [lifestyle/page.tsx:259-274](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L259) |
-| Lifestyle Timeline card | Clickable → `/lifestyle/timeline?memberId=…`; a Recharts `ComposedChart` (sleep-hours bars + diet-quality line) over the last 10 buckets of the week. | [lifestyle/page.tsx:277-284](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L277), 350-412 |
-| Workout Type Popularity card | A sortable horizontal-bar list with a **count / total-minutes / avg-minutes** segmented toggle and a **top-10 / show-all** switch; bar colors are a hash of the workout name. | [lifestyle/page.tsx:286-289](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L286), 414-508 |
-| Member Picker modal | `Modal` + search-filtered member list with an optional "None"/"Admin" row; persists the pick to `sessionStorage`. | [lifestyle/page.tsx:292-307](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L292), 510-580 |
+| Header | "Lifestyle" + active program name; a **Manage workouts** / **View workouts** pill (→ `/lifestyle/workouts`; label flips on `canAddWorkouts`, both nav to the same route). | lifestyle/page.tsx:169-185 |
+| View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "Admin" / "Member"). | lifestyle/page.tsx:187-197 |
+| Empty hint | `!canViewAs && !loggedInUserId` → `EmptyState` "Unable to identify the logged-in member." | lifestyle/page.tsx:199-201 |
+| Stat: Total workout types | `WorkoutStatCard` (amber) — distinct exercise count, program-to-date. | lifestyle/page.tsx:205-223 |
+| Stat: Most popular | `WorkoutStatCard` (violet) — top workout name + session count. | lifestyle/page.tsx:224-239 |
+| Stat: Longest duration | `WorkoutStatCard` (red) — workout name + avg minutes. | lifestyle/page.tsx:242-258 |
+| Stat: Highest participation | `WorkoutStatCard` (green) — workout name + `participation_pct`% of members. **Always program-wide** (ignores the view-as member). | lifestyle/page.tsx:259-274 |
+| Lifestyle Timeline card | Clickable → `/lifestyle/timeline?memberId=…`; a Recharts `ComposedChart` (sleep-hours bars + diet-quality line) over the last 10 buckets of the week. | lifestyle/page.tsx:277-284, 350-412 |
+| Workout Type Popularity card | A sortable horizontal-bar list with a **count / total-minutes / avg-minutes** segmented toggle and a **top-10 / show-all** switch; bar colors are a hash of the workout name. | lifestyle/page.tsx:286-289, 414-508 |
+| Member Picker modal | `Modal` + search-filtered member list with an optional "None"/"Admin" row; persists the pick to `sessionStorage`. | lifestyle/page.tsx:292-307, 510-580 |
 
 **Data flow.** `membersQuery` (`fetchProgramMembers`, admin-only) feeds the view-as picker. The signed-in /
 selected member (`memberIdForMetrics`) drives six React-Query reads keyed under `["lifestyle", …]`:
@@ -112,7 +112,7 @@ Roles derive from `session.user.globalRole` (client JWT, F1) + the active progra
 computes `isGlobalAdmin`, `isProgramAdmin = my_role=="admin" || isGlobalAdmin`,
 `canViewAs = isProgramAdmin`, and `canAddWorkouts = isGlobalAdmin || (globalRole=="standard" &&
 my_role=="admin")`
-([lifestyle/page.tsx:51-56](../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx#L51)).
+(lifestyle/page.tsx:51-56).
 
 | Role | Sees | Can do |
 |------|------|--------|
@@ -145,7 +145,7 @@ read or a forward-nav link). The lock has no effect here; it governs the workout
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../rasifiters-webapp/src/app/lifestyle/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS home renders the same workout-type analytics + lifestyle timeline natively; parity audited at the iOS port. | `lifestyle/page.tsx`; user answer (faithful). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/lifestyle/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS home renders the same workout-type analytics + lifestyle timeline natively; parity audited at the iOS port. | `lifestyle/page.tsx`; user answer (faithful). |
 | **D-SCOPE** | **This run owns the `/lifestyle` landing page only** (the read dashboard + the in-file `MemberPickerModal`), pulling in `lib/api/lifestyle.ts` + `components/ui/EmptyState.tsx`. **Deferred:** the 2 sub-routes `/lifestyle/workouts` (workout-type CRUD write path) + `/lifestyle/timeline` (timeline detail) — separate page-spec rows; links to them are forward-nav (F2). | inventory (`specs/pages/REGISTRY.md`); user answer ("Landing page only"). |
 | **D-S1** | **Stance = faithful 1:1 port** — the page (role branches + the `sessionStorage` view-as persistence + the inline Recharts timeline + the popularity sorter) ported verbatim from legacy. | `lifestyle/page.tsx:1-625`; user answer ("Faithful — port local copy, flag dup"). |
 | **D-C1** | **Port the whole `lib/api/lifestyle.ts` module verbatim** (6 fns) — wraps already-mounted `analytics`/`analytics-v2` routes (the run-20/21/22 "port whole shared api modules" pattern). No backend work, **no feature bump**. | `lib/api/lifestyle.ts:1-103`; backend mounted `server.js:74-76`; user answer ("Faithful"). |

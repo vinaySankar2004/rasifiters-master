@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s `AccountMenuSheet` → "Apple Health"
 > (`AccountDestination.appleHealth` → `AppleHealthSettingsView()`).
-> **Reference impl:** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift` (legacy `ios-mobile/`).
+> **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift`.
 > **Web parity reference:** **none — iOS-only** (Apple Health is unavailable on web).
 > **Consumes:** the [`apple-health`](../../../features/apple-health/SPEC.md) feature (all sync logic on
 > `ProgramContext+HealthKit`); [`programs`](../../../features/programs/SPEC.md) (`fetchPrograms` for the

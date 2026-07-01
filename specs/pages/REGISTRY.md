@@ -8,7 +8,7 @@ admin / logger / member each see and can do). Shared capabilities are indexed in
 
 Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retired.
 
-## web (Next.js) — reference: `../../../rasifiters-webapp`
+## web (Next.js) — reference: `rasifiters-webapp`
 
 | Page | Route | Status | Consumes (features) | Spec |
 |------|-------|--------|---------------------|------|
@@ -30,7 +30,7 @@ programs · ~~program~~ (landing + ~~edit~~ + ~~roles~~ done; + profile/password
 workout-types/log-workout/log-health/bulk-log-workout) · members (+ list/detail/invite/metrics/health/
 history/workouts/streaks) · lifestyle (+ timeline/workouts).
 
-## ios (SwiftUI) — reference: `../../../ios-mobile`
+## ios (SwiftUI) — reference: `ios-mobile`
 
 | Screen | Status | Consumes (features) | Spec |
 |--------|--------|---------------------|------|

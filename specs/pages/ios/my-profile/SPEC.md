@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (the Program tab's My Account section, run 57) →
 > "My Profile" `NavigationLink → MyProfileView()`.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Settings/MyProfileView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/MyProfileView.swift`.
 > **Web parity reference:** [`web program/profile`](../../web/program/profile/SPEC.md) — same own-profile
 > editor; the net-new **email-change form** now mirrored.
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `APIClient.changeEmail()` (new,

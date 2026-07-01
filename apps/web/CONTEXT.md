@@ -2,8 +2,8 @@
 
 The RaSi Fiters web app. Next.js 14 (App Router) + TypeScript. Consumes the `backend` API.
 
-**Reference implementation:** `../../../rasifiters-webapp` (the legacy web app). Faithful 1:1 rebuild;
-the only intended change is the auth path (Supabase-issued tokens via the backend proxy).
+**Provenance (legacy, archived):** ported 1:1 from the original web app; the only intended change was the
+auth path (Supabase-issued tokens via the backend proxy). Legacy source archived, not tracked here.
 
 ## Stack
 - Next.js 14 (App Router) · React 18 · TypeScript · Tailwind (theme via `rf-*` CSS vars)
@@ -63,7 +63,7 @@ itself was verified live in Phase 2.
 The shared, page-independent scaffold is ported + builds green (`npm run build` ✓). It is **NOT** spec'd via
 `question-asker` — that loop is for pages; this is infrastructure ported directly (mirrors the backend
 foundation port). Pages (splash → login → …) are spec'd + ported on top of it. Deliberate deviations from
-the legacy app (`../../../rasifiters-webapp`), all justified by the migration:
+the legacy app (`rasifiters-webapp`), all justified by the migration:
 
 - **Host Netlify → Vercel** — dropped `@netlify/plugin-nextjs` (devDep) + `netlify.toml`; default
   `NEXT_PUBLIC_APP_URL` fallback is `https://rasifiters.com` (was `rasifiters.netlify.app`). Package

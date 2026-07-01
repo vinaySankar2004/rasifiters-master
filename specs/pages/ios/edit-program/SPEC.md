@@ -4,7 +4,7 @@
 > **Location:** pushed from `ProgramPickerView`'s swipe-left **Edit** action on a card the viewer
 > `canManage` (`ProgramPickerView.swift:168-171`, `navigationDestination(item: $programToEdit)`); the picker
 > calls `applyProgram(program)` first to hydrate `ProgramContext`.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/EditProgramInfoView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/EditProgramInfoView.swift`.
 > **Web parity reference:** [`web program/edit`](../../web/program/edit/SPEC.md) — same name/status/dates +
 > **admin-only-data-entry toggle** + the three deployment cleanups (D-C1 date-range validation, D-C2
 > hydrate-from-response, D-C3 skip-no-op).

@@ -15,7 +15,6 @@
           "middleware/auth.js",
           "models/Member.js",
           "models/MemberEmail.js",
-          "models/RefreshToken.js",
           "server.js"
         ]
       }
@@ -240,7 +239,7 @@
       "consumed_by": ["ios"],
       "depends_on": ["auth", "programs", "program-memberships", "workouts", "workout-logs"],
       "reference_impl": {
-        "app": "ios-mobile",
+        "app": "ios",
         "paths": [
           "RaSi-Fiters-App/Shared/Services/HealthKitService.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitWorkoutTypeMap.swift",

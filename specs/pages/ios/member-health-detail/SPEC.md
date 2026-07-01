@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's health card
 > (`MemberCards.swift:192`, `NavigationLink { MemberHealthDetail(memberId:memberName:) }`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/HealthSortFilterSheets.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/HealthSortFilterSheets.swift`
 > (`MemberHealthDetail` + sort/filter sheets + `DailyHealthEditSheet`, lines 1–848).
 > **Web parity reference:** [`web members/health`](../../web/members/health/SPEC.md) — the write twin of
 > `/members/workouts`: sorted/filterable list + Edit (sleep + diet) / Delete + client CSV; `admin_only_data_entry` **LIVE**.

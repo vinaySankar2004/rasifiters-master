@@ -2,8 +2,8 @@
 
 The RaSi Fiters iOS app. Pure SwiftUI. Consumes the `backend` API. Built after `web`.
 
-**Reference implementation:** `../../../ios-mobile` (the legacy iOS app). Faithful 1:1 rebuild; the only
-intended change is the auth path (Supabase-issued tokens via the backend proxy).
+**Provenance (legacy, archived):** ported 1:1 from the original iOS app; the only intended change was the
+auth path (Supabase-issued tokens via the backend proxy). Legacy source archived, not tracked here.
 
 ## Stack
 - SwiftUI (no UIKit) · Swift 5 · iOS 18.6 target · zero third-party deps (native frameworks only)
@@ -57,9 +57,9 @@ all 9 category extensions, `KeychainService`, `SessionStore`, `NotificationStrea
 1. **API base URL** — `APIConfig.renderBaseURL` repointed `rasi-fiters-api.onrender.com` → the new
    `rasifiters-api.onrender.com/api` (the Supabase-Auth proxy backend; matches the web prod API). The one
    auth-path change. `simulatorBaseURL`/`deviceBaseURL` (local dev) kept as-is.
-2. **`Features/` deferred** — all 37 feature-screen files were removed; they are ported per-screen via
-   question-asker in later runs (auth splash/login/create-account first). The legacy originals stay readable
-   at `../../../ios-mobile/RaSi-Fiters-App/Features/**`.
+2. **`Features/` deferred** — at foundation time all 37 feature-screen files were removed and then ported
+   per-screen via question-asker (auth splash/login/create-account first); all are now ported. The legacy
+   originals (`ios-mobile/RaSi-Fiters-App/Features/**`) are archived, not tracked here.
 3. **`App/_DeferredScreenStubs.swift`** — **DELETED (run 65, 2026-06-30): the iOS deferred layer is CLOSED.** It
    was the only foundation→feature coupling — placeholder `View`s for the four screens `AppRootView` instantiates
    (`SplashView`, `ProgramPickerView`, `QuickAddWorkoutWidgetEntryView`, `QuickAddHealthWidgetEntryView`), the iOS

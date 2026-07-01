@@ -5,7 +5,7 @@
 > pill: a searchable, read-only list of the program's **active** members. **1st** of the eight deferred `/members`
 > sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`) and the **entry point to
 > `/members/detail`** (the deferred per-member editor, reached only by global_admin).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/list/page.tsx` (113 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/list/page.tsx` (113 lines).
 > **Consumes (features):** [`program-memberships`](../../../../features/program-memberships/SPEC.md)
 > (`GET /program-memberships/details` — `authenticateToken`; already mounted) via the already-ported
 > `lib/api/programs.ts` `fetchMembershipDetails`; [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard`).

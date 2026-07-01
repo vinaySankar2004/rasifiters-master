@@ -2,7 +2,7 @@
 -- ---------------------------------------------------------------------------
 -- Backfill member_emails for placeholder (no-email) members.
 --
--- WHY: the migrator (tools/migrator/src/importAuth.js) synthesized a placeholder email
+-- WHY: the one-time migrator synthesized a placeholder email
 -- (`<username>@no-email.rasifiters.com`) into `auth.users` for members with no email — the `admin`
 -- account — but did NOT insert the matching `member_emails` row. The backend logs in by resolving
 -- member -> primary email (`member_emails`) -> Supabase `signInWithPassword(email, …)`, so these

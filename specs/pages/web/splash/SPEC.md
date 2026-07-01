@@ -2,7 +2,7 @@
 
 > **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/splash` (the root `/` redirects here — `src/app/page.tsx`).
-> **Reference impl (legacy):** `../../../rasifiters-webapp/src/app/splash/page.tsx` (+ `components/BrandMark.tsx`).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/splash/page.tsx` (+ `components/BrandMark.tsx`).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) (the foundation `useAuth` context —
 > `session` + `isBootstrapping`; no API call).
 > **Cross-app:** iOS `SplashView.swift` (`Features/Onboarding/`) — same copy + typewriter intent, but a
@@ -35,13 +35,13 @@ of the public/auth path (splash → login → create-account) that proves auth e
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Headline (typewriter) | "Hi, welcome to RaSi Fiters" typed char-by-char (42 ms/char); dims to muted once complete. | [splash/page.tsx:70-79](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L70) |
-| Subheadline (typewriter) | "Track your fitness journey by logging workouts and monitoring your progress!" typed after a 350 ms beat. | [splash/page.tsx:80-82](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L80) |
-| Brand logo | `BrandMark` (size 150) — `app-icon.png` in a rounded circle, centered. | [splash/page.tsx:86-88](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L86); `BrandMark.tsx` |
-| Sign-in CTA | A `next/link` → `/login`, framer-motion fade-in, appears only after the full intro (~3.5 s). | [splash/page.tsx:90-104](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L90) |
+| Headline (typewriter) | "Hi, welcome to RaSi Fiters" typed char-by-char (42 ms/char); dims to muted once complete. | splash/page.tsx:70-79 |
+| Subheadline (typewriter) | "Track your fitness journey by logging workouts and monitoring your progress!" typed after a 350 ms beat. | splash/page.tsx:80-82 |
+| Brand logo | `BrandMark` (size 150) — `app-icon.png` in a rounded circle, centered. | splash/page.tsx:86-88; `BrandMark.tsx` |
+| Sign-in CTA | A `next/link` → `/login`, framer-motion fade-in, appears only after the full intro (~3.5 s). | splash/page.tsx:90-104 |
 | Tap-to-skip (D-SKIP) | `onClick` on the root container instantly snaps both sentences to full + reveals the CTA (`skipRef` + `skip()`); no-op once the CTA is visible, so the Sign-in link still navigates normally. **Not in legacy** — deliberate addition. | `apps/web/src/app/splash/page.tsx` |
 
-**Animation sequence** ([splash/page.tsx:48-57](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L48)):
+**Animation sequence** (splash/page.tsx:48-57):
 type headline → mark complete → 350 ms → type subheadline → 280 ms → reveal CTA. Driven by an on-mount
 `useEffect` (deps `[]`), cleaned up via an `isMounted` flag. A `skipRef` short-circuits the typewriter loop
 and the inter-phase beats when the user taps (D-SKIP), and is reset on each mount so a remount replays it.
@@ -91,7 +91,7 @@ role-adjacent behavior is uniform across **every** role:
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../rasifiters-webapp/src/app/splash/page.tsx` (+ `BrandMark.tsx`). `consumed_by = [web]`** (this is the web page spec). **Cross-app divergence:** iOS `SplashView.swift` renders a placeholder icon (orange circle + `chart.bar.fill`) and has no authenticated→programs redirect; web wins on the brand mark (keeps the real logo) — the iOS placeholder is flagged as a defect to reconcile at the iOS splash port (F3). | `splash/page.tsx`; iOS `SplashView.swift:113-128, 86-93`; user answers (faithful; flag iOS placeholder as a bug). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/splash/page.tsx` (+ `BrandMark.tsx`). `consumed_by = [web]`** (this is the web page spec). **Cross-app divergence:** iOS `SplashView.swift` renders a placeholder icon (orange circle + `chart.bar.fill`) and has no authenticated→programs redirect; web wins on the brand mark (keeps the real logo) — the iOS placeholder is flagged as a defect to reconcile at the iOS splash port (F3). | `splash/page.tsx`; iOS `SplashView.swift:113-128, 86-93`; user answers (faithful; flag iOS placeholder as a bug). |
 | **D-S1** | **Stance = faithful 1:1, no code changes.** Port `splash/page.tsx` + `BrandMark.tsx` verbatim (typewriter timings, BrandMark size 150, redirect-when-authenticated, CTA→`/login`). Oddities recorded as §10 flagged characteristics rather than changed. | `splash/page.tsx`; user answer (faithful as-is). |
 | **D-SKIP** | **ONE deliberate addition (not in legacy) — tap/click fast-forwards the intro.** A `skipRef` + `skip()` snap both sentences to full and reveal the CTA on any click of the splash, so an impatient visitor reaches Sign-in without waiting out the ~3.5 s typewriter. Guarded to no-op once the CTA is visible (the Sign-in link keeps its own navigation). Added identically on iOS (D-SKIP there) so the two surfaces stay 1:1. | `apps/web/src/app/splash/page.tsx`; user request (2026-06-30). |
 
@@ -99,10 +99,10 @@ role-adjacent behavior is uniform across **every** role:
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **Authenticated→`/programs` redirect is web-only.** The web splash redirects a signed-in visitor to `/programs`; the iOS `SplashView` has no such redirect (iOS routes signed-in users at the app root, not from the splash view). | [splash/page.tsx:24-28](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L24); iOS `SplashView.swift` (no redirect) | Kept (faithful) — a platform-routing difference, not a bug; no reconciliation needed. |
-| **F2** | **No loading gate — brief splash flash for authenticated users.** The typewriter `useEffect` runs on mount unconditionally; the redirect only fires after `!isBootstrapping`, so a returning signed-in user can glimpse the intro start before being redirected. | [splash/page.tsx:24-64](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L24) | Kept (faithful) — cosmetic flash. A rebuild could gate render on `isBootstrapping`/`session`. |
+| **F1** | **Authenticated→`/programs` redirect is web-only.** The web splash redirects a signed-in visitor to `/programs`; the iOS `SplashView` has no such redirect (iOS routes signed-in users at the app root, not from the splash view). | splash/page.tsx:24-28; iOS `SplashView.swift` (no redirect) | Kept (faithful) — a platform-routing difference, not a bug; no reconciliation needed. |
+| **F2** | **No loading gate — brief splash flash for authenticated users.** The typewriter `useEffect` runs on mount unconditionally; the redirect only fires after `!isBootstrapping`, so a returning signed-in user can glimpse the intro start before being redirected. | splash/page.tsx:24-64 | Kept (faithful) — cosmetic flash. A rebuild could gate render on `isBootstrapping`/`session`. |
 | **F3** | **iOS splash uses a PLACEHOLDER brand icon (defect to fix on the iOS port).** iOS `SplashView` draws an orange circle + `chart.bar.fill` SF Symbol explicitly accessibility-labeled "Brand icon placeholder" instead of the real `app-icon` asset the web uses. Per the user, this is a **bug to reconcile** when the iOS splash screen is ported — iOS should adopt the real brand asset. | iOS `SplashView.swift:113-128` | **Yes — iOS defect.** Tracked as an open item for the iOS splash port (not a web change). |
-| **F4** | **Type-speed divergence (cosmetic).** Web types at 42 ms/char (`sleep(42)`); iOS at 55 ms/char. Same copy, same sequence shape. | [splash/page.tsx:44](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L44); iOS `SplashView.swift:41` | Kept (faithful) — cosmetic; harmonize only if a unified motion spec is ever defined. |
+| **F4** | **Type-speed divergence (cosmetic).** Web types at 42 ms/char (`sleep(42)`); iOS at 55 ms/char. Same copy, same sequence shape. | splash/page.tsx:44; iOS `SplashView.swift:41` | Kept (faithful) — cosmetic; harmonize only if a unified motion spec is ever defined. |
 
 ## 11. Changelog
 

@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** `AppRootView`'s unauthenticated branch — `NavigationStack { SplashView() }` when
 > `programContext.authToken == nil` (`apps/ios/.../App/AppRootView.swift:16-20`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Onboarding/SplashView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Onboarding/SplashView.swift`.
 > **Web parity reference:** [`web splash`](../../web/splash/SPEC.md) — same copy + typewriter intent.
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) only — implicitly, via the root's
 > `programContext.authToken` bifurcation. **No API call.**
@@ -93,7 +93,7 @@ program is selected).
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../ios-mobile/.../Features/Onboarding/SplashView.swift`; web parity = [`web splash`](../../web/splash/SPEC.md). `consumed_by = [ios]`** (this is the iOS screen spec). | legacy `SplashView.swift:1-133`; web splash SPEC. |
+| **D-REF** | **Reference impl = legacy `ios-mobile/.../Features/Onboarding/SplashView.swift`; web parity = [`web splash`](../../web/splash/SPEC.md). `consumed_by = [ios]`** (this is the iOS screen spec). | legacy `SplashView.swift:1-133`; web splash SPEC. |
 | **D-S1** | **Stance = faithful 1:1 port of the legacy iOS `SplashView`** — `SplashViewModel` typewriter (55 ms/char, the 400/300 ms beats), the headline-dims-on-complete, the capsule CTA + transition, the `AppGradient` background. Oddities → §10, not changed. | legacy `SplashView.swift`; user answer (match web; faithful iOS layout). |
 | **D-C1** | **ONE web-parity deviation — replace the placeholder icon with the real brand mark.** The legacy `iconPlaceholder` (orange `Circle` + `chart.bar.fill`, a11y-labeled "Brand icon placeholder") is replaced by **`BrandMark(size: 120)`** rendering the new `BrandIcon` asset (the same `app-icon` the web `BrandMark` uses). Closes the web-flagged iOS placeholder bug (web splash F3). | web splash F3 (placeholder = defect to fix on iOS port); user answer ("real brand icon"); [[ios-matches-web-not-just-legacy]]. |
 | **D-SKIP** | **ONE deliberate addition (not in legacy) — tap fast-forwards the intro.** An `isSkipped` flag + `skip()` on `SplashViewModel` snap both sentences to full and reveal the CTA on any tap of the `ZStack` (`.contentShape(Rectangle())` + `.onTapGesture`), so an impatient user reaches Sign-in without waiting out the ~6.6 s typewriter. `type()` checks `isSkipped` around each `Task.sleep` so no stray character lands; guarded to no-op once `isCTAVisible`. Added identically on web (D-SKIP there) so the two surfaces stay 1:1. | `apps/ios/.../Features/Onboarding/SplashView.swift`; user request (2026-06-30). |

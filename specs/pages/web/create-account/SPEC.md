@@ -2,7 +2,7 @@
 
 > **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/create-account` (reached from the login page's "New here? Create an account" link).
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/create-account/page.tsx`
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/create-account/page.tsx`
 > (+ `components/{Select,SelectMobile}.tsx`, `components/BrandMark.tsx`).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `registerAccount()` (`POST /auth/register`)
 > then `login()` (`POST /auth/login/global`), the foundation `useAuth` context
@@ -43,22 +43,22 @@ register-then-auto-login is faithful to legacy.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Brand logo | `BrandMark` (size 128), centered, with the fade-in `motion.div`. | [create-account/page.tsx:114](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L114) |
-| Heading + subheading | "Create Account" / "Start tracking your fitness journey". | [create-account/page.tsx:116-120](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L116) |
-| First / Last name inputs | Two text inputs (`given-name` / `family-name`); **First Name `autoFocus`** (D-C5). | [create-account/page.tsx:127-147](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L127) |
-| Username input | Text input, `autoComplete="username"`. | [create-account/page.tsx:149-158](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L149) |
-| Email input + inline hint | `type="email"` input; **a muted "Enter a valid email address." hint** when typed-but-invalid (D-C1, new). | [create-account/page.tsx:160-169](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L160) |
-| Gender select (optional) | `Select` (responsive desktop/mobile dropdown), placeholder "Gender (optional)"; sent only when non-empty. | [create-account/page.tsx:171-177](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L171) |
-| Password input + toggle | Password input with a Show/Hide button, `autoComplete="new-password"`. | [create-account/page.tsx:179-195](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L179) |
-| Confirm-password input + toggle | Second password input with its own Show/Hide. | [create-account/page.tsx:197-213](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L197) |
-| **Live password checklist** | **REPLACES the legacy static hint line (D-C3)** — a ✓/○ list (≥8 chars · uppercase · lowercase · number) that appears once the user starts typing and turns green per satisfied rule. | legacy static line: [create-account/page.tsx:215-218](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L215); `apps/web` `PolicyItem` |
-| Confirm-mismatch hint (conditional) | **Muted "Passwords don't match." (D-C4)** — was legacy's red text; aligned to reset-password's styling. | legacy red: [create-account/page.tsx:219-221](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L219) |
-| Error banner (conditional) | Red box with the caught error message (default "Unable to create account. Try again."). | [create-account/page.tsx:224-228](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L224) |
-| Submit button | "Create Account" / "Creating account..." (when `isLoading`); disabled while `!canSubmit \|\| isLoading`. | [create-account/page.tsx:230-236](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L230) |
-| Sign-in link | "Already have an account? **Sign in**" → `/login`. | [create-account/page.tsx:239-247](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L239) |
-| Footer | "By creating an account, you accept our **Privacy Policy**" → `PRIVACY_POLICY_URL`. | [create-account/page.tsx:249-257](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L249) |
+| Brand logo | `BrandMark` (size 128), centered, with the fade-in `motion.div`. | create-account/page.tsx:114 |
+| Heading + subheading | "Create Account" / "Start tracking your fitness journey". | create-account/page.tsx:116-120 |
+| First / Last name inputs | Two text inputs (`given-name` / `family-name`); **First Name `autoFocus`** (D-C5). | create-account/page.tsx:127-147 |
+| Username input | Text input, `autoComplete="username"`. | create-account/page.tsx:149-158 |
+| Email input + inline hint | `type="email"` input; **a muted "Enter a valid email address." hint** when typed-but-invalid (D-C1, new). | create-account/page.tsx:160-169 |
+| Gender select (optional) | `Select` (responsive desktop/mobile dropdown), placeholder "Gender (optional)"; sent only when non-empty. | create-account/page.tsx:171-177 |
+| Password input + toggle | Password input with a Show/Hide button, `autoComplete="new-password"`. | create-account/page.tsx:179-195 |
+| Confirm-password input + toggle | Second password input with its own Show/Hide. | create-account/page.tsx:197-213 |
+| **Live password checklist** | **REPLACES the legacy static hint line (D-C3)** — a ✓/○ list (≥8 chars · uppercase · lowercase · number) that appears once the user starts typing and turns green per satisfied rule. | legacy static line: create-account/page.tsx:215-218; `apps/web` `PolicyItem` |
+| Confirm-mismatch hint (conditional) | **Muted "Passwords don't match." (D-C4)** — was legacy's red text; aligned to reset-password's styling. | legacy red: create-account/page.tsx:219-221 |
+| Error banner (conditional) | Red box with the caught error message (default "Unable to create account. Try again."). | create-account/page.tsx:224-228 |
+| Submit button | "Create Account" / "Creating account..." (when `isLoading`); disabled while `!canSubmit \|\| isLoading`. | create-account/page.tsx:230-236 |
+| Sign-in link | "Already have an account? **Sign in**" → `/login`. | create-account/page.tsx:239-247 |
+| Footer | "By creating an account, you accept our **Privacy Policy**" → `PRIVACY_POLICY_URL`. | create-account/page.tsx:249-257 |
 
-**Submit flow** ([create-account/page.tsx:57-102](../../../../../rasifiters-webapp/src/app/create-account/page.tsx#L57)):
+**Submit flow** (create-account/page.tsx:57-102):
 guard `canSubmit && !isLoading` → build payload `{ first_name, last_name, username, email, password,
 gender? }` → `registerAccount(payload)` → `login(username, password)` → `decodeJwtPayload` →
 `resolveGlobalRole` → build session → `setSession` → `router.push("/programs")`. Errors caught → red banner;
@@ -120,7 +120,7 @@ after a program is selected).
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../rasifiters-webapp/src/app/create-account/page.tsx` (+ `Select`/`SelectMobile`/`BrandMark`). `consumed_by = [web]`.** **Cross-app:** iOS `CreateAccountView.swift` registers the same field set then logs in; the inline-validation / authed-redirect / checklist cleanups are web-first and mirror at the iOS port (F-rows). | `create-account/page.tsx`; user answer (faithful + cleanups). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/create-account/page.tsx` (+ `Select`/`SelectMobile`/`BrandMark`). `consumed_by = [web]`.** **Cross-app:** iOS `CreateAccountView.swift` registers the same field set then logs in; the inline-validation / authed-redirect / checklist cleanups are web-first and mirror at the iOS port (F-rows). | `create-account/page.tsx`; user answer (faithful + cleanups). |
 | **D-S1** | **Stance = faithful port of the legacy page + the 5 deviations below.** The field set, the register-then-auto-login flow, the chrome (`BrandMark`/`motion`/`input-shell`/`rf-*`), the Show/Hide toggles, the gender `Select`, the sign-in + Privacy links, and `/programs` on success are ported verbatim. | `create-account/page.tsx:1-261`; user answers (run 19). |
 | **D-C1** | **Inline email-format validation (D-PLAN item 3).** Email becomes **format-validated** on the client — `canSubmit` now requires a regex-valid email (the same loose `EMAIL_RE` as forgot-password) and a muted "Enter a valid email address." hint shows when typed-but-invalid. Legacy validated only non-empty + HTML5 `type="email"`. The backend already requires + format-validates email (so this is forward-only; existing/placeholder accounts untouched). | D-PLAN item 3 (login SPEC); forgot-password SPEC D-C2 (same regex); auth `register` email-required; user answer ("inline regex, match forgot-password"). |
 | **D-C2** | **Already-authenticated → `/programs` redirect.** A `useEffect` redirects an authed visitor (`!isBootstrapping && session`) to `/programs`, matching login/forgot/reset. Legacy create-account had **no** such redirect (an authed user could open the sign-up form). | Sibling pages (login/forgot/reset redirects); user answer ("add redirect"). |

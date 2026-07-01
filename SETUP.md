@@ -13,7 +13,7 @@ the MCP servers are OAuth-based.
 ## 1. Clone
 
 ```bash
-git clone git@github.com:<TODO(provision):org>/rasifiters-master.git
+git clone git@github.com:vinaySankar2004/rasifiters-master.git
 cd rasifiters-master
 ```
 
@@ -26,7 +26,7 @@ Open Claude Code in this directory. It reads the committed `.mcp.json` and promp
 |--------|-----------|-------|
 | `vercel` | `https://mcp.vercel.com` | account/team — sees all Vercel projects (the `web` frontend) |
 | `render` | `https://mcp.render.com/mcp` | account/workspace — sees all Render services (the `backend` API) |
-| `supabase-rasifiters` | `https://mcp.supabase.com/mcp?read_only=true&project_ref=<TODO(provision):RASIFITERS_PROJECT_REF>` | **read-only**, the RaSi Fiters Supabase project (DB + Auth) |
+| `supabase-rasifiters` | `https://mcp.supabase.com/mcp?read_only=true&project_ref=kpadxjekpiwfkqcxtrio` | **read-only**, the RaSi Fiters Supabase project (DB + Auth) |
 
 OAuth is genuinely **once per machine**: Vercel, Render, and Supabase are the *same accounts* —
 the three MCP servers only differ by which project/service they scope to.
@@ -37,32 +37,24 @@ these):
 ```bash
 claude mcp add vercel               --transport http https://mcp.vercel.com
 claude mcp add render               --transport http https://mcp.render.com/mcp
-claude mcp add supabase-rasifiters  --transport http "https://mcp.supabase.com/mcp?read_only=true&project_ref=<TODO(provision):RASIFITERS_PROJECT_REF>"
+claude mcp add supabase-rasifiters  --transport http "https://mcp.supabase.com/mcp?read_only=true&project_ref=kpadxjekpiwfkqcxtrio"
 ```
 
-Verify: ask Claude to run `supabase-rasifiters` `list_tables` — once the project exists you should
-see the legacy plain-named tables (`members`, `programs`, `workout_logs`, …; no prefixes — R5).
+Verify: ask Claude to run `supabase-rasifiters` `list_tables` — you should see the plain-named
+tables (`members`, `programs`, `workout_logs`, …; no prefixes — R5).
 
-## 3. Filling the Supabase `project_ref` placeholder (one-time, after provisioning)
+## 3. The Supabase `project_ref` (already filled)
 
-The Supabase project is **not created yet** (`METHODOLOGY.md` R4). The committed `.mcp.json` ships
-with a placeholder `project_ref`. Once the "RaSi Fiters" Supabase project exists:
+The Supabase project is **provisioned + live**; the committed `.mcp.json` already carries the real
+`project_ref` **`kpadxjekpiwfkqcxtrio`** (canonical home: `CONTEXT.md` §Infrastructure). Nothing to
+fill — it's ready on clone. The ref is **not a secret** (it's in every Supabase URL), so it is committed
+in `.mcp.json`. The service-role key and DB password are secrets and live on the platforms, never in
+this repo (see `ENV_RUNBOOK.md`).
 
-1. Get the ref from the Supabase dashboard → project → **Settings → General → Reference ID** (the
-   `xxxxxxxxxxxxxxxxxxxx` slug, also visible in the project URL `https://<ref>.supabase.co`).
-2. Replace `<TODO(provision):RASIFITERS_PROJECT_REF>` in `.mcp.json` with that ref (keep
-   `read_only=true`).
-3. Re-approve / restart the `supabase-rasifiters` MCP server and re-run the `list_tables` verify.
+## 4. Per-app local dev (optional)
 
-The ref is **not a secret** (it's in every Supabase URL), so it is committed in `.mcp.json`. The
-service-role key and DB password are secrets and live on the platforms, never in this repo
-(see `ENV_RUNBOOK.md`).
-
-## 4. Per-app dev — DEFERRED (Vercel + Render dev later)
-
-> **Current direction:** dev + preview will be wired to **Vercel** (the `web` frontend) and
-> **Render** (the `backend` API, via Blueprint preview environments) when we get there. The commands
-> below are kept as an optional local reference only — skip them for now.
+> The apps are **provisioned + live** (Vercel `web`, Render `backend`, Supabase DB/Auth). Deploys run
+> through Vercel + Render git auto-deploy on `main`; the commands below are for local development only.
 
 Each app has its own env template. Copy and fill, then run:
 
@@ -78,12 +70,11 @@ open apps/ios/RaSi-Fiters-App.xcodeproj
 ```
 
 Real `DATABASE_URL` / Supabase keys / APNs creds come from the team (or the Vercel/Render/Supabase
-project env — see `ENV_RUNBOOK.md`). All three apps are reference-faithful rebuilds of the legacy
-apps: `question-asker` writes the SPEC (`specs/features/<feature>/SPEC.md` or
-`specs/pages/{web,ios}/<page>/SPEC.md`), then the code is **implemented directly as a faithful 1:1
-port** from the legacy reference app — there is no assemble/stitch step.
+project env — see `ENV_RUNBOOK.md`). All three apps were faithful 1:1 rebuilds of the original app,
+documented as SPECs (`specs/features/<feature>/SPEC.md`, `specs/pages/{web,ios}/<page>/SPEC.md`) then
+ported directly — there was no assemble/stitch step.
 
-> The legacy backend runs on **port 5001** and the legacy web on **3000** — kept for parity. The iOS
+> The backend runs on **port 5001** and web on **3000** — kept for parity with the original. The iOS
 > app targets the deployed backend via its configured API base URL; there is no local-only iOS path.
 
 ## 5. MCP secrets (future)
@@ -101,12 +92,6 @@ subdirectories), so:
   servers **and** any deny rules. ✅
 - rooted at `RaSi-Fiters/` → you'd get the parent's settings, none of the scoped servers. ❌
 
-The ICM operates entirely from this repo. The **legacy apps** (`../backend`, `../rasifiters-webapp`,
-`../ios-mobile`) are the **reference implementations** for the faithful 1:1 rebuild (`METHODOLOGY.md`
-R2) — they stay readable from a `rasifiters-master/`-rooted session via either:
-- **`.claude/settings.local.json`** → `permissions.additionalDirectories: ["<abs path to RaSi-Fiters>"]`
-  (machine-local, gitignored), or
-- the flag: `claude --add-dir /Users/<you>/Desktop/RaSi-Fiters`.
-
-Standalone clones (teammates) that don't have the legacy apps as siblings don't need this — the repo
-config stays clean either way.
+The ICM operates entirely from this repo — it is **standalone**. The original app it was rebuilt from is
+archived and no longer referenced, so no external directories need to be added to a session; the repo
+config stays clean.

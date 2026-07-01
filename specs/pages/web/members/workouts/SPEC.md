@@ -6,7 +6,7 @@
 > each row **editable** (duration modal) and **deletable**. **7th** of the eight deferred `/members` sub-routes
 > (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`); does **not** close the group (`health`
 > remains 8/8).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/workouts/page.tsx` (≈470 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/workouts/page.tsx` (≈470 lines).
 > **Consumes (features):** [`member-analytics`](../../../../features/member-analytics/SPEC.md)
 > (`GET /member-recent`) via the already-ported `lib/api/members.ts` `fetchMemberRecentWorkouts`;
 > [`program-workouts`](../../../../features/program-workouts/SPEC.md) (`GET /program-workouts`, lazy — only the filter

@@ -1,7 +1,7 @@
 # Feature: `analytics-v2` — the v2 analytics aggregates (participation + workout-type stats)
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/analytics.js` (the **`v2Router`** half only — the
+> **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v2Router`** half only — the
 > file is shared with [`analytics`](../analytics/SPEC.md) v1, §7/D-C1), `services/analyticsService.js` (the
 > **v2** functions; the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` already
 > landed with v1), `server.js` (`/api/analytics-v2` mount).
@@ -195,7 +195,7 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 |----|----------|----------|
 | **D-C1** | **Scope = the v2 half** — `v2Router` (5 routes after D-C2) + the 5 v2 functions, **appended** to the shared `routes/analytics.js` + `services/analyticsService.js` (reusing the date/bucket helpers + the two utils, both landed with v1). Change the route export to `{ v1Router, v2Router }`; mount `/api/analytics-v2`. `member-analytics` is separate. | `analytics.js:6-7,124-195` (v2Router); `analyticsService.js:473-692` (v2 fns) / `:5` (shared util imports); v1 SPEC D-C1; COVERAGE L24/L25. |
 | **D-C2** | **Drop the dead `GET /summary` (v2) route + `getSummaryV2`** — called by neither client (both use the v1 summary). The mirror of v1's D-C2; distinct (not a byte-dup) but superseded-and-unused. Removes the only UTC-bucketing site in the v2 half. | `analytics.js:126-138`, `analyticsService.js:473-561`; web sweep (`summary.ts:104-107` → v1) + iOS sweep (`AdminSummaryTab.swift:80` → v1). |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — the 5 live routes used 1:1 by both clients, no divergence (optional `memberId` varies per call site, but the route is identical; `highest-participation` is program-wide on both). | Web sweep (`summary/page.tsx` + `lifestyle/page.tsx` + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`AdminSummaryTab` + `StandardWorkoutTypesTab` + `ProgramContext+Analytics.swift`); Explore agents. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — the 5 live routes used 1:1 by both clients, no divergence (optional `memberId` varies per call site, but the route is identical; `highest-participation` is program-wide on both). | Web sweep (`summary/page.tsx` + `lifestyle/page.tsx` + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`AdminSummaryTab` + `StandardWorkoutTypesTab` + `ProgramContext+Analytics.swift`); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 verbatim except D-C2.** Every aggregation query, the MTD window scheme, all response shapes, and the error contract are ported exactly for the 5 live fns; remaining oddities flagged (§10). | Whole v2-half review; §7. |
 
 ## 10. Flagged characteristics kept as-is

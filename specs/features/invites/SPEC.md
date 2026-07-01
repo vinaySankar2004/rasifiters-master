@@ -1,7 +1,7 @@
 # Feature: `invites` — program invitations (send · inbox · accept/decline/revoke · block)
 
 > **Status:** 📄 documented · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/invites.js`, `services/inviteService.js`,
+> **Provenance (legacy, archived):** `backend` — `routes/invites.js`, `services/inviteService.js`,
 > `models/ProgramInvite.js`, `models/ProgramInviteBlock.js`, `server.js:50` (co-mounted at
 > `/api/program-memberships`).
 > **Depends on:** [`auth`](../auth/SPEC.md) (`authenticateToken` + the program-admin authz pattern) ·
@@ -195,7 +195,7 @@ admin-vs-self message wording, the global-admin accept-on-behalf + revoke powers
 | **D-C2** | **Wire the invite emits LIVE** — `program.invite_received` (send) + `program.member_joined` (accept) via the ported `createNotification` + `getActiveProgramMemberIds`. No stub (the keystone is already ported). | `inviteService.js:67-74, 210-222, 251-263`; `apps/backend/utils/notifications.js`; user decision. |
 | **D-C3a** | **Drop the vestigial `target_member_id` param** from `respondToInvite` — destructured but never read; sent by neither client. | `inviteService.js:142`; web + iOS consumption sweep; user decision. |
 | **D-C3b** | **Fix `getAllInvites`' N+1** — one batched `Member.findAll` + in-memory map instead of `Promise.all(findOne)` per invite. Identical response shape. | `inviteService.js:116-139`; workspace "no N+1" standard; user decision. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — all 4 routes are live on **both** clients with **identical** role gating and matching DTOs (web `lib/api/{invites,members}.ts`; iOS `APIClient+Invites.swift` + `PendingInviteDTO`). **No cross-app divergence.** (Web's program-card accept/decline uses the *program-memberships* `updateMembership`, not this feature — F3.) | Web + iOS consumption sweep (Explore agents). |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — all 4 routes are live on **both** clients with **identical** role gating and matching DTOs (web `lib/api/{invites,members}.ts`; iOS `APIClient+Invites.swift` + `PendingInviteDTO`). **No cross-app divergence.** (Web's program-card accept/decline uses the *program-memberships* `updateMembership`, not this feature — F3.) | Web + iOS consumption sweep (Explore agents). |
 | **D-S1** | **Stance = faithful except D-C3a/D-C3b (two cleanups) + D-C2 (live emits).** Privacy-safe no-ops, the accept state machine, admin-on-behalf powers, and the inline join write are all faithful; other oddities flagged (§10), not changed. | Whole-module review; §7. |
 
 ## 10. Flagged characteristics kept as-is

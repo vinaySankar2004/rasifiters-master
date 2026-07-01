@@ -23,9 +23,9 @@ on its own.
 ## Where to run
 From a session rooted at `rasifiters-master/`. Read-only across the whole repo's docs (any top-level
 `ICM.md`, `METHODOLOGY.md`, `CLAUDE.md`, `SETUP.md`, `ENV_RUNBOOK.md`, `COVERAGE.md`, `specs/features/**`,
-`apps/**`, `.claude/skills/**`) + the code paths the docs reference. The faithful-rebuild reference
-is the LEGACY app at `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/{rasifiters-webapp, ios-mobile,
-backend}` — reference_impl paths point at the rasifiters-master apps, not the legacy app.
+`apps/**`, `.claude/skills/**`) + the code paths the docs reference. The repo is **standalone** — the
+original app it was rebuilt from is archived and is NOT a reference; each SPEC's `Provenance` header records
+where it was ported from, as history. reference_impl paths (registry.json) resolve against `apps/<app>/`.
 
 ## Scope
 - **Default = whole repo** (all apps — web, backend, ios — all features, top-level + skill docs).
@@ -126,13 +126,15 @@ structural — overall healthy / needs attention"); and which items, if approved
   The real invariant is `registry.version` == the SPEC **§12 Changelog top entry** == the highest
   `feature/<f>@*` git tag. Ignore "max-semver-in-file" comparisons (they catch prose cross-refs to other
   features' versions) — Explore inventory agents tend to raise these as bogus alarms.
-- **reference_impl.paths are rasifiters-app paths** — they must resolve
-  in `apps/<web|backend|ios>/`, NOT in the legacy app. Exclude any retired feature
-  whose paths are legacy-only. Remember a feature's `consumed_by` may name a single client (web-only or
+- **reference_impl.paths (registry.json) are rasifiters-app paths** — they resolve in
+  `apps/<web|backend|ios>/` (the repo's own code). The original app is archived/detached and is NOT a
+  reference. SPEC `Provenance` headers name the archived original as history (past-tense prose, not a live
+  path) — don't flag those as broken references. A feature's `consumed_by` may name a single client (web- or
   ios-only), so don't flag a feature as broken just because it isn't wired into both clients.
-- **registry.json is safe to edit by script:** `json.dumps(d, indent=2, ensure_ascii=False)` round-trips it
-  byte-identical, so a Python patch of just the target field produces a clean minimal diff (string-level
-  Edit fails — paths repeat across versions).
+- **registry.json — prefer a surgical string Edit over a JSON round-trip.** `json.dumps(d, indent=2)` does
+  NOT round-trip byte-identical here: the file uses compact inline arrays (`["web", "ios"]`) that `indent=2`
+  expands to multi-line, producing a large spurious diff. For a single-field change, edit the unique target
+  string directly (e.g. `"app": "ios-mobile"` → `"ios"`); only script a patch when the target string repeats.
 - **The living skills' "Distilled from N runs" headers are a recurring drift class** — they lag their
   LESSONS_ARCHIVE run counts. Always recompute against `grep -cE "^#+ +Run [0-9]+"` (heading-anchored;
   unanchored grep catches prose) and check the count vs the max run index.

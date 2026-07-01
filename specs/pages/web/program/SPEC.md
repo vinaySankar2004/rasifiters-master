@@ -6,7 +6,7 @@
 > leave program · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins.
 > The actual editors (edit details, profile, password, appearance, privacy, roles) are **sub-routes, deferred**
 > (see §3). Only **Leave Program** and **Sign Out** are live actions on the landing itself.
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/program/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/program/page.tsx`.
 > **Consumes (features):** [`program-memberships`](../../../features/program-memberships/SPEC.md)
 > (`fetchMembershipDetails` → the role lists + active count; `leaveProgram` → the Leave action),
 > [`program-workouts`](../../../features/program-workouts/SPEC.md) (`fetchProgramWorkouts` → the workout-type
@@ -60,17 +60,17 @@ shared sign-out/account section + the leave-confirm dialog.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "Program" + active program name + a user-initials avatar pill. | [program/page.tsx:90-98](../../../../../rasifiters-webapp/src/app/program/page.tsx#L90) |
-| Error banner | `ErrorState` shown only on a failed leave mutation. | [program/page.tsx:100](../../../../../rasifiters-webapp/src/app/program/page.tsx#L100) |
-| **Admin variant** — Program Info | Select Program (→ `/programs`) · Edit Program Details (→ `/program/edit`, subtitle = status + date range). | [program/page.tsx:104-138](../../../../../rasifiters-webapp/src/app/program/page.tsx#L104) |
-| Admin — Members | View Members (→ `/members/list`, subtitle = active count) · Invite Member (`canInvite` → `/members/invite`). | [program/page.tsx:140-176](../../../../../rasifiters-webapp/src/app/program/page.tsx#L140) |
-| Admin — Role Management | `canManageRoles`-only; live **Admins** + **Loggers** lists (`RoleList`, from membership details) + Manage Roles (→ `/program/roles`). | [program/page.tsx:178-217](../../../../../rasifiters-webapp/src/app/program/page.tsx#L178) |
-| Admin — Workout Types | Count (`{visible} available, {custom} custom`) → `/lifestyle/workouts`. | [program/page.tsx:219-242](../../../../../rasifiters-webapp/src/app/program/page.tsx#L219) |
-| **Non-admin variant** — Program Info card | Read-only `GlassCard`: Name · Status (`StatusBadge`) · Duration · a **client-computed progress bar** (`computeProgramProgress`, %/elapsed/remaining) · Active Members. | [program/page.tsx:265-315](../../../../../rasifiters-webapp/src/app/program/page.tsx#L265) |
-| Non-admin — Switch Program | → `/programs`. | [program/page.tsx:317-330](../../../../../rasifiters-webapp/src/app/program/page.tsx#L317) |
-| Leave Program | `canLeaveProgram`-only (both variants) → opens the leave-confirm dialog. Extracted to one `LeaveProgramButton` (D-C2). | [program/page.tsx:244-259](../../../../../rasifiters-webapp/src/app/program/page.tsx#L244), 332-347 |
-| My Account | Profile (→ `/program/profile`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · Privacy Policy (→ `/program/privacy`) · **Sign Out** (live `signOut()`). | [program/page.tsx:455-540](../../../../../rasifiters-webapp/src/app/program/page.tsx#L455) |
-| Leave-confirm dialog | `ConfirmDialog` (danger) — runs `leaveMutation`; on success clears the active program, invalidates `["programs"]`, → `/programs`. | [program/page.tsx:354-362](../../../../../rasifiters-webapp/src/app/program/page.tsx#L354) |
+| Header | "Program" + active program name + a user-initials avatar pill. | program/page.tsx:90-98 |
+| Error banner | `ErrorState` shown only on a failed leave mutation. | program/page.tsx:100 |
+| **Admin variant** — Program Info | Select Program (→ `/programs`) · Edit Program Details (→ `/program/edit`, subtitle = status + date range). | program/page.tsx:104-138 |
+| Admin — Members | View Members (→ `/members/list`, subtitle = active count) · Invite Member (`canInvite` → `/members/invite`). | program/page.tsx:140-176 |
+| Admin — Role Management | `canManageRoles`-only; live **Admins** + **Loggers** lists (`RoleList`, from membership details) + Manage Roles (→ `/program/roles`). | program/page.tsx:178-217 |
+| Admin — Workout Types | Count (`{visible} available, {custom} custom`) → `/lifestyle/workouts`. | program/page.tsx:219-242 |
+| **Non-admin variant** — Program Info card | Read-only `GlassCard`: Name · Status (`StatusBadge`) · Duration · a **client-computed progress bar** (`computeProgramProgress`, %/elapsed/remaining) · Active Members. | program/page.tsx:265-315 |
+| Non-admin — Switch Program | → `/programs`. | program/page.tsx:317-330 |
+| Leave Program | `canLeaveProgram`-only (both variants) → opens the leave-confirm dialog. Extracted to one `LeaveProgramButton` (D-C2). | program/page.tsx:244-259, 332-347 |
+| My Account | Profile (→ `/program/profile`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · Privacy Policy (→ `/program/privacy`) · **Sign Out** (live `signOut()`). | program/page.tsx:455-540 |
+| Leave-confirm dialog | `ConfirmDialog` (danger) — runs `leaveMutation`; on success clears the active program, invalidates `["programs"]`, → `/programs`. | program/page.tsx:354-362 |
 
 **Data flow.** `membershipQuery` (`fetchMembershipDetails`) → active members (`is_active`) → the active count +
 the Admins/Loggers `RoleList`s. `workoutsQuery` (`fetchProgramWorkouts`) → visible + custom counts for the
@@ -107,7 +107,7 @@ All calls send the Supabase access JWT as `Authorization: Bearer` (via `apiReque
 Roles derive from `session.user.globalRole` (client JWT, F1) + the active program's `my_role`. The page computes
 `isGlobalAdmin`, `isProgramAdmin = my_role=="admin" || isGlobalAdmin`, `canInvite = canManageRoles =
 isProgramAdmin`, and `canLeaveProgram = !isGlobalAdmin`
-([program/page.tsx:37-41](../../../../../rasifiters-webapp/src/app/program/page.tsx#L37)).
+(program/page.tsx:37-41).
 
 | Role | Sees | Can do |
 |------|------|--------|
@@ -141,7 +141,7 @@ and is not gated by the lock.)
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../rasifiters-webapp/src/app/program/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS admin-home Program/Settings tab renders the same settings hub natively; parity audited at the iOS port. | `program/page.tsx`; user answer (faithful). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/program/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS admin-home Program/Settings tab renders the same settings hub natively; parity audited at the iOS port. | `program/page.tsx`; user answer (faithful). |
 | **D-SCOPE** | **This run owns the `/program` landing page only** (the admin menu + non-admin read-only card + the leave-confirm flow + the in-file `MyAccountSection`/`RoleList`/`SectionCard` helpers). **Deferred:** all 6 `/program/*` sub-routes (`edit`, `roles`, `profile`, `password`, `appearance`, `privacy`) — separate page-spec rows; links to them (and to `/members/{list,invite}`, `/lifestyle/workouts`) are forward-nav (F2). | inventory (`specs/pages/REGISTRY.md`); user answer ("Landing only, defer 6 sub-routes"). |
 | **D-S1** | **Stance = faithful 1:1 port** — both role variants + the leave mutation ported verbatim from legacy; verbatim except D-C1 / D-C2. **No feature bump** — consumes only already-mounted endpoints + already-ported deps. | `program/page.tsx:1-541`; user answer ("faithful + pinned cleanups"). |
 | **D-C1** | **Read the appearance label via `getStoredTheme()`** (from `lib/theme.ts`) instead of the raw `localStorage.getItem("rf:appearance")` + manual mapping in `MyAccountSection` (legacy `page.tsx:459-463`). Single-sources the storage key (`THEME_KEY`) + valid values; behavior-identical (still a post-mount `useEffect` to avoid hydration mismatch). | `program/page.tsx:459-463`; `lib/theme.ts:1-12`; user answer (pinned cleanup). |

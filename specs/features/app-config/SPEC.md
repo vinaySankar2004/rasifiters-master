@@ -1,7 +1,7 @@
 # Feature: `app-config` — the iOS version gate (+ a push index)
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `ios`
-> **Reference impl (legacy):** `../../../backend` — `server.js` (the inline `GET /api/app-config` route +
+> **Provenance (legacy, archived):** `backend` — `server.js` (the inline `GET /api/app-config` route +
 > the `MIN_IOS_VERSION` env). **No service / model / route file** — it is a single static inline route.
 > **Depends on:** nothing (no auth — the gate is public, hit before login).
 > **References (push, not owned here):** [`notifications`](../notifications/SPEC.md) (the APNs device routes
@@ -133,7 +133,7 @@ the `null`-when-unset semantics, and the always-`200` contract.
 | **D-C1** | **Scope = own app-config, reference push; keep the route inline.** Own `GET /api/app-config` + `MIN_IOS_VERSION` (inline in `server.js`, faithful). Push is documented in [`notifications`](../notifications/SPEC.md) + [`auth`](../auth/SPEC.md); §6 is a cross-reference index, not a re-doc (SSOT). | `server.js:47-62`; legacy `server.js:40-44`; notifications/auth SPECs; COVERAGE L26. User answers (own+reference; keep inline). |
 | **D-C2** | **Add `Cache-Control: public, max-age=300`** to the response — iOS polls on every launch/foreground/widget-open; legacy had no cache header. Body unchanged. | `server.js:48`; iOS triggers `AppRootView.swift:37,70,85`. User pinned. |
 | **D-C3** | **Trim + semver-validate `MIN_IOS_VERSION`** via `normalizeMinIosVersion` (`^\d+(\.\d+)*$`, else `null`); legacy returned the raw env. Behavior change only for a malformed env (→ `null`, no gate, instead of a broken client comparison). | `server.js:53-57`; legacy `server.js:42`; iOS comparator `ProgramContext+VersionCheck.swift:29-42`. User pinned. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [ios]`** (both app-config and push). Web consumes **neither** (web sweep: no `/api/app-config`, no device-token registration — it uses SSE for notifications). | iOS sweep (`ProgramContext+VersionCheck.swift`, `APIClient+Auth.swift`, `LoginView.swift`) + web sweep (zero matches); Explore agents. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [ios]`** (both app-config and push). Web consumes **neither** (web sweep: no `/api/app-config`, no device-token registration — it uses SSE for notifications). | iOS sweep (`ProgramContext+VersionCheck.swift`, `APIClient+Auth.swift`, `LoginView.swift`) + web sweep (zero matches); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 except D-C2/D-C3.** The route path, public access, response shape, `null`-when-unset, and always-`200` ported exactly; the two cleanups are additive/defensive. Oddities flagged (§10). | `server.js`; §8; user answer (change now = the 2 cleanups). |
 
 ## 10. Flagged characteristics kept as-is

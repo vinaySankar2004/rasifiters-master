@@ -4,7 +4,7 @@
 > **Location:** pushed from `AdminSummaryTab`'s activity-timeline card
 > (`AdminSummaryTab.swift:252-259`, `NavigationLink { ActivityTimelineDetailView(initialPeriod:) }`) **and**
 > from the Members tab's `MemberHistoryCard` (`MemberCards.swift:28-34`, `memberId` + `showActiveSeries:false`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
 > (`ActivityTimelineDetailView`, lines 878-1131).
 > **Web parity reference:** [`web summary/activity`](../../web/summary/activity/SPEC.md) — same daily-average
 > header + workouts-over-time bars; iOS is **richer** (native tap-callout, period selector, member scope).

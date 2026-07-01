@@ -5,7 +5,7 @@
 > (`AdminSummaryTab.swift:192-199`, `NavigationLink { AddWorkoutDetailView() }`). When the program is
 > `dataEntryLocked` the card is dimmed + the `NavigationLink` removed (run 54), so a locked non-admin
 > cannot reach this screen.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
 > (`AddWorkoutDetailView`, lines 1838-2127).
 > **Web parity reference:** [`web summary/log-workout`](../../web/summary/log-workout/SPEC.md) — same
 > member/self-lock + workout + date + duration form, same `canLogForAny` + `admin_only_data_entry` lock.

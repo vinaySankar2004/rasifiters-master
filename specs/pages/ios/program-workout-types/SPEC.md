@@ -5,7 +5,7 @@
 > card with one nav row (counts) → `ViewWorkoutTypesListView` (the workout-type CRUD manager).
 > **File:** `apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/WorkoutTypesSection.swift`
 > (section + `ViewWorkoutTypesListView` + `EditCustomWorkoutSheet`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/WorkoutTypesSection.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/WorkoutTypesSection.swift`.
 > **Web parity reference:** [`web lifestyle/workouts`](../../web/lifestyle/workouts/SPEC.md).
 > **Consumes (features):** [`program-workouts`](../../../features/program-workouts/SPEC.md) —
 > `fetchProgramWorkouts`, `toggle{,Custom}WorkoutVisibility`, `add/edit/deleteCustomProgramWorkout`.

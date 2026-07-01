@@ -2,8 +2,8 @@
 
 The shared API for RaSi Fiters. Both `web` and `ios` consume it. Node/Express + Sequelize.
 
-**Reference implementation:** `../../../backend` (the legacy Express API). Faithful 1:1 rebuild except
-the DB target (→ Supabase) and the auth layer (→ Supabase Auth, proxied + JWT-verified).
+**Provenance (legacy, archived):** ported 1:1 from the original Express API, except the DB target
+(→ Supabase) and the auth layer (→ Supabase Auth, proxied + JWT-verified). Legacy source archived, not tracked here.
 
 ## Stack
 - Node 18 · Express 4 · Sequelize 6 · `pg`

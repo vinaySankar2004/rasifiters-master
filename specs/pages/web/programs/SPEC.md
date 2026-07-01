@@ -4,7 +4,7 @@
 > **Route:** `/programs` — **the first protected route after login** (every auth page redirects here on
 > success). **Not** a bottom-nav tab; it's the program-selector hub you land on before entering a program's
 > tabbed workspace (`/summary` …).
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/programs/page.tsx`
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/programs/page.tsx`
 > (+ ported deps `components/ui/{PageShell,GlassCard,Modal,ConfirmDialog,StatusBadge}.tsx`,
 > `lib/api/{programs,invites}.ts`).
 > **Consumes (features):** [`programs`](../../../features/programs/SPEC.md) (`fetchPrograms`, `createProgram`,
@@ -50,23 +50,23 @@ chosen.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "My Programs" / "Manage your fitness programs" + two FAB buttons (Account, Program actions). The actions FAB shows a **pending-invites count badge**. | [programs/page.tsx:172-202](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L172) |
-| Programs list | Loading / error / empty (`No programs yet`) states, then a `ProgramCard` per program. | [programs/page.tsx:204-249](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L204) |
-| `ProgramCard` | Name + date range + `StatusBadge`; either invite/request status + Accept/Decline(Cancel) buttons, or `active/total members` + a progress bar; **Edit/Delete** when `canManage`. Whole card clickable → select (when `canOpen`). | [programs/page.tsx:498-616](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L498) |
-| Program Actions modal | A `Modal` with a segmented control: **Invites tab** (`All Invites` for global admin, else `My Invites`) + **Create tab**. Opens to invites if any pending, else create. | [programs/page.tsx:252-319](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L252) |
-| `InvitesTab` / `InviteCard` | Loading / error / empty; for global admin invites are **grouped by program** with the invitee name + a **Revoke** button; for members a flat list (Accept / Decline only). | [programs/page.tsx:642-797](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L642) |
-| `CreateProgramTab` | Name input + status `Select` (planned/active/completed) + start/end date inputs (defaults today / +3 months) → `Create Program`. | [programs/page.tsx:799-882](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L799) |
-| Account modal | 5 `AccountRow`s → `/program/profile`, `/program/password`, `/program/appearance`, `/program/privacy`, and **Sign Out** (opens confirm). | [programs/page.tsx:321-391](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L321) |
-| `EditProgramModal` | Name / status / start / end → `Save` (`updateProgram`). Admin-only entry (Edit on a manageable card). | [programs/page.tsx:393-409](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L393), [884-981](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L884) |
-| Delete-program confirm | `ConfirmDialog` "Delete Program?" → `deleteProgram` (soft-delete). | [programs/page.tsx:411-426](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L411) |
-| Sign-out confirm | `ConfirmDialog` "Sign Out" → `signOut()` → `/login`. | [programs/page.tsx:428-439](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L428) |
-| Decline-invite modal | "Decline Invitation" + a **Block future invites** checkbox → `respondToInvite(..., decline, block_future)`. | [programs/page.tsx:441-493](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L441) |
+| Header | "My Programs" / "Manage your fitness programs" + two FAB buttons (Account, Program actions). The actions FAB shows a **pending-invites count badge**. | programs/page.tsx:172-202 |
+| Programs list | Loading / error / empty (`No programs yet`) states, then a `ProgramCard` per program. | programs/page.tsx:204-249 |
+| `ProgramCard` | Name + date range + `StatusBadge`; either invite/request status + Accept/Decline(Cancel) buttons, or `active/total members` + a progress bar; **Edit/Delete** when `canManage`. Whole card clickable → select (when `canOpen`). | programs/page.tsx:498-616 |
+| Program Actions modal | A `Modal` with a segmented control: **Invites tab** (`All Invites` for global admin, else `My Invites`) + **Create tab**. Opens to invites if any pending, else create. | programs/page.tsx:252-319 |
+| `InvitesTab` / `InviteCard` | Loading / error / empty; for global admin invites are **grouped by program** with the invitee name + a **Revoke** button; for members a flat list (Accept / Decline only). | programs/page.tsx:642-797 |
+| `CreateProgramTab` | Name input + status `Select` (planned/active/completed) + start/end date inputs (defaults today / +3 months) → `Create Program`. | programs/page.tsx:799-882 |
+| Account modal | 5 `AccountRow`s → `/program/profile`, `/program/password`, `/program/appearance`, `/program/privacy`, and **Sign Out** (opens confirm). | programs/page.tsx:321-391 |
+| `EditProgramModal` | Name / status / start / end → `Save` (`updateProgram`). Admin-only entry (Edit on a manageable card). | programs/page.tsx:393-409, 884-981 |
+| Delete-program confirm | `ConfirmDialog` "Delete Program?" → `deleteProgram` (soft-delete). | programs/page.tsx:411-426 |
+| Sign-out confirm | `ConfirmDialog` "Sign Out" → `signOut()` → `/login`. | programs/page.tsx:428-439 |
+| Decline-invite modal | "Decline Invitation" + a **Block future invites** checkbox → `respondToInvite(..., decline, block_future)`. | programs/page.tsx:441-493 |
 
 **Data flow.** `programsQuery` (`fetchPrograms`) + `invitesQuery` (`fetchAllInvites` if global admin, else
 `fetchMyInvites`) load on mount (`enabled: !!token`). Mutations (`updateMembership`, `respondToInvite`,
 `createProgram`, `updateProgram`, `deleteProgram`) invalidate `["programs"]` and/or `["invites", isGlobalAdmin]`
 on success. Selecting a card calls `saveActiveProgram({...})` then `router.push("/summary")`
-([programs/page.tsx:153-165](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L153)).
+(programs/page.tsx:153-165).
 
 ## 5. Components + features consumed
 
@@ -96,7 +96,7 @@ JWKS-verifies + maps `sub` → member and runs all authorization.
 ## 7. Role-based view rules
 
 Roles derive from `session.user.globalRole` (client JWT, F1) + each program's `my_role` / `my_status`
-(from `GET /api/programs`). Per-card gates ([programs/page.tsx:224-227](../../../../../rasifiters-webapp/src/app/programs/page.tsx#L224)):
+(from `GET /api/programs`). Per-card gates (programs/page.tsx:224-227):
 `canOpen = isGlobalAdmin || my_status == null || my_status == "active"`;
 `canManage = isGlobalAdmin || (my_status == "active" && my_role == "admin")`.
 
@@ -130,7 +130,7 @@ non-admins (`isDataEntryLocked`). The hub shows/creates/edits programs regardles
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../rasifiters-webapp/src/app/programs/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS program-picker / admin-home renders the same hub concept natively; parity is audited at the iOS port. | `programs/page.tsx`; user answer (faithful). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/programs/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS program-picker / admin-home renders the same hub concept natively; parity is audited at the iOS port. | `programs/page.tsx`; user answer (faithful). |
 | **D-S1** | **Stance = faithful 1:1 port** of the legacy page (header + FABs, `ProgramCard`, the Actions/Account/Edit/Delete/SignOut/Decline modals, all queries + mutations + cache invalidation, `saveActiveProgram` → `/summary`) — verbatim except D-C3. | `programs/page.tsx:1-1022`; user answer (run 20). |
 | **D-C1** | **Edge middleware (`src/middleware.ts`) = decode + expiry only — RESOLVES the standing HS256→ES256 open question.** The faithful HS256 verify can't validate Supabase **ES256** tokens (would redirect-loop every real session). The middleware is a **UX redirect gate**, not the security boundary: the Express backend JWKS-verifies (ES256) **every** API call and owns all authorization (CLAUDE.md auth model — not RLS). So the edge only decodes the token + checks `exp` (malformed → clear + bounce; expired → pass through for client refresh). No per-nav JWKS fetch; `JWT_SECRET` dependency dropped. | `apps/web/src/middleware.ts`; backend `middleware/auth.js`; CLAUDE.md auth model; user answer ("decode + expiry only"). |
 | **D-C2** | **Dependency port = verbatim.** The page drags in 2 API modules (`lib/api/programs.ts`, `lib/api/invites.ts`) + 5 UI components (`ui/{PageShell,GlassCard,Modal,ConfirmDialog,StatusBadge}.tsx`) not in the foundation. Ported the **whole** api modules (shared infra later pages reuse) + **only the 5** UI components this page needs (not all 12 legacy `ui/` files — the rest belong to their own pages). Mirrors the foundation-port precedent; transitive dep `cn`/`format` already present. | our `apps/web` inventory; user answer ("port verbatim — whole api modules + needed UI"). |

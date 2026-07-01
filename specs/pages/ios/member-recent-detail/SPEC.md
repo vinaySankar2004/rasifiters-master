@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's recent-workouts card
 > (`MemberCards.swift:118`, `NavigationLink { MemberRecentDetail(memberId:memberName:) }`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/WorkoutSortFilterSheets.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/WorkoutSortFilterSheets.swift`
 > (`MemberRecentDetail` + sort/filter sheets, lines 1–655) + `WorkoutLogEditSheet` (legacy-quirkily in
 > `HealthSortFilterSheets.swift:850-990`, relocated here).
 > **Web parity reference:** [`web members/workouts`](../../web/members/workouts/SPEC.md) — same sorted/filterable list +

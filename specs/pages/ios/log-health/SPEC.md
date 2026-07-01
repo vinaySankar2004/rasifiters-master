@@ -5,7 +5,7 @@
 > (`AdminSummaryTab.swift:205-212`, `NavigationLink { AddDailyHealthDetailView() }`). When the program is
 > `dataEntryLocked` the card is dimmed + the `NavigationLink` removed (run 54), so a locked non-admin
 > cannot reach this screen.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Helpers/AdminHomeHelpers.swift`
 > (`AddDailyHealthDetailView`, lines 2129-2442).
 > **Web parity reference:** [`web summary/log-health`](../../web/summary/log-health/SPEC.md) — same
 > member/self-lock + date + sleep + diet form, at-least-one-metric gate, `canLogForAny` +

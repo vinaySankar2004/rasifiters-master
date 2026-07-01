@@ -1,6 +1,6 @@
 # iOS Screen SPEC — `AdminHomeView` (the post-pick home shell)
 
-> **Surface:** `ios` · **Reference impl (legacy):** `../ios-mobile/RaSi-Fiters-App/Features/Home/AdminHomeView.swift`
+> **Surface:** `ios` · **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/AdminHomeView.swift`
 > **Web sibling (co-equal reference):** the `(workspace)` group — `/summary` · `/members` · `/lifestyle` · `/program`
 > **Ported to:** `apps/ios/RaSi-Fiters-App/Features/Home/AdminHomeView.swift` · **Run:** 53 (2026-06-30)
 

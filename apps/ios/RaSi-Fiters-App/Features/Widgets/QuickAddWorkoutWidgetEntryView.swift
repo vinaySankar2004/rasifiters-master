@@ -10,7 +10,7 @@
 //  intersection + save loop + rollback + exit-to-My-Programs) + 3 deviations: D-C1 per-program
 //  admin_only_data_entry lock, D-C2 shared chrome (LogFieldLabel/LogFieldRow/AppInputField/
 //  AppPrimaryButton), D-C3 shared scaffold (WidgetQuickAddComponents). iOS-only (no web sibling).
-//  Reference: ../../../ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddWorkoutWidgetEntryView.swift
+//  Reference: ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddWorkoutWidgetEntryView.swift
 //
 
 import SwiftUI

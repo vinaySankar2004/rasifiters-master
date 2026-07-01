@@ -2,7 +2,7 @@
 
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `SplashView`'s "Sign in" CTA (`NavigationLink → LoginView()`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Auth/LoginView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Auth/LoginView.swift`.
 > **Web parity reference:** [`web login`](../../web/login/SPEC.md) — same identifier + password + the recovery link.
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `APIClient.loginGlobal()`
 > (`POST /auth/login/global`), `ProgramContext` session writes (`authToken`/`refreshToken`/`globalRole`/…),

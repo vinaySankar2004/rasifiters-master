@@ -5,7 +5,7 @@
 > `/program/*` settings sub-routes (reached from the [`program`](../SPEC.md) hub's "Role Management" row).
 > A list of the program's **active** members, each with Admin / Logger / Member toggle buttons → `PUT
 > /program-memberships` `{program_id, member_id, role}`.
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/program/roles/page.tsx`.
 > **Consumes (features):** [`program-memberships`](../../../../features/program-memberships/SPEC.md)
 > (`fetchMembershipDetails` → `GET /program-memberships/details`; `updateMembership` → `PUT
 > /program-memberships` — the backend service enforces the 403 program-admin gate, the **"Cannot remove the
@@ -25,7 +25,7 @@ avatar pill (initials), name, current-role label (+ a "• Global Admin" tag), a
 / Logger / Member**. Tapping a role that the member doesn't already hold fires a `PUT /program-memberships`
 that changes their program role. Used only by a **program admin** (or global admin) — a non-admin who reaches
 it is redirected back to `/program`
-([roles/page.tsx:26-30](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L26)), and the
+(roles/page.tsx:26-30), and the
 backend independently enforces a 403.
 
 ## 2. Why it exists
@@ -51,12 +51,12 @@ notification to the affected member.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Manage Roles" / "Assign admin, logger, or member roles." + Back → `/program`. | [roles/page.tsx:74-78](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L74) |
-| Error line | Inline `rf-danger` text on a failed mutation. | [roles/page.tsx:80](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L80) |
-| Loading / error | `LoadingState` while fetching; `ErrorState` on a fetch error. | [roles/page.tsx:82-84](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L82) |
-| Member card | Per **active** member: avatar pill (`initials`), name, role label (+ "• Global Admin"), an "Updating…" tag while that row mutates. | [roles/page.tsx:92-107](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L92) |
-| Role buttons | A 3-up grid of `RoleButton` (Admin / Logger / Member); the active one shows "✓ "; disabled for the last active admin. | [roles/page.tsx:109-131](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L109) |
-| Last-admin note | "You cannot remove the last active admin…" under the buttons when applicable. | [roles/page.tsx:133-137](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L133) |
+| Header | `PageHeader` "Manage Roles" / "Assign admin, logger, or member roles." + Back → `/program`. | roles/page.tsx:74-78 |
+| Error line | Inline `rf-danger` text on a failed mutation. | roles/page.tsx:80 |
+| Loading / error | `LoadingState` while fetching; `ErrorState` on a fetch error. | roles/page.tsx:82-84 |
+| Member card | Per **active** member: avatar pill (`initials`), name, role label (+ "• Global Admin"), an "Updating…" tag while that row mutates. | roles/page.tsx:92-107 |
+| Role buttons | A 3-up grid of `RoleButton` (Admin / Logger / Member); the active one shows "✓ "; disabled for the last active admin. | roles/page.tsx:109-131 |
+| Last-admin note | "You cannot remove the last active admin…" under the buttons when applicable. | roles/page.tsx:133-137 |
 
 ## 5. Components + consumed features
 
@@ -118,24 +118,24 @@ notification to the affected member.
 | **D-REF** | `consumed_by = [web]` for this page spec; the iOS Settings → Manage Roles screen mirrors the same list and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec). | legacy `program/roles/page.tsx`; iOS `Features/Settings/` |
 | **D-SCOPE** | **This page only.** Port `/program/roles` faithful 1:1; the other four `/program/*` sub-routes (profile/password/appearance/privacy) remain their own deferred rows. | per-page cadence; [`program` SPEC §3](../SPEC.md) |
 | **D-DEPS** | Port **`LoadingState` verbatim** into the rebuilt foundation (`components/ui/LoadingState.tsx`, shared chrome) rather than inlining — the remaining `/program/*` + other sub-routes reuse it. | legacy `components/ui/LoadingState.tsx` |
-| **D-S1** | **Faithful 1:1** otherwise — same active-only filter, same card markup, same 3-button role grid, same last-admin disable + note, same `PUT /program-memberships` `{program_id, member_id, role}` payload. | [roles/page.tsx](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx) |
-| **D-C1** | **Tokenize the role-button colors** — replace the inline-hex `ROLE_TONES` (`#f59e0b` / `#3b82f6` / `#6b7280`) with the `rf-*` tokens `rf-warning` (admin) / `rf-info` (logger) / `rf-text-muted` (member) so the buttons are theme-aware (the legacy hexes were a single fixed light-mode palette). Admin keeps dark ink on amber; logger/member keep white. Light-mode `--rf-warning` is literally `#f59e0b` → admin is pixel-identical in light mode. | [roles/page.tsx:149-153](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L149); `globals.css` `--rf-warning`/`--rf-info`/`--rf-text-muted` |
-| **D-C2** | **Optimistic role update** — on click, write the new role into the `["program","roles",programId]` cache immediately (so the ✓ moves at once), then reconcile on settle; roll the cache back on error before surfacing the message. Legacy waited for the invalidate+refetch. Backend stays authoritative. | [roles/page.tsx:46-70](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L46) (legacy invalidate-only) |
-| **D-C3** | **Disable all role buttons while any update is in flight** — gate every `RoleButton` on `updateMutation.isPending` (not just the `updatingId` row), preventing rapid cross-row clicks racing. Legacy only locked the same row via `updatingId`. | [roles/page.tsx:66](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L66) (legacy `updatingId` lock) |
+| **D-S1** | **Faithful 1:1** otherwise — same active-only filter, same card markup, same 3-button role grid, same last-admin disable + note, same `PUT /program-memberships` `{program_id, member_id, role}` payload. | roles/page.tsx |
+| **D-C1** | **Tokenize the role-button colors** — replace the inline-hex `ROLE_TONES` (`#f59e0b` / `#3b82f6` / `#6b7280`) with the `rf-*` tokens `rf-warning` (admin) / `rf-info` (logger) / `rf-text-muted` (member) so the buttons are theme-aware (the legacy hexes were a single fixed light-mode palette). Admin keeps dark ink on amber; logger/member keep white. Light-mode `--rf-warning` is literally `#f59e0b` → admin is pixel-identical in light mode. | roles/page.tsx:149-153; `globals.css` `--rf-warning`/`--rf-info`/`--rf-text-muted` |
+| **D-C2** | **Optimistic role update** — on click, write the new role into the `["program","roles",programId]` cache immediately (so the ✓ moves at once), then reconcile on settle; roll the cache back on error before surfacing the message. Legacy waited for the invalidate+refetch. Backend stays authoritative. | roles/page.tsx:46-70 (legacy invalidate-only) |
+| **D-C3** | **Disable all role buttons while any update is in flight** — gate every `RoleButton` on `updateMutation.isPending` (not just the `updatingId` row), preventing rapid cross-row clicks racing. Legacy only locked the same row via `updatingId`. | roles/page.tsx:66 (legacy `updatingId` lock) |
 
 ## 10. Flagged characteristics (kept as-is)
 
-- **F1 — client-side admin gate via JWT-decoded role + redirect** ([roles/page.tsx:20-30](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L20)).
+- **F1 — client-side admin gate via JWT-decoded role + redirect** (roles/page.tsx:20-30).
   The page derives admin-ness from the decoded JWT (`session.user.globalRole` + `program.my_role`) and
   redirects non-admins client-side; the authoritative guard is the backend 403 in `updateMembership`. Recurring
   across the rebuild. Kept (defense-in-depth is correct).
-- **F2 — client-side last-admin disable mirrors a backend 400** ([roles/page.tsx:89-90,133-137](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L89)).
+- **F2 — client-side last-admin disable mirrors a backend 400** (roles/page.tsx:89-90,133-137).
   `isLastActiveAdmin` disables the buttons in the UI; `updateMembership` independently enforces "Cannot remove
   the last admin" (400). Two copies of the same rule — kept as defense-in-depth; the backend is authoritative.
-- **F3 — only `role` is sent on a change** ([roles/page.tsx:46-52](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L46)).
+- **F3 — only `role` is sent on a change** (roles/page.tsx:46-52).
   The PUT payload carries `program_id`/`member_id`/`role` only — `status`/`is_active`/`joined_at` are left
   untouched (the service partial-updates `!== undefined` keys). Faithful.
-- **F4 — `member_name` is rendered raw / `roleLabel` defaults to "Member"** ([roles/page.tsx:98-101,189-198](../../../../../../rasifiters-webapp/src/app/program/roles/page.tsx#L98)).
+- **F4 — `member_name` is rendered raw / `roleLabel` defaults to "Member"** (roles/page.tsx:98-101,189-198).
   No null-guarding beyond `roleLabel`'s default branch; a missing `program_role` reads as "Member". Faithful.
 - **F5 — no client-side rate-limit beyond the in-flight lock.** After D-C3 every button is disabled while a
   mutation runs; there is still no debounce/throttle on the settle→next-click window. Recurring across the

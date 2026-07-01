@@ -12,8 +12,8 @@ Scope: the "RaSi Fiters" app, surfaces `backend` (Node/Express + Sequelize on **
 + auth on **Supabase** (`METHODOLOGY.md` R1/R4). **Infra is provisioned + LIVE (2026-06-28/29):** Supabase
 ref `kpadxjekpiwfkqcxtrio`, Render service `rasifiters-api` = `srv-d90tgmv7f7vs73cudptg`
 (`https://rasifiters-api.onrender.com`), Vercel project `rasifiters` (team `personal-vinayak`) on
-`https://rasifiters.com`. Any `TODO(provision)` token still shown below in a command template is just a
-fill-in placeholder — substitute the concrete value from this list.
+`https://rasifiters.com`. All concrete values are set on the platforms (live); secrets live there + the
+user's password manager, never in this file. Canonical infra IDs: `CONTEXT.md` §Infrastructure.
 
 > **Stack reminder (R2):** the backend is **Node/Express + Sequelize** — env is read via `dotenv`
 > from process env (`server.js` loads `.env` then `.env.local`), not a Python settings module. The
@@ -49,8 +49,8 @@ API-key helper there.)
 
 **Vercel (web frontend):**
 ```
-vercel env ls production --scope <TODO(provision):rasifiters-team>            # list names (values hidden for Sensitive)
-vercel env pull --environment=production .env.prod.local --scope <TODO(provision):rasifiters-team>   # pull non-sensitive into a temp file
+vercel env ls production --scope personal-vinayak            # list names (values hidden for Sensitive)
+vercel env pull --environment=production .env.prod.local --scope personal-vinayak   # pull non-sensitive into a temp file
 ```
 Always pass `--scope <team>` if the CLI default team is wrong. Dashboard:
 Vercel → the web project → Settings → Environment Variables.
@@ -91,19 +91,19 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 
 ## 3. Inventory — BACKEND (Render, Node/Express + Sequelize)
 
-> Legacy reference: `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/backend/.env.local`,
-> `server.js`, `config/database.js`, `middleware/auth.js`.
+> Provenance (legacy, archived): the original backend's `.env.local`, `server.js`,
+> `config/database.js`, `middleware/auth.js`.
 
 | Var | Purpose | Secret? | Notes / migration change |
 |---|---|---|---|
-| `DATABASE_URL` | Postgres DSN for the Sequelize pool | **secret** | **CHANGES (R4)** — was legacy `DB_URL` pointing at Render (`*.oregon-postgres.render.com`); becomes the **Supabase** project's pooled connection string. `TODO(provision)`. Sequelize uses SSL (`rejectUnauthorized:false`). |
-| `SUPABASE_URL` | Supabase project URL `https://<ref>.supabase.co` | no | **NEW (R1/R4)** — the backend's Auth proxy + JWT verification target. `TODO(provision)`. |
-| `SUPABASE_ANON_KEY` | anon key for the Auth proxy (sign-in/up/refresh on behalf of clients) | **secret-ish** | **NEW (R1)** — anon (publishable) key; never the service-role for client-acting flows. `TODO(provision)`. |
-| `SUPABASE_SERVICE_ROLE_KEY` | server-side admin Auth ops (create user on bcrypt import, link `auth_user_id`, admin lookups) | **secret** | **NEW (R1)** — full privilege; backend-only, never shipped to a client. `TODO(provision)`. |
-| `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | verify Supabase-issued JWTs on every request | **secret** | **NEW (R1)** — **replaces** the legacy `jwt.verify(token, JWT_SECRET)` in `middleware/auth.js`. Use the project's JWT secret (HS) or the JWKS endpoint (`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`) depending on the verification mode chosen. `TODO(provision)`. |
+| `DATABASE_URL` | Postgres DSN for the Sequelize pool | **secret** | **CHANGES (R4)** — was legacy `DB_URL` pointing at Render (`*.oregon-postgres.render.com`); becomes the **Supabase** project's pooled connection string. Set on the platform (live). Sequelize uses SSL (`rejectUnauthorized:false`). |
+| `SUPABASE_URL` | Supabase project URL `https://<ref>.supabase.co` | no | **NEW (R1/R4)** — the backend's Auth proxy + JWT verification target. Set on the platform (live). |
+| `SUPABASE_ANON_KEY` | anon key for the Auth proxy (sign-in/up/refresh on behalf of clients) | **secret-ish** | **NEW (R1)** — anon (publishable) key; never the service-role for client-acting flows. Set on the platform (live). |
+| `SUPABASE_SERVICE_ROLE_KEY` | server-side admin Auth ops (create user on bcrypt import, link `auth_user_id`, admin lookups) | **secret** | **NEW (R1)** — full privilege; backend-only, never shipped to a client. Set on the platform (live). |
+| `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | verify Supabase-issued JWTs on every request | **secret** | **NEW (R1)** — **replaces** the legacy `jwt.verify(token, JWT_SECRET)` in `middleware/auth.js`. Use the project's JWT secret (HS) or the JWKS endpoint (`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`) depending on the verification mode chosen. Set on the platform (live). |
 | `PORT` | HTTP listen port | no | legacy default `5001` (`server.js`). **Render injects `PORT` (default `10000`)** — never set it; `server.js` binds `process.env.PORT` on `0.0.0.0`. |
 | `MIN_IOS_VERSION` | min iOS app version, served at `GET /api/app-config` | no | legacy `1.2.0`; force-upgrade gate for the iOS client. Keep. |
-| `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | legacy hardcoded in `server.js` (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`). **Externalize to env at rebuild**; the iOS client is native (no CORS). `TODO(provision)` final list. |
+| `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | legacy hardcoded in `server.js` (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`). **Externalized to env**; the iOS client is native (no CORS). Set on Render (live). |
 | `APNS_KEY_ID` | APNs auth-key id | no | **provisioned `RA353TA52W`** (fresh token-based Auth Key for this rebuild; legacy was `F9C876PZ9K`). Push for iOS (the `apn` lib). |
 | `APNS_TEAM_ID` | Apple team id | no | `VSTTF2AM22` (unchanged — same Apple account). |
 | `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | `com.app.rasifiters` — must match the app's `aps-environment` entitlement / build target. |
@@ -113,25 +113,21 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | ~~`JWT_SECRET`~~ | (was: HS256 secret to sign+verify self-issued access tokens) | secret | **RETIRED at R1** — identity moves to Supabase Auth; verification uses `SUPABASE_JWT_SECRET`/JWKS. The legacy value `my_secret_key` is a dev placeholder, not a real secret. |
 | ~~`REFRESH_TOKEN_TTL_DAYS`~~ | (was: TTL for rows in the `refresh_tokens` table) | no | **RETIRED at R1** — Supabase Auth owns refresh tokens; the legacy `refresh_tokens` table + `/api/auth/refresh` self-issue path go away (the proxy forwards Supabase's refresh). Legacy value `90`. |
 
-> **Auth-cutover note (R1):** the backend remains the single front door. `routes/auth.js`
-> (`/login`, `/login/app`, `/refresh`, `/logout`, `/register`, `/change-password`,
-> `DELETE /account`) is rebuilt to **proxy Supabase Auth** instead of signing its own JWTs;
-> `middleware/auth.js`'s `authenticateToken` verifies the Supabase JWT and maps the Supabase user to
-> the member via **`members.auth_user_id`** (existing `members.id` UUIDs preserved). Existing bcrypt
-> hashes in `member_credentials` are **imported** into Supabase Auth (no forced reset). The role
-> gates (`isAdmin`, `requireProgramAdmin`, `requireProgramMember`, `canModifyLog`) read member
-> role/`global_role` from the DB after the token maps to a member — unchanged in behavior.
+> **Auth-cutover note (R1):** these Supabase vars exist because the backend proxies Supabase Auth and
+> verifies its JWTs (mapping `sub` → member via `members.auth_user_id`), replacing the retired
+> self-issued-JWT machinery (`JWT_SECRET`, `refresh_tokens`). The full model + rationale (bcrypt import,
+> preserved UUIDs, unchanged role gates) is the single source of truth in **`METHODOLOGY.md` R1**.
 
 ## 4. Inventory — WEB (Vercel, Next.js 14)
 
-> Legacy reference: `/Users/vinayaksankaranarayanan/Desktop/RaSi-Fiters/rasifiters-webapp/.env.local`,
-> `next.config.mjs`, `netlify.toml` (being retired — R4).
+> Provenance (legacy, archived): the original web app's `.env.local`, `next.config.mjs`,
+> `netlify.toml` (retired — R4).
 
 | Var | Purpose | Secret? | Notes / migration change |
 |---|---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | the Render backend base URL the web client calls | no | **NEW/explicit (R4)** — the web app talks to the shared backend; point at the deployed Render URL (`https://rasifiters-api.onrender.com`). The legacy app selected its API by `NEXT_PUBLIC_API_ENV`; the rebuild uses an explicit base URL. `TODO(provision)`. |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for client-side Auth (if the web uses the Supabase JS SDK directly) | no | **NEW (R1)** — only if the web signs in via the Supabase client; if all auth flows route through the backend proxy, this may be unneeded. Confirm at rebuild. `TODO(provision)`. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client anon key for Supabase Auth | **secret-ish** | **NEW (R1)** — anon key only, **never** the service-role key in a `NEXT_PUBLIC_*` var. `TODO(provision)`. |
+| `NEXT_PUBLIC_API_BASE_URL` | the Render backend base URL the web client calls | no | **NEW/explicit (R4)** — the web app talks to the shared backend; point at the deployed Render URL (`https://rasifiters-api.onrender.com`). The legacy app selected its API by `NEXT_PUBLIC_API_ENV`; the rebuild uses an explicit base URL. Set on the platform (live). |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for client-side Auth (if the web uses the Supabase JS SDK directly) | no | **NEW (R1)** — only if the web signs in via the Supabase client; if all auth flows route through the backend proxy, this may be unneeded. Confirm at rebuild. Set on the platform (live). |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client anon key for Supabase Auth | **secret-ish** | **NEW (R1)** — anon key only, **never** the service-role key in a `NEXT_PUBLIC_*` var. Set on the platform (live). |
 | ~~`NEXT_PUBLIC_API_ENV`~~ | (was: `dev`/`prod` switch selecting the API host) | no | **RETIRED at R4** — replaced by the explicit `NEXT_PUBLIC_API_BASE_URL`. Legacy value `prod`. |
 | ~~`JWT_SECRET`~~ | (was: present in the legacy web `.env.local`) | secret | **RETIRED at R1** — the web client holds no JWT signing secret; auth is Supabase via the backend proxy. Legacy value `mysecretkey` (dev placeholder). |
 

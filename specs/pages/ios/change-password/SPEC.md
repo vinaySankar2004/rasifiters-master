@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (run 57) → "Change Password"
 > `NavigationLink → ChangePasswordView()`.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Settings/ChangePasswordView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/ChangePasswordView.swift`.
 > **Web parity reference:** [`web program/password`](../../web/program/password/SPEC.md) — same new+confirm
 > form; the **5-rule live checklist** now mirrored.
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `APIClient.changePassword()`

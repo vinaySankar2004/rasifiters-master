@@ -4,7 +4,7 @@
 > **Location:** presented by `AppRootView` when a Home-Screen widget deep-links `WidgetRoute.quickAddWorkout`
 > (`AppRootView.swift:83-105`, `.sheet(item: widgetRoute) { QuickAddWorkoutWidgetEntryView() }`, gated on
 > `authToken != nil`). Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddWorkoutWidgetEntryView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddWorkoutWidgetEntryView.swift`.
 > **Web parity reference:** **NONE — iOS-only** (`consumed_by=[ios]`). Web has no "log the same workout across
 > multiple programs" surface (web's `bulk-log-workout` is multi-*row* / single-*program*). Faithful-to-legacy-only,
 > like the iOS `notifications` settings screen (run 58).

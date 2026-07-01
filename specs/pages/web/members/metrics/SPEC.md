@@ -5,7 +5,7 @@
 > metrics card (program-admin / global_admin only as an entry path). A searchable, sortable, filterable grid of
 > per-member metric cards + a client-side **Export CSV**. **4th** of the eight deferred `/members` sub-routes
 > (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`); does **not** close the group.
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/metrics/page.tsx` (430 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/metrics/page.tsx` (430 lines).
 > **Consumes (features):** [`member-analytics`](../../../../features/member-analytics/SPEC.md)
 > (`GET /member-metrics` — `authenticateToken` route + service-level `ensureProgramAccess`; already mounted) via the
 > already-ported `lib/api/members.ts` `fetchMemberMetrics`; [`auth`](../../../../features/auth/SPEC.md)

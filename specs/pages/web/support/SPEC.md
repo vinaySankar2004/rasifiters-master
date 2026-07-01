@@ -7,7 +7,7 @@
 > legal/contact pages — it CLOSES the entire web surface** (34th & final web page).
 > **It is the SMALLEST page in the rebuild** (38-line legacy file): no data, no state, no API, no auth guard, no
 > role logic — a contact card. It cross-links with `/privacy-policy` (each page's header links to the other).
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/support/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/support/page.tsx`.
 > **Consumes (features):** none beyond the foundation — `PageShell`/`PageHeader`/`GlassCard` + `next/link`. No
 > feature SPEC is involved; the contact text is hardcoded page content. **No `useAuthGuard`** (public page).
 > **Cross-app:** iOS surfaces support/contact natively (Settings → Support); parity audited at the iOS port.
@@ -45,8 +45,8 @@ never touches the backend, and renders identically for everyone.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Support" (no subtitle) + a **Privacy Policy** `next/link` action → `/privacy-policy`. | [support/page.tsx:11-21](../../../../../rasifiters-webapp/src/app/support/page.tsx#L11) |
-| Contact card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`): a "contact us at:" paragraph + the email `vinay.sankara@gmail.com` (`font-semibold text-rf-text`) + a "Please include:" line + a `list-disc` list (App version · iOS version · Device model · issue description). | [support/page.tsx:23-35](../../../../../rasifiters-webapp/src/app/support/page.tsx#L23) |
+| Header | `PageHeader` "Support" (no subtitle) + a **Privacy Policy** `next/link` action → `/privacy-policy`. | support/page.tsx:11-21 |
+| Contact card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`): a "contact us at:" paragraph + the email `vinay.sankara@gmail.com` (`font-semibold text-rf-text`) + a "Please include:" line + a `list-disc` list (App version · iOS version · Device model · issue description). | support/page.tsx:23-35 |
 
 ## 5. Components + consumed features
 
@@ -85,9 +85,9 @@ never touches the backend, and renders identically for everyone.
 | ID | Decision | Rests on |
 |----|----------|----------|
 | **D-REF** | `consumed_by = [web]` for this page spec; iOS surfaces support/contact natively (Settings → Support) and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec). | legacy `support/page.tsx`; iOS `Features/Settings/` |
-| **D-SCOPE** | **2nd of the two final public pages this run — and it CLOSES the web surface.** Ported alongside its cross-linked sibling [`privacy-policy`](../privacy-policy/SPEC.md); it is the **34th & final** web page — the **last** route in the legacy tree, so with it the **entire web surface is complete** (route-tree diff vs legacy shows zero remaining pages, modulo the net-new `forgot-password`/`reset-password`). User decision: "Both pages, one run (closes web)." | route-tree diff vs `../rasifiters-webapp/src/app/**`; [COVERAGE.md](../../../../COVERAGE.md) |
+| **D-SCOPE** | **2nd of the two final public pages this run — and it CLOSES the web surface.** Ported alongside its cross-linked sibling [`privacy-policy`](../privacy-policy/SPEC.md); it is the **34th & final** web page — the **last** route in the legacy tree, so with it the **entire web surface is complete** (route-tree diff vs legacy shows zero remaining pages, modulo the net-new `forgot-password`/`reset-password`). User decision: "Both pages, one run (closes web)." | route-tree diff vs `rasifiters-webapp/src/app/**`; [COVERAGE.md](../../../../COVERAGE.md) |
 | **D-DEPS** | **No new dependency** — `PageShell`/`PageHeader`/`GlassCard` and `next/link` are **all already ported**. The run-29/30 purest shape at its floor: the **smallest page in the rebuild** (38 legacy lines), no state, no storage, no `useAuthGuard` (public route). | `components/ui/`; legacy `support/page.tsx:1-6` |
-| **D-S1** | **Faithful 1:1, no deviations.** The contact prose (email, "Please include" list) is ported **verbatim** (already fully `rf-*` tokenized — **no tokenize cleanup**), as is `PageShell maxWidth="3xl"`, the header **Privacy Policy** `next/link` action, and the absence of any auth guard. No nav cleanup (static `<Link>`, no router), no form, no `useAuthGuard` analogue. | [support/page.tsx](../../../../../rasifiters-webapp/src/app/support/page.tsx) |
+| **D-S1** | **Faithful 1:1, no deviations.** The contact prose (email, "Please include" list) is ported **verbatim** (already fully `rf-*` tokenized — **no tokenize cleanup**), as is `PageShell maxWidth="3xl"`, the header **Privacy Policy** `next/link` action, and the absence of any auth guard. No nav cleanup (static `<Link>`, no router), no form, no `useAuthGuard` analogue. | support/page.tsx |
 
 ## 10. Flagged characteristics (kept as-is)
 

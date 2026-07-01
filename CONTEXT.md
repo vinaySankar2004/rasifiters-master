@@ -4,16 +4,15 @@ RaSi Fiters — a fitness-program tracker. Members join Programs; per-program ro
 member) gate what they can do. Members log workouts and daily health metrics; the app surfaces analytics,
 streaks, leaderboards, and sends push notifications. Two clients (`web`, `ios`) share one `backend` API.
 
-This is the **ICM rebuild** of the existing app — a faithful 1:1 recreation on a new stack. The reference
-implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}`. Per-app detail lives in
+This is the **ICM rebuild** of the original app — a faithful 1:1 recreation on a new stack, now complete
+and standalone (the original app it was ported from is archived, not tracked here). Per-app detail lives in
 `apps/{web,ios,backend}/CONTEXT.md`.
 
 ## Brand
 - Name: **RaSi Fiters**
-- Domain: **rasifiters.com** (currently served by the legacy stack; switched to the new Vercel project at
-  cutover).
-- Accent: carry from the legacy app during the page-by-page rebuild (web uses Tailwind `rf-*` CSS vars;
-  iOS uses `AppTheme`). _Record exact values in `apps/*/CONTEXT.md` as confirmed._
+- Domain: **rasifiters.com** (served by the new Vercel project since cutover 2026-06-29).
+- Accent: carried from the original app (web uses Tailwind `rf-*` CSS vars; iOS uses `AppTheme`).
+  Exact values recorded in `apps/*/CONTEXT.md`.
 - Support / legal: `rasifiters.com/support`, `rasifiters.com/privacy-policy` (public pages).
 
 ## Infrastructure (all provisioned + LIVE: Supabase + Render backend 2026-06-28; Vercel web on `rasifiters.com` 2026-06-29)
@@ -37,9 +36,9 @@ implementation is the legacy app at `../{rasifiters-webapp, ios-mobile, backend}
 - **Push** — Apple Push Notification service (APNs). **Provisioned 2026-06-30** — fresh token-based Auth
   Key (`.p8`, Key ID `RA353TA52W`, Team `VSTTF2AM22`); `APNS_*` in Render (`sync:false`). iOS push live.
 
-## Migration source
-- Legacy DB: Postgres on **Render** (`rasi_fiters_db`). The temporary `tools/migrator/` reads from it and
-  writes the new Supabase project once (then re-runnable sync until cutover). See `tools/migrator/README.md`.
+## Migration source (historical)
+- The original data lived in Postgres on **Render** (`rasi_fiters_db`) and was migrated once into the
+  Supabase project at cutover (2026-06-28). The one-time migrator has since been removed.
 
 ## Apps
 See `apps/{web,ios,backend}/CONTEXT.md` and the build order in `PROGRESS.md`. `web` and `ios` both consume

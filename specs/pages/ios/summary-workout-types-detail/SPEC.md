@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s workout-types card
 > (`AdminSummaryTab.swift:271-280`, `NavigationLink { WorkoutTypesDetailView(types:) }`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Detail/WorkoutTypesDetailViews.swift`
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/WorkoutTypesDetailViews.swift`
 > (`WorkoutTypesDetailView` + `WorkoutTypeRow`, lines 72-198).
 > **Web parity reference:** [`web summary/workout-types`](../../web/summary/workout-types/SPEC.md) — same ranked
 > workout-type breakdown; iOS is **richer** (horizontal %-share chart + per-type progress-bar rows).

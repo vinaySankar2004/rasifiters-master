@@ -11,7 +11,7 @@
 //  sanitized sleep + at-least-one-metric + save loop + rollback + exit-to-My-Programs) + 3
 //  deviations: D-C1 per-program admin_only_data_entry lock, D-C2 shared chrome, D-C3 shared scaffold
 //  (WidgetQuickAddComponents). The write twin of QuickAddWorkoutWidgetEntryView. iOS-only (no web).
-//  Reference: ../../../ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddHealthWidgetEntryView.swift
+//  Reference: ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddHealthWidgetEntryView.swift
 //
 
 import SwiftUI

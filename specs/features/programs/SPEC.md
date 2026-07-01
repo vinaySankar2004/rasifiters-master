@@ -1,7 +1,7 @@
 # Feature: `programs` — program lifecycle (create / list / update / soft-delete)
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/programs.js`, `services/programService.js`,
+> **Provenance (legacy, archived):** `backend` — `routes/programs.js`, `services/programService.js`,
 > `models/Program.js`, `models/ProgramMembership.js`, `server.js` (`/api/programs` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`; authz via
 > `ProgramMembership` lookup) · `program-memberships` (the `ProgramMembership` join the creator-row + authz
@@ -175,7 +175,7 @@ contract.
 | **D-C1** | **Scope = the four `/api/programs` routes + `programService`.** The `program.updated`/`program.deleted` notification emit is a **referenced dependency** (owned by `notifications`, which drags in SSE + APNs) → deferred to a guarded TODO no-op; CRUD ports fully functional. Wired when `notifications` lands. Faithful to the auth `/account` + members `DELETE` deferrals. | `programService.js:153-164, 191-201`; `utils/notifications.js`; auth/members SPEC D-C1. |
 | **D-C2** | **`createProgram` drops the vestigial `description` field** (stop destructuring/persisting/returning it) — the single deliberate cleanup. No client sends it; update can't change it; list never returns it. The `programs.description` column is kept in schema (R5). | `programService.js:70, 85, 106`; web `programs/page.tsx:104`; iOS `APIClient+Programs.swift:51-68`; user decision. |
 | **D-S2** | **`getPrograms` keeps both raw `sequelize.query` branches verbatim** (global-admin-all vs member-INNER-JOIN), incl. the `progress_percent` CASE + active-member counts — no ORM rewrite (divergence risk on a load-bearing read). | `programService.js:6-68`; user decision. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [web, ios]`** — both clients call all four routes. **Cross-app divergence:** `admin_only_data_entry` is **web-only** (web edit-page toggle reads + writes it; iOS `ProgramDTO` never decodes/sets it). The backend faithfully serves/accepts it for both clients regardless — kept as-is (§10 F1). | Web + iOS consumption sweep (Explore agents); `program/edit/page.tsx:136-151`; `APIClient+Programs.swift:5-17`. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — both clients call all four routes. **Cross-app divergence:** `admin_only_data_entry` is **web-only** (web edit-page toggle reads + writes it; iOS `ProgramDTO` never decodes/sets it). The backend faithfully serves/accepts it for both clients regardless — kept as-is (§10 F1). | Web + iOS consumption sweep (Explore agents); `program/edit/page.tsx:136-151`; `APIClient+Programs.swift:5-17`. |
 | **D-S1** | **Stance = faithful 1:1 except the `description` drop (D-C2).** Routes, authz gates, raw SQL, transaction, response shapes, error contract preserved; remaining oddities kept + flagged (§10), not fixed. | Whole-module review; §7. |
 
 ## 10. Flagged characteristics kept as-is

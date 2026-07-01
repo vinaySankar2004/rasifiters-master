@@ -5,7 +5,7 @@
 > `/members` landing's "Streak Stats" card. Two metric pills (Current / Longest, in days) over a row of milestone
 > badges. **6th** of the eight deferred `/members` sub-routes
 > (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`); does **not** close the group.
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/members/streaks/page.tsx` (84 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/streaks/page.tsx` (84 lines).
 > **Consumes (features):** [`member-analytics`](../../../../features/member-analytics/SPEC.md)
 > (`GET /member-streaks` — `authenticateToken` route + service-level `ensureProgramAccess` + target-enrolled check;
 > already mounted) via the already-ported `lib/api/members.ts` `fetchMemberStreaks`;

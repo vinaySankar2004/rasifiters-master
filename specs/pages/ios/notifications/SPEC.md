@@ -3,7 +3,7 @@
 > **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (run 57) → "Notifications"
 > `NavigationLink → NotificationsSettingsView()`.
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Settings/NotificationsSettingsView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/NotificationsSettingsView.swift`.
 > **Web parity reference:** **none — this screen is iOS-only** (web has no push/notification-settings page;
 > push is `[ios]`-only, see [`web privacy-policy`](../../web/privacy-policy/SPEC.md) text + the notifications feature).
 > **Consumes (features):** the OS push subsystem (`UserNotifications`); the [`notifications`](../../../features/notifications/SPEC.md)

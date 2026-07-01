@@ -5,7 +5,7 @@
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **4th** of the six deferred
 > `/summary` sub-routes and the **1st of the 3 log fallbacks** (siblings `log-health` + `bulk-log-workout`
 > still deferred — this does **not** close the group).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/summary/log-workout/page.tsx` (66 lines).
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/log-workout/page.tsx` (66 lines).
 > **Consumes (features):** [`workout-logs`](../../../../features/workout-logs/SPEC.md) (`POST /workout-logs` —
 > `authenticateToken` + `requireDataEntryAllowed`; already mounted `routes/logs.js:38`) via the already-ported
 > `lib/api/logs.ts` `addWorkoutLog`; [`program-memberships`](../../../../features/program-memberships/SPEC.md)

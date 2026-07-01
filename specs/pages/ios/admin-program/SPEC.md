@@ -6,7 +6,7 @@
 > `AdminProgramTab` (program/global admin — sectioned management menu) vs `StandardProgramTab` (logger/member —
 > read-only program-info card + switch/leave). **This is the LAST of the 4 home-shell tab bodies — it CLOSES
 > the `AdminHomeView` shell (Summary ✓ run 54 · Members ✓ run 55 · Lifestyle ✓ run 56 · Program ✓ this run).**
-> **Reference impl (legacy iOS):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/AdminProgramTab.swift`
+> **Reference impl (legacy iOS):** `ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/AdminProgramTab.swift`
 > + `.../StandardProgramTab.swift` + `.../ProgramInfoSection.swift` + `.../MyAccountSection.swift`; helpers in
 > `.../Helpers/AdminHomeHelpers.swift`.
 > **Web sibling (co-equal reference):** [`specs/pages/web/program/SPEC.md`](../../web/program/SPEC.md) — the

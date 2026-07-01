@@ -9,7 +9,7 @@
 > preference and is therefore available to **every** role (no admin redirect). It is the **purest sub-route yet:
 > a pure client-side preference page with no backend, no API call, and no new dependency** — and the **write side**
 > of the contract the [`program`](../SPEC.md) hub's appearance-label only *reads* (run-24 F5).
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/program/appearance/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/program/appearance/page.tsx`.
 > **Consumes (features):** none beyond the foundation — `lib/theme.ts` (the `rf:appearance` localStorage contract:
 > `getStoredTheme`/`setStoredTheme`/`applyTheme`) + `useAuthGuard`. No feature SPEC owns the theme contract; it is
 > page-independent foundation infra ported with the scaffold.
@@ -50,9 +50,9 @@ profile field for theme** — so it never touches the backend or another member.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Appearance" + subtitle + Back → `/program` or `/programs`. | [appearance/page.tsx:59-64](../../../../../../rasifiters-webapp/src/app/program/appearance/page.tsx#L59) |
-| Options card | `GlassCard padding="lg"` wrapping the `OPTIONS.map` of three theme buttons. | [appearance/page.tsx:66-88](../../../../../../rasifiters-webapp/src/app/program/appearance/page.tsx#L66) |
-| Option button | Per-theme button: `metric-pill` icon chip (`IconMonitor`/`IconSun`/`IconMoon`) + title + description; active state gets `border-rf-accent bg-rf-accent/10` + a ✓; inactive gets `border-rf-border bg-rf-surface-muted text-rf-text-muted`. | [appearance/page.tsx:67-87](../../../../../../rasifiters-webapp/src/app/program/appearance/page.tsx#L67) |
+| Header | `PageHeader` "Appearance" + subtitle + Back → `/program` or `/programs`. | appearance/page.tsx:59-64 |
+| Options card | `GlassCard padding="lg"` wrapping the `OPTIONS.map` of three theme buttons. | appearance/page.tsx:66-88 |
+| Option button | Per-theme button: `metric-pill` icon chip (`IconMonitor`/`IconSun`/`IconMoon`) + title + description; active state gets `border-rf-accent bg-rf-accent/10` + a ✓; inactive gets `border-rf-border bg-rf-surface-muted text-rf-text-muted`. | appearance/page.tsx:67-87 |
 
 ## 5. Components + consumed features
 
@@ -108,8 +108,8 @@ profile field for theme** — so it never touches the backend or another member.
 | **D-REF** | `consumed_by = [web]` for this page spec; the iOS Settings → Appearance screen offers the same System/Light/Dark choice (via `@AppStorage`, not `localStorage`) and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec). | legacy `program/appearance/page.tsx`; iOS `Features/Settings/` |
 | **D-SCOPE** | **This page only.** Port `/program/appearance` faithful 1:1; the remaining `/program/*` sub-route (privacy — the 6th & last) remains its own deferred row. | per-page cadence; [`program` SPEC §3](../SPEC.md) |
 | **D-DEPS** | **No new dependency** — `PageShell`/`PageHeader`/`GlassCard`, the three icons, `lib/theme.ts`, and `useAuthGuard` are **all already ported** (the run-27 purest shape, here at its purest: nothing dragged in, not even a chrome leaf). | [lib/theme.ts](../../../../../../apps/web/src/lib/theme.ts); `components/ui/`; `components/icons/index.tsx` |
-| **D-S1** | **Faithful 1:1** otherwise — same three-option `OPTIONS` array, the `metric-pill` icon chips, the active/inactive button styling (already fully `rf-*` tokenized in legacy — **no tokenize cleanup needed**, unlike runs 26–28), the mount-hydrate `useEffect`, and `backHref = program?.id ? "/program" : "/programs"`. | [appearance/page.tsx](../../../../../../rasifiters-webapp/src/app/program/appearance/page.tsx) |
-| **D-C1** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + `useActiveProgram` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches siblings [`profile`](../profile/SPEC.md)/[`password`](../password/SPEC.md) exactly; the hook subsumes the redirect AND returns `program` for the back-href, deleting the `useRouter`/`useAuth`/`useActiveProgram` imports. Legacy predated the foundation hook. | [appearance/page.tsx:34-45](../../../../../../rasifiters-webapp/src/app/program/appearance/page.tsx#L34); [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
+| **D-S1** | **Faithful 1:1** otherwise — same three-option `OPTIONS` array, the `metric-pill` icon chips, the active/inactive button styling (already fully `rf-*` tokenized in legacy — **no tokenize cleanup needed**, unlike runs 26–28), the mount-hydrate `useEffect`, and `backHref = program?.id ? "/program" : "/programs"`. | appearance/page.tsx |
+| **D-C1** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + `useActiveProgram` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches siblings [`profile`](../profile/SPEC.md)/[`password`](../password/SPEC.md) exactly; the hook subsumes the redirect AND returns `program` for the back-href, deleting the `useRouter`/`useAuth`/`useActiveProgram` imports. Legacy predated the foundation hook. | appearance/page.tsx:34-45; [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
 
 ## 10. Flagged characteristics (kept as-is)
 

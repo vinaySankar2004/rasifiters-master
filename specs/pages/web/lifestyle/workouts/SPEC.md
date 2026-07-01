@@ -6,7 +6,7 @@
 > "Manage workouts" / "View workouts" pill). A searchable list of the program's workout types — **global**
 > (library) + **custom** — split into Available / Hidden, with Add / Edit / Hide-Show / Delete for admins and a
 > **read-only** Available list for everyone else.
-> **Reference impl (legacy):** `../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx`.
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/lifestyle/workouts/page.tsx`.
 > **Consumes (features):** [`program-workouts`](../../../../features/program-workouts/SPEC.md) (all 6 routes:
 > `GET /program-workouts`, `PUT /toggle-visibility`, `PUT /:id/toggle-visibility`, `POST /custom`, `PUT /:id`,
 > `DELETE /:id` — the backend `requireProgramAdmin` route guard enforces the admin 403 on every write; `GET` is
@@ -27,7 +27,7 @@ custom type, **edit** a custom type's name, **hide/show** any type (global or cu
 type. Everyone else (logger / member) sees a **read-only** Available list — no controls, no Hidden section. It
 is the write surface behind the lifestyle landing's workout pill, and the source of the workout-type vocabulary
 the log forms (`/summary`) draw from
-([workouts/page.tsx:21-27](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L21)).
+(workouts/page.tsx:21-27).
 
 ## 2. Why it exists
 
@@ -53,16 +53,16 @@ never edited or deleted from here.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Workout Types" / program-name subtitle + Back → `/lifestyle`; admin-only "+ Add workout" action button. | [workouts/page.tsx:116-134](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L116) |
-| Search | A single `input-shell` text box filtering by `workout_name` (client-side, case-insensitive substring). | [workouts/page.tsx:136-143](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L136) |
-| Error line | Inline `rf-danger` text on a failed mutation. | [workouts/page.tsx:145](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L145) |
-| Loading | `LoadingState` ("Loading workout types...") while fetching. | [workouts/page.tsx:147](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L147) |
-| Available section | `WorkoutSection` "Available (n)" — the `!is_hidden` cards; shown to **all** roles. | [workouts/page.tsx:151-166](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L151) |
-| Hidden section | `WorkoutSection` "Hidden (n)" — the `is_hidden` cards; **admins only**, and only when `hiddenWorkouts.length > 0`. | [workouts/page.tsx:168-185](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L168) |
-| Workout card | Per type: name + "Custom"/"Standard" (+ " · Hidden") label; admin controls — Edit (custom & not-hidden), Hide/Show (all), Delete (custom). | [workouts/page.tsx:283-332](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L283) |
-| Add modal | `Modal` with a name input → `addCustomProgramWorkout`. | [workouts/page.tsx:189-221](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L189) |
-| Edit modal | `Modal` (open when `editTarget`) with a pre-filled name input → `editCustomProgramWorkout`. | [workouts/page.tsx:223-256](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L223) |
-| Delete confirm | Legacy `window.confirm(`Delete ${name}?`)` → **D-C1: `ConfirmDialog`**. | [workouts/page.tsx:161-165,179-183](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L161) |
+| Header | `PageHeader` "Workout Types" / program-name subtitle + Back → `/lifestyle`; admin-only "+ Add workout" action button. | workouts/page.tsx:116-134 |
+| Search | A single `input-shell` text box filtering by `workout_name` (client-side, case-insensitive substring). | workouts/page.tsx:136-143 |
+| Error line | Inline `rf-danger` text on a failed mutation. | workouts/page.tsx:145 |
+| Loading | `LoadingState` ("Loading workout types...") while fetching. | workouts/page.tsx:147 |
+| Available section | `WorkoutSection` "Available (n)" — the `!is_hidden` cards; shown to **all** roles. | workouts/page.tsx:151-166 |
+| Hidden section | `WorkoutSection` "Hidden (n)" — the `is_hidden` cards; **admins only**, and only when `hiddenWorkouts.length > 0`. | workouts/page.tsx:168-185 |
+| Workout card | Per type: name + "Custom"/"Standard" (+ " · Hidden") label; admin controls — Edit (custom & not-hidden), Hide/Show (all), Delete (custom). | workouts/page.tsx:283-332 |
+| Add modal | `Modal` with a name input → `addCustomProgramWorkout`. | workouts/page.tsx:189-221 |
+| Edit modal | `Modal` (open when `editTarget`) with a pre-filled name input → `editCustomProgramWorkout`. | workouts/page.tsx:223-256 |
+| Delete confirm | Legacy `window.confirm(`Delete ${name}?`)` → **D-C1: `ConfirmDialog`**. | workouts/page.tsx:161-165,179-183 |
 
 ## 5. Components + consumed features
 
@@ -99,7 +99,7 @@ client fns are **already ported** ([apps/web/src/lib/api/program-workouts.ts](..
 ## 7. Role-based view rules
 
 `canManage = globalRole === "global_admin" || (globalRole === "standard" && program?.my_role === "admin")`
-([workouts/page.tsx:25-27](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L25)).
+(workouts/page.tsx:25-27).
 
 | Role | Available list | Hidden section | "+ Add" / Edit / Hide-Show / Delete |
 |------|---------------|----------------|-------------------------------------|
@@ -112,7 +112,7 @@ client fns are **already ported** ([apps/web/src/lib/api/program-workouts.ts](..
   only for `source === "custom"`; **Hide/Show** for both global and custom.
 - **`admin_only_data_entry` effect: N/A.** This page is gated by **admin role**, not the data-entry lock — the
   legacy file never references `admin_only_data_entry`
-  ([grep confirms absent](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L1)). The lock
+  (grep confirms absent). The lock
   (set on `/program/edit`) gates whether non-admins may **log** workouts on the `/summary` forms; managing the
   workout-type *vocabulary* is always admin-only regardless of the flag. (Corrects the run-23 lifestyle-landing
   forward-inference that called this "the write path where `admin_only_data_entry` bites" — F1.)
@@ -142,30 +142,30 @@ client fns are **already ported** ([apps/web/src/lib/api/program-workouts.ts](..
 | **D-REF** | `consumed_by = [web]` for this page spec; the iOS workout-type management screen mirrors the same list and is audited at the iOS port. No cross-app divergence to resolve (web-only page spec). | legacy `lifestyle/workouts/page.tsx`; iOS workout-management view |
 | **D-SCOPE** | **This page only.** Port `/lifestyle/workouts` faithful 1:1; the sibling `/lifestyle/timeline` remains its own deferred row. **1st of 2** `/lifestyle` sub-routes — does **not** close the group. | per-page cadence; [`lifestyle` SPEC §3](../SPEC.md) |
 | **D-DEPS** | **No new dependency.** Every import — `PageShell`/`PageHeader`/`GlassCard`/`Modal`/`LoadingState`/`ConfirmDialog`, the whole `lib/api/program-workouts.ts` module, `useAuthGuard` — is already ported (the api module landed "vestigial-here" with `summary`, run 21; the chrome leaves with the `/program/*` sub-routes). The sweep ports **only the page itself**. | [apps/web/src/lib/api/program-workouts.ts](../../../../../../apps/web/src/lib/api/program-workouts.ts); `components/ui/*` |
-| **D-S1** | **Faithful 1:1** otherwise — same `canManage` admin gate (no redirect; read-only degrade for non-admins), same Available/Hidden split, same global-vs-custom control matrix, same `["lifestyle","workouts",programId]` query + invalidate-on-success (no optimistic update), same modal markup and payloads. | [workouts/page.tsx](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx) |
-| **D-C1** | **`window.confirm` → `ConfirmDialog`.** Replace the two native `window.confirm(`Delete ${name}?`)` prompts with the ported `ui/ConfirmDialog` (a `deleteTarget` state opens it; danger style, "Delete" confirm, `loading = deleteCustomMutation.isPending`). Matches **every** sibling — no rebuilt page uses `window.confirm`; keeping it would be the rebuild's lone divergence from its established confirm pattern. Mirrors `program/profile`'s delete flow. | [workouts/page.tsx:161-165,179-183](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L161); `components/ui/ConfirmDialog.tsx` |
-| **D-C2** | **Clear the stale error on Add and Edit modal open.** Legacy clears `errorMessage` only when opening the Add modal ([line 125](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L125)), not the Edit modal — a prior failure lingers above the sections when you open Edit. Clear it on **both** opens. | [workouts/page.tsx:124-126,155,173](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L124) |
+| **D-S1** | **Faithful 1:1** otherwise — same `canManage` admin gate (no redirect; read-only degrade for non-admins), same Available/Hidden split, same global-vs-custom control matrix, same `["lifestyle","workouts",programId]` query + invalidate-on-success (no optimistic update), same modal markup and payloads. | workouts/page.tsx |
+| **D-C1** | **`window.confirm` → `ConfirmDialog`.** Replace the two native `window.confirm(`Delete ${name}?`)` prompts with the ported `ui/ConfirmDialog` (a `deleteTarget` state opens it; danger style, "Delete" confirm, `loading = deleteCustomMutation.isPending`). Matches **every** sibling — no rebuilt page uses `window.confirm`; keeping it would be the rebuild's lone divergence from its established confirm pattern. Mirrors `program/profile`'s delete flow. | workouts/page.tsx:161-165,179-183; `components/ui/ConfirmDialog.tsx` |
+| **D-C2** | **Clear the stale error on Add and Edit modal open.** Legacy clears `errorMessage` only when opening the Add modal (line 125), not the Edit modal — a prior failure lingers above the sections when you open Edit. Clear it on **both** opens. | workouts/page.tsx:124-126,155,173 |
 
 ## 10. Flagged characteristics (kept as-is)
 
-- **F1 — the page is admin-ROLE gated, not `admin_only_data_entry` gated** ([workouts/page.tsx:25-27](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L25)).
+- **F1 — the page is admin-ROLE gated, not `admin_only_data_entry` gated** (workouts/page.tsx:25-27).
   `admin_only_data_entry` is never read here. The run-23 lifestyle-landing note that called this "the write path
   where `admin_only_data_entry` bites" was a forward-inference that the landing file couldn't confirm; the actual
   gate is `canManage` (admin role). Recorded here so the SPEC, not the guess, is the source of truth.
-- **F2 — non-admins get a read-only DEGRADE, not a redirect** ([workouts/page.tsx:121-132,168,300](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L121)).
+- **F2 — non-admins get a read-only DEGRADE, not a redirect** (workouts/page.tsx:121-132,168,300).
   Unlike `program/edit` and `program/roles` (which bounce non-admins to `/program`), this page renders for every
   role and merely hides the controls + the Hidden section via `canManage`. Faithful — the landing's "View
   workouts" pill intentionally routes non-admins here. Backend writes still 403.
-- **F3 — client-side admin gate via JWT-decoded role** ([workouts/page.tsx:25-27](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L25)).
+- **F3 — client-side admin gate via JWT-decoded role** (workouts/page.tsx:25-27).
   `canManage` derives from `session.user.globalRole` + `program.my_role` (decoded JWT); the authoritative gate is
   the backend `requireProgramAdmin` 403. Recurring across the rebuild. Kept (defense-in-depth).
-- **F4 — search filters already-loaded rows client-side** ([workouts/page.tsx:104-109](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L104)).
+- **F4 — search filters already-loaded rows client-side** (workouts/page.tsx:104-109).
   The search box does a `useMemo` substring filter over `workoutsQuery.data`, not a server query — faithful, fine
   at program-workout-list scale (tens of rows).
-- **F5 — global library types can only be hidden/shown, never edited/deleted here** ([workouts/page.tsx:284,300-326](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L284)).
+- **F5 — global library types can only be hidden/shown, never edited/deleted here** (workouts/page.tsx:284,300-326).
   Edit/Delete render only for `source === "custom"`; the global library is shared across programs, so this page
   toggles per-program visibility only. Faithful and correct.
-- **F6 — no client-side rate-limit / in-flight cross-disable** ([workouts/page.tsx:52-102](../../../../../../rasifiters-webapp/src/app/lifestyle/workouts/page.tsx#L52)).
+- **F6 — no client-side rate-limit / in-flight cross-disable** (workouts/page.tsx:52-102).
   Only the Add/Edit submit buttons gate on `isPending`; the per-card Hide/Show/Delete buttons can be re-clicked
   while a mutation settles (unlike `program/roles`' D-C3 global lock). Faithful — kept; the backend is idempotent
   enough and invalidate-refetch reconciles. Rebuild-cleanup candidate.

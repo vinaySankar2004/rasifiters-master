@@ -1,7 +1,7 @@
 # Feature: `workouts` — the global workout library (admin CRUD + read)
 
 > **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `ios`
-> **Reference impl (legacy):** `../../../backend` — `routes/workouts.js`, `services/workoutService.js`
+> **Provenance (legacy, archived):** `backend` — `routes/workouts.js`, `services/workoutService.js`
 > (the **global-library** functions only — the file is shared with `program-workouts`, §7/D-C1),
 > `models/Workout.js`, `server.js` (`/api/workouts` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`; the write routes add
@@ -152,7 +152,7 @@ accepted), the response shapes, and the error contract.
 |----|----------|----------|
 | **D-C1** | **Scope = the global library only** — `routes/workouts.js` (the `/api/workouts` routes) + the four library functions (`getAllWorkouts`/`createWorkout`/`updateWorkout`/`deleteWorkout`) split out of the shared `workoutService.js`. The program-scoped functions in the same file → the separate `program-workouts` feature (COVERAGE line 19). | `workoutService.js:5-28` (library) vs `:30-229` (program); COVERAGE lines 18 vs 19; user decision. |
 | **D-C2** | **Drop the vestigial `POST /api/workouts/mobile` route** — a byte-identical duplicate of `POST /` called by neither client. The single deliberate change; the four real routes port faithfully. | `workouts.js:19-28` vs `:30-39`; web + iOS consumption sweep; user decision. |
-| **D-REF** | **Reference impl = legacy `../../../backend`. `consumed_by = [ios]`** — the only live consumer is iOS's `GET` (picker reference data). Web's `fetchWorkouts()` is defined-but-dead, and the three write routes are called by neither client → all flagged vestigial (§10 F1), kept for API parity (faithful). | Web sweep (`programs.ts:50-52` dead) + iOS sweep (`APIClient+Workouts.swift:33-40` GET only); Explore agents. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [ios]`** — the only live consumer is iOS's `GET` (picker reference data). Web's `fetchWorkouts()` is defined-but-dead, and the three write routes are called by neither client → all flagged vestigial (§10 F1), kept for API parity (faithful). | Web sweep (`programs.ts:50-52` dead) + iOS sweep (`APIClient+Workouts.swift:33-40` GET only); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 except dropping `/mobile` (D-C2).** Routes, gates, the bare unguarded delete (FK-500 when in use, F2), the no-dedup-pre-check create (unique-500 on collision, F5), response shapes, and the error contract are preserved; oddities are flagged (§10), not fixed. | Whole-module review; §7. |
 
 ## 10. Flagged characteristics kept as-is

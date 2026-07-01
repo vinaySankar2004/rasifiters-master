@@ -4,7 +4,7 @@
 > **Location:** presented by `AppRootView` when a Home-Screen widget deep-links `WidgetRoute.quickAddHealth`
 > (`AppRootView.swift:83-105`, `.sheet(item: widgetRoute) { QuickAddHealthWidgetEntryView() }`, gated on
 > `authToken != nil`). Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`).
-> **Reference impl (legacy):** `../../../../../ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddHealthWidgetEntryView.swift`.
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddHealthWidgetEntryView.swift`.
 > **Web parity reference:** **NONE — iOS-only** (`consumed_by=[ios]`; widgets have no web analogue).
 > Faithful-to-legacy-only (run-58 iOS-only-screen shape).
 > **Consumes:** `APIClient.fetchMembershipDetails`, `addDailyHealthLog`, `deleteDailyHealthLog` (directly); reads

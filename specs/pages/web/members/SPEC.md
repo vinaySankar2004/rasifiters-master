@@ -4,7 +4,7 @@
 > **Route:** `/members` — **the second bottom-nav tab** of a program's workspace. NOT a roster-management
 > screen: it is a per-member performance dashboard with a role-gated **"view as"** picker. The actual roster,
 > invite form, full metrics table, and per-member detail/log views are **sub-routes, deferred** (see §3).
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/members/page.tsx`
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/members/page.tsx`
 > (+ ported dep `lib/api/members.ts`).
 > **Consumes (features):** [`member-analytics`](../../../features/member-analytics/SPEC.md)
 > (member-metrics/history/streaks/recent), [`daily-health-logs`](../../../features/daily-health-logs/SPEC.md)
@@ -53,18 +53,18 @@ fans out to the roster (`/members/list`), the invite form (`/members/invite`), t
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "Members" + active program name; a **View Members** pill (→ `/members/list`, shown only when `!canViewAs`) and an **Invite** mail button (→ `/members/invite`, shown when `canInvite`). | [members/page.tsx:225-251](../../../../../rasifiters-webapp/src/app/members/page.tsx#L225) |
-| Metrics preview | `isProgramAdmin`-only card → `/members/metrics`; shows member count + the top member's `MemberMetricsPreview` (avatar, workouts, 6 metric pills, current-streak chip). | [members/page.tsx:253-282](../../../../../rasifiters-webapp/src/app/members/page.tsx#L253), 454-505 |
-| View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "None"). | [members/page.tsx:284-294](../../../../../rasifiters-webapp/src/app/members/page.tsx#L284) |
-| Empty hint | `canViewAs` + no selection → "Select a member to view their performance cards." | [members/page.tsx:296-300](../../../../../rasifiters-webapp/src/app/members/page.tsx#L296) |
-| Member Overview card | PTD progress % (active_days / program total days), MTD workouts, total time, favorite workout, progress bar. | [members/page.tsx:304-308](../../../../../rasifiters-webapp/src/app/members/page.tsx#L304), 507-574 |
-| Metrics single card | **Member-role only** — the signed-in member's own 6-metric pill grid + streak chip (`MemberMetricsSingleCard`). | [members/page.tsx:391](../../../../../rasifiters-webapp/src/app/members/page.tsx#L391), 576-623 |
-| Workout Activity card | Clickable → `/members/history`; a Recharts `BarChart` of the member's workouts over the week + daily average. | [members/page.tsx:310-315](../../../../../rasifiters-webapp/src/app/members/page.tsx#L310), 625-669 |
-| Streak Stats card | Clickable → `/members/streaks`; current + longest streak days. | [members/page.tsx:316-320](../../../../../rasifiters-webapp/src/app/members/page.tsx#L316), 671-697 |
-| Recent Workouts card | Clickable → `/members/workouts`; top 3 recent workouts (`formatDuration`). | [members/page.tsx:323-326](../../../../../rasifiters-webapp/src/app/members/page.tsx#L323), 707-735 |
-| Daily Health card | Clickable → `/members/health`; top 3 recent health logs (sleep / diet labels). | [members/page.tsx:327-330](../../../../../rasifiters-webapp/src/app/members/page.tsx#L327), 737-765 |
-| View-as picker (logger) | `canViewAsLogger`-only second picker — scopes the **logs** cards (recent/health) to a chosen member while the overview/history/streak stay self. | [members/page.tsx:358-366](../../../../../rasifiters-webapp/src/app/members/page.tsx#L358) |
-| Member Picker modal | `Modal` + search-filtered member list (+ optional "None"); single render driven by `activePicker` (D-C3). | [members/page.tsx:767-833](../../../../../rasifiters-webapp/src/app/members/page.tsx#L767) |
+| Header | "Members" + active program name; a **View Members** pill (→ `/members/list`, shown only when `!canViewAs`) and an **Invite** mail button (→ `/members/invite`, shown when `canInvite`). | members/page.tsx:225-251 |
+| Metrics preview | `isProgramAdmin`-only card → `/members/metrics`; shows member count + the top member's `MemberMetricsPreview` (avatar, workouts, 6 metric pills, current-streak chip). | members/page.tsx:253-282, 454-505 |
+| View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "None"). | members/page.tsx:284-294 |
+| Empty hint | `canViewAs` + no selection → "Select a member to view their performance cards." | members/page.tsx:296-300 |
+| Member Overview card | PTD progress % (active_days / program total days), MTD workouts, total time, favorite workout, progress bar. | members/page.tsx:304-308, 507-574 |
+| Metrics single card | **Member-role only** — the signed-in member's own 6-metric pill grid + streak chip (`MemberMetricsSingleCard`). | members/page.tsx:391, 576-623 |
+| Workout Activity card | Clickable → `/members/history`; a Recharts `BarChart` of the member's workouts over the week + daily average. | members/page.tsx:310-315, 625-669 |
+| Streak Stats card | Clickable → `/members/streaks`; current + longest streak days. | members/page.tsx:316-320, 671-697 |
+| Recent Workouts card | Clickable → `/members/workouts`; top 3 recent workouts (`formatDuration`). | members/page.tsx:323-326, 707-735 |
+| Daily Health card | Clickable → `/members/health`; top 3 recent health logs (sleep / diet labels). | members/page.tsx:327-330, 737-765 |
+| View-as picker (logger) | `canViewAsLogger`-only second picker — scopes the **logs** cards (recent/health) to a chosen member while the overview/history/streak stay self. | members/page.tsx:358-366 |
+| Member Picker modal | `Modal` + search-filtered member list (+ optional "None"); single render driven by `activePicker` (D-C3). | members/page.tsx:767-833 |
 
 **Data flow.** `membersQuery` (`fetchProgramMembers`) feeds the view-as picker. The signed-in/selected member
 drives six React-Query reads keyed under `["members", …]`: a metrics **preview** (admin only,
@@ -110,7 +110,7 @@ ends in `/api`). **All endpoints are already ported + mounted** (`apps/backend/s
 Roles derive from `session.user.globalRole` (client JWT, F1) + the active program's `my_role`. The page
 computes `isGlobalAdmin`, `isProgramAdmin = my_role=="admin" || isGlobalAdmin`, `isLogger = my_role=="logger"`,
 and `canInvite = canViewAs = isProgramAdmin`, `canViewAsLogger = isLogger`
-([members/page.tsx:45-51](../../../../../rasifiters-webapp/src/app/members/page.tsx#L45)).
+(members/page.tsx:45-51).
 
 | Role | Sees | Can do |
 |------|------|--------|
@@ -142,7 +142,7 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../rasifiters-webapp/src/app/members/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS admin-home Members tab renders the same per-member overview natively; parity audited at the iOS port. | `members/page.tsx`; user answer (faithful). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/members/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS admin-home Members tab renders the same per-member overview natively; parity audited at the iOS port. | `members/page.tsx`; user answer (faithful). |
 | **D-SCOPE** | **This run owns the `/members` landing page only** (the view-as dashboard + the in-file `MemberPickerModal` + the 6 cards), pulling in `lib/api/members.ts`. **Deferred:** all 8 sub-routes (`/members/{list,detail,invite,metrics,history,streaks,workouts,health}`) — separate page-spec rows; links to them are forward-nav (F2). | inventory (`specs/pages/REGISTRY.md`); user answer ("Landing page only"). |
 | **D-S1** | **Stance = faithful 1:1 port** — the page (3 role branches + the `sessionStorage` view-as persistence) ported verbatim from legacy; verbatim except D-C2 / D-C3. | `members/page.tsx:1-833`; user answer ("faithful + small cleanups"). |
 | **D-C1** | **Port the whole `lib/api/members.ts` module verbatim** even though the landing uses only 5 of its functions — `fetchMemberProfile` / `updateMemberProfile` / `sendProgramInvite` serve the deferred detail/invite sub-routes (the run-20/21 "port whole shared api modules; later pages reuse them" pattern). | `lib/api/members.ts:1-211`; user answer ("Whole module verbatim"). |

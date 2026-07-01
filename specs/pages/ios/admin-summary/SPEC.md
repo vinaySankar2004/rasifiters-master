@@ -1,6 +1,6 @@
 # iOS Screen SPEC — `AdminSummaryTab` (the Summary dashboard tab body)
 
-> **Surface:** `ios` · **Reference impl (legacy):** `../ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/AdminSummaryTab.swift`
+> **Surface:** `ios` · **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/AdminSummaryTab.swift`
 > (+ card structs from `Features/Home/Helpers/AdminHomeHelpers.swift`, `Detail/WorkoutDistributionViews.swift`,
 > `Detail/WorkoutTypesDetailViews.swift`)
 > **Web sibling (co-equal reference):** `/summary` landing — `specs/pages/web/summary/SPEC.md`

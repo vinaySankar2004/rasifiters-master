@@ -6,22 +6,22 @@
 >
 > Methodology (the "why" + decision log + spec contract) is in-repo: **`METHODOLOGY.md`**. Operational
 > how-to lives in the **skills** (`question-asker` · `git-version` · `deploy` · `audit` · `supabase` ·
-> `health-check`). Current state + next action: **`PROGRESS.md`**. Fresh-clone setup: **`SETUP.md`**.
+> `health-check` · `ios-build`). Current state + next action: **`PROGRESS.md`**. Fresh-clone setup: **`SETUP.md`**.
 
 ## What this is
 
 The ICM-methodology rebuild of **RaSi Fiters** — a fitness-program tracker (Members ↔ Programs ↔
-Workouts/logs, with admin/logger/member roles, analytics, health logging, push notifications). We are
-recreating the existing app **faithfully (1:1 behavior)** while moving the stack to Supabase + Render +
-Vercel and replacing custom JWT auth with Supabase Auth. See `METHODOLOGY.md` for the decision log.
+Workouts/logs, with admin/logger/member roles, analytics, health logging, push notifications). The app was
+recreated **faithfully (1:1 behavior)** on a new stack (Supabase + Render + Vercel), replacing custom JWT
+auth with Supabase Auth. That rebuild is complete; see `METHODOLOGY.md` for the decision log.
 
-Markdown is the source of truth; Claude Code (with Vercel / Render / Supabase MCPs) is the operator. We
-document each surface as a spec, then port the code faithfully from the legacy app — there is no
+Markdown is the source of truth; Claude Code (with Vercel / Render / Supabase MCPs) is the operator. Each
+surface was documented as a spec, then the code ported faithfully from the original app — there was no
 "stitch/assemble" step; this is one app, not a multi-company factory.
 
-**Reference implementation (the thing we're rebuilding)** lives OUTSIDE this repo, in the legacy app at
-`../{rasifiters-webapp, ios-mobile, backend}` (the parent `RaSi-Fiters/` folder). Every spec cites it as
-the source of truth for the faithful rebuild.
+**This repo now stands alone** — the app code under `apps/` is the source of truth. The original app it was
+ported from is archived and no longer tracked here; each spec's `Provenance` header records where it came
+from, as history.
 
 ## The apps
 
@@ -43,7 +43,7 @@ backend are PROVISIONED + LIVE (2026-06-29):** `web` → Vercel project `rasifit
 |-----------|------------------------|
 | L1 Map | `ICM.md` (this file) + `PROGRESS.md` (current state) |
 | L2 Rooms | `CONTEXT.md` (project: brand + infra + migration source), `apps/{web,ios,backend}/CONTEXT.md` |
-| L3 Tools | `.claude/skills/` (question-asker, git-version, deploy, audit, supabase, health-check), `.mcp.json` |
+| L3 Tools | `.claude/skills/` (question-asker, git-version, deploy, audit, supabase, health-check, ios-build), `.mcp.json` |
 | L4 Specs | `specs/features/` (shared capabilities) + `specs/pages/{web,ios}/` (per page/screen) + `specs/features/registry.json` |
 | L5 Pipelines | `git-version` skill + Vercel / Render / Supabase MCP flows |
 

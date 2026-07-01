@@ -4,7 +4,7 @@
 > **Route:** `/summary` — **the first bottom-nav tab** of a program's workspace; the screen you land on
 > after selecting a program on the hub (`saveActiveProgram` → `router.push("/summary")`). Sibling tabs
 > (`/members`, `/lifestyle`, `/program`) and the 6 summary sub-routes are **not** in this run (deferred).
-> **Reference impl (legacy):** `../../../../../rasifiters-webapp/src/app/summary/page.tsx`
+> **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/page.tsx`
 > (+ ported deps `lib/api/{summary,logs,program-workouts}.ts`, `components/ui/{ErrorState,Input,Button}.tsx`,
 > `components/forms/{LogWorkoutForm,BulkLogWorkoutForm,LogDailyHealthForm}.tsx`).
 > **Consumes (features):** [`analytics`](../../../features/analytics/SPEC.md) (7 of the 8 reads),
@@ -54,22 +54,22 @@ real screen — the first web surface to consume the analytics + logging backend
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "Summary" + active program name + the user's initials avatar. | [summary/page.tsx:178](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L178), 313-335 |
-| Error banner | `ErrorState` rendered when the summary analytics query errors. | [summary/page.tsx:180-182](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L180) |
-| Program Progress | `GlassCard` with an SVG circular gauge (`progress_percent`), elapsed/total days, a `StatusBadge`, and elapsed/remaining day counts. | [summary/page.tsx:186](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L186), 337-396 |
-| Activity Timeline | Clickable card → `/summary/activity`; a Recharts `BarChart` of workouts + active members over the **week** (label + daily average). | [summary/page.tsx:187-192](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L187), 489-536 |
-| Data-lock banner | Shown when `dataEntryLocked` — 🔒 + `DATA_LOCK_MESSAGE`. | [summary/page.tsx:195-200](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L195) |
-| Action cards | **Add workout** + **Log daily health** always; **Bulk add** only when `canLogForAny`. Each `disabled={dataEntryLocked}`; on desktop opens a modal, on mobile routes to a sub-page. | [summary/page.tsx:202-217](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L202), 398-459 |
-| Stat cards (4) | `StatCard` ×4: MTD Participation (`participation_pct`, `active/total`), Total Workouts, Total Duration (hrs), Avg Duration (min) — each with a `change_pct` delta. | [summary/page.tsx:219-256](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L219), 461-487 |
-| Distribution | Clickable card → `/summary/distribution`; a `BarChart` of workouts by day of week (Sun–Sat). | [summary/page.tsx:259](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L259), 538-576 |
-| Workout Types | Clickable card → `/summary/workout-types`; top 6 types by sessions, or an empty hint. | [summary/page.tsx:260](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L260), 578-604 |
-| Log Workout modal | `Modal` + `LogWorkoutForm` (member/workout/date/duration → `addWorkoutLog`). | [summary/page.tsx:264-275](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L264) |
-| Bulk Log modal | `Modal` + `BulkLogWorkoutForm` (multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). | [summary/page.tsx:277-291](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L277) |
-| Log Health modal | `Modal` + `LogDailyHealthForm` (member/date/sleep/diet → `addDailyHealthLog`). | [summary/page.tsx:293-304](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L293) |
+| Header | "Summary" + active program name + the user's initials avatar. | summary/page.tsx:178, 313-335 |
+| Error banner | `ErrorState` rendered when the summary analytics query errors. | summary/page.tsx:180-182 |
+| Program Progress | `GlassCard` with an SVG circular gauge (`progress_percent`), elapsed/total days, a `StatusBadge`, and elapsed/remaining day counts. | summary/page.tsx:186, 337-396 |
+| Activity Timeline | Clickable card → `/summary/activity`; a Recharts `BarChart` of workouts + active members over the **week** (label + daily average). | summary/page.tsx:187-192, 489-536 |
+| Data-lock banner | Shown when `dataEntryLocked` — 🔒 + `DATA_LOCK_MESSAGE`. | summary/page.tsx:195-200 |
+| Action cards | **Add workout** + **Log daily health** always; **Bulk add** only when `canLogForAny`. Each `disabled={dataEntryLocked}`; on desktop opens a modal, on mobile routes to a sub-page. | summary/page.tsx:202-217, 398-459 |
+| Stat cards (4) | `StatCard` ×4: MTD Participation (`participation_pct`, `active/total`), Total Workouts, Total Duration (hrs), Avg Duration (min) — each with a `change_pct` delta. | summary/page.tsx:219-256, 461-487 |
+| Distribution | Clickable card → `/summary/distribution`; a `BarChart` of workouts by day of week (Sun–Sat). | summary/page.tsx:259, 538-576 |
+| Workout Types | Clickable card → `/summary/workout-types`; top 6 types by sessions, or an empty hint. | summary/page.tsx:260, 578-604 |
+| Log Workout modal | `Modal` + `LogWorkoutForm` (member/workout/date/duration → `addWorkoutLog`). | summary/page.tsx:264-275 |
+| Bulk Log modal | `Modal` + `BulkLogWorkoutForm` (multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). | summary/page.tsx:277-291 |
+| Log Health modal | `Modal` + `LogDailyHealthForm` (member/date/sleep/diet → `addDailyHealthLog`). | summary/page.tsx:293-304 |
 
 **Data flow.** Eight read queries fire on mount (`enabled: !!token && !!programId`), keyed under
 `["summary", …]`. The three mutations each `invalidateQueries(["summary"])` on success and close their modal
-([summary/page.tsx:105-144](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L105), 309-311). The
+(summary/page.tsx:105-144, 309-311). The
 period is a fixed `"week"` const on the landing — the period selector lives on the deferred
 `/summary/activity` detail page (F4).
 
@@ -111,7 +111,7 @@ ends in `/api`).
 Roles derive from `session.user.globalRole` (client JWT, F1) + the active program's `my_role` (from
 `saveActiveProgram`). The page computes
 `canLogForAny = globalRole=="global_admin" || my_role=="admin" || my_role=="logger"`
-([summary/page.tsx:51-54](../../../../../rasifiters-webapp/src/app/summary/page.tsx#L51)) and
+(summary/page.tsx:51-54) and
 `dataEntryLocked = isDataEntryLocked(session, program)` (line 55).
 
 | Role | Sees | Can do |
@@ -143,7 +143,7 @@ disabled UI + messaging.
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `../../../../../rasifiters-webapp/src/app/summary/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS admin-home Summary tab renders the same overview natively; parity audited at the iOS port. | `summary/page.tsx`; user answer (faithful). |
+| **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/summary/page.tsx`. `consumed_by = [web]`.** Cross-app: the iOS admin-home Summary tab renders the same overview natively; parity audited at the iOS port. | `summary/page.tsx`; user answer (faithful). |
 | **D-SCOPE** | **This run owns the `/summary` landing page + its 3 embedded log-form modals** (the desktop write path works end-to-end), pulling in `lib/api/{summary,logs,program-workouts}.ts`, `ui/{ErrorState,Input,Button}`, and the 3 `forms/*`. **Deferred:** all 6 sibling sub-route pages (`/summary/{activity,distribution,workout-types,log-workout,log-health,bulk-log-workout}`) — separate page-spec rows; links to them are forward-nav (F2). | inventory (`specs/pages/REGISTRY.md`); user answer ("Landing + 3 log forms"). |
 | **D-S1** | **Stance = faithful 1:1 port** — the page + all 3 forms + the 3 api modules + the 3 UI components ported verbatim from legacy; whole api modules kept even where this page uses a subset (later pages reuse the rest — F3). Verbatim except D-C1. | `summary/page.tsx:1-606` + the ported deps; user answer. |
 | **D-C1** | **One typed cleanup:** `ProgramProgressCard`'s prop typed `summary?: AnalyticsSummary` instead of `summary?: any` (the `AnalyticsSummary` type already exists in `lib/api/summary.ts`). Non-behavioral — the same `program_progress` fields are read. No other cleanup (the `summaryPeriod="week"` const stays faithful — F4). | `summary/page.tsx:337`; `lib/api/summary.ts:3-49`; user answer ("faithful + minor typed cleanups"). |

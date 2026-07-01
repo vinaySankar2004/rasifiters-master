@@ -1,7 +1,7 @@
 # iOS Screen SPEC — `AdminMembersTab` / `StandardMembersTab` (the Members tab body)
 
-> **Surface:** `ios` · **Reference impl (legacy):**
-> `../ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/{AdminOtherTabs.swift (AdminMembersTab), StandardMembersTab.swift}`
+> **Surface:** `ios` · **Provenance (legacy, archived):**
+> `ios-mobile/RaSi-Fiters-App/Features/Home/Tabs/{AdminOtherTabs.swift (AdminMembersTab), StandardMembersTab.swift}`
 > (+ card structs from `Detail/MemberCards.swift`, `Detail/MemberPickerOverviewView.swift`,
 > `Detail/MemberMetricsViews.swift (MemberMetricsPreviewCard)`; `GlassButton` from `Detail/ActivityTimelineViews.swift:153`)
 > **Web sibling (co-equal reference):** `/members` landing — `specs/pages/web/members/SPEC.md`
