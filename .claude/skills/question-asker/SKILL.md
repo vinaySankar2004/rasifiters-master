@@ -1066,6 +1066,39 @@ directly as a faithful port from the legacy reference app** — there is no inte
   `requireDataEntryAllowed`). Grep the exact predicate per use; don't conflate "select any member" with "exempt from the
   lock". Reconfirmed: cluster-IS-the-run (run-58/59); `admin_only_data_entry` LIVE because the page WRITES (run-31/36/45,
   read-vs-write axis); folder-synced Xcode group auto-includes the new files; build owned by the user, symbols grep-verified.
+- **Run 61 — the FIRST run where legacy iOS is RICHER than web → the [[ios-matches-web-not-just-legacy]] "resolve toward web"
+  rule is SYMMETRIC: keep the native richness when iOS has MORE, don't downgrade to match web.** The 3 Summary chart
+  drill-downs (`ActivityTimelineDetailView`/`DistributionByDayDetailView`/`WorkoutTypesDetailView` — the run-54 deferred
+  detail stubs; this CLOSES the Summary detail layer 5/5) are richer than the web `/summary` siblings: native tap-callouts
+  (`RuleMark`+`CalloutView`+drag+`clamp` positioning), horizontally-scrollable Swift Charts, a period selector, member scope,
+  "Others" aggregation + %-annotations + breakdown rows — vs web's flat recharts + Legend + ranked `<ul>`. Every prior iOS
+  run had iOS LACKING something web shipped → an ADD toward web (run-51/52/54); run 61 inverts it. The memory reads
+  near-unconditional after runs 51/54, but the platform-reason EXCEPTION (run-52/53 D-REF) fires at full force when the
+  divergence is the native platform being MORE capable: web's recharts hover tooltips can't be "matched" natively, the run-54
+  cards already ship interactive native charts, and the DATA/destinations already match web → **keep iOS-native faithful,
+  record as D-REF + F-rows, NOT a reconcile.** Frame the crux as "iOS richer — keep native (lead) vs simplify toward web";
+  lead keep-native whenever iOS is richer, not poorer. Four durable corollaries. **(a) Re-check a tokenize-holdout assumption
+  against the actual theme before flagging it — the token may exist (run-27 INVERTED).** I pre-framed `.purple` as a holdout
+  (no token → keep literal), but the grep found `Color.appPurple` already defined (`light: .purple`, dark lavender), so D-C3
+  fully tokenized both `.orange`→`appOrangeStrong` (defined exactly `light: .orange.opacity(0.9)`) AND `.purple`→`appPurple`
+  — all `light:`-identical → no light-mode change, adaptive in dark (run-26 shape). Grep the theme FIRST; don't assume a
+  holdout. **(b) A consistency-cleanup can legitimately retro-touch a PRIOR run's file to avoid creating a NEW inconsistency**
+  — tokenizing only the new detail views would leave the run-54 `SummaryChartCards` cards on literal colors → a card↔detail
+  mismatch in the same tap-flow; retro-tokenize the run-54 literals in the same commit (non-behavioral, light-mode no-op).
+  Honor a "tokenize" pick across the whole visual neighborhood, flag the caveat, let the user accept. **(c) The no-new-dep
+  streak BREAKS when a screen's interactive machinery was co-located in a legacy DEFERRED Detail file (run-55/56 at cluster
+  scale)** — the run-54 CARD half took the simple chart bits; the DETAIL half's callout machinery
+  (`CalloutView`/`HeaderStats`/`HeaderHeightKey`/`clamp` + axis/callout helpers + `WorkoutTypeRow`) stayed deferred → new
+  `ChartDetailComponents.swift`. Grep each helper vs the foundation; SKIP the already-ported (`GlassButton`, run 55 — re-port
+  = collision) + the ones belonging to a FUTURE sibling (`HealthCalloutView`/`HealthHeaderStats` = deferred lifestyle-timeline
+  detail); reuse-not-redefine the run-54 shared chart helpers. **(d) Trim-unused-init-params is a legit faithful cleanup when
+  NO rebuilt call site uses them** — the legacy `ActivityTimelineDetailView` init had 6 provider params; the 2 rebuilt call
+  sites pass 3, so trim to those (verify the future consumer isn't a DIFFERENT view first — the health timeline is separate,
+  so they're genuinely dead). Reconfirmed: cluster-IS-the-run (run-58/59/60); the run-34 predicate re-derive (distribution
+  empty guard keys off the SUM since the endpoint always returns 7 keys, not `isEmpty`; workout-types stays `isEmpty` on its
+  variable-length array — run-35); one parameterized iOS view = TWO web pages (`ActivityTimelineDetailView` = `/summary/activity`
+  + `/members/history` collapsed); read-only → `admin_only_data_entry` N/A; vestigial swallowed `errorMessage` = both-swallow
+  parity, no banner (run-55); build owned by the user, symbols grep-verified.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

@@ -2645,3 +2645,68 @@ foundation touches + shared `LogFormComponents.swift`; all API/DTO/`dataEntryLoc
 **Next:** the remaining Summary chart drill-downs (`ActivityTimelineDetailView` / `DistributionByDayDetailView`
 / `WorkoutTypesDetailView`), a Program management section, or a Members/Lifestyle detail view. Each its own
 "scope cut IS the run".
+
+---
+
+## Run 61 — iOS Summary chart drill-down cluster (`ActivityTimelineDetailView` / `DistributionByDayDetailView` / `WorkoutTypesDetailView`)
+
+**Target:** the 3 remaining deferred Summary `NavigationLink` detail targets (stubs since run 54), ported into
+`apps/ios/.../Features/Home/Detail/{ActivityTimelineDetailView,DistributionByDayDetailView,WorkoutTypesDetailView}.swift`
++ shared `ChartDetailComponents.swift`. **This COMPLETES the Summary detail layer (5/5: 2 log forms run 60 + 3 chart
+drill-downs run 61).** 3 SPECs `specs/pages/ios/summary-{activity,distribution,workout-types}-detail/`.
+
+**The loop:** user pre-picked the cluster (scope settled — didn't re-ask, run-36). Fanned 3 Explore agents (iOS cluster +
+call sites · web sibling SPECs/pages · ported foundation deps), then verified all load-bearing files myself
+(`SummaryChartCards.swift` + the 3 legacy detail views + the callout-helper defs) + a completeness-critic grep pass. Two
+genuinely-open decisions → one `AskUserQuestion` (the D-REF crux + stance), then a pinning multiSelect for the cleanups.
+
+**THE NEW DURABLE PATTERN — the FIRST run where legacy iOS is RICHER than web → the [[ios-matches-web-not-just-legacy]]
+"resolve toward web" rule is SYMMETRIC: keep the native richness when iOS has MORE, don't downgrade to match web.** Every
+prior iOS run had iOS LACKING something web shipped → an ADD toward web (run-51 icon/recovery, run-52 error banner, run-54
+data-lock). Run 61 inverts it: the legacy iOS detail views are RICHER than the web `/summary` drill-downs — native
+tap-callouts (`RuleMark`+`CalloutView`+drag+`clamp` positioning), horizontally-scrollable Swift Charts, a period selector
+on activity, member-scoping, "Others" aggregation + %-annotations + breakdown rows with progress bars — vs web's flat
+recharts + Legend + ranked `<ul>`. The memory's "resolve toward web UNLESS a platform reason" reads near-unconditional
+after runs 51/54, but the platform-reason EXCEPTION (run-52/53 D-REF) fires HERE at full force: web's recharts hover
+tooltips can't be "matched" natively, the run-54 cards already shipped interactive native charts, and the DATA/destinations
+already match web → **keep iOS-native faithful, record as D-REF + F-rows, NOT a reconcile.** Frame the crux question as
+"iOS richer than web — keep native (lead) vs simplify toward web"; the lead is keep-native whenever the divergence is the
+native platform being MORE capable, not less. (Promoted to Converged lessons.)
+
+**Other durable takeaways (reinforcements):**
+- **Re-check a tokenize-holdout assumption against the actual theme before flagging it — the token may exist (run-27
+  inverted).** I pre-framed `.purple` as a run-27-style holdout (no token → keep literal + flag), but the grep found
+  `Color.appPurple` already defined (`light: .purple, dark: B19CD9`). So D-C3 tokenized BOTH `.orange`→`appOrangeStrong`
+  (defined exactly `light: .orange.opacity(0.9)`) AND `.purple`→`appPurple` — all `light:`-identical, so **no light-mode
+  change, adaptive in dark** = the run-26 "no-op on target, just explicit + better in dark" shape. Grep the theme for the
+  token FIRST; don't assume a holdout.
+- **A consistency-cleanup can legitimately retro-touch a PRIOR run's file — do it to avoid creating a NEW inconsistency.**
+  Tokenizing only the new detail views would leave the run-54 `SummaryChartCards` cards on literal `.orange`/`.purple` → a
+  card↔detail color mismatch in the same tap-flow. The right call was to retro-tokenize the run-54 card literals in the
+  same commit (same file, non-behavioral, light-mode no-op). Honor a "tokenize" pick by tokenizing the whole visual
+  neighborhood, not just the new files; flag the caveat in the question, let the user accept (they did).
+- **The no-new-dep streak BREAKS when a screen's interactive machinery was co-located in a legacy DEFERRED Detail file
+  (run-55/56 at cluster scale).** The run-54 CARD half took the simple chart bits; the DETAIL half's callout machinery
+  (`CalloutView`/`HeaderStats`/`HeaderHeightKey`/`clamp` + axis/callout helpers + `WorkoutTypeRow`) stayed in the deferred
+  files → new `ChartDetailComponents.swift` this run. Grep each helper against the foundation; **skip the ones already
+  ported** (`GlassButton` landed run 55 — re-porting = collision) and the ones belonging to a FUTURE sibling
+  (`HealthCalloutView`/`HealthHeaderStats` = the deferred lifestyle-timeline detail). Reuse-not-redefine the run-54 shared
+  chart helpers (`DistributionPoint`/`distributionPoints`/`typeColor`/`barColor`/`ScrollableBarChart`/`DistributionChartOverlay`
+  — grep-verified single-sourced).
+- **Trim-unused-init-params is a legit faithful cleanup when NO rebuilt call site uses them (D-C2).** The legacy
+  `ActivityTimelineDetailView` init carried 6 provider params (`pointsProvider`/`loadHandler`/etc.); the 2 rebuilt call
+  sites pass only `initialPeriod`(+`memberId`/`showActiveSeries`) → trimmed to the 3 used, the program-wide-vs-member branch
+  reading `ProgramContext` directly. Verify the future consumer isn't a DIFFERENT view first (the health/lifestyle timeline
+  is a separate deferred view, so the providers are genuinely dead here).
+- **The run-34 predicate re-derive against the endpoint's response shape recurs (D-C1).** The distribution empty-state guard
+  keys off the SUM (all 7 counts == 0), not `points.isEmpty` — the endpoint always returns 7 weekday keys, so `isEmpty`
+  never fires; workout-types' guard stays `isEmpty` (variable-length array — run-35). Same intent, per-endpoint condition.
+- **One parameterized iOS view can be the analogue of TWO separate web pages** — `ActivityTimelineDetailView` serves the
+  Summary drill-down (program-wide) AND the Members `MemberHistoryCard` (memberId-scoped, `showActiveSeries:false`, gated
+  upstream run 43) = web's `/summary/activity` + `/members/history` collapsed. Reconfirmed: cluster-IS-the-run (run-58/59/60);
+  read-only → `admin_only_data_entry` N/A; vestigial swallowed `errorMessage` = both-swallow parity, no banner (run-55);
+  build owned by the user, symbols grep-verified.
+
+**Next:** the 3 Program management sections (`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/
+`ProgramWorkoutTypesSection`, deferred run 57), a Members (6 stubs) or Lifestyle (2 stubs) detail view. Each its own
+"scope cut IS the run".
