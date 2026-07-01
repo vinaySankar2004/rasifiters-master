@@ -125,7 +125,6 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 | Per-page/screen truth | `specs/pages/{web,ios}/<page>/SPEC.md` |
 | Per-app infra (IDs, env, ports) | `apps/<app>/CONTEXT.md` |
 | Env var inventory + how to inspect/change | `ENV_RUNBOOK.md` |
-| Fresh-clone bootstrap (MCP OAuth, .mcp.json) | `SETUP.md` |
 | Skill run history (verbose) | `<skill>/LESSONS_ARCHIVE.md` (not auto-loaded) |
 
 ## Log retention & pruning (when a dated log earns its keep)

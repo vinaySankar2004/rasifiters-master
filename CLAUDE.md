@@ -3,7 +3,7 @@
 The ICM repo for **RaSi Fiters** — one app, three surfaces (`web`, `ios`, `backend`), documented as
 specs and ported faithfully from the original app (now archived). Markdown is the source of truth; Claude
 Code (with Vercel / Render / Supabase MCPs) is the operator. Read **`PROGRESS.md`** (current state) and
-**`ICM.md`** (L1 map) first, then **`SETUP.md`** if this is a fresh clone.
+**`ICM.md`** (L1 map) first.
 
 Methodology (the "why" + decision log + feature-spec contract) lives in-repo at `METHODOLOGY.md`; all
 operational how-to lives in `.claude/skills/`. Current state + open follow-ups: `ICM.md` ("How to operate
@@ -54,7 +54,7 @@ resolution, authorization stays in Express — no RLS) are the single source of 
 Plans must be prescriptive and executable: full file paths, exact values, ordered numbered steps,
 copy-paste-ready code, no "as needed"/TBD/figure-it-out.
 
-## MCP Servers (see `.mcp.json` + `SETUP.md`)
+## MCP Servers (see `.mcp.json`)
 
 - **vercel** — `https://mcp.vercel.com` (account-level OAuth; all projects in the team).
 - **render** — `https://mcp.render.com/mcp` (account/workspace-level OAuth; all services). The backend
@@ -100,7 +100,7 @@ referenced by this repo — no external directories need to be added.
 ## Structure
 
 ```
-ICM.md  METHODOLOGY.md  CLAUDE.md  SETUP.md  ENV_RUNBOOK.md  COVERAGE.md  PROGRESS.md
+ICM.md  METHODOLOGY.md  CLAUDE.md  ENV_RUNBOOK.md  COVERAGE.md  PROGRESS.md
 PROGRESS_ARCHIVE.md                          (condensed run history, one line per run; not auto-loaded)
 CONTEXT.md                                   (project: brand + infra + migration source)
 apps/<web|ios|backend>/CONTEXT.md

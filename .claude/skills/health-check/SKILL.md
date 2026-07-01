@@ -22,7 +22,7 @@ on its own.
 
 ## Where to run
 From a session rooted at `rasifiters-master/`. Read-only across the whole repo's docs (any top-level
-`ICM.md`, `METHODOLOGY.md`, `CLAUDE.md`, `SETUP.md`, `ENV_RUNBOOK.md`, `COVERAGE.md`, `specs/features/**`,
+`ICM.md`, `METHODOLOGY.md`, `CLAUDE.md`, `ENV_RUNBOOK.md`, `COVERAGE.md`, `specs/features/**`,
 `apps/**`, `.claude/skills/**`) + the code paths the docs reference. The repo is **standalone** — the
 original app it was rebuilt from is archived and is NOT a reference; each SPEC's `Provenance` header records
 where it was ported from, as history. reference_impl paths (registry.json) resolve against `apps/<app>/`.

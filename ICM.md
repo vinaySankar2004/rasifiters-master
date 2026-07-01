@@ -6,7 +6,7 @@
 >
 > Methodology (the "why" + decision log + spec contract) is in-repo: **`METHODOLOGY.md`**. Operational
 > how-to lives in the **skills** (`question-asker` · `git-version` · `deploy` · `audit` · `supabase` ·
-> `health-check` · `ios-build`). Current state + next action: **`PROGRESS.md`**. Fresh-clone setup: **`SETUP.md`**.
+> `health-check` · `ios-build`). Current state + next action: **`PROGRESS.md`**.
 
 ## What this is
 
