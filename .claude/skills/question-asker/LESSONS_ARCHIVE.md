@@ -2842,3 +2842,62 @@ N/A. `consumed_by=[ios]`, no feature bump (page SPEC v0.1.0; endpoint pre-exists
 
 **Next:** the DEFERRED layer is down to the **2 widget entry views** (`QuickAddWorkoutWidgetEntryView`/
 `QuickAddHealthWidgetEntryView`) — the last iOS cluster, its own "scope cut IS the run".
+
+---
+
+## Run 65 — the 2 iOS widget entry views (`QuickAddWorkout`/`QuickAddHealthWidgetEntryView`) — CLOSES the iOS deferred layer
+
+**Target:** the last 2 deferred stubs — the Home-Screen widget deep-link targets `AppRootView` presents on
+`WidgetRoute.quickAdd{Workout,Health}`. Multi-program forms: log the SAME workout/health across every selected active
+program, with shared-member/-workout **intersection**, per-program **rollback** on partial failure, and
+**exit-to-My-Programs**. ~620 LoC each legacy.
+
+**Sweep / dep-purity:** read both legacy views in full; confirmed `AppRootView` already instantiates them + every dep is
+in the foundation — 6 API methods (`fetchMembershipDetails`/`fetchProgramWorkouts`/`add`+`deleteWorkoutLog`/`add`+
+`deleteDailyHealthLog`, all with signatures matching the legacy call sites), 3 DTOs, `SearchablePickerSheet`,
+`adaptiveBackground`, theme colors, and `ProgramContext.widgetRoute`/`returnToMyPrograms`/`loggedInUser*`/`isGlobalAdmin`
+→ **no new foundation dep**.
+
+**Biggest finding — iOS-only, no web sibling.** Web has no "log the same thing across multiple programs" surface (web's
+`bulk-log-workout` is multi-*row* / single-*program*). So faithful-to-legacy-only, no parity reconcile / behavior-diff
+(the run-58 iOS-only-screen shape).
+
+**Decisions (a change-now run — user picked "add lock" + BOTH cleanups):**
+- **D-REF** — legacy only; iOS-only (`consumed_by=[ios]`).
+- **D-SCOPE** — the 2 twins = one run (cluster-IS-the-run, run 58/60/63); the last 2 stubs → **CLOSES the iOS deferred
+  layer**; `App/_DeferredScreenStubs.swift` DELETED.
+- **D-S1** — faithful 1:1: multi-program select + intersection + save loop + rollback + sanitized sleep +
+  at-least-one-metric (health) + exit-to-My-Programs, all verbatim.
+- **D-C1** — **per-program `admin_only_data_entry` lock** (net-new, no legacy/web reference). The widget is
+  multi-program AND runs BEFORE an active program is picked, so `ProgramContext.dataEntryLocked` (scoped to the single
+  active program) can't be used → a per-`ProgramDTO` predicate `widgetProgramLockedForLogging(program, isGlobalAdmin)` =
+  `admin_only_data_entry && !isProgramAdmin` (program/global admin exempt; loggers not — the run-54/60/63 predicate).
+  Locked programs render disabled + lock-badged ("Admin-only logging") + un-selectable, and are dropped from the
+  selection on sync (guarded so a transient empty `activePrograms` doesn't wipe the selection). Completes the
+  run-54/60/63 lock arc onto the widget path.
+- **D-C2** — adopt shared chrome (`LogFieldLabel`/`LogFieldRow`/`AppInputField`/`AppPrimaryButton`); the bespoke
+  appOrange/appBlue CTAs unify to the label-capsule button + `.opacity(valid ? 1 : 0.5)` for the disabled state
+  (matches run-60 exactly). Accepted visual divergence.
+- **D-C3** — extract a shared scaffold `WidgetQuickAddComponents.swift` (header · program selector w/ the lock · member
+  field · success toast · `WidgetMemberOption` · lock helper) — the widget analogue of run-60 `LogFormComponents.swift`.
+  VIEW chrome only; each form keeps its own `@State` + save/rollback logic.
+- **D-DEPS** — no new foundation dep; no feature bump (page SPECs v0.1.0; the `workout-logs`/`daily-health-logs`
+  endpoints pre-exist — the Summary log forms consume them).
+
+**Kept faithful (F-rows):** the sequential per-program POST + best-effort rollback (not transactional); the raw
+backend-message surfacing for non-network errors; the success toast + ~1.4 s **auto-exit to My Programs** (the widget's
+deep-link identity — deliberately NOT converted to run-60's immediate `dismiss`); the CTA color unification (D-C2).
+
+**Verification:** native build GREEN via the xcode MCP (`BuildProject`, 0 errors, ~18 s — the project was open) + symbols
+grep-verified (all new types defined once, no `MemberOption` collision, all referenced shared symbols resolve). Deleted
+`_DeferredScreenStubs.swift`; tidied 2 stale `ScaffoldPlaceholder` comments in `AdminProgramTab`/`AdminSummaryTab`.
+
+**New durable patterns promoted to SKILL.md:** (1) a "faithful" screen becomes a **change-now** run when the USER picks
+additions/cleanups the code didn't force — offer them anyway (lock + chrome + de-dup all user-selected here, against the
+usual faithful lead); (2) a **net-new capability with NO legacy or web reference** is still portable when it's the
+per-instance analogue of an established predicate — the multi-program lock had no reference, but web's per-program
+`isDataEntryLocked` gave the exact predicate to lift to a per-`ProgramDTO` helper; (3) a run can **close an entire
+SURFACE-layer** (the deferred stubs) — delete the stub seam file + say "layer CLOSED", the cross-platform analogue of
+run-47's "closes the web surface"; (4) when the xcode project is OPEN, run the native `BuildProject` MCP for a real
+green-check instead of settling for grep-only (memory `ios-user-verifies-builds-visually` is about the local *CLI*
+CoreSimulator quirk — the MCP compile path sidesteps it).

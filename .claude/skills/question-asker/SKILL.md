@@ -1175,6 +1175,39 @@ directly as a faithful port from the legacy reference app** — there is no inte
   Reconfirmed: D-SCOPE single-leaf-view-is-the-run; read-only → `admin_only_data_entry` N/A; no role-conditional UI (scope
   from the card's `memberId`, gated upstream); `consumed_by=[ios]`, no feature bump (page SPEC v0.1.0; endpoint pre-exists);
   build owned by the user (Xcode), 3 new types grep-verified defined-once + stub removed + both call sites match the init.
+- **Run 65 — a "faithful" screen becomes a CHANGE-NOW run when the USER picks additions the code didn't force; a net-new
+  capability with NO legacy/web reference is still portable as the per-instance analogue of an established predicate; and a
+  run can CLOSE an entire surface-LAYER (delete the stub seam).** The 2 iOS widget entry views (`QuickAddWorkout`/
+  `QuickAddHealthWidgetEntryView` — the Home-Screen deep-link targets, `WidgetRoute.quickAdd{Workout,Health}`) were the
+  **last 2 deferred stubs** → porting them CLOSES the iOS deferred layer; `App/_DeferredScreenStubs.swift` **deleted**.
+  Multi-program forms (log the same workout/health across every selected active program, shared-member/-workout
+  **intersection** + per-program **rollback** + exit-to-My-Programs), **iOS-only** (`consumed_by=[ios]`; web's `bulk-log`
+  is multi-*row*/single-*program*, not a sibling) → faithful-to-legacy-only, no parity reconcile (run-58 shape). Four
+  durable patterns. **(a) The faithful LEAD can lose to a user change-now pick — offer the additions/cleanups anyway.**
+  Every prior iOS run led faithful and mostly stayed there; run 65's user took the CHANGE options on all three forks (add
+  the lock + adopt shared chrome + extract a shared scaffold). The lead is still faithful (D-S1 keeps the multi-program
+  save/intersection/rollback/exit verbatim), but the run is change-now — don't skip offering a cleanup because "it's a
+  faithful port"; the user owns the fork (run-32 dep-purity-vs-stance independence, now on an iOS twin). **(b) A net-new
+  capability with NO legacy or web reference is portable when it's the PER-INSTANCE analogue of an established predicate.**
+  The per-program `admin_only_data_entry` lock (D-C1) had zero legacy handling AND no web sibling — but web's per-program
+  `isDataEntryLocked` (`admin_only_data_entry && !isProgramAdmin`) gave the exact predicate to lift into a
+  per-`ProgramDTO` helper `widgetProgramLockedForLogging(program, isGlobalAdmin)` (the widget is multi-program/pre-pick, so
+  `ProgramContext.dataEntryLocked` — scoped to the single active program — can't be used). So "no reference" ≠ "invent
+  freely": find the established single-program predicate and re-derive it per-instance; treatment = disabled + lock-badged
+  + un-selectable + dropped-on-sync (guard the sync so a transient empty `activePrograms` doesn't wipe the selection).
+  Completes the run-54/60/63 lock arc onto the widget path. **(c) A run can CLOSE a surface-LAYER, not just a group/surface
+  — delete the seam file.** Runs 30/32/38/46/47/53/57 closed groups/tabs/the-web-surface; run 65 closes the iOS DEFERRED
+  layer — the last stubs gone means the foundation→feature stub seam (`_DeferredScreenStubs.swift`, the iOS
+  `NotificationsGate` analogue) is deleted entirely; say "layer CLOSED" in D-SCOPE + PROGRESS + COVERAGE + CONTEXT, and
+  tidy any stale comments that referenced the deleted `ScaffoldPlaceholder` type. **(d) When the Xcode project is OPEN,
+  run the native `BuildProject` MCP for a REAL green-check** (`XcodeListWindows` → `BuildProject(tabIdentifier)`, 0 errors)
+  instead of settling for grep-only — memory `ios-user-verifies-builds-visually` is about the local *CLI* CoreSimulator
+  quirk (`actool`/simulator), which the MCP compile path sidesteps; grep-verification stays the fallback when Xcode isn't
+  open. Reconfirmed: cluster-IS-the-run (run 58/60/63); no-new-foundation-dep even for a stateful multi-program form
+  (run-31, all API/DTO/`ProgramContext`/chrome pre-ported run 50/60); shared-scaffold extraction as a user-picked D-C
+  (run-54 "de-dup is a user pick") mirroring run-60 `LogFormComponents`; the CTA-color unification an accepted F-row;
+  `admin_only_data_entry` LIVE per-program on a WRITE path (read-vs-write axis, run 31/60); `consumed_by=[ios]`, no feature
+  bump (page SPECs v0.1.0; endpoints pre-exist — Summary forms consume them).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append
