@@ -220,3 +220,18 @@ is LIVING: we refine it as we actually use the MCP, starting the next session.
 **Open question to resolve on first use:** does the native bridge build the whole scheme (app + Widgets
 extension) and return per-file structured diagnostics as expected? If diagnostics are sparse, see whether a
 specific "list navigator issues" tool must be called after the build tool.
+
+---
+
+## Run 73 — 2026-07-01 — first-time Apple Health sync confirmation (health + sleep)
+- **Change built:** new first-sync confirmation flow — `PendingSyncConfirmation.swift`,
+  `ProgramContext+HealthSyncGating.swift`, `HealthSyncConfirmationView.swift` (new); compute/commit split
+  in `ProgramContext+HealthKit.swift` / `+HealthKitSleep.swift`; `@Published pendingSyncConfirmation` on
+  `ProgramContext`; `.fullScreenCover` in `AppRootView`.
+- **Result:** `BuildProject(tabIdentifier: windowtab2)` → built successfully, 0 errors, 24.5s. No new
+  warnings on the changed/added files (`XcodeListNavigatorIssues` filtered → 0).
+- **Confirmed (no new lessons):** tab id was `windowtab2` this session (fetched fresh via
+  `XcodeListWindows`, not hardcoded — as the converged note says it varies). New `.swift` files under the
+  synchronized folder group compiled with no `project.pbxproj` edit. iOS-26 `.glassProminent` button style
+  gated behind `if #available(iOS 26.0, *)` with a `.borderedProminent` fallback compiled clean on the
+  18.6 SDK floor.

@@ -136,3 +136,17 @@ per-feature-latest check / backfill trigger, not a literal total-tag equality on
 **Verification before commit.** iOS build green via the xcode MCP (0 errors); DB invariant scripted (79 map
 targets ⊆ 90 post-migration library names); migration `004` applied to Supabase + on-device manually tested by
 the user → committed as a real, verified feature (not a "pending smoke-test" progress commit).
+
+---
+
+## Run — 2026-07-01 — apple-health v0.3.0 → v0.4.0 (first-sync confirmation)
+- **Changeset → feature:** 4 edited + 3 new `apps/ios/**` files all map to `apple-health`'s `reference_impl`
+  (3 new files added to the node's `paths`); plus the feature SPEC (§3/§3a flow + new §8 **D-CONF**) and the
+  `ios/apple-health` page SPEC (§8 state + §9 D-CONF row). One feature, clean map.
+- **Bump = MINOR (0.3.0→0.4.0):** pre-1.0 newly-documented behavior (a whole new confirmation flow + owned
+  files). Additive `reference_impl` growth, `consumed_by`/`depends_on` unchanged.
+- **Blast radius = FYI, no gate:** `apple-health` is a leaf — reverse-scan for `depends_on: apple-health` → none;
+  `consumed_by: [ios]` only. New owned files satisfy nothing dangling; no existing contract moved.
+- **Two commits:** (1) `feat(apple-health)` = code + both SPECs + registry.json + REGISTRY.md, tagged
+  `feature/apple-health@v0.4.0`; (2) `chore(skills)` = the ios-build + git-version `LESSONS_ARCHIVE.md` edits
+  (lessons never ride the feature commit). Verified: user live-tested on device + iOS builds clean (0 errors).
