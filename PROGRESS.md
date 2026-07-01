@@ -79,6 +79,49 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Members detail cluster: 4 DETAIL VIEWS PORTED (run 63, 2026-06-30).** The **4 remaining deferred
+Members detail-view stubs** (reached from the Members tab cards, run 55) — ported into
+`apps/ios/.../Features/Home/Detail/{MemberMetricsDetailView,MemberStreakDetail,MemberRecentDetail,MemberHealthDetail}.swift`
+(4 iOS SPECs `specs/pages/ios/member-{metrics,streaks,recent,health}-detail/`), **all 4 stubs removed**. **The
+Members detail layer is now COMPLETE** (member **history** = the memberId-scoped `ActivityTimelineDetailView`, already
+ported run 61). **The 4 views:** (1) **member-metrics** (read-only) — `MemberMetricsDetailView` + co-located
+`MetricsFilters`/`SortSheet`/`FilterSheet`; searchable + server-sorted/filtered `MemberMetricsCard` grid over
+`loadMemberMetrics` + client CSV; web `/members/metrics`. (2) **member-streaks** (read-only) — `MemberStreakDetail` +
+`WrapChips`; current/longest tiles + milestone ladder over server-computed `memberStreaks`; web `/members/streaks`. (3)
+**member-recent** (WRITE) — `MemberRecentDetail` + sort/filter sheets + `WorkoutLogEditSheet`; sorted/filterable workout
+list + swipe Edit(duration)/Delete + lazy `program-workouts` picker + client CSV; web `/members/workouts`. (4)
+**member-health** (WRITE, the twin of recent) — `MemberHealthDetail` + sheets + `DailyHealthEditSheet`; sleep+diet list +
+swipe Edit(at-least-one-metric, 0:00–24:00)/Delete + client CSV; web `/members/health`. **D-SCOPE = cluster-IS-the-run**
+(all 4 in one run, run-58→62 precedent). **D-S1 = faithful 1:1** on all 4 (both web AND legacy iOS agree → faithful IS
+web parity, run-55/56 both-agree). **THE LOAD-BEARING DECISION — D-C1: the web-parity `admin_only_data_entry` lock on the
+2 WRITE views** (recent + health). Web `/members/{workouts,health}` hide Edit/Delete for non-admins when the program lock
+is on; **legacy iOS had NO lock handling** (relied on the backend 403 — the run-60 log-form situation). The port gates the
+swipe Edit/Delete actions on `!programContext.dataEntryLocked` (= `adminOnlyDataEntry && !isProgramAdmin`, run 54/60) — the
+list stays viewable read-only, the mutations are hidden — **completing the run-54/60 lock arc on the detail write path**
+(Summary DISPLAYS the lock → log forms GUARD it → these detail views now HIDE the row mutations). `isProgramAdmin` is
+exempt (admins keep the actions); a logger is locked out (matches web + backend `requireDataEntryAllowed`). **+ 2 cleanups
+on the streaks view** (user-picked): **D-C1(streaks)** tokenize the one bare `.orange` chip foreground → `Color.appOrange`
+(light-identical, run-26/62); **D-C2(streaks)** a **non-color ✓ milestone affordance** — achieved chips gain a ✓ prefix +
+a faint `appOrange` ring so "achieved" is not color-alone (matches web `/members/streaks` D-C1, a11y; legacy iOS
+distinguished by background color only). **D-DEPS = NO new dependency** — every API method (`loadMemberMetrics`/
+`loadMemberRecent`/`loadMemberHealthLogs`/`updateWorkoutLog`/`deleteWorkoutLog`/`updateDailyHealthLog`/`deleteDailyHealthLog`/
+`loadProgramWorkouts`), DTO (`MemberMetricsDTO`/`MemberStreaksResponse`/`MemberRecentWorkoutsResponse.Item`/
+`MemberHealthLogResponse.Item`), `dataEntryLocked` (run 54), `ShareSheet`/`ShareItem`, `SearchablePickerSheet`, and theme
+tokens already ported (foundation run 50 + run 54/55); **`SortField`/`SortDirection`/`MemberMetricsCard` REUSED from run 55
+(NOT redefined)**; the view-local enums + sort/filter/edit sheets port co-located. A legacy quirk fixed: `WorkoutLogEditSheet`
+lived in the legacy HEALTH file — relocated to `MemberRecentDetail.swift` with its owner. **D-REF = keep iOS-native**
+(NavigationLink push + native sheets vs web's routes/inline modals — the card set + role posture already match web →
+platform idiom, not a gap). **The member-own-only redirect web enforces (URL-addressable routes) is N/A in-view** — iOS
+gates member selection upstream at the Members tab cards (run 43/55), so the read views carry no redirect (flagged). Role
+rules code-answered: reads have no in-view gate (backend `ensureProgramAccess`/`getMemberMetrics` is the boundary — the
+client-stricter-at-entry F-rows, run 40/42/43); writes gate Edit/Delete on the lock. **`consumed_by=[ios]`, no feature bump**
+(page SPECs at v0.1.0; every backend endpoint pre-exists — web consumes them). **The app target's build green-check is owned
+by the user (visual run in Xcode)** — symbols verified via grep (each of the 20 new/embedded types defined exactly once, all
+4 stubs removed, `SortField`/`SortDirection`/`MemberMetricsCard`/`ShareSheet`/`SearchablePickerSheet` reused-not-redefined,
+every API/DTO/`dataEntryLocked`/theme dep resolves), not a CLI build (memory [[ios-user-verifies-builds-visually]]).
+**Next: the DEFERRED layer is nearly closed** — the 1 Lifestyle stub (`LifestyleTimelineDetailView`, web `/lifestyle/timeline`)
++ the 2 widget entry views (`QuickAddWorkout`/`QuickAddHealthWidgetEntryView`) remain, via `question-asker`.
+
 **Phase 4 — `ios` Program management sections: 3 SECTIONS + embedded detail views PORTED (run 62, 2026-06-30).**
 The **3 heavy Program-tab management sections** (deferred as `ScaffoldPlaceholder` stubs at run 57) — ported into
 `apps/ios/.../Features/Home/ProgramManagement/{MemberManagementSection,InviteMemberView,RoleManagementSection,WorkoutTypesSection}.swift`

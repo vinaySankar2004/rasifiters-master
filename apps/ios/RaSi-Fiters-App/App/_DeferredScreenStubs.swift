@@ -72,9 +72,9 @@ struct QuickAddHealthWidgetEntryView: View {
 
 // NOTE: AdminMembersTab + StandardMembersTab landed (Features/Home/Tabs/AdminMembersTab.swift +
 // StandardMembersTab.swift + MemberCards.swift + MemberOverviewPicker.swift, run 55) — stubs removed.
-// The 6 detail screens their cards navigate OUT to remain deferred (below: MemberMetricsDetailView,
-// InviteMemberView, ProgramMembersListView, MemberStreakDetail, MemberRecentDetail, MemberHealthDetail),
-// stubbed so the Members tabs compile; each DELETED when its real screen lands.
+// The 6 detail screens their cards navigate OUT to have ALL now landed: InviteMemberView +
+// ProgramMembersListView (run 62, ProgramManagement/); MemberMetricsDetailView + MemberStreakDetail +
+// MemberRecentDetail + MemberHealthDetail (run 63, Detail/). See the run-63 note below.
 
 // PORTED (run 62) — ViewWorkoutTypesListView + EditCustomWorkoutSheet now live in
 // Features/Home/ProgramManagement/WorkoutTypesSection.swift (the workout-type CRUD manager, web
@@ -88,6 +88,14 @@ struct LifestyleTimelineDetailView: View {
     init(initialPeriod: AdminHomeView.Period, memberId: String? = nil) {}
     var body: some View { ScaffoldPlaceholder(screen: "Lifestyle Timeline") }
 }
+
+// PORTED (run 63) — the 4 Members detail views now live in Features/Home/Detail/:
+//   MemberMetricsDetailView  (MemberMetricsDetailView.swift, web /members/metrics)
+//   MemberStreakDetail       (MemberStreakDetail.swift,       web /members/streaks)
+//   MemberRecentDetail       (MemberRecentDetail.swift,       web /members/workouts — lock ADD)
+//   MemberHealthDetail       (MemberHealthDetail.swift,       web /members/health   — lock ADD)
+// All 4 stubs removed. The 2 write views gained the web-parity admin_only_data_entry
+// lock (swipe Edit/Delete hidden when programContext.dataEntryLocked).
 
 // PORTED (run 62) — AdminProgramTab's 3 management sections now live in
 // Features/Home/ProgramManagement/ (MemberManagementSection.swift = ProgramMemberManagementSection +
@@ -121,34 +129,8 @@ struct LifestyleTimelineDetailView: View {
 // + ChartDetailComponents.swift, run 61) — the 3 Summary chart drill-downs. Stubs removed. Kept iOS-native
 // interactive (D-REF); ActivityTimelineDetailView also serves the Members MemberHistoryCard (memberId-scoped).
 
-// MARK: - Deferred detail screens referenced by the Members tabs (run 55 — AdminMembersTab/StandardMembersTab)
-// The iOS analogues of the web /members sub-routes (metrics / invite / list+detail / streaks / workouts / health).
-// Initializers match the Members tab + card call sites so the tabs compile.
-
-/// DEFERRED (Features/Home/Detail/MemberMetricsViews.swift) — Members metrics-preview card → full metrics table.
-struct MemberMetricsDetailView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Member Metrics") }
-}
-
-// PORTED (run 62) — InviteMemberView (Features/Home/ProgramManagement/InviteMemberView.swift) +
-// ProgramMembersListView (Features/Home/ProgramManagement/MemberManagementSection.swift). Shared nav
-// targets of the Members tab (run 55) + the AdminProgramTab Member Management section. Stubs removed.
-
-/// DEFERRED (Features/Home/Detail/MemberDetailViews.swift) — Members streak card → streak detail + milestones.
-struct MemberStreakDetail: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Streak Stats") }
-}
-
-/// DEFERRED (Features/Home/Sheets/WorkoutSortFilterSheets.swift) — Members recent card → per-member workouts.
-struct MemberRecentDetail: View {
-    var memberId: String?
-    var memberName: String?
-    var body: some View { ScaffoldPlaceholder(screen: "View Workouts") }
-}
-
-/// DEFERRED (Features/Home/Sheets/HealthSortFilterSheets.swift) — Members health card → per-member health logs.
-struct MemberHealthDetail: View {
-    var memberId: String?
-    var memberName: String?
-    var body: some View { ScaffoldPlaceholder(screen: "View Health") }
-}
+// MARK: - Members detail screens — ALL PORTED (run 63)
+// The iOS analogues of the web /members sub-routes. InviteMemberView + ProgramMembersListView
+// landed run 62 (ProgramManagement/); the 4 remaining detail views landed run 63 in
+// Features/Home/Detail/ (MemberMetricsDetailView / MemberStreakDetail / MemberRecentDetail /
+// MemberHealthDetail). All Members detail stubs removed.
