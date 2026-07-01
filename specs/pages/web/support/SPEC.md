@@ -1,6 +1,6 @@
 # Page: `support` (web) — Public Support / Contact (public legal/contact pair — 2 of 2 — CLOSES the web surface)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/support` — the **PUBLIC** (pre-auth) Support / Contact page: a single static `GlassCard` with a
 > contact email and a short "what to include" list, with a header **Privacy Policy** link to its cross-linked
 > sibling [`privacy-policy`](../privacy-policy/SPEC.md). The **second & LAST of the two final public
@@ -19,7 +19,8 @@
 
 The **PUBLIC Support / Contact** page: a `PageShell maxWidth="3xl"` + `PageHeader` ("Support", a **Privacy Policy**
 link action) over a single `GlassCard padding="lg"` with a contact line (`vinay.sankara@gmail.com`) and a
-`list-disc` "Please include:" list (App version · iOS version · Device model · a short description of the issue).
+platform-split "what to include" list — an **iOS app** group (App version · iOS version · Device model) and a
+**Web** group (Browser and version · Operating system), plus a shared short-description line.
 Used by **anyone, signed-in or not** (a public, pre-auth route) to find how to contact support. It is **read-only**
 — nothing on the page is interactive except the header **Privacy Policy** link.
 
@@ -46,7 +47,7 @@ never touches the backend, and renders identically for everyone.
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Header | `PageHeader` "Support" (no subtitle) + a **Privacy Policy** `next/link` action → `/privacy-policy`. | support/page.tsx:11-21 |
-| Contact card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`): a "contact us at:" paragraph + the email `vinay.sankara@gmail.com` (`font-semibold text-rf-text`) + a "Please include:" line + a `list-disc` list (App version · iOS version · Device model · issue description). | support/page.tsx:23-35 |
+| Contact card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`): a "contact us at:" paragraph + the email `vinay.sankara@gmail.com` (`font-semibold text-rf-text`) + a platform-split "what to include" list — an **iOS app** group (App version · iOS version · Device model) + a **Web** group (Browser and version · Operating system) + a shared short-description line. | support/page.tsx:23-52 |
 
 ## 5. Components + consumed features
 
@@ -97,12 +98,16 @@ never touches the backend, and renders identically for everyone.
   what-to-include list are literal JSX (support/page.tsx:27, 30-33); the email here differs from the privacy
   policy's contact (`geethasankar78@gmail.com`) — both faithful to legacy. A config-sourced contact would be a
   rebuild feature, not a cleanup.
-- **F3 — the "iOS version" / "Device model" prompts are iOS-oriented on the web page.** The "Please include:" list
-  asks for iOS version + device model even on web (support/page.tsx:31-32) — faithful to the shared cross-surface
-  contact copy; a content-review candidate, not a code cleanup (mirrors `privacy-policy` F1).
+- **F3 — RESOLVED (0.2.0): the include-list is now split by platform.** Previously the single "Please include:"
+  list asked for iOS version + device model even for web users (the page serves both the web `/support` route and,
+  via `APIConfig.supportURL`, the iOS Settings → Support link). As of 0.2.0 the list is split into an **iOS app**
+  group (App version · iOS version · Device model) and a **Web** group (Browser and version · Operating system),
+  plus a shared "short description" line — a deliberate, applied content deviation from the faithful legacy port
+  (one app, two surfaces). This closes the former content-review flag.
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-01 | **Platform-aware support details** (one app, two surfaces): the page is shared by web (`/support`) and iOS (Settings → Support opens `APIConfig.supportURL` → `rasifiters.com/support`), but the "Please include:" list previously asked only for iOS version + device model. Split it into a labelled **iOS app** group (App version · iOS version · Device model) and a **Web** group (Browser and version · Operating system), plus a shared "short description of the issue" line, with a lead-in asking which platform the user is on. Uses the existing `GlassCard`/`text-rf-*` styling — no new component or dependency. **Resolves flagged F3.** **No iOS change** — iOS opens this same URL. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 47) — the **34th & FINAL web page spec**, the **2nd of the two final public legal/contact pages — it CLOSES the entire web surface**. The **PUBLIC Support / Contact** page — the **smallest page in the rebuild** (38 legacy lines): a static `GlassCard` with a contact email + a "what to include" list at a **pre-auth route** (NOT under the `middleware.ts` matcher → no auth guard, no edge bounce), with a header **Privacy Policy** link cross-linking the sibling. Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Support mirrors it) · **D-SCOPE** (2nd of two final public pages this run — CLOSES the web surface) · **D-DEPS** (no new dependency — purest shape at its floor, no auth guard) · **D-S1** (faithful 1:1, no deviations; content verbatim, already tokenized). Flagged F1–F3 (public/no-role; hardcoded contact email differs from the policy's; iOS-oriented include-list on web). Consumes only foundation chrome + `next/link`; **no feature bump.** Ported `apps/web/src/app/support/page.tsx`. `npm run build` ✓ (1.52 kB, prerendered — the smallest page). |

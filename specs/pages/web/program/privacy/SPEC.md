@@ -1,6 +1,6 @@
 # Page: `program/privacy` (web) — Privacy Policy (program-settings sub-route 6 of 6 — LAST)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/privacy` — the **Privacy Policy** document: a single static `GlassCard` of policy prose
 > (effective date, information-collected/used/shared, Apple Health, retention, security, choices, children's privacy, contact),
 > the **sixth and LAST** of the deferred `/program/*` settings sub-routes (reached from the
@@ -113,11 +113,13 @@ and no per-user state** — so it never touches the backend or another member, a
 
 ## 10. Flagged characteristics (kept as-is)
 
-- **F1 — the policy describes iOS push/APNs behavior even on the web surface.** The shared cross-surface document
-  references collecting an APNs device token and Apple's Push Notification service (privacy/page.tsx:35, 47, 69-71),
-  but the web client uses SSE, not APNs, and registers no device token. Faithful — it is one shared legal document
-  across both surfaces; trimming web-irrelevant clauses would fork the policy. Kept verbatim (user decision);
-  content-review candidate, not a code cleanup.
+- **F1 — the policy describes iOS-only behavior (Apple Health, push/APNs) on the shared web surface.** The
+  cross-surface document references Apple Health (HealthKit) reads and collecting an APNs device token / Apple's
+  Push Notification service, but the web client uses SSE (no APNs, no device token) and never touches Apple Health.
+  **As of 0.2.1 these are now explicitly scoped in-copy** — the intro flags that Apple Health and push notifications
+  are iOS-app-only, the *Apple Health* section is titled "Apple Health (iOS app only)" with a lead sentence stating
+  the web app does not read from it, and the collect/use bullets say "iOS app". Still one shared legal document (not
+  forked per surface); the in-copy scoping is the professional clarification, not a fork.
 - **F2 — the policy is gated behind auth.** `/program/privacy` requires a session (redirects to `/login`),
   unlike a typical always-public privacy page; a separate public `/privacy-policy` route exists for the pre-auth
   path. Faithful — legacy also placed this copy behind auth under `/program/*`.
@@ -131,5 +133,6 @@ and no per-user state** — so it never touches the backend or another member, a
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-07-01 | **Platform-scope clarification** (one app, two surfaces): scoped the iOS-only *Apple Health* feature explicitly in-copy so web users aren't told it applies to them. Titled the section "Apple Health (iOS app only)" + added a lead sentence ("the web app does not connect to or read from Apple Health"), split the fitness collect-bullet so the Apple Health clause is its own "(iOS app only)" bullet, added "in the iOS app" to the *How we use* auto-log bullet, and added an intro sentence noting platform-specific features (Apple Health, push) are called out where they apply. No change to what data is collected/used; **effective date unchanged (2026-07-01)**. Applied **identically** to the byte-identical public [`privacy-policy`](../../privacy-policy/SPEC.md) (D-DUP parity). Updated **F1**. **No iOS change** — the app links to this URL. `npm run build` ✓. |
 | 0.2.0 | 2026-07-01 | **Deliberate content update (D-AH)** ahead of iOS TestFlight/App-Store submission: added an **Apple Health** section disclosing the net-new iOS `apple-health` HealthKit read (workouts + sleep — read-only, used only for auto-logging, never sold/advertised/shared with third parties, user-revocable), an Apple-Health clause in the fitness collect-bullet, a *How we use* auto-log bullet, and the *Sharing* no-sell line; bumped the **effective date → 2026-07-01**; light clarity polish. Applied **identically** to the byte-identical public [`privacy-policy`](../../privacy-policy/SPEC.md). **No iOS change** — the app links to this policy URL. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 30) — the **sixteenth web page spec**, the **sixth & LAST of the deferred `/program/*` settings sub-routes** (the `/program/*` group is now complete). The **Privacy Policy** document — a fully static `GlassCard` of policy prose; **not** a program-admin setting (no admin redirect; available to every role; no role-conditional UI at all). The **purest page in the rebuild: static content with no state, no `localStorage`, no API, no backend, and no new dependency** (purer even than the run-29 `appearance` picker). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Privacy Policy mirrors the same shared policy later) · **D-SCOPE** (this page only — CLOSES the 6-of-6 `/program/*` group) · **D-DEPS** (no new dependency — purest shape) · **D-S1** (faithful 1:1; content verbatim, already fully tokenized, no tokenize cleanup) · **D-C1** (reuse `useAuthGuard({ requireProgram: false })` over the inline redirect). Flagged F1–F4 (shared iOS-push text on web; auth-gated policy; hardcoded date/email; no role read at all). Consumes only foundation chrome + `useAuthGuard`; **no feature bump.** Ported `apps/web/src/app/program/privacy/page.tsx`. `npm run build` ✓. |

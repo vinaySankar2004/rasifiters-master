@@ -1,6 +1,6 @@
 # Page: `privacy-policy` (web) — Public Privacy Policy (public legal/contact pair — 1 of 2)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/privacy-policy` — the **PUBLIC** (pre-auth) Privacy Policy document: a single static `GlassCard` of
 > policy prose (effective date, information-collected/used/shared, Apple Health, retention, security, choices, children's
 > privacy, contact), with a header **Support** link to its cross-linked sibling [`support`](../support/SPEC.md).
@@ -111,11 +111,14 @@ the backend or another member, and renders identically for everyone.
 
 ## 10. Flagged characteristics (kept as-is)
 
-- **F1 — the policy describes iOS push/APNs behavior even on the web surface.** The shared cross-surface document
-  references collecting an APNs device token and Apple's Push Notification service (privacy-policy/page.tsx:39, 51,
-  73-75), but the web client uses SSE, not APNs, and registers no device token. Faithful — it is one shared legal
-  document across both surfaces; trimming web-irrelevant clauses would fork the policy. Kept verbatim;
-  content-review candidate, not a code cleanup.
+- **F1 — the policy describes iOS-only behavior (Apple Health, push/APNs) on the shared web surface.** The
+  cross-surface document references Apple Health (HealthKit) reads and collecting an APNs device token / Apple's
+  Push Notification service, but the web client uses SSE (no APNs, no device token) and never touches Apple Health.
+  **As of 0.2.1 these are now explicitly scoped in-copy** — the intro flags that Apple Health and push notifications
+  are iOS-app-only, the *Apple Health* section is titled "Apple Health (iOS app only)" with a lead sentence stating
+  the web app does not read from it, and the collect/use bullets say "iOS app". The push/APNs bullets keep their
+  "(iOS)" labels. Still one shared legal document (not forked per surface); the in-copy scoping is the professional
+  clarification, not a fork.
 - **F2 — web↔web policy-body duplication with `program/privacy`.** The `<GlassCard>` body is byte-identical to the
   in-app [`program/privacy`](../program/privacy/SPEC.md) page, kept as a separate verbatim copy (D-DUP) rather than
   a shared `<PrivacyPolicyContent>` component. Faithful to legacy (two independent files); single-sourcing is a
@@ -130,5 +133,6 @@ the backend or another member, and renders identically for everyone.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-07-01 | **Platform-scope clarification** (one app, two surfaces): scoped the iOS-only *Apple Health* feature explicitly in-copy so web users aren't told it applies to them. Titled the section "Apple Health (iOS app only)" + added a lead sentence ("the web app does not connect to or read from Apple Health"), split the fitness collect-bullet so the Apple Health clause is its own "(iOS app only)" bullet, added "in the iOS app" to the *How we use* auto-log bullet, and added an intro sentence noting platform-specific features (Apple Health, push) are called out where they apply. No change to what data is collected/used — a clarification, not a new data practice; **effective date unchanged (2026-07-01)**. Applied **identically** to the byte-identical [`program/privacy`](../program/privacy/SPEC.md) (D-DUP parity). Updated **F1**. **No iOS change** — the app links to this URL. `npm run build` ✓. |
 | 0.2.0 | 2026-07-01 | **Deliberate content update (D-AH)** ahead of iOS TestFlight/App-Store submission: added an **Apple Health** section disclosing the net-new iOS `apple-health` HealthKit read (workouts + sleep — read-only, used only for auto-logging, never sold/advertised/shared with third parties, user-revocable), an Apple-Health clause in the fitness collect-bullet, a *How we use* auto-log bullet, and the *Sharing* no-sell line; bumped the **effective date → 2026-07-01**; light clarity polish. Applied **identically** to the byte-identical [`program/privacy`](../program/privacy/SPEC.md) (D-DUP parity). **No iOS change** — the app links to this URL, so updating the page updates the in-app policy. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 47) — the **33rd web page spec**, the **1st of the two final public legal/contact pages** (paired with [`support`](../support/SPEC.md), which CLOSES the web surface). The **PUBLIC Privacy Policy** document — a fully static `GlassCard` of policy prose at a **pre-auth route** (NOT under the `middleware.ts` matcher → no auth guard, no edge bounce), with a header **Support** link. The **public twin of [`program/privacy`](../program/privacy/SPEC.md)** (byte-identical body) but a distinct access tier. Even purer than the run-30 `program/privacy`: **no `useAuthGuard`** (public). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Privacy Policy mirrors the same shared policy) · **D-SCOPE** (both final public pages this run — CLOSES the web surface) · **D-DEPS** (no new dependency — purest shape, no auth guard) · **D-S1** (faithful 1:1, no deviations; content verbatim, already tokenized; no `useAuthGuard` cleanup analogue) · **D-DUP** (keep the policy body duplicated, do NOT single-source — distinct access tiers; user decision). Flagged F1–F4 (shared iOS-push text on web; web↔web body duplication; hardcoded date/email; public/no-role). Consumes only foundation chrome + `next/link`; **no feature bump.** Ported `apps/web/src/app/privacy-policy/page.tsx`. `npm run build` ✓ (2.81 kB, prerendered). |
