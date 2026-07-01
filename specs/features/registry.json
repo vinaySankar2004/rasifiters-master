@@ -109,7 +109,7 @@
       }
     },
     "workouts": {
-      "version": "0.1.0",
+      "version": "0.1.1",
       "spec": "specs/features/workouts/SPEC.md",
       "status": "built",
       "consumed_by": ["ios"],
@@ -141,7 +141,7 @@
       }
     },
     "workout-logs": {
-      "version": "0.2.0",
+      "version": "0.2.1",
       "spec": "specs/features/workout-logs/SPEC.md",
       "status": "built",
       "consumed_by": ["web", "ios"],
@@ -230,6 +230,22 @@
         "app": "backend",
         "paths": [
           "server.js"
+        ]
+      }
+    },
+    "apple-health": {
+      "version": "0.1.0",
+      "spec": "specs/features/apple-health/SPEC.md",
+      "status": "built",
+      "consumed_by": ["ios"],
+      "depends_on": ["auth", "programs", "program-memberships", "workouts", "workout-logs"],
+      "reference_impl": {
+        "app": "ios-mobile",
+        "paths": [
+          "RaSi-Fiters-App/Shared/Services/HealthKitService.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthKitWorkoutTypeMap.swift",
+          "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKit.swift",
+          "RaSi-Fiters-App/Features/Home/Settings/AppleHealthSettingsView.swift"
         ]
       }
     }

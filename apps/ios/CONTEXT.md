@@ -23,7 +23,16 @@ intended change is the auth path (Supabase-issued tokens via the backend proxy).
 ## Surface (screens, from the legacy app)
 Splash · Login · CreateAccount · ProgramPicker · AdminHome (Summary / Members / Lifestyle / Program tabs,
 admin + standard variants) · member detail/metrics/streaks/history · Settings (profile / password /
-appearance / notifications) · widget entry views · notification modal.
+appearance / notifications / **Apple Health**) · widget entry views · notification modal.
+
+## Apple Health auto-sync (2026-06-30)
+The [`apple-health`](../../specs/features/apple-health/SPEC.md) feature — iOS-only HealthKit workout auto-sync
+(net-new, ported from `vinaySankar2004/RaSi-Fiters` PR #4 and corrected for our curated `workouts_library`).
+Uses the native **HealthKit** framework (still zero third-party deps). Read-only workout access + background
+delivery; maps every `HKWorkoutActivityType` → a library name (`HealthKitWorkoutTypeMap`), aggregates per
+type/day, and writes via the existing `POST /api/workout-logs` (skip-on-conflict via a 409). Sync state lives
+in `UserDefaults` on `ProgramContext+HealthKit`. Requires the HealthKit + Background-Delivery + Background-Modes
+capabilities (entitlements shipped; Xcode capability toggles + App ID enablement are user-run).
 
 ## Auth (client side)
 - **Locked (de-risked by web):** keep the existing Keychain + APIClient networking and have the **backend

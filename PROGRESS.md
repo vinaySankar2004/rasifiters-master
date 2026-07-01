@@ -10,6 +10,25 @@
 
 ## Current phase
 
+**Phase 4 — `ios` Apple Health auto-sync: BUILT (2026-06-30).** Ported `vinaySankar2004/RaSi-Fiters` **PR #4**
+(the user's uncle's HealthKit integration, legacy `ios-mobile/`) into `apps/ios`, **corrected for our curated
+`workouts_library`** (the PR wrongly assumed the backend auto-creates types). New feature
+[`apple-health`](specs/features/apple-health/SPEC.md) (`consumed_by=[ios]`, v0.1.0) + page
+[`ios/apple-health`](specs/pages/ios/apple-health/SPEC.md). **Library reconciliation** (D1 additive+map, D2 all
+~76 Apple types, D4 against the **live** 25-row library): migration `apps/backend/sql/004_seed_healthkit_workout_types.sql`
+adds 65 rows (`ON CONFLICT DO NOTHING`); `HealthKitWorkoutTypeMap` maps every `HKWorkoutActivityType` (16 reuse curated
+names + ~63 new; `.other`→"Other Workout"). **Invariant verified:** 79 map targets ⊆ 90 post-migration library names.
+**Error handling** (user ask): anchor committed only after a successful sync (**fixes a data-loss bug in the PR**),
+**skip-on-conflict** (D3) via a new **409-on-PK-collision** in `logService.addWorkoutLog` (workout-logs → v0.2.1,
+D-C7), locked-program/permission skip, availability/permission guards, single-flight sync. **D7 sync-result local
+notification + in-app status** (new/failed only, silent otherwise). Files: `Shared/Services/HealthKit{Service,WorkoutTypeMap,SyncNotifier}.swift`,
+`Shared/Models/ProgramContext+HealthKit.swift`, `Features/Home/Settings/AppleHealthSettingsView.swift`, + edits to
+`ProgramContext(.swift/+Auth)`, `AppRootView`, `AdminHomeView`, `ProgramPickerView`, `APIClient+Workouts`, entitlements
++ Info.plist. `workouts` → v0.1.1. **Native build GREEN via the xcode MCP (0 errors).** **User to-do before it works:**
+(1) run migration `004` on Supabase; (2) in Xcode add the **HealthKit (Background Delivery)** + **Background Modes
+(fetch)** capabilities + enable HealthKit on the App ID; (3) on-device test (Simulator has no HealthKit) — App Store
+privacy config per Apple's HealthKit requirements.
+
 **Phase 4 — `ios` widgets: PORTED (run 65, 2026-06-30) → THE iOS DEFERRED LAYER IS CLOSED.** The **last 2 deferred
 stubs** — `QuickAddWorkoutWidgetEntryView` + `QuickAddHealthWidgetEntryView` (the Home-Screen widget deep-link
 targets `AppRootView` presents on `WidgetRoute.quickAdd{Workout,Health}`) — ported into

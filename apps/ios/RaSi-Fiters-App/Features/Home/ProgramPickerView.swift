@@ -179,6 +179,8 @@ struct ProgramPickerView: View {
                 AppearanceSettingsView()
             case .notifications:
                 NotificationsSettingsView()
+            case .appleHealth:
+                AppleHealthSettingsView()
             }
         }
         .alert("Delete Program?", isPresented: $showDeleteConfirmation) {
@@ -396,6 +398,7 @@ private enum AccountDestination: String, Identifiable {
     case password
     case appearance
     case notifications
+    case appleHealth
 
     var id: String { rawValue }
 }
@@ -462,6 +465,18 @@ private struct AccountMenuSheet: View {
                                     color: .appOrange,
                                     title: "Notifications",
                                     subtitle: "Manage push notifications"
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                onSelectDestination(.appleHealth)
+                            } label: {
+                                AccountRow(
+                                    icon: "heart.fill",
+                                    color: .appRed,
+                                    title: "Apple Health",
+                                    subtitle: "Sync workouts automatically"
                                 )
                             }
                             .buttonStyle(.plain)

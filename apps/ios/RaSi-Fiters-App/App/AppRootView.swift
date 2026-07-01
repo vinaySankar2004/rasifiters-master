@@ -40,14 +40,21 @@ struct AppRootView: View {
                 await MainActor.run {
                     programContext.startNotificationStreamIfNeeded()
                 }
+                if programContext.isHealthKitEnabled {
+                    await programContext.performHealthKitSync()
+                }
             }
         }
         .onChange(of: programContext.authToken) { _, _ in
             Task { @MainActor in
                 if programContext.authToken != nil {
                     programContext.startNotificationStreamIfNeeded()
+                    if programContext.isHealthKitEnabled {
+                        await programContext.performHealthKitSync()
+                    }
                 } else {
                     programContext.stopNotificationStream()
+                    programContext.stopHealthKitSync()
                 }
             }
         }
@@ -71,6 +78,9 @@ struct AppRootView: View {
                 await programContext.refreshSessionIfNeeded()
                 if programContext.authToken != nil {
                     programContext.startNotificationStreamIfNeeded()
+                    if programContext.isHealthKitEnabled {
+                        await programContext.performHealthKitSync()
+                    }
                     let settings = await UNUserNotificationCenter.current().notificationSettings()
                     if settings.authorizationStatus == .denied {
                         let storedToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)

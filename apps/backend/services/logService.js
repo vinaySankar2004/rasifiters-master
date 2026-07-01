@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+const { Op, UniqueConstraintError } = require("sequelize");
 const { sequelize } = require("../config/database");
 const { WorkoutLog, Member, ProgramWorkout, ProgramMembership, Workout, Program, DailyHealthLog } = require("../models");
 const { AppError } = require("../utils/response");
@@ -155,13 +155,26 @@ async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_nam
     const workoutName = workout_name.trim();
     const programWorkout = await resolveProgramWorkout(program_id, workoutName);
 
-    const newLog = await WorkoutLog.create({
-        program_id,
-        member_id,
-        program_workout_id: programWorkout.id,
-        log_date: date,
-        duration: durationNum
-    });
+    // A second log for the same (program, member, workout, date) hits the composite PK. Surface it as a
+    // friendly 409 (matching the batch endpoint's duplicate semantics) instead of a generic 500 — this lets
+    // clients distinguish "already logged" (skip) from real failures. Used by Apple Health auto-sync's
+    // skip-on-conflict path, and improves the manual form's duplicate message. (Deliberate change, see
+    // specs/features/workout-logs SPEC.)
+    let newLog;
+    try {
+        newLog = await WorkoutLog.create({
+            program_id,
+            member_id,
+            program_workout_id: programWorkout.id,
+            log_date: date,
+            duration: durationNum
+        });
+    } catch (err) {
+        if (err instanceof UniqueConstraintError) {
+            throw new AppError(409, "A log for this workout already exists on this date.");
+        }
+        throw err;
+    }
 
     const member = await Member.findByPk(member_id);
 

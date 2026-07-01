@@ -58,6 +58,11 @@ struct AdminHomeView: View {
         }
         .adaptiveTint()
         .navigationBarBackButtonHidden(true)
+        .task {
+            if programContext.isHealthKitEnabled {
+                await programContext.performHealthKitSync()
+            }
+        }
     }
 
     @ViewBuilder

@@ -11,6 +11,9 @@ Render schema** (R5: same table names, no prefixes). Apply them in numeric order
 | File | What it does |
 |------|--------------|
 | `001_schema.sql` | Creates all 13 canonical tables + indexes + FKs, idempotent (`IF NOT EXISTS`). Adds the one migration delta — `members.auth_user_id` → `auth.users(id)`. |
+| `002_backfill_placeholder_member_emails.sql` | Backfills placeholder emails for members missing one. |
+| `003_widen_gender_column.sql` | Widens `members.gender` to `varchar(32)` so all profile options fit. |
+| `004_seed_healthkit_workout_types.sql` | Seeds `workouts_library` with the Apple Health (HealthKit) workout types (additive, `ON CONFLICT DO NOTHING`) so iOS HealthKit auto-sync maps onto real library rows. See `specs/features/apple-health`. |
 
 Retired vs legacy (NOT created — Supabase Auth owns them): `member_credentials`, `refresh_tokens`,
 `auth_identities`, `email_verification_tokens`. The `legacy_*` backup tables are excluded as cruft.

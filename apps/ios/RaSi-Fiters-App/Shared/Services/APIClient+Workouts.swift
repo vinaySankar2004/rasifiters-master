@@ -256,4 +256,66 @@ extension APIClient {
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         _ = try await data(for: request)
     }
+
+    // MARK: - HealthKit auto-sync write
+
+    /// Outcome of a single Apple Health workout-log write. The shared `data(for:)` collapses errors
+    /// to a status-less `APIError`; this uses `rawData(for:)` so the caller can distinguish an expected
+    /// duplicate (skip) from a retryable failure (don't advance the HealthKit anchor).
+    enum WorkoutLogWriteOutcome {
+        case created            // 2xx — a new log was written
+        case duplicate          // 409 — already logged that (member, workout, date); skip (D3)
+        case skipped            // 400 / 403 / 404 — permanent (locked/validation/not-a-participant); won't retry
+        case retryable          // network / 5xx / 401-after-refresh — leave the anchor so it retries next sync
+    }
+
+    /// Post one aggregated workout to `POST /api/workout-logs`, classifying the result. Never throws —
+    /// returns `.retryable` on transport errors. Mirrors `data(for:)`'s single refresh-on-401 while
+    /// preserving the HTTP status.
+    func writeHealthKitWorkoutLog(
+        token: String,
+        memberName: String,
+        workoutName: String,
+        date: String,
+        durationMinutes: Int,
+        programId: String,
+        memberId: String?
+    ) async -> WorkoutLogWriteOutcome {
+        func buildRequest(bearer: String) -> URLRequest? {
+            var request = URLRequest(url: baseURL.appendingPathComponent("workout-logs"))
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+            var body: [String: Any] = [
+                "member_name": memberName,
+                "workout_name": workoutName,
+                "date": date,
+                "duration": durationMinutes,
+                "program_id": programId
+            ]
+            if let memberId { body["member_id"] = memberId }
+            guard let httpBody = try? JSONSerialization.data(withJSONObject: body, options: []) else { return nil }
+            request.httpBody = httpBody
+            return request
+        }
+
+        guard let initial = buildRequest(bearer: token) else { return .skipped }
+
+        do {
+            var (_, http) = try await rawData(for: initial)
+            if http.statusCode == 401, let fresh = try? await refreshAccessTokenIfPossible(),
+               let retry = buildRequest(bearer: fresh) {
+                (_, http) = try await rawData(for: retry)
+            }
+            switch http.statusCode {
+            case 200..<300:     return .created
+            case 409:           return .duplicate
+            case 400, 403, 404: return .skipped
+            default:            return .retryable   // 401 (still), 5xx, anything else
+            }
+        } catch {
+            return .retryable
+        }
+    }
 }

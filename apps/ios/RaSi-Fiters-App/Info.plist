@@ -2,6 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSHealthShareUsageDescription</key>
+	<string>RaSi Fit'ers reads your workout data from Apple Health to automatically log workouts to your fitness programs.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>RaSi Fit'ers does not write data to Apple Health, but this permission is required by the system.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

@@ -115,6 +115,12 @@ final class ProgramContext: ObservableObject {
     @Published var widgetRoute: WidgetRoute?
     @Published var returnToMyPrograms: Bool = false
 
+    // Apple Health (HealthKit) auto-sync — see ProgramContext+HealthKit.swift
+    @Published var isHealthKitEnabled: Bool = false
+    @Published var healthKitSyncProgramIds: Set<String> = []
+    @Published var lastHealthKitSyncDate: Date?
+    @Published var lastHealthKitSyncCount: Int = 0
+
     var notificationStreamClient: NotificationStreamClient?
     var notificationIds: Set<String> = []
     let notificationDateFormatter = ISO8601DateFormatter()

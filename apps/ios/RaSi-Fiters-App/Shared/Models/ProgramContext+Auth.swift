@@ -45,6 +45,8 @@ extension ProgramContext {
         if let name = loggedInUserName {
             adminName = name
         }
+
+        restoreHealthKitSettings()
     }
 
     func persistSession() {
@@ -141,6 +143,7 @@ extension ProgramContext {
         offlineNotice = nil
 
         stopNotificationStream()
+        clearHealthKitSettings()
         clearPersistedSession()
 
         if let tokenToRevoke {
