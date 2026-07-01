@@ -5,6 +5,26 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 71 — Apple Health per-program window scoping + sleep-sync fix (apple-health 0.3.0) (2026-07-01)
+
+**Context.** Fixed two sync bugs. (1) Sleep never wrote: `fetchSleepSamples` floored its window at the
+connect date, so a same-day connect → `[today, today]` → nothing; dropped the floor, `sleepLookbackDays(3)`
+→ `sleepRecentDays(14)` from start-of-day, and added an In-Bed fallback in `aggregateSleep` (nights with
+no watch stages use `.inBed`). (2) Cross-program bleed: both syncs wrote every item to every program;
+added `ProgramContext+HealthKitWindows.swift` (`loadSyncWindows`/`localYMD`/`date(_:isWithin:)`) and a
+per-program `[start,end]` write-guard in `performHealthKitSync` + `performSleepSync` (dates are
+`yyyy-MM-dd` strings → lexicographic compare). Workout sync returns early without committing its anchor if
+windows can't be resolved (offline) to avoid dropping workouts.
+
+**Build.** `windowtab2` this session. `BuildProject` → built successfully, **0 errors**, 19.1s.
+`XcodeListNavigatorIssues` (Sleep|HealthKit|Window|DailyHealth) → 0 warnings.
+
+**Lessons.** (1) `ProgramDTO` already carried `start_date`/`end_date` (`yyyy-MM-dd` optional strings) — no
+backend/decoder change to scope client-side. (2) Anchor-based syncs must NOT advance the anchor on a
+transient resolve failure (empty windows) or data is lost silently — early-return before `commitAnchor`.
+(3) HealthKit read auth is invisible: a "connected but syncs nothing" report is usually the connect-date
+floor or ungranted read permission, not a query bug.
+
 ## Run 70 — Apple Health SLEEP auto-sync (apple-health 0.2.0) (2026-07-01)
 
 **Context.** Added nightly sleep sync mirroring the workout HealthKit path but writing to
