@@ -5,6 +5,28 @@ Run-by-run history for the `ios-build` skill. Newest first. Promote durable patt
 
 ---
 
+## Run 66 — bulk-add card + duplicate-rejection (2026-06-30)
+
+**Context.** Ported the web Bulk-add card to the iOS Summary tab (new `BulkAddWorkoutDetailView` multi-row
+form, `BulkAddWorkoutCard`, `SummaryCardType.bulkAdd`, `AdminSummaryTab` wiring + role gate) and added a
+new `APIClient.addWorkoutLogsBatch` (with `BulkWorkoutEntry`/`BulkRowError`/`BulkWorkoutResult`/
+`BulkWorkoutError` DTOs). Made `APIClient.refreshAccessTokenIfPossible()` non-private so the extension can
+retry a 401.
+
+**Build:** `mcp__xcode__BuildProject(tabIdentifier: "windowtab1")` → **built successfully, 0 errors, ~18s**
+on the first attempt. Structured issues (`XcodeListNavigatorIssues`, severity=warning, globbed to the 5
+touched files) returned only the pre-existing widget `CFBundleVersion` mismatch warning — nothing from
+these changes.
+
+**Confirmed / promoted to Converged lessons:**
+- Real tool names pinned: `BuildProject`, `XcodeListNavigatorIssues`, `GetBuildLog`, `XcodeListWindows` —
+  all take `tabIdentifier` (`windowtab1`). No scheme/destination arg needed.
+- The brand-new Swift file compiled with **no manual `project.pbxproj` edit** — the synchronized folder
+  group picks up new files in the open Xcode automatically.
+- MCP build through open Xcode sidesteps the raw-CLI `actool`/CoreSimulator failure (confirmed again).
+
+---
+
 ## Run 0 — skill created (2026-06-30)
 
 **Context.** Created alongside the iOS foundation-scaffold run (PROGRESS Phase 4, run 50). The user wants

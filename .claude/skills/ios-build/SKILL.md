@@ -66,10 +66,19 @@ The user owns the visual/runtime confirmation in the simulator.
   run is a separate confirmation, not a commit blocker.
 
 ## Converged lessons (durable — fold new patterns here as they recur)
-- _(pin the exact `xcode` MCP tool names here on first live connect — build tool + structured-issues tool.)_
-- _(record the working build invocation: scheme `RaSi-Fiters-App`, any destination arg the MCP needs.)_
-- _(note whether the MCP build hits the same `actool`/runtime issue as raw CLI, or whether the open-Xcode
-  path avoids it — confirmed once we run it.)_
+- **Tool names (confirmed live):** build = `mcp__xcode__BuildProject`, structured issues =
+  `mcp__xcode__XcodeListNavigatorIssues` (filter by `severity`/`glob`/`pattern`), raw log =
+  `mcp__xcode__GetBuildLog`. All require a **`tabIdentifier`** — get it from
+  `mcp__xcode__XcodeListWindows` first (currently `windowtab1` for the open `RaSi-Fiters-App.xcodeproj`).
+- **Invocation:** `BuildProject(tabIdentifier: "windowtab1")` — no scheme/destination arg needed; it builds
+  the open instance and returns `{buildResult, elapsedTime, errors[], fullLogPath}`. ~18s clean.
+- **Open-Xcode path avoids the `actool`/CoreSimulator issue** — the MCP build through the running Xcode
+  builds clean where raw `xcodebuild` fails. Confirmed.
+- **New `.swift` files** added under the `apps/ios` synchronized folder group are picked up by the open
+  Xcode automatically — `BuildProject` compiled a brand-new file (BulkAddWorkoutDetailView.swift) with no
+  manual project.pbxproj edit needed.
+- **Known pre-existing warning (ignore):** ValidateEmbeddedBinary "CFBundleVersion of an app extension
+  ('25') must match … parent app ('40')" — a widget-target version mismatch, unrelated to Swift changes.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the
