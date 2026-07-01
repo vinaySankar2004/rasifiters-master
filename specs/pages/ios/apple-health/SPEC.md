@@ -1,6 +1,6 @@
 # Screen: `apple-health` (ios) — the account-menu "Apple Health" settings screen
 
-> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s `AccountMenuSheet` → "Apple Health"
 > (`AccountDestination.appleHealth` → `AppleHealthSettingsView()`).
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift`.
@@ -27,9 +27,12 @@ screen is the configuration surface.
 
 ## 3. Route / location
 
-- **App:** `ios`. **Reached via:** `ProgramPickerView` account menu → "Apple Health".
-- **Leaves to:** back to the program picker (nav back). Connect triggers the system HealthKit permission
-  sheet; disconnect clears settings in place.
+- **App:** `ios`. **Reached via two entry points, identical behavior:** (1) `ProgramPickerView` account
+  menu → "Apple Health"; (2) the in-program **Program** tab → **My Account** section → "Apple Health"
+  (`ProgramMyAccountSection`). Both open the same `AppleHealthSettingsView` with no pre-selection — the
+  program list reflects the real saved state exactly (D-ENTRY).
+- **Leaves to:** back to the program picker / program tab (nav back). Connect triggers the system HealthKit
+  permission sheet; disconnect clears settings in place.
 
 ## 4. Contents / sections
 
@@ -91,6 +94,7 @@ sync, not blocked in this UI.
 | **D-REF** | Reference = PR #4 `AppleHealthSettingsView.swift`; iOS-only, `consumed_by=[ios]`. | PR #4; web has no Apple Health. |
 | **D-ADAPT** | Adapt to our `ProgramDTO` (`status` optional → "Active"), theme tokens, and `fetchPrograms`; add the availability guard. | `APIClient+Programs.swift`; `AppTheme.swift`. |
 | **D-ROLE** | No role read — same for all; self-only sync; locked programs skipped at the server. | `apple-health` feature; `requireDataEntryAllowed`. |
+| **D-ENTRY** | Second entry point (in-program **My Account**) opens the **same** screen with **no** auto-scoping — the program list shows the real saved state, identical to the main-level entry. (Auto-selecting the current program was considered and rejected as confusing.) | `ProgramMyAccountSection`; `AppleHealthSettingsView()`. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -106,3 +110,4 @@ sync, not blocked in this UI.
 |---------|------|--------|
 | 0.1.0 | 2026-06-30 | Initial SPEC + build. Ported PR #4's Apple Health settings screen to `apps/ios`, wired into `ProgramPickerView`'s account menu (`AccountDestination.appleHealth`); adapted to `ProgramDTO`/theme tokens, added an availability guard. Consumes the `apple-health` feature. iOS-only; role N/A. Build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-01 | Added a second **Sleep** section on the same screen (own connect/programs/status/disconnect, moon iconography, "Nights Synced") wired to the new sleep sync (`startSleepSync`/`performSleepSync`/`clearSleepSyncSettings`), independent of workouts (D-S3, F3). Header subheading now "workouts and sleep". iOS builds clean. |
+| 0.3.0 | 2026-07-01 | Added a second entry point — the in-program **My Account** section (`ProgramMyAccountSection`) now shows an "Apple Health" row that opens the **same** screen with identical behavior (no auto-scoping; the program list reflects real saved state, D-ENTRY). iOS builds clean. |
