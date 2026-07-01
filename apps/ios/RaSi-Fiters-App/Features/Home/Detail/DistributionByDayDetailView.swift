@@ -41,7 +41,7 @@ struct DistributionByDayDetailView: View {
                     .frame(maxWidth: .infinity, minHeight: 280, alignment: .center)
             } else {
                 let barWidth: CGFloat = 14
-                ScrollableBarChart(barCount: points.count, minBarWidth: barWidth) {
+                ScrollableBarChart(barCount: points.count, minBarWidth: barWidth) { _ in
                     Chart {
                         ForEach(points) { point in
                             BarMark(

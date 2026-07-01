@@ -11,27 +11,40 @@ struct ScrollableBarChart<Content: View>: View {
     let barCount: Int
     let minBarWidth: CGFloat
     let barGap: CGFloat
-    @ViewBuilder let chart: () -> Content
+    let fill: Bool
+    // The closure receives the resolved per-bar width so callers can size their BarMarks
+    // consistently with the container (crucial in `fill` mode, where bars shrink to fit).
+    @ViewBuilder let chart: (CGFloat) -> Content
 
     init(
         barCount: Int,
         minBarWidth: CGFloat = 12,
         barGap: CGFloat = 6,
-        @ViewBuilder chart: @escaping () -> Content
+        fill: Bool = false,
+        @ViewBuilder chart: @escaping (CGFloat) -> Content
     ) {
         self.barCount = barCount
         self.minBarWidth = minBarWidth
         self.barGap = barGap
+        self.fill = fill
         self.chart = chart
     }
 
     var body: some View {
         GeometryReader { geo in
             let count = max(barCount, 1)
-            let contentWidth = max(geo.size.width, CGFloat(count) * (minBarWidth + barGap))
-            ScrollView(.horizontal, showsIndicators: false) {
-                chart()
-                    .frame(width: contentWidth)
+            if fill {
+                // Fit every bar on screen (no horizontal scroll): bars shrink to fill the width.
+                // Used for the Month timeline (~28-31 daily bars) so all days are visible at once.
+                let resolvedBarWidth = max(2, geo.size.width / CGFloat(count) - barGap)
+                chart(resolvedBarWidth)
+                    .frame(width: geo.size.width)
+            } else {
+                let contentWidth = max(geo.size.width, CGFloat(count) * (minBarWidth + barGap))
+                ScrollView(.horizontal, showsIndicators: false) {
+                    chart(minBarWidth)
+                        .frame(width: contentWidth)
+                }
             }
         }
     }
@@ -86,7 +99,7 @@ struct ActivityTimelineCardSummary: View {
                     .frame(maxWidth: .infinity, minHeight: 180)
                 } else {
                     let barWidth: CGFloat = 10
-                    ScrollableBarChart(barCount: trimmedPoints.count, minBarWidth: barWidth) {
+                    ScrollableBarChart(barCount: trimmedPoints.count, minBarWidth: barWidth) { _ in
                         Chart {
                             ForEach(trimmedPoints) { point in
                                 BarMark(
@@ -189,7 +202,7 @@ struct DistributionByDayCard: View {
                     .frame(maxWidth: .infinity, minHeight: 180)
                 } else {
                     let barWidth: CGFloat = 14
-                    ScrollableBarChart(barCount: points.count, minBarWidth: barWidth) {
+                    ScrollableBarChart(barCount: points.count, minBarWidth: barWidth) { _ in
                         Chart {
                             ForEach(points) { point in
                                 BarMark(

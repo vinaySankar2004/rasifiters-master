@@ -114,8 +114,9 @@ struct LifestyleTimelineDetailView: View {
                     .foregroundColor(Color(.secondaryLabel))
                     .frame(maxWidth: .infinity, minHeight: 240, alignment: .center)
             } else {
-                let barWidth: CGFloat = 12
-                ScrollableBarChart(barCount: points.count, minBarWidth: barWidth) {
+                // Month has ~28-31 daily bars — fit them all on screen (no horizontal scroll).
+                let fitToWidth = (period == .month)
+                ScrollableBarChart(barCount: points.count, minBarWidth: 12, fill: fitToWidth) { barWidth in
                     Chart {
                         ForEach(points) { point in
                             BarMark(

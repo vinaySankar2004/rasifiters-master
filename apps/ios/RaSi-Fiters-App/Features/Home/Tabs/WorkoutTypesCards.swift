@@ -307,7 +307,7 @@ struct LifestyleTimelineCardSummary: View {
                     .frame(maxWidth: .infinity, minHeight: 180)
                 } else {
                     let barWidth: CGFloat = 10
-                    ScrollableBarChart(barCount: trimmedPoints.count, minBarWidth: barWidth) {
+                    ScrollableBarChart(barCount: trimmedPoints.count, minBarWidth: barWidth) { _ in
                         Chart {
                             ForEach(trimmedPoints) { point in
                                 BarMark(
