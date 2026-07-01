@@ -1127,6 +1127,30 @@ directly as a faithful port from the legacy reference app** — there is no inte
   `sectionHeader`+`settingsRow` pre-ported — run-31); `admin_only_data_entry` N/A (membership/role/admin-role-gated CRUD, not
   logging — web SPECs confirm); no feature bump (existing endpoints web already consumes — run-58 2nd-client shape);
   `.onChange(of:) { }` zero-param closure valid iOS 17+; build owned by the user, 9 types grep-verified defined-once + 6 stubs removed.
+- **Run 63 — the `admin_only_data_entry` lock's TREATMENT is view-shape-specific (a form DISMISSES, a list HIDES the row
+  mutations but keeps the read view); and a web a11y/non-color affordance transfers cross-client as a parity ADD.** The 4
+  Members detail views (metrics/streaks read + recent/health write, iOS analogues of web `/members/{metrics,streaks,workouts,health}`)
+  ported as one cluster (run-58→62). Three durable patterns. **(a) The lock UI VERB depends on whether the screen still
+  has something to SHOW when locked.** Run 54 DISPLAYS the lock (Summary banner + dimmed cards); run 60's log FORMS GUARD it
+  (`.task { dismiss() }` — a locked form has no read purpose); run 63's detail LISTS DO have a read purpose when locked, so
+  the parity treatment is to gate the swipe Edit/Delete on `!programContext.dataEntryLocked` — the list stays viewable, the
+  mutations are hidden — matching web's `isDataEntryLocked` zeroing `canEdit`/`canDelete`, NOT a dismiss. Same predicate
+  (`adminOnlyDataEntry && !isProgramAdmin`, `isProgramAdmin` exempt / logger locked, run 54/60), different verb. Legacy iOS
+  had NO lock handling on any of these (relied on the backend 403) → this completes the run-54/60 lock arc on the detail
+  write path (DISPLAY → GUARD → HIDE-row-mutations). Decide the lock treatment by the screen's read-value-when-locked, don't
+  copy run-60's dismiss reflexively. **(b) A web a11y/non-color affordance D-C transfers cross-client as a parity ADD** — web
+  `/members/streaks` D-C1 gave achieved milestone badges a ✓ prefix + ring (not color-alone); legacy iOS distinguished by
+  background color only → port the ✓ prefix + a faint ring (the run-51 "web F-row/D-C → iOS candidate D-row", now for an
+  a11y cleanup; the tokenize twin `.orange` → `appOrange` rode along). **(c) A legacy helper co-located in the WRONG sibling
+  file gets relocated to its OWNER on port** — `WorkoutLogEditSheet` (the workout edit sheet) lived in the legacy HEALTH file
+  (`HealthSortFilterSheets.swift:850`); ported into `MemberRecentDetail.swift` with its owner, not the health view. Grep where
+  each embedded type is DEFINED vs USED; legacy file location is not authority for rebuild placement. Reconfirmed: cluster-IS-
+  the-run (run-58→62); faithful-1:1 = web parity when both clients agree, now across a 4-screen read+write cluster (run-55/56);
+  no-new-dep even for stateful CRUD (`SortField`/`SortDirection`/`MemberMetricsCard` REUSED from run 55, view-local enums+sheets
+  co-located); read-vs-write decides the lock PER view (metrics/streaks N/A, recent/health LIVE — run-31/36/45); the member-own-
+  only redirect web needs (URL-addressable routes) is N/A in-view because iOS gates member selection upstream at the cards
+  (run 43/53/55) → read views carry no redirect (F-row); client-stricter-at-entry F-rows (run 40/42/43); `consumed_by=[ios]`,
+  no feature bump (page SPECs v0.1.0; every endpoint pre-exists); build owned by the user, 20 types grep-verified defined-once + 4 stubs removed.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

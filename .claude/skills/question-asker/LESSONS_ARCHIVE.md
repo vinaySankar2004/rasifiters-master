@@ -2756,3 +2756,45 @@ every backend endpoint pre-exists — web already consumes them, the run-58 "exi
 **Next:** the DEFERRED DETAIL layer continues — 4 Members detail stubs (`MemberMetricsDetailView`/`MemberStreakDetail`/
 `MemberRecentDetail`/`MemberHealthDetail`), 1 Lifestyle stub (`LifestyleTimelineDetailView`), or the 2 widget entry views.
 Each its own "scope cut IS the run".
+
+## Run 63 — iOS Members detail cluster (metrics + streaks + recent + health), one cluster
+
+**Target:** the 4 remaining deferred Members detail-view stubs (reached from the Members tab cards, run 55), the iOS
+analogues of web `/members/{metrics,streaks,workouts,health}`: `MemberMetricsDetailView` (legacy
+`Detail/MemberMetricsViews.swift`), `MemberStreakDetail` (`Detail/MemberDetailViews.swift`), `MemberRecentDetail`
+(`Sheets/WorkoutSortFilterSheets.swift`), `MemberHealthDetail` (`Sheets/HealthSortFilterSheets.swift`). Ported into
+`apps/ios/.../Features/Home/Detail/` (4 SPECs `member-{metrics,streaks,recent,health}-detail/`), all 4 stubs removed.
+The Members detail layer is COMPLETE (member *history* = the memberId-scoped `ActivityTimelineDetailView`, run 61).
+
+**Shape:** cluster-IS-the-run (run-58→62). Dep-purity clean — every API fn / DTO / `dataEntryLocked` / `ShareSheet` /
+`SearchablePickerSheet` / theme already ported (run 50/54/55); `SortField`/`SortDirection`/`MemberMetricsCard` REUSED
+from run 55 (NOT redefined); the view-local enums + sort/filter/edit sheets port co-located. 2 reads (metrics/streaks)
++ 2 writes (recent/health). One `AskUserQuestion` of 3 (scope+stance / the lock decision / cleanups).
+
+**Durable patterns (promoted to SKILL.md):**
+- **The `admin_only_data_entry` lock's TREATMENT is view-shape-specific — a form DISMISSES, a list HIDES the row
+  mutations but keeps the read view.** Run 54 DISPLAYS the lock (Summary banner + dimmed cards); run 60's log FORMS
+  GUARD it (`.task { dismiss() }` — a locked form has no read purpose); run 63's detail LISTS have a read purpose even
+  when locked, so the parity treatment is to gate the swipe Edit/Delete on `!programContext.dataEntryLocked` (list stays
+  viewable, mutations hidden) — matching web's `isDataEntryLocked` zeroing `canEdit`/`canDelete`, NOT a dismiss. Same
+  predicate (`adminOnlyDataEntry && !isProgramAdmin`, `isProgramAdmin` exempt, logger locked), different UI verb chosen
+  by whether the screen still has something to SHOW when locked. Legacy iOS had no lock handling on any of these (relied
+  on the backend 403) → this run completes the run-54/60 lock arc on the detail write path.
+- **A web a11y/non-color affordance D-C transfers cross-client as a parity ADD.** Web `/members/streaks` D-C1 gave
+  achieved milestone badges a ✓ prefix + ring so "achieved" isn't color-alone; legacy iOS distinguished by background
+  color only → port the ✓ prefix + a faint ring (the run-51 "web F-row → iOS candidate D-row", now for an a11y cleanup,
+  not a feature). The tokenize twin cleanup (one bare `.orange` → `appOrange`) rode along.
+- **A legacy helper can be co-located in the WRONG sibling file — relocate it to its OWNER on port, don't leave it
+  orphaned.** `WorkoutLogEditSheet` (the workout edit sheet) lived in the legacy HEALTH file (`HealthSortFilterSheets.swift:850`);
+  ported into `MemberRecentDetail.swift` with its owner (the workout view), not the health view. Grep where each embedded
+  type is DEFINED vs USED; file location in legacy is not authority for where it belongs in the rebuild.
+
+**Reconfirmed:** faithful-1:1 = web parity when both clients agree (run-55/56, now across a 4-screen read+write cluster);
+no-new-dep even for stateful CRUD (run-31/62); read-vs-write decides `admin_only_data_entry` PER view (metrics/streaks
+N/A, recent/health LIVE — run-31/36/45); the member-own-only redirect web needs for URL-addressable routes is N/A in-view
+because iOS gates member selection upstream at the cards (run 43/53/55); client-stricter-at-entry F-rows (run 40/42/43);
+reuse-not-redefine a run-55 type (`SortField`/`MemberMetricsCard`); build owned by the user (Xcode), 20 types grep-verified
+defined-once + 4 stubs removed. `consumed_by=[ios]`, no feature bump (page SPECs v0.1.0; every endpoint pre-exists).
+
+**Next:** the DEFERRED layer is nearly closed — 1 Lifestyle stub (`LifestyleTimelineDetailView` = web `/lifestyle/timeline`)
++ 2 widget entry views (`QuickAddWorkout`/`QuickAddHealthWidgetEntryView`). Each its own "scope cut IS the run".
