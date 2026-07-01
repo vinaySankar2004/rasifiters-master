@@ -1099,6 +1099,34 @@ directly as a faithful port from the legacy reference app** — there is no inte
   variable-length array — run-35); one parameterized iOS view = TWO web pages (`ActivityTimelineDetailView` = `/summary/activity`
   + `/members/history` collapsed); read-only → `admin_only_data_entry` N/A; vestigial swallowed `errorMessage` = both-swallow
   parity, no banner (run-55); build owned by the user, symbols grep-verified.
+- **Run 62 — a cluster of SECTIONS whose detail views are BUNDLED in-file AND whose stubs are SHARED with prior tabs is
+  UNsplittable → the whole cluster is forced into one run; and the run-61 "iOS richer → keep native" fires on a WRITE surface
+  (per-member lock beats web's disable-all).** The 3 heavy `AdminProgramTab` management sections (member-mgmt / role-mgmt /
+  workout-types = web `/members/*` + `/program/roles` + `/lifestyle/workouts`). Two structural facts collapsed the scope
+  question to "one run, obviously": **(a)** each legacy "section" FILE bundles its heavy embedded detail views
+  (`ProgramMembersListView`+`MemberDetailEditView` / `ManageRolesView` / `ViewWorkoutTypesListView`+`EditCustomWorkoutSheet`),
+  so a section CAN'T be functionally split from its detail — there is no smaller cut leaving something working end-to-end
+  (unlike run-54/55's card-vs-detail split, where the DETAIL was a separate deferred file); **(b)** 3 of those detail stubs
+  (`InviteMemberView`/`ProgramMembersListView`/`ViewWorkoutTypesListView`) were DOUBLE-DUTY — already referenced by the ported
+  Members tab (run 55) + Lifestyle tab (run 56), so a half-port leaves shared stubs half-referenced. Grep who references a
+  stub BEFORE sizing the run; a shared stub means the port lights up multiple entry points AND can't be deferred piecemeal.
+  Three durable patterns. **(a) The run-61 "iOS richer → keep native" D-REF recurs on a WRITE screen.** Web `/program/roles`
+  added optimistic role-write + rollback + a cross-row disable-all (D-C2/D-C3); legacy iOS uses a per-member spinner lock
+  (`isUpdating` gates only the updating member) + refresh-after. The per-member lock is FINER-grained than web's disable-all
+  and optimistic+rollback re-implements web's specific UX rather than closing a genuine parity gap → keep iOS-native (D-REF +
+  F-rows), NOT a reconcile. Frame the crux as "iOS finer/native (lead) vs match web's added UX"; the richer-iOS exception is
+  not read-only-specific. **(b) Distinguish a web cleanup that is a genuine iOS GAP from one that's already satisfied by a
+  native equivalent.** Of web's 4 roles/detail/invite/workout cleanups: window.confirm→ConfirmDialog is a NO-OP on iOS (it
+  already uses native `.alert`) — don't offer it; tokenize + clear-stale-error DID transfer as the 2 cleanups. Test each web
+  D-C against the iOS idiom before offering it (the cross-client run-33 "subtract a cleanup that doesn't apply"). **(c) The
+  "both-agree = faithful IS web parity" verdict (run-55/56) covers GATES + privacy behavior, not just error-swallow.** Three
+  divergence-looking items were kept faithful because BOTH clients already agree AND match web: the global-admin-only
+  member-detail gate (both stricter than the backend → F-row, backend is the boundary — run 40/43), the invite privacy-swallow
+  (both swallow non-network errors as success → F-row, load-bearing, never surface), the workout read-only-degrade-not-redirect.
+  Reconfirmed: cluster-IS-the-run (run-58/59/60/61); D-DEPS no-new-dep even for stateful CRUD (every API/DTO/context/theme/
+  `sectionHeader`+`settingsRow` pre-ported — run-31); `admin_only_data_entry` N/A (membership/role/admin-role-gated CRUD, not
+  logging — web SPECs confirm); no feature bump (existing endpoints web already consumes — run-58 2nd-client shape);
+  `.onChange(of:) { }` zero-param closure valid iOS 17+; build owned by the user, 9 types grep-verified defined-once + 6 stubs removed.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append

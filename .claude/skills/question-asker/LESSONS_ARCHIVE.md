@@ -2710,3 +2710,49 @@ native platform being MORE capable, not less. (Promoted to Converged lessons.)
 **Next:** the 3 Program management sections (`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/
 `ProgramWorkoutTypesSection`, deferred run 57), a Members (6 stubs) or Lifestyle (2 stubs) detail view. Each its own
 "scope cut IS the run".
+
+## Run 62 — the 3 Program management sections (member-mgmt + role-mgmt + workout-types), one cluster
+
+**Target:** the 3 heavy `AdminProgramTab` sections deferred at run 57 (`ProgramMemberManagementSection` 356 LoC =
+web `/members/*`, `ProgramRoleManagementSection` 291 = web `/program/roles`, `ProgramWorkoutTypesSection` 370 =
+web `/lifestyle/workouts`), ported into `apps/ios/.../Features/Home/ProgramManagement/`.
+
+**Scope (D-SCOPE = the cluster IS the run):** each legacy "section" file BUNDLES its heavy embedded detail views
+(`ProgramMembersListView`+`MemberDetailEditView` / `ManageRolesView` / `ViewWorkoutTypesListView`+`EditCustomWorkoutSheet`),
+so a section can't be functionally split from its detail — there is no smaller cut that leaves something working
+end-to-end. AND 3 of those detail-view stubs (`InviteMemberView`, `ProgramMembersListView`, `ViewWorkoutTypesListView`)
+were DOUBLE-DUTY — already referenced by the ported Members tab (run 55) + Lifestyle tab (run 56), so a half-port
+leaves shared stubs half-referenced. Both forced the whole cluster into one run (all 6 shared stubs removed).
+
+**Stance:** D-S1 faithful 1:1. The three "both-agree" divergences were kept faithful BECAUSE faithful IS web parity:
+(1) the global-admin-only member-detail gate — both iOS AND web are stricter than the backend (which also allows a
+program admin) → F2, backend is the real boundary (run 40/43 client-stricter shape); (2) the invite privacy-swallow —
+both swallow non-network errors as success so neither confirms a username exists → F3, load-bearing, never surface;
+(3) the workout read-only-degrade-not-redirect for non-admins — both clients degrade. `admin_only_data_entry` N/A on
+all 3 (web SPECs confirm — membership/role edits + admin-role-gated CRUD, none are workout/health logging).
+
+**D-REF (the one substantive divergence) = KEEP iOS-NATIVE on Role Management.** Web `/program/roles` added optimistic
+role-write + rollback + a cross-row disable-all (D-C2/D-C3); legacy iOS uses a per-member spinner lock (`isUpdating`
+gates only the updating member) + refresh-after. The per-member lock is FINER-grained than web's disable-all, and
+optimistic+rollback re-implements web's specific UX rather than closing a genuine parity gap → keep iOS-native (the
+run-61 "iOS richer → keep native" exception). Recorded as D-REF + F1/F2, NOT a reconcile-toward-web. The other three
+web cleanups had no substantive iOS gap: window.confirm→ConfirmDialog is a no-op (iOS already uses native `.alert`);
+the tokenize + clear-stale-error transferred as the 2 cleanups below.
+
+**Cleanups (both picked):** D-C1 tokenize bare colors (`.orange`/`.blue`/`.green`/`.purple`/`.red` → `Color.app*`;
+`Color(.systemGray)` kept semantic) — all `light:`-identical → no light-mode change (run-26/61). D-C2 clear-stale-
+error-on-edit (MemberDetailEditView `.onChange` joinedAt/isActive, InviteMemberView on username, ViewWorkoutTypesListView
+on Add/Edit modal open) — matches web members/detail D-C3 + invite D-C2 + workouts D-C2 (legacy iOS cleared only on submit).
+
+**D-DEPS = no new dependency** — every API fn / DTO / `ProgramContext` wrapper / theme color / `sectionHeader`/`settingsRow`
+helper (run 57) already ported. The workout/member/role sections are stateful CRUD yet still "no new dep" (run-31 shape).
+
+**Mechanics:** grep-verified each of the 9 new/embedded types defined exactly once, all 6 stubs removed, no bare color
+literals left. `.onChange(of:) { }` zero-param trailing closure is valid iOS 17+ (the codebase's `{ _, _ in }` two-param
+form is the alternate overload). 3 iOS SPECs written (`program-{member-management,role-management,workout-types}`).
+Build owned by the user (Xcode), symbols grep-verified. `consumed_by=[ios]`, no feature bump (page SPECs v0.1.0;
+every backend endpoint pre-exists — web already consumes them, the run-58 "existing-endpoint 2nd-client" shape).
+
+**Next:** the DEFERRED DETAIL layer continues — 4 Members detail stubs (`MemberMetricsDetailView`/`MemberStreakDetail`/
+`MemberRecentDetail`/`MemberHealthDetail`), 1 Lifestyle stub (`LifestyleTimelineDetailView`), or the 2 widget entry views.
+Each its own "scope cut IS the run".
