@@ -79,6 +79,45 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Lifestyle timeline detail: `LifestyleTimelineDetailView` PORTED (run 64, 2026-06-30).** The **last
+non-widget deferred stub** — the sleep/diet health-timeline drill-down (reached from the Lifestyle tab timeline card,
+run 56) — ported into `apps/ios/.../Features/Home/Detail/LifestyleTimelineDetailView.swift` (iOS SPEC
+`specs/pages/ios/lifestyle-timeline/`), its 2 co-located health helpers (`HealthHeaderStats` + `HealthCalloutView`)
+added to `Detail/ChartDetailComponents.swift`, **the stub removed**. It is an **interactive native Swift Charts** view:
+sleep-hours `BarMark` (appBlue) + diet-quality `LineMark`/`PointMark` (appGreen) over `GET /analytics/health/timeline`,
+with a period selector (W/M/Y/P), a daily-average `HealthHeaderStats`, and a **drag tap-callout** (`HealthCalloutView`).
+Always member-scoped (own id from `StandardWorkoutTypesTab`, admin-selected id from `AdminWorkoutTypesTab`). **D-SCOPE =
+single leaf view — its own run** (the last non-widget stub). **THE LOAD-BEARING DECISION — D-REF: keep iOS-native.** The
+legacy iOS view is **richer** than web `/lifestyle/timeline` (native callout + horizontal scroll + period selector) → the
+run-52/53/61 platform-idiom exception, kept native, NOT simplified toward web's flatter recharts. **D-S1 = faithful 1:1
+native + 4 web-parity chart deviations (all user-picked)** — legacy already tokenizes chart colors (`Color.appBlue`/
+`appGreen`) so **no tokenize cleanup** (unlike run 61). **D-C1 = the dual Y-axis fix** (web run-32 D-C2 analogue): the
+legacy chart shared ONE Y-axis (`yMax = max(sleep, food)`, `chartYScale(0...yMax*1.1)`), so the diet 1–5 line sat
+**flattened** under the sleep-hours bars — the port scales the diet series onto its own **0–5 axis**
+(`scaledFood = food/5 * sleepDomainMax`, sleep on the leading axis, diet on a trailing 0–5 axis), making the diet trend
+readable while KEEPING all the native interactivity. **D-C2 = the web-parity error banner** — legacy set `errorMessage`
+on a failed load but rendered it **nowhere** (swallowed); web surfaces `<ErrorState>` (`page.tsx:65-66`) → wire the
+(previously-dead) `errorMessage` to a visible banner (the run-52/54 swallow-vs-surface ADD, run-54 `AdminSummaryTab`
+banner shape). **D-C3 = axis unit labels** ("hrs" leading / "/ 5" trailing, web D-C4 — meaningful now the scales are
+split). **D-C4 = a chart Legend** (Sleep/Diet via `chartForegroundStyleScale`, web D-C3) — **user-picked despite** the
+`HealthHeaderStats`/`HealthCalloutView` already color-labeling both series (my run-33 "would-subtract as redundant"
+recommendation overridden toward full web parity). **D-DEPS = small new dep (2 co-located health helpers only)** —
+`HealthHeaderStats` (~14 LoC) + `HealthCalloutView` (~35 LoC), co-located in the legacy deferred `ActivityTimelineViews.swift`
+so never in the foundation (run-55/56/61 pattern); the run-61 `ChartDetailComponents.swift` header **already anticipated
+them** ("the health variants belong to the future lifestyle-timeline detail run"). Everything else already ported: the API
+method/DTO/loader (`fetchHealthTimeline`/`HealthTimelineResponse`/`loadHealthTimeline`, foundation run 50),
+`ScrollableBarChart` (run 54), and every shared chart helper (`HeaderHeightKey`/`clamp`/`axisValues`/`shortLabel`/
+`calloutTitle`/`rangeLabel`, run 61) **reused-not-redefined**. **Read-only → `admin_only_data_entry` N/A**; no
+role-conditional UI (scope from the card's `memberId`, gated upstream at the Lifestyle tab run 56 — F3); the no-view-as-picker
++ backend-no-per-program-read-authz (F1) + `onDisappear`-reloads-to-week (F2) + diet-axis-pinned-0–5 (F4) all kept faithful.
+**`consumed_by=[ios]`, no feature bump** (page SPEC v0.1.0; the endpoint pre-exists — web consumes it). **The app target's
+build green-check is owned by the user (visual run in Xcode)** — symbols verified via grep (each of the 3 new types
+`LifestyleTimelineDetailView`/`HealthHeaderStats`/`HealthCalloutView` defined exactly once, the stub removed, both call
+sites match `init(initialPeriod:memberId:)`, all API/DTO/`healthTimeline*`/`errorMessage`/theme/`ScrollableBarChart`/
+shared-helper deps resolve, the run-61 helpers reused-not-redefined), not a CLI build (memory
+[[ios-user-verifies-builds-visually]]). **Next: the iOS DEFERRED layer is down to the 2 widget entry views**
+(`QuickAddWorkoutWidgetEntryView`/`QuickAddHealthWidgetEntryView`) — the last cluster, via `question-asker`.
+
 **Phase 4 — `ios` Members detail cluster: 4 DETAIL VIEWS PORTED (run 63, 2026-06-30).** The **4 remaining deferred
 Members detail-view stubs** (reached from the Members tab cards, run 55) — ported into
 `apps/ios/.../Features/Home/Detail/{MemberMetricsDetailView,MemberStreakDetail,MemberRecentDetail,MemberHealthDetail}.swift`

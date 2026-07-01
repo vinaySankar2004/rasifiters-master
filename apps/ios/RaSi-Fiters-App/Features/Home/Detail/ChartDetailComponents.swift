@@ -1,15 +1,16 @@
 import SwiftUI
 
-// Shared chrome + axis/callout helpers for the Summary chart drill-down detail views
-// (ActivityTimelineDetailView / DistributionByDayDetailView). Faithful 1:1 port of the legacy iOS
-// helpers co-located in Detail/ActivityTimelineViews.swift + Detail/WorkoutDistributionViews.swift
-// + the shared clamp() from Detail/MemberPickerOverviewView.swift. These lived in deferred legacy
-// Detail files, so the foundation port (run 50) never pulled them in — ported now with the views
-// (run-55/56 co-located-helper pattern). NOTE: DistributionPoint / distributionPoints / typeColor /
-// barColor / ScrollableBarChart / DistributionChartOverlay already live in Tabs/SummaryChartCards.swift
-// (run 54) — referenced here, NOT redefined. HealthCalloutView / HealthHeaderStats / GlassButton are
-// intentionally NOT ported here (GlassButton landed run 55; the health variants belong to the future
-// lifestyle-timeline detail run). Chart colors tokenized: .orange → appOrange(Strong), .purple → appPurple.
+// Shared chrome + axis/callout helpers for the chart drill-down detail views
+// (ActivityTimelineDetailView / DistributionByDayDetailView / LifestyleTimelineDetailView). Faithful 1:1
+// port of the legacy iOS helpers co-located in Detail/ActivityTimelineViews.swift +
+// Detail/WorkoutDistributionViews.swift + the shared clamp() from Detail/MemberPickerOverviewView.swift.
+// These lived in deferred legacy Detail files, so the foundation port (run 50) never pulled them in —
+// ported with the views (run-55/56 co-located-helper pattern). NOTE: DistributionPoint / distributionPoints
+// / typeColor / barColor / ScrollableBarChart / DistributionChartOverlay already live in
+// Tabs/SummaryChartCards.swift (run 54) — referenced, NOT redefined. GlassButton landed run 55.
+// HealthHeaderStats + HealthCalloutView were the deferred "future lifestyle-timeline detail run" variants —
+// ported here at run 64 with LifestyleTimelineDetailView. Chart colors tokenized: .orange → appOrange(Strong),
+// .purple → appPurple; the health variants already used Color.appBlue/appGreen (no tokenize needed).
 
 // MARK: - Daily-average header (activity timeline)
 
@@ -33,6 +34,56 @@ struct HeaderStats: View {
                         .font(.callout.weight(.medium))
                         .foregroundColor(Color(.secondaryLabel))
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Daily-average header (lifestyle / health timeline)
+
+struct HealthHeaderStats: View {
+    let label: String
+    let sleepAverage: Double
+    let foodAverage: Double
+
+    private var sleepValue: String {
+        String(format: "%.1f hrs", sleepAverage)
+    }
+
+    private var foodValue: String {
+        String(format: "%.1f / 5", foodAverage)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("DAILY AVERAGE")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(Color(.secondaryLabel))
+                    HStack(spacing: 16) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Sleep")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(Color(.secondaryLabel))
+                            Text(sleepValue)
+                                .font(.title3.weight(.semibold))
+                                .foregroundColor(.appBlue)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Diet")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundColor(Color(.secondaryLabel))
+                            Text(foodValue)
+                                .font(.title3.weight(.semibold))
+                                .foregroundColor(.appGreen)
+                        }
+                    }
+                }
+                Spacer()
+                Text(label.isEmpty ? "—" : label)
+                    .font(.callout.weight(.medium))
+                    .foregroundColor(Color(.secondaryLabel))
             }
         }
     }
@@ -69,6 +120,43 @@ struct CalloutView: View {
                 }
                 .font(.caption2)
             }
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(Color(.systemBackground))
+                .shadow(radius: 4, y: 2)
+        )
+    }
+}
+
+struct HealthCalloutView: View {
+    let label: String
+    let sleep: Double
+    let food: Double
+
+    private var sleepValue: String {
+        String(format: "%.1f hrs", sleep)
+    }
+
+    private var foodValue: String {
+        String(format: "%.1f / 5", food)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+            HStack {
+                Circle().fill(Color.appBlue).frame(width: 6, height: 6)
+                Text("Sleep: \(sleepValue)")
+            }
+            .font(.caption2)
+            HStack {
+                Circle().fill(Color.appGreen).frame(width: 6, height: 6)
+                Text("Diet: \(foodValue)")
+            }
+            .font(.caption2)
         }
         .padding(8)
         .background(
