@@ -79,6 +79,53 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Program management sections: 3 SECTIONS + embedded detail views PORTED (run 62, 2026-06-30).**
+The **3 heavy Program-tab management sections** (deferred as `ScaffoldPlaceholder` stubs at run 57) — ported into
+`apps/ios/.../Features/Home/ProgramManagement/{MemberManagementSection,InviteMemberView,RoleManagementSection,WorkoutTypesSection}.swift`
+(3 iOS SPECs `specs/pages/ios/program-{member-management,role-management,workout-types}/`), **all 6 shared stubs removed**
+(the 3 sections + `ProgramMembersListView` + `InviteMemberView` + `ViewWorkoutTypesListView`). **D-SCOPE = the cluster IS
+the run** (run-58/59/60/61 precedent): each legacy "section" file BUNDLES its heavy embedded detail views
+(`ProgramMembersListView`+`MemberDetailEditView` / `ManageRolesView` / `ViewWorkoutTypesListView`+`EditCustomWorkoutSheet`),
+which **can't be functionally split off** — and 3 of those detail-view stubs (`InviteMemberView`, `ProgramMembersListView`,
+`ViewWorkoutTypesListView`) are **DOUBLE-DUTY**, also the nav targets of the already-ported Members tab (run 55) +
+Lifestyle tab (run 56), so this port lights those up too. **The three sections:** (1) **Member Management** (always shown) —
+section card → View Members (`ProgramMembersListView` roster, global-admin taps into `MemberDetailEditView` = joined-date/
+active/remove) + Invite (`InviteMemberView`, privacy-swallow send); web `/members/{list,detail,invite}`. (2) **Role
+Management** (gated `canEditProgramData`) — admin/logger lists + `ManageRolesView` per-member 3-role picker with the
+last-active-admin guard; web `/program/roles`. (3) **Workout Types** (always shown) — `ViewWorkoutTypesListView` searchable
+Available/Hidden CRUD (swipe Show-Hide/Edit/Delete + Add/Edit sheets); web `/lifestyle/workouts`. **D-S1 = faithful 1:1** —
+the three both-agree items are kept faithful (they're web parity): the **global-admin-only member-detail gate** (both iOS +
+web are stricter than the backend, which also allows a program admin — F2, backend is the real boundary), the **invite
+privacy-swallow** (any non-network failure → success toast, so the screen never confirms a username exists — F3,
+load-bearing, never surface the real error), and the **workout read-only-degrade-not-redirect** for non-admins. **THE
+LOAD-BEARING DECISION — D-REF on Role Management: KEEP iOS-NATIVE.** Web `/program/roles` added optimistic role-write +
+rollback + a cross-row disable-all (D-C2/D-C3); legacy iOS uses a **per-member spinner lock** (`isUpdating` gates only the
+updating member) + refresh-after-mutation. The per-member lock is arguably FINER-grained than web's disable-all, and
+optimistic+rollback re-implements web's specific UX rather than closing a genuine parity gap → **keep iOS-native** (the
+run-61 "iOS richer → keep native" exception to memory [[ios-matches-web-not-just-legacy]]), recorded as D-REF + F1/F2.
+**+ 2 user-picked cross-platform cleanups (both):** **D-C1** tokenize the bare color literals (`.orange`/`.blue`/`.green`/
+`.purple`/`.red` → `Color.app*`; `Color(.systemGray)` kept semantic) — all `light:`-identical so no light-mode change,
+adaptive in dark (run-26/61 shape); **D-C2** clear-stale-error-on-edit — `MemberDetailEditView` clears `.onChange` of
+joinedAt/isActive, `InviteMemberView` on username, `ViewWorkoutTypesListView` on Add/Edit modal open (matches web
+members/detail D-C3 + invite D-C2 + workouts D-C2; legacy iOS cleared only on submit). **D-DEPS = NO new dependency** —
+every API method (`updateMembership`/`removeMember`/`sendProgramInvite`/`fetchProgramWorkouts`/toggle+CRUD), DTO
+(`MembershipDetailDTO`/`ProgramWorkoutDTO`), `ProgramContext` wrapper, theme color (`appOrange(Light)`/`appRed(Light)`/
+`appGreen(Light)`/`appPurple(Light)`/`appBlue`), and the `sectionHeader`/`settingsRow` helpers (run 57) already ported
+(foundation run 50 + runs 55/56/57). **`admin_only_data_entry` = N/A on all 3** — membership edits / role management /
+admin-role-gated workout-type CRUD, none are workout/health data entry (the lock gates the `/summary` log forms; web SPECs
+confirm N/A on all three). **Role rules code-answered:** member-mgmt = `canViewMemberDetails`(global_admin)/`canInviteMember`
+(admin+global_admin); role-mgmt = section gated `canEditProgramData`, `ManageRolesView` no internal gate (reached only
+through the gate); workout-types = `canManage`(admin+global_admin) with read-only degrade. Flagged: member-mgmt F1–F6
+(list errors swallowed both-swallow parity · client-stricter-than-backend editor gate · privacy-swallow invite · client
+role gating · shared `isSaving` · direct `APIClient` invite) · role-mgmt F1–F5 (per-member lock no cross-disable · no
+optimistic update · client last-admin guard mirrors backend · only `role` sent · client role gating) · workout-types F1–F5
+(admin-role not lock-gated · globals hide-only · client-side search · no per-row cross-disable · client role gating). **The
+app target's build green-check is owned by the user (visual run in Xcode)** — symbols verified via grep (each of the 9
+new/embedded types defined exactly once, all 6 stubs removed, no bare color literals left un-tokenized, every API/DTO/context/
+theme/section-helper dep resolves), not a CLI build (memory [[ios-user-verifies-builds-visually]]). **Next: the DEFERRED
+DETAIL layer continues** — the 4 Members detail stubs (`MemberMetricsDetailView`/`MemberStreakDetail`/`MemberRecentDetail`/
+`MemberHealthDetail`), the 1 Lifestyle stub (`LifestyleTimelineDetailView`), or the 2 widget entry views, via `question-asker`.
+
 **Phase 4 — `ios` Summary chart drill-downs: 3 DETAIL VIEWS PORTED — the Summary detail layer is COMPLETE 5/5
 (run 61, 2026-06-30).** The **3 remaining Summary `NavigationLink` detail targets** (deferred stubs since run 54) —
 `ActivityTimelineDetailView` · `DistributionByDayDetailView` · `WorkoutTypesDetailView` — ported into
@@ -445,31 +492,26 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 
 ## Next action
 
-> ### ⏭️ ON "continue" → PORT A DEFERRED DETAIL VIEW / MANAGEMENT SECTION (the deferred stubs), via `question-asker`
-> **The Summary chart drill-downs are DONE (run 61, 2026-06-30) — the Summary detail layer is COMPLETE 5/5.**
-> `ActivityTimelineDetailView` + `DistributionByDayDetailView` + `WorkoutTypesDetailView` ported into
-> `apps/ios/.../Features/Home/Detail/` + shared `ChartDetailComponents.swift` (3 SPECs
-> `specs/pages/ios/summary-{activity,distribution,workout-types}-detail/`), the 3 deferred stubs removed. **D-SCOPE = the
-> cluster IS the run** (run-58/59/60). **D-REF = keep iOS-native** — the FIRST run where legacy iOS is *richer* than web
-> (native tap-callouts + scrollable Swift Charts + period selector + member scope + breakdown rows vs web's flat recharts) →
-> platform-idiom exception (run-52/53), NOT simplified toward web; the memory [[ios-matches-web-not-just-legacy]] exception
-> fires when iOS is richer, not poorer. **D-S1 = faithful 1:1** (richness kept) **+ 3 cleanups**: **D-C1** all-zero
-> empty-state guard on `DistributionByDayDetailView` (legacy lacked it; keyed off the sum since the endpoint always returns 7
-> keys — matches web + siblings) · **D-C2** trim `ActivityTimelineDetailView`'s 6 unused init providers · **D-C3** tokenize
-> chart colors (`.orange`→`appOrangeStrong`/`appOrange`, `.purple`→`appPurple` — `light:`-identical, run-26 shape; retro-tokenized
-> the run-54 cards for card↔detail consistency; workout-types uses palette `barColor` so N/A there). **D-DEPS = a new dep set**
-> (breaks the streak) — `CalloutView`/`HeaderStats`/`HeaderHeightKey`/`clamp`+axis-callout helpers + `WorkoutTypeRow`, co-located
-> in legacy deferred Detail files (run-55/56); skipped `GlassButton` (run 55) + health-callout variants (future lifestyle run);
-> reused run-54 chart helpers + run-55 `memberTimelinePoints` (NOT redefined). Read-only → `admin_only_data_entry` N/A; no
-> role-conditional UI (program-wide, web F2); `ActivityTimelineDetailView` serves double-duty (Summary program-wide + Members
-> `MemberHistoryCard` memberId-scoped). **NEXT = the DEFERRED DETAIL / SECTION layer continues** (each its own "scope cut IS
-> the run"): a **Program** management section (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite,
-> `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts` — the 3 heavy
-> sections deferred at run 57); or a **Members** (6 stubs: `MemberMetricsDetailView`/`InviteMemberView`/`ProgramMembersListView`/
-> `MemberStreakDetail`/`MemberRecentDetail`/`MemberHealthDetail`) / **Lifestyle** (2 stubs: `ViewWorkoutTypesListView` = web
-> `/lifestyle/workouts` CRUD + `LifestyleTimelineDetailView` = web `/lifestyle/timeline`) detail view. Run `question-asker` per
-> screen, **match the current web sibling** + faithful legacy iOS (resolve toward web UNLESS iOS is richer / a platform reason),
-> delete each stub when it lands.
+> ### ⏭️ ON "continue" → PORT A DEFERRED DETAIL VIEW (the remaining stubs), via `question-asker`
+> **The Program management sections are DONE (run 62, 2026-06-30) — all 3 heavy `AdminProgramTab` sections ported.**
+> `ProgramMemberManagementSection` (+ `ProgramMembersListView` roster + `MemberDetailEditView` + `InviteMemberView`),
+> `ProgramRoleManagementSection` (+ `ManageRolesView`), `ProgramWorkoutTypesSection` (+ `ViewWorkoutTypesListView` +
+> `EditCustomWorkoutSheet`) ported into `apps/ios/.../Features/Home/ProgramManagement/` (3 SPECs
+> `specs/pages/ios/program-{member-management,role-management,workout-types}/`), **all 6 shared stubs removed** (3 of them
+> double-duty with the ported Members/Lifestyle tabs). **D-SCOPE = the cluster IS the run** (run-58/59/60/61) — each legacy
+> section file bundles its heavy detail views (can't split off) + the shared stubs forced one run. **D-S1 = faithful 1:1**
+> (the 3 both-agree items are web parity: global-admin-only member-detail gate, invite privacy-swallow, workout read-only
+> degrade). **D-REF on Role Management = KEEP iOS-NATIVE** — the per-member spinner lock + refresh-after kept over web's
+> optimistic-write + rollback + cross-row disable-all (the finer-grained iOS pattern; run-61 "iOS richer → keep native").
+> **+ 2 cleanups: D-C1** tokenize bare colors (`.orange`/`.blue`/`.green`/`.purple`/`.red` → `Color.app*`, light-mode-safe) ·
+> **D-C2** clear-stale-error-on-edit (web members/detail D-C3 + invite D-C2 + workouts D-C2). **D-DEPS = no new dependency**
+> (every API/DTO/context/theme/section-helper already ported). `admin_only_data_entry` N/A on all 3 (membership/role/
+> admin-role-gated CRUD, not logging). **NEXT = the DEFERRED DETAIL layer continues** (each its own "scope cut IS the run"):
+> the **4 Members** detail stubs (`MemberMetricsDetailView`/`MemberStreakDetail`/`MemberRecentDetail`/`MemberHealthDetail` =
+> web `/members/{metrics,streaks,workouts,health}`); the **1 Lifestyle** stub (`LifestyleTimelineDetailView` = web
+> `/lifestyle/timeline`); or the **2 widget** entry views (`QuickAddWorkout`/`QuickAddHealthWidgetEntryView`). Run
+> `question-asker` per screen, **match the current web sibling** + faithful legacy iOS (resolve toward web UNLESS iOS is
+> richer / a platform reason), delete each stub when it lands.
 > **The user verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the
 > local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
 >

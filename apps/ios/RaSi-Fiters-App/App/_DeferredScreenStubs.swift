@@ -76,12 +76,10 @@ struct QuickAddHealthWidgetEntryView: View {
 // InviteMemberView, ProgramMembersListView, MemberStreakDetail, MemberRecentDetail, MemberHealthDetail),
 // stubbed so the Members tabs compile; each DELETED when its real screen lands.
 
-/// DEFERRED (Features/Home/Tabs/WorkoutTypesSection.swift) — the workout-type CRUD manager
-/// (add/edit/delete/visibility), the iOS analogue of web `/lifestyle/workouts`. Reached via the
-/// Lifestyle header's dumbbell GlassButton (run 56). DELETED when its real screen lands.
-struct ViewWorkoutTypesListView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Manage Workout Types") }
-}
+// PORTED (run 62) — ViewWorkoutTypesListView + EditCustomWorkoutSheet now live in
+// Features/Home/ProgramManagement/WorkoutTypesSection.swift (the workout-type CRUD manager, web
+// `/lifestyle/workouts`). Shared nav target of the Lifestyle header GlassButton (run 56) + the
+// AdminProgramTab Workout Types section. Stub removed.
 
 /// DEFERRED (Features/Home/Helpers/AdminHomeHelpers.swift) — the full sleep/diet timeline detail
 /// with a period selector, the iOS analogue of web `/lifestyle/timeline`. Reached via the Lifestyle
@@ -91,29 +89,13 @@ struct LifestyleTimelineDetailView: View {
     var body: some View { ScaffoldPlaceholder(screen: "Lifestyle Timeline") }
 }
 
-// NOTE: AdminProgramTab + StandardProgramTab landed (Features/Home/Tabs/AdminProgramTab.swift +
-// StandardProgramTab.swift + ProgramCards.swift, run 57) — stubs removed. They CLOSE the 4-tab home shell.
-// AdminProgramTab's 3 heavy management sections remain deferred (below: ProgramMemberManagementSection,
-// ProgramRoleManagementSection, ProgramWorkoutTypesSection), stubbed so the Admin tab compiles; each
-// DELETED when its real section lands.
-
-/// DEFERRED (Features/Home/Tabs/MemberManagementSection.swift) — AdminProgramTab's "Member Management"
-/// section: View Members (→ roster + MemberDetailEditView) + Invite (→ InviteMemberView). Web `/members/*`.
-struct ProgramMemberManagementSection: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Member Management") }
-}
-
-/// DEFERRED (Features/Home/Tabs/RoleManagementSection.swift) — AdminProgramTab's "Role Management" section
-/// (admin/logger lists + ManageRolesView). Web `/program/roles`. Gated by `canEditProgramData`.
-struct ProgramRoleManagementSection: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Role Management") }
-}
-
-/// DEFERRED (Features/Home/Tabs/WorkoutTypesSection.swift) — AdminProgramTab's "Workout Types" section
-/// (ViewWorkoutTypesListView CRUD + EditCustomWorkoutSheet). Web `/lifestyle/workouts`.
-struct ProgramWorkoutTypesSection: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Workout Types") }
-}
+// PORTED (run 62) — AdminProgramTab's 3 management sections now live in
+// Features/Home/ProgramManagement/ (MemberManagementSection.swift = ProgramMemberManagementSection +
+// ProgramMembersListView + MemberDetailEditView, web `/members/{list,detail}`; InviteMemberView.swift =
+// InviteMemberView, web `/members/invite`; RoleManagementSection.swift = ProgramRoleManagementSection +
+// ManageRolesView, web `/program/roles` — kept iOS-native per-member lock, D-REF; WorkoutTypesSection.swift
+// above). All 6 shared stubs (the 3 sections + ProgramMembersListView + InviteMemberView +
+// ViewWorkoutTypesListView) removed; the Members/Lifestyle tab nav (run 55/56) now lights up too.
 
 // PORTED (run 59) — ProgramActionsSheet + CreateProgramTabView + InvitesTabView +
 // DeclineInviteDialog + InviteCard + EditProgramInfoView now live in
@@ -148,16 +130,9 @@ struct MemberMetricsDetailView: View {
     var body: some View { ScaffoldPlaceholder(screen: "Member Metrics") }
 }
 
-/// DEFERRED (Features/Home/Helpers/AdminHomeHelpers.swift) — Members "Invite" action → invite-by-username form.
-struct InviteMemberView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "Invite Member") }
-}
-
-/// DEFERRED (Features/Home/Tabs/MemberManagementSection.swift) — Members "View Members" action → roster list
-/// (→ MemberDetailEditView, global-admin only).
-struct ProgramMembersListView: View {
-    var body: some View { ScaffoldPlaceholder(screen: "View Members") }
-}
+// PORTED (run 62) — InviteMemberView (Features/Home/ProgramManagement/InviteMemberView.swift) +
+// ProgramMembersListView (Features/Home/ProgramManagement/MemberManagementSection.swift). Shared nav
+// targets of the Members tab (run 55) + the AdminProgramTab Member Management section. Stubs removed.
 
 /// DEFERRED (Features/Home/Detail/MemberDetailViews.swift) — Members streak card → streak detail + milestones.
 struct MemberStreakDetail: View {
