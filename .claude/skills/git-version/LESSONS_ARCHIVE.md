@@ -91,3 +91,36 @@ call (incl. no-param `list_workspaces`) and `RENDER_API_KEY` was unset → could
 this session; the functional half is a manual Render-Dashboard step. Recorded the provisioning in docs +
 committed, and flagged the dashboard entry + log-verification as the remaining user action rather than
 claiming push was verified live.
+
+---
+
+## Run — apple-health iOS HealthKit auto-sync (2026-06-30)
+
+**Change:** ported an external PR (`vinaySankar2004/RaSi-Fiters#4`, legacy `ios-mobile`) into `apps/ios`,
+corrected for our curated `workouts_library`. One commit (`af63e16`), three feature deltas → three tags:
+`feature/apple-health@v0.1.0` (new node), `feature/workouts@v0.1.1`, `feature/workout-logs@v0.2.1`.
+
+**Bump calls.** (a) `apple-health` = **new node → v0.1.0** (net-new feature, ports a PR not the legacy backend
+— `reference_impl.app` set to `ios-mobile` w/ the PR's Swift paths, since there's no legacy-backend analogue).
+(b) `workouts` **0.1.0→0.1.1 PATCH**: the library CONTENTS grew via a new SQL migration (`004`), but **zero
+`workouts` code/route/model/contract moved** — additive data seed, existing names untouched → PATCH, not
+MINOR (matches the "additive, output shape unchanged" convergence). (c) `workout-logs` **0.2.0→0.2.1 PATCH**:
+one backward-compatible error-code refinement in `addWorkoutLog` (generic 500 → friendly 409 on the composite-PK
+collision), no route/shape change → PATCH; both `[web, ios]` consumers benefit, dependents read data only → FYI.
+
+**Multi-feature, one commit.** A tightly-coupled changeset (the 409 + the library seed exist *to serve*
+apple-health) mapped cleanly to 3 features; committed once and applied all 3 tags to the same commit (the
+skill's "one tag per touched feature", all pointing at the new commit). Cleaner than artificially splitting
+interdependent work.
+
+**Staging discipline held.** Whole tree was this session's work (25 paths), all related — staged the explicit
+list via `git add <file>…` (no `-A`), verified 26 staged, nothing foreign. (Contrast the prior notifications
+run, where HealthKit WIP had to be *excluded* — this run IS that work, now complete.)
+
+**Tag-invariant note.** `git tag -l 'feature/*'` = 28 vs 15 registry nodes — expected: features accumulate one
+tag PER VERSION over time, so total feature tags ≥ node count. The skill's "count == node count" reads as a
+per-feature-latest check / backfill trigger, not a literal total-tag equality once features have version history.
+
+**Verification before commit.** iOS build green via the xcode MCP (0 errors); DB invariant scripted (79 map
+targets ⊆ 90 post-migration library names); migration `004` applied to Supabase + on-device manually tested by
+the user → committed as a real, verified feature (not a "pending smoke-test" progress commit).
