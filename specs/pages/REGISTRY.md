@@ -12,7 +12,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 
 | Page | Route | Status | Consumes (features) | Spec |
 |------|-------|--------|---------------------|------|
-| splash | `/splash` (root `/` redirects here) | 🏗️ v0.1.0 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
+| splash | `/splash` (root `/` redirects here) | 🏗️ v0.2.0 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
 | login | `/login` | 🏗️ v0.1.1 | `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers) | [login SPEC](web/login/SPEC.md) |
 | forgot-password | `/forgot-password` | 🏗️ v0.1.0 | `auth` v0.3.0 (`requestPasswordReset()` `POST /auth/forgot-password`, `useAuth`); `SUPPORT_EMAIL` | [forgot-password SPEC](web/forgot-password/SPEC.md) |
 | reset-password | `/reset-password` | 🏗️ v0.1.0 | `auth` v0.4.0 (`resetPassword()` `POST /auth/reset-password`, `useAuth`, `ApiError`) | [reset-password SPEC](web/reset-password/SPEC.md) |
@@ -34,7 +34,7 @@ history/workouts/streaks) · lifestyle (+ timeline/workouts).
 
 | Screen | Status | Consumes (features) | Spec |
 |--------|--------|---------------------|------|
-| splash | 🏗️ v0.1.0 | `auth` (root `authToken` bifurcation; no API) | [splash SPEC](ios/splash/SPEC.md) |
+| splash | 🏗️ v0.2.0 | `auth` (root `authToken` bifurcation; no API) | [splash SPEC](ios/splash/SPEC.md) |
 | login | 🏗️ v0.1.0 | `auth` (`APIClient.loginGlobal()` `POST /auth/login/global`, `ProgramContext+Auth`) | [login SPEC](ios/login/SPEC.md) |
 | create-account | 🏗️ v0.1.0 | `auth` (`registerAccount()` `POST /auth/register` + `loginGlobal()`, `ProgramContext+Auth`) | [create-account SPEC](ios/create-account/SPEC.md) |
 | program-picker | 🏗️ v0.1.0 | `programs`/`invites` via `ProgramContext` (`fetchPrograms` `GET /programs`, `deleteProgram`, `updateMembershipStatus` `PUT /program-memberships`, `loadPendingInvites`/`loadMembershipDetails`/`loadLookupData`/`persistSession`/`signOut`) | [program-picker SPEC](ios/program-picker/SPEC.md) |

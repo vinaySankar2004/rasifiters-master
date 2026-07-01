@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { BrandMark } from "@/components/BrandMark";
 import { useAuth } from "@/lib/auth/auth-provider";
@@ -20,6 +20,16 @@ export default function SplashPage() {
   const [subheadline, setSubheadline] = useState("");
   const [ctaVisible, setCtaVisible] = useState(false);
   const [headlineComplete, setHeadlineComplete] = useState(false);
+  const skipRef = useRef(false);
+
+  const skip = () => {
+    if (skipRef.current) return;
+    skipRef.current = true;
+    setHeadline(headlineText);
+    setSubheadline(subheadlineText);
+    setHeadlineComplete(true);
+    setCtaVisible(true);
+  };
 
   useEffect(() => {
     if (!isBootstrapping && session) {
@@ -29,6 +39,7 @@ export default function SplashPage() {
 
   useEffect(() => {
     let isMounted = true;
+    skipRef.current = false;
     setHeadline("");
     setSubheadline("");
     setCtaVisible(false);
@@ -39,7 +50,7 @@ export default function SplashPage() {
       setter: React.Dispatch<React.SetStateAction<string>>
     ) => {
       for (const char of text) {
-        if (!isMounted) return;
+        if (!isMounted || skipRef.current) return;
         setter((prev) => prev + char);
         await sleep(42);
       }
@@ -47,10 +58,11 @@ export default function SplashPage() {
 
     const run = async () => {
       await typeText(headlineText, setHeadline);
-      if (!isMounted) return;
+      if (!isMounted || skipRef.current) return;
       setHeadlineComplete(true);
       await sleep(350);
       await typeText(subheadlineText, setSubheadline);
+      if (!isMounted || skipRef.current) return;
       await sleep(280);
       if (!isMounted) return;
       setCtaVisible(true);
@@ -64,7 +76,10 @@ export default function SplashPage() {
   }, []);
 
   return (
-    <div className="relative flex min-h-screen flex-col justify-between px-6 pb-10 pt-14 text-rf-text sm:px-10 sm:pt-16">
+    <div
+      onClick={skip}
+      className="relative flex min-h-screen flex-col justify-between px-6 pb-10 pt-14 text-rf-text sm:px-10 sm:pt-16"
+    >
       <div className="mx-auto w-full max-w-4xl space-y-6">
         <div className="space-y-3">
           <motion.h1

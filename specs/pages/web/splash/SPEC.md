@@ -1,13 +1,14 @@
 # Page: `splash` (web) — the public entry / welcome screen
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/splash` (the root `/` redirects here — `src/app/page.tsx`).
 > **Reference impl (legacy):** `../../../rasifiters-webapp/src/app/splash/page.tsx` (+ `components/BrandMark.tsx`).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) (the foundation `useAuth` context —
 > `session` + `isBootstrapping`; no API call).
 > **Cross-app:** iOS `SplashView.swift` (`Features/Onboarding/`) — same copy + typewriter intent, but a
 > **placeholder** brand icon and **no** authenticated→programs redirect (D-REF; F1, F3, F4).
-> **Stance:** faithful 1:1 (D-S1) — no code changes; oddities flagged §10. **First web page spec.**
+> **Stance:** faithful 1:1 (D-S1) **+ ONE deliberate cross-app addition** — tap/click anywhere fast-forwards
+> the intro to its final state (D-SKIP; mirrors iOS). Oddities flagged §10. **First web page spec.**
 
 ---
 
@@ -38,10 +39,12 @@ of the public/auth path (splash → login → create-account) that proves auth e
 | Subheadline (typewriter) | "Track your fitness journey by logging workouts and monitoring your progress!" typed after a 350 ms beat. | [splash/page.tsx:80-82](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L80) |
 | Brand logo | `BrandMark` (size 150) — `app-icon.png` in a rounded circle, centered. | [splash/page.tsx:86-88](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L86); `BrandMark.tsx` |
 | Sign-in CTA | A `next/link` → `/login`, framer-motion fade-in, appears only after the full intro (~3.5 s). | [splash/page.tsx:90-104](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L90) |
+| Tap-to-skip (D-SKIP) | `onClick` on the root container instantly snaps both sentences to full + reveals the CTA (`skipRef` + `skip()`); no-op once the CTA is visible, so the Sign-in link still navigates normally. **Not in legacy** — deliberate addition. | `apps/web/src/app/splash/page.tsx` |
 
 **Animation sequence** ([splash/page.tsx:48-57](../../../../../rasifiters-webapp/src/app/splash/page.tsx#L48)):
 type headline → mark complete → 350 ms → type subheadline → 280 ms → reveal CTA. Driven by an on-mount
-`useEffect` (deps `[]`), cleaned up via an `isMounted` flag.
+`useEffect` (deps `[]`), cleaned up via an `isMounted` flag. A `skipRef` short-circuits the typewriter loop
+and the inter-phase beats when the user taps (D-SKIP), and is reset on each mount so a remount replays it.
 
 ## 5. Components + features consumed
 
@@ -76,7 +79,10 @@ role-adjacent behavior is uniform across **every** role:
 - **Authenticated:** `router.replace("/programs")` (replace, not push — splash leaves no history entry).
 - **Unauthenticated:** the normal path; CTA appears after the full sequence.
 - **Re-mount / fast nav-away:** the `isMounted` cleanup flag stops the async typewriter from setting state
-  after unmount.
+  after unmount; the on-mount effect also resets `skipRef` so the intro replays fresh.
+- **Tap during intro (D-SKIP):** clicking anywhere while the text is still typing sets `skipRef`, fills both
+  sentences to full, and reveals the CTA at once. Taps after the CTA is visible are no-ops (`skip()` early-
+  returns) — the Sign-in link handles its own click.
 - **No empty/error states** — the page makes no request and cannot fail.
 - **Forward dependency:** the `/programs` redirect target and the `/login` CTA target are **not built yet**
   (this is the first page of the auth path); they land in subsequent page ports.
@@ -87,6 +93,7 @@ role-adjacent behavior is uniform across **every** role:
 |----|----------|----------|
 | **D-REF** | **Reference impl = legacy `../../../rasifiters-webapp/src/app/splash/page.tsx` (+ `BrandMark.tsx`). `consumed_by = [web]`** (this is the web page spec). **Cross-app divergence:** iOS `SplashView.swift` renders a placeholder icon (orange circle + `chart.bar.fill`) and has no authenticated→programs redirect; web wins on the brand mark (keeps the real logo) — the iOS placeholder is flagged as a defect to reconcile at the iOS splash port (F3). | `splash/page.tsx`; iOS `SplashView.swift:113-128, 86-93`; user answers (faithful; flag iOS placeholder as a bug). |
 | **D-S1** | **Stance = faithful 1:1, no code changes.** Port `splash/page.tsx` + `BrandMark.tsx` verbatim (typewriter timings, BrandMark size 150, redirect-when-authenticated, CTA→`/login`). Oddities recorded as §10 flagged characteristics rather than changed. | `splash/page.tsx`; user answer (faithful as-is). |
+| **D-SKIP** | **ONE deliberate addition (not in legacy) — tap/click fast-forwards the intro.** A `skipRef` + `skip()` snap both sentences to full and reveal the CTA on any click of the splash, so an impatient visitor reaches Sign-in without waiting out the ~3.5 s typewriter. Guarded to no-op once the CTA is visible (the Sign-in link keeps its own navigation). Added identically on iOS (D-SKIP there) so the two surfaces stay 1:1. | `apps/web/src/app/splash/page.tsx`; user request (2026-06-30). |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -101,4 +108,5 @@ role-adjacent behavior is uniform across **every** role:
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-06-30 | **Tap-to-skip the intro (D-SKIP).** Clicking anywhere on the splash now instantly fast-forwards the typewriter to its final state (both sentences + Sign-in CTA) via a `skipRef` guard + `skip()` handler on the root container; no-op once the CTA shows so the Sign-in link still navigates. A deliberate cross-app addition (not in the legacy reference), mirrored on iOS. `apps/web/src/app/splash/page.tsx`. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` — the **first web page spec**. Documents the public `splash` welcome screen (root `/` → `/splash`): typewriter intro, `BrandMark` logo, Sign-in CTA → `/login`, authenticated→`/programs` redirect. Consumes only `auth` (foundation `useAuth`); no API. Decisions: **D-REF** (`consumed_by = [web]`; iOS `SplashView` divergence — placeholder icon + no redirect; web keeps the real logo, iOS placeholder flagged as a defect) · **D-S1** (faithful 1:1, no code changes). Flagged F1–F4 (web-only auth redirect; no loading gate / splash flash; **iOS placeholder = defect to fix on the iOS port**; type-speed divergence). Role rules N/A (public/pre-auth). Ported `src/app/splash/page.tsx` + `src/components/BrandMark.tsx`. |

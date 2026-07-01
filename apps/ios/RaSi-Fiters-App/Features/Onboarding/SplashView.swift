@@ -12,6 +12,7 @@ final class SplashViewModel: ObservableObject {
     private let subheadline = "Track your fitness journey by logging workouts and monitoring your progress!"
 
     private var hasStarted = false
+    private var isSkipped = false
 
     func start() async {
         guard !hasStarted else { return }
@@ -20,6 +21,7 @@ final class SplashViewModel: ObservableObject {
         await type(text: headline) { [weak self] char in
             self?.displayedHeadline.append(char)
         }
+        if isSkipped { return }
 
         withAnimation {
             isHeadlineComplete = true
@@ -30,6 +32,7 @@ final class SplashViewModel: ObservableObject {
         await type(text: subheadline) { [weak self] char in
             self?.displayedSubheadline.append(char)
         }
+        if isSkipped { return }
 
         try? await Task.sleep(nanoseconds: 300_000_000)
 
@@ -38,9 +41,22 @@ final class SplashViewModel: ObservableObject {
         }
     }
 
+    func skip() {
+        guard !isCTAVisible else { return }
+        isSkipped = true
+        displayedHeadline = headline
+        displayedSubheadline = subheadline
+        withAnimation {
+            isHeadlineComplete = true
+            isCTAVisible = true
+        }
+    }
+
     private func type(text: String, characterDelay: UInt64 = 55_000_000, append: @escaping (Character) -> Void) async {
         for char in text {
+            if isSkipped { return }
             try? await Task.sleep(nanoseconds: characterDelay)
+            if isSkipped { return }
             append(char)
         }
     }
@@ -105,6 +121,10 @@ struct SplashView: View {
                 Spacer(minLength: 40)
             }
             .padding(.horizontal, 20)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            viewModel.skip()
         }
         .task {
             await viewModel.start()
