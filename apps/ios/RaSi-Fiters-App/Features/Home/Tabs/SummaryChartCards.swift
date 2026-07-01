@@ -94,7 +94,7 @@ struct ActivityTimelineCardSummary: View {
                                     y: .value("Workouts", point.workouts),
                                     width: .fixed(barWidth)
                                 )
-                                .foregroundStyle(.orange.opacity(0.9))
+                                .foregroundStyle(Color.appOrangeStrong)
                                 .cornerRadius(6)
 
                                 if showActive {
@@ -103,14 +103,14 @@ struct ActivityTimelineCardSummary: View {
                                         y: .value("Active Members", point.active_members)
                                     )
                                     .lineStyle(.init(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                                    .foregroundStyle(.purple)
+                                    .foregroundStyle(Color.appPurple)
                                     .interpolationMethod(.catmullRom)
                                     PointMark(
                                         x: .value("Label", point.label),
                                         y: .value("Active Members", point.active_members)
                                     )
                                     .symbolSize(22)
-                                    .foregroundStyle(.purple)
+                                    .foregroundStyle(Color.appPurple)
                                 }
                             }
 
@@ -197,7 +197,7 @@ struct DistributionByDayCard: View {
                                     y: .value("Workouts", point.workouts),
                                     width: .fixed(barWidth)
                                 )
-                                .foregroundStyle(.orange.opacity(0.9))
+                                .foregroundStyle(Color.appOrangeStrong)
                                 .cornerRadius(8)
                             }
 
@@ -210,7 +210,7 @@ struct DistributionByDayCard: View {
                                             Text(tapped.label)
                                                 .font(.caption.weight(.semibold))
                                             HStack {
-                                                Circle().fill(.orange).frame(width: 6, height: 6)
+                                                Circle().fill(Color.appOrange).frame(width: 6, height: 6)
                                                 Text("Workouts: \(tapped.workouts)")
                                             }
                                             .font(.caption2)

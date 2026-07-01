@@ -134,27 +134,10 @@ struct ProgramWorkoutTypesSection: View {
 // AddDailyHealthDetailView.swift + LogFormComponents.swift, run 60) — the two Summary log forms. Stubs removed.
 // They gained the web-parity admin_only_data_entry mount guard + shared chrome + success-refresh + inline errors.
 
-/// DEFERRED (Features/Home/Detail/ActivityTimelineViews.swift) — Summary activity-timeline card → expanded
-/// timeline. Also the target of the Members tab's `MemberHistoryCard` (run 55), which passes `memberId` +
-/// `showActiveSeries` — the defaults keep the run-54 AdminSummaryTab call site (`initialPeriod:` only) compiling.
-struct ActivityTimelineDetailView: View {
-    var initialPeriod: AdminHomeView.Period
-    var memberId: String? = nil
-    var showActiveSeries: Bool = true
-    var body: some View { ScaffoldPlaceholder(screen: "Activity Timeline") }
-}
-
-/// DEFERRED (Features/Home/Detail/WorkoutDistributionViews.swift) — Summary distribution card → expanded distribution.
-struct DistributionByDayDetailView: View {
-    var points: [DistributionPoint]
-    var body: some View { ScaffoldPlaceholder(screen: "Workout Distribution") }
-}
-
-/// DEFERRED (Features/Home/Detail/WorkoutTypesDetailViews.swift) — Summary workout-types card → expanded breakdown.
-struct WorkoutTypesDetailView: View {
-    var types: [APIClient.WorkoutTypeDTO]
-    var body: some View { ScaffoldPlaceholder(screen: "Workout Types") }
-}
+// NOTE: ActivityTimelineDetailView + DistributionByDayDetailView + WorkoutTypesDetailView landed
+// (Features/Home/Detail/{ActivityTimelineDetailView,DistributionByDayDetailView,WorkoutTypesDetailView}.swift
+// + ChartDetailComponents.swift, run 61) — the 3 Summary chart drill-downs. Stubs removed. Kept iOS-native
+// interactive (D-REF); ActivityTimelineDetailView also serves the Members MemberHistoryCard (memberId-scoped).
 
 // MARK: - Deferred detail screens referenced by the Members tabs (run 55 — AdminMembersTab/StandardMembersTab)
 // The iOS analogues of the web /members sub-routes (metrics / invite / list+detail / streaks / workouts / health).

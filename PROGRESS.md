@@ -79,6 +79,54 @@ target's build green-check is owned by the user (visual run in Xcode)** — symb
 `ProgramPickerView` (the post-auth landing both Login + CreateAccount push to — still a deferred stub) +
 program create/edit/invites, via `question-asker`.**
 
+**Phase 4 — `ios` Summary chart drill-downs: 3 DETAIL VIEWS PORTED — the Summary detail layer is COMPLETE 5/5
+(run 61, 2026-06-30).** The **3 remaining Summary `NavigationLink` detail targets** (deferred stubs since run 54) —
+`ActivityTimelineDetailView` · `DistributionByDayDetailView` · `WorkoutTypesDetailView` — ported into
+`apps/ios/.../Features/Home/Detail/{ActivityTimelineDetailView,DistributionByDayDetailView,WorkoutTypesDetailView}.swift`
++ the shared `ChartDetailComponents.swift` (3 iOS SPECs `specs/pages/ios/summary-{activity,distribution,workout-types}-detail/`),
+the 3 deferred stubs removed. **This COMPLETES the Summary detail layer** (2 log forms ✓ run 60 + 3 chart drill-downs ✓
+this run = 5/5 of the run-54 stubs). **D-SCOPE = the cluster IS the run** (run-58/59/60 cohesive-cluster precedent): 3
+leaf detail views over already-ported analytics loaders, no forward-nav to defer. **THE LOAD-BEARING DECISION — D-REF:
+keep iOS-native.** This is the **FIRST run where legacy iOS is RICHER than web** (all prior runs, iOS LACKED something web
+had → an ADD toward web; here iOS HAS MORE): native tap-callouts (`RuleMark`+`CalloutView`+drag+`clamp` positioning),
+horizontally-scrollable Swift Charts, a period selector on activity, member-scoping, "Others" aggregation + %-annotations
++ breakdown rows with progress bars — vs web's flatter recharts + Legend + ranked `<ul>`. Per the run-52/53 platform-idiom
+precedent + the run-54 cards already shipping interactive native charts, the LEAD = **keep iOS-native faithful** (web's
+recharts hover tooltips can't be "matched" natively; the DATA/destinations already match web), recorded as D-REF + F-rows,
+NOT a reconcile-toward-web (memory [[ios-matches-web-not-just-legacy]] — the exception fires when iOS is richer, not
+poorer). **D-S1 = faithful 1:1** (the richness kept) **+ 3 user-picked cleanups:** **D-C1** an **all-zero empty-state
+guard** on `DistributionByDayDetailView` the legacy detail view LACKED — keyed off the **sum** of the 7 counts (not
+`points.isEmpty`; the endpoint always returns 7 weekday keys — the run-34 predicate re-derive), matching web's D-C1 + the
+rebuilt `DistributionByDayCard` + `WorkoutTypesDetailView`; **D-C2** **trim `ActivityTimelineDetailView`'s 6 unused init
+providers** (`pointsProvider`/`dailyAverageProvider`/`loadHandler`/`title`/`startDateProvider`/`endDateProvider` — no
+rebuilt call site passes them) → the 3 used params, the program-wide-vs-member branch reading `ProgramContext` directly;
+**D-C3** **tokenize the chart colors** (`.orange.opacity(0.9)`→`Color.appOrangeStrong`, `.orange`→`Color.appOrange`,
+`.purple`→`Color.appPurple` — all defined `light:`-identical so **no light-mode change**, adaptive in dark = the run-26
+"no-op on target, just explicit + better in dark" shape), applied to the 3 detail views AND retro-tokenized the run-54
+`SummaryChartCards` card literals for **card↔detail consistency** (`Color.appPurple` DID exist — the run-27 holdout
+assumption was wrong); `Color(.systemGray3)` ("Others") kept (semantic); `WorkoutTypesDetailView` uses palette `barColor`
+so D-C3 is N/A there. **D-DEPS = a NEW dependency set (breaks the no-new-dep streak)** — the interactive-callout machinery
+co-located in the legacy deferred Detail files, never in the foundation (run-55/56 co-located-helper pattern): new
+`ChartDetailComponents.swift` holds `CalloutView`/`HeaderStats`/`HeaderHeightKey`/`clamp` + the axis/callout helpers
+(`axisValues`/`shortLabel`/`programMonthLabels`/`calloutTitle`×2/`formatCalloutDate`/`rangeLabel`×2); `WorkoutTypeRow`
+co-located in its view. **Intentionally NOT ported:** `GlassButton` (landed run 55 — would collide) + `HealthCalloutView`/
+`HealthHeaderStats` (belong to the future lifestyle-timeline detail run). **Reused NOT redefined** (grep-verified single-
+sourced in `SummaryChartCards.swift`, run 54): `DistributionPoint`/`distributionPoints`/`typeColor`/`barColor`/
+`ScrollableBarChart`/`DistributionChartOverlay` (legacy's `ChartOverlay` → the run-54 rename) + run-55 `memberTimelinePoints`;
+all analytics loaders/DTOs/`Period` (`CaseIterable`+`apiValue`)/member-history props already ported (run 50/54/55).
+**Read-only → `admin_only_data_entry` N/A** on all 3 (the read-vs-write axis; unlike the run-60 log forms). **No
+role-conditional UI** — program-wide, same for every role (matches web F2); vestigial `errorMessage` set-but-never-rendered
+on activity (both web + legacy iOS swallow → parity → no banner, the run-55 both-swallow verdict, F-row). **`ActivityTimelineDetailView`
+serves DOUBLE DUTY** — the Summary drill-down (program-wide) AND the Members `MemberHistoryCard` target (memberId-scoped,
+`showActiveSeries:false`, gated upstream at the card run 43) — the iOS analogue of web's TWO separate pages
+(`/summary/activity` + `/members/history`) collapsed into one parameterized view. **The app target's build green-check is
+owned by the user (visual run in Xcode)** — symbols verified via grep (each new type/func defined exactly once in the new
+Detail files, the shared run-54 helpers single-sourced/not re-added, `.orange`/`.purple` literals fully tokenized in the
+cards, 3 stubs removed, no `GlassButton`/`DistributionPoint` collision), not a CLI build (memory
+[[ios-user-verifies-builds-visually]]). **Next: the DEFERRED DETAIL/SECTION layer continues** — the 3 Program management
+sections (`ProgramMemberManagementSection`/`ProgramRoleManagementSection`/`ProgramWorkoutTypesSection`, deferred at run 57),
+the 6 Members detail stubs, or the 2 Lifestyle detail stubs, via `question-asker`.
+
 **Phase 4 — `ios` Summary log forms: `AddWorkoutDetailView`/`AddDailyHealthDetailView` PORTED (run 60, 2026-06-30).**
 The **two Summary log-action-card targets** (deferred stubs since run 54) — ported into
 `apps/ios/.../Features/Home/Detail/{AddWorkoutDetailView,AddDailyHealthDetailView,LogFormComponents}.swift` (2 iOS SPECs
@@ -398,24 +446,30 @@ notifications feature lands — backend deferred-stub pattern). Next: the public
 ## Next action
 
 > ### ⏭️ ON "continue" → PORT A DEFERRED DETAIL VIEW / MANAGEMENT SECTION (the deferred stubs), via `question-asker`
-> **The Summary log forms are DONE (run 60, 2026-06-30)** — `AddWorkoutDetailView` + `AddDailyHealthDetailView` (the app's
-> **core data-entry flows**, live targets of `admin_only_data_entry`) ported into `apps/ios/.../Features/Home/Detail/` +
-> `LogFormComponents.swift` (2 SPECs `specs/pages/ios/{log-workout,log-health}/`), the 2 deferred stubs removed. **D-SCOPE =
-> the cluster IS the run** (run-58/59 precedent). **D-S1 = faithful 1:1** (web `/summary/log-workout`+`/log-health` + legacy
-> iOS agree → faithful IS web parity; direct `APIClient.shared.add*` calls) **+ 4 user-picked deviations**: **D-C1** web-parity
-> `admin_only_data_entry` mount guard (`.task` `dismiss()` when `dataEntryLocked` — legacy had none; completes the run-54 lock
-> arc on the write path) · **D-C2** adopt shared `AppInputField`(+`keyboardType`)/`AppPrimaryButton` chrome · **D-C3** success →
-> bump new `ProgramContext.summaryRefreshToken` (Summary reloads via `.onChange`) + `dismiss` (drop success Alert; ≈ web
-> `invalidateQueries(["summary"])`) · **D-C4** inline errors (drop health's error Alert). **D-DEPS = no new view component** (2
-> tiny foundation touches + shared `LogFormComponents.swift`; all API/DTO/`dataEntryLocked` already ported run 50/54). Role
-> rules: `canSelectAnyMember` (global_admin/admin/logger) picker vs member self-lock; **`admin_only_data_entry` LIVE (write
-> path)** — logger locked out too. **NEXT = the DEFERRED DETAIL / SECTION layer continues.** Pick one (each its own "scope cut
-> IS the run" with further deferrals): the **3 remaining Summary chart drill-downs** (`ActivityTimelineDetailView` [also a
-> Members target] / `DistributionByDayDetailView` / `WorkoutTypesDetailView` — read-only, over already-ported analytics
-> loaders); a **Program** management section (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite,
-> `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts`); or a
-> **Members** (6 stubs) / **Lifestyle** (2 stubs) detail view. Run `question-asker` per screen, **match the current web
-> sibling** + faithful legacy iOS, delete each stub when it lands.
+> **The Summary chart drill-downs are DONE (run 61, 2026-06-30) — the Summary detail layer is COMPLETE 5/5.**
+> `ActivityTimelineDetailView` + `DistributionByDayDetailView` + `WorkoutTypesDetailView` ported into
+> `apps/ios/.../Features/Home/Detail/` + shared `ChartDetailComponents.swift` (3 SPECs
+> `specs/pages/ios/summary-{activity,distribution,workout-types}-detail/`), the 3 deferred stubs removed. **D-SCOPE = the
+> cluster IS the run** (run-58/59/60). **D-REF = keep iOS-native** — the FIRST run where legacy iOS is *richer* than web
+> (native tap-callouts + scrollable Swift Charts + period selector + member scope + breakdown rows vs web's flat recharts) →
+> platform-idiom exception (run-52/53), NOT simplified toward web; the memory [[ios-matches-web-not-just-legacy]] exception
+> fires when iOS is richer, not poorer. **D-S1 = faithful 1:1** (richness kept) **+ 3 cleanups**: **D-C1** all-zero
+> empty-state guard on `DistributionByDayDetailView` (legacy lacked it; keyed off the sum since the endpoint always returns 7
+> keys — matches web + siblings) · **D-C2** trim `ActivityTimelineDetailView`'s 6 unused init providers · **D-C3** tokenize
+> chart colors (`.orange`→`appOrangeStrong`/`appOrange`, `.purple`→`appPurple` — `light:`-identical, run-26 shape; retro-tokenized
+> the run-54 cards for card↔detail consistency; workout-types uses palette `barColor` so N/A there). **D-DEPS = a new dep set**
+> (breaks the streak) — `CalloutView`/`HeaderStats`/`HeaderHeightKey`/`clamp`+axis-callout helpers + `WorkoutTypeRow`, co-located
+> in legacy deferred Detail files (run-55/56); skipped `GlassButton` (run 55) + health-callout variants (future lifestyle run);
+> reused run-54 chart helpers + run-55 `memberTimelinePoints` (NOT redefined). Read-only → `admin_only_data_entry` N/A; no
+> role-conditional UI (program-wide, web F2); `ActivityTimelineDetailView` serves double-duty (Summary program-wide + Members
+> `MemberHistoryCard` memberId-scoped). **NEXT = the DEFERRED DETAIL / SECTION layer continues** (each its own "scope cut IS
+> the run"): a **Program** management section (`ProgramMemberManagementSection` = web `/members/*` roster+editor+invite,
+> `ProgramRoleManagementSection` = web `/program/roles`, `ProgramWorkoutTypesSection` = web `/lifestyle/workouts` — the 3 heavy
+> sections deferred at run 57); or a **Members** (6 stubs: `MemberMetricsDetailView`/`InviteMemberView`/`ProgramMembersListView`/
+> `MemberStreakDetail`/`MemberRecentDetail`/`MemberHealthDetail`) / **Lifestyle** (2 stubs: `ViewWorkoutTypesListView` = web
+> `/lifestyle/workouts` CRUD + `LifestyleTimelineDetailView` = web `/lifestyle/timeline`) detail view. Run `question-asker` per
+> screen, **match the current web sibling** + faithful legacy iOS (resolve toward web UNLESS iOS is richer / a platform reason),
+> delete each stub when it lands.
 > **The user verifies the build/run visually in Xcode** (memory [[ios-user-verifies-builds-visually]]) — don't fight the
 > local CLI toolchain. The pre-iOS web/deploy context is retained below for reference.
 >
