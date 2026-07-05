@@ -159,3 +159,13 @@ the user → committed as a real, verified feature (not a "pending smoke-test" p
   specs/pages/REGISTRY.md — page specs get no feature tags.
 - **LESSON:** do NOT round-trip registry.json through python json.dump — it reformats the whole file
   (ascii-escapes the em-dashes, expands inline arrays). Surgical Edit on the feature's node only.
+
+## Run — 2026-07-05 — docs(progress): TestFlight shipped + APNS flip closed
+- **Shape:** docs-only (PROGRESS.md) — no feature paths, no bump, no tag, blast radius zero. Commit
+  `7e1aeea`.
+- **Context:** user announced TestFlight uploaded/approved/in-beta; APNS_PRODUCTION verified already
+  `true` via tools/render-env.sh (Render MCP OAuth still stale — REST path used), redeploy triggered to
+  guarantee the live process carries it. Live-binary memory updated (out-of-repo, not staged).
+- **LESSON (reinforces converged):** state-change verification before doc pruning — the "flip APNS" open
+  item was closed only after reading the value AND making the deploy deterministic, not on the user's
+  "I think it flipped" alone.
