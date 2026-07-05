@@ -74,7 +74,12 @@ The user owns the visual/runtime confirmation in the simulator.
 - **Invocation:** `BuildProject(tabIdentifier: <fresh id>)` — no scheme/destination arg needed; it builds
   the open instance and returns `{buildResult, elapsedTime, errors[], fullLogPath}`. ~18–44s clean.
 - **Open-Xcode path avoids the `actool`/CoreSimulator issue** — the MCP build through the running Xcode
-  builds clean where raw `xcodebuild` fails. Confirmed.
+  builds clean where raw `xcodebuild` (simulator destination) fails. Confirmed.
+- **MCP-absent fallback that works (run 75):** when the `xcode` tools aren't in the session (server not
+  loaded / Xcode closed), `xcodebuild -project RaSi-Fiters-App.xcodeproj -scheme RaSi-Fiters-App
+  -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` compiles clean — the **device**
+  destination sidesteps the CoreSimulator/actool quirk (it's simulator-runtime-specific). No reboot needed.
+  Gate on exit code + `BUILD SUCCEEDED`; run in background (~2–4 min, slower than the MCP's incremental).
 - **New `.swift` files** added under the `apps/ios` synchronized folder group are picked up by the open
   Xcode automatically — `BuildProject` compiled a brand-new file (BulkAddWorkoutDetailView.swift) with no
   manual project.pbxproj edit needed.

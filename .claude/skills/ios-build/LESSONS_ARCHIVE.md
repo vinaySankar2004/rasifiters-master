@@ -246,3 +246,19 @@ specific "list navigator issues" tool must be called after the build tool.
   `XcodeListNavigatorIssues` (warning, pattern on the touched files) → 0 new warnings.
 - **Confirmed (no new lessons):** tab id `windowtab2` fetched fresh via `XcodeListWindows`. Edits to
   existing files only (no new .swift). Pure edit-in-place change compiled clean first try.
+
+## Run 75 — 2026-07-05 — apple-health 0.6.0: sum-on-conflict (D-SUM) + silent auto-retry (D-SIL)
+- **Change built:** new `HealthKitAppliedLedger.swift` (idempotency ledger); `AggregatedWorkout` reworked
+  to per-sample `(uuid, minutes)` in `HealthKitService.swift`; `on_duplicate:"sum"` + `.summed` outcome in
+  `APIClient+Workouts.swift`; `performHealthKitSync`/`performSleepSync` → `@discardableResult ...
+  HealthSyncResult` with ledger filtering + persisted `lastSyncFailed` flags (`ProgramContext.swift`,
+  `+HealthKit.swift`, `+HealthKitSleep.swift`, `+HealthSyncGating.swift`); `notifyFailure()` deleted
+  (`HealthKitSyncNotifier.swift`); settings status line + Sync Now inline error
+  (`AppleHealthSettingsView.swift`).
+- **Result:** BUILD SUCCEEDED, 0 errors, first try — but via the **raw-xcodebuild fallback**, not the MCP.
+- **NEW LESSON (promoted):** the `xcode` MCP tools were absent this session (server not loaded / Xcode not
+  driving). Fallback that WORKS without a reboot: `xcodebuild -project RaSi-Fiters-App.xcodeproj -scheme
+  RaSi-Fiters-App -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` — the **device**
+  (non-simulator) destination sidesteps the CoreSimulator/actool quirk entirely (that failure is
+  simulator-runtime-specific). Caveat: `2>&1 | tail -40` keeps the log tiny but hides warnings; rely on
+  exit code + BUILD SUCCEEDED for the error gate.
