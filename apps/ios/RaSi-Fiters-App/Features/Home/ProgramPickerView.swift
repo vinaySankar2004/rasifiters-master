@@ -100,14 +100,17 @@ struct ProgramPickerView: View {
                 Spacer()
             }
 
-            // Floating action at bottom right
+            // Floating actions at bottom right (search above the "+")
             VStack {
                 Spacer()
                 HStack {
                     Spacer()
-                    floatingProgramActionsButton
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 24)
+                    VStack(spacing: 14) {
+                        floatingSearchButton
+                        floatingProgramActionsButton
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 24)
                 }
             }
 
@@ -204,20 +207,6 @@ struct ProgramPickerView: View {
             }
             Spacer()
             Button {
-                toggleSearch()
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(colorScheme == .dark ? Color(.white) : Color(.black))
-                        .frame(width: 56, height: 56)
-                    Image(systemName: isSearching ? "xmark" : "magnifyingglass")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .black : .white)
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isSearching ? "Close search" : "Search programs")
-            Button {
                 showAccountMenu = true
             } label: {
                 ZStack {
@@ -277,6 +266,25 @@ struct ProgramPickerView: View {
         } else {
             searchText = ""
         }
+    }
+
+    // Floats above the "+" (user feedback 2026-07-05: a header button squeezed the
+    // title into wrapping — search lives with the other floating action instead).
+    private var floatingSearchButton: some View {
+        Button {
+            toggleSearch()
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(colorScheme == .dark ? Color(.white) : Color(.black))
+                    .frame(width: 56, height: 56)
+                Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(colorScheme == .dark ? .black : .white)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isSearching ? "Close search" : "Search programs")
     }
 
     private var floatingProgramActionsButton: some View {
