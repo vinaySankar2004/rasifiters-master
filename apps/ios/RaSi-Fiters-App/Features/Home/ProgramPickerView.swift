@@ -16,6 +16,8 @@ struct ProgramPickerView: View {
     @State private var showAccountMenu = false
     @State private var accountDestination: AccountDestination?
     @State private var searchText = ""
+    @State private var isSearching = false
+    @FocusState private var searchFieldFocused: Bool
 
     private var pendingInvitesCount: Int {
         programContext.pendingInvites.count
@@ -40,7 +42,7 @@ struct ProgramPickerView: View {
 
             List {
                 Color.clear
-                    .frame(height: 90)
+                    .frame(height: isSearching ? 148 : 90)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
 
@@ -84,13 +86,17 @@ struct ProgramPickerView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search programs")
 
-            // Header at top
-            VStack {
+            // Header at top (+ the floating search pill when active)
+            VStack(spacing: 12) {
                 pickerHeader
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
+                if isSearching {
+                    searchPill
+                        .padding(.horizontal, 20)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
                 Spacer()
             }
 
@@ -198,6 +204,20 @@ struct ProgramPickerView: View {
             }
             Spacer()
             Button {
+                toggleSearch()
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(colorScheme == .dark ? Color(.white) : Color(.black))
+                        .frame(width: 56, height: 56)
+                    Image(systemName: isSearching ? "xmark" : "magnifyingglass")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(colorScheme == .dark ? .black : .white)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isSearching ? "Close search" : "Search programs")
+            Button {
                 showAccountMenu = true
             } label: {
                 ZStack {
@@ -213,6 +233,50 @@ struct ProgramPickerView: View {
             .accessibilityLabel("Account settings")
         }
         .padding(.horizontal, 4)
+    }
+
+    // Floating search — collapsed behind the header magnifier so the screen is
+    // unchanged until search is active (user feedback 2026-07-05; replaced the
+    // nav-drawer .searchable, which collided with the custom header).
+    private var searchPill: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(Color(.secondaryLabel))
+            TextField("Search programs", text: $searchText)
+                .font(.subheadline.weight(.medium))
+                .foregroundColor(Color(.label))
+                .focused($searchFieldFocused)
+                .submitLabel(.search)
+                .autocorrectionDisabled()
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundColor(Color(.tertiaryLabel))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Capsule().fill(.ultraThinMaterial))
+        .overlay(Capsule().stroke(Color(.separator).opacity(0.4), lineWidth: 0.5))
+    }
+
+    private func toggleSearch() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+            isSearching.toggle()
+        }
+        if isSearching {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                searchFieldFocused = true
+            }
+        } else {
+            searchText = ""
+        }
     }
 
     private var floatingProgramActionsButton: some View {

@@ -75,11 +75,12 @@ Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
 
 ## Open items (carry until resolved)
 
-- **Run migration `apps/backend/sql/005_member_program_order.sql` on Supabase (user)** — required for the
-  net-new program-picker reorder (`programs` 0.2.0, 2026-07-05: per-member card order + search on web
-  `/programs` + the iOS picker). Run it BEFORE the next Render deploy — the new `getPrograms` JOIN
-  references the table. Web + iOS builds are green; the visual pass is the user's (iOS: check the search
-  drawer vs. the custom header overlay).
+- **Push + deploy the program-picker reorder (`programs` 0.2.0)** — migration 005 ~~pending~~ DONE by user
+  2026-07-05; the backend commit is local-only, so the deployed Render API still routes `PUT /programs/order`
+  into `PUT /:id` ("Failed to update program." banner seen in the simulator — expected until deploy).
+  `git push --tags` → Render/Vercel auto-deploy, then re-test a drag on either client. Search UI slimmed to a
+  collapsed header magnifier + floating pill on both surfaces after user feedback (page specs 0.2.1); iOS
+  drag-reorder confirmed working in the simulator.
 - **Make the GitHub repo public** — pre-public health check done 2026-07-01 (no tracked secrets; contact emails
   kept as-is per user; cosmetic infra-identifier anonymization applied). Flip visibility when ready.
 - **iOS runtime + TestFlight** is the user's pass (visual in Xcode; Simulator has no HealthKit).

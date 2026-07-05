@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Reorder, useDragControls } from "framer-motion";
+import { AnimatePresence, motion, Reorder, useDragControls } from "framer-motion";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { Select } from "@/components/Select";
@@ -29,7 +29,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
-import { IconUser, IconLock, IconPalette, IconDocument, IconLogout } from "@/components/icons";
+import { IconUser, IconLock, IconPalette, IconDocument, IconLogout, SearchIcon } from "@/components/icons";
 
 const STATUS_OPTIONS = ["planned", "active", "completed"] as const;
 
@@ -55,6 +55,7 @@ export default function ProgramsPage() {
   const [blockFutureInvites, setBlockFutureInvites] = useState(false);
 
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [orderedPrograms, setOrderedPrograms] = useState<Program[]>([]);
   const [orderError, setOrderError] = useState<string | null>(null);
   // The final onReorder state update may not have re-rendered the Item's captured
@@ -218,6 +219,19 @@ export default function ProgramsPage() {
           <div className="flex items-center gap-3">
             <button
               type="button"
+              onClick={() => {
+                setSearchOpen((open) => {
+                  if (open) setSearch("");
+                  return !open;
+                });
+              }}
+              className="fab-button flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
+              aria-label={searchOpen ? "Close search" : "Search programs"}
+            >
+              <SearchIcon className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
               onClick={() => setShowAccount(true)}
               className="fab-button flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
               aria-label="Account settings"
@@ -240,14 +254,31 @@ export default function ProgramsPage() {
           </div>
         </header>
 
-        <GlassCard padding="sm">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search programs"
-            className="input-shell w-full rounded-2xl px-4 py-3 text-sm font-medium"
-          />
-        </GlassCard>
+        <AnimatePresence initial={false}>
+          {searchOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, height: 0 }}
+              animate={{ opacity: 1, y: 0, height: "auto" }}
+              exit={{ opacity: 0, y: -8, height: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="overflow-hidden"
+            >
+              <input
+                autoFocus
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setSearch("");
+                    setSearchOpen(false);
+                  }
+                }}
+                placeholder="Search programs"
+                className="input-shell w-full rounded-full px-5 py-3 text-sm font-medium shadow-rf-pill"
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
         {orderError && (
           <p className="text-sm font-semibold text-rf-danger">{orderError}</p>
         )}
