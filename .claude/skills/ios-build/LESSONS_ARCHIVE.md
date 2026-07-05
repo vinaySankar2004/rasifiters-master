@@ -262,3 +262,18 @@ specific "list navigator issues" tool must be called after the build tool.
   (non-simulator) destination sidesteps the CoreSimulator/actool quirk entirely (that failure is
   simulator-runtime-specific). Caveat: `2>&1 | tail -40` keeps the log tiny but hides warnings; rely on
   exit code + BUILD SUCCEEDED for the error gate.
+
+## Run 76 — 2026-07-05 — program-picker 0.2.0: drag-to-reorder (.onMove) + .searchable
+- **Change built:** `ProgramPickerView.swift` (searchText state, `visiblePrograms` filter, `noMatchesState`,
+  `ForEach(visiblePrograms)` + `.onMove(perform: moveHandler)`, `moveProgram` optimistic persist + revert,
+  `.searchable` nav-drawer) + `APIClient+Programs.swift` (`saveProgramOrder` → `PUT programs/order`).
+- **Result:** BUILD SUCCEEDED after two fixes; raw-xcodebuild device-destination fallback again (MCP absent).
+- **Fix 1 (type-check timeout):** adding the search/reorder branches to the already-heavy List body hit
+  "unable to type-check this expression in reasonable time" (`ProgramPickerView.swift:75`). Extracting the
+  whole row expression into `@ViewBuilder private func programRow(for:)` fixed it.
+- **Fix 2 (compiler bug on method-reference ternary):** `trimmedSearch.isEmpty ? moveProgram : nil` in a
+  `((IndexSet, Int) -> Void)?` computed property → "failed to produce diagnostic for expression". Rewrote as
+  `guard … else { return nil }; return { s, d in moveProgram(from: s, to: d) }` — explicit closure, clean.
+- **Log-capture lesson:** piping the background build through `tail -40` swallowed the error line (the
+  failing-commands list alone overflows 40 lines). Pipe through
+  `grep -E "error:|BUILD (SUCCEEDED|FAILED)"` instead — tiny AND keeps the diagnostics.

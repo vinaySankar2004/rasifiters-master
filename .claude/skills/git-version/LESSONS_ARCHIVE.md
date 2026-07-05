@@ -150,3 +150,12 @@ the user → committed as a real, verified feature (not a "pending smoke-test" p
 - **Two commits:** (1) `feat(apple-health)` = code + both SPECs + registry.json + REGISTRY.md, tagged
   `feature/apple-health@v0.4.0`; (2) `chore(skills)` = the ios-build + git-version `LESSONS_ARCHIVE.md` edits
   (lessons never ride the feature commit). Verified: user live-tested on device + iOS builds clean (0 errors).
+
+## Run — 2026-07-05 — programs 0.2.0 (net-new reorder + search)
+- **Shape:** contract change on `programs` (new owned route `PUT /order` + new owned table
+  `member_program_order`) → MINOR 0.1.0→0.2.0 + tag `feature/programs@v0.2.0`. Backward-compatible
+  additive (GET shape unchanged) → blast-radius FYI only (8 dependents, zero re-versions); both consumer
+  apps updated in the same commit. Page specs (web programs, ios program-picker) bumped to v0.2.0 in
+  specs/pages/REGISTRY.md — page specs get no feature tags.
+- **LESSON:** do NOT round-trip registry.json through python json.dump — it reformats the whole file
+  (ascii-escapes the em-dashes, expands inline arrays). Surgical Edit on the feature's node only.

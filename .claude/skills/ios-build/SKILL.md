@@ -85,6 +85,14 @@ The user owns the visual/runtime confirmation in the simulator.
   manual project.pbxproj edit needed.
 - **Known pre-existing warning (ignore):** ValidateEmbeddedBinary "CFBundleVersion of an app extension
   ('25') must match … parent app ('40')" — a widget-target version mismatch, unrelated to Swift changes.
+- **Fallback log capture (run 76):** pipe raw xcodebuild through `grep -E "error:|BUILD (SUCCEEDED|FAILED)"`,
+  NOT `tail -N` — the failing-commands list alone can overflow the tail window and swallow the one
+  `file:line: error:` you need.
+- **Type-check timeout in big SwiftUI bodies (run 76):** adding branches/modifiers to an already-heavy
+  `List` body can hit "unable to type-check this expression in reasonable time" — extract the row into a
+  `@ViewBuilder private func`. Related compiler bug: a bare method reference in a ternary
+  (`cond ? someMethod : nil`) for an optional-closure type dies with "failed to produce diagnostic" —
+  write an explicit `guard`/closure instead.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the
