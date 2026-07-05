@@ -75,12 +75,14 @@ Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
 
 ## Open items (carry until resolved)
 
-- **Push + deploy the program-picker reorder (`programs` 0.2.0)** — migration 005 ~~pending~~ DONE by user
-  2026-07-05; the backend commit is local-only, so the deployed Render API still routes `PUT /programs/order`
-  into `PUT /:id` ("Failed to update program." banner seen in the simulator — expected until deploy).
-  `git push --tags` → Render/Vercel auto-deploy, then re-test a drag on either client. Search UI slimmed to a
-  collapsed header magnifier + floating pill on both surfaces after user feedback (page specs 0.2.1); iOS
-  drag-reorder confirmed working in the simulator.
+- ~~**Push + deploy the program-picker reorder (`programs` 0.2.0)**~~ **DONE 2026-07-05** — migration 005 run
+  by user; pushed + tagged; Render auto-deployed (live); Vercel auto-deploys were canceled (known flake) →
+  manual `vercel --prod` fallback, Ready on `rasifiters.com`. Search UI iterated twice on user feedback
+  (collapsed floating pill; iOS toggle floats above the "+", page specs web 0.2.1 / ios 0.2.2). **User
+  live-tested end-to-end on both clients — reorder persists + syncs, search works.** Outcome recorded in the
+  SPECs §11 changelogs; delete this entry next pass.
+- **Re-auth the Render + Vercel MCPs** — both OAuth sessions are stale (400/403 in this session); re-connect
+  via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + local `vercel` CLI work meanwhile.
 - **Make the GitHub repo public** — pre-public health check done 2026-07-01 (no tracked secrets; contact emails
   kept as-is per user; cosmetic infra-identifier anonymization applied). Flip visibility when ready.
 - **iOS runtime + TestFlight** is the user's pass (visual in Xcode; Simulator has no HealthKit).
