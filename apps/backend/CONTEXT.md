@@ -19,6 +19,8 @@ The shared API for RaSi Fiters. Both `web` and `ios` consume it. Node/Express + 
   `program_workouts`, `workout_logs`, `daily_health_logs`, `notifications`, `notification_recipients`.
 - **Retired at migration:** `member_credentials`, `refresh_tokens` (Supabase Auth owns these).
 - **Added at migration:** `members.auth_user_id` (UUID, unique) → maps to `auth.users.id`.
+- **Added post-parity:** `member_program_order` (per-member program-card order for the picker surfaces;
+  migration `sql/005`, `programs` feature 0.2.0 D-N1).
 - Migrations: `sql/` (numbered, idempotent, user-reviewed/run). _Created during the backend build._
 
 ## Auth (see CLAUDE.md + METHODOLOGY.md R1)

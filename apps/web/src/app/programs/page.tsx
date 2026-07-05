@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Reorder, useDragControls } from "framer-motion";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { Select } from "@/components/Select";
@@ -11,6 +12,7 @@ import {
   deleteProgram,
   fetchPrograms,
   Program,
+  saveProgramOrder,
   updateMembership,
   updateProgram
 } from "@/lib/api/programs";
@@ -51,6 +53,13 @@ export default function ProgramsPage() {
 
   const [declineInviteTarget, setDeclineInviteTarget] = useState<PendingInvite | null>(null);
   const [blockFutureInvites, setBlockFutureInvites] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [orderedPrograms, setOrderedPrograms] = useState<Program[]>([]);
+  const [orderError, setOrderError] = useState<string | null>(null);
+  // The final onReorder state update may not have re-rendered the Item's captured
+  // onDragEnd yet — the ref always holds the latest order at drag end.
+  const orderedRef = useRef<Program[]>([]);
 
   const programsQuery = useQuery({
     queryKey: ["programs"],
@@ -140,6 +149,31 @@ export default function ProgramsPage() {
     }
   });
 
+  // Server order is the source of truth; local state exists so dragging is optimistic.
+  useEffect(() => {
+    const data = programsQuery.data ?? [];
+    setOrderedPrograms(data);
+    orderedRef.current = data;
+  }, [programsQuery.data]);
+
+  const saveOrderMutation = useMutation({
+    mutationFn: (ids: string[]) => {
+      if (!token) {
+        return Promise.reject(new Error("Missing session."));
+      }
+      return saveProgramOrder(token, ids);
+    },
+    onSuccess: () => setOrderError(null),
+    onError: async (error) => {
+      setOrderError(error instanceof Error ? error.message : "Couldn't save program order.");
+      await queryClient.invalidateQueries({ queryKey: ["programs"] });
+    }
+  });
+
+  const handleDragEnd = () => {
+    saveOrderMutation.mutate(orderedRef.current.map((p) => p.id));
+  };
+
   const pendingInvitesCount = invitesQuery.data?.length ?? 0;
 
   useEffect(() => {
@@ -163,6 +197,13 @@ export default function ProgramsPage() {
   };
 
   const programs = programsQuery.data ?? [];
+  const searchActive = search.trim().length > 0;
+  const visiblePrograms = useMemo(() => {
+    if (!searchActive) return orderedPrograms;
+    const query = search.trim().toLowerCase();
+    return orderedPrograms.filter((p) => p.name.toLowerCase().includes(query));
+  }, [orderedPrograms, search, searchActive]);
+  const canReorder = !searchActive && visiblePrograms.length > 1;
 
   return (
     <>
@@ -199,6 +240,18 @@ export default function ProgramsPage() {
           </div>
         </header>
 
+        <GlassCard padding="sm">
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search programs"
+            className="input-shell w-full rounded-2xl px-4 py-3 text-sm font-medium"
+          />
+        </GlassCard>
+        {orderError && (
+          <p className="text-sm font-semibold text-rf-danger">{orderError}</p>
+        )}
+
         <section className="space-y-6">
           {programsQuery.isLoading && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center text-rf-text-muted">
@@ -216,34 +269,54 @@ export default function ProgramsPage() {
               <p className="mt-2 text-sm text-rf-text-muted">Create a program to get started.</p>
             </div>
           )}
+          {!programsQuery.isLoading && programs.length > 0 && searchActive && visiblePrograms.length === 0 && (
+            <div className="glass-card rounded-3xl px-6 py-8 text-center">
+              <p className="text-lg font-semibold text-rf-text">No programs match your search</p>
+              <p className="mt-2 text-sm text-rf-text-muted">Try a different name.</p>
+            </div>
+          )}
 
-          {programs.map((program) => {
-            const membershipStatus = program.my_status?.toLowerCase() ?? null;
-            const canOpen =
-              isGlobalAdmin || membershipStatus === null || membershipStatus === "active";
-            const canManage =
-              isGlobalAdmin || (membershipStatus === "active" && program.my_role === "admin");
+          <Reorder.Group
+            axis="y"
+            as="div"
+            values={visiblePrograms}
+            onReorder={(next: Program[]) => {
+              if (searchActive) return; // filtered indices would corrupt the full order
+              setOrderedPrograms(next);
+              orderedRef.current = next;
+            }}
+            className="space-y-6"
+          >
+            {visiblePrograms.map((program) => {
+              const membershipStatus = program.my_status?.toLowerCase() ?? null;
+              const canOpen =
+                isGlobalAdmin || membershipStatus === null || membershipStatus === "active";
+              const canManage =
+                isGlobalAdmin || (membershipStatus === "active" && program.my_role === "admin");
 
-            return (
-              <ProgramCard
-                key={program.id}
-                program={program}
-                canOpen={canOpen}
-                canManage={canManage}
-                membershipStatus={membershipStatus}
-                onSelect={() => canOpen && handleProgramSelect(program)}
-                onEdit={() => setEditTarget(program)}
-                onDelete={() => setDeleteTarget(program)}
-                onAcceptInvite={() =>
-                  updateMembershipMutation.mutate({ programId: program.id, status: "active" })
-                }
-                onDeclineInvite={() =>
-                  updateMembershipMutation.mutate({ programId: program.id, status: "removed" })
-                }
-                isUpdating={updateMembershipMutation.isPending}
-              />
-            );
-          })}
+              return (
+                <ReorderableProgramRow
+                  key={program.id}
+                  program={program}
+                  canReorder={canReorder}
+                  onDragEnd={handleDragEnd}
+                  canOpen={canOpen}
+                  canManage={canManage}
+                  membershipStatus={membershipStatus}
+                  onSelect={() => canOpen && handleProgramSelect(program)}
+                  onEdit={() => setEditTarget(program)}
+                  onDelete={() => setDeleteTarget(program)}
+                  onAcceptInvite={() =>
+                    updateMembershipMutation.mutate({ programId: program.id, status: "active" })
+                  }
+                  onDeclineInvite={() =>
+                    updateMembershipMutation.mutate({ programId: program.id, status: "removed" })
+                  }
+                  isUpdating={updateMembershipMutation.isPending}
+                />
+              );
+            })}
+          </Reorder.Group>
         </section>
       </PageShell>
 
@@ -493,18 +566,7 @@ export default function ProgramsPage() {
   );
 }
 
-function ProgramCard({
-  program,
-  membershipStatus,
-  canOpen,
-  canManage,
-  onSelect,
-  onEdit,
-  onDelete,
-  onAcceptInvite,
-  onDeclineInvite,
-  isUpdating
-}: {
+type ProgramCardProps = {
   program: Program;
   membershipStatus: string | null;
   canOpen: boolean;
@@ -515,7 +577,73 @@ function ProgramCard({
   onAcceptInvite: () => void;
   onDeclineInvite: () => void;
   isUpdating: boolean;
-}) {
+  dragHandle?: React.ReactNode;
+};
+
+// Wrapper so useDragControls runs per item: the card drags only by its grip handle
+// (dragListener=false), never by the card body — taps stay tap-to-enter and touch
+// scrolling is unaffected.
+function ReorderableProgramRow({
+  canReorder,
+  onDragEnd,
+  ...cardProps
+}: ProgramCardProps & { canReorder: boolean; onDragEnd: () => void }) {
+  const dragControls = useDragControls();
+  const { program } = cardProps;
+
+  return (
+    <Reorder.Item
+      value={program}
+      as="div"
+      dragListener={false}
+      dragControls={dragControls}
+      onDragEnd={onDragEnd}
+      className="relative"
+    >
+      <ProgramCard
+        {...cardProps}
+        dragHandle={
+          canReorder ? (
+            <button
+              type="button"
+              aria-label={`Reorder ${program.name}`}
+              className="cursor-grab touch-none p-1 text-rf-text-muted hover:text-rf-text active:cursor-grabbing"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                dragControls.start(event);
+              }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path
+                  d="M2 4.5h12M2 8h12M2 11.5h12"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          ) : null
+        }
+      />
+    </Reorder.Item>
+  );
+}
+
+function ProgramCard({
+  program,
+  membershipStatus,
+  canOpen,
+  canManage,
+  onSelect,
+  onEdit,
+  onDelete,
+  onAcceptInvite,
+  onDeclineInvite,
+  isUpdating,
+  dragHandle
+}: ProgramCardProps) {
   const isInvited = membershipStatus === "invited";
   const isRequested = membershipStatus === "requested";
   const activeMembers = program.active_members ?? 0;
@@ -534,9 +662,12 @@ function ProgramCard({
           <h3 className="text-lg font-semibold text-rf-text">{program.name}</h3>
           <p className="mt-2 text-sm text-rf-text-muted">{formatDateRange(program.start_date, program.end_date)}</p>
         </div>
-        <StatusBadge variant={programStatusVariant(program.status ?? "active")}>
-          {program.status ?? "active"}
-        </StatusBadge>
+        <div className="flex items-center gap-2">
+          {dragHandle}
+          <StatusBadge variant={programStatusVariant(program.status ?? "active")}>
+            {program.status ?? "active"}
+          </StatusBadge>
+        </div>
       </div>
 
       {isInvited || isRequested ? (

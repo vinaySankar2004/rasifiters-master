@@ -42,6 +42,14 @@ export async function fetchPrograms(token: string) {
   return apiRequest<Program[]>("/programs", { token });
 }
 
+export async function saveProgramOrder(token: string, programIds: string[]) {
+  return apiRequest<{ message?: string }>("/programs/order", {
+    method: "PUT",
+    token,
+    body: { program_ids: programIds }
+  });
+}
+
 export async function fetchProgramMembers(token: string, programId: string) {
   const params = new URLSearchParams({ programId });
   return apiRequest<Member[]>(`/program-memberships/members?${params.toString()}`, { token });

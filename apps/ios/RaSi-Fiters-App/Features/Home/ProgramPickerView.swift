@@ -15,9 +15,22 @@ struct ProgramPickerView: View {
     @State private var showSignOutConfirmation = false
     @State private var showAccountMenu = false
     @State private var accountDestination: AccountDestination?
+    @State private var searchText = ""
 
     private var pendingInvitesCount: Int {
         programContext.pendingInvites.count
+    }
+
+    private var trimmedSearch: String {
+        searchText.trimmingCharacters(in: .whitespaces)
+    }
+
+    // Client-side name filter over the server-ordered list. Reorder (.onMove) is
+    // only enabled when this returns the unfiltered array, so move offsets always
+    // map 1:1 onto programContext.programs.
+    private var visiblePrograms: [APIClient.ProgramDTO] {
+        guard !trimmedSearch.isEmpty else { return programContext.programs }
+        return programContext.programs.filter { $0.name.localizedCaseInsensitiveContains(trimmedSearch) }
     }
 
     var body: some View {
@@ -50,54 +63,17 @@ struct ProgramPickerView: View {
                     emptyState
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
-                } else {
-                    ForEach(programContext.programs, id: \.id) { program in
-                        let membershipStatus = program.my_status?.lowercased()
-                        let canOpen = programContext.isGlobalAdmin || membershipStatus == nil || membershipStatus == "active"
-                        let canManage = programContext.isGlobalAdmin || (membershipStatus == "active" && program.my_role == "admin")
-                        let card = ProgramCard(
-                            program: program,
-                            membershipStatus: membershipStatus,
-                            onAccept: membershipStatus == "invited" ? {
-                                _ = Task<Void, Never> { await respondToInvite(program: program, accept: true) }
-                            } : nil,
-                            onDecline: (membershipStatus == "invited" || membershipStatus == "requested") ? {
-                                _ = Task<Void, Never> { await respondToInvite(program: program, accept: false) }
-                            } : nil
-                        )
-
-                        card
-                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                } else if visiblePrograms.isEmpty {
+                    noMatchesState
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            guard canOpen else { return }
-                            applyProgram(program)
-                            programToOpen = program
-                        }
-                        .swipeActions(edge: .leading, allowsFullSwipe: false) {
-                            if canManage {
-                                Button {
-                                    applyProgram(program)
-                                    programToEdit = program
-                                } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                .tint(.blue)
-                            }
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            if canManage {
-                                Button(role: .destructive) {
-                                    programToDelete = program
-                                    showDeleteConfirmation = true
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                        }
+                } else {
+                    ForEach(visiblePrograms, id: \.id) { program in
+                        programRow(for: program)
                     }
+                    // Press-and-hold lift-and-drag (no edit mode). nil while searching —
+                    // filtered offsets would corrupt the full order.
+                    .onMove(perform: moveHandler)
                 }
 
                 // Bottom padding for floating button
@@ -108,6 +84,7 @@ struct ProgramPickerView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search programs")
 
             // Header at top
             VStack {
@@ -278,12 +255,86 @@ struct ProgramPickerView: View {
         isDeleting = false
     }
 
+    private var moveHandler: ((IndexSet, Int) -> Void)? {
+        guard trimmedSearch.isEmpty else { return nil }
+        return { source, destination in
+            moveProgram(from: source, to: destination)
+        }
+    }
+
+    // Extracted from body — the row expression pushed the List past the
+    // type-checker's complexity limit once search/reorder branches were added.
+    @ViewBuilder
+    private func programRow(for program: APIClient.ProgramDTO) -> some View {
+        let membershipStatus = program.my_status?.lowercased()
+        let canOpen = programContext.isGlobalAdmin || membershipStatus == nil || membershipStatus == "active"
+        let canManage = programContext.isGlobalAdmin || (membershipStatus == "active" && program.my_role == "admin")
+
+        ProgramCard(
+            program: program,
+            membershipStatus: membershipStatus,
+            onAccept: membershipStatus == "invited" ? {
+                _ = Task<Void, Never> { await respondToInvite(program: program, accept: true) }
+            } : nil,
+            onDecline: (membershipStatus == "invited" || membershipStatus == "requested") ? {
+                _ = Task<Void, Never> { await respondToInvite(program: program, accept: false) }
+            } : nil
+        )
+        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard canOpen else { return }
+            applyProgram(program)
+            programToOpen = program
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: false) {
+            if canManage {
+                Button {
+                    applyProgram(program)
+                    programToEdit = program
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .tint(.blue)
+            }
+        }
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if canManage {
+                Button(role: .destructive) {
+                    programToDelete = program
+                    showDeleteConfirmation = true
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+    }
+
     private var emptyState: some View {
         VStack(spacing: 10) {
             Text("No programs yet")
                 .font(.headline.weight(.semibold))
                 .foregroundColor(Color(.label))
             Text("Create a program to get started.")
+                .font(.subheadline)
+                .foregroundColor(Color(.secondaryLabel))
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.systemGray6))
+        )
+    }
+
+    private var noMatchesState: some View {
+        VStack(spacing: 10) {
+            Text("No programs match your search")
+                .font(.headline.weight(.semibold))
+                .foregroundColor(Color(.label))
+            Text("Try a different name.")
                 .font(.subheadline)
                 .foregroundColor(Color(.secondaryLabel))
         }
@@ -354,6 +405,28 @@ struct ProgramPickerView: View {
         } catch {
             await MainActor.run {
                 errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    // Net-new post-parity (2026-07-05): optimistic reorder — mutate the context array,
+    // persist the full display order, revert + surface in the D-C1 banner on failure.
+    // Only reachable with an empty search filter (onMove is nil otherwise), so offsets
+    // map 1:1 onto programContext.programs.
+    private func moveProgram(from source: IndexSet, to destination: Int) {
+        let previousOrder = programContext.programs
+        programContext.programs.move(fromOffsets: source, toOffset: destination)
+        let ids = programContext.programs.map(\.id)
+
+        guard let token = programContext.authToken, !token.isEmpty else { return }
+        Task {
+            do {
+                try await APIClient.shared.saveProgramOrder(token: token, programIds: ids)
+            } catch {
+                await MainActor.run {
+                    programContext.programs = previousOrder
+                    errorMessage = "Couldn't save program order: \(error.localizedDescription)"
+                }
             }
         }
     }

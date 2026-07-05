@@ -50,6 +50,19 @@ extension APIClient {
         return try JSONDecoder().decode([ProgramDTO].self, from: data)
     }
 
+    // Net-new post-parity (2026-07-05): persist the caller's program-card order
+    // (full display order, positions implied by array index). Success is all we
+    // need — the response body is discarded.
+    func saveProgramOrder(token: String, programIds: [String]) async throws {
+        var request = URLRequest(url: baseURL.appendingPathComponent("programs/order"))
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["program_ids": programIds], options: [])
+        _ = try await data(for: request)
+    }
+
     func createProgram(token: String, name: String, status: String, startDate: String?, endDate: String?) async throws -> CreateProgramResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("programs"))
         request.httpMethod = "POST"

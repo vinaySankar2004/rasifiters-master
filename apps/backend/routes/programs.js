@@ -1,5 +1,6 @@
-// /api/programs routes — faithful 1:1 to legacy routes/programs.js (specs/features/programs/SPEC.md §3).
-// All four routes are authenticateToken-only at the router; the program-admin gate lives in
+// /api/programs routes — faithful 1:1 to legacy routes/programs.js (specs/features/programs/SPEC.md §3),
+// plus the net-new post-parity PUT /order (per-member card ordering, 2026-07-05).
+// All routes are authenticateToken-only at the router; the program-admin gate lives in
 // programService.updateProgram / deleteProgram (SPEC §10 F6). The createProgram `description` drop (D-C2)
 // and the deferred notification emit (D-C1) are both inside the service.
 const express = require("express");
@@ -28,6 +29,19 @@ router.post("/", authenticateToken, async (req, res) => {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
         console.error("Error creating program:", err);
         res.status(500).json({ error: "Failed to create program." });
+    }
+});
+
+// MUST stay above /:id — otherwise "order" is captured as a program id.
+// Net-new post-parity (2026-07-05): persist the caller's program-card order (SPEC §3/§9).
+router.put("/order", authenticateToken, async (req, res) => {
+    try {
+        const result = await programService.setProgramOrder(req.body?.program_ids, req.user);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error saving program order:", err);
+        res.status(500).json({ error: "Failed to save program order." });
     }
 });
 

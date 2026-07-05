@@ -1,6 +1,6 @@
-# Feature: `programs` — program lifecycle (create / list / update / soft-delete)
+# Feature: `programs` — program lifecycle (create / list / update / soft-delete / per-member order)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Provenance (legacy, archived):** `backend` — `routes/programs.js`, `services/programService.js`,
 > `models/Program.js`, `models/ProgramMembership.js`, `server.js` (`/api/programs` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`; authz via
@@ -28,6 +28,9 @@ The **program lifecycle** of RaSi Fiters — the four `/api/programs` routes ove
    `admin_only_data_entry` toggle is **web-only** — §7 / D-REF).
 4. **Soft-delete a program** — `DELETE /api/programs/:id`. Sets `is_deleted = true` (no hard cascade);
    same admin gate. Used by both clients.
+5. **Save my program-card order** — `PUT /api/programs/order` (**net-new post-parity, 2026-07-05** — D-N1,
+   §9). Persists the caller's personal card order for the picker surfaces; `GET /` then returns that order
+   first, unordered programs trailing by `start_date`. Used by both clients.
 
 ## 2. Why it exists
 
@@ -51,6 +54,7 @@ own-profile gate (members SPEC F4).
 | 2 | `POST /` | `programs.js:19-28` → `createProgram` (`programService.js:70-113`) | any authenticated member | Create program + enroll creator as `active`/`admin`. 201. |
 | 3 | `PUT /:id` | `programs.js:30-39` → `updateProgram` (`programService.js:115-176`) | program `admin` **or** `global_admin` (service-enforced) | Update fields; flip `admin_only_data_entry`; emit `program.updated` (deferred). |
 | 4 | `DELETE /:id` | `programs.js:41-50` → `deleteProgram` (`programService.js:178-204`) | program `admin` **or** `global_admin` (service-enforced) | Soft-delete (`is_deleted=true`); emit `program.deleted` (deferred). |
+| 5 | `PUT /order` | net-new (no legacy handler) → `setProgramOrder` | any authenticated member | Full-replace the caller's rows in `member_program_order` from `{ program_ids: [uuid,…] }` (positions 0..n-1). **Mounted ABOVE `/:id`** or Express captures `"order"` as `:id`. |
 
 ### Response shapes (preserved 1:1, except the `description` drop in §7)
 
@@ -64,6 +68,9 @@ own-profile gate (members SPEC F4).
 - **`PUT /:id`** (`programService.js:167-175`): `{ id, name, status, start_date, end_date,
   admin_only_data_entry, message }`.
 - **`DELETE /:id`** (`programService.js:203`): `{ id, message: "Program deleted successfully." }`.
+- **`PUT /order`**: `{ message: "Program order saved." }`. Errors: `400` for a non-array/empty body,
+  non-UUID ids, duplicate ids, or ids that aren't real programs (FK `23503` mapped); generic `500`
+  otherwise (`"Failed to save program order."`).
 
 ### Error contract (faithful — `routes/programs.js` + `utils/response.AppError`)
 
@@ -79,8 +86,15 @@ and not `global_admin`), `404` (program not found / already soft-deleted).
   `LEFT JOIN … member_id = :userId` for `my_role`/`my_status`. Non-admin → the same projection but an
   `INNER JOIN program_memberships pm_user … member_id = :userId AND pm_user.status IN
   ('active','invited','requested')` (so you see programs you're active/invited/requested in) + a
-  `LEFT JOIN … status = 'active'` for counts. Both `ORDER BY p.start_date ASC`. **Kept as raw
-  `sequelize.query` verbatim** (D-S2).
+  `LEFT JOIN … status = 'active'` for counts. **Kept as raw `sequelize.query` verbatim** (D-S2), except
+  the ordering (net-new D-N1, 0.2.0): both branches `LEFT JOIN member_program_order mpo … member_id =
+  :userId` and `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC` — the caller's saved order first,
+  never-ordered programs at the bottom by the legacy `start_date` sort.
+- **Save order** (net-new, `setProgramOrder`) — validate (`400`: non-empty array, all UUIDs, no
+  duplicates), then in one transaction `DELETE` the caller's `member_program_order` rows and multi-row
+  `INSERT` positions 0..n-1. Full-replace: ids omitted from the body lose their rows and fall to the
+  start_date tail. Ids are trusted-and-stored (no visible-set check — the order only affects the caller's
+  own `GET /`; the programs FK rejects nonexistent ids → mapped `400`). Last-write-wins across devices.
 - **`progress_percent`** (`programService.js:19-27, 46-54`) — `0` unless both dates set and
   `end_date > start_date`; else `LEAST(100, GREATEST(0, ((CURRENT_DATE - start_date) / (end_date -
   start_date)) * 100))::int`. Time-elapsed bar; recomputed server-side each request.
@@ -114,6 +128,12 @@ Faithful names (R5); schema in `apps/backend/sql/001_schema.sql`.
   `admin`/`active` row) — `program_id`, `member_id`, `role`, `status`, `joined_at`. Owned by the
   `program-memberships` feature; `programs` only creates the one bootstrap row + reads for the admin gate
   and member counts.
+- **`member_program_order`** (owned — read + write; **net-new post-parity**, migration
+  `apps/backend/sql/005_member_program_order.sql`) — `member_id` (UUID → `members.id`), `program_id`
+  (UUID → `programs.id`), `position` (int, 0..n-1 per member), `updated_at`; composite PK
+  `(member_id, program_id)`, both FKs `ON DELETE CASCADE`. Read by the `getPrograms` ORDER BY JOIN;
+  written full-replace by `PUT /order`. Soft-deleted programs may leave orphan rows — harmless, they
+  never surface (`is_deleted=false` filter); hard deletes cascade. `models/MemberProgramOrder.js`.
 - **Referenced for the notification emit, owned by `notifications`** — `getActiveProgramMemberIds` +
   `createNotification` (`utils/notifications.js` → `notificationStreams` SSE + `pushNotifications` APNs).
   **Deferred** (D-C1) — not ported with this feature.
@@ -177,6 +197,7 @@ contract.
 | **D-S2** | **`getPrograms` keeps both raw `sequelize.query` branches verbatim** (global-admin-all vs member-INNER-JOIN), incl. the `progress_percent` CASE + active-member counts — no ORM rewrite (divergence risk on a load-bearing read). | `programService.js:6-68`; user decision. |
 | **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — both clients call all four routes. **Cross-app divergence:** `admin_only_data_entry` is **web-only** (web edit-page toggle reads + writes it; iOS `ProgramDTO` never decodes/sets it). The backend faithfully serves/accepts it for both clients regardless — kept as-is (§10 F1). | Web + iOS consumption sweep (Explore agents); `program/edit/page.tsx:136-151`; `APIClient+Programs.swift:5-17`. |
 | **D-S1** | **Stance = faithful 1:1 except the `description` drop (D-C2).** Routes, authz gates, raw SQL, transaction, response shapes, error contract preserved; remaining oddities kept + flagged (§10), not fixed. | Whole-module review; §7. |
+| **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): per-member program-card ordering.** New `member_program_order` table (dedicated table, NOT a `program_memberships` column — global admins see programs they have no membership row in), new `PUT /order` (full-replace delete-then-insert; trust-and-store ids, FK-backed; last-write-wins across devices), and the `getPrograms` `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC` change in both branches (new/unordered programs land at the bottom by start_date). Response shape unchanged — clients rely purely on array order, which is what makes the order sync cross-platform for free. | Migration `sql/005`; `services/programService.js` (`setProgramOrder` + both `getPrograms` branches); `routes/programs.js` (`PUT /order` above `/:id`); user decisions (grip-handle web / long-press iOS / bottom placement). |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -195,4 +216,5 @@ contract.
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the four `/api/programs` routes + `programService`. Decisions D-C1 (scope; notification emit deferred to `notifications`, CRUD fully functional) / D-C2 (the one deliberate change — `createProgram` drops the vestigial `description` field) / D-S2 (keep `getPrograms` raw SQL verbatim) / D-REF (`consumed_by [web, ios]`; `admin_only_data_entry` web-only) / D-S1 (faithful except the `description` drop). Flagged F1–F7. |
+| 0.2.0 | 2026-07-05 | **Net-new post-parity: per-member program-card ordering (D-N1).** New `member_program_order` table (migration `sql/005`, composite PK, FKs ON DELETE CASCADE) + `models/MemberProgramOrder.js`; new `PUT /api/programs/order` (`setProgramOrder` — validated full-replace, transactional, FK 23503 → 400; mounted above `/:id`); both `getPrograms` branches now `LEFT JOIN member_program_order` and `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC`. Response shapes otherwise unchanged. Consumed by web `/programs` (framer-motion grip-handle drag + search) and iOS `program-picker` (List `.onMove` long-press drag + `.searchable`). |
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — `services/programService.js` (faithful raw-SQL `getPrograms` two branches per D-S2; `createProgram` **without `description`** per D-C2; `updateProgram`/`deleteProgram` soft-delete with the `program.updated`/`program.deleted` emit **deferred** to a guarded `emitProgramNotification` no-op per D-C1), `routes/programs.js` (faithful 1:1), mounted `/api/programs` in `server.js`. Module-load + GET/POST/PUT/DELETE route-stack boot check pass. Status 📄→🏗️ (no semver bump — the port matches the SPEC). |

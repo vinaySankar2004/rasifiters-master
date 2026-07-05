@@ -11,6 +11,7 @@ const DailyHealthLog = require('./DailyHealthLog');
 const Notification = require('./Notification');
 const NotificationRecipient = require('./NotificationRecipient');
 const MemberPushToken = require('./MemberPushToken');
+const MemberProgramOrder = require('./MemberProgramOrder');
 
 // Member-WorkoutLog association
 Member.hasMany(WorkoutLog, { foreignKey: 'member_id' });
@@ -79,6 +80,12 @@ Notification.belongsTo(Member, { foreignKey: 'actor_member_id', as: 'ActorMember
 Member.hasMany(MemberPushToken, { foreignKey: 'member_id' });
 MemberPushToken.belongsTo(Member, { foreignKey: 'member_id' });
 
+// Per-member program-card order (program-picker reorder)
+Member.hasMany(MemberProgramOrder, { foreignKey: 'member_id' });
+MemberProgramOrder.belongsTo(Member, { foreignKey: 'member_id' });
+Program.hasMany(MemberProgramOrder, { foreignKey: 'program_id' });
+MemberProgramOrder.belongsTo(Program, { foreignKey: 'program_id' });
+
 module.exports = {
     Member,
     Workout,
@@ -92,5 +99,6 @@ module.exports = {
     MemberEmail,
     Notification,
     NotificationRecipient,
-    MemberPushToken
+    MemberPushToken,
+    MemberProgramOrder
 };

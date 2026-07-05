@@ -37,7 +37,7 @@
       }
     },
     "programs": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/programs/SPEC.md",
       "status": "built",
       "consumed_by": ["web", "ios"],
@@ -49,6 +49,8 @@
           "services/programService.js",
           "models/Program.js",
           "models/ProgramMembership.js",
+          "models/MemberProgramOrder.js",
+          "sql/005_member_program_order.sql",
           "server.js"
         ]
       }

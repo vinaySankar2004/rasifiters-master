@@ -1,6 +1,6 @@
 # Screen: `program-picker` (ios) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** the root view once `authToken` is set — `AppRootView.swift:11-14` shows `ProgramPickerView()`
 > inside a `NavigationStack`. Both `LoginView` + `CreateAccountView` flip the root here on success.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift`.
@@ -51,7 +51,8 @@ settings.
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Header | "My Programs" / "Manage your fitness programs" + an account avatar button (person.fill circle) → `AccountMenuSheet`. | legacy `ProgramPickerView.swift:200-227` |
-| Program list | `List` of `ProgramCard`s over `programContext.programs`; loading → `ProgressView`; empty → `emptyState` ("No programs yet"). | legacy `:28-98, 269-284` |
+| Program list | `List` of `ProgramCard`s over `visiblePrograms` (the search-filtered view of `programContext.programs`); loading → `ProgressView`; empty → `emptyState` ("No programs yet"); filter-empty → `noMatchesState` ("No programs match your search"). **Press-and-hold drag-to-reorder** via `ForEach.onMove` (net-new 0.2.0, D-N1) — no edit mode; disabled while searching. | legacy `:28-98, 269-284`; new `.onMove` + `visiblePrograms` |
+| Search field (net-new 0.2.0, D-N1) | `.searchable(placement: .navigationBarDrawer(displayMode: .always), prompt: "Search programs")` on the List — client-side name filter (`localizedCaseInsensitiveContains` on the trimmed query). | new `ProgramPickerView.swift` |
 | `ProgramCard` | Name + `StatusPill` (status-colored) + date range + (members summary OR "Invitation pending"/"Request pending approval") + a status-colored `ProgressView` + (Accept/Decline capsule buttons when invited/requested). | legacy `:617-740` |
 | Swipe actions | Leading **Edit** (pencil, blue) + trailing **Delete** (trash, destructive) — both only when `canManage`. | legacy `:69-89` |
 | Floating "+" button | Bottom-right circle → `ProgramActionsSheet`; a red badge with `pendingInvitesCount` when > 0. | legacy `:229-253` |
@@ -85,6 +86,12 @@ bindings when a sub-screen requests a pop back to the picker.
 
 - **`GET /programs`** (`APIClient.shared.fetchPrograms(token:)`) — returns `[ProgramDTO]` (id, name, status,
   start/end_date, active/total_members, progress_percent, enrollments_closed, my_role, my_status). The list.
+  Since 0.2.0 the array arrives in the member's saved order (unordered programs trailing by start_date) —
+  rendered as-is, no client sorting; that's the cross-platform order sync.
+- **`PUT /programs/order`** (`APIClient.shared.saveProgramOrder(token:programIds:)`, net-new 0.2.0) — fired
+  from `moveProgram` after an `.onMove` with the FULL display order (invited/requested rows included).
+  Optimistic: the context array mutates first; on failure the previous order is restored and the error
+  surfaces in the D-C1 banner ("Couldn't save program order: …"). Last-write-wins across devices.
 - **`DELETE /programs/:id`** (`ProgramContext.deleteProgram(programId:)`) — manage-gated delete.
 - **`PUT /program-memberships`** (`ProgramContext.updateMembershipStatus(programId:status:)`) — inline
   invite Accept (`"active"`) / Decline / Cancel (`"removed"`).
@@ -129,6 +136,7 @@ downstream log screens, never gating the picker (no data entry on this screen).
 | **D-S1** | **Stance = faithful 1:1 port** — the `List` of `ProgramCard`s, `canOpen`/`canManage` gating, swipe edit/delete, accept/decline invites, the floating "+" with the invite badge, the inline `AccountMenuSheet` (7 rows incl. the iOS-only Notifications + Support), `applyProgram` hydration + `persistSession`, the delete/sign-out `Alert`s, navigation to the deferred screens. Oddities → §10. | legacy `ProgramPickerView.swift:1-764`; user answer. |
 | **D-C1** | **ONE web-parity addition — a visible error display.** The legacy sets `errorMessage` in `loadPrograms`/`deleteProgram`/`respondToInvite` but **never renders it** (errors silently swallowed). Added an additive red `errorBanner` (shown whenever `errorMessage != nil`, does not hide the list), matching how the web hub surfaces query errors. Chose additive-banner over web's replace-the-list so mutation errors stay visible alongside the loaded cards. | user answer ("Faithful + surface errors"); web programs error line (`page.tsx:208-211`); legacy never-displayed `errorMessage`. |
 | **D-DEPS** | **No new dependency** — every component/service/model/theme symbol was ported in the foundation (run 50); the inline components live in the picker file; `StatusPill` is a fresh non-private type (no collision verified). | foundation inventory (run 50); collision grep (no existing `StatusPill`/component clashes). |
+| **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): drag-to-reorder + search.** Reorder = native `List` + `ForEach.onMove` press-and-hold lift-and-drag, NO edit mode (Reminders-style; chosen over the `AdminSummaryTab` `.onDrag/.onDrop` grid precedent — that pattern is for grids, this is a real List). The spacer/error/loading/empty rows sit outside the `ForEach`, so they're neither movable nor drop targets. **`.onMove(perform:)` gets `nil` while the search query is non-empty** — reorder only runs when `visiblePrograms` is the unfiltered array, so offsets map 1:1 onto `programContext.programs` and the full display order is what's persisted. Search = `.searchable` nav-drawer field (the app's established idiom). New programs land at the bottom (server-side `NULLS LAST, start_date`). Visual caveat for the user's simulator pass: the search drawer sits in the title-less nav-bar area above the custom `pickerHeader` overlay — if they collide, shrink the 90pt top spacer row. | programs feature SPEC 0.2.0 (D-N1); web programs SPEC 0.2.0; user decisions (long-press drag · bottom placement). |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -146,4 +154,5 @@ downstream log screens, never gating the picker (no data entry on this screen).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-05 | **Net-new post-parity (D-N1): per-member drag-to-reorder + program search.** Press-and-hold reorder via `ForEach.onMove` (no edit mode; `nil` while searching), persisted through `APIClient.saveProgramOrder` → `PUT /programs/order` (optimistic, revert + D-C1 banner on failure). `.searchable` nav-drawer name filter over `visiblePrograms` + `noMatchesState`. List now renders the server-saved order as-is. Pairs with `programs` feature 0.2.0 and web `programs` 0.2.0. |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **fourth iOS screen spec** (first post-auth screen). Documents `ProgramPickerView`: the "My Programs" list of `ProgramCard`s (`fetchPrograms`), `canOpen`/`canManage` role gating, swipe edit/delete, inline invite Accept/Decline (`updateMembershipStatus`), the floating "+" → `ProgramActionsSheet` with the pending-invite badge, the inline `AccountMenuSheet`, `applyProgram` hydration → `AdminHomeView`, delete/sign-out `Alert`s. Decisions: **D-SCOPE** (picker only + stub the 7 forward-nav screens) · **D-REF** (`consumed_by=[ios]`; keep iOS-native navigation — the web single-page-modal layout is a platform-idiom divergence) · **D-S1** (faithful 1:1 port) · **D-C1** (ONE web-parity addition — a visible error banner; the legacy swallowed errors) · **D-DEPS** (no new dependency). Flagged F1–F7 (errors-now-surfaced; deferred forward-nav stubs; vestigial `isDeleting`; client role gating; dual invite mechanisms; iOS-only account rows; single-page-hub layout not adopted). Role rules = the `canOpen`/`canManage` table; `admin_only_data_entry` N/A. Ported `apps/ios/.../Features/Home/ProgramPickerView.swift`; added 7 stubs to `_DeferredScreenStubs.swift` (removed the `ProgramPickerView` stub). Build green-check owned by the user (Xcode). |

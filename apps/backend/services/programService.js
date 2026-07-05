@@ -6,7 +6,10 @@
 //   • D-C1 — the program.updated / program.deleted notification emit is DEFERRED to the `notifications`
 //     feature (it pulls in SSE streams + APNs push). The CRUD is fully functional; only the member-alert
 //     side-effect is a guarded no-op (emitProgramNotification) until notifications is ported.
-// getPrograms keeps its two raw sequelize.query branches verbatim (D-S2).
+// getPrograms keeps its two raw sequelize.query branches verbatim (D-S2), EXCEPT the net-new
+// post-parity per-member ordering (2026-07-05): both branches LEFT JOIN member_program_order
+// and ORDER BY mpo.position NULLS LAST before the legacy start_date sort; setProgramOrder
+// (PUT /order) writes that table. See SPEC §9.
 const { Program, ProgramMembership } = require("../models");
 const { sequelize } = require("../config/database");
 const { AppError } = require("../utils/response");
@@ -44,9 +47,10 @@ async function getPrograms(requester) {
             FROM programs p
             LEFT JOIN program_memberships pm ON p.id = pm.program_id
             LEFT JOIN program_memberships pm_user ON p.id = pm_user.program_id AND pm_user.member_id = :userId
+            LEFT JOIN member_program_order mpo ON p.id = mpo.program_id AND mpo.member_id = :userId
             WHERE p.is_deleted = false
-            GROUP BY p.id, pm_user.role, pm_user.status
-            ORDER BY p.start_date ASC
+            GROUP BY p.id, pm_user.role, pm_user.status, mpo.position
+            ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC
         `, { replacements: { userId: requesterId } });
         return results;
     }
@@ -76,9 +80,12 @@ async function getPrograms(requester) {
         LEFT JOIN program_memberships pm_all
             ON p.id = pm_all.program_id
             AND pm_all.status = 'active'
+        LEFT JOIN member_program_order mpo
+            ON p.id = mpo.program_id
+            AND mpo.member_id = :userId
         WHERE p.is_deleted = false
-        GROUP BY p.id, pm_user.role, pm_user.status
-        ORDER BY p.start_date ASC
+        GROUP BY p.id, pm_user.role, pm_user.status, mpo.position
+        ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC
     `, { replacements: { userId: requesterId } });
     return results;
 }
@@ -211,9 +218,57 @@ async function deleteProgram(programId, requester) {
     return { id: program.id, message: "Program deleted successfully." };
 }
 
+// Net-new post-parity (2026-07-05): persist the caller's program-card order for the picker
+// surfaces. Full-replace semantics — delete my rows, insert positions 0..n-1 — so ids omitted
+// from the list fall back to the NULLS-LAST/start_date tail in getPrograms. Last-write-wins
+// across devices (deliberate). Ids are trusted-and-stored, not checked against the caller's
+// visible set — the stored order only ever affects the caller's own list, and the programs FK
+// rejects nonexistent ids.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function setProgramOrder(programIds, requester) {
+    if (!Array.isArray(programIds) || programIds.length === 0) {
+        throw new AppError(400, "program_ids must be a non-empty array.");
+    }
+    const ids = programIds.map((id) => String(id));
+    if (ids.some((id) => !UUID_RE.test(id))) {
+        throw new AppError(400, "program_ids must be UUIDs.");
+    }
+    if (new Set(ids).size !== ids.length) {
+        throw new AppError(400, "program_ids contains duplicates.");
+    }
+
+    const transaction = await sequelize.transaction();
+    try {
+        await sequelize.query(
+            `DELETE FROM member_program_order WHERE member_id = :memberId`,
+            { replacements: { memberId: requester?.id }, transaction }
+        );
+        const replacements = { memberId: requester?.id };
+        const values = ids.map((id, i) => {
+            replacements[`p${i}`] = id;
+            return `(:memberId, :p${i}, ${i})`;
+        }).join(", ");
+        await sequelize.query(
+            `INSERT INTO member_program_order (member_id, program_id, position) VALUES ${values}`,
+            { replacements, transaction }
+        );
+        await transaction.commit();
+        return { message: "Program order saved." };
+    } catch (err) {
+        await transaction.rollback();
+        if (err instanceof AppError) throw err;
+        if (err?.original?.code === "23503" || err?.parent?.code === "23503") {
+            throw new AppError(400, "One or more program_ids do not exist.");
+        }
+        throw err;
+    }
+}
+
 module.exports = {
     getPrograms,
     createProgram,
     updateProgram,
-    deleteProgram
+    deleteProgram,
+    setProgramOrder
 };
