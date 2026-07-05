@@ -140,7 +140,7 @@
       }
     },
     "workout-logs": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/workout-logs/SPEC.md",
       "status": "built",
       "consumed_by": ["web", "ios"],
@@ -233,7 +233,7 @@
       }
     },
     "apple-health": {
-      "version": "0.5.0",
+      "version": "0.6.0",
       "spec": "specs/features/apple-health/SPEC.md",
       "status": "built",
       "consumed_by": ["ios"],
@@ -244,6 +244,7 @@
           "RaSi-Fiters-App/Shared/Services/HealthKitService.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitService+Sleep.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitWorkoutTypeMap.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthKitAppliedLedger.swift",
           "RaSi-Fiters-App/Shared/Services/APIClient+DailyHealth.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKit.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKitSleep.swift",

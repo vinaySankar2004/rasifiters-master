@@ -16,6 +16,7 @@ extension ProgramContext {
         static let syncProgramIds = "healthkit.sleep.syncProgramIds"
         static let lastSyncDate = "healthkit.sleep.lastSyncDate"
         static let lastSyncCount = "healthkit.sleep.lastSyncCount"
+        static let lastSyncFailed = "healthkit.sleep.lastSyncFailed"
         static let connectDate = "healthkit.sleep.connectDate"
     }
 
@@ -66,17 +67,18 @@ extension ProgramContext {
 
     private static var isSleepSyncing = false
 
+    @discardableResult
     @MainActor
-    func performSleepSync() async {
+    func performSleepSync() async -> HealthSyncResult {
         guard !ProgramContext.isSleepSyncing,
               isSleepSyncEnabled,
               HealthKitService.shared.isAvailable,
               let token = authToken, !token.isEmpty,
-              !sleepSyncProgramIds.isEmpty else { return }
+              !sleepSyncProgramIds.isEmpty else { return .skipped }
 
         // A sleep confirmation (presented or queued behind workouts) is already awaiting the user — don't
         // recompute; resume on the next trigger after it closes.
-        if pendingSyncConfirmation?.flow == .sleep || deferredSleepConfirmation != nil { return }
+        if pendingSyncConfirmation?.flow == .sleep || deferredSleepConfirmation != nil { return .skipped }
 
         ProgramContext.isSleepSyncing = true
         defer { ProgramContext.isSleepSyncing = false }
@@ -87,15 +89,17 @@ extension ProgramContext {
         do {
             samples = try await HealthKitService.shared.fetchSleepSamples()
         } catch {
-            // Couldn't read HealthKit (e.g. permission not granted) — retry on the next trigger.
-            return
+            // Couldn't read HealthKit (e.g. permission not granted) — retry on the next trigger. A
+            // local condition, not a server-reach failure: the persisted flag stays as-is.
+            return .failed
         }
 
         let aggregated = HealthKitService.shared.aggregateSleep(samples)
         if aggregated.isEmpty {
             lastSleepSyncDate = Date()
+            lastSleepSyncFailed = false
             persistSleepSyncSettings()
-            return                                      // nothing to write → silent
+            return .synced(0)                           // nothing to write → silent
         }
 
         let programIds = sleepSyncProgramIds
@@ -103,7 +107,9 @@ extension ProgramContext {
         let windows = await loadSyncWindows(for: programIds, token: token)
         if windows.isEmpty {
             // Couldn't resolve any window (offline) — don't fall through to silent-confirm the programs.
-            return
+            lastSleepSyncFailed = true
+            persistSleepSyncSettings()
+            return .failed
         }
 
         var created = 0
@@ -151,15 +157,19 @@ extension ProgramContext {
 
         lastSleepSyncDate = Date()
         lastSleepSyncCount += created
+        lastSleepSyncFailed = hadRetryable
         persistSleepSyncSettings()
 
         let pages = buildConfirmationPages(pageRows)
         if pages.isEmpty {
-            if hadRetryable { HealthKitSyncNotifier.notifyFailure() }
-            else { HealthKitSyncNotifier.notifySleepSuccess(count: created) }   // no-op when created == 0
-            return
+            // Failures are SILENT for automatic triggers (D-SIL): the persisted flag drives the
+            // settings status line and the manual Sync Now button consumes the returned result.
+            // New nights are still announced (no-op when created == 0).
+            HealthKitSyncNotifier.notifySleepSuccess(count: created)
+            return hadRetryable ? .failed : .synced(created)
         }
         enqueuePendingConfirmation(PendingSyncConfirmation(flow: .sleep, pages: pages))
+        return hadRetryable ? .failed : .synced(created)
     }
 
     // MARK: - Persistence
@@ -169,6 +179,7 @@ extension ProgramContext {
         defaults.set(isSleepSyncEnabled, forKey: SleepKitDefaultsKeys.enabled)
         defaults.set(Array(sleepSyncProgramIds), forKey: SleepKitDefaultsKeys.syncProgramIds)
         defaults.set(lastSleepSyncCount, forKey: SleepKitDefaultsKeys.lastSyncCount)
+        defaults.set(lastSleepSyncFailed, forKey: SleepKitDefaultsKeys.lastSyncFailed)
         if let date = lastSleepSyncDate {
             defaults.set(date, forKey: SleepKitDefaultsKeys.lastSyncDate)
         } else {
@@ -184,6 +195,7 @@ extension ProgramContext {
         }
         lastSleepSyncDate = defaults.object(forKey: SleepKitDefaultsKeys.lastSyncDate) as? Date
         lastSleepSyncCount = defaults.integer(forKey: SleepKitDefaultsKeys.lastSyncCount)
+        lastSleepSyncFailed = defaults.bool(forKey: SleepKitDefaultsKeys.lastSyncFailed)
 
         if isSleepSyncEnabled {
             HealthKitService.shared.startSleepBackgroundDelivery { [weak self] in
@@ -199,12 +211,14 @@ extension ProgramContext {
         sleepSyncProgramIds = []
         lastSleepSyncDate = nil
         lastSleepSyncCount = 0
+        lastSleepSyncFailed = false
 
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: SleepKitDefaultsKeys.enabled)
         defaults.removeObject(forKey: SleepKitDefaultsKeys.syncProgramIds)
         defaults.removeObject(forKey: SleepKitDefaultsKeys.lastSyncDate)
         defaults.removeObject(forKey: SleepKitDefaultsKeys.lastSyncCount)
+        defaults.removeObject(forKey: SleepKitDefaultsKeys.lastSyncFailed)
         defaults.removeObject(forKey: SleepKitDefaultsKeys.connectDate)
 
         // Drop first-sync gating so a future reconnect reviews everything fresh.

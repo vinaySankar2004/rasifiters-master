@@ -1,6 +1,6 @@
 # Feature: `apple-health` — Apple Health (HealthKit) workout + sleep auto-sync (iOS)
 
-> **Status:** 🏗️ built (`apps/ios/` + backend touchpoints) · **Version:** 0.5.0 · **Apps (`consumed_by`):** `ios`
+> **Status:** 🏗️ built (`apps/ios/` + backend touchpoints) · **Version:** 0.6.0 · **Apps (`consumed_by`):** `ios`
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` **PR #4** (`apple-health` branch) —
 > `HealthKitService.swift`, `HealthKitWorkoutTypeMap.swift`, `ProgramContext+HealthKit.swift`,
 > `AppleHealthSettingsView.swift`. Ported to `apps/ios` and **corrected for our stack** (curated library +
@@ -48,10 +48,15 @@ library name — a synced log always resolves to a library-backed program workou
   16 close equivalents reuse existing curated rows, the rest use Apple Title-Case names seeded by migration
   `004`; `.other`/unknown → `"Other Workout"`.
 - **Sync** (`ProgramContext.performHealthKitSync`) — per (aggregated workout × selected program) call
-  `APIClient.writeHealthKitWorkoutLog` → `POST /api/workout-logs`; classify each result; advance the anchor
-  only on success; post a local notification on new logs / failure. Each workout is written to a program
-  **only if its date falls in that program's `[start_date, end_date]` window** (D-S5) — out-of-window
-  workouts are skipped, not scattered across every selected program.
+  `APIClient.writeHealthKitWorkoutLog` → `POST /api/workout-logs` with **`on_duplicate:"sum"`** (D-SUM):
+  a same-type workout arriving in a later batch ADDs its minutes to the day's existing row instead of
+  being 409-dropped. Idempotency comes from the **applied-sample ledger** (`HealthKitAppliedLedger`,
+  keyed `sampleUUID|programId`) — each write sends only samples not yet applied to that program, so a
+  replayed batch (held anchor) never double-adds. Classify each result; advance the anchor only on
+  success; post a local notification on new logs (**failures are silent** — D-SIL: a passive settings
+  status line + the manual Sync Now's inline error replace the old failure banner). Each workout is
+  written to a program **only if its date falls in that program's `[start_date, end_date]` window**
+  (D-S5) — out-of-window workouts are skipped, not scattered across every selected program.
 - **First-sync confirmation gate (D-CONF)** — a program's first influx is **not written silently**. An
   **unconfirmed** program's in-window rows are collected into a `PendingSyncConfirmation` and reviewed
   one program per page in `HealthSyncConfirmationView` (glass tick = confirm + advance); only **confirmed**
@@ -90,18 +95,23 @@ library name — a synced log always resolves to a library-backed program workou
 - **`workouts_library`** — seeded (additive) by `apps/backend/sql/004_seed_healthkit_workout_types.sql`
   (`ON CONFLICT (name) DO NOTHING`; ~65 new rows + `Other Workout`). No renames, no other-table writes.
 - **`workout_logs`** — written via the existing `POST /api/workout-logs`. Composite PK
-  `(program_id, member_id, program_workout_id, log_date)` gives one-log-per-day dedup.
+  `(program_id, member_id, program_workout_id, log_date)` keeps one row per type/day; with
+  `on_duplicate:"sum"` (D-SUM) a same-day repeat adds its minutes to that row instead of 409-ing.
 - **`daily_health_logs`** (sleep) — written via the existing `POST`/`PUT /api/daily-health-logs`. Composite
   PK `(program_id, member_id, log_date)`; only `sleep_hours numeric(4,2)` is written (`diet_quality` never
   touched). No migration — the column + `CHECK (0…24)` already exist in `001_schema.sql`.
 - **No new tables/columns.** All sync state is client-side `UserDefaults`.
 
-## 5. The backend delta (one deliberate change — workouts only)
+## 5. The backend delta (two deliberate changes — workouts only)
 
-`logService.addWorkoutLog` now catches the composite-PK `UniqueConstraintError` and throws **`AppError(409)`**
-instead of surfacing a generic 500 — mirroring the batch endpoint's duplicate semantics. This lets the
-sync distinguish "already logged" (skip, D3) from a real failure (retry), and improves the manual
-single-log form's duplicate message. Recorded in [`workout-logs`](../workout-logs/SPEC.md) §11.
+1. **409-on-collision (D-BE, 0.1.0):** `logService.addWorkoutLog` catches the composite-PK
+   `UniqueConstraintError` and throws **`AppError(409)`** instead of surfacing a generic 500 — mirroring
+   the batch endpoint's duplicate semantics. Recorded in [`workout-logs`](../workout-logs/SPEC.md) §11.
+2. **Sum-on-conflict (D-SUM, 0.6.0):** the same catch now honors an opt-in **`on_duplicate:"sum"`** body
+   flag (sent only by this sync): instead of the 409, it atomically increments the existing row
+   (`UPDATE … SET duration = COALESCE(duration,0) + N`) and returns **200 `{…, summed: true}`** (create
+   stays 201). The manual form, widget, and batch endpoint never send the flag → their 409-reject
+   behavior is unchanged. Recorded as [`workout-logs`](../workout-logs/SPEC.md) **D-C9**.
 
 **Sleep needs no backend change:** `addDailyHealthLog` already 409s on an existing row, and
 `updateDailyHealthLog` already does a `sleep_hours`-only partial update — so the iOS POST-then-PUT-on-409
@@ -111,9 +121,17 @@ upsert reuses them verbatim (D-S2).
 
 - **Anchor integrity** — the anchor is committed **only after** a successful sync (the PR committed it inside
   the fetch, silently dropping any workout whose upload failed). Retryable failures (network/5xx/401) leave
-  the anchor so the next trigger retries; re-runs are idempotent (already-written → 409 → skipped).
-- **Skip-on-conflict (D3)** — `409` (duplicate) and permanent `400/403/404` (validation / locked program /
-  not-an-active-participant) are skipped without blocking the anchor; manual logs are never overwritten.
+  the anchor so the next trigger retries; re-runs are idempotent via the **applied-sample ledger** (D-SUM):
+  already-applied samples are filtered out before the write, so a replayed batch adds nothing twice.
+- **Sum-on-conflict (D-SUM, supersedes D3's skip)** — a duplicate (type, day) write with `on_duplicate:"sum"`
+  adds its minutes to the existing row (manual logs are added **on top of**, never replaced). A plain `409`
+  now occurs only as a backstop (old backend during deploy skew, or a delete race) and is skipped without
+  ledger-marking, so a later replay resolves it; permanent `400/403/404` (validation / locked program /
+  not-an-active-participant) are skipped without blocking the anchor.
+- **Silent auto-retry (D-SIL)** — retryable failures no longer post a failure notification: automatic syncs
+  retry losslessly on the next trigger, the settings screen shows a passive "will retry automatically"
+  line (persisted `healthkit[.sleep].lastSyncFailed`), and the manual Sync Now consumes the returned
+  `HealthSyncResult` to show an inline error.
 - **Concurrency** — a single-flight `isSyncing` guard coalesces overlapping triggers.
 - **Availability / permission** — `HKHealthStore.isHealthDataAvailable()` gates the UI; denied read auth
   yields empty fetches (no crash).
@@ -130,11 +148,11 @@ None. HealthKit entitlements (`com.apple.developer.healthkit` + `…background-d
 |----|----------|----------|
 | **D1** | **Additive + map** — no library renames, no `program_workouts`/`workout_logs` migration; add missing Apple types, reuse close equivalents. | user decision; live-library read (25 rows). |
 | **D2** | **Seed all ~76 non-deprecated `HKWorkoutActivityType`** + `Other Workout` (migration `004`, 65 new rows). | user decision; Apple docs enum. |
-| **D3** | **Skip on conflict** — never overwrite/sum an existing log (reverses the PR's add→update fallback). | user decision. |
+| **D3** | ~~**Skip on conflict** — never overwrite/sum an existing log (reverses the PR's add→update fallback).~~ **Superseded by D-SUM (0.6.0)** — same-day repeats now sum; the 409-skip survives only as the deploy-skew/delete-race backstop. | user decision (2026-06-30); superseded by user decision (2026-07-05). |
 | **D4** | **Reconcile against the live production library**, not the test seed. | live DB read via the gitignored `DATABASE_URL` (see the `supabase` skill). |
 | **D5** | **New rows use Apple Title-Case names**; the map's target set ⊆ library (verified). | invariant check (79 targets ⊆ 90 names). |
 | **D6** | **iOS-only** sync; library additions surface in web + iOS pickers (expected). | Apple Health is iOS-only. |
-| **D7** | **Sync-result = local notification + in-app status**, only on new (≥1) or failure; silent otherwise. | user decision. |
+| **D7** | **Sync-result = local notification + in-app status**, only on new (≥1); silent otherwise. *(Revised by D-SIL, 0.6.0: failures no longer notify — they surface passively in settings + the manual Sync Now.)* | user decision. |
 | **D-BE** | **409-on-PK-collision** in `addWorkoutLog` (the one backend code change). | needed for clean skip vs retry. |
 | **D-FIX** | **Anchor committed only after successful sync** (fixes a data-loss bug in the reference PR). | code review of the PR. |
 | **D-S1** | **Sleep uses a rolling look-back window + overwrite, NOT an anchor.** A night is stitched from many incremental category samples, so an anchor delivers fragments, not the whole night; re-querying the last **14 days** (from the start of the earliest day) and recomputing from the full sample set is correct + idempotent under overwrite. The window is **not** floored at the connect date (that floor collapsed same-day connects to `[today, today]` and synced nothing). | user decision (always-overwrite) + HealthKit sleep sample model; same-day-connect bug fix (0.3.0). |
@@ -144,6 +162,8 @@ None. HealthKit entitlements (`com.apple.developer.healthkit` + `…background-d
 | **D-S5** | **Per-program date-window write-scoping (workouts + sleep).** An aggregated item is written to a selected program **only if its date ∈ `[start_date, min(end_date, today)]`** for that program. Pure client-side (`ProgramContext.loadSyncWindows`, using `ProgramDTO.start_date/end_date`); backend still accepts any date. Fixes cross-program bleed ("synced 42 from eons ago"). If program windows can't be resolved (offline), the workout sync leaves its anchor uncommitted to avoid dropping data. | user decision (0.3.0). |
 | **D-S6** | **In-Bed fallback for sleep** — a night with no asleep-stage samples uses its `.inBed` duration so manual / iPhone-only sleep still syncs (asleep wins when both exist). | user decision (0.3.0). |
 | **D-LOCK** | **Apple Health sync respects the per-program admin lock (`admin_only_data_entry`).** A shared client predicate `ProgramContext.isDataEntryLocked(programId:)` (multi-program analogue of `dataEntryLocked`, mirrors the widget's `widgetProgramLockedForLogging` and web's `isDataEntryLocked`) gates every sync write. **Workouts:** an in-window locked program is skipped — not written, not collected into a confirmation page, not auto-confirmed — and the HealthKit **anchor is held** (like the offline case in D-S5) so held workouts re-sync once the program is unlocked (idempotent: workouts already written to unlocked programs return 409 `.duplicate`). **Sleep:** locked programs are skipped; no anchor, so the 14-day rolling window (D-S1) self-heals on unlock. The per-page commits (`commitWorkout/SleepPage`) guard defensively for a program locked mid-review. Settings renders a locked program **non-selectable** (lock icon + "Admin-only — can't sync") and shows an "N program(s) are admin-locked and won't sync" note on manual Sync Now; a still-selected locked program is skipped at runtime (selection isn't mutated, so it resumes on unlock). The backend `requireDataEntryAllowed` 403 → `.skipped` classification stays as the TOCTOU backstop. | user decision (0.5.0); `requireDataEntryAllowed` (403); widget lock arc (D-C1). |
+| **D-SUM** | **Sum-on-conflict + applied-sample ledger (workouts; supersedes D3's skip).** Users do the same workout type more than once a day; the old 409-skip silently dropped every later same-type workout's minutes. The sync now sends **`on_duplicate:"sum"`** on `POST /api/workout-logs` — the backend atomically adds the minutes to the existing (program, member, type, date) row (200 `{summed:true}`; manual logs are added on top of, per user choice). Because a held anchor replays whole batches, idempotency is client-side: **`HealthKitAppliedLedger`** (UserDefaults `healthkit.appliedWorkoutUUIDs`, keyed **`sampleUUID|programId`** — a batch can succeed for program A and fail for B; value = workout ymd, pruned at 45 days). `aggregate` now yields per-sample `(uuid, minutes)`; **both** write paths (steady-state `performHealthKitSync` + `commitWorkoutPage`) filter to unapplied samples, send only their minutes, and mark the ledger **only on `.created`/`.summed`** (never on `.duplicate`/`.skipped`/`.retryable`). Ledger cleared on disconnect (safe — a reconnect's fresh connect-date bounds the first fetch). Manual same-day duplicates stay rejected (D-C6/D-C9); sleep needs no ledger (PUT-overwrite is idempotent). | user decision (2026-07-05); backend D-C9 (`workout-logs` 0.4.0). |
+| **D-SIL** | **Silent auto-retry (workouts + sleep; revises D7's failure half).** The "Apple Health sync failed" banner fired on any transient network/5xx blip during automatic syncs — scary, yet the retry is automatic and lossless (held anchor / rolling window). Now: **no failure notification at all** (`notifyFailure` deleted); `performHealthKitSync`/`performSleepSync` return a **`HealthSyncResult`** (`synced(n)`/`failed`/`skipped`, `@discardableResult` — auto triggers discard it); a persisted **`healthkit[.sleep].lastSyncFailed`** flag (set on retryable/offline-windows, cleared on a clean run; HealthKit read errors don't touch it) drives a passive "Last sync couldn't reach the server — will retry automatically." caption on `AppleHealthSettingsView`; the manual **Sync Now** consumes the result and shows an inline error. `HealthSyncConfirmationView`'s interactive "Couldn't reach the server" notice stays. | user decision (2026-07-05). |
 | **D-CONF** | **First-sync confirmation, gated per program.** A large first influx is dangerous, so a program's rows are **gated** until the user confirms them — for **both** flows. Compute (`performHealthKit/SleepSync`) splits from commit: an **unconfirmed** program's in-window rows are collected into a `PendingSyncConfirmation` (one page per program) and presented globally from `AppRootView` (`HealthSyncConfirmationView`); a **confirmed** program writes silently as before. **Per-program tracking** (`healthkit[.sleep].confirmedProgramIds`) means the gate also catches a program added later or an interrupted connect; a **reconnect clears** the set so everything is reviewed again. **Selectable rows** (default checked): the glass tick writes only checked rows and records **un**checked rows' keys in `healthkit[.sleep].excludedKeys` so later silent syncs never re-add them (sleep keys pruned past the 14-day window; workout keys inert after the anchor advances). **Always confirm** any first sync with ≥1 new row; a **0-row** first sync confirms the program silently. **Dismiss = defer**: nothing is written for unconfirmed programs, the integration stays connected, and it re-offers next trigger — so the **workout anchor commits only after every program is confirmed cleanly** (a deferred flow leaves it uncommitted, and the same batch is safely re-offered). Workouts are presented before sleep when both are pending. | user decision. |
 
 ## 9. Flagged characteristics kept as-is
@@ -158,15 +178,17 @@ None. HealthKit entitlements (`com.apple.developer.healthkit` + `…background-d
 
 ## 10. Open questions
 
-None blocking. Future: optionally surface failed-program (retryable) notes in the settings UI (admin-lock
-notes now done, D-LOCK); optionally add a server-side sync-preferences store if multi-device consistency is
-ever needed; optionally add a source/provenance column so HealthKit sleep could spare manually-entered
-nights (see F5).
+None blocking. Retryable-failure surfacing in settings is now done (D-SIL; admin-lock notes were D-LOCK).
+Future: optionally add a server-side sync-preferences store if multi-device consistency is ever needed;
+optionally add a source/provenance column so HealthKit sleep could spare manually-entered nights (see F5)
+— the same column would let workout sum-on-conflict distinguish manual minutes if "add on top" (D-SUM)
+ever needs revisiting.
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.6.0 | 2026-07-05 | **Sum-on-conflict (D-SUM) + silent auto-retry (D-SIL)** — two user-reported fixes. (1) A same-type workout arriving in a **later** sync batch no longer 409-drops: the sync sends `on_duplicate:"sum"` and the backend atomically adds its minutes to the day's row (backend delta D-C9 in `workout-logs` 0.4.0 — the only server change; manual/widget/batch 409-reject unchanged). Idempotent under batch replays via the new **`HealthKitAppliedLedger`** (`healthkit.appliedWorkoutUUIDs`, keyed `sampleUUID\|programId`, 45-day prune; marked only on `.created`/`.summed`); `aggregate` reworked to per-sample `(uuid, minutes)`; both write paths (steady-state + `commitWorkoutPage`) filter to unapplied samples. D3 superseded. (2) The "Apple Health sync failed" banner (fired on any transient blip during automatic syncs, even partial successes) is **removed** (`notifyFailure` deleted); failures surface as a passive settings caption (persisted `healthkit[.sleep].lastSyncFailed`) + an inline error on manual Sync Now (`performHealthKitSync`/`performSleepSync` now return `HealthSyncResult`, `@discardableResult`). D7 revised. Touches: backend `services/logService.js` + `routes/logs.js`; iOS `APIClient+Workouts.swift`, `HealthKitService.swift`, **new** `HealthKitAppliedLedger.swift`, `ProgramContext.swift`, `ProgramContext+HealthKit.swift`, `ProgramContext+HealthKitSleep.swift`, `ProgramContext+HealthSyncGating.swift`, `HealthKitSyncNotifier.swift`, `AppleHealthSettingsView.swift`. |
 | 0.5.0 | 2026-07-01 | **Apple Health sync respects the admin lock (D-LOCK).** The auto-sync no longer relies solely on the backend 403 for admin-locked programs (`admin_only_data_entry`) — it now pre-checks a shared `ProgramContext.isDataEntryLocked(programId:)` (mirrors the widget/web lock predicates). A locked program is skipped from workout + sleep writes, confirmation pages, and 0-row auto-confirm; for **workouts** the HealthKit **anchor is held** (like the offline case) so a workout logged while locked re-syncs on unlock (fixes silent data-loss-on-unlock; sleep already self-heals via its 14-day window). Per-page commits guard defensively for a mid-review lock. `AppleHealthSettingsView` renders locked programs non-selectable (lock icon + "Admin-only — can't sync") and shows an "N program(s) are admin-locked and won't sync" note on Sync Now. The backend 403 → `.skipped` stays as the TOCTOU backstop (no new backend/migration change). Touches: `ProgramContext.swift`, `ProgramContext+HealthKit.swift`, `ProgramContext+HealthKitSleep.swift`, `ProgramContext+HealthSyncGating.swift`, `AppleHealthSettingsView.swift`. iOS builds clean. |
 | 0.4.0 | 2026-07-01 | **First-sync confirmation, gated per program (D-CONF)** — a large first influx (first connect / reconnect / program added later / interrupted connect) is no longer written silently for **either** flow. Compute now splits from commit: an **unconfirmed** program's in-window rows are collected into a `PendingSyncConfirmation` and reviewed one program per page in the new full-screen `HealthSyncConfirmationView` (presented globally from `AppRootView`), with an iOS-26 Liquid-Glass tick that writes only **checked** rows and advances. Per-program `confirmedProgramIds` gating (reconnect re-gates all); **selectable rows** with persisted `excludedKeys` so silent syncs never re-add unchecked rows (sleep pruned past the 14-day window); **always confirm** ≥1 row (0 rows confirms silently); **dismiss = defer** (stays connected, re-offers next trigger) — so the workout **anchor commits only after every program is confirmed cleanly**. New files: `PendingSyncConfirmation.swift`, `ProgramContext+HealthSyncGating.swift`, `HealthSyncConfirmationView.swift`. No backend/migration change; user live-tested; iOS builds clean. |
 | 0.3.0 | 2026-07-01 | **Per-program date-window scoping + sleep-sync fixes.** (1) Both workouts + sleep now write an item to a selected program **only if its date ∈ that program's `[start_date, min(end_date, today)]`** (D-S5) — client-side via new `ProgramContext+HealthKitWindows.swift` (`loadSyncWindows`/`localYMD`/`date(_:isWithin:)`), reading `ProgramDTO.start_date/end_date`; fixes cross-program bleed ("synced 42 from eons ago"). Workout sync leaves its anchor uncommitted if windows can't be resolved (no data drop). (2) Sleep now actually syncs: `fetchSleepSamples` drops the connect-date floor (which collapsed same-day connects to `[today, today]`) → rolling **14-day** window from start-of-day (D-S1 revised, `sleepLookbackDays`→`sleepRecentDays`). (3) **In-Bed fallback** (D-S6) — nights without watch stage data use `.inBed` duration so manual / iPhone-only sleep syncs. No backend/migration change. iOS builds clean. |

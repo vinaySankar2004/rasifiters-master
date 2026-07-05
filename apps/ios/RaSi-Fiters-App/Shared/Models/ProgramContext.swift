@@ -120,12 +120,14 @@ final class ProgramContext: ObservableObject {
     @Published var healthKitSyncProgramIds: Set<String> = []
     @Published var lastHealthKitSyncDate: Date?
     @Published var lastHealthKitSyncCount: Int = 0
+    @Published var lastHealthKitSyncFailed: Bool = false
 
     // Apple Health (HealthKit) SLEEP auto-sync — independent toggle; see ProgramContext+HealthKitSleep.swift
     @Published var isSleepSyncEnabled: Bool = false
     @Published var sleepSyncProgramIds: Set<String> = []
     @Published var lastSleepSyncDate: Date?
     @Published var lastSleepSyncCount: Int = 0
+    @Published var lastSleepSyncFailed: Bool = false
 
     // First-time Apple Health sync confirmation — see PendingSyncConfirmation + ProgramContext+HealthSyncGating.
     // `pendingSyncConfirmation` is the flow currently presented (globally, from AppRootView); a sleep flow

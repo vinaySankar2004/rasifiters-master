@@ -11,7 +11,17 @@ extension ProgramContext {
         static let syncProgramIds = "healthkit.syncProgramIds"
         static let lastSyncDate = "healthkit.lastSyncDate"
         static let lastSyncCount = "healthkit.lastSyncCount"
+        static let lastSyncFailed = "healthkit.lastSyncFailed"
         static let connectDate = "healthkit.connectDate"
+    }
+
+    /// Outcome of one sync run, consumed ONLY by the manual "Sync Now" button (automatic triggers
+    /// discard it — failures there are silent and retry on the next trigger, D-SIL). `.skipped` =
+    /// a guard bailed (disabled / already syncing / a confirmation is pending).
+    enum HealthSyncResult {
+        case synced(Int)    // clean run; N = created + summed
+        case failed         // couldn't reach the server (or read HealthKit) — will retry next trigger
+        case skipped
     }
 
     // MARK: - Connect date (first-sync cutoff)
@@ -70,35 +80,40 @@ extension ProgramContext {
     // viewer. Holds the anchor (like the offline case) so the held workouts re-sync once unlocked.
     static var pendingWorkoutLockHeld = false
 
+    @discardableResult
     @MainActor
-    func performHealthKitSync() async {
+    func performHealthKitSync() async -> HealthSyncResult {
         guard !ProgramContext.isSyncing,
               isHealthKitEnabled,
               HealthKitService.shared.isAvailable,
               let token = authToken, !token.isEmpty,
               let memberName = loggedInUserName, !memberName.isEmpty,
-              !healthKitSyncProgramIds.isEmpty else { return }
+              !healthKitSyncProgramIds.isEmpty else { return .skipped }
 
         // A workout confirmation is already awaiting the user — don't recompute (it would clobber the
         // stashed anchor and reset the in-progress review). Resumes on the next trigger after it closes.
-        if pendingSyncConfirmation?.flow == .workouts { return }
+        if pendingSyncConfirmation?.flow == .workouts { return .skipped }
 
         ProgramContext.isSyncing = true
         defer { ProgramContext.isSyncing = false }
+
+        HealthKitAppliedLedger.prune()
 
         let fetch: HealthKitService.FetchResult
         do {
             fetch = try await HealthKitService.shared.fetchNewWorkouts(firstSyncCutoff: healthKitConnectDate)
         } catch {
-            // Couldn't read HealthKit (e.g. permission not granted) — leave the anchor, retry next trigger.
-            return
+            // Couldn't read HealthKit (e.g. permission not granted) — leave the anchor, retry next
+            // trigger. A local condition, not a server-reach failure: the persisted flag stays as-is.
+            return .failed
         }
 
         if fetch.workouts.isEmpty {
             HealthKitService.shared.commitAnchor(fetch.newAnchor)   // advance past a clean scan
             lastHealthKitSyncDate = Date()
+            lastHealthKitSyncFailed = false
             persistHealthKitSettings()
-            return                                                  // nothing new → silent (D7)
+            return .synced(0)                                       // nothing new → silent (D7)
         }
 
         let aggregated = HealthKitService.shared.aggregate(fetch.workouts)
@@ -109,10 +124,12 @@ extension ProgramContext {
         if windows.isEmpty {
             // Couldn't resolve any program window (e.g. offline background trigger) — do NOT commit the
             // anchor, or these workouts would be dropped for good. Retry on the next trigger.
-            return
+            lastHealthKitSyncFailed = true
+            persistHealthKitSettings()
+            return .failed
         }
 
-        var created = 0
+        var synced = 0
         var hadRetryable = false
         var lockHeld = false                                          // an in-window workout hit an admin-locked program
         var pageRows: [String: [PendingSyncConfirmation.Row]] = [:]   // unconfirmed programs → review rows
@@ -132,14 +149,24 @@ extension ProgramContext {
                 if isDataEntryLocked(programId: programId) { lockHeld = true; continue }
 
                 if confirmed.contains(programId) {
-                    // Steady state: this program was already confirmed → write silently as before.
+                    // Steady state: write only the samples not yet applied to THIS program (the
+                    // idempotency ledger, D-SUM) — a replayed batch adds nothing twice, while genuinely
+                    // new same-day samples sum on top via the backend's on_duplicate:"sum".
+                    let unapplied = workout.samples.filter {
+                        !HealthKitAppliedLedger.isApplied(uuid: $0.uuid, programId: programId)
+                    }
+                    guard !unapplied.isEmpty else { continue }
                     let outcome = await APIClient.shared.writeHealthKitWorkoutLog(
                         token: token, memberName: memberName, workoutName: workout.workoutName,
-                        date: workout.date, durationMinutes: workout.durationMinutes,
+                        date: workout.date,
+                        durationMinutes: HealthKitService.AggregatedWorkout.minutes(of: unapplied),
                         programId: programId, memberId: loggedInUserId)
                     switch outcome {
-                    case .created: created += 1
-                    case .duplicate, .skipped: break
+                    case .created, .summed:
+                        synced += 1
+                        HealthKitAppliedLedger.markApplied(uuids: unapplied.map(\.uuid),
+                                                           programId: programId, date: workout.date)
+                    case .duplicate, .skipped: break   // nothing was added → NOT ledger-marked
                     case .retryable: hadRetryable = true
                     }
                 } else {
@@ -162,18 +189,21 @@ extension ProgramContext {
             markProgramConfirmed(programId, flow: .workouts)
         }
 
-        lastHealthKitSyncCount += created
+        lastHealthKitSyncCount += synced
 
         let pages = buildConfirmationPages(pageRows)
         if pages.isEmpty {
-            // Nothing to confirm — behave exactly like the steady-state sync (commit + notify). Hold
-            // the anchor if a lock deferred an in-window workout, so it re-syncs after the unlock.
+            // Nothing to confirm — commit unless something must replay (hold the anchor if a lock
+            // deferred an in-window workout, so it re-syncs after the unlock). Failures are SILENT
+            // for automatic triggers (D-SIL): the persisted flag drives the settings status line and
+            // the manual Sync Now button consumes the returned result. Partial success still
+            // announces the synced count (no-op at 0).
             if !hadRetryable && !lockHeld { HealthKitService.shared.commitAnchor(fetch.newAnchor) }
             lastHealthKitSyncDate = Date()
+            lastHealthKitSyncFailed = hadRetryable
             persistHealthKitSettings()
-            if hadRetryable { HealthKitSyncNotifier.notifyFailure() }
-            else { HealthKitSyncNotifier.notifySuccess(count: created) }   // no-op when created == 0
-            return
+            HealthKitSyncNotifier.notifySuccess(count: synced)
+            return hadRetryable ? .failed : .synced(synced)
         }
 
         // Pending pages exist — stash the anchor + any silent-write failure and present the confirmation.
@@ -182,8 +212,10 @@ extension ProgramContext {
         ProgramContext.pendingWorkoutAnchor = fetch.newAnchor
         ProgramContext.pendingWorkoutHadRetryable = hadRetryable
         ProgramContext.pendingWorkoutLockHeld = lockHeld
+        lastHealthKitSyncFailed = hadRetryable
         persistHealthKitSettings()
         enqueuePendingConfirmation(PendingSyncConfirmation(flow: .workouts, pages: pages))
+        return hadRetryable ? .failed : .synced(synced)
     }
 
     /// Commit the stashed anchor iff the compute-time silent writes had no retryable failure. Called by
@@ -208,6 +240,7 @@ extension ProgramContext {
         defaults.set(isHealthKitEnabled, forKey: HealthKitDefaultsKeys.enabled)
         defaults.set(Array(healthKitSyncProgramIds), forKey: HealthKitDefaultsKeys.syncProgramIds)
         defaults.set(lastHealthKitSyncCount, forKey: HealthKitDefaultsKeys.lastSyncCount)
+        defaults.set(lastHealthKitSyncFailed, forKey: HealthKitDefaultsKeys.lastSyncFailed)
         if let date = lastHealthKitSyncDate {
             defaults.set(date, forKey: HealthKitDefaultsKeys.lastSyncDate)
         } else {
@@ -223,6 +256,7 @@ extension ProgramContext {
         }
         lastHealthKitSyncDate = defaults.object(forKey: HealthKitDefaultsKeys.lastSyncDate) as? Date
         lastHealthKitSyncCount = defaults.integer(forKey: HealthKitDefaultsKeys.lastSyncCount)
+        lastHealthKitSyncFailed = defaults.bool(forKey: HealthKitDefaultsKeys.lastSyncFailed)
 
         if isHealthKitEnabled {
             HealthKitService.shared.startBackgroundDelivery { [weak self] in
@@ -239,13 +273,19 @@ extension ProgramContext {
         healthKitSyncProgramIds = []
         lastHealthKitSyncDate = nil
         lastHealthKitSyncCount = 0
+        lastHealthKitSyncFailed = false
 
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: HealthKitDefaultsKeys.enabled)
         defaults.removeObject(forKey: HealthKitDefaultsKeys.syncProgramIds)
         defaults.removeObject(forKey: HealthKitDefaultsKeys.lastSyncDate)
         defaults.removeObject(forKey: HealthKitDefaultsKeys.lastSyncCount)
+        defaults.removeObject(forKey: HealthKitDefaultsKeys.lastSyncFailed)
         defaults.removeObject(forKey: HealthKitDefaultsKeys.connectDate)
+
+        // Drop the sum-on-conflict idempotency ledger too — safe on reconnect: a fresh connect date
+        // bounds the first fetch, so previously-synced samples are never re-fetched (no double-add).
+        HealthKitAppliedLedger.clear()
 
         // Drop first-sync gating so a future reconnect reviews everything fresh.
         clearConfirmedPrograms(.workouts)

@@ -7,6 +7,11 @@ struct AppleHealthSettingsView: View {
     @EnvironmentObject var programContext: ProgramContext
     @State private var isSyncing = false
     @State private var isSleepSyncingNow = false
+    @State private var workoutSyncError: String?
+    @State private var sleepSyncError: String?
+
+    private let syncNowErrorText = "Couldn't reach the server. Check your connection and try again."
+    private let autoRetryStatusText = "Last sync couldn't reach the server — will retry automatically."
 
     private var isAvailable: Bool { HealthKitService.shared.isAvailable }
 
@@ -242,8 +247,10 @@ struct AppleHealthSettingsView: View {
 
                 Button {
                     isSyncing = true
+                    workoutSyncError = nil
                     Task {
-                        await programContext.performHealthKitSync()
+                        let result = await programContext.performHealthKitSync()
+                        if case .failed = result { workoutSyncError = syncNowErrorText }
                         isSyncing = false
                     }
                 } label: {
@@ -272,6 +279,20 @@ struct AppleHealthSettingsView: View {
             let lockedCount = lockedSelectedCount(programContext.healthKitSyncProgramIds)
             if lockedCount > 0 {
                 Text("\(lockedCount) program\(lockedCount == 1 ? "" : "s") are admin-locked and won't sync")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .padding(.horizontal, 4)
+            }
+
+            // Auto-sync failures are silent (D-SIL) — this passive line (or the manual Sync Now's
+            // inline error) is where a "couldn't reach the server" state surfaces.
+            if let workoutSyncError {
+                Text(workoutSyncError)
+                    .font(.caption)
+                    .foregroundColor(.appRed)
+                    .padding(.horizontal, 4)
+            } else if programContext.lastHealthKitSyncFailed {
+                Text(autoRetryStatusText)
                     .font(.caption)
                     .foregroundColor(Color(.secondaryLabel))
                     .padding(.horizontal, 4)
@@ -441,8 +462,10 @@ struct AppleHealthSettingsView: View {
 
                 Button {
                     isSleepSyncingNow = true
+                    sleepSyncError = nil
                     Task {
-                        await programContext.performSleepSync()
+                        let result = await programContext.performSleepSync()
+                        if case .failed = result { sleepSyncError = syncNowErrorText }
                         isSleepSyncingNow = false
                     }
                 } label: {
@@ -471,6 +494,19 @@ struct AppleHealthSettingsView: View {
             let lockedCount = lockedSelectedCount(programContext.sleepSyncProgramIds)
             if lockedCount > 0 {
                 Text("\(lockedCount) program\(lockedCount == 1 ? "" : "s") are admin-locked and won't sync")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .padding(.horizontal, 4)
+            }
+
+            // Mirrors the workout section: silent auto-retry surfaces here, not as a banner (D-SIL).
+            if let sleepSyncError {
+                Text(sleepSyncError)
+                    .font(.caption)
+                    .foregroundColor(.appRed)
+                    .padding(.horizontal, 4)
+            } else if programContext.lastSleepSyncFailed {
+                Text(autoRetryStatusText)
                     .font(.caption)
                     .foregroundColor(Color(.secondaryLabel))
                     .padding(.horizontal, 4)

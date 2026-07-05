@@ -5,7 +5,9 @@ import UserNotifications
 /// backgrounded, so a device-level banner is how the user learns the outcome; the in-app settings screen
 /// mirrors it via Last Synced / Workouts Synced.
 ///
-/// Fires ONLY on a sync that added ≥1 workout, or on a genuine failure — never when nothing was new.
+/// Fires ONLY on a sync that added ≥1 item — never when nothing was new, and never on failure (D-SIL):
+/// transient failures retry automatically and losslessly, so they surface only as a passive status line
+/// on the settings screen (plus an inline error on the manual Sync Now).
 /// If notification permission is denied, every call is a silent no-op (graceful in-app-only fallback).
 enum HealthKitSyncNotifier {
 
@@ -29,10 +31,6 @@ enum HealthKitSyncNotifier {
         guard count > 0 else { return }
         let noun = count == 1 ? "night" : "nights"
         post(title: "Apple Health", body: "Synced \(count) \(noun) of sleep from Apple Health.")
-    }
-
-    static func notifyFailure() {
-        post(title: "Apple Health", body: "Apple Health sync failed — we'll retry automatically.")
     }
 
     private static func post(title: String, body: String) {

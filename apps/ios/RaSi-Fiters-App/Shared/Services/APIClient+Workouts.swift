@@ -263,8 +263,9 @@ extension APIClient {
     /// to a status-less `APIError`; this uses `rawData(for:)` so the caller can distinguish an expected
     /// duplicate (skip) from a retryable failure (don't advance the HealthKit anchor).
     enum WorkoutLogWriteOutcome {
-        case created            // 2xx — a new log was written
-        case duplicate          // 409 — already logged that (member, workout, date); skip (D3)
+        case created            // 201 — a new log was written
+        case summed             // 200 — minutes added onto an existing row (on_duplicate:"sum", D-SUM)
+        case duplicate          // 409 — old backend / delete race; nothing was added (ledger NOT marked)
         case skipped            // 400 / 403 / 404 — permanent (locked/validation/not-a-participant); won't retry
         case retryable          // network / 5xx / 401-after-refresh — leave the anchor so it retries next sync
     }
@@ -292,7 +293,8 @@ extension APIClient {
                 "workout_name": workoutName,
                 "date": date,
                 "duration": durationMinutes,
-                "program_id": programId
+                "program_id": programId,
+                "on_duplicate": "sum"   // later same-type workouts ADD minutes to the day's row (D-SUM)
             ]
             if let memberId { body["member_id"] = memberId }
             guard let httpBody = try? JSONSerialization.data(withJSONObject: body, options: []) else { return nil }
@@ -309,7 +311,8 @@ extension APIClient {
                 (_, http) = try await rawData(for: retry)
             }
             switch http.statusCode {
-            case 200..<300:     return .created
+            case 200:           return .summed      // sum-on-conflict resolved a same-day collision
+            case 201..<300:     return .created
             case 409:           return .duplicate
             case 400, 403, 404: return .skipped
             default:            return .retryable   // 401 (still), 5xx, anything else

@@ -189,24 +189,34 @@ extension ProgramContext {
         addExcludedKeys(page.rows.filter { !$0.isChecked }.map(\.exclusionKey), flow: .workouts)
 
         var hadRetryable = false
-        var created = 0
+        var synced = 0
         for row in page.rows where row.isChecked {
             guard case let .workout(w) = row.payload,
                   ProgramContext.date(w.date, isWithin: window) else { continue }
+            // Same idempotency ledger as the steady-state sync (D-SUM): a re-offered page (deferred
+            // flow, earlier retryable) writes only samples not yet applied to this program.
+            let unapplied = w.samples.filter {
+                !HealthKitAppliedLedger.isApplied(uuid: $0.uuid, programId: page.id)
+            }
+            guard !unapplied.isEmpty else { continue }
             let outcome = await APIClient.shared.writeHealthKitWorkoutLog(
                 token: token, memberName: memberName, workoutName: w.workoutName,
-                date: w.date, durationMinutes: w.durationMinutes,
+                date: w.date,
+                durationMinutes: HealthKitService.AggregatedWorkout.minutes(of: unapplied),
                 programId: page.id, memberId: loggedInUserId)
             switch outcome {
-            case .created: created += 1
-            case .duplicate, .skipped: break
+            case .created, .summed:
+                synced += 1
+                HealthKitAppliedLedger.markApplied(uuids: unapplied.map(\.uuid),
+                                                   programId: page.id, date: w.date)
+            case .duplicate, .skipped: break   // nothing was added → NOT ledger-marked
             case .retryable: hadRetryable = true
             }
         }
 
         guard !hadRetryable else { return false }
         markProgramConfirmed(page.id, flow: .workouts)
-        lastHealthKitSyncCount += created
+        lastHealthKitSyncCount += synced
         persistHealthKitSettings()
         return true
     }

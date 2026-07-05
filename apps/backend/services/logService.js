@@ -100,7 +100,7 @@ async function resolveProgramWorkout(program_id, workout_name, transaction = nul
 
 // ── Workout Logs ──
 
-async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_name, date, duration, program_id }, requester) {
+async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_name, date, duration, program_id, on_duplicate }, requester) {
     if (!workout_name || !date || !duration) {
         throw new AppError(400, "All fields are required.");
     }
@@ -155,11 +155,13 @@ async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_nam
     const workoutName = workout_name.trim();
     const programWorkout = await resolveProgramWorkout(program_id, workoutName);
 
-    // A second log for the same (program, member, workout, date) hits the composite PK. Surface it as a
-    // friendly 409 (matching the batch endpoint's duplicate semantics) instead of a generic 500 — this lets
-    // clients distinguish "already logged" (skip) from real failures. Used by Apple Health auto-sync's
-    // skip-on-conflict path, and improves the manual form's duplicate message. (Deliberate change, see
-    // specs/features/workout-logs SPEC.)
+    // A second log for the same (program, member, workout, date) hits the composite PK. Default: surface
+    // it as a friendly 409 (matching the batch endpoint's duplicate semantics) instead of a generic 500 —
+    // this lets clients distinguish "already logged" (skip) from real failures; the manual form and the
+    // iOS quick-add widget rely on it. Apple Health auto-sync instead opts into SUM-ON-CONFLICT
+    // (`on_duplicate: "sum"`): a same-type workout arriving in a later sync batch ADDs its minutes to the
+    // existing row atomically — one row per type/day stays, and a manual log is added on top of, never
+    // replaced. (Deliberate changes D-C7 + D-C9, see specs/features/workout-logs SPEC.)
     let newLog;
     try {
         newLog = await WorkoutLog.create({
@@ -171,6 +173,27 @@ async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_nam
         });
     } catch (err) {
         if (err instanceof UniqueConstraintError) {
+            if (on_duplicate === "sum") {
+                const where = { program_id, member_id, program_workout_id: programWorkout.id, log_date: date };
+                // durationNum is a validated positive integer (D-C2), safe to inline in the literal.
+                const [affected] = await WorkoutLog.update(
+                    { duration: sequelize.literal(`COALESCE(duration, 0) + ${durationNum}`) },
+                    { where }
+                );
+                if (affected > 0) {
+                    const existing = await WorkoutLog.findOne({ where });
+                    const member = await Member.findByPk(member_id);
+                    return {
+                        ...existing.toJSON(),
+                        member_name: member ? member.member_name : null,
+                        workout_name: workoutName,
+                        date,
+                        summed: true
+                    };
+                }
+                // Row vanished between the collision and the increment (delete race) — fall through to
+                // the 409; the sync's next replay creates it cleanly.
+            }
             throw new AppError(409, "A log for this workout already exists on this date.");
         }
         throw err;

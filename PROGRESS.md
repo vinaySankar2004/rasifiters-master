@@ -17,9 +17,14 @@
 - **`ios`** — CODE-COMPLETE (runs 50→74). All screens + widgets + Apple Health auto-sync (workouts **+ sleep**,
   the latter net-new in `apple-health` 0.2.0 → `daily_health_logs.sleep_hours`, no backend/migration change)
   ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS
-  screen SPECs. `apple-health` polished to **0.5.0** (2026-07-01): per-program date-window scoping (0.3.0),
-  gated first-sync confirmation (0.4.0), and admin-lock-aware sync (0.5.0) — all iOS-only, no backend change.
-  Visual/runtime verification is the user's, in Xcode — memory [[ios-user-verifies-builds-visually]].
+  screen SPECs. `apple-health` polished to **0.6.0** (2026-07-05): per-program date-window scoping (0.3.0),
+  gated first-sync confirmation (0.4.0), admin-lock-aware sync (0.5.0), and the two user-reported sync
+  fixes (0.6.0): **sum-on-conflict** — same-type later-in-the-day workouts now add minutes to the day's
+  row via the new `on_duplicate:"sum"` flag on `POST /api/workout-logs` (`workout-logs` 0.4.0 D-C9, the
+  one backend change; client `HealthKitAppliedLedger` guarantees replay idempotency) — and **silent
+  auto-retry** — the "sync failed" banner is gone; failures surface as a passive settings caption + an
+  inline Sync Now error (D-SIL). Visual/runtime verification is the user's, in Xcode — memory
+  [[ios-user-verifies-builds-visually]].
 - **Data/auth** — Supabase (`kpadxjekpiwfkqcxtrio`) provisioned; schema + 48/48 members migrated (bcrypt
   hashes imported, no resets). The one-time migrator was removed post-cutover.
 - **Legacy detachment (2026-06-30)** — the repo now stands alone: SPEC `Reference impl` headers → `Provenance`

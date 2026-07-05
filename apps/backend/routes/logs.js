@@ -38,7 +38,8 @@ async function requireDataEntryAllowed(req, res, next) {
 workoutLogRouter.post("/", authenticateToken, requireDataEntryAllowed, async (req, res) => {
     try {
         const result = await logService.addWorkoutLog(req.body, req.user);
-        res.status(201).json(result);
+        // 201 on create; 200 when `on_duplicate:"sum"` added minutes onto an existing row (D-C9).
+        res.status(result.summed ? 200 : 201).json(result);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
         console.error("Error adding workout log:", err);

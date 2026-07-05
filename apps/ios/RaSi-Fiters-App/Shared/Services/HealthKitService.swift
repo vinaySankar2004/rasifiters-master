@@ -120,35 +120,47 @@ final class HealthKitService {
     // MARK: - Aggregation
 
     struct AggregatedWorkout {
+        struct Sample {
+            let uuid: String        // HKWorkout.uuid — the idempotency-ledger identity (D-SUM)
+            let minutes: Double     // raw (unrounded) duration of this one sample
+        }
+
         let workoutName: String
-        let date: String          // yyyy-MM-dd
-        let durationMinutes: Int
+        let date: String            // yyyy-MM-dd
+        let samples: [Sample]       // contributing HK samples for this (name, day) group
+
+        /// Whole-group minutes (min 1) — used for confirmation-row display.
+        var durationMinutes: Int { AggregatedWorkout.minutes(of: samples) }
+
+        /// Rounded, floored-at-1 minutes for a subset (the per-program unapplied slice).
+        static func minutes(of samples: [Sample]) -> Int {
+            max(Int(samples.map(\.minutes).reduce(0, +).rounded()), 1)
+        }
     }
 
-    /// Group workouts by (mapped library name, calendar day) and sum durations, so multiple Apple
-    /// workouts of the same type on one day collapse into a single log matching the backend's
-    /// composite primary key. Uses the local calendar for the date bucket.
+    /// Group workouts by (mapped library name, calendar day), so multiple Apple workouts of the same
+    /// type on one day collapse into a single log matching the backend's composite primary key. Each
+    /// group keeps its contributing samples (uuid + minutes) so the write sites can filter out samples
+    /// already applied to a given program (see `HealthKitAppliedLedger`) and send only the unapplied
+    /// remainder. Uses the local calendar for the date bucket.
     func aggregate(_ workouts: [HKWorkout]) -> [AggregatedWorkout] {
         let formatter = DateFormatter()
         formatter.calendar = Calendar.current
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
 
-        var grouped: [String: Double] = [:]
+        var grouped: [String: [AggregatedWorkout.Sample]] = [:]
         for workout in workouts {
             let name = HealthKitWorkoutTypeMap.workoutName(for: workout.workoutActivityType)
             let date = formatter.string(from: workout.startDate)
-            grouped["\(name)||\(date)", default: 0] += workout.duration / 60.0
+            grouped["\(name)||\(date)", default: []].append(
+                .init(uuid: workout.uuid.uuidString, minutes: workout.duration / 60.0))
         }
 
-        return grouped.compactMap { key, totalMinutes in
+        return grouped.compactMap { key, samples in
             let parts = key.components(separatedBy: "||")
             guard parts.count == 2 else { return nil }
-            return AggregatedWorkout(
-                workoutName: parts[0],
-                date: parts[1],
-                durationMinutes: max(Int(totalMinutes.rounded()), 1)
-            )
+            return AggregatedWorkout(workoutName: parts[0], date: parts[1], samples: samples)
         }
     }
 }
