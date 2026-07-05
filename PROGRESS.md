@@ -7,7 +7,7 @@
 
 ## Current phase
 
-**Rebuild COMPLETE across all three surfaces; repo detached from legacy + docs slimmed. Next: TestFlight + make the GitHub repo public (2026-07-01).**
+**Rebuild COMPLETE + SHIPPED: iOS is on TestFlight (approved, in beta use — user-announced 2026-07-05). Remaining: go-public on GitHub + pre-cutover smoke tests.**
 
 - **`backend`** — DEPLOYED + LIVE on Render (`rasifiters-api`, `https://rasifiters-api.onrender.com`); auth
   round-trip verified live against migrated data. All backend features ported (`specs/features/REGISTRY.md`).
@@ -33,9 +33,9 @@
 
 ## Next action
 
-> ### ⏭️ TestFlight prep for `ios` + go-public — IN PROGRESS (status as of 2026-07-01)
+> ### ⏭️ TestFlight SHIPPED (2026-07-05) — remaining: go-public + pre-cutover smoke tests
 
-Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
+Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one open step):
 
 1. [x] **Move the repo** → `~/Desktop/rasifiters-master` (standalone; legacy no longer a sibling).
 2. [x] **Run migration `apps/backend/sql/004_seed_healthkit_workout_types.sql` on Supabase** — done by user.
@@ -45,15 +45,15 @@ Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
    the two `NSHealth*UsageDescription` strings. Still user-side in the developer portal / App Store Connect:
    enable HealthKit on the App ID (if not already), on-device test (Simulator has no HealthKit), App Store
    privacy config.
-4. [ ] **Flip `APNS_PRODUCTION=true` on Render — NOT done yet.**
-   `tools/render-env.sh set APNS_PRODUCTION true && tools/render-env.sh deploy` — TestFlight/App-Store builds
-   get production APNs tokens (`ENV_RUNBOOK.md` §3). Related: the entitlements `aps-environment` is
-   `development`; Xcode automatic signing forces `production` for the distribution/Archive build, so no source
-   edit is needed — just confirm on the archived build.
-5. [ ] **Bump the iOS version/build — NOT done yet.** Currently `1.3.0` / `40` (`MARKETING_VERSION` /
-   `CURRENT_PROJECT_VERSION` in `apps/ios/RaSi-Fiters-App.xcodeproj/project.pbxproj`); user bumps +1 in Xcode
-   at archive time.
-6. [ ] **Archive + upload** in Xcode → TestFlight.
+4. [x] **Flip `APNS_PRODUCTION=true` on Render — DONE (verified 2026-07-05).** Value confirmed `true` via
+   `tools/render-env.sh get`; a redeploy was triggered the same day to guarantee the live process carries it
+   (env-var flips via REST don't auto-redeploy). Note: even unset, the code falls back to
+   `NODE_ENV === "production"` (`apps/backend/utils/pushNotifications.js`), so production APNs was already
+   the effective mode.
+5. [x] **Bump the iOS version/build** — done by user at archive time.
+6. [x] **Archive + upload → TestFlight — DONE.** Approved and **in beta use** (user-announced 2026-07-05).
+   The LIVE iOS binary is now the TestFlight beta — backend changes must degrade gracefully for it
+   (memory: ios-live-binary-compatibility). User plans a **second TestFlight push** later and will announce it.
 7. [ ] **Pre-cutover backend smoke-tests** (batched; needs a live admin JWT the user supplies) if not already
    covered by the web signed-in round-trip.
 
@@ -65,7 +65,7 @@ Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
 4. [x] `backend` — all features ported + deployed + auth verified live
 5. [x] `web` — all pages ported + deployed + LIVE on `rasifiters.com`
 6. [x] `ios` — all screens/widgets/Apple-Health ported; native build green (user does visual + TestFlight)
-7. [~] Cutover — web domain LIVE; **iOS TestFlight is the remaining step**
+7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
 
 ## Coverage
 
@@ -85,9 +85,10 @@ Repo is now standalone at `~/Desktop/rasifiters-master`. Remaining path to ship:
   via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + local `vercel` CLI work meanwhile.
 - **Make the GitHub repo public** — pre-public health check done 2026-07-01 (no tracked secrets; contact emails
   kept as-is per user; cosmetic infra-identifier anonymization applied). Flip visibility when ready.
-- **iOS runtime + TestFlight** is the user's pass (visual in Xcode; Simulator has no HealthKit).
-- **`APNS_PRODUCTION`** must flip to `true` at first TestFlight/App-Store distribution (else `BadDeviceToken`
-  + the token is auto-pruned).
+- ~~**iOS runtime + TestFlight**~~ **DONE 2026-07-05** — uploaded, approved, in beta use (user-announced).
+  **LIVE binary = TestFlight beta**; a second TestFlight push is planned (user will announce).
+- ~~**`APNS_PRODUCTION`**~~ **DONE 2026-07-05** — confirmed `true` on Render + redeploy triggered to apply
+  (was also already the effective mode via the `NODE_ENV === "production"` fallback).
 - **Backend runtime smoke-tests** are batched to a pre-cutover pass needing a live admin JWT (user supplies).
 - **`notifications` cross-feature emits** are intentionally deferred in backend services (documented in-code
   TODOs) — wire when that work is scheduled; not blocking ship.
