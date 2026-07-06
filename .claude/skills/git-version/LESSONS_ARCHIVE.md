@@ -169,3 +169,10 @@ the user → committed as a real, verified feature (not a "pending smoke-test" p
 - **LESSON (reinforces converged):** state-change verification before doc pruning — the "flip APNS" open
   item was closed only after reading the value AND making the deploy deterministic, not on the user's
   "I think it flipped" alone.
+
+## Run — 2026-07-05 — autocapitalization UX pass (web + iOS, no feature bump)
+- **Changeset:** 8 web pages (autoCapitalize/autoCorrect attrs) + 5 iOS files (AppInputField
+  autocapitalization param + call sites). Client-only keyboard hints; no backend, no SPEC edits.
+- **Mapping outcome:** registry `reference_impl` paths are backend-relative (routes/services/models) — no
+  client page file maps to a feature. Grep of specs/ found zero autocapitalize/autocorrect mentions → no
+  page-SPEC update owed. Plain `feat` commit, no bump, no tag; LESSONS edits split into `chore(skills)`.

@@ -277,3 +277,15 @@ specific "list navigator issues" tool must be called after the build tool.
 - **Log-capture lesson:** piping the background build through `tail -40` swallowed the error line (the
   failing-commands list alone overflows 40 lines). Pipe through
   `grep -E "error:|BUILD (SUCCEEDED|FAILED)"` instead — tiny AND keeps the diagnostics.
+
+## Run 77 — 2026-07-05 — autocapitalization pass (auth/profile names + program/workout name fields)
+- **Change built:** `AppInputField.swift` gained `autocapitalization: TextInputAutocapitalization = .never`
+  param (TextField branch only; SecureField stays `.never`); call sites `CreateAccountView` (First/Last
+  Name → `.words`), `MyProfileView` (first/last name → `.words`); raw TextFields `EditProgramInfoView`
+  + `WorkoutTypesSection` (add/edit) gained `.textInputAutocapitalization(.words)` to match
+  `CreateProgramTabView`.
+- **Result:** BUILD SUCCEEDED first try via `mcp__xcode__BuildProject` (~21s), 0 errors; 13 navigator
+  warnings all pre-existing (decoder immutable-property, plotAreaFrame/NavigationLink deprecations).
+- **Lesson (param ordering):** adding a defaulted param to a memberwise-init SwiftUI component is safe for
+  existing call sites as long as it's declared BEFORE `accessory`-style trailing params that callers pass
+  labeled — declaration order = required call order in Swift memberwise inits.
