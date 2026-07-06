@@ -35,7 +35,8 @@ from, as history.
 / `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). **All three
 surfaces are built (as of 2026-07-01):** `web` → Vercel project `rasifiters`, LIVE at
 **`https://rasifiters.com`**; `backend` → Render `rasifiters-api`, LIVE at `https://rasifiters-api.onrender.com`;
-`ios` → SwiftUI (iOS 18.6 target), code-complete (31 screen SPECs, native build green), TestFlight pending.
+`ios` → SwiftUI (iOS 18.6 target), code-complete (31 screen SPECs, native build green), **LIVE on TestFlight**
+(1.3.1 (46) in beta as of 2026-07-05).
 
 ## Layer map
 

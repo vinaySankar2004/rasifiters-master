@@ -11,8 +11,11 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
 - Tokens in **Keychain**; session metadata in UserDefaults
 - Real-time: Server-Sent Events stream; Push: APNs
 - Bundle id: `com.app.rasifiters` (app) · `com.app.rasifiters.widgets` (widgets) · URL scheme `rasifiters://`
-- Version (faithful copy): marketing **1.3.0**, build **40** (widgets 1.2.0/25). The user bumps the version
-  **one higher at TestFlight push time** — the scaffold stays at the legacy version.
+- Version: marketing **1.3.1**, build **46** (app + widgets unified; the widget Info.plist inherits via
+  `$(CURRENT_PROJECT_VERSION)`). Beta convention: bump the **build number only** per TestFlight push
+  (same-version builds skip beta review); the marketing version moves only for App Store submissions.
+  Pre-upload gate: the build number must exceed the last-shipped one
+  (`git log -S "CURRENT_PROJECT_VERSION = <n>"` to check).
 
 ## Targets
 - **RaSi-Fiters-App** — the main app (78 Swift files in the legacy app; 41 foundation files in the scaffold).

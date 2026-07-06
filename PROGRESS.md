@@ -53,7 +53,10 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 5. [x] **Bump the iOS version/build** — done by user at archive time.
 6. [x] **Archive + upload → TestFlight — DONE.** Approved and **in beta use** (user-announced 2026-07-05).
    The LIVE iOS binary is now the TestFlight beta — backend changes must degrade gracefully for it
-   (memory: ios-live-binary-compatibility). User plans a **second TestFlight push** later and will announce it.
+   (memory: ios-live-binary-compatibility). **Second push SHIPPED same day: 1.3.1 (46)** — carries
+   apple-health 0.6.0, program reorder/search 0.2.x, autocapitalization; same-version builds skip beta
+   review (auto-approved, live to the external Beta Testers group in minutes — memory:
+   testflight-versioning-convention). **LIVE binary = 1.3.1 (46).**
 7. [ ] **Pre-cutover backend smoke-tests** (batched; needs a live admin JWT the user supplies) if not already
    covered by the web signed-in round-trip.
 
@@ -75,18 +78,14 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 
 ## Open items (carry until resolved)
 
-- ~~**Push + deploy the program-picker reorder (`programs` 0.2.0)**~~ **DONE 2026-07-05** — migration 005 run
-  by user; pushed + tagged; Render auto-deployed (live); Vercel auto-deploys were canceled (known flake) →
-  manual `vercel --prod` fallback, Ready on `rasifiters.com`. Search UI iterated twice on user feedback
-  (collapsed floating pill; iOS toggle floats above the "+", page specs web 0.2.1 / ios 0.2.2). **User
-  live-tested end-to-end on both clients — reorder persists + syncs, search works.** Outcome recorded in the
-  SPECs §11 changelogs; delete this entry next pass.
 - **Re-auth the Render + Vercel MCPs** — both OAuth sessions are stale (400/403 in this session); re-connect
   via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + local `vercel` CLI work meanwhile.
 - **Make the GitHub repo public** — pre-public health check done 2026-07-01 (no tracked secrets; contact emails
   kept as-is per user; cosmetic infra-identifier anonymization applied). Flip visibility when ready.
 - ~~**iOS runtime + TestFlight**~~ **DONE 2026-07-05** — uploaded, approved, in beta use (user-announced).
-  **LIVE binary = TestFlight beta**; a second TestFlight push is planned (user will announce).
+  Second push **1.3.1 (46)** shipped 2026-07-05 (auto-approved, live to beta testers). **LIVE binary =
+  1.3.1 (46).** Beta convention going forward: bump build number only, marketing version reserved for
+  App Store submissions (memory: testflight-versioning-convention).
 - ~~**`APNS_PRODUCTION`**~~ **DONE 2026-07-05** — confirmed `true` on Render + redeploy triggered to apply
   (was also already the effective mode via the `NODE_ENV === "production"` fallback).
 - **Backend runtime smoke-tests** are batched to a pre-cutover pass needing a live admin JWT (user supplies).
