@@ -176,3 +176,8 @@ the user → committed as a real, verified feature (not a "pending smoke-test" p
 - **Mapping outcome:** registry `reference_impl` paths are backend-relative (routes/services/models) — no
   client page file maps to a feature. Grep of specs/ found zero autocapitalize/autocorrect mentions → no
   page-SPEC update owed. Plain `feat` commit, no bump, no tag; LESSONS edits split into `chore(skills)`.
+
+## Run — 2026-07-05 — pbxproj build-number bump (chore, no feature)
+- **Changeset:** `project.pbxproj` only (CURRENT_PROJECT_VERSION 45→46 for the second TestFlight upload).
+- **Mapping outcome:** pbxproj matches no `reference_impl`/SPEC path → plain `chore(ios)` commit, no
+  bump, no tag — same shape as the build-45 bump (046e10c). Blast radius: zero features; app: ios only.

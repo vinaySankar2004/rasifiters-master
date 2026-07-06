@@ -289,3 +289,13 @@ specific "list navigator issues" tool must be called after the build tool.
 - **Lesson (param ordering):** adding a defaulted param to a memberwise-init SwiftUI component is safe for
   existing call sites as long as it's declared BEFORE `accessory`-style trailing params that callers pass
   labeled — declaration order = required call order in Swift memberwise inits.
+
+## Run 78 — 2026-07-05 — final pre-TestFlight check (second upload)
+- **Task:** user about to archive+upload the second TestFlight build; verify the repo is ship-ready.
+- **Result:** `BuildProject` clean (0 errors; 13 pre-existing warnings unchanged). Git clean + pushed.
+- **Caught:** `CURRENT_PROJECT_VERSION` was still **45** — the exact build already on TestFlight
+  (bumped 2026-07-01, shipped 2026-07-05) — with five iOS commits landed since. Upload would have been
+  rejected as a duplicate. Bumped 45→46 (all 4 configs; widget Info.plist inherits via
+  `$(CURRENT_PROJECT_VERSION)`), full rebuild green (~19s).
+- **Lesson:** a "pre-TestFlight check" is compile + versioning — always compare the current build number
+  against the last-shipped one (`git log -S "CURRENT_PROJECT_VERSION = <n>"`) before handing off.
