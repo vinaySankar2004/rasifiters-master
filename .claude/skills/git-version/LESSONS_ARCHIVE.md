@@ -181,3 +181,14 @@ the user → committed as a real, verified feature (not a "pending smoke-test" p
 - **Changeset:** `project.pbxproj` only (CURRENT_PROJECT_VERSION 45→46 for the second TestFlight upload).
 - **Mapping outcome:** pbxproj matches no `reference_impl`/SPEC path → plain `chore(ios)` commit, no
   bump, no tag — same shape as the build-45 bump (046e10c). Blast radius: zero features; app: ios only.
+
+## Run — 2026-07-05 — TestFlight-46 docs close-out (staleness sweep + R12 prune)
+- **Changeset:** PROGRESS.md + ICM.md + apps/ios/CONTEXT.md — recorded the second TestFlight push
+  (1.3.1 (46) live in beta) and swept ALL top-level docs for staleness via grep ("TestFlight pending",
+  "planned/will announce", legacy version strings) rather than trusting the one known-stale line.
+- **R12 prune:** deleted the resolved program-picker-reorder open item after confirming the outcome
+  lives in the page/feature SPEC changelogs (grep'd 0.2.1 entry + D-N1 before deleting).
+- **Mapping outcome:** docs-only → plain `docs(progress)` commit, no bump, no tag.
+- **Lesson:** a ship event goes stale in THREE places here (PROGRESS checklist, ICM surface table,
+  apps/<surface>/CONTEXT version line) — grep all top-level docs for the old state string, don't
+  spot-fix only the line the user pointed at.
