@@ -173,6 +173,8 @@ export default function ProfilePage() {
                 }}
                 className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
                 placeholder="First name"
+                autoComplete="given-name"
+                autoCapitalize="words"
               />
             </div>
             <div>
@@ -185,6 +187,8 @@ export default function ProfilePage() {
                 }}
                 className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
                 placeholder="Last name"
+                autoComplete="family-name"
+                autoCapitalize="words"
               />
             </div>
           </div>
@@ -262,6 +266,8 @@ export default function ProfilePage() {
                     className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
                     placeholder="you@example.com"
                     autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
                   />
                 </div>
                 <div>

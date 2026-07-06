@@ -158,6 +158,7 @@ export default function CreateAccountPage() {
               onChange={(event) => setFirstName(event.target.value)}
               className="w-full bg-transparent text-sm font-medium text-rf-text placeholder:text-rf-text-muted focus:outline-none sm:text-base"
               autoComplete="given-name"
+              autoCapitalize="words"
               autoFocus
             />
           </label>
@@ -170,6 +171,7 @@ export default function CreateAccountPage() {
               onChange={(event) => setLastName(event.target.value)}
               className="w-full bg-transparent text-sm font-medium text-rf-text placeholder:text-rf-text-muted focus:outline-none sm:text-base"
               autoComplete="family-name"
+              autoCapitalize="words"
             />
           </label>
 
@@ -181,6 +183,8 @@ export default function CreateAccountPage() {
               onChange={(event) => setUsername(event.target.value)}
               className="w-full bg-transparent text-sm font-medium text-rf-text placeholder:text-rf-text-muted focus:outline-none sm:text-base"
               autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
             />
           </label>
 
@@ -193,6 +197,8 @@ export default function CreateAccountPage() {
               onChange={(event) => setEmail(event.target.value)}
               className="w-full bg-transparent text-sm font-medium text-rf-text placeholder:text-rf-text-muted focus:outline-none sm:text-base"
               autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
             />
           </label>
 

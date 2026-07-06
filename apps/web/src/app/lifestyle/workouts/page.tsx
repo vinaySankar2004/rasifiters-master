@@ -206,6 +206,7 @@ export default function LifestyleWorkoutsPage() {
                 onChange={(event) => setNewWorkoutName(event.target.value)}
                 className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
                 placeholder="New workout name"
+                autoCapitalize="words"
               />
             </div>
             <button
@@ -240,6 +241,7 @@ export default function LifestyleWorkoutsPage() {
                   value={editWorkoutName}
                   onChange={(event) => setEditWorkoutName(event.target.value)}
                   className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+                  autoCapitalize="words"
                 />
               </div>
               <button

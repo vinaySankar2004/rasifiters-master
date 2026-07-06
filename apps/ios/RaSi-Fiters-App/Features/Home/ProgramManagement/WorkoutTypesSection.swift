@@ -238,6 +238,7 @@ struct ViewWorkoutTypesListView: View {
                 Section {
                     TextField("Workout name", text: $newWorkoutName)
                         .autocorrectionDisabled()
+                        .textInputAutocapitalization(.words)
                 } header: {
                     Text("Add Custom Workout")
                 } footer: {
@@ -354,6 +355,7 @@ struct EditCustomWorkoutSheet: View {
                 Section {
                     TextField("Workout name", text: $workoutName)
                         .autocorrectionDisabled()
+                        .textInputAutocapitalization(.words)
                 } header: {
                     Text("Edit Custom Workout")
                 }

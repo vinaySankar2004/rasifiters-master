@@ -67,6 +67,8 @@ export default function InviteMemberPage() {
               setErrorMessage(null);
             }}
             placeholder="username"
+            autoCapitalize="none"
+            autoCorrect="off"
             className="w-full bg-transparent text-sm font-semibold text-rf-text placeholder:text-rf-text-muted focus:outline-none"
           />
         </div>

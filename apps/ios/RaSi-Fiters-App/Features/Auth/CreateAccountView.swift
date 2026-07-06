@@ -53,9 +53,9 @@ struct CreateAccountView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
 
                     VStack(spacing: 16) {
-                        AppInputField(title: "First Name", text: $firstName)
+                        AppInputField(title: "First Name", text: $firstName, autocapitalization: .words)
                             .focused($firstNameFocused)
-                        AppInputField(title: "Last Name", text: $lastName)
+                        AppInputField(title: "Last Name", text: $lastName, autocapitalization: .words)
                         AppInputField(title: "Username", text: $username)
 
                         VStack(alignment: .leading, spacing: 6) {

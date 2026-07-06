@@ -103,6 +103,8 @@ export default function ForgotPasswordPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 className="w-full bg-transparent text-sm font-medium text-rf-text placeholder:text-rf-text-muted focus:outline-none sm:text-base"
                 autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
               />
             </label>
 

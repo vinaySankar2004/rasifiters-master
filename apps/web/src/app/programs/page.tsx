@@ -986,6 +986,7 @@ function CreateProgramTab({
           onChange={(event) => setName(event.target.value)}
           className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
           placeholder="e.g. Summer 2026 Challenge"
+          autoCapitalize="words"
         />
       </div>
 
@@ -1075,6 +1076,7 @@ function EditProgramModal({
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+            autoCapitalize="words"
           />
         </div>
 

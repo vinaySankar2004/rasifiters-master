@@ -63,6 +63,7 @@ struct EditProgramInfoView: View {
                             .font(.subheadline.weight(.semibold))
                         TextField("e.g. Winter Fitness Challenge", text: $programName)
                             .autocorrectionDisabled()
+                            .textInputAutocapitalization(.words)
                             .padding()
                             .background(Color(.systemGray6))
                             .cornerRadius(12)

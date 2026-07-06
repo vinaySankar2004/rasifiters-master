@@ -117,6 +117,7 @@ export default function ProgramEditPage() {
             onChange={(event) => setName(event.target.value)}
             className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
             placeholder="Program name"
+            autoCapitalize="words"
           />
         </div>
 

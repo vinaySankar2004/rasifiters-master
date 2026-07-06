@@ -39,10 +39,10 @@ struct MyProfileView: View {
                 // Editable Fields
                 VStack(alignment: .leading, spacing: 14) {
                     fieldLabelled("First name") {
-                        AppInputField(title: "Enter first name", text: $firstName)
+                        AppInputField(title: "Enter first name", text: $firstName, autocapitalization: .words)
                     }
                     fieldLabelled("Last name") {
-                        AppInputField(title: "Enter last name", text: $lastName)
+                        AppInputField(title: "Enter last name", text: $lastName, autocapitalization: .words)
                     }
                     fieldLabelled("Gender") { genderPicker }
                 }

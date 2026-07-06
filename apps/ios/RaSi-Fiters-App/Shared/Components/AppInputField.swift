@@ -5,6 +5,7 @@ struct AppInputField: View {
     @Binding var text: String
     var isSecure: Bool = false
     var keyboardType: UIKeyboardType = .default
+    var autocapitalization: TextInputAutocapitalization = .never
     var accessory: AnyView? = nil
 
     var body: some View {
@@ -16,7 +17,7 @@ struct AppInputField: View {
             } else {
                 TextField(title, text: $text)
                     .keyboardType(keyboardType)
-                    .textInputAutocapitalization(.never)
+                    .textInputAutocapitalization(autocapitalization)
                     .disableAutocorrection(true)
             }
 
