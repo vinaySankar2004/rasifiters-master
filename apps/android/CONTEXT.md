@@ -57,13 +57,21 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
-🟡 **Phase A COMPLETE (2026-07-08).** Foundation green: Gradle project, DI (`AppContainer`), state hub
-(`ProgramContext`), session/Keychain (`Session`), Retrofit/OkHttp networking + 401 authenticator, auth
-DTOs, Material 3 theme, bottom-nav scaffold + auth graph wired to **stub screens**. `./gradlew
-:app:assembleDebug` = BUILD SUCCESSFUL. Next: Phase B (auth path — port Splash/Login/CreateAccount/
-ForgotPassword, delete the auth stubs). See the plan + `PROGRESS.md`.
+🟡 **Phase B COMPLETE (2026-07-08).** The logged-out auth path is ported + wired + green. New
+`ui/auth/{AuthComponents,SplashScreen,LoginScreen,CreateAccountScreen,ForgotPasswordScreen}.kt` +
+`core/AppLinks.kt`; brand mark assets (`res/drawable/brand_icon(_dark).png`, from iOS). `AuthGraph`
+(`ui/RootScreen.kt`) now runs the real screens — splash→login→create-account/forgot-password — with the
+**4 auth stubs deleted**. Login = `POST /auth/login/app`; create-account does register→auto-login; a
+successful login/register flips `authToken` so the root gate swaps to the shell (no explicit nav). Thin
+port-note SPECs under `specs/pages/android/`. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Next:
+**Phase C** (program-picker — the signed-in home). See the plan + `PROGRESS.md`.
+
+_(Phase A, 2026-07-08:) Foundation green — Gradle project, DI (`AppContainer`), state hub (`ProgramContext`),
+session/Keychain (`Session`), Retrofit/OkHttp + 401 authenticator, auth DTOs, Material 3 theme, bottom-nav
+scaffold._
 
 ### Scaffold-removal tracker (temporary — folds away by Phase J)
 Stub screens live in `ui/StubScreen.kt` usages. Deleted as real screens land:
-Splash/Login/CreateAccount/ForgotPassword (Phase B) · Summary+details (D) · Members (E) · Lifestyle (F) ·
-Program/settings (G). By Phase J: zero `StubScreen(...)` call-sites remain.
+~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · Summary+details (D) · Members (E) ·
+Lifestyle (F) · Program/settings (G). Remaining `StubScreen(...)` call-sites: the 4 bottom tabs in
+`ui/shell/AppScaffold.kt` (Summary/Members/Lifestyle/Program). By Phase J: zero remain.

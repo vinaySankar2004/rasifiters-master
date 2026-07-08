@@ -52,5 +52,18 @@ lifestyle/program tabs, admin + standard variants) · member-detail (metrics/his
 settings (profile/password/appearance/notifications) · widgets (quick-add-workout, quick-add-health,
 ios-only) · notification-modal.
 
-_Fresh scaffold — no page specs yet. Authored via the `question-asker` skill (page mode). See
-`PROGRESS.md`._
+## android (Compose) — port of web + ios (thin port-notes)
+
+Faithful 1:1 Compose port of the same app; specs are **thin port-notes** recording the Android realization +
+idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the shared web/iOS contract.
+
+| Screen | Status | Consumes (features) | Spec |
+|--------|--------|---------------------|------|
+| splash | 🏗️ v0.1.0 | `auth` (root `authToken` gate; no API) | [splash SPEC](android/splash/SPEC.md) |
+| login | 🏗️ v0.1.0 | `auth` (`ProgramContext.login()` `POST /auth/login/app`) | [login SPEC](android/login/SPEC.md) |
+| create-account | 🏗️ v0.1.0 | `auth` (`register()` `POST /auth/register` + `login()` `POST /auth/login/app`) | [create-account SPEC](android/create-account/SPEC.md) |
+| forgot-password | 🏗️ v0.1.0 | `auth` (`forgotPassword()` `POST /auth/forgot-password`); `AppLinks.SUPPORT_EMAIL` | [forgot-password SPEC](android/forgot-password/SPEC.md) |
+
+Inventory to document (Phases C→J): ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~forgot-password~~ ·
+program-picker · per-program shell (summary/members/lifestyle/program, admin + standard) + all details ·
+settings (edit/roles/profile/password/appearance/privacy + Health Connect). Widgets (Glance) deferred.
