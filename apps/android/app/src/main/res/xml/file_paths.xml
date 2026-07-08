@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Exposes app cache/exports/ for the CSV export share sheet (FileProvider). -->
+    <cache-path name="exports" path="exports/" />
+</paths>

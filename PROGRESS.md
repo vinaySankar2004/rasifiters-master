@@ -10,8 +10,9 @@
 **ACTIVE WORKSTREAM (2026-07-08): Android port — the 4th surface (`apps/android`).** A faithful 1:1
 Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
 de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
-Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) COMPLETE — all build
-green.** Next = **Phase E** (Members tab + details). Full plan + decisions are in `apps/android/CONTEXT.md`
+Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) + Phase E (Members tab +
+all 8 detail screens) COMPLETE — all build green.** Next = **Phase F** (Lifestyle tab + details). Full plan
++ decisions are in `apps/android/CONTEXT.md`
 and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE
 notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen
 (`specs/pages/android/`).
@@ -20,7 +21,27 @@ _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
-- **`android`** — 🟡 **Phase D-details DONE (2026-07-08).** The **5 Summary forward targets** are ported +
+- **`android`** — 🟡 **Phase E DONE (2026-07-08).** The **Members tab (Tab 2)** + **all 8 detail screens**
+  are ported + green (`ui/members/{MembersScreen,MemberCards,MemberSimpleDetails,MemberMetricsDetailScreen,
+  MemberRecentDetailScreen,MemberHealthDetailScreen,MemberManagementScreens,MemberDetailShared}.kt`). Tab
+  body is role-bifurcated on `isProgramAdmin`: **admin/global-admin** get an Invite glass button, a Member
+  Metrics preview card, a **View as** picker (global-admin gets "None"; program-admin auto-selects self) +
+  the 5 member cards; **logger/member** see own Overview/Metrics/History/Streak + Recent/Health, loggers
+  get a logs-only view-as. Inner screens: **metrics table** (search + Sort sheet 9 fields + Filter sheet
+  All/Custom-date + min/max ranges, server-driven re-fetch, CSV export); **Workout History** (W/M/Y/P
+  single-series chart); **Streak Stats** (tiles + ✓-affordance milestone ladder); **View Workouts** +
+  **View Health** write surfaces (per-row ⋮ Edit/Delete + sort/filter + CSV; `admin_only_data_entry` lock
+  hides mutations for non-admins); **Invite** (privacy-safe swallow-as-success), **roster** (searchable;
+  global-admin rows tap → editor), **member editor** (joined-date + active toggle + Remove). `net` gained
+  the member DTOs (metrics/history/streaks/recent/health/membership) + 12 endpoints (incl. DELETE-with-body
+  + a metrics `@QueryMap`); `ProgramContext` gained `isProgramAdmin`/`loggedInUserProgramRole`, a focused-
+  member slot, 8 loaders + 7 write actions (health-update uses a `JsonObject` body so explicit-null clears
+  survive `explicitNulls=false`). Added a **FileProvider** (`res/xml/file_paths.xml`) for CSV export.
+  Android-idiom deviations: per-row ⋮ menu (not swipe); minutes filter fields; the invite/roster/editor
+  cluster (nominally Program-tab/Phase G) lit up now for the Members entry points. Thin SPECs under
+  `specs/pages/android/`. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Next: **Phase F (Lifestyle)**.
+
+  _(Phase D-details, 2026-07-08:)_ The **5 Summary forward targets** are ported +
   green (were `StubScreen`): the **log-workout** + **log-health** multi-row forms and the **activity /
   distribution / workout-types** chart drill-downs (`ui/summary/{LogWorkoutScreen,LogHealthScreen,
   ActivityDetailScreen,DistributionDetailScreen,WorkoutTypesDetailScreen}.kt` + shared `DetailChrome.kt` /

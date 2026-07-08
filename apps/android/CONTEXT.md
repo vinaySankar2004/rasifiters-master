@@ -59,7 +59,21 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
-🟡 **Phase D-landing COMPLETE (2026-07-08).** The **Summary dashboard** (Tab 1 of the shell) is ported +
+🟡 **Phase E COMPLETE (2026-07-08).** The **Members tab (Tab 2)** + **all 8 detail screens** are ported +
+green (`ui/members/`). Role-bifurcated tab body on `isProgramAdmin` (admin: Invite + metrics preview +
+View-as picker [global-admin "None" / program-admin auto-self] + 5 member cards; logger/member: own cards
++ logger logs-only view-as). Details: metrics table (search + Sort/Filter sheets, server-driven, CSV) ·
+Workout History (W/M/Y/P chart) · Streak Stats (tiles + ✓ milestone ladder) · View Workouts + View Health
+(per-row ⋮ Edit/Delete + sort/filter + CSV, `admin_only_data_entry` lock hides mutations) · Invite
+(privacy-safe) · roster (searchable; global-admin → editor) · member editor (joined-date + active + remove).
+`net` gained the member DTOs + 12 endpoints (DELETE-with-body + a metrics `@QueryMap`); `ProgramContext`
+gained `isProgramAdmin`/`loggedInUserProgramRole` + focused-member slot + 8 loaders + 7 writes (health
+update via `JsonObject` so explicit-null clears survive `explicitNulls=false`). New **FileProvider**
+(`res/xml/file_paths.xml`) for CSV export. Deviations: per-row ⋮ (not swipe); minutes filter fields; the
+invite/roster/editor cluster (nominally Phase G) lit up now for the Members entry points. Thin SPECs under
+`specs/pages/android/`. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Next: **Phase F (Lifestyle).**
+
+_(Phase D-landing, 2026-07-08:)_ The **Summary dashboard** (Tab 1 of the shell) is ported +
 green: `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`. Program-progress ring (server
 `progress_percent` + client date math) + status pill; MTD Participation / Total Workouts / Total Duration /
 Avg Duration metric cards (change badges); Canvas activity-timeline (bars + active-members line) +
@@ -95,10 +109,10 @@ scaffold._
 
 ### Scaffold-removal tracker (temporary — folds away by Phase J)
 Stub screens live in `ui/StubScreen.kt` usages. Deleted as real screens land:
-~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · ~~Summary landing (D — DONE)~~ · Summary
-details + log forms (D details) · Members (E) · Lifestyle (F) · Program/settings (G). Remaining
-`StubScreen(...)` call-sites in `ui/shell/AppScaffold.kt`: the 3 remaining bottom tabs (Members/Lifestyle/
-Program) + the 5 Summary forward routes (SUMMARY_ACTIVITY/DISTRIBUTION/WORKOUT_TYPES/LOG_WORKOUT/LOG_HEALTH).
-By Phase J: zero remain.
+~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · ~~Summary landing (D — DONE)~~ ·
+~~Summary details + log forms (D details — DONE)~~ · ~~Members tab + details (E — DONE)~~ · Lifestyle (F) ·
+Program/settings (G). Remaining `StubScreen(...)` call-sites in `ui/shell/AppScaffold.kt`: **2** bottom tabs
+(Lifestyle/Program). By Phase J: zero remain. _(Phase E also lit up the invite/roster/member-editor cluster
+that nominally belongs to the Program tab (G) — reused there when G lands; no rework.)_
 _(Phase C added the program-picker, a NEW screen that precedes the shell — it did not remove a stub; the
 picker's own forward-nav (create/edit + account destinations) is deferred per iOS D-SCOPE, folded in G/H.)_

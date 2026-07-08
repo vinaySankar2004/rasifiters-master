@@ -16,6 +16,10 @@ val AppBlueLight = Color(0xFF64B5F6)
 val AppPurple = Color(0xFF8E5BD9)
 val AppRed = Color(0xFFE5484D)
 
+// The Members streak "Longest" trophy tint (iOS appYellow). Light chip/bg tints are derived inline via
+// .copy(alpha=…) on the brand colors (iOS appOrangeLight / appRedLight equivalents).
+val AppYellow = Color(0xFFF2B705)
+
 // Categorical palette for workout-type dots (djb2-hashed by name) — the iOS Color.chartPalette port.
 val ChartPalette: List<Color> = listOf(
     Color(0xFFF29900), Color(0xFF0099E6), Color(0xFF33B34D), Color(0xFF9959CC),

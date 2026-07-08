@@ -244,6 +244,175 @@ data class DailyHealthRequest(
     @SerialName("food_quality") val foodQuality: Int? = null,
 )
 
+// ---- Members tab (Phase E) — metrics / history / streaks / recent / health / membership ----
+// The member-analytics reads. NOTE the wire-casing split (faithful to the backend contract):
+//   • member-metrics + member-history responses use snake_case keys → @SerialName.
+//   • member-streaks + member-recent + daily-health-logs responses use camelCase keys → no @SerialName.
+// Every count is COALESCEd server-side; defaults keep decode resilient. Optional metrics arrive null.
+
+/** One member's row in the performance-metrics leaderboard (GET /member-metrics). */
+@Serializable
+data class MemberMetricsDTO(
+    @SerialName("member_id") val memberId: String = "",
+    @SerialName("member_name") val memberName: String = "",
+    val username: String? = null,
+    val workouts: Int = 0,
+    @SerialName("total_duration") val totalDuration: Int = 0,
+    @SerialName("avg_duration") val avgDuration: Int = 0,
+    @SerialName("avg_sleep_hours") val avgSleepHours: Double? = null,
+    @SerialName("active_days") val activeDays: Int = 0,
+    @SerialName("workout_types") val workoutTypes: Int = 0,
+    @SerialName("current_streak") val currentStreak: Int = 0,
+    @SerialName("longest_streak") val longestStreak: Int = 0,
+    @SerialName("avg_food_quality") val avgFoodQuality: Int? = null,
+    @SerialName("mtd_workouts") val mtdWorkouts: Int? = null,
+    @SerialName("total_hours") val totalHours: Int? = null,
+    @SerialName("favorite_workout") val favoriteWorkout: String? = null,
+)
+
+/** GET /member-metrics envelope. `members.first()` (with `memberId` filter) IS the selected-member overview. */
+@Serializable
+data class MemberMetricsResponse(
+    @SerialName("program_id") val programId: String? = null,
+    val total: Int = 0,
+    val filtered: Int = 0,
+    val sort: String? = null,
+    val direction: String? = null,
+    @SerialName("date_range") val dateRange: DateRangeDTO? = null,
+    val members: List<MemberMetricsDTO> = emptyList(),
+)
+
+@Serializable
+data class DateRangeDTO(val start: String? = null, val end: String? = null)
+
+/** One bucket of a member's workout-history timeline (GET /member-history). */
+@Serializable
+data class MemberHistoryPoint(
+    val date: String = "",
+    val label: String = "",
+    val workouts: Int = 0,
+)
+
+/** GET /member-history envelope (per-member W/M/Y/P chart). */
+@Serializable
+data class MemberHistoryResponse(
+    val period: String = "",
+    val label: String = "",
+    @SerialName("daily_average") val dailyAverage: Double = 0.0,
+    val start: String = "",
+    val end: String = "",
+    val buckets: List<MemberHistoryPoint> = emptyList(),
+)
+
+/** GET /member-streaks — server-computed current/longest streaks + the milestone ladder (camelCase wire). */
+@Serializable
+data class MemberStreaksResponse(
+    val currentStreakDays: Int = 0,
+    val longestStreakDays: Int = 0,
+    val milestones: List<MilestoneDTO> = emptyList(),
+)
+
+@Serializable
+data class MilestoneDTO(val dayValue: Int = 0, val achieved: Boolean = false)
+
+/** One row of a member's recent-workouts list (GET /member-recent; camelCase wire). */
+@Serializable
+data class MemberRecentItem(
+    val id: String = "",
+    val workoutType: String = "",
+    val workoutDate: String = "",
+    val durationMinutes: Int = 0,
+)
+
+@Serializable
+data class MemberRecentWorkoutsResponse(
+    val items: List<MemberRecentItem> = emptyList(),
+    val total: Int = 0,
+)
+
+/** One row of a member's daily-health list (GET /daily-health-logs; camelCase wire). */
+@Serializable
+data class MemberHealthItem(
+    val id: String = "",
+    val logDate: String = "",
+    val sleepHours: Double? = null,
+    val foodQuality: Int? = null,
+)
+
+@Serializable
+data class MemberHealthLogResponse(
+    val items: List<MemberHealthItem> = emptyList(),
+    val total: Int = 0,
+)
+
+/** GET /program-memberships/details — the roster editor's rich membership row (snake_case wire). */
+@Serializable
+data class MembershipDetailDTO(
+    @SerialName("member_id") val memberId: String = "",
+    @SerialName("member_name") val memberName: String = "",
+    val username: String? = null,
+    val gender: String? = null,
+    @SerialName("date_of_birth") val dateOfBirth: String? = null,
+    @SerialName("date_joined") val dateJoined: String? = null,
+    @SerialName("global_role") val globalRole: String? = null,
+    @SerialName("program_role") val programRole: String = "member",
+    @SerialName("is_active") val isActive: Boolean = true,
+    val status: String? = null,
+    @SerialName("joined_at") val joinedAt: String? = null,
+)
+
+/** PUT /workout-logs — edit a log's duration (member_name only when editing another member's log; F3). */
+@Serializable
+data class WorkoutLogUpdateRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("member_name") val memberName: String? = null,
+    @SerialName("workout_name") val workoutName: String,
+    val date: String,
+    val duration: Int,
+)
+
+/** DELETE /workout-logs (body). `member_id` scopes to the target member; falls back to requester. */
+@Serializable
+data class WorkoutLogDeleteRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("member_id") val memberId: String? = null,
+    @SerialName("member_name") val memberName: String? = null,
+    @SerialName("workout_name") val workoutName: String,
+    val date: String,
+)
+
+/** DELETE /daily-health-logs (body). `member_id` always sent (F3). */
+@Serializable
+data class DailyHealthDeleteRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("member_id") val memberId: String? = null,
+    @SerialName("log_date") val logDate: String,
+)
+
+/** PUT /program-memberships — global-admin membership edit (role optional; is_active + joined_at). */
+@Serializable
+data class MembershipEditRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("member_id") val memberId: String,
+    val role: String? = null,
+    @SerialName("is_active") val isActive: Boolean? = null,
+    @SerialName("joined_at") val joinedAt: String? = null,
+)
+
+/** DELETE /program-memberships (body) — remove a member from the program. */
+@Serializable
+data class MembershipRemoveRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("member_id") val memberId: String,
+)
+
+/** POST /program-memberships/invite — privacy-safe username invite (backend swallows non-AppError → 200). */
+@Serializable
+data class InviteRequest(
+    @SerialName("program_id") val programId: String,
+    val username: String,
+)
+
 /** Generic backend error envelope ({ error } or { message }); parsed for user-facing failures.
  *  `rowErrors` rides along on the batch endpoint's 400/409 so the form can highlight offending rows. */
 @Serializable

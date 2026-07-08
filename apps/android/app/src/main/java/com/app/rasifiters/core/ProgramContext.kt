@@ -4,11 +4,21 @@ import com.app.rasifiters.net.ApiService
 import com.app.rasifiters.net.AvgDurationMtdDTO
 import com.app.rasifiters.net.BulkWorkoutEntry
 import com.app.rasifiters.net.BulkWorkoutRequest
+import com.app.rasifiters.net.DailyHealthDeleteRequest
 import com.app.rasifiters.net.DailyHealthRequest
 import com.app.rasifiters.net.DistributionByDayDTO
 import com.app.rasifiters.net.ForgotPasswordRequest
+import com.app.rasifiters.net.InviteRequest
 import com.app.rasifiters.net.LoginRequest
 import com.app.rasifiters.net.LogoutRequest
+import com.app.rasifiters.net.MemberHistoryResponse
+import com.app.rasifiters.net.MemberMetricsDTO
+import com.app.rasifiters.net.MemberHealthItem
+import com.app.rasifiters.net.MemberRecentItem
+import com.app.rasifiters.net.MemberStreaksResponse
+import com.app.rasifiters.net.MembershipDetailDTO
+import com.app.rasifiters.net.MembershipEditRequest
+import com.app.rasifiters.net.MembershipRemoveRequest
 import com.app.rasifiters.net.MembershipUpdateRequest
 import com.app.rasifiters.net.MtdParticipationDTO
 import com.app.rasifiters.net.ProgramDTO
@@ -20,6 +30,8 @@ import com.app.rasifiters.net.ActivityTimelinePoint
 import com.app.rasifiters.net.ActivityTimelineResponse
 import com.app.rasifiters.net.TotalDurationMtdDTO
 import com.app.rasifiters.net.TotalWorkoutsMtdDTO
+import com.app.rasifiters.net.WorkoutLogDeleteRequest
+import com.app.rasifiters.net.WorkoutLogUpdateRequest
 import com.app.rasifiters.net.WorkoutTypeDTO
 import com.app.rasifiters.net.toApiException
 import kotlinx.coroutines.CoroutineScope
@@ -32,7 +44,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import retrofit2.HttpException
+import java.io.IOException
 
 /**
  * App-scoped state hub — the analog of the iOS `ProgramContext` ObservableObject and the web
@@ -75,6 +90,14 @@ class ProgramContext(
             val role = _activeProgram.value?.myRole?.lowercase()
             return role == "admin" || role == "logger"
         }
+
+    /** Program admin OR global admin — gates the Members-tab "View as" selector + invite + roster editor. */
+    val isProgramAdmin: Boolean
+        get() = isGlobalAdmin || _activeProgram.value?.myRole?.lowercase() == "admin"
+
+    /** The signed-in member's role IN the active program (admin | logger | member); defaults to member. */
+    val loggedInUserProgramRole: String
+        get() = _activeProgram.value?.myRole?.lowercase() ?: "member"
 
     // ---- Programs (the picker's "My Programs" list) ----
 
@@ -316,6 +339,285 @@ class ProgramContext(
             }
     }
 
+    // ---- Members tab (Phase E) — state, reads, writes ----
+    // The per-member analytics + roster state the Members tab + its 8 detail screens read. Loaders mirror
+    // the iOS `ProgramContext+Members` set (server-driven search/sort/filter; the tab loads, the detail
+    // re-loads on control change). Errors are mapped but stay swallowed on-screen for reads (iOS F1) —
+    // only mutation errors surface (returned as failures for the caller to render inline).
+
+    private val _memberMetrics = MutableStateFlow<List<MemberMetricsDTO>>(emptyList())
+    val memberMetrics: StateFlow<List<MemberMetricsDTO>> = _memberMetrics.asStateFlow()
+
+    private val _memberMetricsTotal = MutableStateFlow(0)
+    val memberMetricsTotal: StateFlow<Int> = _memberMetricsTotal.asStateFlow()
+
+    private val _memberMetricsRange = MutableStateFlow<Pair<String?, String?>>(null to null)
+    val memberMetricsRange: StateFlow<Pair<String?, String?>> = _memberMetricsRange.asStateFlow()
+
+    private val _selectedMemberOverview = MutableStateFlow<MemberMetricsDTO?>(null)
+    val selectedMemberOverview: StateFlow<MemberMetricsDTO?> = _selectedMemberOverview.asStateFlow()
+
+    private val _memberHistory = MutableStateFlow<MemberHistoryResponse?>(null)
+    val memberHistory: StateFlow<MemberHistoryResponse?> = _memberHistory.asStateFlow()
+
+    private val _memberStreaks = MutableStateFlow<MemberStreaksResponse?>(null)
+    val memberStreaks: StateFlow<MemberStreaksResponse?> = _memberStreaks.asStateFlow()
+
+    private val _memberRecent = MutableStateFlow<List<MemberRecentItem>>(emptyList())
+    val memberRecent: StateFlow<List<MemberRecentItem>> = _memberRecent.asStateFlow()
+
+    private val _memberHealthLogs = MutableStateFlow<List<MemberHealthItem>>(emptyList())
+    val memberHealthLogs: StateFlow<List<MemberHealthItem>> = _memberHealthLogs.asStateFlow()
+
+    private val _membershipDetails = MutableStateFlow<List<MembershipDetailDTO>>(emptyList())
+    val membershipDetails: StateFlow<List<MembershipDetailDTO>> = _membershipDetails.asStateFlow()
+
+    /** The member a detail screen is scoped to — stashed by the tab before push (Android's static-route idiom). */
+    private val _focusedMemberId = MutableStateFlow<String?>(null)
+    val focusedMemberId: StateFlow<String?> = _focusedMemberId.asStateFlow()
+    private val _focusedMemberName = MutableStateFlow<String?>(null)
+    val focusedMemberName: StateFlow<String?> = _focusedMemberName.asStateFlow()
+
+    fun focusMember(id: String?, name: String?) {
+        _focusedMemberId.value = id
+        _focusedMemberName.value = name
+    }
+
+    /**
+     * The Members-tab roster + the persisted "View as" selection. Hoisted here (not screen-local `remember`)
+     * so the choice SURVIVES navigating into a detail and back — the tab composable is disposed on push, so
+     * screen-local state would reset to the default on return. Loaded/defaulted once per program.
+     */
+    private val _members = MutableStateFlow<List<ProgramMemberDTO>>(emptyList())
+    val members: StateFlow<List<ProgramMemberDTO>> = _members.asStateFlow()
+    private var membersLoadedFor: String? = null
+
+    private val _membersViewAsId = MutableStateFlow<String?>(null)
+    val membersViewAsId: StateFlow<String?> = _membersViewAsId.asStateFlow()
+
+    /** Persist the tab's "View as" pick (null = "None", global-admin only). */
+    fun setMembersViewAs(id: String?) { _membersViewAsId.value = id }
+
+    /**
+     * Load the roster + set the default View-as ONCE per active program (global-admin → "None"; everyone
+     * else → self). Idempotent: re-entering the tab (e.g. after a detail push) is a no-op, so the prior
+     * selection is preserved. A program switch re-initializes.
+     */
+    suspend fun ensureMembersLoaded(): Result<Unit> {
+        val pid = _activeProgram.value?.id ?: return Result.success(Unit)
+        if (membersLoadedFor == pid) return Result.success(Unit)
+        return runCatching {
+            val list = api.getProgramMembers(pid)
+            _members.value = list
+            membersLoadedFor = pid
+            _membersViewAsId.value = if (isGlobalAdmin) null else list.firstOrNull { it.id == loggedInMemberId }?.id
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** GET /member-metrics — the full leaderboard (server search/sort/filter). Sets the table + envelope. */
+    suspend fun loadMemberMetrics(
+        search: String = "",
+        sort: String = "workouts",
+        direction: String = "desc",
+        filterParams: Map<String, String> = emptyMap(),
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        val params = buildMap {
+            put("programId", pid)
+            if (search.isNotBlank()) put("search", search.trim())
+            put("sort", sort)
+            put("direction", direction)
+            putAll(filterParams)
+        }
+        return runCatching {
+            val resp = api.getMemberMetrics(params)
+            _memberMetrics.value = resp.members
+            _memberMetricsTotal.value = resp.total
+            _memberMetricsRange.value = (resp.dateRange?.start to resp.dateRange?.end)
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** GET /member-metrics scoped to one member — the selected member's Overview row. */
+    suspend fun loadMemberOverview(memberId: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            val resp = api.getMemberMetrics(mapOf("programId" to pid, "memberId" to memberId))
+            _selectedMemberOverview.value = resp.members.firstOrNull()
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** GET /member-history — the member's W/M/Y/P timeline. Sets state + returns the response for the detail. */
+    suspend fun loadMemberHistory(memberId: String, period: String): Result<MemberHistoryResponse> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            val resp = api.getMemberHistory(pid, memberId, period)
+            _memberHistory.value = resp
+            resp
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** GET /member-streaks — server-computed streaks + milestone ladder. */
+    suspend fun loadMemberStreaks(memberId: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching { _memberStreaks.value = api.getMemberStreaks(pid, memberId) }
+            .recoverCatching { throw it.asApiError() }
+    }
+
+    /** GET /member-recent — the member's workout history (server sort/filter; `limit=0` → backend cap). */
+    suspend fun loadMemberRecent(
+        memberId: String,
+        limit: Int = 1000,
+        startDate: String? = null,
+        endDate: String? = null,
+        sortBy: String? = null,
+        sortDir: String? = null,
+        workoutType: String? = null,
+        minDuration: Int? = null,
+        maxDuration: Int? = null,
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            _memberRecent.value = api.getMemberRecent(
+                pid, memberId, limit, startDate, endDate, sortBy, sortDir, workoutType, minDuration, maxDuration,
+            ).items
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** GET /daily-health-logs — the member's daily-health history (server sort/filter). */
+    suspend fun loadMemberHealthLogs(
+        memberId: String,
+        limit: Int = 1000,
+        startDate: String? = null,
+        endDate: String? = null,
+        sortBy: String? = null,
+        sortDir: String? = null,
+        minSleepHours: Double? = null,
+        maxSleepHours: Double? = null,
+        minFoodQuality: Int? = null,
+        maxFoodQuality: Int? = null,
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            _memberHealthLogs.value = api.getMemberHealthLogs(
+                pid, memberId, limit, startDate, endDate, sortBy, sortDir,
+                minSleepHours, maxSleepHours, minFoodQuality, maxFoodQuality,
+            ).items
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** GET /program-memberships/details — the roster editor's rich rows (active memberships). */
+    suspend fun loadMembershipDetails(): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching { _membershipDetails.value = api.getMembershipDetails(pid) }
+            .recoverCatching { throw it.asApiError() }
+    }
+
+    /** PUT /workout-logs — edit a log's duration (member_name only when editing another member's log). */
+    suspend fun updateWorkoutLog(
+        memberName: String?,
+        workoutName: String,
+        date: String,
+        durationMinutes: Int,
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.updateWorkoutLog(WorkoutLogUpdateRequest(pid, memberName, workoutName, date, durationMinutes)); Unit
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** DELETE /workout-logs. */
+    suspend fun deleteWorkoutLog(
+        memberId: String?,
+        memberName: String?,
+        workoutName: String,
+        date: String,
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.deleteWorkoutLog(WorkoutLogDeleteRequest(pid, memberId, memberName, workoutName, date)); Unit
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** PUT /daily-health-logs — edit sleep + diet. Explicit nulls (via JsonObject) clear a metric server-side. */
+    suspend fun updateDailyHealthLog(
+        memberId: String,
+        logDate: String,
+        sleepHours: Double?,
+        foodQuality: Int?,
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        val body = buildJsonObject {
+            put("program_id", pid)
+            put("member_id", memberId)
+            put("log_date", logDate)
+            put("sleep_hours", sleepHours)
+            put("food_quality", foodQuality)
+        }
+        return runCatching { api.updateDailyHealthLog(body); Unit }
+            .recoverCatching { throw it.asApiError() }
+    }
+
+    /** DELETE /daily-health-logs. */
+    suspend fun deleteDailyHealthLog(memberId: String, logDate: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.deleteDailyHealthLog(DailyHealthDeleteRequest(pid, memberId, logDate)); Unit
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** PUT /program-memberships — global-admin membership edit (is_active + joined_at). Reloads the roster. */
+    suspend fun editMembership(
+        memberId: String,
+        role: String? = null,
+        isActive: Boolean? = null,
+        joinedAt: String? = null,
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.editMembership(MembershipEditRequest(pid, memberId, role, isActive, joinedAt))
+            loadMembershipDetails()
+            Unit
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** DELETE /program-memberships — remove a member from the program. Reloads the roster. */
+    suspend fun removeMember(memberId: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.removeMember(MembershipRemoveRequest(pid, memberId))
+            loadMembershipDetails()
+            Unit
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /**
+     * POST /program-memberships/invite — privacy-safe (F3, LOAD-BEARING). Any HTTP/AppError failure is
+     * swallowed as success so the screen never reveals whether a username exists; only a true network/IO
+     * failure surfaces. The backend also swallows non-AppError to 200 — this completes the guarantee client-side.
+     */
+    suspend fun sendProgramInvite(username: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching { api.sendInvite(InviteRequest(pid, username.trim())); Unit }
+            .recoverCatching { e ->
+                if (e is IOException) throw com.app.rasifiters.net.ApiException(0, "Network error. Please try again.")
+                Unit
+            }
+    }
+
     private fun clearSession() {
         session.clear()
         _authToken.value = null
@@ -326,6 +628,18 @@ class ProgramContext(
         _activeProgram.value = null
         _summary.value = SummaryData()
         _summaryError.value = null
+        _memberMetrics.value = emptyList()
+        _selectedMemberOverview.value = null
+        _memberHistory.value = null
+        _memberStreaks.value = null
+        _memberRecent.value = emptyList()
+        _memberHealthLogs.value = emptyList()
+        _membershipDetails.value = emptyList()
+        _focusedMemberId.value = null
+        _focusedMemberName.value = null
+        _members.value = emptyList()
+        _membersViewAsId.value = null
+        membersLoadedFor = null
     }
 
     private fun Throwable.asApiError(): Throwable =

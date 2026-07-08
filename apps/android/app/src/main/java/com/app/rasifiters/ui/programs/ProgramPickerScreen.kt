@@ -329,7 +329,7 @@ private fun ProgramCard(
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         )
                     }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    com.app.rasifiters.ui.components.AppDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                             onClick = { menuOpen = false; onDelete() },

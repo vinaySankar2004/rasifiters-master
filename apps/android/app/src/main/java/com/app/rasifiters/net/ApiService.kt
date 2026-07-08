@@ -1,12 +1,15 @@
 package com.app.rasifiters.net
 
+import kotlinx.serialization.json.JsonObject
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 /**
  * Retrofit surface for the backend. One method per endpoint; grown per phase.
@@ -88,4 +91,78 @@ interface ApiService {
 
     @POST("daily-health-logs")
     suspend fun addDailyHealthLog(@Body body: DailyHealthRequest): MessageResponse
+
+    // ---- Members tab (Phase E) — reads ----
+    // Metrics carries ~20 optional filter params → a QueryMap of only the present (non-null) params.
+    @GET("member-metrics")
+    suspend fun getMemberMetrics(@QueryMap params: Map<String, String>): MemberMetricsResponse
+
+    @GET("member-history")
+    suspend fun getMemberHistory(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String,
+        @Query("period") period: String,
+    ): MemberHistoryResponse
+
+    @GET("member-streaks")
+    suspend fun getMemberStreaks(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String,
+    ): MemberStreaksResponse
+
+    @GET("member-recent")
+    suspend fun getMemberRecent(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String,
+        @Query("limit") limit: Int,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null,
+        @Query("sortBy") sortBy: String? = null,
+        @Query("sortDir") sortDir: String? = null,
+        @Query("workoutType") workoutType: String? = null,
+        @Query("minDuration") minDuration: Int? = null,
+        @Query("maxDuration") maxDuration: Int? = null,
+    ): MemberRecentWorkoutsResponse
+
+    @GET("daily-health-logs")
+    suspend fun getMemberHealthLogs(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String,
+        @Query("limit") limit: Int,
+        @Query("startDate") startDate: String? = null,
+        @Query("endDate") endDate: String? = null,
+        @Query("sortBy") sortBy: String? = null,
+        @Query("sortDir") sortDir: String? = null,
+        @Query("minSleepHours") minSleepHours: Double? = null,
+        @Query("maxSleepHours") maxSleepHours: Double? = null,
+        @Query("minFoodQuality") minFoodQuality: Int? = null,
+        @Query("maxFoodQuality") maxFoodQuality: Int? = null,
+    ): MemberHealthLogResponse
+
+    @GET("program-memberships/details")
+    suspend fun getMembershipDetails(@Query("programId") programId: String): List<MembershipDetailDTO>
+
+    // ---- Members tab (Phase E) — writes (Recent/Health edit-delete + membership + invite) ----
+    @PUT("workout-logs")
+    suspend fun updateWorkoutLog(@Body body: WorkoutLogUpdateRequest): MessageResponse
+
+    @HTTP(method = "DELETE", path = "workout-logs", hasBody = true)
+    suspend fun deleteWorkoutLog(@Body body: WorkoutLogDeleteRequest): MessageResponse
+
+    // JsonObject body so explicit nulls survive (global Json has explicitNulls=false) — the backend
+    // distinguishes present-null (clear the metric) from absent (leave unchanged) via hasOwnProperty.
+    @PUT("daily-health-logs")
+    suspend fun updateDailyHealthLog(@Body body: JsonObject): MessageResponse
+
+    @HTTP(method = "DELETE", path = "daily-health-logs", hasBody = true)
+    suspend fun deleteDailyHealthLog(@Body body: DailyHealthDeleteRequest): MessageResponse
+
+    @PUT("program-memberships")
+    suspend fun editMembership(@Body body: MembershipEditRequest): MessageResponse
+
+    @HTTP(method = "DELETE", path = "program-memberships", hasBody = true)
+    suspend fun removeMember(@Body body: MembershipRemoveRequest): MessageResponse
+
+    @POST("program-memberships/invite")
+    suspend fun sendInvite(@Body body: InviteRequest): MessageResponse
 }

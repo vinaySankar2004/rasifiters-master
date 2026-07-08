@@ -31,6 +31,15 @@ import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.ui.MainTab
 import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.StubScreen
+import com.app.rasifiters.ui.members.InviteMemberScreen
+import com.app.rasifiters.ui.members.MemberDetailEditScreen
+import com.app.rasifiters.ui.members.MemberHealthDetailScreen
+import com.app.rasifiters.ui.members.MemberHistoryDetailScreen
+import com.app.rasifiters.ui.members.MemberMetricsDetailScreen
+import com.app.rasifiters.ui.members.MemberRecentDetailScreen
+import com.app.rasifiters.ui.members.MemberStreakDetailScreen
+import com.app.rasifiters.ui.members.MembersScreen
+import com.app.rasifiters.ui.members.ProgramMembersListScreen
 import com.app.rasifiters.ui.summary.ActivityDetailScreen
 import com.app.rasifiters.ui.summary.DistributionDetailScreen
 import com.app.rasifiters.ui.summary.LogHealthScreen
@@ -94,9 +103,38 @@ fun AppScaffold(programContext: ProgramContext) {
             composable(Routes.SUMMARY) {
                 SummaryScreen(programContext = programContext, onNavigate = { nav.navigate(it) })
             }
-            composable(Routes.MEMBERS) { StubScreen("Members") }
+            composable(Routes.MEMBERS) {
+                MembersScreen(programContext = programContext, onNavigate = { nav.navigate(it) })
+            }
             composable(Routes.LIFESTYLE) { StubScreen("Lifestyle") }
             composable(Routes.PROGRAM) { StubScreen("Program") }
+
+            // Members forward targets (Phase E) — the metrics/history/streak/workouts/health drill-downs
+            // + the invite/roster/editor cluster (double-duty with the Program tab).
+            composable(Routes.MEMBER_METRICS) {
+                MemberMetricsDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.MEMBER_HISTORY) {
+                MemberHistoryDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.MEMBER_STREAKS) {
+                MemberStreakDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.MEMBER_WORKOUTS) {
+                MemberRecentDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.MEMBER_HEALTH) {
+                MemberHealthDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.MEMBER_INVITE) {
+                InviteMemberScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.MEMBER_ROSTER) {
+                ProgramMembersListScreen(programContext = programContext, onNavigate = { nav.navigate(it) }, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.MEMBER_EDIT) {
+                MemberDetailEditScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
 
             // Summary forward targets (Phase D details) — the 3 chart drill-downs + the 2 log forms.
             composable(Routes.SUMMARY_ACTIVITY) {

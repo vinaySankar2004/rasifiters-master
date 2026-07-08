@@ -27,6 +27,18 @@ object Routes {
     const val SUMMARY_WORKOUT_TYPES = "summary/workout-types"
     const val SUMMARY_LOG_WORKOUT = "summary/log-workout"
     const val SUMMARY_LOG_HEALTH = "summary/log-health"
+
+    // Members detail routes (Phase E). Scoped member is stashed in ProgramContext.focusMember() before push
+    // (the established "static route reads context" idiom — no navArgs). Invite/roster/editor double-duty
+    // with the Program tab (Phase G).
+    const val MEMBER_METRICS = "members/metrics"
+    const val MEMBER_HISTORY = "members/history"
+    const val MEMBER_STREAKS = "members/streaks"
+    const val MEMBER_WORKOUTS = "members/workouts"
+    const val MEMBER_HEALTH = "members/health"
+    const val MEMBER_INVITE = "members/invite"
+    const val MEMBER_ROSTER = "members/roster"
+    const val MEMBER_EDIT = "members/edit"
 }
 
 /** Bottom navigation tabs, in order. */
