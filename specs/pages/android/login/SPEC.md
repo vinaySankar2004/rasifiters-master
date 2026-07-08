@@ -29,4 +29,5 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-07-08 | UI polish (user visual review): shared compact field kit (`AppTextField`, 50dp/14dp), slimmer `PillButton` (48dp), centered `AuthScaffold`, tightened spacing. Verified live against the Render backend. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase B). `LoginScreen` composable → `ProgramContext.login()` (`POST /auth/login/app`), forgot-password + create-account nav, Privacy link, error dialog. Replaced the Phase-A stub. Compile-checked green (`android-build`). Visual run = user. |

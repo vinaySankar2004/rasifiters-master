@@ -3,12 +3,11 @@ package com.app.rasifiters.ui.auth
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -47,101 +46,96 @@ fun ForgotPasswordScreen(programContext: ProgramContext, onBackToLogin: () -> Un
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
 
-    AuthBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 40.dp, bottom = 40.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            BrandMark(sizeDp = 90)
+    AuthScaffold {
+        BrandMark(sizeDp = 88)
+        Spacer(Modifier.height(24.dp))
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Reset your password", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    "Enter your email and we'll send you a link to reset it.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-            }
+        Text("Reset your password", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Enter your email and we'll send you a link to reset it.",
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
 
-            if (submitted) {
-                Text(
-                    text = "If an account with that email exists, we've sent a password reset link. " +
-                        "Check your inbox (and your spam folder).",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = AppGreen,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(AppGreen.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
-                        .padding(16.dp),
-                )
-            } else {
-                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    AppTextField("Email", email, { email = it }, keyboardType = KeyboardType.Email)
-                    if (email.isNotEmpty() && !isEmailValid(email)) {
-                        Text(
-                            "Enter a valid email address.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                    errorMessage?.let {
-                        Text(
-                            it,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFD32F2F),
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
-
-                PillButton(
-                    label = "Send reset link",
-                    loading = loading,
-                    enabled = isEmailValid(email),
-                    onClick = {
-                        loading = true
-                        errorMessage = null
-                        scope.launch {
-                            programContext.forgotPassword(email.trim())
-                                .onSuccess { submitted = true }
-                                .onFailure {
-                                    errorMessage =
-                                        "We couldn't send the reset email just now. Please try again, or contact us below."
-                                }
-                            loading = false
-                        }
-                    },
-                )
-            }
-
-            // Always-visible contact fallback — for migrated no-email accounts that can't receive an email.
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "No email on your account?",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-                TextButton(onClick = { uriHandler.openUri(AppLinks.supportMailtoUri.toString()) }) {
+        Spacer(Modifier.height(30.dp))
+        if (submitted) {
+            Text(
+                text = "If an account with that email exists, we've sent a password reset link. " +
+                    "Check your inbox (and your spam folder).",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppGreen,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(AppGreen.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+            )
+        } else {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                AppTextField("Email", email, { email = it }, keyboardType = KeyboardType.Email)
+                if (email.isNotEmpty() && !isEmailValid(email)) {
                     Text(
-                        "Contact us and we'll help you get back in.",
+                        "Enter a valid email address.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = AppOrange,
-                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                errorMessage?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFD32F2F),
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
 
-            TextButton(onClick = onBackToLogin) {
-                Text("Back to login", color = AppOrange, style = MaterialTheme.typography.bodySmall)
-            }
+            Spacer(Modifier.height(20.dp))
+            PillButton(
+                label = "Send reset link",
+                loading = loading,
+                enabled = isEmailValid(email),
+                onClick = {
+                    loading = true
+                    errorMessage = null
+                    scope.launch {
+                        programContext.forgotPassword(email.trim())
+                            .onSuccess { submitted = true }
+                            .onFailure {
+                                errorMessage =
+                                    "We couldn't send the reset email just now. Please try again, or contact us below."
+                            }
+                        loading = false
+                    }
+                },
+            )
+        }
+
+        // Always-visible contact fallback — for migrated no-email accounts that can't receive an email.
+        Spacer(Modifier.height(24.dp))
+        Text(
+            "No email on your account?",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+        TextButton(
+            onClick = { uriHandler.openUri(AppLinks.supportMailtoUri.toString()) },
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+        ) {
+            Text(
+                "Contact us and we'll help you get back in.",
+                style = MaterialTheme.typography.bodySmall,
+                color = AppOrange,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onBackToLogin, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
+            Text("Back to login", color = AppOrange, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

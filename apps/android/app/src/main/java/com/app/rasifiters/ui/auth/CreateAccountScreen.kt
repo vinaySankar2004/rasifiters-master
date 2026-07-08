@@ -1,22 +1,12 @@
 package com.app.rasifiters.ui.auth
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,7 +41,6 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
-    var genderExpanded by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -75,82 +64,68 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
         )
     }
 
-    AuthBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 40.dp, bottom = 40.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            BrandMark(sizeDp = 90)
+    // Slimmer fields let the whole form fit, so it centers as one balanced block (falls back to scroll
+    // if it ever overflows on a shorter device).
+    AuthScaffold {
+        BrandMark(sizeDp = 84)
+        Spacer(Modifier.height(16.dp))
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Create Account", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    "Start tracking your fitness journey",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-            }
+        Text("Create Account", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Start tracking your fitness journey",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
 
-            AppTextField("First Name", firstName, { firstName = it })
-            AppTextField("Last Name", lastName, { lastName = it })
-            AppTextField("Username", username, { username = it })
+        Spacer(Modifier.height(22.dp))
+        // Input set — grouped tight (12dp) so the form reads as one block.
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppTextField("First Name", firstName, { firstName = it })
+                AppTextField("Last Name", lastName, { lastName = it })
+                AppTextField("Username", username, { username = it })
 
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                AppTextField("Email", email, { email = it }, keyboardType = KeyboardType.Email)
-                if (email.isNotEmpty() && !isEmailValid(email)) {
-                    MutedHint("Enter a valid email address.")
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    AppTextField("Email", email, { email = it }, keyboardType = KeyboardType.Email)
+                    if (email.isNotEmpty() && !isEmailValid(email)) {
+                        MutedHint("Enter a valid email address.")
+                    }
                 }
-            }
 
-            // Gender (optional) — sent as-is; the backend treats blank as absent (F5).
-            Box(modifier = Modifier.fillMaxWidth()) {
-                OutlinedTextField(
+                // Gender (optional) — sent as-is; the backend treats blank as absent (F5).
+                // Standardized glass dropdown (width-matched, frosted) — reused for all future pickers.
+                AppDropdownField(
+                    placeholder = "Gender (optional)",
                     value = gender,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text("Gender (optional)") },
-                    trailingIcon = {
-                        IconButton(onClick = { genderExpanded = !genderExpanded }) {
-                            Icon(Icons.Filled.ArrowDropDown, contentDescription = "Select gender")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
+                    options = GENDER_OPTIONS,
+                    onSelect = { gender = it },
                 )
-                DropdownMenu(expanded = genderExpanded, onDismissRequest = { genderExpanded = false }) {
-                    GENDER_OPTIONS.forEach { option ->
-                        DropdownMenuItem(text = { Text(option) }, onClick = { gender = option; genderExpanded = false })
+
+                AppPasswordField(
+                    "Password", password, { password = it }, passwordVisible,
+                    onToggleVisible = { passwordVisible = !passwordVisible },
+                )
+                AppPasswordField(
+                    "Confirm Password", confirm, { confirm = it }, confirmVisible,
+                    onToggleVisible = { confirmVisible = !confirmVisible },
+                )
+
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (password.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            PolicyRow("At least 8 characters", password.length >= 8)
+                            PolicyRow("An uppercase letter", password.any { it.isUpperCase() })
+                            PolicyRow("A lowercase letter", password.any { it.isLowerCase() })
+                            PolicyRow("A number", password.any { it.isDigit() })
+                        }
+                    }
+                    if (confirm.isNotEmpty() && confirm != password) {
+                        MutedHint("Passwords don't match.")
                     }
                 }
             }
 
-            AppPasswordField(
-                "Password", password, { password = it }, passwordVisible,
-                onToggleVisible = { passwordVisible = !passwordVisible },
-            )
-            AppPasswordField(
-                "Confirm Password", confirm, { confirm = it }, confirmVisible,
-                onToggleVisible = { confirmVisible = !confirmVisible },
-            )
-
-            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (password.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        PolicyRow("At least 8 characters", password.length >= 8)
-                        PolicyRow("An uppercase letter", password.any { it.isUpperCase() })
-                        PolicyRow("A lowercase letter", password.any { it.isLowerCase() })
-                        PolicyRow("A number", password.any { it.isDigit() })
-                    }
-                }
-                if (confirm.isNotEmpty() && confirm != password) {
-                    MutedHint("Passwords don't match.")
-                }
-            }
-
+            Spacer(Modifier.height(20.dp))
             PillButton(
                 label = "Create Account",
                 loading = loading,
@@ -170,18 +145,21 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                 },
             )
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "By creating an account, you accept our",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-                TextButton(onClick = { uriHandler.openUri(AppLinks.privacyPolicyUri.toString()) }) {
-                    Text("Privacy Policy", color = AppOrange, style = MaterialTheme.typography.bodySmall)
-                }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "By creating an account, you accept our",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
+            TextButton(
+                onClick = { uriHandler.openUri(AppLinks.privacyPolicyUri.toString()) },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp),
+            ) {
+                Text("Privacy Policy", color = AppOrange, style = MaterialTheme.typography.bodySmall)
             }
 
-            TextButton(onClick = onSignIn) {
+            Spacer(Modifier.height(4.dp))
+            TextButton(onClick = onSignIn, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
                 Text(
                     "Already have an account? Sign in",
                     style = MaterialTheme.typography.bodySmall,
@@ -189,7 +167,6 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                 )
             }
         }
-    }
 }
 
 @Composable

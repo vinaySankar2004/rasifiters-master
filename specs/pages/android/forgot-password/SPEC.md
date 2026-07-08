@@ -28,4 +28,5 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-07-08 | UI polish (user visual review): shared compact field kit + slimmer `PillButton`, centered `AuthScaffold`, tightened spacing (consistent with the other auth screens). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase B). `ForgotPasswordScreen` composable → `ProgramContext.forgotPassword()` (`POST /auth/forgot-password`), generic confirmation + neutral error + always-visible contact fallback, replacing the Phase-A stub. Added `core/AppLinks.kt` (privacy + support-mailto constants). Compile-checked green (`android-build`). Visual run = user. |

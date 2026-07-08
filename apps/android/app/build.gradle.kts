@@ -20,8 +20,11 @@ android {
 
     buildTypes {
         debug {
-            // Emulator reaches the host Mac's localhost via 10.0.2.2 (mirrors iOS simulatorBaseURL).
-            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:5001/api\"")
+            // We ALWAYS develop/test against the main live backend (Render → live Supabase Auth/DB),
+            // even in dev — so debug points at the same prod API as release, not a local loopback.
+            // (Local-backend testing is the exception: temporarily swap to "http://10.0.2.2:5001/api",
+            // the emulator's alias for the host Mac's localhost.)
+            buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api.onrender.com/api\"")
         }
         release {
             isMinifyEnabled = false

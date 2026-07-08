@@ -60,9 +60,9 @@ idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the s
 | Screen | Status | Consumes (features) | Spec |
 |--------|--------|---------------------|------|
 | splash | 🏗️ v0.1.0 | `auth` (root `authToken` gate; no API) | [splash SPEC](android/splash/SPEC.md) |
-| login | 🏗️ v0.1.0 | `auth` (`ProgramContext.login()` `POST /auth/login/app`) | [login SPEC](android/login/SPEC.md) |
-| create-account | 🏗️ v0.1.0 | `auth` (`register()` `POST /auth/register` + `login()` `POST /auth/login/app`) | [create-account SPEC](android/create-account/SPEC.md) |
-| forgot-password | 🏗️ v0.1.0 | `auth` (`forgotPassword()` `POST /auth/forgot-password`); `AppLinks.SUPPORT_EMAIL` | [forgot-password SPEC](android/forgot-password/SPEC.md) |
+| login | 🏗️ v0.1.1 | `auth` (`ProgramContext.login()` `POST /auth/login/app`) | [login SPEC](android/login/SPEC.md) |
+| create-account | 🏗️ v0.2.0 | `auth` (`register()` `POST /auth/register` + `login()` `POST /auth/login/app`) | [create-account SPEC](android/create-account/SPEC.md) |
+| forgot-password | 🏗️ v0.1.1 | `auth` (`forgotPassword()` `POST /auth/forgot-password`); `AppLinks.SUPPORT_EMAIL` | [forgot-password SPEC](android/forgot-password/SPEC.md) |
 
 Inventory to document (Phases C→J): ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~forgot-password~~ ·
 program-picker · per-program shell (summary/members/lifestyle/program, admin + standard) + all details ·

@@ -4,11 +4,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -57,74 +54,67 @@ fun LoginScreen(
         )
     }
 
-    AuthBackground {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
-                .padding(top = 60.dp, bottom = 40.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            BrandMark(sizeDp = 90)
+    AuthScaffold {
+        BrandMark(sizeDp = 88)
+        Spacer(Modifier.height(24.dp))
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Welcome Back", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    "Login to access your fitness dashboard",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-            }
+        Text("Welcome Back", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Login to access your fitness dashboard",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
 
+        Spacer(Modifier.height(30.dp))
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             AppTextField("Username or Email", identifier, { identifier = it })
             AppPasswordField(
                 "Password", password, { password = it }, passwordVisible,
                 onToggleVisible = { passwordVisible = !passwordVisible },
             )
+        }
 
-            PillButton(
-                label = "Login",
-                loading = loading,
-                enabled = identifier.isNotEmpty() && password.isNotEmpty(),
-                onClick = {
-                    loading = true
-                    scope.launch {
-                        programContext.login(identifier, password)
-                            .onFailure { errorMessage = it.message ?: "Something went wrong." }
-                        loading = false
-                    }
-                },
+        Spacer(Modifier.height(24.dp))
+        PillButton(
+            label = "Login",
+            loading = loading,
+            enabled = identifier.isNotEmpty() && password.isNotEmpty(),
+            onClick = {
+                loading = true
+                scope.launch {
+                    programContext.login(identifier, password)
+                        .onFailure { errorMessage = it.message ?: "Something went wrong." }
+                    loading = false
+                }
+            },
+        )
+
+        Spacer(Modifier.height(16.dp))
+        TextButton(onClick = onForgotPassword, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
+            Text("Forgot your password?", color = AppOrange, style = MaterialTheme.typography.bodySmall)
+        }
+
+        Spacer(Modifier.height(6.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "New here?",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
-
-            TextButton(onClick = onForgotPassword) {
-                Text("Forgot your password?", color = AppOrange, style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = onCreateAccount, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                Text("Create an account", color = AppOrange, style = MaterialTheme.typography.bodySmall)
             }
+        }
 
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "New here?",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-                TextButton(onClick = onCreateAccount, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
-                    Text("Create an account", color = AppOrange, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-
-            Spacer(Modifier.height(4.dp))
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    "Training hard? Login to track your progress.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-                TextButton(onClick = { uriHandler.openUri(AppLinks.privacyPolicyUri.toString()) }) {
-                    Text("Privacy Policy", color = AppOrange, style = MaterialTheme.typography.bodySmall)
-                }
-            }
+        Spacer(Modifier.height(28.dp))
+        Text(
+            "Training hard? Login to track your progress.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+        TextButton(onClick = { uriHandler.openUri(AppLinks.privacyPolicyUri.toString()) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
+            Text("Privacy Policy", color = AppOrange, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
