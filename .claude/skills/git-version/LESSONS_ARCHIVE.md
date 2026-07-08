@@ -215,3 +215,20 @@ the user → committed as a real, verified feature (not a "pending smoke-test" p
 - **Lesson (live-binary safety in the bump note):** when the owned change is a NEW endpoint, state in the
   §changelog that the LIVE iOS binary never calls it (additive/degrades-gracefully) — ties the bump to
   the ios-live-binary-compatibility posture so a reviewer sees the deploy is safe without a new build.
+
+## Run — 2026-07-08 — Android Phase B auth-path commit (plain feat, no feature bump)
+
+**Changeset:** `apps/android/**` (5 new `ui/auth/*.kt` + `core/AppLinks.kt` + `RootScreen.kt` edit + 2 brand
+PNGs), `specs/pages/android/**` (4 new thin port-notes), `specs/pages/REGISTRY.md`, `apps/android/CONTEXT.md`,
+`PROGRESS.md`, and the `android-build` skill lessons.
+
+**Feature mapping:** NONE. No `specs/features/**` SPEC and no `registry.json` node touched; `apps/android`
+paths are not (yet) registered as any feature's `reference_impl.paths`. Client-surface port ⇒ **plain `feat`
+commit, no semver bump, no `feature/*` tag** — mirrors the Phase A precedent (`feat(android): Phase A
+foundation …`). **Blast-radius = zero feature impact** (FYI, not a gate). Tags invariant unaffected
+(`git tag -l "feature/*"` count still equals the registry node count).
+
+**`specs/pages/` ≠ `specs/features/`:** page/screen SPECs + the pages REGISTRY are surface docs, not the
+feature contract — editing them never triggers a feature version bump (only `specs/features/<f>/SPEC.md §12`
++ `registry.json` do). Two commits per the split rule: (1) `feat(android)` for code+page-docs, (2)
+`chore(skills)` for the `android-build` + `git-version` lesson edits.

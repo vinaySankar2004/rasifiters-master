@@ -72,6 +72,16 @@ not re-validating business logic:
   artifact from `lifecycle-runtime-ktx`/`lifecycle-viewmodel-compose`. Missing it = unresolved-reference.
 - **Benign, ignore:** `kotlinOptions` deprecation warning (AGP 8.9), and "Unable to strip … libandroidx…so"
   during `stripDebugDebugSymbols` — both are non-fatal.
+- **Trailing-lambda binds to the LAST param, not "the callback."** A composable ending
+  `…, onSomething: () -> Unit, modifier: Modifier = …` binds a call-site trailing `{ }` to `modifier`
+  (→ "No value passed for parameter 'onSomething'" + a Modifier type-mismatch). Pass the function-type arg
+  **named** when a trailing `modifier` follows it. (Run 2.)
+- **`Modifier.weight()` needs NO import** — it's a `ColumnScope`/`RowScope` receiver extension resolved
+  implicitly inside the `Column {}`/`Row {}` lambda. `import androidx.compose.foundation.layout.weight`
+  pulls the *internal* `RowColumnParentData?.weight` and fails "Cannot access … it is internal". (Run 2.)
+- **`ExposedDropdownMenu` isn't importable in Compose BOM 2024.12.01** ("Unresolved reference"). For a
+  read-only picker, use a plain `Box { OutlinedTextField(readOnly=true) + DropdownMenu }` with an
+  `IconButton` trailing icon toggling `expanded` — no `ExposedDropdownMenuBox`, no experimental opt-in. (Run 2.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the
