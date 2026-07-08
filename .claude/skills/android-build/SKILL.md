@@ -73,6 +73,11 @@ not re-validating business logic:
   artifact from `lifecycle-runtime-ktx`/`lifecycle-viewmodel-compose`. Missing it = unresolved-reference.
 - **Benign, ignore:** `kotlinOptions` deprecation warning (AGP 8.9), and "Unable to strip … libandroidx…so"
   during `stripDebugDebugSymbols` — both are non-fatal.
+- **iCloud/Desktop sync pollutes `app/build/` with space-suffixed dupes → AAPT fails.** The repo lives under
+  `~/Desktop` (iCloud), which spawns `brand_icon 2.png` / `app-debug 2.apk` / `generated 2` copies inside the
+  build dir. `parseDebugLocalResources` then dies: "Failed file name validation for … `brand_icon 2.png`"
+  (spaces are illegal in resource names). The SOURCE `res/` is clean — it's build-dir-only. Fix: `rm -rf
+  app/build` then rebuild. Not a code error; no source change. (Run 3.)
 - **Trailing-lambda binds to the LAST param, not "the callback."** A composable ending
   `…, onSomething: () -> Unit, modifier: Modifier = …` binds a call-site trailing `{ }` to `modifier`
   (→ "No value passed for parameter 'onSomething'" + a Modifier type-mismatch). Pass the function-type arg

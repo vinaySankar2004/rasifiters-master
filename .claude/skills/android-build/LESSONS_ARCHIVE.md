@@ -61,3 +61,32 @@ existed from Phase A. Login uses `POST /auth/login/app`; create-account does reg
 **Result:** `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL** (~2s incremental). 4 auth stubs gone; the
 scaffold-removal tracker advances (Summary/Members/Lifestyle/Program stubs remain for Phases D–G). Handed off
 to user for the Pixel 8 emulator visual run.
+
+## Run 3 — 2026-07-08 — Phase C program-picker (the signed-in home)
+
+**Context:** Ported the post-auth landing — "My Programs" (`ui/programs/ProgramPickerScreen.kt` +
+`ui/programs/AccountMenuSheet.kt`). Extended `ProgramContext` (programs/activeProgram state +
+`loadPrograms`/`moveProgram`/`persistProgramOrder`/`deleteProgram`/`respondToInvite`/`selectProgram`),
+added `ProgramDTO` + order/membership DTOs + 4 endpoints (`GET /programs`, `PUT /programs/order`,
+`DELETE /programs/:id`, `PUT /program-memberships`), and rewired `RootScreen` into a `SignedInGraph`
+(token → picker → shell). First authenticated screen — exercises the Bearer header + 401 authenticator +
+`GET /auth/me` self-heal against live data. Verified the backend wire contract from `programService.js`
+(field names, COALESCE-to-0 ints, `{message}` order/delete return) before writing DTOs.
+
+**Build blocker (NOT a compile error) + fix:**
+1. `parseDebugLocalResources FAILED — Failed file name validation for … drawable/brand_icon 2.png`. Cause:
+   **iCloud/Desktop sync had spawned space-suffixed duplicates** (`brand_icon 2.png`, `app-debug 2.apk`,
+   `generated 2`, …) — all inside `app/build/` (the SOURCE `res/` was clean). AAPT rejects spaces in resource
+   filenames. Fix: `rm -rf app/build` then rebuild → **BUILD SUCCESSFUL**. No source change needed. This repo
+   lives under `~/Desktop` (iCloud-synced), so the build dir can get re-polluted; a `rm -rf app/build` before
+   a fresh compile clears it. Durable — promoted to Converged lessons.
+
+**Kotlin compile:** clean on the first real compile (no `e:` diagnostics) — the drag-reorder `ReorderState`,
+`LazyColumn` + `animateItem()`/`graphicsLayer` translation, `ModalBottomSheet` account sheet, and
+`LinearProgressIndicator(progress = { … })` lambda-overload all resolved under BOM 2024.12.01 with no
+experimental opt-ins beyond `ModalBottomSheet`'s (already stable). Reused `ui/auth/AppTextField` for the
+search field (public — cross-package reuse fine).
+
+**Result:** `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL**, 19 MB debug APK. Scaffold-removal tracker
+unchanged (the 4 bottom-tab stubs remain — picker is a NEW screen, not a stub replacement; it precedes the
+shell). Handed off to user for the emulator visual run.
