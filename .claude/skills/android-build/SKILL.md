@@ -88,6 +88,17 @@ not re-validating business logic:
 - **`ExposedDropdownMenu` isn't importable in Compose BOM 2024.12.01** ("Unresolved reference"). For a
   read-only picker, use a plain `Box { OutlinedTextField(readOnly=true) + DropdownMenu }` with an
   `IconButton` trailing icon toggling `expanded` — no `ExposedDropdownMenuBox`, no experimental opt-in. (Run 2.)
+- **File-`private` top-level decls aren't package-visible** — a sibling file in the SAME package can't see a
+  `private val`/`private fun` in another; widen to `internal`. Bit us when new detail screens referenced
+  `DAY_SHORT`/`topSixWithOthers`/`BarLineChart` from `SummaryCharts.kt`. Extract cross-file shared helpers to
+  their own file as `internal`. (Run 5.)
+- **Resuming an interrupted port duplicates declarations** — a prior pass had already added
+  `loadActivityTimeline`; re-adding it → `Conflicting overloads`. Grep for a symbol before adding it when
+  continuing prior work. (Empty untracked stubs overwrite via Write silently; non-empty files force a Read
+  first — a tell they were already implemented.) (Run 5.)
+- **Material `DatePicker` (BOM 2024.12.01 = material3 1.3.1) is available** and exchanges **UTC-midnight
+  millis** — convert via `atStartOfDay(ZoneOffset.UTC)` / `Instant.ofEpochMilli().atZone(UTC)` so the day
+  never shifts; restrict past/today with a `SelectableDates` impl. (Run 5.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the

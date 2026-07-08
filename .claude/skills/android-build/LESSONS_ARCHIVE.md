@@ -134,3 +134,43 @@ Handed off to user for the emulator visual run (open a program → Summary tab).
   (the `automatic(desiredCount:)` analog — 8→0/2/4/6/8) + faint gridlines, thin fixed-width rounded bars
   (12dp timeline / 16dp distribution), x labels drawn centered under each bar, and a Catmull-Rom→cubic-bezier
   smoothed line with white-haloed points. No new dep — `androidx.compose.ui.text.drawText` + `Path.cubicTo`.
+
+## Run 5 — 2026-07-08 · Phase D details (Summary detail views + log forms)
+
+Ported the 5 Summary forward targets (were `StubScreen`): the **log-workout** + **log-health** multi-row
+forms and the **activity / distribution / workout-types** chart drill-downs. Faithful to the iOS/web SPECs
+(`specs/pages/{ios,web}/{log-workout,log-health,summary-*}`). `:app:assembleDebug` = **BUILD SUCCESSFUL**;
+`app-debug.apk` 19.7 MB. Emulator/visual run handed to the user.
+
+**What landed**
+- **net**: `ProgramMemberDTO` / `ProgramWorkoutDTO` lookups (`GET /program-memberships/members`,
+  `GET /program-workouts`); `BulkWorkoutEntry`/`BulkWorkoutRequest`/`BulkWorkoutResult`/`BulkRowError`
+  (`POST /workout-logs/batch`); `DailyHealthRequest` (`POST /daily-health-logs`). `ErrorBody` grew a
+  `rowErrors` field and `ApiException` carries it, so the batch form maps per-row backend errors onto cards.
+- **ProgramContext**: `canLogForAnyMember` (global_admin|admin|logger → per-row member picker),
+  `loggedInMemberId/Name`, `summaryRefreshToken` (bumped on save → Summary reloads, the iOS
+  `summaryRefreshToken` / web `invalidateQueries(["summary"])` analogue), `loadProgramMembers/Workouts`,
+  `addWorkoutLogsBatch`, `addDailyHealthLog`, `loadActivityTimeline(period)`.
+- **UI**: shared `DetailChrome.kt` (circular back button, searchable bottom-sheet picker, self-locked member
+  field, `DatePillField` → Material `DatePicker`, numeric fields) + `ChartPrimitives.kt` (extracted the
+  `BarLineChart`/`niceAxis`/`smoothPath` so the landing cards + detail charts share one primitive).
+  `LogWorkoutScreen` (up-to-200 rows, empty-skip / invalid-block, per-row remove, lock mount-guard),
+  `LogHealthScreen` (sleep 0:00–24:00 + at-least-one-metric gate, explicit-null diet clear), and the 3
+  read-only drill-downs (activity = W/M/Y/P period selector + daily-average header + re-fetch per period).
+
+**Durable lessons (promote-worthy)**
+- **Cross-file `private` top-level decls don't resolve even in the same package.** `DAY_SHORT` and
+  `topSixWithOthers` live in `SummaryCharts.kt`; the new detail screens (separate files, same package)
+  couldn't see them until widened to `internal`. Kotlin file-`private` ≠ package-visible. Same reason the
+  shared `BarLineChart`/`niceAxis`/`smoothPath` had to move to `ChartPrimitives.kt` as `internal`.
+- **Resuming an interrupted port → duplicate-declaration landmines.** A prior pass had already written the
+  3 detail screens + `AppScaffold` wiring + a `loadActivityTimeline`; adding a second `loadActivityTimeline`
+  compiled to `Conflicting overloads` (identical signature). When continuing prior work, grep for the
+  symbol before adding it. Empty untracked stub files overwrite silently via Write; non-empty ones force a
+  Read first — a useful signal for "was this already implemented?".
+- **`Json { explicitNulls = false }` is fine for the health form's clearable diet** — the backend
+  `parseOptionalNumber(food_quality)` treats undefined ≡ null, so omitting the field when cleared is
+  behaviourally identical to sending `null` (no `@EncodeDefault` needed).
+- **Material `DatePicker` (BOM 2024.12.01 → material3 1.3.1) exchanges UTC-midnight millis** — convert via
+  `date.atStartOfDay(ZoneOffset.UTC)` / `Instant.ofEpochMilli(m).atZone(UTC)` so the calendar day never
+  shifts; gate past/today with a `SelectableDates` impl.
