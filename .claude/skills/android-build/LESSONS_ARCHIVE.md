@@ -213,3 +213,43 @@ first `./gradlew :app:assembleDebug` (BUILD SUCCESSFUL).
 - **Per-row edit/delete → trailing ⋮ `DropdownMenu`, not swipe.** Compose has no built-in swipe-action on
   `LazyColumn` rows; the Android idiom (and the ProgramPicker precedent) is a trailing overflow menu. Gate
   it on `!dataEntryLocked` to hide the mutations for locked non-admins (the iOS swipe-hidden parity).
+
+---
+
+## Run 7 — 2026-07-08 · Phase F: Lifestyle tab + details (workout-types dashboard + timeline drill-down + workout-types manager)
+
+**Scope.** Ported Tab 3 (Lifestyle) + its 2 forward targets, replacing the `StubScreen("Lifestyle")` route.
+New: `ui/lifestyle/{LifestyleScreen,LifestyleCards,LifestyleTimelineDetailScreen,WorkoutTypesListScreen}.kt`.
+Net gained health-timeline + 4 analytics-v2 workout-type DTOs + 5 workout-management request DTOs + endpoints
+(incl. `memberId` on `getWorkoutTypes`); `ProgramContext` gained `LifestyleData` + `loadLifestyle`/
+`loadHealthTimeline`, a separate hoisted "View as" slot (`lifestyleViewAsId`/`lifestyleViewAsChosen`/
+`ensureLifestyleViewAsDefault`), and the full workout-management set (`programWorkoutsAll` +
+add/edit/delete/toggle). Added a dual-axis `SleepDietChart` to `ChartPrimitives.kt`; hoisted
+`Period`/`PERIODS`/`PeriodSelector` into `DetailChrome.kt` (shared by Activity + Lifestyle timeline);
+made Members `MemberPickerSheet`/`GlassIconButton` public + added a `noneLabel` param. `assembleDebug` green
+after one fix.
+
+**The one build error (durable — promote):** a Canvas `Offset(...)` / `Size(...)` call fed a **`Double`**
+where a `Float` was expected (bar height computed from `List<Double>` sleep hours) → the compiler reported
+`Cannot access 'constructor(packedValue: Long): Offset': it is internal` — a **misleading** message pointing
+at the internal single-`Long` `Offset` constructor, NOT the real cause. Fix: `.toFloat()` the Double before
+the geometry call. Lesson: an "Offset/Size constructor is internal" error almost always means a Double
+(or other non-Float) slipped into a `Offset(Float,Float)`/`Size(Float,Float)` call — check the arg types.
+
+**Other notes**
+- **Dual-axis chart in one primitive.** `SleepDietChart(dualAxis: Boolean)` reuses the shared `drawTooltip`
+  + `niceAxis` + `smoothPath`: `dualAxis=true` (detail) scales the 0–5 diet line onto the sleep-hours domain
+  (`diet/5*axisMax`) and labels a trailing "/5" axis; `dualAxis=false` (preview card) shares one axis, no
+  trailing labels, no tooltip (tapping the card navigates — a nav affordance, legitimately tooltip-less).
+  Keeps EVERY interactive chart on the one shared tooltip look (memory `android-shared-chart-tooltip`).
+- **A second, independent "View as" slot.** The Lifestyle view-as is semantically distinct from the Members
+  one (null = program-wide "Admin" vs global-admin "None"), so it's a SEPARATE hoisted `ProgramContext` slot
+  — reusing `membersViewAsId` would cross-wire the two tabs. Both persist across a detail push+back (memory
+  `persist-tab-selections-across-nav`). The picker sheet itself IS shared (added a `noneLabel` param).
+- **Non-default params after a defaulted one compile fine** when every call site uses named args
+  (`SleepDietChart(..., barColor = …, lineColor = …)`) — no need to reorder around `modifier`.
+- **Shared chrome refactor pays off.** Hoisting `PeriodSelector`/`Period`/`PERIODS` from ActivityDetailScreen
+  into `DetailChrome.kt` (same `summary` package → no import churn for Activity; `internal`/public →
+  cross-package reuse from `ui/lifestyle`) removed a ~30-line dup instead of copying it. `EmptyText`/
+  `CircleBackButton`/`FormErrorText`/`TooltipData`/`axisLabels`/`SleepDietChart`/`SummaryCard` all resolve
+  cross-package (same Gradle module) once non-`private`.

@@ -117,6 +117,21 @@ not re-validating business logic:
 - **Per-row edit/delete = trailing ⋮ `DropdownMenu`, not swipe** (Compose LazyColumn has no built-in swipe
   action; matches the ProgramPicker overflow precedent). Gate on `!dataEntryLocked` to hide mutations for
   locked non-admins (iOS swipe-hidden parity). (Run 6.)
+- **"Offset/Size constructor is internal" ⇒ a `Double` leaked into a `Float`-only geometry call.** A Canvas
+  `Offset(Float,Float)` / `Size(Float,Float)` fed a `Double` (e.g. a bar height from a `List<Double>`) fails
+  with the *misleading* `Cannot access 'constructor(packedValue: Long): Offset': it is internal` — the real
+  fix is `.toFloat()` the Double, not the (internal, unrelated) single-`Long` packed constructor. (Run 7.)
+- **One dual-axis chart primitive, one shared tooltip.** `SleepDietChart(dualAxis)` in `ChartPrimitives.kt`
+  reuses `drawTooltip`/`niceAxis`/`smoothPath`: `true` scales a 0–5 series onto the primary domain + labels a
+  trailing axis; `false` (preview cards) shares one axis, no trailing labels, no tooltip (a tap-to-navigate
+  card is legitimately tooltip-less). Keeps every interactive chart on the ONE tooltip look. (Run 7.)
+- **Non-default params may follow a defaulted one** if all call sites pass them **named** (e.g.
+  `SleepDietChart(…, barColor = …, lineColor = …)` after `modifier = Modifier`). No reorder needed. (Run 7.)
+- **Hoist a shared widget into its own package file rather than duplicating** — moving
+  `PeriodSelector`/`Period`/`PERIODS` from `ActivityDetailScreen` into `DetailChrome.kt` (public/`internal`)
+  let a new-package screen (`ui/lifestyle`) reuse it with zero import churn for same-package callers. A
+  second hoisted-state "View as" slot (Lifestyle) stays SEPARATE from the Members one — shared state would
+  cross-wire the tabs; the picker *sheet* is shared via a `noneLabel` param. (Run 7.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the
