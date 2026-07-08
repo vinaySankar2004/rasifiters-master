@@ -44,9 +44,10 @@ need a compile gate.
 Backend is already proven (live; web + iOS use it). For Android we verify the port is **wired + adapted**,
 not re-validating business logic:
 - **Compiles** (this skill's core).
-- **Wired to our stack** — release `BuildConfig.API_BASE_URL = https://rasifiters-api.onrender.com/api`,
-  debug = `http://10.0.2.2:5001/api`; Supabase-token auth via `POST /auth/login/app` + the OkHttp 401
-  authenticator.
+- **Wired to our stack** — `BuildConfig.API_BASE_URL = https://rasifiters-api.onrender.com/api` for **both
+  debug and release** (we always dev/test against the main live backend → live Supabase; local loopback
+  `http://10.0.2.2:5001/api` is the temporary exception); Supabase-token auth via `POST /auth/login/app` +
+  the OkHttp 401 authenticator.
 - **Parity with web + iOS** — the ported screen matches the web/iOS SPEC 1:1 (`specs/pages/{web,ios}/**`).
   Flag divergences; don't "improve" silently. Android-idiom deviations (Material 3, Health Connect, FCM)
   are expected and recorded in `specs/pages/android/<screen>/SPEC.md`.

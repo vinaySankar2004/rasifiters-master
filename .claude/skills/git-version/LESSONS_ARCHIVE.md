@@ -232,3 +232,18 @@ foundation …`). **Blast-radius = zero feature impact** (FYI, not a gate). Tags
 feature contract — editing them never triggers a feature version bump (only `specs/features/<f>/SPEC.md §12`
 + `registry.json` do). Two commits per the split rule: (1) `feat(android)` for code+page-docs, (2)
 `chore(skills)` for the `android-build` + `git-version` lesson edits.
+
+## Run — 2026-07-08 — Android auth UI-polish follow-up (plain feat, no bump)
+
+**Changeset:** `apps/android` auth UI refinement (shared `AuthComponents` field/dropdown kit + 3 screens),
+`build.gradle.kts`+`CONTEXT.md` (debug→live backend default), the 3 changed page port-notes + pages
+REGISTRY version cells, and the `android-build` SKILL note.
+
+**Mapping:** still NO `specs/features/**` / `registry.json` node → **plain `feat(android)` + `chore(skills)`,
+no semver bump, no `feature/*` tag** (page-SPEC + client-surface edits only). Bumped the *page* SPEC versions
+(login 0.1.1, forgot 0.1.1, create-account 0.2.0) in the pages REGISTRY — those are surface-doc labels, NOT
+the feature-registry `version` field, so no blast-radius/tag implications.
+
+**Prototype-then-revert leaves no trace to commit:** added Haze (Liquid Glass) then removed it same session
+— libs.versions.toml/build.gradle net to zero for the dep, so `git status` shows only the real deltas. Don't
+hunt for the reverted dependency in the commit.
