@@ -99,6 +99,24 @@ not re-validating business logic:
 - **Material `DatePicker` (BOM 2024.12.01 = material3 1.3.1) is available** and exchanges **UTC-midnight
   millis** — convert via `atStartOfDay(ZoneOffset.UTC)` / `Instant.ofEpochMilli().atZone(UTC)` so the day
   never shifts; restrict past/today with a `SelectableDates` impl. (Run 5.)
+- **`@HTTP(method="DELETE", hasBody=true)` + `@QueryMap Map<String,String>`** both work with the
+  retrofit2-kotlinx converter. DELETE-with-body is required by `/workout-logs`, `/daily-health-logs`,
+  `/program-memberships` (identifiers ride in the body). QueryMap suits the ~20-param member-metrics filter
+  (put only the present params). (Run 6.)
+- **`explicitNulls=false` silently omits a null field → a hasOwnProperty PUT can't CLEAR a value.** The
+  daily-health-log UPDATE backend treats present-null = clear vs absent = unchanged; a null Kotlin property
+  is dropped, so the metric never clears. Send THAT body as a `buildJsonObject { put("food_quality", x) }`
+  `JsonObject` — `JsonNull` in a JsonObject always serializes (explicitNulls governs class props, not
+  JsonElements). POST paths are unaffected (undefined ≡ null there). Refines the Run-5 note. (Run 6.)
+- **CSV/file share → add a FileProvider** (`androidx.core.content.FileProvider`, authority
+  `${applicationId}.fileprovider`, `res/xml/file_paths.xml` `<cache-path name="exports" path="exports/"/>`).
+  Write to `cacheDir/exports/`, `getUriForFile`, `ACTION_SEND` + `FLAG_GRANT_READ_URI_PERMISSION`.
+  androidx.core is already transitive — no new dep. (Run 6.)
+- **`material-icons-extended` IS a declared dep** — extended glyphs (`LocalFireDepartment`/`EmojiEvents`/
+  `IosShare`/`FilterList`/`UnfoldMore`/`MailOutline`…) all resolve; no core-only fallback needed. (Run 6.)
+- **Per-row edit/delete = trailing ⋮ `DropdownMenu`, not swipe** (Compose LazyColumn has no built-in swipe
+  action; matches the ProgramPicker overflow precedent). Gate on `!dataEntryLocked` to hide mutations for
+  locked non-admins (iOS swipe-hidden parity). (Run 6.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the

@@ -174,3 +174,42 @@ forms and the **activity / distribution / workout-types** chart drill-downs. Fai
 - **Material `DatePicker` (BOM 2024.12.01 → material3 1.3.1) exchanges UTC-midnight millis** — convert via
   `date.atStartOfDay(ZoneOffset.UTC)` / `Instant.ofEpochMilli(m).atZone(UTC)` so the calendar day never
   shifts; gate past/today with a `SelectableDates` impl.
+
+---
+
+## Run 6 — 2026-07-08 · Phase E: the Members tab + all 8 detail screens
+
+**What changed.** The full Members tab (Tab 2) — both role variants (`AdminMembersBody` /
+`StandardMembersBody`, split on `isProgramAdmin`) + view-as picker + 7 inline cards
+(`ui/members/MemberCards.kt`, `MembersScreen.kt`) — plus every inner screen: metrics table + Sort/Filter
+sheets (`MemberMetricsDetailScreen`), per-member W/M/Y/P history chart + streak/milestone ladder
+(`MemberSimpleDetails`), the two write surfaces View Workouts + View Health with per-row Edit/Delete +
+sort/filter + CSV export (`MemberRecentDetailScreen`, `MemberHealthDetailScreen`), and the invite/roster/
+editor cluster (`MemberManagementScreens`). `net` gained the member DTOs + 12 endpoints; `ProgramContext`
+gained `isProgramAdmin`/`loggedInUserProgramRole`, the focused-member slot, 8 loaders + 7 write actions;
+a FileProvider (`res/xml/file_paths.xml` + manifest `<provider>`) for CSV export. Compiled clean on the
+first `./gradlew :app:assembleDebug` (BUILD SUCCESSFUL).
+
+**Durable lessons (promote-worthy)**
+- **`@HTTP(method="DELETE", hasBody=true)` + `@QueryMap Map<String,String>` both work cleanly** with the
+  retrofit2-kotlinx-serialization converter (BOM set). DELETE-with-body is needed for `/workout-logs`,
+  `/daily-health-logs`, `/program-memberships` (the backend reads identifiers from the body, not the path).
+- **`Json { explicitNulls = false }` BREAKS "clear one metric" on a PUT that uses hasOwnProperty.** The
+  health-log UPDATE backend distinguishes present-null (clear the field) from absent (leave unchanged);
+  with `explicitNulls=false` a null Kotlin field is OMITTED → the metric never clears. Fix: send that one
+  body as a `kotlinx.serialization.json.JsonObject` built with `buildJsonObject { put("sleep_hours", x) }`
+  — `JsonNull` in a JsonObject serializes regardless of `explicitNulls` (it governs class properties, not
+  JsonElement values). The POST path is unaffected (its backend treats undefined ≡ null).
+- **CSV/file share needs a FileProvider** — add `androidx.core.content.FileProvider` with authority
+  `${applicationId}.fileprovider` + a `<cache-path>` in `res/xml/file_paths.xml`, write to
+  `cacheDir/exports/`, `FileProvider.getUriForFile(...)`, `ACTION_SEND` + `FLAG_GRANT_READ_URI_PERMISSION`.
+  androidx.core is already on the classpath (transitive), no new dep.
+- **`material-icons-extended` is a declared dep** (`app/build.gradle.kts:66`) — `LocalFireDepartment`,
+  `EmojiEvents`, `FitnessCenter`, `Restaurant`, `IosShare`, `FilterList`, `UnfoldMore`, `MailOutline`, etc.
+  all resolve. No need to fall back to core-only glyphs.
+- **`internal`/public top-level composables are package-wide** — declaring `ControlButton`, `Segmented`,
+  `SkeletonCard`, `LogRow`, `LogSortSheet`, `MemberInitialsAvatar`, `StreakTile` non-`private` in one
+  `ui/members` file lets every sibling screen reuse them (the Run-4/5 file-`private` lesson, applied proactively this run — one definition, shared across metrics/workouts/health).
+- **Per-row edit/delete → trailing ⋮ `DropdownMenu`, not swipe.** Compose has no built-in swipe-action on
+  `LazyColumn` rows; the Android idiom (and the ProgramPicker precedent) is a trailing overflow menu. Gate
+  it on `!dataEntryLocked` to hide the mutations for locked non-admins (the iOS swipe-hidden parity).
