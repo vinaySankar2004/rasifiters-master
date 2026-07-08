@@ -64,7 +64,9 @@ idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the s
 | create-account | 🏗️ v0.2.0 | `auth` (`register()` `POST /auth/register` + `login()` `POST /auth/login/app`) | [create-account SPEC](android/create-account/SPEC.md) |
 | forgot-password | 🏗️ v0.1.1 | `auth` (`forgotPassword()` `POST /auth/forgot-password`); `AppLinks.SUPPORT_EMAIL` | [forgot-password SPEC](android/forgot-password/SPEC.md) |
 | program-picker | 🏗️ v0.1.0 | `programs`/`invites` (`GET /programs`, `PUT /programs/order`, `DELETE /programs/:id`, `PUT /program-memberships`) | [program-picker SPEC](android/program-picker/SPEC.md) |
+| summary | 🏗️ v0.1.0 | `analytics`/`analytics-v2` (7 reads: MTD participation/workouts/duration/avg, timeline, distribution, workout-types) | [summary SPEC](android/summary/SPEC.md) |
 
 Inventory to document (Phases D→J): ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~forgot-password~~ ·
-~~program-picker~~ · per-program shell (summary/members/lifestyle/program, admin + standard) + all details ·
-settings (edit/roles/profile/password/appearance/privacy + Health Connect). Widgets (Glance) deferred.
+~~program-picker~~ · ~~summary (landing)~~ · summary details (activity/distribution/workout-types + log-workout/
+log-health) · members/lifestyle/program tabs (admin + standard) + details · settings (edit/roles/profile/
+password/appearance/privacy + Health Connect). Widgets (Glance) deferred.

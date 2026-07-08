@@ -1,13 +1,20 @@
 package com.app.rasifiters.core
 
 import com.app.rasifiters.net.ApiService
+import com.app.rasifiters.net.AvgDurationMtdDTO
+import com.app.rasifiters.net.DistributionByDayDTO
 import com.app.rasifiters.net.ForgotPasswordRequest
 import com.app.rasifiters.net.LoginRequest
 import com.app.rasifiters.net.LogoutRequest
 import com.app.rasifiters.net.MembershipUpdateRequest
+import com.app.rasifiters.net.MtdParticipationDTO
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.net.ProgramOrderRequest
 import com.app.rasifiters.net.RegisterRequest
+import com.app.rasifiters.net.ActivityTimelinePoint
+import com.app.rasifiters.net.TotalDurationMtdDTO
+import com.app.rasifiters.net.TotalWorkoutsMtdDTO
+import com.app.rasifiters.net.WorkoutTypeDTO
 import com.app.rasifiters.net.toApiException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -163,6 +170,55 @@ class ProgramContext(
         _activeProgram.value = program
     }
 
+    // ---- Summary dashboard (Phase D) ----
+
+    /** The active program's `admin_only_data_entry` lock bites only non-admins (web `isDataEntryLocked`). */
+    val dataEntryLocked: Boolean
+        get() {
+            val program = _activeProgram.value ?: return false
+            if (!program.adminOnlyDataEntry) return false
+            val isAdmin = isGlobalAdmin || program.myRole?.lowercase() == "admin"
+            return !isAdmin
+        }
+
+    private val _summary = MutableStateFlow(SummaryData())
+    /** The active program's Summary-tab analytics (7 reads, refreshed together). */
+    val summary: StateFlow<SummaryData> = _summary.asStateFlow()
+
+    private val _summaryLoading = MutableStateFlow(false)
+    val summaryLoading: StateFlow<Boolean> = _summaryLoading.asStateFlow()
+
+    private val _summaryError = MutableStateFlow<String?>(null)
+    val summaryError: StateFlow<String?> = _summaryError.asStateFlow()
+
+    /**
+     * Load the Summary tab's 7 analytics reads for the active program (the iOS `AdminSummaryTab.load()`
+     * analogue). Program progress is read straight from the already-loaded [activeProgram] DTO
+     * (progress_percent + start/end dates), so the vestigial `analytics/summary` over-fetch — which the
+     * iOS/web landings flag as feeding only the deferred detail views (iOS F2 / web F5) — is skipped here.
+     */
+    suspend fun loadSummary(): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        _summaryLoading.value = true
+        _summaryError.value = null
+        return runCatching {
+            _summary.value = SummaryData(
+                mtdParticipation = api.getMtdParticipation(pid),
+                totalWorkouts = api.getTotalWorkoutsMtd(pid),
+                totalDuration = api.getTotalDurationMtd(pid),
+                avgDuration = api.getAvgDurationMtd(pid),
+                timeline = api.getActivityTimeline("week", pid).buckets,
+                distribution = api.getDistributionByDay(pid),
+                workoutTypes = api.getWorkoutTypes(pid, 100),
+            )
+        }.recoverCatching {
+            val err = it.asApiError()
+            _summaryError.value = err.message ?: "Couldn't load summary."
+            throw err
+        }.also { _summaryLoading.value = false }
+    }
+
     private fun clearSession() {
         session.clear()
         _authToken.value = null
@@ -171,8 +227,21 @@ class ProgramContext(
         _memberUsername.value = null
         _programs.value = emptyList()
         _activeProgram.value = null
+        _summary.value = SummaryData()
+        _summaryError.value = null
     }
 
     private fun Throwable.asApiError(): Throwable =
         if (this is HttpException) toApiException() else this
 }
+
+/** The active program's Summary-tab analytics, refreshed together by [ProgramContext.loadSummary]. */
+data class SummaryData(
+    val mtdParticipation: MtdParticipationDTO? = null,
+    val totalWorkouts: TotalWorkoutsMtdDTO? = null,
+    val totalDuration: TotalDurationMtdDTO? = null,
+    val avgDuration: AvgDurationMtdDTO? = null,
+    val timeline: List<ActivityTimelinePoint> = emptyList(),
+    val distribution: DistributionByDayDTO? = null,
+    val workoutTypes: List<WorkoutTypeDTO> = emptyList(),
+)

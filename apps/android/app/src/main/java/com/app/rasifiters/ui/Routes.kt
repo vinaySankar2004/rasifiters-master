@@ -20,6 +20,13 @@ object Routes {
     const val MEMBERS = "members"
     const val LIFESTYLE = "lifestyle"
     const val PROGRAM = "program"
+
+    // Summary detail / log routes (forward-nav; stubbed until the Phase D details land)
+    const val SUMMARY_ACTIVITY = "summary/activity"
+    const val SUMMARY_DISTRIBUTION = "summary/distribution"
+    const val SUMMARY_WORKOUT_TYPES = "summary/workout-types"
+    const val SUMMARY_LOG_WORKOUT = "summary/log-workout"
+    const val SUMMARY_LOG_HEALTH = "summary/log-health"
 }
 
 /** Bottom navigation tabs, in order. */

@@ -6,6 +6,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 /**
  * Retrofit surface for the backend. One method per endpoint; grown per phase.
@@ -45,4 +46,32 @@ interface ApiService {
 
     @PUT("program-memberships")
     suspend fun updateMembership(@Body body: MembershipUpdateRequest): MessageResponse
+
+    // ---- Analytics (Summary dashboard reads) ----
+    @GET("analytics-v2/participation/mtd")
+    suspend fun getMtdParticipation(@Query("programId") programId: String): MtdParticipationDTO
+
+    @GET("analytics/workouts/total")
+    suspend fun getTotalWorkoutsMtd(@Query("programId") programId: String): TotalWorkoutsMtdDTO
+
+    @GET("analytics/duration/total")
+    suspend fun getTotalDurationMtd(@Query("programId") programId: String): TotalDurationMtdDTO
+
+    @GET("analytics/duration/average")
+    suspend fun getAvgDurationMtd(@Query("programId") programId: String): AvgDurationMtdDTO
+
+    @GET("analytics/timeline")
+    suspend fun getActivityTimeline(
+        @Query("period") period: String,
+        @Query("programId") programId: String,
+    ): ActivityTimelineResponse
+
+    @GET("analytics/distribution/day")
+    suspend fun getDistributionByDay(@Query("programId") programId: String): DistributionByDayDTO
+
+    @GET("analytics/workouts/types")
+    suspend fun getWorkoutTypes(
+        @Query("programId") programId: String,
+        @Query("limit") limit: Int = 100,
+    ): List<WorkoutTypeDTO>
 }

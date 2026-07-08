@@ -103,6 +103,82 @@ data class MembershipUpdateRequest(
     val status: String,
 )
 
+// ---- Analytics (Summary dashboard) ----
+// The 7 reads that feed the Summary tab cards (shared contract with web + iOS). Every count is
+// COALESCEd server-side, so ints never arrive null; defaults keep decode resilient to sparse rows.
+
+/** GET /analytics-v2/participation/mtd — the MTD participation card. */
+@Serializable
+data class MtdParticipationDTO(
+    @SerialName("total_members") val totalMembers: Int = 0,
+    @SerialName("active_members") val activeMembers: Int = 0,
+    @SerialName("participation_pct") val participationPct: Double = 0.0,
+    @SerialName("change_pct") val changePct: Double = 0.0,
+)
+
+/** GET /analytics/workouts/total — the Total Workouts (MTD) card. */
+@Serializable
+data class TotalWorkoutsMtdDTO(
+    @SerialName("total_workouts") val totalWorkouts: Int = 0,
+    @SerialName("change_pct") val changePct: Double = 0.0,
+)
+
+/** GET /analytics/duration/total — the Total Duration (MTD) card; minutes → hours client-side. */
+@Serializable
+data class TotalDurationMtdDTO(
+    @SerialName("total_minutes") val totalMinutes: Int = 0,
+    @SerialName("change_pct") val changePct: Double = 0.0,
+)
+
+/** GET /analytics/duration/average — the Avg Duration (MTD) card. */
+@Serializable
+data class AvgDurationMtdDTO(
+    @SerialName("avg_minutes") val avgMinutes: Int = 0,
+    @SerialName("change_pct") val changePct: Double = 0.0,
+)
+
+/** One bucket of the activity timeline (a day/week/month depending on `period`). */
+@Serializable
+data class ActivityTimelinePoint(
+    val date: String = "",
+    val label: String = "",
+    val workouts: Int = 0,
+    @SerialName("active_members") val activeMembers: Int = 0,
+)
+
+/** GET /analytics/timeline?period&programId — the activity-timeline chart card. */
+@Serializable
+data class ActivityTimelineResponse(
+    val mode: String? = null,
+    val label: String = "",
+    @SerialName("daily_average") val dailyAverage: Double = 0.0,
+    val buckets: List<ActivityTimelinePoint> = emptyList(),
+)
+
+/** GET /analytics/distribution/day — workouts-by-day-of-week (Sun–Sat) for the distribution chart. */
+@Serializable
+data class DistributionByDayDTO(
+    @SerialName("Sunday") val sunday: Int = 0,
+    @SerialName("Monday") val monday: Int = 0,
+    @SerialName("Tuesday") val tuesday: Int = 0,
+    @SerialName("Wednesday") val wednesday: Int = 0,
+    @SerialName("Thursday") val thursday: Int = 0,
+    @SerialName("Friday") val friday: Int = 0,
+    @SerialName("Saturday") val saturday: Int = 0,
+) {
+    /** Sun→Sat ordered counts, ready for the 7-bar distribution chart. */
+    fun ordered(): List<Int> = listOf(sunday, monday, tuesday, wednesday, thursday, friday, saturday)
+}
+
+/** GET /analytics/workouts/types — a workout type row for the Top Workout Types card. */
+@Serializable
+data class WorkoutTypeDTO(
+    @SerialName("workout_name") val workoutName: String = "",
+    val sessions: Int = 0,
+    @SerialName("total_duration") val totalDuration: Int = 0,
+    @SerialName("avg_duration_minutes") val avgDurationMinutes: Int = 0,
+)
+
 /** Generic backend error envelope ({ error } or { message }); parsed for user-facing failures. */
 @Serializable
 data class ErrorBody(

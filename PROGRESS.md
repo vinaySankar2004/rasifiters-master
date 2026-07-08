@@ -9,17 +9,32 @@
 
 **ACTIVE WORKSTREAM (2026-07-08): Android port — the 4th surface (`apps/android`).** A faithful 1:1
 Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
-de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker, the
-signed-in home) COMPLETE — all build green.** Next = **Phase D (Summary tab + details).** Full plan +
-decisions are in `apps/android/CONTEXT.md` and the approved plan
-(`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE notifications + auth +
-Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen (`specs/pages/android/`).
+de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
+Phase D-landing (Summary dashboard) COMPLETE — all build green.** Next = **Phase D details** (activity /
+distribution / workout-types detail views + the log-workout / log-health forms). Full plan + decisions
+are in `apps/android/CONTEXT.md` and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`).
+v1 scope = all screens + SSE notifications + auth + Health Connect + FCM push; widgets deferred. Specs =
+thin port-notes per screen (`specs/pages/android/`).
 
 _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3 surfaces: iOS on TestFlight
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
-- **`android`** — 🟡 **Phase C DONE (2026-07-08).** The **program-picker** (signed-in home / "My Programs")
+- **`android`** — 🟡 **Phase D-landing DONE (2026-07-08).** The **Summary dashboard** (Tab 1 of the shell) is
+  ported + green: `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`. Program-progress ring (server
+  `progress_percent` + client date math) + status pill; MTD Participation / Total Workouts / Total Duration /
+  Avg Duration metric cards (change badges); Canvas activity-timeline (bars + active-members line) +
+  distribution-by-day (7 bars) charts; Top Workout Types (top 5 + Others, dot palette); the two gradient
+  action cards. Web-parity error banner (D-C1) + `admin_only_data_entry` data-lock banner + dimmed cards
+  (D-C2). `ProgramContext` gained `summary`/`summaryLoading`/`summaryError` + `dataEntryLocked` +
+  `loadSummary()` (7 analytics reads); `net` gained 7 analytics DTOs + `SummaryData` + 7 GET endpoints; theme
+  gained secondary accents + `ChartPalette`/`workoutTypePaletteColor`. Android-idiom deviations A-1..A-4 (no
+  card reorder; signed-in-user avatar per web; ProgramDTO progress source; Canvas charts). The 5 forward
+  targets (activity/distribution/workout-types detail + log-workout/log-health forms) are `StubScreen` routes
+  per the iOS D-SCOPE. Thin SPEC `specs/pages/android/summary/`. `./gradlew :app:assembleDebug` = BUILD
+  SUCCESSFUL. Next: **Phase D details.**
+
+  _(Phase C, 2026-07-08:)_ The **program-picker** (signed-in home / "My Programs")
   is ported + green: `ui/programs/{ProgramPickerScreen,AccountMenuSheet}.kt`. Program cards (status pill +
   date range + members/invite line + progress bar), client `canOpen`/`canManage` role gating, inline invite
   Accept/Decline/Cancel, delete (Android-idiom overflow ⋮ menu + confirm), the inline account sheet
@@ -61,23 +76,26 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase D (Summary tab + details). Say "continue" to resume.
+> ### ⏭️ ANDROID PORT — Phase D details (Summary detail views + log forms). Say "continue" to resume.
 
-**Phase C (program-picker) is DONE + green** (My Programs cards, role gating, inline invites, delete,
-account sheet, drag-reorder + search, error banner; `RootScreen` routes token→picker→shell; thin SPEC
-written). **User's next step:** run the app on the Pixel 8 emulator
-(`cd apps/android && ./gradlew :app:installDebug`, or Android Studio Run) and eyeball the picker + account
-sheet + reorder/search — compile is verified, the visual/runtime check is yours (memory
-[[ios-user-verifies-builds-visually]]). Note: opening a program lands on the **stub** bottom-tab shell
-(Summary/Members/Lifestyle/Program) — those are Phases D–G.
+**Phase D-landing (Summary dashboard) is DONE + green + LIVE-TESTED** (2026-07-08, user verified on the
+emulator in light + dark): progress ring, MTD metric cards, polished Canvas timeline + distribution charts
+(y-axis nice-ticks + gridlines + Catmull-Rom line), top workout types, action cards; D-C1 error banner +
+D-C2 data-lock; thin SPEC written; `Routes.SUMMARY` renders `SummaryScreen`, 5 forward targets stubbed.
+**Post-review polish also landed + verified:** nav-bar icon parity (bar-chart/people/leaf/calendar) +
+brand-colored selection, and a **theme-wide neutral M3 surface ramp** so the baseline purple/pink tint no
+longer leaks into any Material component (sheets/menus/nav/chips/cards) — memory
+[[android-neutral-m3-surface-roles]]. The 5 Summary detail/log routes still land on `StubScreen`.
 
-Resume at **Phase D**: port the **Summary tab** (the per-program home dashboard) + its details
-(activity / distribution / workout-types / log-workout / log-health), admin + standard variants. Replace
-the `Routes.SUMMARY` stub in `ui/shell/AppScaffold.kt`. Read the active program from
-`ProgramContext.activeProgram` (hydrated by the picker's `selectProgram`). Match the iOS/web SPECs 1:1
-(`specs/pages/{ios,web}/summary*`), Android-idiom deviations only. Gate with the `android-build` skill
-(`./gradlew :app:assembleDebug`). Write thin port-note SPEC(s) under `specs/pages/android/`. Phase list
-A→J is in `apps/android/CONTEXT.md`.
+Resume at **Phase D details**: port the 5 forward targets — the **activity / distribution / workout-types**
+detail views (period selector, richer charts) and the **log-workout** (unified multi-row form, per-row member
+picker for admin/logger, own-rows for members) + **log-health** forms. Replace the 5 `StubScreen` routes in
+`ui/shell/AppScaffold.kt` (`SUMMARY_ACTIVITY`/`SUMMARY_DISTRIBUTION`/`SUMMARY_WORKOUT_TYPES`/
+`SUMMARY_LOG_WORKOUT`/`SUMMARY_LOG_HEALTH`). The log forms are lock-gated (backend `requireDataEntryAllowed`)
+and bump a summary-refresh (web `invalidateQueries(["summary"])` / iOS `summaryRefreshToken`). Match the
+iOS/web SPECs 1:1 (`specs/pages/ios/summary-*`, `specs/pages/web/summary`), Android-idiom deviations only.
+Gate with the `android-build` skill. Thin SPECs under `specs/pages/android/`. Phase list A→J is in
+`apps/android/CONTEXT.md`.
 
 ---
 
@@ -118,12 +136,12 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 6. [x] `ios` — all screens/widgets/Apple-Health ported; native build green (user does visual + TestFlight)
 7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
 8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
-   program-picker green (2026-07-08); Phases D→J pending.
+   program-picker + Phase D-landing (Summary dashboard) green (2026-07-08); Phase D details + Phases E→J pending.
 
 ## Coverage
 
 - Features: **15** (backend coverage complete) — `specs/features/REGISTRY.md` + `registry.json`.
-- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **5** (thin port-notes) —
+- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **6** (thin port-notes) —
   `specs/pages/REGISTRY.md`.
 - Legacy-parity coverage: `COVERAGE.md`.
 

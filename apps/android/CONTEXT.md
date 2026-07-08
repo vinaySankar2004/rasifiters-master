@@ -59,7 +59,20 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
-🟡 **Phase C COMPLETE (2026-07-08).** The **program-picker** (signed-in home / "My Programs") is ported +
+🟡 **Phase D-landing COMPLETE (2026-07-08).** The **Summary dashboard** (Tab 1 of the shell) is ported +
+green: `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`. Program-progress ring (server
+`progress_percent` + client date math) + status pill; MTD Participation / Total Workouts / Total Duration /
+Avg Duration metric cards (change badges); Canvas activity-timeline (bars + active-members line) +
+distribution-by-day charts; Top Workout Types (top 5 + Others, dot palette); two gradient action cards.
+Web-parity error banner (D-C1) + `admin_only_data_entry` data-lock (D-C2). `ProgramContext` gained
+`summary`/`summaryLoading`/`summaryError` + `dataEntryLocked` + `loadSummary()`; `net` gained 7 analytics
+DTOs + `SummaryData` + 7 GET endpoints; theme gained secondary accents + `ChartPalette`/
+`workoutTypePaletteColor`. Android-idiom deviations A-1..A-4 (no card reorder; signed-in-user avatar per web;
+`ProgramDTO` progress source; Canvas charts). The 5 forward targets (activity/distribution/workout-types
+detail + log-workout/log-health forms) are `StubScreen` routes per the iOS D-SCOPE. Thin SPEC
+`specs/pages/android/summary/`. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Next: **Phase D details.**
+
+_(Phase C, 2026-07-08:)_ The **program-picker** (signed-in home / "My Programs") is ported +
 wired + green. New `ui/programs/{ProgramPickerScreen,AccountMenuSheet}.kt`; `ProgramContext` gained
 programs/activeProgram state + `loadPrograms`/`moveProgram`/`persistProgramOrder`/`deleteProgram`/
 `respondToInvite`/`selectProgram`; `net/{Dtos,ApiService}` gained `ProgramDTO` + order/membership DTOs + 4
@@ -82,8 +95,10 @@ scaffold._
 
 ### Scaffold-removal tracker (temporary — folds away by Phase J)
 Stub screens live in `ui/StubScreen.kt` usages. Deleted as real screens land:
-~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · Summary+details (D) · Members (E) ·
-Lifestyle (F) · Program/settings (G). Remaining `StubScreen(...)` call-sites: the 4 bottom tabs in
-`ui/shell/AppScaffold.kt` (Summary/Members/Lifestyle/Program). By Phase J: zero remain.
+~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · ~~Summary landing (D — DONE)~~ · Summary
+details + log forms (D details) · Members (E) · Lifestyle (F) · Program/settings (G). Remaining
+`StubScreen(...)` call-sites in `ui/shell/AppScaffold.kt`: the 3 remaining bottom tabs (Members/Lifestyle/
+Program) + the 5 Summary forward routes (SUMMARY_ACTIVITY/DISTRIBUTION/WORKOUT_TYPES/LOG_WORKOUT/LOG_HEALTH).
+By Phase J: zero remain.
 _(Phase C added the program-picker, a NEW screen that precedes the shell — it did not remove a stub; the
 picker's own forward-nav (create/edit + account destinations) is deferred per iOS D-SCOPE, folded in G/H.)_
