@@ -30,6 +30,7 @@ from, as history.
 | `backend` | Node/Express + Sequelize | Render (Blueprint) | The single API + data source for both clients. Talks to Supabase Postgres + proxies Supabase Auth. |
 | `web` | Next.js 14 (App Router) + TS | Vercel | The web client. |
 | `ios` | SwiftUI (iOS 18.6) | App Store | The iOS client. |
+| `android` | Jetpack Compose (Kotlin) | Play Store | The Android client — 4th surface, in build (Phase A foundation green, 2026-07-08). Consumes `backend` like web/iOS. |
 
 `web` and `ios` both consume `backend`. Supabase project ref: **`kpadxjekpiwfkqcxtrio`** (org `RaSi Fiters`
 / `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). **All three

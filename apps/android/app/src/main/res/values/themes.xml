@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base theme is a Material3 no-action-bar shell; Compose drives all real styling (see core/theme). -->
+    <style name="Theme.RaSiFiters" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

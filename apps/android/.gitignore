@@ -1,0 +1,12 @@
+*.iml
+.gradle/
+/local.properties
+.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+build/
+# Firebase config carries no secret (client config) but is env-specific; add per-machine.
+# google-services.json is committed once Phase I lands; keep out until then.

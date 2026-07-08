@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simple placeholder brand mark: white "RF" bars on the orange adaptive background. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,34h10a8,8 0,0 1,0 16h-10z M40,34h6v40h-6z M50,50l10,24h-7l-9,-24z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M62,34h18v6h-12v10h11v6h-11v18h-6z" />
+</vector>

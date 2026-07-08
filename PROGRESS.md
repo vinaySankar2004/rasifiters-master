@@ -7,7 +7,24 @@
 
 ## Current phase
 
-**Rebuild COMPLETE + SHIPPED: iOS is on TestFlight (approved, in beta use — user-announced 2026-07-05). Remaining: go-public on GitHub + pre-cutover smoke tests.**
+**ACTIVE WORKSTREAM (2026-07-08): Android port — the 4th surface (`apps/android`).** A faithful 1:1
+Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
+de-scaffold sequence (A→J). **Phase A COMPLETE (foundation builds green).** Next = **Phase B (auth path)**.
+Full plan + decisions are in `apps/android/CONTEXT.md` and the approved plan
+(`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE notifications + auth +
+Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen.
+
+_(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3 surfaces: iOS on TestFlight
+(approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
+GitHub + pre-cutover smoke tests (below)._
+
+- **`android`** — 🟡 **Phase A DONE (2026-07-08).** Gradle project + DI (`AppContainer`) + state hub
+  (`ProgramContext`) + Keychain-analog `Session` (EncryptedSharedPreferences) + Retrofit/OkHttp networking
+  with a 401 single-flight `Authenticator` + auth DTOs + Material 3 theme + bottom-nav scaffold (Summary/
+  Members/Lifestyle/Program) wired to **stub screens**. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL.
+  Toolchain (Android Studio, SDK android-36, Temurin JDK 21) already on the Mac; wrapper pinned to 8.11.1.
+  New `android-build` skill (pure-CLI compile loop, no MCP). Next: **Phase B** — port Splash/Login/
+  CreateAccount/ForgotPassword, delete the 4 auth stubs.
 
 - **`backend`** — DEPLOYED + LIVE on Render (`rasifiters-api`, `https://rasifiters-api.onrender.com`); auth
   round-trip verified live against migrated data. All backend features ported (`specs/features/REGISTRY.md`).
@@ -33,7 +50,20 @@
 
 ## Next action
 
-> ### ⏭️ TestFlight SHIPPED (2026-07-05) — remaining: go-public + pre-cutover smoke tests
+> ### ⏭️ ANDROID PORT — Phase B (auth path). Say "continue" to resume.
+
+Resume the Android port at **Phase B**: port the logged-out auth path — `SplashView` · `LoginView` ·
+`CreateAccountView` · `ForgotPasswordView` — into `apps/android` Compose screens, wired to the real backend
+(`POST /auth/login/app`, `/auth/register`, `/auth/forgot-password`, `/auth/me` self-heal), and **delete the
+4 auth stubs** in `ui/RootScreen.kt`'s `AuthGraph`. Match the iOS/web SPECs 1:1
+(`specs/pages/{ios,web}/{splash,login,create-account}`), Android-idiom deviations only. Gate with the
+`android-build` skill (`./gradlew :app:assembleDebug`), then the user runs it on the Pixel 8 emulator
+(API 37.1, already created). Write thin port-note SPECs under `specs/pages/android/`. Phase list A→J is in
+`apps/android/CONTEXT.md`.
+
+---
+
+> ### ⏭️ (Parallel tail, first 3 surfaces) TestFlight SHIPPED (2026-07-05) — remaining: go-public + pre-cutover smoke tests
 
 Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one open step):
 
@@ -69,6 +99,7 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 5. [x] `web` — all pages ported + deployed + LIVE on `rasifiters.com`
 6. [x] `ios` — all screens/widgets/Apple-Health ported; native build green (user does visual + TestFlight)
 7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
+8. [~] `android` — 4th surface (Compose port). Phase A foundation green (2026-07-08); Phases B→J pending.
 
 ## Coverage
 
