@@ -90,3 +90,47 @@ search field (public — cross-package reuse fine).
 **Result:** `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL**, 19 MB debug APK. Scaffold-removal tracker
 unchanged (the 4 bottom-tab stubs remain — picker is a NEW screen, not a stub replacement; it precedes the
 shell). Handed off to user for the emulator visual run.
+
+---
+
+## Run 4 — 2026-07-08 · Phase D-landing (Summary dashboard)
+
+**Scope:** ported the Summary tab dashboard (iOS `AdminSummaryTab` + `SummaryCards`/`SummaryChartCards`,
+web `/summary` landing) → `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`. Added 7 analytics DTOs
++ `SummaryData` + 7 GET endpoints (`@Query`), `ProgramContext.loadSummary()` + `dataEntryLocked`, theme
+secondary accents + `ChartPalette`/`workoutTypePaletteColor`. 5 forward targets stubbed per iOS D-SCOPE.
+
+**Result:** `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL** on the first real compile (no `e:`
+diagnostics). No `rm -rf app/build` needed this run (build dir stayed clean since run 3).
+
+**Lessons (all minor, self-caught before compile):**
+- **No charting lib in the toolchain** — Swift Charts / Recharts have no Compose analog and we deliberately
+  don't add one (keep deps lean). Bars + the active-members line/points draw fine on a plain
+  `androidx.compose.foundation.Canvas` (`drawRoundRect` + `drawLine`/`drawCircle`), with a weighted `Row` of
+  `Text` beneath for x-labels. Good enough for a faithful preview; the interactive/period detail charts are
+  the deferred detail-view concern anyway (iOS renders the summary distribution with `interactive: false`).
+- **`RowScope.weight` for the two-per-row stat cards** — the metric-card composables take a `modifier`
+  param and are invoked inside a `Row { }`, so `Modifier.weight(1f)` resolves against the RowScope receiver.
+- **Progress needs no API call** — the `ProgramDTO` already carries `progress_percent` + `start/end_date`,
+  so the ring/days come straight from `activeProgram`; skipped the vestigial `analytics/summary` over-fetch
+  (iOS F2 / web F5 — feeds only deferred detail views). Fewer DTOs, one less round-trip.
+- **djb2 palette hash ports 1:1** — Kotlin `Int` overflow wraps like Swift `&+`/`<<`, so
+  `(hash shl 5) + hash + ch.code` + `abs % palette.size` reproduces iOS `workoutTypePaletteColor` dot colors
+  exactly. Guarded the `abs(Int.MIN)` edge with an inline `if (hash < 0) -hash else hash`.
+
+Handed off to user for the emulator visual run (open a program → Summary tab).
+
+**Polish pass (same day, after user's emulator screenshots — light + dark):**
+- **M3 nav "pink" tint** — the default `NavigationBar`/`NavigationBarItem` pull `secondaryContainer`/
+  `surfaceContainer` from the M3 **baseline purple** palette (we only overrode primary/secondary/background/
+  surface), so the selected pill + bar read lavender in light, glass-blue in dark. Fix: color the bar
+  explicitly — `NavigationBar(containerColor = surface)` + `NavigationBarItemDefaults.colors(...)` with the
+  orange primary for selected icon/label and a `primary.copy(alpha=0.16f)` indicator. Durable gotcha for any
+  static (non-dynamic) M3 scheme: container/variant roles stay baseline-purple unless you set or override them.
+- **Nav icon parity** — matched iOS: Lifestyle `Icons.Filled.Eco` (leaf, was `FavoriteBorder` heart),
+  Program `Icons.Filled.CalendarMonth` (was `Settings` gear); Summary/Members already matched.
+- **Charts looked subpar vs iOS Swift Charts** — first cut had fat 50%-slot bars, no axis, a straight line.
+  Rebuilt `BarLineChart` on `Canvas` + `rememberTextMeasurer`: a left y-axis with `niceAxis()` ticks
+  (the `automatic(desiredCount:)` analog — 8→0/2/4/6/8) + faint gridlines, thin fixed-width rounded bars
+  (12dp timeline / 16dp distribution), x labels drawn centered under each bar, and a Catmull-Rom→cubic-bezier
+  smoothed line with white-haloed points. No new dep — `androidx.compose.ui.text.drawText` + `Path.cubicTo`.
