@@ -65,8 +65,13 @@ idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the s
 | forgot-password | 🏗️ v0.1.1 | `auth` (`forgotPassword()` `POST /auth/forgot-password`); `AppLinks.SUPPORT_EMAIL` | [forgot-password SPEC](android/forgot-password/SPEC.md) |
 | program-picker | 🏗️ v0.1.0 | `programs`/`invites` (`GET /programs`, `PUT /programs/order`, `DELETE /programs/:id`, `PUT /program-memberships`) | [program-picker SPEC](android/program-picker/SPEC.md) |
 | summary | 🏗️ v0.1.0 | `analytics`/`analytics-v2` (7 reads: MTD participation/workouts/duration/avg, timeline, distribution, workout-types) | [summary SPEC](android/summary/SPEC.md) |
+| summary-activity-detail | 🏗️ v0.1.0 | `analytics` (`GET /analytics/timeline?period` via `loadActivityTimeline`; W/M/Y/P selector + tap tooltip) | [summary-activity-detail SPEC](android/summary-activity-detail/SPEC.md) |
+| summary-distribution-detail | 🏗️ v0.1.0 | `analytics` (`GET /analytics/distribution/day`, pre-loaded; 7 weekday bars + tap tooltip) | [summary-distribution-detail SPEC](android/summary-distribution-detail/SPEC.md) |
+| summary-workout-types-detail | 🏗️ v0.1.0 | `analytics` (`GET /analytics/workouts/types`, pre-loaded; %-share chart + full breakdown) | [summary-workout-types-detail SPEC](android/summary-workout-types-detail/SPEC.md) |
+| log-workout | 🏗️ v0.1.0 | `workout-logs` (`POST /workout-logs/batch`) + `program-memberships`/`program-workouts` lookups | [log-workout SPEC](android/log-workout/SPEC.md) |
+| log-health | 🏗️ v0.1.0 | `daily-health-logs` (`POST /daily-health-logs`) + `program-memberships` lookup | [log-health SPEC](android/log-health/SPEC.md) |
 
 Inventory to document (Phases D→J): ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~forgot-password~~ ·
-~~program-picker~~ · ~~summary (landing)~~ · summary details (activity/distribution/workout-types + log-workout/
-log-health) · members/lifestyle/program tabs (admin + standard) + details · settings (edit/roles/profile/
+~~program-picker~~ · ~~summary (landing)~~ · ~~summary details (activity/distribution/workout-types + log-workout/
+log-health)~~ · members/lifestyle/program tabs (admin + standard) + details · settings (edit/roles/profile/
 password/appearance/privacy + Health Connect). Widgets (Glance) deferred.

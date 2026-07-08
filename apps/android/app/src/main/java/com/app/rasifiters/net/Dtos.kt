@@ -179,9 +179,76 @@ data class WorkoutTypeDTO(
     @SerialName("avg_duration_minutes") val avgDurationMinutes: Int = 0,
 )
 
-/** Generic backend error envelope ({ error } or { message }); parsed for user-facing failures. */
+// ---- Log-form lookups (member + workout pickers) ----
+
+/** GET /program-memberships/members?programId — active roster for the log-form member picker. */
+@Serializable
+data class ProgramMemberDTO(
+    val id: String,
+    @SerialName("member_name") val memberName: String = "",
+    val username: String? = null,
+)
+
+/** GET /program-workouts?programId — the program's workout catalog; `is_hidden` rows are filtered out. */
+@Serializable
+data class ProgramWorkoutDTO(
+    val id: String? = null,
+    @SerialName("workout_name") val workoutName: String = "",
+    val source: String? = null,
+    @SerialName("is_hidden") val isHidden: Boolean = false,
+)
+
+// ---- Writes: workout-logs batch + daily-health ----
+
+/** One row of the multi-row Add-workouts form. `duration` is total minutes (positive whole number). */
+@Serializable
+data class BulkWorkoutEntry(
+    @SerialName("member_id") val memberId: String,
+    @SerialName("workout_name") val workoutName: String,
+    val date: String,
+    val duration: Int,
+)
+
+/** POST /workout-logs/batch body — atomic all-or-nothing multi-row insert. */
+@Serializable
+data class BulkWorkoutRequest(
+    @SerialName("program_id") val programId: String,
+    val entries: List<BulkWorkoutEntry>,
+)
+
+/** POST /workout-logs/batch success envelope. */
+@Serializable
+data class BulkWorkoutResult(
+    val created: Int = 0,
+    val updated: Int = 0,
+    @SerialName("total_minutes") val totalMinutes: Int = 0,
+    val groups: Int = 0,
+    @SerialName("total_entries") val totalEntries: Int = 0,
+)
+
+/** Per-row batch validation/duplicate error (indexed by submit order); `field:"duplicate"` is row-level. */
+@Serializable
+data class BulkRowError(
+    val index: Int = 0,
+    val field: String = "",
+    val message: String = "",
+)
+
+/** POST /daily-health-logs body. `food_quality` is omitted (≡ null) when cleared; sleep omitted when blank. */
+@Serializable
+data class DailyHealthRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("log_date") val logDate: String,
+    @SerialName("member_id") val memberId: String? = null,
+    @SerialName("sleep_hours") val sleepHours: Double? = null,
+    @SerialName("food_quality") val foodQuality: Int? = null,
+)
+
+/** Generic backend error envelope ({ error } or { message }); parsed for user-facing failures.
+ *  `rowErrors` rides along on the batch endpoint's 400/409 so the form can highlight offending rows. */
 @Serializable
 data class ErrorBody(
     val error: String? = null,
     val message: String? = null,
+    val rowErrors: List<BulkRowError>? = null,
 )

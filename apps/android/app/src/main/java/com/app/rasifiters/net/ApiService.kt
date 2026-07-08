@@ -74,4 +74,18 @@ interface ApiService {
         @Query("programId") programId: String,
         @Query("limit") limit: Int = 100,
     ): List<WorkoutTypeDTO>
+
+    // ---- Log-form lookups ----
+    @GET("program-memberships/members")
+    suspend fun getProgramMembers(@Query("programId") programId: String): List<ProgramMemberDTO>
+
+    @GET("program-workouts")
+    suspend fun getProgramWorkouts(@Query("programId") programId: String): List<ProgramWorkoutDTO>
+
+    // ---- Log-form writes ----
+    @POST("workout-logs/batch")
+    suspend fun addWorkoutLogsBatch(@Body body: BulkWorkoutRequest): BulkWorkoutResult
+
+    @POST("daily-health-logs")
+    suspend fun addDailyHealthLog(@Body body: DailyHealthRequest): MessageResponse
 }

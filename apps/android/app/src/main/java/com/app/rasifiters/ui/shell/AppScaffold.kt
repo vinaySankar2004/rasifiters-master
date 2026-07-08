@@ -27,7 +27,12 @@ import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.ui.MainTab
 import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.StubScreen
+import com.app.rasifiters.ui.summary.ActivityDetailScreen
+import com.app.rasifiters.ui.summary.DistributionDetailScreen
+import com.app.rasifiters.ui.summary.LogHealthScreen
+import com.app.rasifiters.ui.summary.LogWorkoutScreen
 import com.app.rasifiters.ui.summary.SummaryScreen
+import com.app.rasifiters.ui.summary.WorkoutTypesDetailScreen
 
 /**
  * The per-program app shell: a bottom nav bar (Summary / Members / Lifestyle / Program) over an
@@ -81,12 +86,22 @@ fun AppScaffold(programContext: ProgramContext) {
             composable(Routes.LIFESTYLE) { StubScreen("Lifestyle") }
             composable(Routes.PROGRAM) { StubScreen("Program") }
 
-            // Summary forward targets — stubbed this phase (iOS D-SCOPE landing-vs-details split).
-            composable(Routes.SUMMARY_ACTIVITY) { StubScreen("Activity Timeline") }
-            composable(Routes.SUMMARY_DISTRIBUTION) { StubScreen("Distribution by Day") }
-            composable(Routes.SUMMARY_WORKOUT_TYPES) { StubScreen("Workout Types") }
-            composable(Routes.SUMMARY_LOG_WORKOUT) { StubScreen("Add Workouts") }
-            composable(Routes.SUMMARY_LOG_HEALTH) { StubScreen("Log Daily Health") }
+            // Summary forward targets (Phase D details) — the 3 chart drill-downs + the 2 log forms.
+            composable(Routes.SUMMARY_ACTIVITY) {
+                ActivityDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.SUMMARY_DISTRIBUTION) {
+                DistributionDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.SUMMARY_WORKOUT_TYPES) {
+                WorkoutTypesDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.SUMMARY_LOG_WORKOUT) {
+                LogWorkoutScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.SUMMARY_LOG_HEALTH) {
+                LogHealthScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
         }
     }
 }

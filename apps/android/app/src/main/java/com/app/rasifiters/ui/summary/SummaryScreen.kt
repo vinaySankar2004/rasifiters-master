@@ -60,9 +60,11 @@ fun SummaryScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) 
     val summary by programContext.summary.collectAsStateWithLifecycle()
     val error by programContext.summaryError.collectAsStateWithLifecycle()
     val memberName by programContext.memberName.collectAsStateWithLifecycle()
+    val refreshToken by programContext.summaryRefreshToken.collectAsStateWithLifecycle()
     val locked = programContext.dataEntryLocked
 
-    LaunchedEffect(program?.id) {
+    // Reload on program switch AND after a log-form save bumps summaryRefreshToken (D-C3).
+    LaunchedEffect(program?.id, refreshToken) {
         if (program != null) programContext.loadSummary()
     }
 

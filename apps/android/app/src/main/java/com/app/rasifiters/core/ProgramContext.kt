@@ -2,6 +2,9 @@ package com.app.rasifiters.core
 
 import com.app.rasifiters.net.ApiService
 import com.app.rasifiters.net.AvgDurationMtdDTO
+import com.app.rasifiters.net.BulkWorkoutEntry
+import com.app.rasifiters.net.BulkWorkoutRequest
+import com.app.rasifiters.net.DailyHealthRequest
 import com.app.rasifiters.net.DistributionByDayDTO
 import com.app.rasifiters.net.ForgotPasswordRequest
 import com.app.rasifiters.net.LoginRequest
@@ -9,9 +12,12 @@ import com.app.rasifiters.net.LogoutRequest
 import com.app.rasifiters.net.MembershipUpdateRequest
 import com.app.rasifiters.net.MtdParticipationDTO
 import com.app.rasifiters.net.ProgramDTO
+import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.net.ProgramOrderRequest
+import com.app.rasifiters.net.ProgramWorkoutDTO
 import com.app.rasifiters.net.RegisterRequest
 import com.app.rasifiters.net.ActivityTimelinePoint
+import com.app.rasifiters.net.ActivityTimelineResponse
 import com.app.rasifiters.net.TotalDurationMtdDTO
 import com.app.rasifiters.net.TotalWorkoutsMtdDTO
 import com.app.rasifiters.net.WorkoutTypeDTO
@@ -50,6 +56,22 @@ class ProgramContext(
     val memberUsername: StateFlow<String?> = _memberUsername.asStateFlow()
 
     val isGlobalAdmin: Boolean get() = _globalRole.value == "global_admin"
+
+    /** The signed-in member's id/name — seeded into log-form rows when locked to self. */
+    val loggedInMemberId: String? get() = session.memberId
+    val loggedInMemberName: String? get() = _memberName.value
+
+    /**
+     * Admin/logger/global-admin get the per-row member picker and may log for anyone; a plain member is
+     * locked to themselves (the log-forms' `canSelectAnyMember`). The backend batch authorization is the
+     * real boundary — this only drives the UI (log-workout F1 / web F).
+     */
+    val canLogForAnyMember: Boolean
+        get() {
+            if (isGlobalAdmin) return true
+            val role = _activeProgram.value?.myRole?.lowercase()
+            return role == "admin" || role == "logger"
+        }
 
     // ---- Programs (the picker's "My Programs" list) ----
 
@@ -192,6 +214,13 @@ class ProgramContext(
     val summaryError: StateFlow<String?> = _summaryError.asStateFlow()
 
     /**
+     * Bumped after a successful log-form save so the Summary tab re-runs [loadSummary] — the Android
+     * analogue of iOS's `summaryRefreshToken` (log-workout D-C3) / web's `invalidateQueries(["summary"])`.
+     */
+    private val _summaryRefreshToken = MutableStateFlow(0)
+    val summaryRefreshToken: StateFlow<Int> = _summaryRefreshToken.asStateFlow()
+
+    /**
      * Load the Summary tab's 7 analytics reads for the active program (the iOS `AdminSummaryTab.load()`
      * analogue). Program progress is read straight from the already-loaded [activeProgram] DTO
      * (progress_percent + start/end dates), so the vestigial `analytics/summary` over-fetch — which the
@@ -217,6 +246,55 @@ class ProgramContext(
             _summaryError.value = err.message ?: "Couldn't load summary."
             throw err
         }.also { _summaryLoading.value = false }
+    }
+
+    /** Fetch the activity timeline for a period (week|month|year|program) — the detail view's period switch. */
+    suspend fun loadActivityTimeline(period: String): Result<ActivityTimelineResponse> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching { api.getActivityTimeline(period, pid) }
+            .recoverCatching { throw it.asApiError() }
+    }
+
+    // ---- Log-form lookups (member + workout pickers) ----
+
+    /** Active-program roster for the member picker (empty on no-program or failure — an empty-hint case). */
+    suspend fun loadProgramMembers(): Result<List<ProgramMemberDTO>> {
+        val pid = _activeProgram.value?.id ?: return Result.success(emptyList())
+        return runCatching { api.getProgramMembers(pid) }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** Active-program workout catalog, non-hidden only (`is_hidden` filtered — matches web/iOS). */
+    suspend fun loadProgramWorkouts(): Result<List<ProgramWorkoutDTO>> {
+        val pid = _activeProgram.value?.id ?: return Result.success(emptyList())
+        return runCatching { api.getProgramWorkouts(pid).filterNot { it.isHidden } }
+            .recoverCatching { throw it.asApiError() }
+    }
+
+    // ---- Log-form writes (both bump the Summary refresh on success — D-C3) ----
+
+    /** POST /workout-logs/batch. On failure the mapped [com.app.rasifiters.net.ApiException] carries rowErrors. */
+    suspend fun addWorkoutLogsBatch(entries: List<BulkWorkoutEntry>): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching { api.addWorkoutLogsBatch(BulkWorkoutRequest(pid, entries)); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { _summaryRefreshToken.value += 1 }
+    }
+
+    /** POST /daily-health-logs. `foodQuality` null (or omitted) clears diet; `sleepHours` null omits sleep. */
+    suspend fun addDailyHealthLog(
+        memberId: String,
+        logDate: String,
+        sleepHours: Double?,
+        foodQuality: Int?,
+    ): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.addDailyHealthLog(DailyHealthRequest(pid, logDate, memberId, sleepHours, foodQuality)); Unit
+        }.recoverCatching { throw it.asApiError() }
+            .onSuccess { _summaryRefreshToken.value += 1 }
     }
 
     private fun clearSession() {

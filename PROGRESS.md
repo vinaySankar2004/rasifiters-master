@@ -10,17 +10,33 @@
 **ACTIVE WORKSTREAM (2026-07-08): Android port — the 4th surface (`apps/android`).** A faithful 1:1
 Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
 de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
-Phase D-landing (Summary dashboard) COMPLETE — all build green.** Next = **Phase D details** (activity /
-distribution / workout-types detail views + the log-workout / log-health forms). Full plan + decisions
-are in `apps/android/CONTEXT.md` and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`).
-v1 scope = all screens + SSE notifications + auth + Health Connect + FCM push; widgets deferred. Specs =
-thin port-notes per screen (`specs/pages/android/`).
+Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) COMPLETE — all build
+green.** Next = **Phase E** (Members tab + details). Full plan + decisions are in `apps/android/CONTEXT.md`
+and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE
+notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen
+(`specs/pages/android/`).
 
 _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3 surfaces: iOS on TestFlight
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
-- **`android`** — 🟡 **Phase D-landing DONE (2026-07-08).** The **Summary dashboard** (Tab 1 of the shell) is
+- **`android`** — 🟡 **Phase D-details DONE (2026-07-08).** The **5 Summary forward targets** are ported +
+  green (were `StubScreen`): the **log-workout** + **log-health** multi-row forms and the **activity /
+  distribution / workout-types** chart drill-downs (`ui/summary/{LogWorkoutScreen,LogHealthScreen,
+  ActivityDetailScreen,DistributionDetailScreen,WorkoutTypesDetailScreen}.kt` + shared `DetailChrome.kt` /
+  `ChartPrimitives.kt`). Log forms: up-to-200-row batch (`POST /workout-logs/batch`) with per-row member
+  picker (admin/logger) vs hidden-self (member), empty-skip / invalid-block, per-row backend `rowErrors`
+  highlighting, lock mount-guard, success → `summaryRefreshToken` refresh; health form: sleep 0:00–24:00 +
+  at-least-one-metric gate, clearable diet. Drill-downs (read-only): activity **W/M/Y/P** period selector
+  (re-fetch per period) + daily-average header + iOS-style **x-axis label thinning** + a polished shared
+  **tap/drag tooltip** (bold title, color-dotted rows, caret, shadow) on the activity + distribution charts;
+  workout-types %-share chart + full breakdown. `ProgramContext` gained `canLogForAnyMember`,
+  `loggedInMemberId/Name`, `summaryRefreshToken`, `loadProgramMembers/Workouts`, `addWorkoutLogsBatch`,
+  `addDailyHealthLog`, `loadActivityTimeline(period)`; `net` gained the member/workout lookup DTOs, the batch
+  + daily-health request/response DTOs, and `rowErrors` on `ErrorBody`/`ApiException`. 5 thin SPECs under
+  `specs/pages/android/`. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Next: **Phase E (Members tab)**.
+
+  _(Phase D-landing, 2026-07-08:)_ The **Summary dashboard** (Tab 1 of the shell) is
   ported + green: `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`. Program-progress ring (server
   `progress_percent` + client date math) + status pill; MTD Participation / Total Workouts / Total Duration /
   Avg Duration metric cards (change badges); Canvas activity-timeline (bars + active-members line) +
@@ -76,26 +92,25 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase D details (Summary detail views + log forms). Say "continue" to resume.
+> ### ⏭️ ANDROID PORT — Phase E (Members tab + details). Say "continue" to resume.
 
-**Phase D-landing (Summary dashboard) is DONE + green + LIVE-TESTED** (2026-07-08, user verified on the
-emulator in light + dark): progress ring, MTD metric cards, polished Canvas timeline + distribution charts
-(y-axis nice-ticks + gridlines + Catmull-Rom line), top workout types, action cards; D-C1 error banner +
-D-C2 data-lock; thin SPEC written; `Routes.SUMMARY` renders `SummaryScreen`, 5 forward targets stubbed.
-**Post-review polish also landed + verified:** nav-bar icon parity (bar-chart/people/leaf/calendar) +
-brand-colored selection, and a **theme-wide neutral M3 surface ramp** so the baseline purple/pink tint no
-longer leaks into any Material component (sheets/menus/nav/chips/cards) — memory
-[[android-neutral-m3-surface-roles]]. The 5 Summary detail/log routes still land on `StubScreen`.
+**Phase D-details (5 Summary forward targets) is DONE + green** (2026-07-08): the **log-workout** +
+**log-health** forms and the **activity / distribution / workout-types** chart drill-downs replace the 5
+`StubScreen` routes in `ui/shell/AppScaffold.kt`. Faithful to the iOS/web SPECs (thin Android SPECs written).
+Log forms POST `/workout-logs/batch` + `/daily-health-logs` (per-row member picker for admin/logger vs
+hidden-self for members; lock mount-guard; per-row `rowErrors` highlighting; success → `summaryRefreshToken`
+refresh). Drill-downs are read-only: activity **W/M/Y/P** period selector + daily-average header + iOS-style
+x-axis label thinning + a polished shared **tap/drag tooltip** (bold title, color-dotted rows, caret, shadow);
+distribution 7-bar + tooltip; workout-types %-share + full breakdown. **User live-tested the charts on the
+emulator (light + dark) and signed off**; the log forms are the user's remaining manual pass. `android-build`
+= BUILD SUCCESSFUL (Run 5). _(Phase D-landing before this was DONE + LIVE-TESTED; neutral M3 surface ramp +
+nav icon parity landed — memory [[android-neutral-m3-surface-roles]].)_
 
-Resume at **Phase D details**: port the 5 forward targets — the **activity / distribution / workout-types**
-detail views (period selector, richer charts) and the **log-workout** (unified multi-row form, per-row member
-picker for admin/logger, own-rows for members) + **log-health** forms. Replace the 5 `StubScreen` routes in
-`ui/shell/AppScaffold.kt` (`SUMMARY_ACTIVITY`/`SUMMARY_DISTRIBUTION`/`SUMMARY_WORKOUT_TYPES`/
-`SUMMARY_LOG_WORKOUT`/`SUMMARY_LOG_HEALTH`). The log forms are lock-gated (backend `requireDataEntryAllowed`)
-and bump a summary-refresh (web `invalidateQueries(["summary"])` / iOS `summaryRefreshToken`). Match the
-iOS/web SPECs 1:1 (`specs/pages/ios/summary-*`, `specs/pages/web/summary`), Android-idiom deviations only.
-Gate with the `android-build` skill. Thin SPECs under `specs/pages/android/`. Phase list A→J is in
-`apps/android/CONTEXT.md`.
+Resume at **Phase E** — the **Members** tab (admin + standard variants) + its detail routes (member
+history / streaks / workouts / health), matching the iOS/web `members` SPECs. Then Lifestyle + Program tabs
+and settings sub-routes (Phases F→H), notifications/SSE + FCM (Phase I), Health Connect + de-scaffold
+(Phase J). Gate every screen with the `android-build` skill; write thin SPECs under `specs/pages/android/`.
+Phase list A→J is in `apps/android/CONTEXT.md`.
 
 ---
 
@@ -136,12 +151,13 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 6. [x] `ios` — all screens/widgets/Apple-Health ported; native build green (user does visual + TestFlight)
 7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
 8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
-   program-picker + Phase D-landing (Summary dashboard) green (2026-07-08); Phase D details + Phases E→J pending.
+   program-picker + Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) green
+   (2026-07-08); Phases E→J pending.
 
 ## Coverage
 
 - Features: **15** (backend coverage complete) — `specs/features/REGISTRY.md` + `registry.json`.
-- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **6** (thin port-notes) —
+- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **11** (thin port-notes) —
   `specs/pages/REGISTRY.md`.
 - Legacy-parity coverage: `COVERAGE.md`.
 
