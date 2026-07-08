@@ -25,6 +25,9 @@
 - **D-C1 / D-C4:** lock mount-guard pops when `dataEntryLocked`; failures → an inline red line (no Alert). Member
   self-lock falls back to the first member if the signed-in user isn't in the roster (iOS F3); `identityMissing`
   guard blocks a blank self-id.
+- **Deviation A-2 (success Snackbar):** on a successful save the shell shows a Material **Snackbar** ("Daily log
+  saved") via `ProgramContext.messages` — the Android-idiom write acknowledgement (iOS dismisses to the refreshed
+  screen, D-C3; a Snackbar is the platform equivalent). Same channel + rationale as [`log-workout`](../log-workout/SPEC.md) A-2.
 - **Deviation A-1 (Material chrome):** shared `DetailChrome` — circular back button + centered "Log daily
   health", `SearchablePickerField` (member) or `LockedMemberField` (self, lock glyph), a **`DatePillField`**
   (Material `DatePicker`, **past/today only** via `SelectableDates`, UTC-safe), numeric Sleep Hours/Minutes, and

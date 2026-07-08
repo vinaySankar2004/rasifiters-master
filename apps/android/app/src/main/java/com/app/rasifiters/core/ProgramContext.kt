@@ -25,8 +25,11 @@ import com.app.rasifiters.net.toApiException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -221,6 +224,15 @@ class ProgramContext(
     val summaryRefreshToken: StateFlow<Int> = _summaryRefreshToken.asStateFlow()
 
     /**
+     * One-shot transient confirmations (a Snackbar shown by the shell) — the Android-idiom acknowledgement
+     * that a write succeeded. iOS confirms by dismissing back to the refreshed screen (it dropped the legacy
+     * success Alert, log-workout D-C3); a Material Snackbar is the platform equivalent. Errors stay inline
+     * on each screen (iOS D-C4), so this channel carries successes only.
+     */
+    private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    val messages: SharedFlow<String> = _messages.asSharedFlow()
+
+    /**
      * Load the Summary tab's 7 analytics reads for the active program (the iOS `AdminSummaryTab.load()`
      * analogue). Program progress is read straight from the already-loaded [activeProgram] DTO
      * (progress_percent + start/end dates), so the vestigial `analytics/summary` over-fetch — which the
@@ -279,7 +291,11 @@ class ProgramContext(
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching { api.addWorkoutLogsBatch(BulkWorkoutRequest(pid, entries)); Unit }
             .recoverCatching { throw it.asApiError() }
-            .onSuccess { _summaryRefreshToken.value += 1 }
+            .onSuccess {
+                _summaryRefreshToken.value += 1
+                val n = entries.size
+                _messages.tryEmit(if (n == 1) "Workout saved" else "$n workouts saved")
+            }
     }
 
     /** POST /daily-health-logs. `foodQuality` null (or omitted) clears diet; `sleepHours` null omits sleep. */
@@ -294,7 +310,10 @@ class ProgramContext(
         return runCatching {
             api.addDailyHealthLog(DailyHealthRequest(pid, logDate, memberId, sleepHours, foodQuality)); Unit
         }.recoverCatching { throw it.asApiError() }
-            .onSuccess { _summaryRefreshToken.value += 1 }
+            .onSuccess {
+                _summaryRefreshToken.value += 1
+                _messages.tryEmit("Daily log saved")
+            }
     }
 
     private fun clearSession() {

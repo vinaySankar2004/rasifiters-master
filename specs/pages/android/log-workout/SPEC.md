@@ -23,6 +23,10 @@
   body `{ program_id, entries:[{ member_id, workout_name, date, duration }] }`) → on success **bumps
   `summaryRefreshToken`** (Summary reloads — the iOS `summaryRefreshToken` / web `invalidateQueries(["summary"])`
   analogue) and **pops back**.
+- **Deviation A-2 (success Snackbar):** on a successful save the shell shows a Material **Snackbar** ("N
+  workouts saved") via the app-wide `ProgramContext.messages` channel — the Android-idiom acknowledgement of the
+  write. iOS confirms by dismissing to the refreshed screen (it dropped the legacy success Alert, D-C3); a
+  Snackbar is the platform equivalent (lighter than the Alert iOS removed). Errors stay **inline** (D-C4).
 - **D-C1 (lock mount-guard):** `LaunchedEffect` pops immediately when `dataEntryLocked`; the Summary card is
   already disabled; the backend `requireDataEntryAllowed` 403 is the real boundary.
 - **D-C4 (inline errors):** per-row **backend `rowErrors`** (400/409, carried on `ApiException.rowErrors`, parsed
