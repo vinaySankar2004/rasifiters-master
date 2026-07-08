@@ -59,14 +59,22 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
-🟡 **Phase B COMPLETE (2026-07-08).** The logged-out auth path is ported + wired + green. New
-`ui/auth/{AuthComponents,SplashScreen,LoginScreen,CreateAccountScreen,ForgotPasswordScreen}.kt` +
-`core/AppLinks.kt`; brand mark assets (`res/drawable/brand_icon(_dark).png`, from iOS). `AuthGraph`
-(`ui/RootScreen.kt`) now runs the real screens — splash→login→create-account/forgot-password — with the
-**4 auth stubs deleted**. Login = `POST /auth/login/app`; create-account does register→auto-login; a
-successful login/register flips `authToken` so the root gate swaps to the shell (no explicit nav). Thin
-port-note SPECs under `specs/pages/android/`. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Next:
-**Phase C** (program-picker — the signed-in home). See the plan + `PROGRESS.md`.
+🟡 **Phase C COMPLETE (2026-07-08).** The **program-picker** (signed-in home / "My Programs") is ported +
+wired + green. New `ui/programs/{ProgramPickerScreen,AccountMenuSheet}.kt`; `ProgramContext` gained
+programs/activeProgram state + `loadPrograms`/`moveProgram`/`persistProgramOrder`/`deleteProgram`/
+`respondToInvite`/`selectProgram`; `net/{Dtos,ApiService}` gained `ProgramDTO` + order/membership DTOs + 4
+endpoints (`GET /programs`, `PUT /programs/order`, `DELETE /programs/:id`, `PUT /program-memberships`).
+`RootScreen` now routes token→**picker**→shell (`SignedInGraph`) — the first authenticated screen, so it
+exercises the Bearer header + 401 authenticator + `GET /auth/me` self-heal against live data. Faithful to
+the iOS/web SPECs (cards, role gating, inline invites, delete, account sheet, floating "+" badge) incl. the
+D-C1 error banner + D-N1 drag-reorder/search; Android-idiom deviations (overflow-⋮ Edit/Delete, long-press-
+drag reorder, `ModalBottomSheet` account sheet) in the thin SPEC `specs/pages/android/program-picker/`.
+Forward-nav (create/edit, account destinations) deferred per iOS D-SCOPE. `./gradlew :app:assembleDebug` =
+BUILD SUCCESSFUL. Next: **Phase D** (Summary tab + details). See the plan + `PROGRESS.md`.
+
+_(Phase B, 2026-07-08:) Logged-out auth path — `ui/auth/{AuthComponents,SplashScreen,LoginScreen,
+CreateAccountScreen,ForgotPasswordScreen}.kt` + `core/AppLinks.kt`; brand mark assets; `AuthGraph` runs the
+real splash→login→create-account/forgot-password flow; 4 auth stubs deleted. Login = `POST /auth/login/app`._
 
 _(Phase A, 2026-07-08:) Foundation green — Gradle project, DI (`AppContainer`), state hub (`ProgramContext`),
 session/Keychain (`Session`), Retrofit/OkHttp + 401 authenticator, auth DTOs, Material 3 theme, bottom-nav
@@ -77,3 +85,5 @@ Stub screens live in `ui/StubScreen.kt` usages. Deleted as real screens land:
 ~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · Summary+details (D) · Members (E) ·
 Lifestyle (F) · Program/settings (G). Remaining `StubScreen(...)` call-sites: the 4 bottom tabs in
 `ui/shell/AppScaffold.kt` (Summary/Members/Lifestyle/Program). By Phase J: zero remain.
+_(Phase C added the program-picker, a NEW screen that precedes the shell — it did not remove a stub; the
+picker's own forward-nav (create/edit + account destinations) is deferred per iOS D-SCOPE, folded in G/H.)_

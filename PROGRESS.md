@@ -9,28 +9,33 @@
 
 **ACTIVE WORKSTREAM (2026-07-08): Android port — the 4th surface (`apps/android`).** A faithful 1:1
 Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
-de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) COMPLETE — both build green.**
-Next = **Phase C (program-picker, the signed-in home).** Full plan + decisions are in
-`apps/android/CONTEXT.md` and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope
-= all screens + SSE notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin
-port-notes per screen (`specs/pages/android/`).
+de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker, the
+signed-in home) COMPLETE — all build green.** Next = **Phase D (Summary tab + details).** Full plan +
+decisions are in `apps/android/CONTEXT.md` and the approved plan
+(`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE notifications + auth +
+Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen (`specs/pages/android/`).
 
 _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3 surfaces: iOS on TestFlight
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
-- **`android`** — 🟡 **Phase B DONE (2026-07-08).** The logged-out **auth path** is ported + green:
-  `ui/auth/{AuthComponents,SplashScreen,LoginScreen,CreateAccountScreen,ForgotPasswordScreen}.kt` +
-  `core/AppLinks.kt` + brand-mark drawables. `AuthGraph` (`ui/RootScreen.kt`) runs the real
-  splash→login→create-account/forgot-password flow; the **4 auth stubs are deleted**. Login =
-  `POST /auth/login/app`; create-account does register→auto-login; a successful login/register flips
-  `authToken` → the root gate swaps to the shell. Faithful to the iOS/web SPECs (typewriter+tap-to-skip,
-  real `BrandMark`, inline email validation, live password checklist, generic no-enumeration recovery +
-  mailto fallback); Android-idiom deviations recorded in the 4 thin `specs/pages/android/` port-notes.
-  `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. **Phase A (2026-07-08):** foundation — Gradle project,
-  DI, state hub, Keychain-analog session, Retrofit/OkHttp + 401 authenticator, Material 3 theme, bottom-nav
-  scaffold. `android-build` skill = the pure-CLI compile loop (no MCP). Next: **Phase C** — program-picker
-  (the signed-in home).
+- **`android`** — 🟡 **Phase C DONE (2026-07-08).** The **program-picker** (signed-in home / "My Programs")
+  is ported + green: `ui/programs/{ProgramPickerScreen,AccountMenuSheet}.kt`. Program cards (status pill +
+  date range + members/invite line + progress bar), client `canOpen`/`canManage` role gating, inline invite
+  Accept/Decline/Cancel, delete (Android-idiom overflow ⋮ menu + confirm), the inline account sheet
+  (`ModalBottomSheet`: profile/change-password/appearance/notifications/health-connect/privacy/support/
+  sign-out), floating "+" with a pending-invite badge, the D-C1 error banner, and the D-N1 net-new
+  **long-press drag-to-reorder** (`PUT /programs/order`, optimistic + revert) + **floating search**.
+  `ProgramContext` gained programs/activeProgram state + `loadPrograms`/`moveProgram`/`persistProgramOrder`/
+  `deleteProgram`/`respondToInvite`/`selectProgram`; new `ProgramDTO` + order/membership DTOs + 4 endpoints.
+  `RootScreen` now routes token→**picker**→shell (first authenticated screen — exercises the Bearer header +
+  401 authenticator + `GET /auth/me` self-heal live). Thin port-note `specs/pages/android/program-picker/`
+  (deviations A-1..A-4). Forward-nav (create/edit, account destinations) deferred per iOS D-SCOPE.
+  `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. **Phase B (2026-07-08):** logged-out auth path
+  (splash/login/create-account/forgot-password), 4 auth stubs deleted. **Phase A (2026-07-08):** foundation —
+  Gradle project, DI, state hub, Keychain-analog session, Retrofit/OkHttp + 401 authenticator, Material 3
+  theme, bottom-nav scaffold. `android-build` skill = the pure-CLI compile loop (no MCP). Next: **Phase D** —
+  Summary tab + details.
 
 - **`backend`** — DEPLOYED + LIVE on Render (`rasifiters-api`, `https://rasifiters-api.onrender.com`); auth
   round-trip verified live against migrated data. All backend features ported (`specs/features/REGISTRY.md`).
@@ -56,21 +61,23 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase C (program-picker, the signed-in home). Say "continue" to resume.
+> ### ⏭️ ANDROID PORT — Phase D (Summary tab + details). Say "continue" to resume.
 
-**Phase B (auth path) is DONE + green** (splash/login/create-account/forgot-password ported, 4 auth stubs
-deleted, 4 thin SPECs written). **User's next step:** run the app on the Pixel 8 emulator
-(`cd apps/android && ./gradlew :app:installDebug`, or Android Studio Run) and eyeball the auth flow —
-compile is verified, the visual/runtime check is yours (memory [[ios-user-verifies-builds-visually]]).
+**Phase C (program-picker) is DONE + green** (My Programs cards, role gating, inline invites, delete,
+account sheet, drag-reorder + search, error banner; `RootScreen` routes token→picker→shell; thin SPEC
+written). **User's next step:** run the app on the Pixel 8 emulator
+(`cd apps/android && ./gradlew :app:installDebug`, or Android Studio Run) and eyeball the picker + account
+sheet + reorder/search — compile is verified, the visual/runtime check is yours (memory
+[[ios-user-verifies-builds-visually]]). Note: opening a program lands on the **stub** bottom-tab shell
+(Summary/Members/Lifestyle/Program) — those are Phases D–G.
 
-Resume at **Phase C**: port the signed-in home — the **program-picker** (iOS `ProgramPickerView` /
-web `/programs`): `fetchPrograms` `GET /programs`, program cards, long-press/drag reorder
-(`PUT /programs/order`) + collapsed floating search, create/delete/leave, pending invites, and selecting a
-program → the per-program tab shell. This is the first **authenticated** screen, so it also exercises the
-`GET /auth/me` self-heal + the 401 authenticator against real data. Match the iOS/web SPECs 1:1
-(`specs/pages/{ios/program-picker,web/programs}`), Android-idiom deviations only. Gate with the
-`android-build` skill (`./gradlew :app:assembleDebug`). Write a thin port-note SPEC under
-`specs/pages/android/program-picker/`. Phase list A→J is in `apps/android/CONTEXT.md`.
+Resume at **Phase D**: port the **Summary tab** (the per-program home dashboard) + its details
+(activity / distribution / workout-types / log-workout / log-health), admin + standard variants. Replace
+the `Routes.SUMMARY` stub in `ui/shell/AppScaffold.kt`. Read the active program from
+`ProgramContext.activeProgram` (hydrated by the picker's `selectProgram`). Match the iOS/web SPECs 1:1
+(`specs/pages/{ios,web}/summary*`), Android-idiom deviations only. Gate with the `android-build` skill
+(`./gradlew :app:assembleDebug`). Write thin port-note SPEC(s) under `specs/pages/android/`. Phase list
+A→J is in `apps/android/CONTEXT.md`.
 
 ---
 
@@ -110,13 +117,13 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 5. [x] `web` — all pages ported + deployed + LIVE on `rasifiters.com`
 6. [x] `ios` — all screens/widgets/Apple-Health ported; native build green (user does visual + TestFlight)
 7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
-8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path green (2026-07-08);
-   Phases C→J pending.
+8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
+   program-picker green (2026-07-08); Phases D→J pending.
 
 ## Coverage
 
 - Features: **15** (backend coverage complete) — `specs/features/REGISTRY.md` + `registry.json`.
-- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **4** (thin port-notes) —
+- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **5** (thin port-notes) —
   `specs/pages/REGISTRY.md`.
 - Legacy-parity coverage: `COVERAGE.md`.
 

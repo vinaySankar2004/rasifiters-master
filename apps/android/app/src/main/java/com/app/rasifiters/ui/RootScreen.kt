@@ -11,6 +11,7 @@ import com.app.rasifiters.ui.auth.CreateAccountScreen
 import com.app.rasifiters.ui.auth.ForgotPasswordScreen
 import com.app.rasifiters.ui.auth.LoginScreen
 import com.app.rasifiters.ui.auth.SplashScreen
+import com.app.rasifiters.ui.programs.ProgramPickerScreen
 import com.app.rasifiters.ui.shell.AppScaffold
 
 /**
@@ -25,7 +26,27 @@ fun RootScreen(programContext: ProgramContext) {
     if (token == null) {
         AuthGraph(programContext)
     } else {
-        AppScaffold(programContext = programContext)
+        SignedInGraph(programContext)
+    }
+}
+
+/** Signed-in navigation graph: the program picker (landing) → the per-program tab shell. */
+@Composable
+private fun SignedInGraph(programContext: ProgramContext) {
+    val nav = rememberNavController()
+    NavHost(navController = nav, startDestination = Routes.PROGRAM_PICKER) {
+        composable(Routes.PROGRAM_PICKER) {
+            ProgramPickerScreen(
+                programContext = programContext,
+                onOpenProgram = { program ->
+                    programContext.selectProgram(program)
+                    nav.navigate(Routes.SHELL)
+                },
+            )
+        }
+        composable(Routes.SHELL) {
+            AppScaffold(programContext = programContext)
+        }
     }
 }
 

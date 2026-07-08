@@ -13,6 +13,7 @@ object Routes {
 
     // Signed-in graph
     const val PROGRAM_PICKER = "program_picker"
+    const val SHELL = "shell"
 
     // Per-program bottom tabs
     const val SUMMARY = "summary"

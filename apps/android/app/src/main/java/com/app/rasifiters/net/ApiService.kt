@@ -1,8 +1,11 @@
 package com.app.rasifiters.net
 
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.PUT
+import retrofit2.http.Path
 
 /**
  * Retrofit surface for the backend. One method per endpoint; grown per phase.
@@ -29,4 +32,17 @@ interface ApiService {
 
     @POST("auth/forgot-password")
     suspend fun forgotPassword(@Body body: ForgotPasswordRequest): MessageResponse
+
+    // ---- Programs ----
+    @GET("programs")
+    suspend fun getPrograms(): List<ProgramDTO>
+
+    @PUT("programs/order")
+    suspend fun saveProgramOrder(@Body body: ProgramOrderRequest): MessageResponse
+
+    @DELETE("programs/{id}")
+    suspend fun deleteProgram(@Path("id") id: String): MessageResponse
+
+    @PUT("program-memberships")
+    suspend fun updateMembership(@Body body: MembershipUpdateRequest): MessageResponse
 }
