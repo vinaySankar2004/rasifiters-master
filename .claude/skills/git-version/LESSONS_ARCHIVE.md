@@ -192,3 +192,26 @@ the user → committed as a real, verified feature (not a "pending smoke-test" p
 - **Lesson:** a ship event goes stale in THREE places here (PROGRESS checklist, ICM surface table,
   apps/<surface>/CONTEXT version line) — grep all top-level docs for the old state string, don't
   spot-fix only the line the user pointed at.
+
+## Run — 2026-07-07 — auth 0.6.0 (net-new GET /me; web member-id self-heal)
+- **Changeset:** apps/backend/routes/auth.js (+ apps/web auth-provider/api + LogWorkoutsForm) +
+  apps/ios StandardMembersTab + specs/features/auth/SPEC.md §11 + registry.json + REGISTRY.md +
+  specs/pages/web/members/SPEC.md (F1a) + PROGRESS.md. Bug fix: a web member with an empty
+  session.user.id was blocked from logging ("You can only log workouts for yourself.") and saw a blank
+  Members tab; root cause was the id never being re-derived after login (no `id` claim in the Supabase
+  JWT).
+- **Mapping outcome:** the `/me` endpoint lives in `routes/auth.js` (auth's reference_impl) → maps to
+  `auth`. The web form guard, iOS tab, and members page SPEC are consumers/pages, NOT separate feature
+  reference_impl paths → no extra feature bump. `workout-logs` untouched (its logService check was
+  already correct — the client was sending a bad member_id).
+- **Bump:** auth 0.5.0 → **0.6.0** MINOR — a new OWNED endpoint that is backward-compatible (existing
+  routes/JWT/middleware unchanged). Blast radius FYI only (consumers web+ios; every feature depends_on
+  auth but the change is additive, so no dependent re-version — the "backward-compat owned-interface →
+  no propagation" lesson).
+- **Lesson (registry.json edits):** NEVER rewrite registry.json via `json.load`+`json.dump` — it
+  reformats the whole file (unicode-escapes the em-dashes, rewraps arrays) → a 178-line noisy diff.
+  `git checkout` it and do a surgical `Edit` on the single `"version"` line inside the target feature's
+  block (the first `"version": "0.x.0"` under `"<feature>": {`). One-line diff, every time.
+- **Lesson (live-binary safety in the bump note):** when the owned change is a NEW endpoint, state in the
+  §changelog that the LIVE iOS binary never calls it (additive/degrades-gracefully) — ties the bump to
+  the ios-live-binary-compatibility posture so a reviewer sees the deploy is safe without a new build.
