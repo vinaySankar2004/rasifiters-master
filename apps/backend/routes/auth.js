@@ -35,6 +35,20 @@ const handleAppLogin = async (req, res) => {
 router.post("/login/app", handleAppLogin);
 router.post("/login/global", handleAppLogin);
 
+// Server-authoritative identity ("who am I"). Echoes the JWKS-verified, auth_user_id-mapped member
+// already resolved onto req.user by authenticateToken — no DB query, no service logic. Lets the web
+// self-heal a stale/missing session.user.id (the member's members.id) on load, independent of which
+// login path was used or whether the Supabase JWT carries custom claims. Additive: the LIVE iOS binary
+// never calls this (it keeps using the login-response member_id).
+router.get("/me", authenticateToken, (req, res) => {
+    res.json({
+        member_id: req.user.id,
+        username: req.user.username,
+        member_name: req.user.member_name,
+        global_role: req.user.global_role
+    });
+});
+
 router.post("/refresh", async (req, res) => {
     try {
         const result = await authService.refreshAccessToken(req.body.refresh_token);

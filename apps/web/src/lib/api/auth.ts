@@ -18,6 +18,20 @@ export async function login(identifier: string, password: string) {
   });
 }
 
+export type MeResponse = {
+  member_id?: string;
+  username?: string;
+  member_name?: string;
+  global_role?: string;
+};
+
+// Server-authoritative identity ("who am I"). The web derives session.user.id (= the member's members.id)
+// from the login response, but never re-derives it afterward — so a stale/missing id would stay broken
+// until re-login. Calling this on load lets the session self-heal from the JWKS-verified member.
+export async function fetchMe(token: string) {
+  return apiRequest<MeResponse>("/auth/me", { token });
+}
+
 export type RegisterResponse = {
   message?: string;
   member_id?: string;

@@ -115,6 +115,10 @@ export function LogWorkoutsForm({
   variant?: "modal" | "page";
 }) {
   const ignoreMember = !canSelectAnyMember;
+  // A plain member logs only for themselves, so every row is seeded from selfMemberId. If that id is missing
+  // (a stale/unhealed session), submitting would send member_id:"" and the backend rejects with a confusing
+  // "You can only log workouts for yourself." Block the save and tell the user how to recover instead.
+  const identityMissing = ignoreMember && !(selfMemberId && selfMemberId.trim());
   const [members, setMembers] = useState<{ id: string; member_name: string }[]>([]);
   const [workouts, setWorkouts] = useState<{ workout_name: string }[]>([]);
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
@@ -231,7 +235,7 @@ export function LogWorkoutsForm({
   const nonEmptyRows = rows.filter((r) => !isEmptyRow(r, ignoreMember));
   const validRows = nonEmptyRows.filter((r) => isValidRow(r, ignoreMember));
   const invalidCount = nonEmptyRows.length - validRows.length;
-  const canSubmit = validRows.length > 0 && invalidCount === 0 && !isSaving;
+  const canSubmit = validRows.length > 0 && invalidCount === 0 && !isSaving && !identityMissing;
 
   const distinctMembers = useMemo(
     () => new Set(validRows.map((r) => r.memberId)).size,
@@ -243,6 +247,7 @@ export function LogWorkoutsForm({
   );
 
   const handleSubmit = () => {
+    if (identityMissing) return;
     const included = rows.filter((r) => !isEmptyRow(r, ignoreMember) && isValidRow(r, ignoreMember));
     if (included.length === 0) return;
     setSubmittedOrder(included.map((r) => r.uid));
@@ -454,6 +459,11 @@ export function LogWorkoutsForm({
         {atMax && <span className="self-center text-xs text-rf-text-muted">Max {MAX_ROWS} rows</span>}
       </div>
 
+      {identityMissing && (
+        <p className="mt-3 text-sm font-semibold text-rf-danger">
+          We couldn&apos;t identify your account. Please sign out and sign back in, then try again.
+        </p>
+      )}
       {invalidCount > 0 && (
         <p className="mt-3 text-sm font-semibold text-rf-danger">
           {invalidCount} {invalidCount === 1 ? "row needs" : "rows need"} attention before saving.

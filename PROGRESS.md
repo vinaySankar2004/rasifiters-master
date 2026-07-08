@@ -78,6 +78,17 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 
 ## Open items (carry until resolved)
 
+- **Member identity self-heal (2026-07-07)** — fixed a web bug where a member with an empty `session.user.id`
+  (never re-derived after login; no `id` claim in the Supabase JWT) was blocked from logging workouts
+  ("You can only log workouts for yourself.") and saw a **blank Members tab** (own cards gated on that id).
+  Fix: net-new **`GET /api/auth/me`** (`auth` SPEC D-C7, additive/safe for the LIVE iOS binary) + the web
+  `AuthProvider` calls it on load to make the id authoritative/self-healing + a log-form guard. Backend =
+  correct throughout; both symptoms were web-only. **Immediate user workaround: sign out + back in.**
+  Also hardened the **iOS** `StandardMembersTab` to render its member cards unconditionally (each has its own
+  empty state) so a member never sees a fully blank tab — **ships in the next TestFlight build** (build-number
+  bump only). Deploy order: backend (`/me`) first, then web; iOS on the next archive.
+
+
 - **Re-auth the Render + Vercel MCPs** — both OAuth sessions are stale (400/403 in this session); re-connect
   via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + local `vercel` CLI work meanwhile.
 - **Make the GitHub repo public** — pre-public health check done 2026-07-01 (no tracked secrets; contact emails

@@ -1,6 +1,6 @@
 # Feature: `auth` — authentication, session, and request authorization
 
-> **Status:** 🚀 deployed (live on Render) · **Version:** 0.5.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🚀 deployed (live on Render) · **Version:** 0.6.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Provenance (legacy, archived):** `backend` — `routes/auth.js`, `services/authService.js`,
 > `middleware/auth.js`, `models/{Member,MemberEmail,MemberCredential,RefreshToken,MemberPushToken}.js`,
 > `server.js`.
@@ -51,6 +51,7 @@ All mounted at **`/api/auth`** (legacy `server.js:46`). Reference handlers in `r
 | 9 | `POST /forgot-password` | **NET-NEW** (no legacy handler) → `requestPasswordReset` | no | **Self-service password recovery, request step.** Proxies Supabase `resetPasswordForEmail`. **Privacy-safe — always 200** with a generic message (no account-enumeration). Pairs with `POST /reset-password`. **D-C4.** |
 | 10 | `POST /reset-password` | **NET-NEW** (no legacy handler) → reuses `changePassword` | **yes** (recovery token) | **Self-service password recovery, RESET step.** The web `/reset-password` page sends the Supabase recovery `access_token` as Bearer; `authenticateToken` verifies it + maps `sub`→member, then reuses `changePassword` to set the new password. **D-C5.** |
 | 11 | `PUT /email` | **NET-NEW** (no legacy handler) → `changeEmail` (`authService.js`) | **yes** | **Self-service email change.** Re-auths the current password (Supabase `signInWithPassword`), then **direct** change: Supabase `admin.updateUserById({ email, email_confirm:true })` + the primary `member_emails` row (compensating-revert on DB failure). Keeps `auth.users` + `member_emails` in sync; session JWT stays valid. **D-C6.** |
+| 12 | `GET /me` | **NET-NEW** (no legacy handler) → inline in `routes/auth.js` | **yes** | **Server-authoritative identity ("who am I").** Echoes the JWKS-verified, `auth_user_id`→member-mapped `req.user` (no DB query, no service): `{ member_id, username, member_name, global_role }`. Exists so the **web** can self-heal a stale/missing `session.user.id` (the member's `members.id`) on load — the web derives the id only from the login response and never re-derives it, and a stock Supabase JWT carries no `id` claim. Additive: the LIVE iOS binary never calls it. **D-C7.** |
 
 ### Response shapes (preserved 1:1 — D-C3)
 
@@ -69,6 +70,8 @@ All mounted at **`/api/auth`** (legacy `server.js:46`). Reference handlers in `r
   `400` (bad/duplicate/no-op email), `401` (current password incorrect), `404` (account/email not found),
   `500` (DB write failed after the Supabase update — best-effort reverted).
 - **`/account`** (`authService.js:403`): `{ message: "Account deleted successfully." }`.
+- **`/me`** (inline, NET-NEW D-C7): `200 { member_id, username, member_name, global_role }` straight from
+  `req.user` (`middleware/auth.js` resolved identity). `401` if the bearer JWT is missing/invalid. No body.
 - **`/forgot-password`** (`requestPasswordReset`, NET-NEW): **always** `200 { message: "If an account
   with that email exists, a password reset link has been sent." }` — the **same** response whether or not
   the email maps to an account (no enumeration). A malformed/empty email returns the same 200 (no Supabase
@@ -243,6 +246,7 @@ unchanged** (`isAdmin`/`requireProgramAdmin`/`requireProgramMember`/`canModifyLo
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.6.0 | 2026-07-07 | **NET-NEW `GET /me` (D-C7)** — server-authoritative identity that echoes the JWKS-verified `req.user` (`{ member_id, username, member_name, global_role }`; no DB query). Fixes a **web** bug: `session.user.id` (= the member's `members.id`) is derived only from the login response and never re-derived, and a stock Supabase JWT has no `id` claim — so a stale/missing id stayed broken until re-login, which sent `member_id:""` on workout logging (backend 403 "You can only log workouts for yourself.") and blanked the Members tab (own cards gated on that id). The web `AuthProvider` now calls `/me` on load/refresh to make the id authoritative + self-healing. **MINOR** (additive owned endpoint, backward-compatible — existing routes/JWT/middleware unchanged); blast-radius FYI (`web`,`ios`; no dependent re-version). Additive + safe for the LIVE iOS binary (never calls `/me`). Web `npm run build` ✓. |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker` (Phase 2 kickoff). Documents the legacy `/api/auth/*` surface + `middleware/auth.js` and the R1 Supabase-Auth migration delta. Decisions D-C1/D-C2/D-C3/D-S1/D-REF; flagged F1–F7. |
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — faithful foundation (13 models + `index.js` minus retired `member_credentials`/`refresh_tokens`; `Member.auth_user_id` added) + the auth slice (`config/supabase.js` JWKS verify, `middleware/auth.js`, `services/authService.js`, `routes/auth.js`, `server.js` mounting only `/api/auth`). Status 📄→🏗️ (no semver bump — faithful port, contract unchanged). Known gaps: `DELETE /account`→501 (cascade owned by program-memberships/notifications, D-C1); backend deploy + asymmetric Supabase JWT keys pending. |
 | 0.1.0 (infra) | 2026-06-28 | **Backend host = Render, not Railway** (METHODOLOGY R7) — the D-C2 JWKS verify path is unchanged; the deploy target is a Render web service (Blueprint `apps/backend/render.yaml`). **Asymmetric Supabase JWT keys RESOLVED:** the project's JWKS endpoint serves a live `ES256`/P-256 key, so JWKS verify finds a key. No SPEC/contract change (no semver bump). Remaining gap: `DELETE /account`→501 (unchanged). |

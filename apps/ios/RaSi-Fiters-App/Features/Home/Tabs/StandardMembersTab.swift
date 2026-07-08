@@ -52,21 +52,20 @@ struct StandardMembersTab: View {
                         ProgressView()
                             .padding()
                     } else {
-                        // Member Overview card first
-                        if programContext.selectedMemberOverview != nil {
-                            MemberOverviewCard(member: loggedInMember)
-                        }
+                        // The member's own cards render UNCONDITIONALLY (parity with web). Each card handles its
+                        // own empty/nil state ("No workouts logged yet.", 0-day streak, etc.), so we no longer
+                        // gate the whole set on selectedMemberOverview != nil — a member with no data (or a
+                        // transient load miss) would otherwise see a blank tab with only "View Members".
+                        MemberOverviewCard(member: loggedInMember)
 
-                        // Logged-in user's MemberMetricsCard second
+                        // Logged-in user's MemberMetricsCard — needs a concrete metric row, so keep its own gate.
                         if let metrics = loggedInUserMetrics {
                             MemberMetricsCard(metric: metrics, hero: .workouts)
                         }
 
-                        // History and Streak (always logged-in user for standard and logger)
-                        if programContext.selectedMemberOverview != nil {
-                            MemberHistoryCard(selectedMember: loggedInMember)
-                            MemberStreakCard(selectedMember: loggedInMember)
-                        }
+                        // History and Streak (always the logged-in user for standard and logger)
+                        MemberHistoryCard(selectedMember: loggedInMember)
+                        MemberStreakCard(selectedMember: loggedInMember)
 
                         if isLogger {
                             // Logger: View as bar right above only the two log cards
@@ -75,10 +74,8 @@ struct StandardMembersTab: View {
                             MemberHealthCard(selectedMember: loggerViewAsMember ?? loggedInMember)
                         } else {
                             // Standard: same two cards for self
-                            if programContext.selectedMemberOverview != nil {
-                                MemberRecentCard(selectedMember: loggedInMember)
-                                MemberHealthCard(selectedMember: loggedInMember)
-                            }
+                            MemberRecentCard(selectedMember: loggedInMember)
+                            MemberHealthCard(selectedMember: loggedInMember)
                         }
                     }
                 }
