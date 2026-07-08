@@ -219,6 +219,50 @@ fun SearchablePickerField(
     }
 }
 
+/** A W/M/Y/P period bucket — `range` is the fallback header label when the server sends none. */
+data class Period(val key: String, val short: String, val range: String)
+
+/** The four period buckets shared by every period-switchable drill-down (activity + lifestyle timeline). */
+val PERIODS: List<Period> = listOf(
+    Period("week", "W", "This Week"),
+    Period("month", "M", "This Month"),
+    Period("year", "Y", "This Year"),
+    Period("program", "P", "Program to date"),
+)
+
+/** The segmented W/M/Y/P selector (iOS `.pickerStyle(.segmented)` analog). Shared across detail screens. */
+@Composable
+fun PeriodSelector(selected: Period, onSelect: (Period) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(11.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(3.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        PERIODS.forEach { p ->
+            val active = p.key == selected.key
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
+                    .clickable { onSelect(p) }
+                    .padding(vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    p.short,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
+                    color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
+        }
+    }
+}
+
 /** A locked, non-editable field showing the self-locked member name (member variant of the picker). */
 @Composable
 fun LockedMemberField(name: String) {

@@ -317,12 +317,13 @@ private fun ViewAsSelector(label: String, onClick: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MemberPickerSheet(
+fun MemberPickerSheet(
     members: List<ProgramMemberDTO>,
     selectedId: String?,
     showNone: Boolean,
     onSelect: (ProgramMemberDTO?) -> Unit,
     onDismiss: () -> Unit,
+    noneLabel: String = "None",
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var query by remember { mutableStateOf("") }
@@ -341,7 +342,7 @@ private fun MemberPickerSheet(
             LazyColumn(modifier = Modifier.fillMaxWidth().height(if (filtered.size > 6) 380.dp else (48 * (filtered.size + if (showNone) 1 else 0)).coerceAtLeast(48).dp)) {
                 if (showNone) {
                     item {
-                        PickerRow(name = "None", selected = selectedId == null, onClick = { onSelect(null) })
+                        PickerRow(name = noneLabel, selected = selectedId == null, onClick = { onSelect(null) })
                     }
                 }
                 items(filtered, key = { it.id }) { m ->

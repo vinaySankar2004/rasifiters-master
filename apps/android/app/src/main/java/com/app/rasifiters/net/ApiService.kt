@@ -76,7 +76,40 @@ interface ApiService {
     suspend fun getWorkoutTypes(
         @Query("programId") programId: String,
         @Query("limit") limit: Int = 100,
+        @Query("memberId") memberId: String? = null,
     ): List<WorkoutTypeDTO>
+
+    // ---- Lifestyle tab (Phase F) — health timeline + member-scoped workout-type analytics ----
+    @GET("analytics/health/timeline")
+    suspend fun getHealthTimeline(
+        @Query("period") period: String,
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String? = null,
+    ): HealthTimelineResponse
+
+    @GET("analytics-v2/workouts/types/total")
+    suspend fun getWorkoutTypesTotal(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String? = null,
+    ): WorkoutTypesTotalDTO
+
+    @GET("analytics-v2/workouts/types/most-popular")
+    suspend fun getWorkoutTypeMostPopular(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String? = null,
+    ): WorkoutTypeMostPopularDTO
+
+    @GET("analytics-v2/workouts/types/longest-duration")
+    suspend fun getWorkoutTypeLongestDuration(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String? = null,
+    ): WorkoutTypeLongestDurationDTO
+
+    @GET("analytics-v2/workouts/types/highest-participation")
+    suspend fun getWorkoutTypeHighestParticipation(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String? = null,
+    ): WorkoutTypeHighestParticipationDTO
 
     // ---- Log-form lookups ----
     @GET("program-memberships/members")
@@ -84,6 +117,22 @@ interface ApiService {
 
     @GET("program-workouts")
     suspend fun getProgramWorkouts(@Query("programId") programId: String): List<ProgramWorkoutDTO>
+
+    // ---- Workout-types management (Lifestyle tab → manage; Phase F) ----
+    @PUT("program-workouts/toggle-visibility")
+    suspend fun toggleWorkoutVisibility(@Body body: ToggleWorkoutVisibilityRequest): MessageResponse
+
+    @PUT("program-workouts/{id}/toggle-visibility")
+    suspend fun toggleCustomWorkoutVisibility(@Path("id") id: String): MessageResponse
+
+    @POST("program-workouts/custom")
+    suspend fun addCustomWorkout(@Body body: AddCustomWorkoutRequest): MessageResponse
+
+    @PUT("program-workouts/{id}")
+    suspend fun editCustomWorkout(@Path("id") id: String, @Body body: EditCustomWorkoutRequest): MessageResponse
+
+    @DELETE("program-workouts/{id}")
+    suspend fun deleteCustomWorkout(@Path("id") id: String): MessageResponse
 
     // ---- Log-form writes ----
     @POST("workout-logs/batch")

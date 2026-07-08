@@ -39,6 +39,11 @@ object Routes {
     const val MEMBER_INVITE = "members/invite"
     const val MEMBER_ROSTER = "members/roster"
     const val MEMBER_EDIT = "members/edit"
+
+    // Lifestyle detail routes (Phase F). Scoped member is stashed in ProgramContext before push (static-route
+    // idiom). The workout-types manager double-duties with the Program tab (Phase G).
+    const val LIFESTYLE_WORKOUT_TYPES = "lifestyle/workout-types"
+    const val LIFESTYLE_TIMELINE = "lifestyle/timeline"
 }
 
 /** Bottom navigation tabs, in order. */

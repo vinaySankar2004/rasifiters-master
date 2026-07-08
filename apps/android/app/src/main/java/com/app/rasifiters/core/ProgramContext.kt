@@ -28,11 +28,18 @@ import com.app.rasifiters.net.ProgramWorkoutDTO
 import com.app.rasifiters.net.RegisterRequest
 import com.app.rasifiters.net.ActivityTimelinePoint
 import com.app.rasifiters.net.ActivityTimelineResponse
+import com.app.rasifiters.net.AddCustomWorkoutRequest
+import com.app.rasifiters.net.EditCustomWorkoutRequest
+import com.app.rasifiters.net.HealthTimelineResponse
+import com.app.rasifiters.net.ToggleWorkoutVisibilityRequest
 import com.app.rasifiters.net.TotalDurationMtdDTO
 import com.app.rasifiters.net.TotalWorkoutsMtdDTO
 import com.app.rasifiters.net.WorkoutLogDeleteRequest
 import com.app.rasifiters.net.WorkoutLogUpdateRequest
 import com.app.rasifiters.net.WorkoutTypeDTO
+import com.app.rasifiters.net.WorkoutTypeHighestParticipationDTO
+import com.app.rasifiters.net.WorkoutTypeLongestDurationDTO
+import com.app.rasifiters.net.WorkoutTypeMostPopularDTO
 import com.app.rasifiters.net.toApiException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -618,6 +625,126 @@ class ProgramContext(
             }
     }
 
+    // ---- Lifestyle tab (Phase F) — workout-type analytics + health timeline + workout management ----
+    // The Lifestyle tab shows workout-type stats scoped to the "View as" member (participation is always
+    // program-wide) + a sleep/diet health-timeline preview. Loaders mirror the iOS `AdminWorkoutTypesTab`
+    // set. The "View as" pick is hoisted here (not screen-local) so it survives a detail push + return —
+    // memory: persist-tab-selections-across-nav. `null` selection = the program-wide ("Admin") view.
+
+    private val _lifestyle = MutableStateFlow(LifestyleData())
+    val lifestyle: StateFlow<LifestyleData> = _lifestyle.asStateFlow()
+
+    private val _lifestyleLoading = MutableStateFlow(false)
+    val lifestyleLoading: StateFlow<Boolean> = _lifestyleLoading.asStateFlow()
+
+    /** The Lifestyle-tab "View as" member (null = program-wide "Admin" view). Separate from the Members tab. */
+    private val _lifestyleViewAsId = MutableStateFlow<String?>(null)
+    val lifestyleViewAsId: StateFlow<String?> = _lifestyleViewAsId.asStateFlow()
+
+    /** Whether the user explicitly picked a Lifestyle "View as" (distinguishes program-admin's default-self
+     *  from an explicit "Admin" pick — mirrors the iOS `hasUserChosenViewAs` label logic). */
+    private val _lifestyleViewAsChosen = MutableStateFlow(false)
+    val lifestyleViewAsChosen: StateFlow<Boolean> = _lifestyleViewAsChosen.asStateFlow()
+
+    private var lifestyleDefaultedFor: String? = null
+
+    fun setLifestyleViewAs(id: String?) {
+        _lifestyleViewAsChosen.value = true
+        _lifestyleViewAsId.value = id
+    }
+
+    /**
+     * Seed the Lifestyle "View as" default ONCE per program: global-admin → null ("Admin", program-wide);
+     * everyone else → self. Reuses the roster loaded by [ensureMembersLoaded]. Idempotent — re-entering the
+     * tab (e.g. after a detail push) preserves the prior pick; a program switch re-initializes.
+     */
+    suspend fun ensureLifestyleViewAsDefault(): Result<Unit> {
+        val pid = _activeProgram.value?.id ?: return Result.success(Unit)
+        ensureMembersLoaded()
+        if (lifestyleDefaultedFor == pid) return Result.success(Unit)
+        lifestyleDefaultedFor = pid
+        _lifestyleViewAsChosen.value = false
+        _lifestyleViewAsId.value = if (isGlobalAdmin) null else _members.value.firstOrNull { it.id == loggedInMemberId }?.id
+        return Result.success(Unit)
+    }
+
+    /**
+     * Load the Lifestyle tab's cards for `memberId` (null = program-wide). Highest-participation is ALWAYS
+     * program-wide (memberId=null), matching iOS. The health-timeline preview always loads the week window.
+     */
+    suspend fun loadLifestyle(memberId: String?): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        _lifestyleLoading.value = true
+        return runCatching {
+            _lifestyle.value = LifestyleData(
+                totalTypes = api.getWorkoutTypesTotal(pid, memberId).totalTypes,
+                mostPopular = api.getWorkoutTypeMostPopular(pid, memberId),
+                longestDuration = api.getWorkoutTypeLongestDuration(pid, memberId),
+                highestParticipation = api.getWorkoutTypeHighestParticipation(pid, null),
+                workoutTypes = api.getWorkoutTypes(pid, 100, memberId),
+                timeline = api.getHealthTimeline("week", pid, memberId),
+            )
+        }.recoverCatching { throw it.asApiError() }.also { _lifestyleLoading.value = false }
+    }
+
+    /** GET /analytics/health/timeline for a period — the Lifestyle timeline detail's period switch. */
+    suspend fun loadHealthTimeline(period: String, memberId: String?): Result<HealthTimelineResponse> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching { api.getHealthTimeline(period, pid, memberId) }
+            .recoverCatching { throw it.asApiError() }
+    }
+
+    // ---- Workout-types management (Lifestyle tab → "manage" list; nominally Program-tab / Phase G) ----
+    // Gated on canEditProgramData (= isProgramAdmin). Global types can only be hidden/shown; customs can be
+    // renamed/deleted/hidden. Each mutation reloads the full catalog. Errors surface (Result) for inline UI.
+
+    val canEditProgramData: Boolean get() = isProgramAdmin
+
+    private val _programWorkoutsAll = MutableStateFlow<List<ProgramWorkoutDTO>>(emptyList())
+    /** The FULL program workout catalog (incl. hidden) for the manager — distinct from the log-form's filtered list. */
+    val programWorkoutsAll: StateFlow<List<ProgramWorkoutDTO>> = _programWorkoutsAll.asStateFlow()
+
+    suspend fun loadAllProgramWorkouts(): Result<Unit> {
+        val pid = _activeProgram.value?.id ?: return Result.success(Unit)
+        return runCatching { _programWorkoutsAll.value = api.getProgramWorkouts(pid) }
+            .recoverCatching { throw it.asApiError() }
+    }
+
+    suspend fun toggleWorkoutVisibility(libraryWorkoutId: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.toggleWorkoutVisibility(ToggleWorkoutVisibilityRequest(pid, libraryWorkoutId))
+            loadAllProgramWorkouts().getOrThrow()
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    suspend fun toggleCustomWorkoutVisibility(workoutId: String): Result<Unit> = runCatching {
+        api.toggleCustomWorkoutVisibility(workoutId)
+        loadAllProgramWorkouts().getOrThrow()
+    }.recoverCatching { throw it.asApiError() }
+
+    suspend fun addCustomProgramWorkout(name: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.addCustomWorkout(AddCustomWorkoutRequest(pid, name))
+            loadAllProgramWorkouts().getOrThrow()
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    suspend fun editCustomProgramWorkout(workoutId: String, name: String): Result<Unit> = runCatching {
+        api.editCustomWorkout(workoutId, EditCustomWorkoutRequest(name))
+        loadAllProgramWorkouts().getOrThrow()
+    }.recoverCatching { throw it.asApiError() }
+
+    suspend fun deleteCustomProgramWorkout(workoutId: String): Result<Unit> = runCatching {
+        api.deleteCustomWorkout(workoutId)
+        loadAllProgramWorkouts().getOrThrow()
+    }.recoverCatching { throw it.asApiError() }
+
     private fun clearSession() {
         session.clear()
         _authToken.value = null
@@ -640,6 +767,11 @@ class ProgramContext(
         _members.value = emptyList()
         _membersViewAsId.value = null
         membersLoadedFor = null
+        _lifestyle.value = LifestyleData()
+        _lifestyleViewAsId.value = null
+        _lifestyleViewAsChosen.value = false
+        lifestyleDefaultedFor = null
+        _programWorkoutsAll.value = emptyList()
     }
 
     private fun Throwable.asApiError(): Throwable =
@@ -655,4 +787,14 @@ data class SummaryData(
     val timeline: List<ActivityTimelinePoint> = emptyList(),
     val distribution: DistributionByDayDTO? = null,
     val workoutTypes: List<WorkoutTypeDTO> = emptyList(),
+)
+
+/** The active program's Lifestyle-tab analytics for the selected member, refreshed by [ProgramContext.loadLifestyle]. */
+data class LifestyleData(
+    val totalTypes: Int = 0,
+    val mostPopular: WorkoutTypeMostPopularDTO? = null,
+    val longestDuration: WorkoutTypeLongestDurationDTO? = null,
+    val highestParticipation: WorkoutTypeHighestParticipationDTO? = null,
+    val workoutTypes: List<WorkoutTypeDTO> = emptyList(),
+    val timeline: HealthTimelineResponse? = null,
 )

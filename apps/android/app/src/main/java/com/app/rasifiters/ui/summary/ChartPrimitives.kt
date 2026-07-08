@@ -158,6 +158,138 @@ internal fun BarLineChart(
     }
 }
 
+private val RIGHT_PAD = 22.dp
+
+/**
+ * The sleep/diet chart for the Lifestyle timeline — sleep-hours bars (blue) + a diet-quality line (green).
+ * `dualAxis` (the detail view) scales the 0–5 diet series onto its own trailing axis so it isn't flattened
+ * under the sleep bars (iOS D-C1): sleep reads on the leading "hrs" axis, diet on a trailing "/5" axis.
+ * `dualAxis=false` (the preview card) shares one axis and omits the trailing labels + tooltip. Reuses the
+ * one shared [drawTooltip] look (memory: android-shared-chart-tooltip).
+ */
+@Composable
+internal fun SleepDietChart(
+    labels: List<String>,
+    sleepHours: List<Double>,
+    dietQuality: List<Double>,
+    dualAxis: Boolean,
+    modifier: Modifier = Modifier,
+    barColor: Color,
+    lineColor: Color,
+    tooltip: ((Int) -> TooltipData)? = null,
+) {
+    val measurer = rememberTextMeasurer()
+    val axisColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+    val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+    val calloutBg = MaterialTheme.colorScheme.surface
+    val calloutFg = MaterialTheme.colorScheme.onSurface
+    val calloutBorder = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+    val labelStyle = TextStyle(fontSize = 11.sp, color = axisColor)
+
+    // Left ("hrs") axis: sleep hours in the dual view; combined max in the shared-axis preview.
+    val sleepMax = sleepHours.maxOrNull() ?: 0.0
+    val dietMax = dietQuality.maxOrNull() ?: 0.0
+    val rawMax = if (dualAxis) sleepMax else max(sleepMax, dietMax)
+    val (axisMax, step) = niceAxis(ceil(rawMax).toInt())
+    val axisMaxF = axisMax.toFloat()
+    // Diet mapped onto the left domain: dual → its own 0–5 scale (5 == top); preview → plotted raw.
+    fun dietToDomain(v: Double): Float = if (dualAxis) (v / 5.0 * axisMax).toFloat() else v.toFloat()
+    val n = sleepHours.size.coerceAtLeast(1)
+
+    var selected by remember { mutableStateOf<Int?>(null) }
+    val sel = selected?.takeIf { it in sleepHours.indices }
+
+    val rightPad = if (dualAxis) RIGHT_PAD else 0.dp
+    val pointerMod = if (tooltip != null) {
+        Modifier
+            .pointerInput(n) {
+                val leftPad = LEFT_PAD.toPx()
+                val rp = rightPad.toPx()
+                fun idx(x: Float) = ((x - leftPad) / ((size.width - leftPad - rp) / n)).toInt().coerceIn(0, n - 1)
+                detectTapGestures { o ->
+                    selected = if (o.x < leftPad) null else idx(o.x).let { if (it == selected) null else it }
+                }
+            }
+            .pointerInput(n) {
+                val leftPad = LEFT_PAD.toPx()
+                val rp = rightPad.toPx()
+                fun idx(x: Float) = ((x - leftPad) / ((size.width - leftPad - rp) / n)).toInt().coerceIn(0, n - 1)
+                detectDragGestures { change, _ ->
+                    if (change.position.x >= leftPad) selected = idx(change.position.x)
+                    change.consume()
+                }
+            }
+    } else Modifier
+
+    Canvas(modifier = modifier.fillMaxWidth().then(pointerMod)) {
+        val leftPad = LEFT_PAD.toPx()
+        val rp = rightPad.toPx()
+        val plotLeft = leftPad
+        val plotTop = TOP_PAD.toPx()
+        val plotBottom = size.height - BOTTOM_PAD.toPx()
+        val plotH = plotBottom - plotTop
+        val plotW = size.width - leftPad - rp
+
+        fun yFor(v: Float) = plotBottom - (v / axisMaxF) * plotH
+
+        // Left axis ticks + horizontal gridlines ("hrs").
+        var t = 0
+        while (t <= axisMax) {
+            val y = yFor(t.toFloat())
+            drawLine(gridColor, Offset(plotLeft, y), Offset(plotLeft + plotW, y), strokeWidth = 1f)
+            val layout = measurer.measure("$t", labelStyle)
+            drawText(layout, topLeft = Offset(plotLeft - 6.dp.toPx() - layout.size.width, y - layout.size.height / 2f))
+            t += step
+        }
+
+        // Right "/5" axis labels (dual only) — diet 0–5 aligned to the same gridlines.
+        if (dualAxis) {
+            for (d in 0..5) {
+                val y = yFor((d / 5.0 * axisMax).toFloat())
+                val layout = measurer.measure("$d", labelStyle)
+                drawText(layout, topLeft = Offset(plotLeft + plotW + 6.dp.toPx(), y - layout.size.height / 2f))
+            }
+        }
+
+        val slot = plotW / n
+        val barW = min(10.dp.toPx(), slot * 0.7f)
+        val radius = CornerRadius(barW * 0.45f, barW * 0.45f)
+
+        sleepHours.forEachIndexed { i, v ->
+            val cx = plotLeft + i * slot + slot / 2f
+            val h = (v.toFloat() / axisMaxF) * plotH
+            if (h > 0f) {
+                drawRoundRect(
+                    color = barColor,
+                    topLeft = Offset(cx - barW / 2f, plotBottom - h),
+                    size = Size(barW, h),
+                    cornerRadius = radius,
+                )
+            }
+            val labelLayout = measurer.measure(labels.getOrElse(i) { "" }, labelStyle)
+            drawText(labelLayout, topLeft = Offset(cx - labelLayout.size.width / 2f, plotBottom + 4.dp.toPx()))
+        }
+
+        val pts = dietQuality.mapIndexed { i, v -> Offset(plotLeft + i * slot + slot / 2f, yFor(dietToDomain(v))) }
+        if (pts.size >= 2) {
+            drawPath(smoothPath(pts), color = lineColor, style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round))
+        }
+        pts.forEach { p ->
+            drawCircle(Color.White, radius = 4.dp.toPx(), center = p)
+            drawCircle(lineColor, radius = 3.dp.toPx(), center = p)
+        }
+
+        if (tooltip != null && sel != null) {
+            val barTopY = yFor(sleepHours[sel].toFloat())
+            val dietY = yFor(dietToDomain(dietQuality.getOrElse(sel) { 0.0 }))
+            val cx = plotLeft + sel * slot + slot / 2f
+            val anchorY = min(barTopY, dietY)
+            drawCircle(calloutFg.copy(alpha = 0.35f), radius = 6.dp.toPx(), center = Offset(cx, dietY))
+            drawTooltip(measurer, tooltip(sel), cx, anchorY, size.width, calloutBg, calloutFg, calloutBorder)
+        }
+    }
+}
+
 /**
  * The single tooltip look shared by every chart — a floating card with a soft drop shadow, a bold title, a
  * caret pointing at the datapoint, and color-dotted value rows. Auto-flips below + clamps to the edges.

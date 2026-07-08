@@ -11,7 +11,8 @@
 Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
 de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
 Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) + Phase E (Members tab +
-all 8 detail screens) COMPLETE — all build green.** Next = **Phase F** (Lifestyle tab + details). Full plan
+all 8 detail screens) + Phase F (Lifestyle tab + timeline drill-down + workout-types manager) COMPLETE — all
+build green.** Next = **Phase G** (Program tab + settings sub-routes). Full plan
 + decisions are in `apps/android/CONTEXT.md`
 and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE
 notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen
@@ -21,7 +22,27 @@ _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
-- **`android`** — 🟡 **Phase E DONE (2026-07-08).** The **Members tab (Tab 2)** + **all 8 detail screens**
+- **`android`** — 🟡 **Phase F DONE (2026-07-08).** The **Lifestyle tab (Tab 3)** + its 2 forward targets
+  are ported + green (`ui/lifestyle/{LifestyleScreen,LifestyleCards,LifestyleTimelineDetailScreen,
+  WorkoutTypesListScreen}.kt`). Tab body: header + glass button (→ workout-types manager), a role-gated
+  **"View as"** picker (admin/global-admin; program-wide = "Admin", global-admin none = "None"; hoisted in
+  `ProgramContext` so it survives a detail push+back — separate slot from the Members-tab view-as), the 4
+  workout-type stat cards (total/most-popular/longest/participation — participation always program-wide),
+  the **Workout Type Popularity** ranked-bar card (Count/Total-Minutes/Avg-Minutes segmented, top-6 + Show
+  all), and the tappable **Lifestyle Timeline** preview. Inner screens: **timeline drill-down** (W/M/Y/P +
+  daily-average header + a new dual-axis `SleepDietChart` — sleep-hrs bars on the leading axis, diet 0–5 on a
+  trailing "/5" axis, D-C1 — + the shared tap/drag tooltip + Sleep/Diet legend) and the **workout-types
+  manager** (Available/Hidden sections, search, admin add/rename/delete-custom + hide/show any via a per-row
+  ⋮ menu; double-duty with the Program tab / Phase G). `net` gained the health-timeline + 4 analytics-v2
+  workout-type DTOs + 5 workout-management request DTOs + endpoints (+ `memberId` on `getWorkoutTypes`);
+  `ProgramContext` gained `LifestyleData` + `loadLifestyle`/`loadHealthTimeline`, the hoisted lifestyle
+  view-as + `ensureLifestyleViewAsDefault`, and the full workout-management set (`programWorkoutsAll` +
+  add/edit/delete/toggle). Shared-chrome refactor: hoisted `Period`/`PERIODS`/`PeriodSelector` into
+  `DetailChrome.kt`; made Members `MemberPickerSheet`/`GlassIconButton` public (+ a `noneLabel` param). 3 thin
+  SPECs under `specs/pages/android/`. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL (Run 7). Next:
+  **Phase G (Program tab + settings)**.
+
+  _(Phase E, 2026-07-08:)_ The **Members tab (Tab 2)** + **all 8 detail screens**
   are ported + green (`ui/members/{MembersScreen,MemberCards,MemberSimpleDetails,MemberMetricsDetailScreen,
   MemberRecentDetailScreen,MemberHealthDetailScreen,MemberManagementScreens,MemberDetailShared}.kt`). Tab
   body is role-bifurcated on `isProgramAdmin`: **admin/global-admin** get an Invite glass button, a Member
@@ -113,9 +134,21 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase E (Members tab + details). Say "continue" to resume.
+> ### ⏭️ ANDROID PORT — Phase G (Program tab + settings sub-routes). Say "continue" to resume.
 
-**Phase D-details (5 Summary forward targets) is DONE + green** (2026-07-08): the **log-workout** +
+**Phase F (Lifestyle tab + details) is DONE + green** (2026-07-08): the **Lifestyle tab (Tab 3)** replaces
+`StubScreen("Lifestyle")`, plus its two forward targets — the **Lifestyle Timeline** drill-down (dual-axis
+sleep/diet chart, D-C1) and the **Workout Types** manager (`ViewWorkoutTypesListView` port, shared with the
+Program tab). Faithful to the iOS `{Admin,Standard}WorkoutTypesTab` + `lifestyle-timeline` SPECs; role-gated
+"View as" hoisted into `ProgramContext` (persists across nav). `android-build` = BUILD SUCCESSFUL (Run 7).
+**User live-tested the tab + timeline drill-down + workout-types manager and signed off (2026-07-08).**
+
+Resume at **Phase G** — the **Program** tab (edit/roles/profile/password/appearance/privacy + workout-types
+section, which reuses the Phase-F manager) + the settings sub-routes. Then notifications/SSE + FCM (Phase I),
+Health Connect + de-scaffold (Phase J). Gate every screen with `android-build`; write thin SPECs under
+`specs/pages/android/`. Phase list A→J is in `apps/android/CONTEXT.md`.
+
+_(Earlier:)_ **Phase D-details (5 Summary forward targets) is DONE + green** (2026-07-08): the **log-workout** +
 **log-health** forms and the **activity / distribution / workout-types** chart drill-downs replace the 5
 `StubScreen` routes in `ui/shell/AppScaffold.kt`. Faithful to the iOS/web SPECs (thin Android SPECs written).
 Log forms POST `/workout-logs/batch` + `/daily-health-logs` (per-row member picker for admin/logger vs
@@ -126,12 +159,6 @@ distribution 7-bar + tooltip; workout-types %-share + full breakdown. **User liv
 emulator (light + dark) and signed off**; the log forms are the user's remaining manual pass. `android-build`
 = BUILD SUCCESSFUL (Run 5). _(Phase D-landing before this was DONE + LIVE-TESTED; neutral M3 surface ramp +
 nav icon parity landed — memory [[android-neutral-m3-surface-roles]].)_
-
-Resume at **Phase E** — the **Members** tab (admin + standard variants) + its detail routes (member
-history / streaks / workouts / health), matching the iOS/web `members` SPECs. Then Lifestyle + Program tabs
-and settings sub-routes (Phases F→H), notifications/SSE + FCM (Phase I), Health Connect + de-scaffold
-(Phase J). Gate every screen with the `android-build` skill; write thin SPECs under `specs/pages/android/`.
-Phase list A→J is in `apps/android/CONTEXT.md`.
 
 ---
 
@@ -172,13 +199,14 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 6. [x] `ios` — all screens/widgets/Apple-Health ported; native build green (user does visual + TestFlight)
 7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
 8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
-   program-picker + Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) green
-   (2026-07-08); Phases E→J pending.
+   program-picker + Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) +
+   Phase E (Members tab + 8 details) + Phase F (Lifestyle tab + timeline + workout-types manager) green
+   (2026-07-08); Phases G→J pending.
 
 ## Coverage
 
 - Features: **15** (backend coverage complete) — `specs/features/REGISTRY.md` + `registry.json`.
-- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **11** (thin port-notes) —
+- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **21** (thin port-notes) —
   `specs/pages/REGISTRY.md`.
 - Legacy-parity coverage: `COVERAGE.md`.
 

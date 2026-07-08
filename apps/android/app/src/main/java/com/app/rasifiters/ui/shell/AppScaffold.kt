@@ -38,6 +38,9 @@ import com.app.rasifiters.ui.members.MemberHistoryDetailScreen
 import com.app.rasifiters.ui.members.MemberMetricsDetailScreen
 import com.app.rasifiters.ui.members.MemberRecentDetailScreen
 import com.app.rasifiters.ui.members.MemberStreakDetailScreen
+import com.app.rasifiters.ui.lifestyle.LifestyleScreen
+import com.app.rasifiters.ui.lifestyle.LifestyleTimelineDetailScreen
+import com.app.rasifiters.ui.lifestyle.WorkoutTypesListScreen
 import com.app.rasifiters.ui.members.MembersScreen
 import com.app.rasifiters.ui.members.ProgramMembersListScreen
 import com.app.rasifiters.ui.summary.ActivityDetailScreen
@@ -106,8 +109,18 @@ fun AppScaffold(programContext: ProgramContext) {
             composable(Routes.MEMBERS) {
                 MembersScreen(programContext = programContext, onNavigate = { nav.navigate(it) })
             }
-            composable(Routes.LIFESTYLE) { StubScreen("Lifestyle") }
+            composable(Routes.LIFESTYLE) {
+                LifestyleScreen(programContext = programContext, onNavigate = { nav.navigate(it) })
+            }
             composable(Routes.PROGRAM) { StubScreen("Program") }
+
+            // Lifestyle forward targets (Phase F) — the workout-types manager + the timeline drill-down.
+            composable(Routes.LIFESTYLE_WORKOUT_TYPES) {
+                WorkoutTypesListScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.LIFESTYLE_TIMELINE) {
+                LifestyleTimelineDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
 
             // Members forward targets (Phase E) — the metrics/history/streak/workouts/health drill-downs
             // + the invite/roster/editor cluster (double-duty with the Program tab).

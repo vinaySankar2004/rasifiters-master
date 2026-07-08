@@ -179,6 +179,59 @@ data class WorkoutTypeDTO(
     @SerialName("avg_duration_minutes") val avgDurationMinutes: Int = 0,
 )
 
+// ---- Lifestyle tab (Phase F) — health timeline + member-scoped workout-type analytics ----
+// The Lifestyle tab reads workout-type stats scoped to the selected member (participation is always
+// program-wide) + a sleep/diet health timeline. Same backend contract as web + iOS. Every count is
+// COALESCEd server-side; defaults keep decode resilient.
+
+/** One bucket of the sleep/diet health timeline (a day/week/month depending on `period`). */
+@Serializable
+data class HealthTimelinePoint(
+    val date: String = "",
+    val label: String = "",
+    @SerialName("sleep_hours") val sleepHours: Double = 0.0,
+    @SerialName("food_quality") val foodQuality: Double = 0.0,
+)
+
+/** GET /analytics/health/timeline — the Lifestyle-tab sleep-bars + diet-line chart + daily averages. */
+@Serializable
+data class HealthTimelineResponse(
+    val mode: String? = null,
+    val label: String = "",
+    @SerialName("daily_average_sleep") val dailyAverageSleep: Double = 0.0,
+    @SerialName("daily_average_food") val dailyAverageFood: Double = 0.0,
+    val buckets: List<HealthTimelinePoint> = emptyList(),
+    val start: String? = null,
+    val end: String? = null,
+)
+
+/** GET /analytics-v2/workouts/types/total — the "Total workout types" card. */
+@Serializable
+data class WorkoutTypesTotalDTO(@SerialName("total_types") val totalTypes: Int = 0)
+
+/** GET /analytics-v2/workouts/types/most-popular — the "Most popular" card (null name → no data). */
+@Serializable
+data class WorkoutTypeMostPopularDTO(
+    @SerialName("workout_name") val workoutName: String? = null,
+    val sessions: Int = 0,
+)
+
+/** GET /analytics-v2/workouts/types/longest-duration — the "Longest duration" card. */
+@Serializable
+data class WorkoutTypeLongestDurationDTO(
+    @SerialName("workout_name") val workoutName: String? = null,
+    @SerialName("avg_minutes") val avgMinutes: Int = 0,
+)
+
+/** GET /analytics-v2/workouts/types/highest-participation — the "Highest participation" card (program-wide). */
+@Serializable
+data class WorkoutTypeHighestParticipationDTO(
+    @SerialName("workout_name") val workoutName: String? = null,
+    val participants: Int = 0,
+    @SerialName("participation_pct") val participationPct: Double = 0.0,
+    @SerialName("total_members") val totalMembers: Int = 0,
+)
+
 // ---- Log-form lookups (member + workout pickers) ----
 
 /** GET /program-memberships/members?programId — active roster for the log-form member picker. */
@@ -189,14 +242,40 @@ data class ProgramMemberDTO(
     val username: String? = null,
 )
 
-/** GET /program-workouts?programId — the program's workout catalog; `is_hidden` rows are filtered out. */
+/**
+ * GET /program-workouts?programId — the program's workout catalog. Log-form lookups filter `is_hidden`
+ * out; the Lifestyle-tab workout-types manager (Phase F) keeps the full list so admins can show/hide.
+ * `source` is "global" (library — hide/show only) or "custom" (per-program — edit/delete/hide).
+ */
 @Serializable
 data class ProgramWorkoutDTO(
     val id: String? = null,
     @SerialName("workout_name") val workoutName: String = "",
     val source: String? = null,
     @SerialName("is_hidden") val isHidden: Boolean = false,
+    @SerialName("library_workout_id") val libraryWorkoutId: String? = null,
+) {
+    val isGlobal: Boolean get() = source == "global"
+    val isCustom: Boolean get() = source == "custom"
+}
+
+/** PUT /program-workouts/toggle-visibility — hide/show a GLOBAL (library) type in this program. */
+@Serializable
+data class ToggleWorkoutVisibilityRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("library_workout_id") val libraryWorkoutId: String,
 )
+
+/** POST /program-workouts/custom — add a per-program custom workout type. */
+@Serializable
+data class AddCustomWorkoutRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("workout_name") val workoutName: String,
+)
+
+/** PUT /program-workouts/{id} — rename a custom workout type. */
+@Serializable
+data class EditCustomWorkoutRequest(@SerialName("workout_name") val workoutName: String)
 
 // ---- Writes: workout-logs batch + daily-health ----
 
