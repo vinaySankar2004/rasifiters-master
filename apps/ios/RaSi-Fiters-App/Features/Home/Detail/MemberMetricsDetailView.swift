@@ -186,11 +186,12 @@ struct MemberMetricsDetailView: View {
         let programName = programContext.name.replacingOccurrences(of: " ", with: "")
         let fileName = "MemberPerformanceMetrics_\(programName)_\(startLabel)_to_\(endLabel).csv"
 
-        var csv = "Name,Workouts,Total Duration,Avg Duration,Avg Sleep,Avg Diet Quality,Active Days,Workout Types,Current Streak,Longest Streak\n"
+        var csv = "Name,Workouts,Total Duration,Avg Duration,Avg Sleep,Avg Diet Quality,Avg Steps,Active Days,Workout Types,Current Streak,Longest Streak\n"
         for m in programContext.memberMetrics {
             let avgSleep = m.avg_sleep_hours.map { String(format: "%.1f", $0) } ?? ""
             let avgFood = m.avg_food_quality.map { "\($0)" } ?? ""
-            let line = "\"\(m.member_name.replacingOccurrences(of: "\"", with: "\"\""))\",\(m.workouts),\(m.total_duration),\(m.avg_duration),\(avgSleep),\(avgFood),\(m.active_days),\(m.workout_types),\(m.current_streak),\(m.longest_streak)\n"
+            let avgSteps = m.avg_steps.map { "\($0)" } ?? ""
+            let line = "\"\(m.member_name.replacingOccurrences(of: "\"", with: "\"\""))\",\(m.workouts),\(m.total_duration),\(m.avg_duration),\(avgSleep),\(avgFood),\(avgSteps),\(m.active_days),\(m.workout_types),\(m.current_streak),\(m.longest_streak)\n"
             csv.append(line)
         }
 

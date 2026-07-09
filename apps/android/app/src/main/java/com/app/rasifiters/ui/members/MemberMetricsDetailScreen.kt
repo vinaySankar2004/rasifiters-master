@@ -356,7 +356,7 @@ private fun RangeRow(label: String, minV: String, maxV: String, onMin: (String) 
 // ---- CSV export ----
 
 private fun metricsCsv(rows: List<com.app.rasifiters.net.MemberMetricsDTO>): String {
-    val sb = StringBuilder("Name,Workouts,Total Duration,Avg Duration,Avg Sleep,Avg Diet Quality,Active Days,Workout Types,Current Streak,Longest Streak\n")
+    val sb = StringBuilder("Name,Workouts,Total Duration,Avg Duration,Avg Sleep,Avg Diet Quality,Avg Steps,Active Days,Workout Types,Current Streak,Longest Streak\n")
     rows.forEach { m ->
         sb.append(csvField(m.memberName)).append(',')
             .append(m.workouts).append(',')
@@ -364,6 +364,7 @@ private fun metricsCsv(rows: List<com.app.rasifiters.net.MemberMetricsDTO>): Str
             .append(m.avgDuration).append(',')
             .append(m.avgSleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "").append(',')
             .append(m.avgFoodQuality ?: "").append(',')
+            .append(m.avgSteps ?: "").append(',')
             .append(m.activeDays).append(',')
             .append(m.workoutTypes).append(',')
             .append(m.currentStreak).append(',')
