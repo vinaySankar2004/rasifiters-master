@@ -310,7 +310,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "built",
       "consumed_by": [

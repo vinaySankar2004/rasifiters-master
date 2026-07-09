@@ -56,7 +56,7 @@ const isInCurrentMonth = (dateString) => {
 const SORTABLE_FIELDS = new Set([
     "workouts", "total_duration", "avg_duration", "active_days",
     "workout_types", "current_streak", "longest_streak",
-    "avg_sleep_hours", "avg_food_quality"
+    "avg_sleep_hours", "avg_food_quality", "avg_steps"
 ]);
 
 const milestonesList = [3, 7, 14, 30, 60, 90];
@@ -67,7 +67,8 @@ async function getMemberMetrics({
     workoutsMin, workoutsMax, totalDurationMin, totalDurationMax,
     avgDurationMin, avgDurationMax, avgSleepHoursMin, avgSleepHoursMax,
     activeDaysMin, activeDaysMax, workoutTypesMin, workoutTypesMax,
-    currentStreakMin, longestStreakMin, avgFoodQualityMin, avgFoodQualityMax
+    currentStreakMin, longestStreakMin, avgFoodQualityMin, avgFoodQualityMax,
+    avgStepsMin, avgStepsMax
 }, user) {
     if (!programId) throw new AppError(400, "programId is required");
 
@@ -239,7 +240,8 @@ async function getMemberMetrics({
         workout_types: [num(workoutTypesMin), num(workoutTypesMax)],
         current_streak: [num(currentStreakMin), undefined],
         longest_streak: [num(longestStreakMin), undefined],
-        avg_food_quality: [num(avgFoodQualityMin), num(avgFoodQualityMax)]
+        avg_food_quality: [num(avgFoodQualityMin), num(avgFoodQualityMax)],
+        avg_steps: [num(avgStepsMin), num(avgStepsMax)]
     };
 
     result = result.filter(r => {
@@ -257,7 +259,8 @@ async function getMemberMetrics({
             within(r.workout_types, filters.workout_types[0], filters.workout_types[1]) &&
             within(r.current_streak, filters.current_streak[0], filters.current_streak[1]) &&
             within(r.longest_streak, filters.longest_streak[0], filters.longest_streak[1]) &&
-            within(r.avg_food_quality ?? 0, filters.avg_food_quality[0], filters.avg_food_quality[1])
+            within(r.avg_food_quality ?? 0, filters.avg_food_quality[0], filters.avg_food_quality[1]) &&
+            within(r.avg_steps ?? 0, filters.avg_steps[0], filters.avg_steps[1])
         );
     });
 

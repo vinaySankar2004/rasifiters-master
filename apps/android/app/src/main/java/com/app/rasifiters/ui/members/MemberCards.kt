@@ -83,6 +83,7 @@ enum class MetricSortField(val api: String, val label: String) {
     CURRENT_STREAK("current_streak", "Current Streak"),
     LONGEST_STREAK("longest_streak", "Longest Streak"),
     AVG_FOOD("avg_food_quality", "Avg Diet Quality"),
+    AVG_STEPS("avg_steps", "Avg Steps"),
 }
 
 enum class SortDir(val api: String, val label: String) {
@@ -101,6 +102,7 @@ fun heroValue(field: MetricSortField, m: MemberMetricsDTO): String = when (field
     MetricSortField.CURRENT_STREAK -> "${m.currentStreak}"
     MetricSortField.LONGEST_STREAK -> "${m.longestStreak}"
     MetricSortField.AVG_FOOD -> m.avgFoodQuality?.let { "$it / 5" } ?: "—"
+    MetricSortField.AVG_STEPS -> m.avgSteps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
 }
 
 /** "Xh Ym" / "Xh" / "Ym" / "0m" — iOS `formatDuration` (MemberCards.swift:6). */

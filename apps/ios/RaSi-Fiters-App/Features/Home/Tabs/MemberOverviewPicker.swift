@@ -207,6 +207,7 @@ enum SortField: String, CaseIterable, Hashable {
     case current_streak
     case longest_streak
     case avg_food_quality
+    case avg_steps
 
     var label: String {
         switch self {
@@ -219,6 +220,7 @@ enum SortField: String, CaseIterable, Hashable {
         case .current_streak: return "Current Streak"
         case .longest_streak: return "Longest Streak"
         case .avg_food_quality: return "Avg Diet Quality"
+        case .avg_steps: return "Avg Steps"
         }
     }
 
@@ -229,6 +231,7 @@ enum SortField: String, CaseIterable, Hashable {
         case .current_streak: return "Current Streak"
         case .avg_sleep_hours: return "Avg Sleep"
         case .avg_food_quality: return "Avg Diet"
+        case .avg_steps: return "Avg Steps"
         default: return label
         }
     }
@@ -305,6 +308,8 @@ struct MemberMetricsCard: View {
         case .longest_streak: return "\(metric.longest_streak)"
         case .avg_food_quality:
             return metric.avg_food_quality.map { "\($0) / 5" } ?? "—"
+        case .avg_steps:
+            return avgStepsValue
         }
     }
 
@@ -488,6 +493,11 @@ struct MemberMetricsPreviewCard: View {
         case .longest_streak: return "\(metric.longest_streak)"
         case .avg_food_quality:
             return metric.avg_food_quality.map { "\($0) / 5" } ?? "—"
+        case .avg_steps:
+            guard let value = metric.avg_steps else { return "—" }
+            let formatter = NumberFormatter()
+            formatter.numberStyle = .decimal
+            return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
         }
     }
 

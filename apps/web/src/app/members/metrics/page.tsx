@@ -24,7 +24,8 @@ const SORT_OPTIONS = [
   { value: "workout_types", label: "Workout Types" },
   { value: "current_streak", label: "Current Streak" },
   { value: "longest_streak", label: "Longest Streak" },
-  { value: "avg_food_quality", label: "Avg Diet Quality" }
+  { value: "avg_food_quality", label: "Avg Diet Quality" },
+  { value: "avg_steps", label: "Avg Steps" }
 ];
 
 const DIR_OPTIONS = [
@@ -52,6 +53,8 @@ type MetricsFilters = {
   longestStreakMin: string;
   avgFoodQualityMin: string;
   avgFoodQualityMax: string;
+  avgStepsMin: string;
+  avgStepsMax: string;
 };
 
 const defaultFilters: MetricsFilters = {
@@ -73,7 +76,9 @@ const defaultFilters: MetricsFilters = {
   currentStreakMin: "",
   longestStreakMin: "",
   avgFoodQualityMin: "",
-  avgFoodQualityMax: ""
+  avgFoodQualityMax: "",
+  avgStepsMin: "",
+  avgStepsMax: ""
 };
 
 export default function MemberMetricsPage() {
@@ -102,7 +107,9 @@ export default function MemberMetricsPage() {
       currentStreakMin: filters.currentStreakMin,
       longestStreakMin: filters.longestStreakMin,
       avgFoodQualityMin: filters.avgFoodQualityMin,
-      avgFoodQualityMax: filters.avgFoodQualityMax
+      avgFoodQualityMax: filters.avgFoodQualityMax,
+      avgStepsMin: filters.avgStepsMin,
+      avgStepsMax: filters.avgStepsMax
     };
     if (filters.dateMode === "custom") {
       if (filters.startDate) params.startDate = filters.startDate;
@@ -392,6 +399,7 @@ function MetricsFilterModal({
         <FilterRange label="Current Streak" minValue={filters.currentStreakMin} maxValue="" onChange={(min) => onChange({ ...filters, currentStreakMin: min })} />
         <FilterRange label="Longest Streak" minValue={filters.longestStreakMin} maxValue="" onChange={(min) => onChange({ ...filters, longestStreakMin: min })} />
         <FilterRange label="Avg Diet Quality" minValue={filters.avgFoodQualityMin} maxValue={filters.avgFoodQualityMax} onChange={(min, max) => onChange({ ...filters, avgFoodQualityMin: min, avgFoodQualityMax: max })} />
+        <FilterRange label="Avg Steps" minValue={filters.avgStepsMin} maxValue={filters.avgStepsMax} onChange={(min, max) => onChange({ ...filters, avgStepsMin: min, avgStepsMax: max })} />
       </div>
     </div>
   );

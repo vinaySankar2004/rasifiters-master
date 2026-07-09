@@ -233,6 +233,8 @@ struct MetricsFilters: Hashable {
     var longestStreakMin: String = ""
     var avgFoodQualityMin: String = ""
     var avgFoodQualityMax: String = ""
+    var avgStepsMin: String = ""
+    var avgStepsMax: String = ""
 
     mutating func clear() {
         dateMode = .all
@@ -246,6 +248,7 @@ struct MetricsFilters: Hashable {
         workoutTypesMin = ""; workoutTypesMax = ""
         currentStreakMin = ""; longestStreakMin = ""
         avgFoodQualityMin = ""; avgFoodQualityMax = ""
+        avgStepsMin = ""; avgStepsMax = ""
     }
 
     func addTo(_ dict: inout [String: String]) {
@@ -272,6 +275,8 @@ struct MetricsFilters: Hashable {
         dict["longestStreakMin"] = longestStreakMin
         dict["avgFoodQualityMin"] = avgFoodQualityMin
         dict["avgFoodQualityMax"] = avgFoodQualityMax
+        dict["avgStepsMin"] = avgStepsMin
+        dict["avgStepsMax"] = avgStepsMax
     }
 }
 
@@ -348,6 +353,7 @@ struct FilterSheet: View {
                 Section("Current Streak") { minField(title: "Min", value: $filters.currentStreakMin, unit: "days") }
                 Section("Longest Streak") { minField(title: "Min", value: $filters.longestStreakMin, unit: "days") }
                 Section("Avg Diet Quality") { rangeFields(min: $filters.avgFoodQualityMin, max: $filters.avgFoodQualityMax, unit: "") }
+                Section("Avg Steps") { rangeFields(min: $filters.avgStepsMin, max: $filters.avgStepsMax, unit: "steps") }
             }
             .navigationTitle("Filters")
             .navigationBarTitleDisplayMode(.inline)

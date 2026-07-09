@@ -74,6 +74,7 @@ data class MetricsFilters(
     val currentStreakMin: String = "",
     val longestStreakMin: String = "",
     val avgFoodMin: String = "", val avgFoodMax: String = "",
+    val avgStepsMin: String = "", val avgStepsMax: String = "",
 ) {
     fun toParams(): Map<String, String> = buildMap {
         if (custom) {
@@ -89,6 +90,7 @@ data class MetricsFilters(
         putIf("currentStreakMin", currentStreakMin)
         putIf("longestStreakMin", longestStreakMin)
         putIf("avgFoodQualityMin", avgFoodMin); putIf("avgFoodQualityMax", avgFoodMax)
+        putIf("avgStepsMin", avgStepsMin); putIf("avgStepsMax", avgStepsMax)
     }
 
     private fun MutableMap<String, String>.putIf(key: String, v: String) { if (v.isNotBlank()) put(key, v) }
@@ -321,6 +323,7 @@ private fun FilterSheet(
             RangeRow("Current Streak", f.currentStreakMin, "", { f = f.copy(currentStreakMin = it) }, null)
             RangeRow("Longest Streak", f.longestStreakMin, "", { f = f.copy(longestStreakMin = it) }, null)
             RangeRow("Avg Diet Quality", f.avgFoodMin, f.avgFoodMax, { f = f.copy(avgFoodMin = it) }, { f = f.copy(avgFoodMax = it) })
+            RangeRow("Avg Steps", f.avgStepsMin, f.avgStepsMax, { f = f.copy(avgStepsMin = it) }, { f = f.copy(avgStepsMax = it) })
         }
     }
 }
