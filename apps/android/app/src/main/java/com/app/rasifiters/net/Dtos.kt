@@ -492,6 +492,58 @@ data class InviteRequest(
     val username: String,
 )
 
+// ---- Program tab (Phase G) — account + program-management mutations ----
+// The account settings + admin program-edit contracts. Same backend as web + iOS.
+
+/** GET /members/:id — the account-profile read. Only this endpoint returns `email` (list endpoints omit
+ *  it); My Profile reads it for the web-parity email-change form. `member_name` splits into first/last. */
+@Serializable
+data class MemberDTO(
+    val id: String = "",
+    @SerialName("member_name") val memberName: String = "",
+    val username: String? = null,
+    val gender: String? = null,
+    @SerialName("date_of_birth") val dateOfBirth: String? = null,
+    @SerialName("date_joined") val dateJoined: String? = null,
+    val email: String? = null,
+)
+
+/** PUT /members/:id — edit own profile (first/last/gender). Omitted (null) fields are left unchanged. */
+@Serializable
+data class UpdateMemberProfileRequest(
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("last_name") val lastName: String? = null,
+    val gender: String? = null,
+)
+
+/** PUT /auth/change-password — set a new password for the authenticated user. */
+@Serializable
+data class ChangePasswordRequest(@SerialName("new_password") val newPassword: String)
+
+/** PUT /auth/email — direct, password-confirmed email change (no verification email; mirrors web). */
+@Serializable
+data class ChangeEmailRequest(
+    @SerialName("new_email") val newEmail: String,
+    val password: String,
+)
+
+@Serializable
+data class ChangeEmailResponse(val email: String? = null, val message: String? = null)
+
+/** PUT /programs/:id — admin program edit. Omitted (null) fields unchanged (explicitNulls=false). */
+@Serializable
+data class UpdateProgramRequest(
+    val name: String? = null,
+    val status: String? = null,
+    @SerialName("start_date") val startDate: String? = null,
+    @SerialName("end_date") val endDate: String? = null,
+    @SerialName("admin_only_data_entry") val adminOnlyDataEntry: Boolean? = null,
+)
+
+/** PUT /program-memberships/leave — soft leave (workout/health data preserved for a possible rejoin). */
+@Serializable
+data class LeaveProgramRequest(@SerialName("program_id") val programId: String)
+
 /** Generic backend error envelope ({ error } or { message }); parsed for user-facing failures.
  *  `rowErrors` rides along on the batch endpoint's 400/409 so the form can highlight offending rows. */
 @Serializable

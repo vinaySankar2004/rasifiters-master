@@ -13,6 +13,9 @@ class AppContainer(context: Context) {
 
     val session: Session = Session(context)
 
+    /** App-level light/dark/system appearance override (survives sign-out). */
+    val appearanceStore: AppearanceStore = AppearanceStore(context)
+
     // The 401-refresh-failure callback flips the state hub to signed-out. programContext is
     // created just below, so the lambda only dereferences it after init (on a real 401).
     val api: ApiService = Network.build(

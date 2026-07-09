@@ -11,8 +11,10 @@
 Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
 de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
 Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) + Phase E (Members tab +
-all 8 detail screens) + Phase F (Lifestyle tab + timeline drill-down + workout-types manager) COMPLETE — all
-build green.** Next = **Phase G** (Program tab + settings sub-routes). Full plan
+all 8 detail screens) + Phase F (Lifestyle tab + timeline drill-down + workout-types manager) + Phase G
+(Program tab + all 6 settings/admin sub-routes) COMPLETE — all build green; all 4 bottom tabs are now real
+screens (zero `StubScreen` call-sites remain).** Next = **Phase H (Health Connect) / Phase I (SSE + FCM
+notifications)**. Full plan
 + decisions are in `apps/android/CONTEXT.md`
 and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE
 notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen
@@ -22,7 +24,30 @@ _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
-- **`android`** — 🟡 **Phase F DONE (2026-07-08).** The **Lifestyle tab (Tab 3)** + its 2 forward targets
+- **`android`** — 🟡 **Phase G DONE (2026-07-08).** The **Program tab (Tab 4)** + its **6 settings/admin
+  sub-routes** are ported + green (`ui/program/{ProgramScreen,ProgramSections,ProgramCards,
+  ProgramAccountSection,ProfileScreen,ChangePasswordScreen,AppearanceScreen,NotificationsScreen,
+  EditProgramScreen,ManageRolesScreen}.kt`). Role-bifurcated on `isProgramAdmin`: **standard** = read-only
+  Program Info card (client date math: Name/Status/Duration/Progress/Active Members) + Switch + Leave + My
+  Account; **admin/global-admin** = Program Info action section (Select · Edit-if-canEdit · Leave-if-not-
+  global) + Members (View/Invite) + Role Management (if canEdit; Admins/Loggers preview + Manage Roles) +
+  Workout Types + My Account. Sub-routes: **My Profile** (name/gender + password-confirmed email change +
+  delete account), **Change Password** (live 5-rule policy + success dialog), **Appearance**
+  (System/Light/Dark → new `core/AppearanceStore` wired into `MainActivity`→`RaSiFitersTheme`),
+  **Notifications** (OS-status card + Open-Settings deep link; FCM is Phase I), **Edit Program**
+  (name/status/dates + admin-only-data-entry toggle + no-op-save skip), **Manage Roles** (segmented
+  Admin/Logger/Member + last-active-admin guard + per-row spinner). `net` gained `MemberDTO` + 5 mutation
+  DTOs + 7 endpoints; `ProgramContext` gained the account actions (`fetchMember`/`updateMemberProfile`/
+  `changePassword`/`changeEmail`/`deleteAccount`) + `updateProgram`/`leaveProgram`/`updateMemberRole` + a
+  `loggedInGender` seed. Members/Workout-Types sections **reuse** the Phase E `MEMBER_ROSTER`/`MEMBER_INVITE`
+  + Phase F `LIFESTYLE_WORKOUT_TYPES` routes (no new screens). Deviations: **Apple-Health row omitted**
+  (Health Connect = Phase H/J, user-confirmed); Switch/Leave → `popBackStack(PICKER)` via a threaded
+  `onSwitchProgram`; dialogs not alerts; neutral M3 surfaces [[android-neutral-m3-surface-roles]]. **Zero
+  `StubScreen` call-sites remain** — all 4 tabs are real. 7 thin SPECs under `specs/pages/android/`.
+  `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL (Run 8). Next: **Phase H (Health Connect) / Phase I
+  (SSE + FCM)**.
+
+  _(Phase F, 2026-07-08:)_ The **Lifestyle tab (Tab 3)** + its 2 forward targets
   are ported + green (`ui/lifestyle/{LifestyleScreen,LifestyleCards,LifestyleTimelineDetailScreen,
   WorkoutTypesListScreen}.kt`). Tab body: header + glass button (→ workout-types manager), a role-gated
   **"View as"** picker (admin/global-admin; program-wide = "Admin", global-admin none = "None"; hoisted in
@@ -134,19 +159,41 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase G (Program tab + settings sub-routes). Say "continue" to resume.
+> ### ⏭️ ANDROID PORT — Phase H (Health Connect) / Phase I (SSE + FCM notifications). Say "continue" to resume.
 
-**Phase F (Lifestyle tab + details) is DONE + green** (2026-07-08): the **Lifestyle tab (Tab 3)** replaces
-`StubScreen("Lifestyle")`, plus its two forward targets — the **Lifestyle Timeline** drill-down (dual-axis
-sleep/diet chart, D-C1) and the **Workout Types** manager (`ViewWorkoutTypesListView` port, shared with the
-Program tab). Faithful to the iOS `{Admin,Standard}WorkoutTypesTab` + `lifestyle-timeline` SPECs; role-gated
-"View as" hoisted into `ProgramContext` (persists across nav). `android-build` = BUILD SUCCESSFUL (Run 7).
-**User live-tested the tab + timeline drill-down + workout-types manager and signed off (2026-07-08).**
+**Phase G (Program tab + settings/admin sub-routes) is DONE + green + LIVE-TESTED** (2026-07-08): the
+**Program tab (Tab 4)** replaces the last `StubScreen("Program")`, plus its 6 sub-routes (My Profile ·
+Change Password · Appearance · Notifications · Edit Program · Manage Roles). Role-bifurcated on
+`isProgramAdmin`; the Members + Workout-Types sections reuse the Phase E roster/invite + Phase F manager
+routes (no new screens). New `core/AppearanceStore` lit up the light/dark/system theme override (wired in
+`MainActivity`). Apple-Health account row omitted (Health Connect = Phase H/J, **user-confirmed**).
+`android-build` = BUILD SUCCESSFUL (Runs 8 + 8b). 7 thin SPECs written. **User live-tested on the Pixel_8
+emulator (light + dark) and signed off 2026-07-08.**
 
-Resume at **Phase G** — the **Program** tab (edit/roles/profile/password/appearance/privacy + workout-types
-section, which reuses the Phase-F manager) + the settings sub-routes. Then notifications/SSE + FCM (Phase I),
-Health Connect + de-scaffold (Phase J). Gate every screen with `android-build`; write thin SPECs under
-`specs/pages/android/`. Phase list A→J is in `apps/android/CONTEXT.md`.
+Post-build polish (Runs 8b, in the same working tree): (1) **dark-mode root fix** — wrapped
+`RaSiFitersTheme`'s content in a `Surface(contentColor = onBackground)` so `Text` OUTSIDE a Scaffold (the
+program picker + auth screens) is no longer black-on-black in dark mode (Compose's `LocalContentColor`
+defaults to black; only a Surface/Scaffold re-provides it). (2) **Support link = iOS** — the account-menu
+Support row now opens the web `/support` page (`AppLinks.supportUri`), not a `mailto:` (which stays the
+forgot-password fallback). (3) **light-mode rows** — inner setting rows use a theme-conditional
+`programRowColor()` (white `surface` in light like iOS; the raised `surfaceContainerHigh` KEPT in dark) +
+the settings-row subtitle shrank to `bodySmall`/one-line. **Dark mode was user-approved as-is and is
+untouched by the light fix.**
+
+> ⚠️ **UNCOMMITTED (user's choice 2026-07-08):** all Phase G + 8b work is in the working tree only — NOT
+> committed/pushed (user wants to continue in a new session). **Next session: commit first** via the
+> `git-version` skill (touched surface = `android`; no feature-registry version bump — Android is a client
+> port, not a backend feature), then proceed to Phase H/I.
+
+Resume at **Phase H** — **Health Connect** (Samsung Health; the HealthKit analog: `ExerciseSessionRecord` →
+`/workout-logs`, `SleepSessionRecord` → `/daily-health-logs`; per-program toggles, data-lock aware; the
+account-tab Health row lands here) — then **Phase I** (SSE real-time + FCM push; the net-new backend
+`platform:"android"`) and **Phase J** (de-scaffold: delete the now-unused `StubScreen.kt`). Gate every
+screen with `android-build`; write thin SPECs under `specs/pages/android/`. Phase list A→J is in
+`apps/android/CONTEXT.md`.
+
+_(Phase F, 2026-07-08:) The **Lifestyle tab (Tab 3)** + its two forward targets (timeline drill-down +
+workout-types manager) landed + green (Run 7); user live-tested + signed off._
 
 _(Earlier:)_ **Phase D-details (5 Summary forward targets) is DONE + green** (2026-07-08): the **log-workout** +
 **log-health** forms and the **activity / distribution / workout-types** chart drill-downs replace the 5
@@ -200,13 +247,14 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
 8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
    program-picker + Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) +
-   Phase E (Members tab + 8 details) + Phase F (Lifestyle tab + timeline + workout-types manager) green
-   (2026-07-08); Phases G→J pending.
+   Phase E (Members tab + 8 details) + Phase F (Lifestyle tab + timeline + workout-types manager) +
+   Phase G (Program tab + 6 settings/admin sub-routes) green (2026-07-08); all 4 tabs real. Phases H→J
+   pending (Health Connect · SSE+FCM · de-scaffold).
 
 ## Coverage
 
 - Features: **15** (backend coverage complete) — `specs/features/REGISTRY.md` + `registry.json`.
-- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **21** (thin port-notes) —
+- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **28** (thin port-notes) —
   `specs/pages/REGISTRY.md`.
 - Legacy-parity coverage: `COVERAGE.md`.
 

@@ -6,6 +6,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.app.rasifiters.core.AppearanceStore
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.ui.auth.CreateAccountScreen
 import com.app.rasifiters.ui.auth.ForgotPasswordScreen
@@ -20,19 +21,19 @@ import com.app.rasifiters.ui.shell.AppScaffold
  * A successful login/register flips `authToken`, so the root swaps to the shell (no explicit nav).
  */
 @Composable
-fun RootScreen(programContext: ProgramContext) {
+fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore) {
     val token by programContext.authToken.collectAsStateWithLifecycle()
 
     if (token == null) {
         AuthGraph(programContext)
     } else {
-        SignedInGraph(programContext)
+        SignedInGraph(programContext, appearanceStore)
     }
 }
 
 /** Signed-in navigation graph: the program picker (landing) → the per-program tab shell. */
 @Composable
-private fun SignedInGraph(programContext: ProgramContext) {
+private fun SignedInGraph(programContext: ProgramContext, appearanceStore: AppearanceStore) {
     val nav = rememberNavController()
     NavHost(navController = nav, startDestination = Routes.PROGRAM_PICKER) {
         composable(Routes.PROGRAM_PICKER) {
@@ -45,7 +46,13 @@ private fun SignedInGraph(programContext: ProgramContext) {
             )
         }
         composable(Routes.SHELL) {
-            AppScaffold(programContext = programContext)
+            AppScaffold(
+                programContext = programContext,
+                appearanceStore = appearanceStore,
+                // Switch/Leave Program from the Program tab returns to the picker (Android nav idiom —
+                // the picker is the start destination, so a pop restores it, refreshed by local state).
+                onSwitchProgram = { nav.popBackStack(Routes.PROGRAM_PICKER, inclusive = false) },
+            )
         }
     }
 }

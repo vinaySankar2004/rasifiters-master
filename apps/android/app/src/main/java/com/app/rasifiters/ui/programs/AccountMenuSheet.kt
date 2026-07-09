@@ -107,7 +107,7 @@ fun AccountMenuSheet(
                 uriHandler.openUri(AppLinks.privacyPolicyUri.toString())
             }
             AccountRow(Icons.AutoMirrored.Filled.HelpOutline, AppOrange, "Support", "Get help or contact us") {
-                uriHandler.openUri(AppLinks.supportMailtoUri.toString())
+                uriHandler.openUri(AppLinks.supportUri.toString())
             }
 
             SignOutRow(onClick = onSignOut)

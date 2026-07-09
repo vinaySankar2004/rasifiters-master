@@ -7,9 +7,13 @@ import com.app.rasifiters.net.BulkWorkoutRequest
 import com.app.rasifiters.net.DailyHealthDeleteRequest
 import com.app.rasifiters.net.DailyHealthRequest
 import com.app.rasifiters.net.DistributionByDayDTO
+import com.app.rasifiters.net.ChangeEmailRequest
+import com.app.rasifiters.net.ChangePasswordRequest
 import com.app.rasifiters.net.ForgotPasswordRequest
 import com.app.rasifiters.net.InviteRequest
+import com.app.rasifiters.net.LeaveProgramRequest
 import com.app.rasifiters.net.LoginRequest
+import com.app.rasifiters.net.MemberDTO
 import com.app.rasifiters.net.LogoutRequest
 import com.app.rasifiters.net.MemberHistoryResponse
 import com.app.rasifiters.net.MemberMetricsDTO
@@ -33,6 +37,8 @@ import com.app.rasifiters.net.EditCustomWorkoutRequest
 import com.app.rasifiters.net.HealthTimelineResponse
 import com.app.rasifiters.net.ToggleWorkoutVisibilityRequest
 import com.app.rasifiters.net.TotalDurationMtdDTO
+import com.app.rasifiters.net.UpdateMemberProfileRequest
+import com.app.rasifiters.net.UpdateProgramRequest
 import com.app.rasifiters.net.TotalWorkoutsMtdDTO
 import com.app.rasifiters.net.WorkoutLogDeleteRequest
 import com.app.rasifiters.net.WorkoutLogUpdateRequest
@@ -79,6 +85,11 @@ class ProgramContext(
 
     private val _memberUsername = MutableStateFlow(session.username)
     val memberUsername: StateFlow<String?> = _memberUsername.asStateFlow()
+
+    /** The signed-in member's gender — seeded from the membership roster (loadMembershipDetails) or a
+     *  My-Profile fetch, and updated when the user edits their own profile. Drives the My Profile picker. */
+    private val _loggedInGender = MutableStateFlow<String?>(null)
+    val loggedInGender: StateFlow<String?> = _loggedInGender.asStateFlow()
 
     val isGlobalAdmin: Boolean get() = _globalRole.value == "global_admin"
 
@@ -518,12 +529,17 @@ class ProgramContext(
         }.recoverCatching { throw it.asApiError() }
     }
 
-    /** GET /program-memberships/details — the roster editor's rich rows (active memberships). */
+    /** GET /program-memberships/details — the roster editor's rich rows (active memberships). Also seeds
+     *  the signed-in member's gender (mirrors iOS ProgramContext+Members), read by My Profile. */
     suspend fun loadMembershipDetails(): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
-        return runCatching { _membershipDetails.value = api.getMembershipDetails(pid) }
-            .recoverCatching { throw it.asApiError() }
+        return runCatching {
+            val details = api.getMembershipDetails(pid)
+            _membershipDetails.value = details
+            details.firstOrNull { it.memberId == loggedInMemberId }?.let { _loggedInGender.value = it.gender }
+            Unit
+        }.recoverCatching { throw it.asApiError() }
     }
 
     /** PUT /workout-logs — edit a log's duration (member_name only when editing another member's log). */
@@ -745,8 +761,90 @@ class ProgramContext(
         loadAllProgramWorkouts().getOrThrow()
     }.recoverCatching { throw it.asApiError() }
 
+    // ---- Program tab (Phase G) — account settings + admin program management ----
+    // The My-Account settings actions + the admin program edit/leave/role mutations. Errors surface
+    // (Result) for inline UI. Self-edits keep the cached identity (name/gender) in sync so the header +
+    // account rows update without a reload.
+
+    /** GET /members/:id — read the account profile (email + gender) for My Profile. */
+    suspend fun fetchMember(memberId: String): Result<MemberDTO> =
+        runCatching { api.getMember(memberId) }.recoverCatching { throw it.asApiError() }
+
+    /** PUT /members/:id — edit own name/gender. On self-edit, refresh the cached name + gender. */
+    suspend fun updateMemberProfile(
+        memberId: String,
+        firstName: String,
+        lastName: String,
+        gender: String?,
+    ): Result<Unit> = runCatching {
+        api.updateMemberProfile(memberId, UpdateMemberProfileRequest(firstName, lastName, gender))
+        if (memberId == loggedInMemberId) {
+            val full = "$firstName $lastName".trim()
+            _memberName.value = full
+            session.saveIdentity(session.memberId, session.username, full, session.globalRole)
+            if (gender != null) _loggedInGender.value = gender
+        }
+        Unit
+    }.recoverCatching { throw it.asApiError() }
+
+    /** PUT /auth/change-password. */
+    suspend fun changePassword(newPassword: String): Result<Unit> =
+        runCatching { api.changePassword(ChangePasswordRequest(newPassword)); Unit }
+            .recoverCatching { throw it.asApiError() }
+
+    /** PUT /auth/email — direct, password-confirmed change. Returns the updated email. */
+    suspend fun changeEmail(newEmail: String, password: String): Result<String?> =
+        runCatching { api.changeEmail(ChangeEmailRequest(newEmail, password)).email }
+            .recoverCatching { throw it.asApiError() }
+
+    /** DELETE /auth/account — permanent. On success the session is cleared (→ back to login). */
+    suspend fun deleteAccount(): Result<Unit> =
+        runCatching { api.deleteAccount(); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { clearSession() }
+
+    /** PUT /programs/:id — admin program edit. Updates the active program + picker card locally. */
+    suspend fun updateProgram(
+        name: String,
+        status: String,
+        startDate: String,
+        endDate: String,
+        adminOnlyDataEntry: Boolean,
+    ): Result<Unit> {
+        val program = _activeProgram.value
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.updateProgram(
+                program.id,
+                UpdateProgramRequest(name, status, startDate, endDate, adminOnlyDataEntry),
+            )
+            val updated = program.copy(
+                name = name, status = status, startDate = startDate,
+                endDate = endDate, adminOnlyDataEntry = adminOnlyDataEntry,
+            )
+            _activeProgram.value = updated
+            _programs.value = _programs.value.map { if (it.id == updated.id) updated else it }
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** PUT /program-memberships/leave — soft leave; drops the card + clears the active program. */
+    suspend fun leaveProgram(): Result<Unit> {
+        val program = _activeProgram.value
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching {
+            api.leaveProgram(LeaveProgramRequest(program.id))
+            _programs.value = _programs.value.filterNot { it.id == program.id }
+            _activeProgram.value = null
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** PUT /program-memberships — set a member's program role (Manage Roles). Reloads the roster. */
+    suspend fun updateMemberRole(memberId: String, role: String): Result<Unit> =
+        editMembership(memberId = memberId, role = role)
+
     private fun clearSession() {
         session.clear()
+        _loggedInGender.value = null
         _authToken.value = null
         _globalRole.value = null
         _memberName.value = null

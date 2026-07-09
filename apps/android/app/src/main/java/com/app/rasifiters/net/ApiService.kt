@@ -214,4 +214,26 @@ interface ApiService {
 
     @POST("program-memberships/invite")
     suspend fun sendInvite(@Body body: InviteRequest): MessageResponse
+
+    // ---- Program tab (Phase G) — account settings + admin program management ----
+    @GET("members/{id}")
+    suspend fun getMember(@Path("id") id: String): MemberDTO
+
+    @PUT("members/{id}")
+    suspend fun updateMemberProfile(@Path("id") id: String, @Body body: UpdateMemberProfileRequest): MessageResponse
+
+    @PUT("auth/change-password")
+    suspend fun changePassword(@Body body: ChangePasswordRequest): MessageResponse
+
+    @PUT("auth/email")
+    suspend fun changeEmail(@Body body: ChangeEmailRequest): ChangeEmailResponse
+
+    @DELETE("auth/account")
+    suspend fun deleteAccount(): MessageResponse
+
+    @PUT("programs/{id}")
+    suspend fun updateProgram(@Path("id") id: String, @Body body: UpdateProgramRequest): MessageResponse
+
+    @PUT("program-memberships/leave")
+    suspend fun leaveProgram(@Body body: LeaveProgramRequest): MessageResponse
 }

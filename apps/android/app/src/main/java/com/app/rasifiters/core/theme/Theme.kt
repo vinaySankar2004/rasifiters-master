@@ -2,6 +2,7 @@ package com.app.rasifiters.core.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -59,15 +60,24 @@ private val DarkColors = darkColorScheme(
     outlineVariant = DarkOutlineVariant,
 )
 
-/** App theme. Appearance override (light/dark/system) is wired in the Program/Settings phase. */
+/**
+ * App theme. Appearance override (light/dark/system) flows in from `MainActivity` via [darkTheme].
+ *
+ * The root [Surface] is load-bearing: Compose's `LocalContentColor` defaults to **black** and only a
+ * `Surface` (or a Material `Scaffold`, which wraps one) re-provides it as `onBackground`. Without this,
+ * any `Text` drawn OUTSIDE a Scaffold (the program picker, the auth screens) renders black — invisible in
+ * dark mode. Providing it once at the root makes every screen's default text theme-aware.
+ */
 @Composable
 fun RaSiFitersTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
+    val colors = if (darkTheme) DarkColors else LightColors
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = colors,
         typography = AppTypography,
-        content = content,
-    )
+    ) {
+        Surface(color = colors.background, contentColor = colors.onBackground, content = content)
+    }
 }

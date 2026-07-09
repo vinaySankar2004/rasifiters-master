@@ -13,6 +13,10 @@ object AppLinks {
     /** Privacy page on the app's own public site (login / create-account footers). Opens in the browser. */
     val privacyPolicyUri: Uri = Uri.parse("$WEB_APP_BASE_URL/privacy-policy")
 
+    /** Support page on the app's own public site — the account-menu "Support" row. Matches iOS
+     *  `APIConfig.supportURL` (`/support`), NOT a mailto. Opens in the browser. */
+    val supportUri: Uri = Uri.parse("$WEB_APP_BASE_URL/support")
+
     /** Recovery contact fallback for migrated no-email accounts (matches web/iOS mailto default). */
     const val SUPPORT_EMAIL = "vinay.sankara@gmail.com"
 

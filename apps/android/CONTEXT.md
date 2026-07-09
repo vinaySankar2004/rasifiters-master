@@ -59,7 +59,25 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
-🟡 **Phase E COMPLETE (2026-07-08).** The **Members tab (Tab 2)** + **all 8 detail screens** are ported +
+🟡 **Phase G COMPLETE (2026-07-08).** The **Program tab (Tab 4)** + its settings/admin sub-routes are ported
++ green (`ui/program/`). Role-bifurcated on `isProgramAdmin`: **standard** = read-only Program Info card
+(client date math) + Switch + Leave + My Account; **admin/global-admin** = Program Info action section
+(Select/Edit/Leave) + Members (View/Invite) + Role Management (if canEdit) + Workout Types + My Account. Sub-
+routes: **My Profile** (name/gender edit + password-confirmed email change + delete account), **Change
+Password** (live 5-rule policy), **Appearance** (System/Light/Dark → new `core/AppearanceStore` wired into
+`MainActivity`/`RaSiFitersTheme`), **Notifications** (OS-status card + Open-Settings deep link), **Edit
+Program** (name/status/dates/admin-lock, no-op skip), **Manage Roles** (segmented Admin/Logger/Member +
+last-admin guard + per-row spinner). `net` gained `MemberDTO` + the account/program mutation DTOs + 7
+endpoints (`GET/PUT members/:id`, `PUT auth/change-password`, `PUT auth/email`, `DELETE auth/account`,
+`PUT programs/:id`, `PUT program-memberships/leave`); `ProgramContext` gained the account actions +
+`updateProgram`/`leaveProgram`/`updateMemberRole` + a `loggedInGender` seed. Members/Workout-Types sections
+reuse the Phase E `MEMBER_ROSTER`/`MEMBER_INVITE` + Phase F `LIFESTYLE_WORKOUT_TYPES` routes (no new screens).
+Deviations: Apple-Health account row omitted (Health Connect = Phase H/J, user-confirmed); Switch/Leave →
+`popBackStack(PICKER)`; dialogs not alerts. 7 thin SPECs under `specs/pages/android/`.
+`./gradlew :app:assembleDebug` = BUILD SUCCESSFUL (Run 8). Next: **Phase H (Health Connect) / Phase I
+(SSE + FCM)**.
+
+_(Phase E, 2026-07-08:)_ The **Members tab (Tab 2)** + **all 8 detail screens** are ported +
 green (`ui/members/`). Role-bifurcated tab body on `isProgramAdmin` (admin: Invite + metrics preview +
 View-as picker [global-admin "None" / program-admin auto-self] + 5 member cards; logger/member: own cards
 + logger logs-only view-as). Details: metrics table (search + Sort/Filter sheets, server-driven, CSV) ·
@@ -110,9 +128,10 @@ scaffold._
 ### Scaffold-removal tracker (temporary — folds away by Phase J)
 Stub screens live in `ui/StubScreen.kt` usages. Deleted as real screens land:
 ~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · ~~Summary landing (D — DONE)~~ ·
-~~Summary details + log forms (D details — DONE)~~ · ~~Members tab + details (E — DONE)~~ · Lifestyle (F) ·
-Program/settings (G). Remaining `StubScreen(...)` call-sites in `ui/shell/AppScaffold.kt`: **2** bottom tabs
-(Lifestyle/Program). By Phase J: zero remain. _(Phase E also lit up the invite/roster/member-editor cluster
-that nominally belongs to the Program tab (G) — reused there when G lands; no rework.)_
+~~Summary details + log forms (D details — DONE)~~ · ~~Members tab + details (E — DONE)~~ ·
+~~Lifestyle (F — DONE)~~ · ~~Program/settings (G — DONE)~~. Remaining `StubScreen(...)` call-sites in
+`ui/shell/AppScaffold.kt`: **0** — every bottom tab + detail is a real screen. `StubScreen.kt` the file is
+now unused (folds away at the Phase J de-scaffold). _(Phase E lit up the invite/roster/member-editor cluster
+that nominally belongs to the Program tab (G) — reused there in G with no rework.)_
 _(Phase C added the program-picker, a NEW screen that precedes the shell — it did not remove a stub; the
 picker's own forward-nav (create/edit + account destinations) is deferred per iOS D-SCOPE, folded in G/H.)_

@@ -27,10 +27,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.app.rasifiters.core.AppearanceStore
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.ui.MainTab
 import com.app.rasifiters.ui.Routes
-import com.app.rasifiters.ui.StubScreen
 import com.app.rasifiters.ui.members.InviteMemberScreen
 import com.app.rasifiters.ui.members.MemberDetailEditScreen
 import com.app.rasifiters.ui.members.MemberHealthDetailScreen
@@ -49,6 +49,13 @@ import com.app.rasifiters.ui.summary.LogHealthScreen
 import com.app.rasifiters.ui.summary.LogWorkoutScreen
 import com.app.rasifiters.ui.summary.SummaryScreen
 import com.app.rasifiters.ui.summary.WorkoutTypesDetailScreen
+import com.app.rasifiters.ui.program.AppearanceScreen
+import com.app.rasifiters.ui.program.ChangePasswordScreen
+import com.app.rasifiters.ui.program.EditProgramScreen
+import com.app.rasifiters.ui.program.ManageRolesScreen
+import com.app.rasifiters.ui.program.MyProfileScreen
+import com.app.rasifiters.ui.program.NotificationsScreen
+import com.app.rasifiters.ui.program.ProgramScreen
 
 /**
  * The per-program app shell: a bottom nav bar (Summary / Members / Lifestyle / Program) over an
@@ -56,7 +63,11 @@ import com.app.rasifiters.ui.summary.WorkoutTypesDetailScreen
  * Tabs render admin/standard role variants once the real screens land (Phase D+).
  */
 @Composable
-fun AppScaffold(programContext: ProgramContext) {
+fun AppScaffold(
+    programContext: ProgramContext,
+    appearanceStore: AppearanceStore,
+    onSwitchProgram: () -> Unit,
+) {
     val nav = rememberNavController()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.hierarchy
@@ -112,7 +123,35 @@ fun AppScaffold(programContext: ProgramContext) {
             composable(Routes.LIFESTYLE) {
                 LifestyleScreen(programContext = programContext, onNavigate = { nav.navigate(it) })
             }
-            composable(Routes.PROGRAM) { StubScreen("Program") }
+            composable(Routes.PROGRAM) {
+                ProgramScreen(
+                    programContext = programContext,
+                    appearanceStore = appearanceStore,
+                    onNavigate = { nav.navigate(it) },
+                    onSwitchProgram = onSwitchProgram,
+                )
+            }
+
+            // Program tab settings + admin sub-routes (Phase G). Members section reuses MEMBER_ROSTER /
+            // MEMBER_INVITE and Workout Types reuses LIFESTYLE_WORKOUT_TYPES (wired above).
+            composable(Routes.PROGRAM_PROFILE) {
+                MyProfileScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.PROGRAM_PASSWORD) {
+                ChangePasswordScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.PROGRAM_APPEARANCE) {
+                AppearanceScreen(appearanceStore = appearanceStore, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.PROGRAM_NOTIFICATIONS) {
+                NotificationsScreen(onBack = { nav.popBackStack() })
+            }
+            composable(Routes.PROGRAM_EDIT) {
+                EditProgramScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.PROGRAM_ROLES) {
+                ManageRolesScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
 
             // Lifestyle forward targets (Phase F) — the workout-types manager + the timeline drill-down.
             composable(Routes.LIFESTYLE_WORKOUT_TYPES) {
