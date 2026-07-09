@@ -472,7 +472,7 @@ struct AddDailyHealthCard: View {
                 .font(.title3.weight(.bold))
                 .foregroundColor(.white)
 
-            Text("Track sleep hours and diet quality for the day.")
+            Text("Track sleep, diet quality, and steps for the day.")
                 .font(.subheadline)
                 .foregroundColor(Color.white.opacity(0.75))
                 .multilineTextAlignment(.leading)

@@ -270,7 +270,7 @@ fun AddDailyHealthCard(locked: Boolean, onClick: () -> Unit) {
         icon = Icons.Filled.Bedtime,
         iconTint = Color.White,
         title = "Log daily health",
-        subtitle = "Track sleep hours and diet quality for the day.",
+        subtitle = "Track sleep, diet quality, and steps for the day.",
         pillLabel = "Log day",
         pillIcon = Icons.Filled.Add,
         pillBg = Color.White.copy(alpha = 0.2f),
