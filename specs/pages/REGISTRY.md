@@ -1,7 +1,7 @@
 # Page / Screen Registry (L4) — RaSi Fiters
 
-Human index of **page/screen specs** — one per web page and per iOS screen. Specs live at
-`specs/pages/web/<page>/SPEC.md` and `specs/pages/ios/<screen>/SPEC.md`. Each page spec captures purpose,
+Human index of **page/screen specs** — one per web page, iOS screen, and Android screen. Specs live at
+`specs/pages/web/<page>/SPEC.md`, `specs/pages/ios/<screen>/SPEC.md`, and `specs/pages/android/<screen>/SPEC.md`. Each page spec captures purpose,
 contents, the shared features it consumes, and **role-based view rules** (what global_admin / program
 admin / logger / member each see and can do). Shared capabilities are indexed in
 [`../features/REGISTRY.md`](../features/REGISTRY.md).
@@ -71,8 +71,23 @@ idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the s
 | log-workout | 🏗️ v0.1.0 | `workout-logs` (`POST /workout-logs/batch`) + `program-memberships`/`program-workouts` lookups | [log-workout SPEC](android/log-workout/SPEC.md) |
 | log-health | 🏗️ v0.1.0 | `daily-health-logs` (`POST /daily-health-logs`) + `program-memberships` lookup | [log-health SPEC](android/log-health/SPEC.md) |
 | health-connect | 🏗️ v0.1.0 | `health-connect` (Health Connect workout + sleep auto-sync; settings + first-sync confirmation; reuses `POST /workout-logs` + `POST`/`PUT /daily-health-logs`) | [health-connect SPEC](android/health-connect/SPEC.md) |
+| members | 🏗️ v0.1.0 | `member-analytics` (metrics/history/streaks/recent) + `program-memberships` (`GET /program-memberships/members`) + `daily-health-logs` via `ProgramContext` — Tab 2 | [members SPEC](android/members/SPEC.md) |
+| member-metrics-detail | 🏗️ v0.1.0 | `member-analytics` (`GET /member-metrics`; search/sort/filter table) | [member-metrics-detail SPEC](android/member-metrics-detail/SPEC.md) |
+| member-history-detail | 🏗️ v0.1.0 | `member-analytics` (`GET /member-history`; per-member workout-history drill-down) | [member-history-detail SPEC](android/member-history-detail/SPEC.md) |
+| member-streaks-detail | 🏗️ v0.1.0 | `member-analytics` (`GET /member-streaks`; streak stats + milestone ladder) | [member-streaks-detail SPEC](android/member-streaks-detail/SPEC.md) |
+| member-workouts-detail | 🏗️ v0.1.0 | `member-analytics` (`GET /member-recent`) + `workout-logs` (`PUT`/`DELETE /workout-logs`; per-member write surface) | [member-workouts-detail SPEC](android/member-workouts-detail/SPEC.md) |
+| member-health-detail | 🏗️ v0.1.0 | `daily-health-logs` (`GET`/`PUT`/`DELETE /daily-health-logs`; per-member write surface) | [member-health-detail SPEC](android/member-health-detail/SPEC.md) |
+| member-management | 🏗️ v0.1.0 | `program-memberships` (`POST /program-memberships/invite` + `GET /details` + `PUT` + `removeMember`) — invite / roster / member-editor cluster | [member-management SPEC](android/member-management/SPEC.md) |
+| lifestyle | 🏗️ v0.1.1 | `analytics` (workout-types + health timeline) + `analytics-v2` (3 workout-type stat cards) via `ProgramContext.loadLifestyle` — Tab 3 | [lifestyle SPEC](android/lifestyle/SPEC.md) |
+| lifestyle-timeline | 🏗️ v0.1.0 | `analytics` (`GET /analytics/health/timeline`; Sleep · Diet-quality drill-down) | [lifestyle-timeline SPEC](android/lifestyle-timeline/SPEC.md) |
+| lifestyle-workout-types | 🏗️ v0.1.0 | `program-workouts` (workout-types manager: catalog + custom `POST`/`PUT`/`DELETE /program-workouts/custom`) via `ProgramContext` | [lifestyle-workout-types SPEC](android/lifestyle-workout-types/SPEC.md) |
+| program | 🏗️ v0.1.0 | `program-memberships` (`fetchMembershipDetails` + `leaveProgram`) + `program-workouts` + `auth` (`signOut`) — Tab 4, role bifurcation | [program SPEC](android/program/SPEC.md) |
+| edit-program | 🏗️ v0.1.0 | `programs` (`PUT /programs/:id`; admin program editor) | [edit-program SPEC](android/edit-program/SPEC.md) |
+| manage-roles | 🏗️ v0.1.0 | `program-memberships` (`GET /program-memberships/details` + `PUT /program-memberships`; role assignment) | [manage-roles SPEC](android/manage-roles/SPEC.md) |
+| my-profile | 🏗️ v0.1.0 | `members` (`PUT /members/:id`; account profile editor) + `auth` | [my-profile SPEC](android/my-profile/SPEC.md) |
+| change-password | 🏗️ v0.1.0 | `auth` (`POST /auth/change-password`; account password change) | [change-password SPEC](android/change-password/SPEC.md) |
+| appearance | 🏗️ v0.1.0 | none — local `ThemeManager` light/dark/system chooser; no API | [appearance SPEC](android/appearance/SPEC.md) |
+| notifications | 🏗️ v0.1.0 | `notifications` (push-notification status/settings; device registration) | [notifications SPEC](android/notifications/SPEC.md) |
+| notifications-alerts | 🏗️ v0.2.0 | `notifications` (in-app SSE modal queue + FCM push: `GET /notifications/unacknowledged` + `POST /{id}/acknowledge` + `PUT`/`DELETE /notifications/device`) | [notifications-alerts SPEC](android/notifications-alerts/SPEC.md) |
 
-Inventory to document (Phases D→J): ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~forgot-password~~ ·
-~~program-picker~~ · ~~summary (landing)~~ · ~~summary details (activity/distribution/workout-types + log-workout/
-log-health)~~ · members/lifestyle/program tabs (admin + standard) + details · settings (edit/roles/profile/
-password/appearance/privacy + Health Connect). Widgets (Glance) deferred.
+**Inventory: COMPLETE** (Phases A→J shipped, de-scaffolded 2026-07-08). All 30 Android screen specs are documented above — the 4 bottom tabs (Summary / Members / Lifestyle / Program, admin + standard variants), all their detail drill-downs, the 6 program-settings sub-routes, notifications (settings + real-time alerts), and Health Connect. Widgets (Glance) are deferred (out of v1 scope).

@@ -2,11 +2,11 @@
 
 RaSi Fiters — a fitness-program tracker. Members join Programs; per-program roles (admin / logger /
 member) gate what they can do. Members log workouts and daily health metrics; the app surfaces analytics,
-streaks, leaderboards, and sends push notifications. Two clients (`web`, `ios`) share one `backend` API.
+streaks, leaderboards, and sends push notifications. Three clients (`web`, `ios`, `android`) share one `backend` API.
 
 This is the **ICM rebuild** of the original app — a faithful 1:1 recreation on a new stack, now complete
 and standalone (the original app it was ported from is archived, not tracked here). Per-app detail lives in
-`apps/{web,ios,backend}/CONTEXT.md`.
+`apps/{web,ios,android,backend}/CONTEXT.md`.
 
 ## Brand
 - Name: **RaSi Fiters**
@@ -41,5 +41,5 @@ and standalone (the original app it was ported from is archived, not tracked her
   Supabase project at cutover (2026-06-28). The one-time migrator has since been removed.
 
 ## Apps
-See `apps/{web,ios,backend}/CONTEXT.md` and the build order in `PROGRESS.md`. `web` and `ios` both consume
-`backend`.
+See `apps/{web,ios,android,backend}/CONTEXT.md` and the build order in `PROGRESS.md`. `web`, `ios`, and
+`android` all consume `backend`.

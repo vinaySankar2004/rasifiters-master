@@ -1,6 +1,6 @@
 # rasifiters-master — Claude Code Project Rules
 
-The ICM repo for **RaSi Fiters** — one app, three surfaces (`web`, `ios`, `backend`), documented as
+The ICM repo for **RaSi Fiters** — one app, four surfaces (`web`, `ios`, `android`, `backend`), documented as
 specs and ported faithfully from the original app (now archived). Markdown is the source of truth; Claude
 Code (with Vercel / Render / Supabase MCPs) is the operator. Read **`PROGRESS.md`** (current state) and
 **`ICM.md`** (L1 map) first.
@@ -89,9 +89,14 @@ deploy to Vercel/Render, create Supabase schema/buckets) · `audit` (web↔iOS p
 features) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
 read-only doc-health cross-review; strict, report-only via plan mode) · `ios-build` (the iOS compile-check
 loop via the native `xcode` MCP — build `apps/ios`, read structured diagnostics, fix, repeat; NO
-screenshots/simulator, the user runs those). Each living skill keeps a slim
-"Converged lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for the
-"concern → skill" map. (There is no `stitch` skill — code was ported directly from the legacy app, not
+screenshots/simulator, the user runs those) · `android-build` (the Android compile-check loop via the
+Gradle CLI — `cd apps/android && ./gradlew :app:assembleDebug`, read Kotlin/AGP diagnostics, fix, repeat;
+pure-CLI, compile-only — NO emulator/screenshots, the user runs those) · `multiplex` (the role-agent
+pipeline for nontrivial / multi-surface changes: scout → plan → plan-adversary → USER approves →
+per-surface implementer(s) → impl-adversary → compile-check → git-version → user tests on prod; 5 agents in
+`.claude/agents/` + the `plan-pipeline` workflow; small changes use PARTS of it). Each living skill keeps a
+slim "Converged lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for
+the "concern → skill" map. (There is no `stitch` skill — code was ported directly from the legacy app, not
 assembled from modules.)
 
 **Run sessions rooted HERE (`rasifiters-master/`).** The legacy apps are archived and no longer
@@ -103,7 +108,7 @@ referenced by this repo — no external directories need to be added.
 ICM.md  METHODOLOGY.md  CLAUDE.md  ENV_RUNBOOK.md  COVERAGE.md  PROGRESS.md
 PROGRESS_ARCHIVE.md                          (condensed run history, one line per run; not auto-loaded)
 CONTEXT.md                                   (project: brand + infra + migration source)
-apps/<web|ios|backend>/CONTEXT.md
+apps/<web|ios|android|backend>/CONTEXT.md
 specs/features/REGISTRY.md, registry.json, <feature>/SPEC.md
-specs/pages/<web|ios>/<page>/SPEC.md
+specs/pages/<web|ios|android>/<page>/SPEC.md
 ```

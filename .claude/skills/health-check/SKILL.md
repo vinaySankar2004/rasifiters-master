@@ -140,13 +140,23 @@ structural — overall healthy / needs attention"); and which items, if approved
   reference. SPEC `Provenance` headers name the archived original as history (past-tense prose, not a live
   path) — don't flag those as broken references. A feature's `consumed_by` may name a single client (web- or
   ios-only), so don't flag a feature as broken just because it isn't wired into both clients.
-- **registry.json — prefer a surgical string Edit over a JSON round-trip.** `json.dumps(d, indent=2)` does
-  NOT round-trip byte-identical here: the file uses compact inline arrays (`["web", "ios"]`) that `indent=2`
-  expands to multi-line, producing a large spurious diff. For a single-field change, edit the unique target
-  string directly (e.g. `"app": "ios-mobile"` → `"ios"`); only script a patch when the target string repeats.
+- **registry.json — a JSON round-trip is safe *only* with `ensure_ascii=False`.** The file's arrays are now
+  fully multi-line (one element per line), so `json.dump(d, indent=2, ensure_ascii=False)` round-trips
+  byte-clean and a multi-feature patch (e.g. Run 3 added `"android"` to 10 `consumed_by` arrays) is the right
+  tool. Two gotchas: (1) the DEFAULT `ensure_ascii=True` escapes the `$comment`'s em-dashes to `—` —
+  always pass `ensure_ascii=False`; (2) use `object_pairs_hook=OrderedDict` + write a trailing newline. For a
+  single-field change a surgical string Edit is still fine; for a repeated-target patch, script it.
 - **The living skills' "Distilled from N runs" headers are a recurring drift class** — they lag their
   LESSONS_ARCHIVE run counts. Always recompute against `grep -cE "^#+ +Run [0-9]+"` (heading-anchored;
   unanchored grep catches prose) and check the count vs the max run index.
+- **Adding a whole new surface is its own drift class (Run 3, the `android` add).** The mechanical records
+  (git tags, `reference_impl.paths`, per-app `CONTEXT.md`) stay correct, but four things lag together and must
+  be swept explicitly after a surface lands: (1) the cross-surface graph `registry.json` `consumed_by`; (2) the
+  surface-count prose ("three surfaces" / "web + iOS"); (3) the path braces `{web,ios,backend}` / `{web,ios}`
+  scattered across ICM/METHODOLOGY/CLAUDE/README/CONTEXT; (4) the skill index (the new build-check skill).
+  **Establish `consumed_by` ground truth from CODE — the client's API layer (`ApiService.kt` / `APIClient` /
+  web `api.*` calls) — NOT from the feature SPEC's `consumed_by` array**, which predates the port. Leave dated
+  decision-log entries (e.g. METHODOLOGY R-rows) as history; fix only live/instructional prose.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:**

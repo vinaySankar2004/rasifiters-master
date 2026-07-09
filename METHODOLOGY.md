@@ -4,11 +4,11 @@
 > is the in-repo home for the ICM decision log + the feature-spec contract; everything *operational*
 > (how to document, port, version, deploy) lives in `.claude/skills/`.
 >
-> ICM = the markdown-as-source-of-truth methodology: one app → three apps (surfaces) → documented
+> ICM = the markdown-as-source-of-truth methodology: one app → four apps (surfaces) → documented
 > features + pages, with Claude Code (+ Vercel / Render / Supabase MCPs) as the operator.
 >
 > This is the **ICM-methodology rebuild of "RaSi Fiters"** — a fitness program tracker
-> (Members ↔ Programs ↔ Workouts/logs) with **web + iOS clients sharing ONE backend API**. The rebuild
+> (Members ↔ Programs ↔ Workouts/logs) with **web + iOS + Android clients sharing ONE backend API**. The rebuild
 > was a faithful **1:1** migration (R2) of the original app, not a redesign; it is now complete and this
 > repo stands alone. The original app is archived — each SPEC's `Provenance` header records where it was
 > ported from, as history.
@@ -18,22 +18,23 @@
 | Layer | In this repo |
 |-------|--------------|
 | L1 Map | `ICM.md` (routing: app → apps/surfaces → features + pages) |
-| L2 Rooms | `CONTEXT.md` (project-level) + `apps/{web,ios,backend}/CONTEXT.md` |
+| L2 Rooms | `CONTEXT.md` (project-level) + `apps/{web,ios,android,backend}/CONTEXT.md` |
 | L3 Tools | `.claude/skills/` + `.mcp.json` |
-| L4 Feature registry | `specs/features/REGISTRY.md` + `specs/features/registry.json` + `specs/features/<feature>/SPEC.md` + `specs/pages/{web,ios}/<page>/SPEC.md` |
+| L4 Feature registry | `specs/features/REGISTRY.md` + `specs/features/registry.json` + `specs/features/<feature>/SPEC.md` + `specs/pages/{web,ios,android}/<page>/SPEC.md` |
 | L5 Pipelines | `git-version` skill + Vercel / Render / Supabase MCP flows |
 
 ## The apps (surfaces)
 
-"RaSi Fiters" is **one app** with **three surfaces** (called **apps**) that share one backend API:
+"RaSi Fiters" is **one app** with **four surfaces** (called **apps**) that share one backend API:
 
 | App | What it is | Stack | Host |
 |---------|-----------|-------|------|
 | `web` | Member/admin web app | Next.js 14 App Router (TypeScript) | Vercel |
 | `ios` | Native mobile app | SwiftUI (+ widgets) | App Store (APNs push) |
+| `android` | Native mobile app | Jetpack Compose (Kotlin, Material 3) | Play Store (FCM push) |
 | `backend` | The shared REST API | Node/Express + Sequelize | Render (Blueprint) |
 
-Both clients (`web`, `ios`) talk to the **same** `backend`. There is no per-client backend; the
+All three clients (`web`, `ios`, `android`) talk to the **same** `backend`. There is no per-client backend; the
 backend is its own L2 room with its own CONTEXT.md, env, and deploy target.
 
 ## Feature-spec contract (Vision §B)
@@ -54,9 +55,9 @@ set (rolled out as the contract proves out — shipped features are single-file 
 > But a feature can also be **client-specific** — its `consumed_by` may be `[web]` or `[ios]` only (e.g.
 > iOS widgets / deep links are ios-only) — so not every SPEC touches all three rooms.
 
-## Page/screen-spec template (web + iOS pages)
+## Page/screen-spec template (web + iOS + Android pages)
 
-A **page/screen SPEC** lives at `specs/pages/{web,ios}/<page>/SPEC.md` and documents a single
+A **page/screen SPEC** lives at `specs/pages/{web,ios,android}/<page>/SPEC.md` and documents a single
 page/screen; it was ported faithfully from the original app. Like features, a page is tied to a
 surface (`web` or `ios`). **Role-based view rules are first-class for RaSi** — what each role sees /
 can do on a page is a load-bearing part of the contract, not an afterthought. Sections:
@@ -106,9 +107,11 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 | Bootstrap the monorepo/app + deploy (Scaffold §5) | `deploy` skill |
 | Per-page documentation question loop (Playbook §2–3) | `question-asker` skill (writes the SPEC) |
 | Implement a documented feature/page → port directly from the reference app | hand-written code (faithful 1:1 port; no stitch step), committed via `git-version` |
+| Orchestrate a nontrivial / multi-surface change (plan → adversary → build → review) | `multiplex` skill (5 role-agents in `.claude/agents/` + `plan-pipeline` workflow; parallel per-surface implementers; compile-check gate, no staging — user tests on prod) |
 | Commit + version + registry + blast-radius (Vision §C/§F) | `git-version` skill |
-| Cross-surface feature diff / drift catch (Vision §E) | `audit` skill (web↔iOS parity per feature) |
+| Cross-surface feature diff / drift catch (Vision §E) | `audit` skill (web↔iOS↔android parity per feature) |
 | iOS compile-check loop (build `apps/ios`, read diagnostics, fix) | `ios-build` skill (native `xcode` MCP; compile-only) |
+| Android compile-check loop (build `apps/android`, read diagnostics, fix) | `android-build` skill (Gradle CLI `./gradlew`; compile-only) |
 | Inspect/query the Supabase DB read-only | `supabase` skill (Supabase MCP-first) |
 | Periodic doc-health cross-review (drift / redundancy / structure) | `health-check` skill (read-only, report-only via plan mode) |
 
@@ -122,7 +125,7 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 | Current state / what's next | `ICM.md` ("How to operate here") |
 | Feature inventory + graph | `specs/features/registry.json` + `specs/features/REGISTRY.md` |
 | Per-feature truth | `specs/features/<feature>/SPEC.md` |
-| Per-page/screen truth | `specs/pages/{web,ios}/<page>/SPEC.md` |
+| Per-page/screen truth | `specs/pages/{web,ios,android}/<page>/SPEC.md` |
 | Per-app infra (IDs, env, ports) | `apps/<app>/CONTEXT.md` |
 | Env var inventory + how to inspect/change | `ENV_RUNBOOK.md` |
 | Skill run history (verbose) | `<skill>/LESSONS_ARCHIVE.md` (not auto-loaded) |

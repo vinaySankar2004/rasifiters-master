@@ -46,3 +46,28 @@ distilled "Converged lessons"). Append one entry per run.
     a fast build sprint (runs 50→74 over ~2 days) predictably freezes the L1 map (`ICM.md`) + the lowest-churn
     CONTEXT §Status while the append-only logs (SPEC changelogs, registry, tags) stay correct — check the
     orientation docs first after any sprint.
+- **Run 3 (2026-07-09) — scope:** whole-repo, **Android-parity focus** (run as the pre-flight before building the
+  `multiplex` agent pipeline, which reads `consumed_by` + the skill index). 3 Explore agents (Android feature-coverage
+  from code · doc cross-refs/skill-index/surface prose · registry↔SPEC↔tag sync + schema ownership) + direct re-read.
+  - Counts: 🔴 6 clusters · 🟡 0 · 🔵 0 (+1 info). Healthy structure; drift concentrated exactly where the Run-2
+    lesson predicts after adding a whole surface (the 4th, `android`) — orientation prose + the cross-surface graph.
+  - Proposed → accepted (all applied): (D1) `registry.json` `consumed_by` was badly stale — Android's
+    `net/ApiService.kt` demonstrably calls 12 features but the graph listed android for only 2; added `"android"` to
+    10 features (auth, members, programs, program-memberships, program-workouts, workout-logs, daily-health-logs,
+    analytics, analytics-v2, member-analytics). (D2) 4 SPEC §11 changelogs weren't newest-first so registry==§11-top
+    failed while registry==tag held (programs/program-memberships/workouts/analytics) — relocated the current-version
+    row to the top. (D3) the 8th living skill `android-build` was documented nowhere — added to ICM.md, METHODOLOGY
+    concern-map, CLAUDE.md, README.md. (D4/D5) "three surfaces / web,ios,backend" prose persisted across ~7 docs +
+    ICM.md's own android row said "in build (Phase A)" while it's code-complete — fixed live prose + path braces
+    (`{web,ios,backend}`→`{web,ios,android,backend}`), left the dated R6 (2026-06-28) log entry as history. (D6)
+    `specs/pages/REGISTRY.md` indexed 12 of 30 android screens — added the 18 missing rows + refreshed the trailer.
+  - Info (below the bar, left as-is unless user opts in): `auth` SPEC.md:160 double-claims `members`/`member_emails`
+    as "Owned/required" (really a column-split with the `members` SPEC). Also surfaced a **secondary drift for later**:
+    the `lifestyle-workout-types` android page-SPEC prose says it consumes `workouts`, but code + registry show
+    `program-workouts` (custom CRUD) — the REGISTRY row uses code truth; the page-SPEC body wording is a follow-up.
+  - New durable pattern (candidate for Converged lessons): **adding a whole new surface is its own drift class** —
+    the mechanical records (tags, reference_impl paths, per-app CONTEXT.md) stay correct, but the cross-surface graph
+    (`consumed_by`), the surface-count prose, the path braces `{web,ios,...}`, and the skill index all lag together.
+    After a new surface lands, sweep those four specifically. **Correct `consumed_by` from CODE (the client's API
+    layer — `ApiService.kt`/`APIClient`/web api calls), not from the SPEC's `consumed_by` array**, which predates the
+    port.

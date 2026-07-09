@@ -1,5 +1,5 @@
 {
-  "$comment": "L4 machine registry — the shared-feature graph for RaSi Fiters. Empty until the first feature is documented via question-asker + committed via git-version. Each feature: { version, spec, status, consumed_by, depends_on, reference_impl: { app, paths } }. consumed_by lists which apps use it: ['web','ios'] (shared), ['web'] (web-only), or ['ios'] (ios-only). status: documented|built|deployed|retired. version is a label (semver) tracked here + in the SPEC Changelog + a git tag feature/<name>@vX.Y.Z — there are NO per-version folders. Page/screen specs are tracked separately in specs/pages/REGISTRY.md.",
+  "$comment": "L4 machine registry — the shared-feature graph for RaSi Fiters. Empty until the first feature is documented via question-asker + committed via git-version. Each feature: { version, spec, status, consumed_by, depends_on, reference_impl: { app, paths } }. consumed_by lists which apps use it: ['web','ios','android'] (all clients), or any subset (e.g. ['ios'] iOS-only, ['android'] Android-only). status: documented|built|deployed|retired. version is a label (semver) tracked here + in the SPEC Changelog + a git tag feature/<name>@vX.Y.Z — there are NO per-version folders. Page/screen specs are tracked separately in specs/pages/REGISTRY.md.",
   "features": {
     "auth": {
       "version": "0.6.0",
@@ -7,7 +7,8 @@
       "status": "deployed",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "program-memberships"
@@ -30,7 +31,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -53,7 +55,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -79,7 +82,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -179,7 +183,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -203,7 +208,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -229,7 +235,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -253,7 +260,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -281,7 +289,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -305,7 +314,8 @@
       "status": "built",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",

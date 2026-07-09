@@ -9,6 +9,20 @@
 Before ending a run, capture what you learned: a detect/bump call that was non-obvious, a
 blast-radius reverse-scan subtlety, a dangling-edge case, anything awkward in staging/tagging.
 
+### 2026-07-09 — Run: doc-health Android-parity pass + new `multiplex` agent infra (NO bump)
+Touched 4 `specs/features/<f>/SPEC.md` files (analytics, program-memberships, programs, workouts) **and**
+`registry.json` — yet the correct call was **zero feature bumps, zero `feature/*` tags**. Two reusable
+judgments: (1) **Reordering a SPEC's §11 changelog rows newest-first is cosmetic** — no behavior/contract
+delta, so no bump (map-to-feature ≠ auto-bump; the cosmetic-refinement rule applies to SPEC prose too).
+(2) **Adding a client to `consumed_by` retroactively (here `"android"` on 10 features) is ADDITIVE — a new
+consumer satisfying a pre-existing dangling edge, FYI-only, no gate, no bump.** The producer's contract did
+not change; the registry was simply corrected to reflect an already-shipped consumer (the Android port).
+Hard-gate + bump only when an EXISTING node's contract (`depends_on`/`reference_impl`/owned interface)
+changes — not when a consumer is appended. The interleaving of android-build + multiplex index-pointer edits
+across ICM/METHODOLOGY/CLAUDE/README made a clean two-commit split impractical (same lines, both concerns),
+so it shipped as one well-messaged chore commit — acceptable when the concerns co-touch the same hunks.
+Also: the SKILL.md still says "## 12. Changelog" but the SPECs use **§11** — cosmetic skill-doc lag, noted.
+
 ### 2026-07-01 — Run: `workout-logs` v0.3.0 (D-C8, single+bulk merge)
 A feature that spans **backend + both clients + 2 page SPECs** still maps to **one** feature bump: only
 `services/logService.js` is a `reference_impl` path for `workout-logs`, so the changeset → `workout-logs`
