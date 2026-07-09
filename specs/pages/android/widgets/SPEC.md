@@ -91,3 +91,11 @@
   (Glance renders RemoteViews, so Compose brushes aren't available); the two families collapse into one
   `SizeMode.Responsive` widget. Vector glyphs are white-filled so `ColorFilter.tint` recolors them black/white
   per surface.
+- **Picker preview + default size (Android-idiom, no iOS analog — iOS has no widget-gallery preview):** each
+  `res/xml/quick_add_*_widget_info.xml` sets `previewLayout` to a static banner layout
+  (`res/layout/widget_preview_{workout,health}.xml`, mirroring the widget's wide state via the same drawables)
+  so the widget-picker tile shows the real orange/blue card, not the generic app-icon placeholder. The default
+  drop size is the **wide banner** (`targetCellWidth=4`, `targetCellHeight=2`; `minWidth=250dp`) so the banner
+  shows immediately on placement; the widget still resizes down to the compact `110dp` square
+  (`minResizeWidth/Height=110dp`). On API < 31 launchers without `previewLayout` support the tile falls back to
+  the default placeholder (cosmetic only).
