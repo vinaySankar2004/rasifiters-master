@@ -6,11 +6,14 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -129,20 +132,32 @@ private fun SignedInGraph(programContext: ProgramContext, appearanceStore: Appea
             )
         }
 
-        // Account settings reached from the picker's account sheet (no active program needed).
+        // Account settings reached from the picker's account sheet (no active program needed). Unlike the
+        // in-program path these aren't hosted by AppScaffold's Scaffold, so they get no innerPadding — we
+        // apply the status-bar top inset here so they anchor below the status bar exactly like the shell path.
         composable(Routes.PROGRAM_PROFILE) {
-            MyProfileScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            SettingsInset { MyProfileScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
         }
         composable(Routes.PROGRAM_PASSWORD) {
-            ChangePasswordScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            SettingsInset { ChangePasswordScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
         }
         composable(Routes.PROGRAM_APPEARANCE) {
-            AppearanceScreen(appearanceStore = appearanceStore, onBack = { nav.popBackStack() })
+            SettingsInset { AppearanceScreen(appearanceStore = appearanceStore, onBack = { nav.popBackStack() }) }
         }
         composable(Routes.PROGRAM_NOTIFICATIONS) {
-            NotificationsScreen(onBack = { nav.popBackStack() })
+            SettingsInset { NotificationsScreen(onBack = { nav.popBackStack() }) }
         }
     }
+}
+
+/**
+ * Applies the status-bar top inset to the picker-level account-settings screens. In the in-program path
+ * these screens sit inside AppScaffold's Scaffold, which supplies the same inset via innerPadding; here
+ * there's no Scaffold, so this keeps both entry points visually identical (content below the status bar).
+ */
+@Composable
+private fun SettingsInset(content: @Composable () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().statusBarsPadding()) { content() }
 }
 
 /** Logged-out navigation graph: splash → login → create-account / forgot-password. */
