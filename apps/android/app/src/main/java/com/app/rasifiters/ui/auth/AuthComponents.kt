@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -107,12 +106,11 @@ fun AuthScaffold(
     }
 }
 
-/** The real brand mark (theme-aware asset), clipped to a rounded circle. iOS `BrandMark(size:)`. */
+/** The real brand mark (the orange light logo — same in dark mode), clipped to a rounded circle. iOS `BrandMark(size:)`. */
 @Composable
 fun BrandMark(sizeDp: Int, modifier: Modifier = Modifier) {
-    val res = if (isSystemInDarkTheme()) R.drawable.brand_icon_dark else R.drawable.brand_icon
     Image(
-        painter = painterResource(res),
+        painter = painterResource(R.drawable.brand_icon),
         contentDescription = "RaSi Fiters",
         contentScale = ContentScale.Crop,
         modifier = modifier

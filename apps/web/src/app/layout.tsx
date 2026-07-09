@@ -32,12 +32,10 @@ export const metadata: Metadata = {
   applicationName: "RaSi Fiters",
   icons: {
     icon: [
-      { url: "/brand/app-icon.png" },
-      { url: "/brand/app-icon-dark.png", media: "(prefers-color-scheme: dark)" }
+      { url: "/brand/app-icon.png" }
     ],
     apple: [
-      { url: "/brand/app-icon.png" },
-      { url: "/brand/app-icon-dark.png", media: "(prefers-color-scheme: dark)" }
+      { url: "/brand/app-icon.png" }
     ]
   },
   openGraph: {
