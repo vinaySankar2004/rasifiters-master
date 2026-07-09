@@ -13,7 +13,7 @@ export default function PrivacyPolicyPage() {
     <PageShell maxWidth="3xl">
       <PageHeader
         title="Privacy Policy"
-        subtitle="Effective date: 2026-07-01"
+        subtitle="Effective date: 2026-07-09"
         backHref={fallbackHref}
       />
 
@@ -21,9 +21,9 @@ export default function PrivacyPolicyPage() {
         <p>
           RaSi Fiters (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) respects your privacy. This policy explains what
           information we collect, how we use it, and the choices you have. It applies to the RaSi
-          Fiters iOS app, web app, and related services. Some features are available on only one
-          platform &mdash; for example, Apple Health and push notifications apply to the iOS app
-          only &mdash; and we note that in the relevant section below.
+          Fiters iOS app, Android app, web app, and related services. Some features run on only some
+          platforms. Connected health data (Apple Health on iOS, Health Connect on Android) and push
+          notifications apply to the mobile apps only, and we say so in the relevant section below.
         </p>
 
         <div>
@@ -31,11 +31,11 @@ export default function PrivacyPolicyPage() {
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Account information: name, email address, and password (stored securely).</li>
             <li>Profile information: optional gender field.</li>
-            <li>Fitness and activity data: workouts, sleep, and diet quality that you log in the app.</li>
-            <li>Apple Health data (iOS app only): if you connect Apple Health, the iOS app also reads workout and sleep data from Apple Health to log it automatically on your behalf.</li>
+            <li>Fitness and activity data: workouts, sleep, steps, and diet quality that you log in the app.</li>
+            <li>Connected health data (mobile apps only): if you connect Apple Health on iOS or Health Connect on Android, the app reads workout, sleep, and step data from it to log activity automatically on your behalf.</li>
             <li>Usage data: app interactions, feature usage, and diagnostic logs.</li>
             <li>Device and network data: device type, OS version, and IP address.</li>
-            <li>Push notification data (iOS): if you enable push notifications, we collect and store a device token (and optionally a device identifier) so we can send you notifications. This is linked to your account.</li>
+            <li>Push notification data (mobile apps only): if you enable push notifications on the iOS or Android app, we collect and store a device token (and optionally a device identifier) so we can send you notifications. This is linked to your account.</li>
           </ul>
         </div>
 
@@ -44,21 +44,21 @@ export default function PrivacyPolicyPage() {
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Provide and operate the app, including authentication and core features.</li>
             <li>Personalize and improve the app experience.</li>
-            <li>Automatically log workouts and sleep from Apple Health when you enable that feature in the iOS app.</li>
+            <li>Automatically log workouts, sleep, and steps from Apple Health (iOS) or Health Connect (Android) when you enable that feature in the mobile app.</li>
             <li>Monitor performance, fix bugs, and maintain security.</li>
             <li>Communicate with you about your account or support requests.</li>
-            <li>Deliver push and in-app notifications (e.g. program updates, membership or role changes) and use Apple&apos;s Push Notification service (APNs) to send notifications to your device when the app is not in the foreground.</li>
+            <li>Deliver push and in-app notifications (for example program updates, membership or role changes). We use Apple&apos;s Push Notification service (APNs) on iOS and Firebase Cloud Messaging (FCM) on Android to send notifications to your device when the app is not in the foreground.</li>
           </ul>
         </div>
 
         <div>
-          <p className="text-base font-semibold text-rf-text">Apple Health (iOS app only)</p>
-          <p className="mt-2">This section applies only to the RaSi Fiters iOS app. The web app does not connect to or read from Apple Health.</p>
+          <p className="text-base font-semibold text-rf-text">Connected health data (Apple Health and Health Connect)</p>
+          <p className="mt-2">This section applies only to the RaSi Fiters mobile apps. The web app does not connect to or read from Apple Health or Health Connect.</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>With your permission, the iOS app reads workout and sleep data from Apple Health (HealthKit) to automatically create workout and sleep logs in your RaSi Fiters program.</li>
-            <li>Access is read-only. The iOS app does not write any data to Apple Health.</li>
-            <li>We use data read from Apple Health only to provide the automatic workout and sleep logging described above. We never use it for advertising or marketing, and we never sell it or share it with third parties for their own purposes.</li>
-            <li>You can turn Apple Health sync on or off in the iOS app (My Account → Apple Health), and you can revoke access at any time in iOS Settings → Privacy &amp; Security → Health. Turning it off stops any further reading of your Health data.</li>
+            <li>With your permission, the iOS app reads from Apple Health (HealthKit) and the Android app reads from Health Connect to automatically create workout, sleep, and step logs in your RaSi Fiters program.</li>
+            <li>Access is read-only. The apps do not write any data back to Apple Health or Health Connect.</li>
+            <li>We use data read from Apple Health or Health Connect only to provide the automatic logging described above. We never use it for advertising or marketing, and we never sell it or share it with third parties for their own purposes.</li>
+            <li>You can turn health sync on or off in the app (My Account → Apple Health on iOS, My Account → Health Connect on Android). You can revoke access at any time: on iOS in Settings → Privacy &amp; Security → Health, and on Android in the Health Connect app (Settings → Security &amp; privacy → Health Connect). Turning it off stops any further reading of your health data.</li>
           </ul>
         </div>
 
@@ -70,16 +70,16 @@ export default function PrivacyPolicyPage() {
               (for example, hosting and analytics). They are required to protect your information.
             </li>
             <li>
-              Push delivery: we share your device token with Apple so they can deliver push
-              notifications to your device. Apple&apos;s handling of that data is governed by their
-              privacy policy.
+              Push delivery: we share your device token with Apple on iOS (APNs) or Google on
+              Android (Firebase Cloud Messaging) so they can deliver push notifications to your
+              device. Their handling of that data is governed by their own privacy policies.
             </li>
             <li>
               Legal requirements: we may disclose information if required by law or to protect
               our rights and users.
             </li>
           </ul>
-          <p className="mt-2">We do not sell your personal information, and we do not share data we read from Apple Health with third parties for their own use.</p>
+          <p className="mt-2">We do not sell your personal information, and we do not share data we read from Apple Health or Health Connect with third parties for their own use.</p>
         </div>
 
         <div>
@@ -87,8 +87,8 @@ export default function PrivacyPolicyPage() {
           <p className="mt-2">
             We keep information only as long as needed to provide the service and comply with legal
             obligations. We remove device tokens when you turn off notifications (or unregister your
-            device) or when Apple tells us a token is no longer valid. You can request deletion at
-            any time.
+            device), or when Apple or Google tells us a token is no longer valid. You can request
+            deletion at any time.
           </p>
         </div>
 

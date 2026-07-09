@@ -26,8 +26,8 @@ export default function SupportPage() {
         </p>
         <p className="font-semibold text-rf-text">vinay.sankara@gmail.com</p>
         <p className="mt-4">
-          To help us resolve your issue quickly, let us know whether you&rsquo;re using the iOS app
-          or the web app, and include the details for your platform:
+          To help us resolve your issue quickly, let us know whether you&rsquo;re using the iOS app,
+          the Android app, or the web app, and include the details for your platform:
         </p>
 
         <div>
@@ -40,6 +40,15 @@ export default function SupportPage() {
         </div>
 
         <div>
+          <p className="font-semibold text-rf-text">Android app</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>App version</li>
+            <li>Android version</li>
+            <li>Device model</li>
+          </ul>
+        </div>
+
+        <div>
           <p className="font-semibold text-rf-text">Web</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Browser and version</li>
@@ -47,7 +56,7 @@ export default function SupportPage() {
           </ul>
         </div>
 
-        <p>And, for either platform, a short description of the issue.</p>
+        <p>And, whichever platform you&rsquo;re on, a short description of the issue.</p>
       </GlassCard>
     </PageShell>
   );
