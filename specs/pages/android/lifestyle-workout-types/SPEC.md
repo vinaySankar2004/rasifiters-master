@@ -7,7 +7,7 @@
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.LIFESTYLE_WORKOUT_TYPES` (`WorkoutTypesListScreen`),
 > pushed from the Lifestyle-tab glass button. **Shared** with the Program tab (Phase G) — lit up now for the
 > Lifestyle entry point (the Phase-E precedent: a nominally-later-phase screen ported when an entry point needs it).
-> **Consumes:** [`workouts`](../../../features/workouts/SPEC.md) via `ProgramContext` (full catalog + management).
+> **Consumes:** [`program-workouts`](../../../features/program-workouts/SPEC.md) via `ProgramContext` — the program workout-types catalog + custom CRUD (`GET /program-workouts` unfiltered, `toggle-visibility`, `POST`/`PUT`/`DELETE /program-workouts/custom`); see the table below. (The global [`workouts`](../../../features/workouts/SPEC.md) library is iOS-only — Android never calls `GET /api/workouts`.)
 > **Files:** `ui/lifestyle/WorkoutTypesListScreen.kt`.
 
 ## Parity + Android-idiom deviations
