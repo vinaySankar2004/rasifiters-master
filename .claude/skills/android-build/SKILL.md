@@ -203,6 +203,30 @@ not re-validating business logic:
   stored row showed the wrong platform → pointed at the body, not the sender); verify the SEND with a
   standalone `firebase-admin` `node` script (require by ABSOLUTE path) + `adb shell dumpsys notification`. A
   silently-swallowed `Task`/`runCatching` push path must log (`Log.w`) or it's undebuggable. (Run 12.)
+- **Health Connect (`androidx.health.connect:connect-client:1.1.0-alpha07`) builds clean** at AGP 8.9.1 /
+  compileSdk 36 / minSdk 26. Read auth is granted via **`PermissionController.createRequestPermissionResultContract()`**
+  (`ActivityResultContract<Set<String>,Set<String>>` launched from a Composable — NOT a runtime dialog);
+  manifest needs `android.permission.health.READ_EXERCISE`/`READ_SLEEP`, a `<queries>` for
+  `com.google.android.apps.healthdata`, and the permissions-rationale intent-filters (`SHOW_PERMISSIONS_RATIONALE`
+  + a `ViewPermissionUsageActivity` alias). The HealthKit **anchor analog is the Changes token, which carries
+  NO history** — first sync must `readRecords(TimeRangeFilter.after(connectDate))` AND separately
+  `getChangesToken`, later syncs drain `getChanges(token)` (expired → full re-read + fresh token); commit the
+  token only after a successful sync. HC has **no immediate background-delivery observer** — sync on app
+  triggers (launch/auth/`ON_RESUME`/program-entry), a documented deviation not a bug. (Run 14.)
+- **Status-code-aware Retrofit write = declare the method `: Response<Unit>`** (not `: T`). A
+  `suspend fun x(@Body b: JsonObject): Response<Unit>` returns the raw response for ALL statuses (never throws
+  `HttpException`), so branch on `.code()` (200/201/409/400-403-404) — what a sum-on-conflict / POST-then-PUT
+  upsert needs. Transport errors still throw (catch → retryable); the OkHttp Authenticator's 401 refresh is
+  transparent, so a 401 reaching the caller = refresh failed → retryable. (Run 14.)
+- **Kotlin has no partial classes — port an iOS `Foo+Bar` extension SET into ONE controller class**
+  constructed with the state hub + `appContext`, owning its own `SharedPreferences` (the `UserDefaults`
+  analog for non-sensitive sync state — NOT the encrypted `Session`) + StateFlows. Hang it off
+  `ProgramContext` (`val health = HealthSyncController(appCtx, api, this)`; pass `context.applicationContext`
+  via `AppContainer`) so every screen reaches it as `programContext.health` — zero extra threading. iOS
+  static single-flight bools → an `AtomicBoolean` per flow. (Run 14.)
+- **An inferred `var` type outlives a smart cast:** `var t = nullableParam` infers `String?` even after an
+  early `if (nullableParam == null) return`. Annotate `var t: String = nullableParam` (the return proves
+  non-null). Same family as the Run-8 `Result<Unit?>` inference gotcha. (Run 14.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the

@@ -463,3 +463,57 @@ top-right user icon. Same screens, two looks.
   status bar. `Modifier` wasn't imported in RootScreen.kt (nothing had used it) — add
   `androidx.compose.ui.Modifier` + `foundation.layout.{fillMaxSize,statusBarsPadding}`. Compiles clean
   (`:app:compileDebugKotlin` BUILD SUCCESSFUL). One-file change; Android-only cosmetic, no feature bump.
+
+## Run 14 — 2026-07-08 — Phase H: Health Connect (workout + sleep auto-sync)
+
+**Task.** Port the iOS `apple-health` feature (0.6.0) to Android via **Health Connect**
+(`androidx.health.connect:connect-client`). A large, load-bearing port: ~9 new `health/` files + 2
+`ui/health/` screens + ProgramContext/ApiService/manifest/nav wiring. Faithful 1:1 on all the rules
+(D-S5 window scoping, D-CONF first-sync confirmation, D-LOCK admin-lock skip, D-SUM sum-on-conflict +
+applied-sample ledger, D-SIL silent auto-retry). New feature SPEC `specs/features/health-connect/`.
+
+**Result.** `:app:assembleDebug` = BUILD SUCCESSFUL. **One** compile error across the whole port (a
+`String?`→`String` on the changes-token loop var); everything else compiled first try.
+
+**Durable lessons (new):**
+- **`androidx.health.connect:connect-client:1.1.0-alpha07` resolves + compiles clean** with AGP 8.9.1 /
+  compileSdk 36 / minSdk 26. The Changes API (`getChangesToken`/`getChanges` → `ChangesResponse` with
+  `changes`/`nextChangesToken`/`hasMore`/`changesTokenExpired`), `readRecords(ReadRecordsRequest(...,
+  TimeRangeFilter.after/between))`, `ExerciseSessionRecord.EXERCISE_TYPE_*` + `.exerciseType` + `.metadata.id`,
+  `SleepSessionRecord.stages` + `Stage.STAGE_TYPE_*`, and `PermissionController.getGrantedPermissions()` /
+  `.createRequestPermissionResultContract()` are all present at this version.
+- **Health Connect = the HealthKit anchor analog is the Changes token, but it carries NO history.** First
+  sync must `readRecords` from the connect date AND separately `getChangesToken` for the future; later syncs
+  drain `getChanges(token)`; an expired token (`changesTokenExpired`) → full re-read + fresh token. Persist
+  the token ONLY after a successful sync (the iOS anchor-integrity rule ports verbatim).
+- **HC read permission is granted via `PermissionController.createRequestPermissionResultContract()`
+  (`ActivityResultContract<Set<String>, Set<String>>`), NOT a runtime-permission dialog.** Launch it from a
+  Composable with `rememberLauncherForActivityResult`; the result Set is the granted permissions —
+  `granted.containsAll(perms)` gates enabling. Manifest needs `android.permission.health.READ_EXERCISE` /
+  `READ_SLEEP`, a `<queries>` for `com.google.android.apps.healthdata`, and the permissions-rationale
+  intent-filters (`androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE` on the launcher activity + a
+  `ViewPermissionUsageActivity` alias with `VIEW_PERMISSION_USAGE`/`HEALTH_PERMISSIONS` for Android 14+).
+- **Status-code-aware writes = declare the Retrofit method `: Response<Unit>`** (not `: T`). A `suspend fun
+  x(): Response<Unit>` returns the raw response for ALL statuses (never throws `HttpException`), so you can
+  branch on `.code()` (200 summed / 201 created / 409 duplicate / 400,403,404 skipped) — exactly what the
+  sum-on-conflict + POST-then-PUT-on-409 sync needs. Transport errors still throw (catch → retryable). The
+  OkHttp Authenticator's 401 refresh+retry is transparent, so a 401 reaching the caller = refresh failed →
+  retryable. Body as a `buildJsonObject { }` `JsonObject` to include `on_duplicate`/`member_id` freely.
+- **Kotlin has no partial classes — port the iOS `ProgramContext+HealthKit*` extension SET into one
+  controller class** (`HealthSyncController`) constructed with the `ProgramContext` (for live
+  token/programs/identity/`isDataEntryLocked`) + `appContext`, owning its own `SharedPreferences` state +
+  StateFlows for the UI. `ProgramContext` holds it as `val health = HealthSyncController(appCtx, api, this)`
+  (pass `context.applicationContext` down through `AppContainer`); every screen reaches it via
+  `programContext.health` — zero extra threading. iOS static single-flight bools → an `AtomicBoolean` per flow.
+- **`SharedPreferences` is the `UserDefaults` analog** for non-sensitive client sync state (settings + gating
+  + the applied-sample ledger). Keep it OUT of the encrypted `Session` (tokens only). A ledger over
+  `prefs.all` filtering a key prefix works for prune/clear; `StringSet` prefs for id/key sets.
+- **Deviation H-1: Health Connect has no HealthKit-style immediate background delivery** (no
+  `HKObserverQuery`/`enableBackgroundDelivery` equivalent that pushes). Sync runs on app triggers
+  (launch/auth via `RootScreen.LaunchedEffect(token)`, foreground via `ON_RESUME`, program-entry via
+  `AppScaffold`). Record it as a deviation, not a bug. A `WorkManager` periodic job could approximate it later.
+- **The one error:** a `while`-loop var seeded from a nullable param (`var token = savedToken` where
+  `savedToken: String?`) infers `String?` even after an early `if (savedToken == null) return` — the smart
+  cast doesn't flow into the inferred `var` type. Annotate `var token: String = savedToken` (the early return
+  proves non-null). Same shape as the Run-8 `Result<Unit?>` inference gotcha: an inferred type outliving a
+  smart cast.
