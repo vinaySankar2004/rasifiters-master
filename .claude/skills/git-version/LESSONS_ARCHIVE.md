@@ -279,3 +279,26 @@ contract change → blast-radius FYI, not a gate).
   feature's CURRENT registry version has a matching tag," not a 1:1 total.
 - **Everything was already committed** across 3 commits (backend 2aa9a47, octopus merge a3cd5d0, iOS fix
   0db3a81) before tagging, so tags anchored at HEAD (the final merged state), not a fresh commit.
+
+## Run — 2026-07-09 — View Health row refactor (cosmetic UI, page-version bump, no feature bump)
+- **Task:** refactor the View Health list row (date + `Sleep — · Diet — · Steps N`) into a header
+  (dot + date) over three labeled Sleep/Diet/Steps metric cells, 1:1 across web/ios/android. User asked
+  directly ("we don't need multiplex, we just do it") + live-tested before commit.
+- **Detection outcome = NO feature bump.** Staged paths were all `apps/{web,ios,android}/**` client
+  screens + `specs/pages/**`. `daily-health-logs`'s `reference_impl` is **backend-only**
+  (routes/services/models), and no `specs/features/**` file was touched → per the "cosmetic apps/**
+  refinement is not a feature delta" rule, no feature semver bump, no `feature/*` tag. This is the
+  clean case where a real, shipped UI change maps to ZERO feature nodes.
+- **Pages ARE versioned but NOT git-tagged.** `git tag -l "page/*"` is empty; pages carry a version cell
+  in `specs/pages/REGISTRY.md` + a §Changelog per page SPEC. Faithful record = PATCH bump (v0.2.0→v0.2.1)
+  on the 3 member-health pages (ios/android member-health-detail + web members/health): registry cells +
+  each page-spec §Changelog row. No tag step for pages.
+- **Shared-component guard:** Android health list was on the shared `LogRow` (also used by View Workouts).
+  Built a dedicated `HealthLogRow`/`HealthMetricCell` rather than editing `LogRow`, so nothing else
+  restyled — mirrors the "net-new UI must not restyle other pages" rule.
+- **Scope discipline on stage:** two unrelated `SummaryCards.{kt,swift}` edits (not mine) showed modified
+  at commit time; explicit `git add <7 files>` (no `-A`) left them out. The session-scoped-stage default
+  did its job.
+- **Convention divergence handled in-doc:** DC-10 (two-line row) is shared with the compact
+  `MemberHealthCard` preview, which KEPT the two-line form. Noted the divergence in all 3 page SPECs so the
+  convention stays legible instead of silently forking.
