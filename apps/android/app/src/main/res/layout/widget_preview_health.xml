@@ -29,9 +29,11 @@
                 android:tint="#FFFFFFFF" />
         </FrameLayout>
 
-        <View
+        <!-- Empty TextView as a flexible spacer — bare <View> is not RemoteViews-whitelisted
+             (previewLayout is inflated as RemoteViews by the launcher). -->
+        <TextView
             android:layout_width="0dp"
-            android:layout_height="1dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1" />
 
         <ImageView
