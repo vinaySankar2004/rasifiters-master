@@ -253,3 +253,48 @@ the geometry call. Lesson: an "Offset/Size constructor is internal" error almost
   cross-package reuse from `ui/lifestyle`) removed a ~30-line dup instead of copying it. `EmptyText`/
   `CircleBackButton`/`FormErrorText`/`TooltipData`/`axisLabels`/`SleepDietChart`/`SummaryCard` all resolve
   cross-package (same Gradle module) once non-`private`.
+
+## Run 8 — 2026-07-08 — Phase G (Program tab + settings sub-routes)
+
+Ported the **Program tab** (admin + standard variants) + its settings/admin sub-routes: My Profile,
+Change Password, Appearance, Notifications, Edit Program, Manage Roles. New `ui/program/` package (8
+files); net gained the account/program mutation DTOs + 7 endpoints; `ProgramContext` gained the account
+actions (`fetchMember`/`updateMemberProfile`/`changePassword`/`changeEmail`/`deleteAccount`),
+`updateProgram`/`leaveProgram`/`updateMemberRole`, and a `loggedInGender` seed. New `core/AppearanceStore`
++ `MainActivity` theme wiring lit up the deferred light/dark/system override. `AppScaffold` gained
+`appearanceStore` + `onSwitchProgram` params and the 6 program sub-routes; the last `StubScreen("Program")`
+is gone (only `StubScreen.kt` the file remains, unused, until Phase J de-scaffold).
+
+**Green in 2 fixes, both the same gotcha (below). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL (~6s).**
+
+- **`runCatching { … }` whose LAST expression is a `?.let{}` or a bare `if` → `Result<Unit?>`, not
+  `Result<Unit>`** — fails "Return type mismatch: expected Result<Unit>, actual Result<Unit?>" on the
+  `return runCatching` line (the col points at `runCatching`, not the offending last line). Both
+  `loadMembershipDetails` (`…?.let { _loggedInGender.value = … }`) and `updateMemberProfile` (trailing
+  `if (…) …`) hit it. Fix: end the lambda with an explicit `Unit`. (Promoted to Converged lessons.)
+- **Appearance override = a plain (non-encrypted) `SharedPreferences` store, NOT wiped on sign-out**, held
+  by `AppContainer`, exposed as `StateFlow<AppearanceMode>`; `MainActivity` collects it and maps to
+  `RaSiFitersTheme(darkTheme=)`. The Theme.kt "wired in the Program/Settings phase" TODO is now closed.
+- **Switch/Leave Program from a shell tab = pop to the picker** via a threaded `onSwitchProgram`
+  (`nav.popBackStack(PROGRAM_PICKER)`), since the tab lives in the inner shell NavHost while the picker is
+  the outer SignedInGraph start destination. Thread the callback down (RootScreen → AppScaffold → screen).
+- **Reuse pays again:** the Members section ("View Members"/"Invite") + Workout Types section route to the
+  existing Phase E `MEMBER_ROSTER`/`MEMBER_INVITE` + Phase F `LIFESTYLE_WORKOUT_TYPES` — no new screens for
+  the admin cluster (Phase E had already lit those up).
+- **Notifications status = `NotificationManagerCompat.areNotificationsEnabled()`** + a `LifecycleEventObserver`
+  ON_RESUME re-check + an `ACTION_APP_NOTIFICATION_SETTINGS` deep link; FCM registration is Phase I.
+- **User-confirmed scope cut:** the Apple-Health account row is omitted (Health Connect = Phase H/J).
+
+### Run 8b — 2026-07-08 — dark-mode content-color fix + Support-link parity (follow-up to Run 8)
+
+User reported the **program picker** rendering black text on a dark background (unreadable in dark mode).
+Root cause: **Compose's `LocalContentColor` defaults to `Color.Black`; `MaterialTheme` doesn't touch it —
+only a `Surface`/`Scaffold` re-provides it as `onBackground`.** Every bottom-tab + detail screen lives in
+`AppScaffold`'s `Scaffold` (fine), but the picker + auth screens draw a bare `Box` (no Surface) → black
+default text. Fix ONCE: wrapped `RaSiFitersTheme`'s `content` in
+`Surface(color = background, contentColor = onBackground)` → every screen's default text is now theme-aware.
+Verified the picker's white FABs/avatar are the *intentional* `onBackground` high-contrast idiom (iOS
+`.label`), not a bug. Also aligned the account-menu **Support** row to iOS: opens the web `/support` page
+(`AppLinks.supportUri`), not the `mailto:` (which stays the forgot-password recovery fallback only). Both
+the picker `AccountMenuSheet` and the new `ProgramAccountSection` updated. `./gradlew :app:assembleDebug` =
+BUILD SUCCESSFUL (~3s). Both patterns promoted to Converged lessons.

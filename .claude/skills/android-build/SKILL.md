@@ -132,6 +132,26 @@ not re-validating business logic:
   let a new-package screen (`ui/lifestyle`) reuse it with zero import churn for same-package callers. A
   second hoisted-state "View as" slot (Lifestyle) stays SEPARATE from the Members one — shared state would
   cross-wire the tabs; the picker *sheet* is shared via a `noneLabel` param. (Run 7.)
+- **`runCatching { … }` whose LAST expression is `x?.let{}` or a bare `if(…) …` infers `Result<Unit?>`,
+  not `Result<Unit>`** → "Return type mismatch: expected Result<Unit>, actual Result<Unit?>" flagged on the
+  `return runCatching` line (misleading column). End such a suspend-action lambda with an explicit `Unit`.
+  Bit two `ProgramContext` actions in one run. (Run 8.)
+- **App-level appearance override = a plain SharedPreferences `StateFlow` store (`AppearanceStore`), NOT the
+  encrypted `Session` (it must survive sign-out).** `MainActivity` collects it → `RaSiFitersTheme(darkTheme=)`
+  (SYSTEM→`isSystemInDarkTheme()`). Thread cross-shell callbacks (Program-tab "Switch Program" →
+  `popBackStack(PROGRAM_PICKER)`) down RootScreen → AppScaffold → screen, since a bottom-tab lives in the
+  inner shell NavHost while the picker is the outer graph's start destination. (Run 8.)
+- **`MaterialTheme` does NOT set text color — `LocalContentColor` defaults to BLACK. Only a `Surface` (or a
+  Material `Scaffold`, which wraps one) re-provides it as `onBackground`.** So any bare `Text` (no explicit
+  `color=`) drawn OUTSIDE a Scaffold renders black → invisible in dark mode. Bit the **program picker** +
+  the **auth screens** (both draw a plain `Box`, no Surface) while every bottom-tab/detail screen — inside
+  `AppScaffold`'s `Scaffold` — was fine. Fix ONCE at the root: wrap `RaSiFitersTheme`'s `content` in
+  `Surface(color = background, contentColor = onBackground)`. Deliberate high-contrast controls that use
+  `onBackground` directly (picker FABs/avatar = white-in-dark, black-in-light, the iOS `.label` idiom) are
+  correct and unaffected. (Run 8b.)
+- **Account-menu "Support" opens the web `/support` page (`AppLinks.supportUri`), NOT a `mailto:`** — matches
+  iOS `APIConfig.supportURL`. The `mailto:` (`supportMailtoUri`) is only the forgot-password recovery
+  fallback (iOS `supportEmailURL`). Don't conflate the two. (Run 8b.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the
