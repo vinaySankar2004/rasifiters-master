@@ -180,45 +180,38 @@ struct MTDParticipationCard: View {
     let change: Double
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
+        CardShell(
+            background: Color(.systemBackground).opacity(0.9),
+            strokeColor: Color(.systemGray4).opacity(0.6)
+        ) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text("MTD Participation")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(Color(.label))
+
                 Spacer()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("\(Int(pct))%")
+                        .font(.title2.weight(.bold))
+                        .foregroundColor(Color(.label))
+
+                    Text("\(active)/\(total) members active")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+
+                Spacer()
+
+                VStack(alignment: .leading, spacing: 6) {
+                    changeBadge
+                    Text("vs prior MTD")
+                        .font(.footnote)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
             }
-
-            Spacer(minLength: 6)
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text("\(Int(pct))%")
-                    .font(.title2.weight(.bold))
-                    .foregroundColor(Color(.label))
-
-                Text("\(active)/\(total) members active")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundColor(Color(.secondaryLabel))
-            }
-
-            Spacer(minLength: 10)
-
-            changeBadge
-
-            Text("vs prior MTD")
-                .font(.footnote)
-                .foregroundColor(Color(.secondaryLabel))
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.appBackgroundSecondary)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color(.systemGray4).opacity(0.6), lineWidth: 1)
-        )
-        .frame(height: 240, alignment: .topLeading)
     }
 
     private var changeBadge: some View {
