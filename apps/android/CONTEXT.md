@@ -94,7 +94,8 @@ no migration** — reuses the already-live `workout-logs` D-C9 (`on_duplicate:"s
 POST-then-PUT-on-409 upsert. **Deviation H-1:** Health Connect has no HealthKit-style immediate background
 delivery, so sync runs on app triggers (no OS-push background sync; a future `WorkManager` job could
 approximate it). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Thin SPEC
-`specs/pages/android/health-connect/`. **Next: Phase J (de-scaffold) + first internal-testing AAB.**
+`specs/pages/android/health-connect/`. **Phase J (de-scaffold) DONE 2026-07-08 — `ui/StubScreen.kt`
+deleted; next: user generates a signed AAB → Play Console internal testing.**
 
 🟢 **Phase I (2026-07-08, Runs 10–11): notifications — in-app SSE + FCM push.** I-b (FCM) built on top of I-a:
 Firebase project `rasi-fiters` (user-provisioned; `google-services.json` gitignored — public repo, sole
@@ -208,15 +209,12 @@ _(Phase A, 2026-07-08:) Foundation green — Gradle project, DI (`AppContainer`)
 session/Keychain (`Session`), Retrofit/OkHttp + 401 authenticator, auth DTOs, Material 3 theme, bottom-nav
 scaffold._
 
-### Scaffold-removal tracker (temporary — folds away by Phase J)
-Stub screens live in `ui/StubScreen.kt` usages. Deleted as real screens land:
-~~Splash/Login/CreateAccount/ForgotPassword (Phase B — DONE)~~ · ~~Summary landing (D — DONE)~~ ·
-~~Summary details + log forms (D details — DONE)~~ · ~~Members tab + details (E — DONE)~~ ·
-~~Lifestyle (F — DONE)~~ · ~~Program/settings (G — DONE)~~. Remaining `StubScreen(...)` call-sites in
-`ui/shell/AppScaffold.kt`: **0** — every bottom tab + detail is a real screen. `StubScreen.kt` the file is
-now unused (folds away at the Phase J de-scaffold). _(Phase E lit up the invite/roster/member-editor cluster
-that nominally belongs to the Program tab (G) — reused there in G with no rework.)_
-_(Phase C added the program-picker, a NEW screen that precedes the shell — it did not remove a stub; the
-picker's own forward-nav (create/edit + account destinations) is deferred per iOS D-SCOPE, folded in G/H.)_
-_(Phase H added the Health Connect settings + first-sync confirmation — NEW screens reached from the account
-section; no stub removed. Phase J deletes the now-unused `StubScreen.kt` file itself.)_
+### Scaffold-removal — CLOSED (Phase J, 2026-07-08)
+The scaffold is fully de-scaffolded. Every screen was ported in order (each stub deleted as its real screen
+landed): Splash/Login/CreateAccount/ForgotPassword (B) · Summary landing (D) · Summary details + log forms
+(D details) · Members tab + details (E) · Lifestyle (F) · Program/settings (G). `StubScreen(...)` call-sites
+in `ui/shell/AppScaffold.kt` reached **0** at Phase G, and **Phase J deleted the now-unused
+`ui/StubScreen.kt` file itself** — no scaffold placeholder remains anywhere in `apps/android`. Notes:
+Phase C added the program-picker (a NEW screen preceding the shell — removed no stub); Phase H added the
+Health Connect settings + first-sync confirmation (NEW account-reached screens — removed no stub); Phase E
+lit up the invite/roster/member-editor cluster that Program-tab (G) then reused with no rework.

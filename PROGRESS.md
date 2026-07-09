@@ -12,10 +12,11 @@ Compose port of the same app against the same backend contract. Plan approved; p
 de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
 Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) + Phase E (Members tab +
 all 8 detail screens) + Phase F (Lifestyle tab + timeline drill-down + workout-types manager) + Phase G
-(Program tab + all 6 settings/admin sub-routes) + Phase I (notifications) + Phase H (Health Connect)
-COMPLETE — all build green; all 4 bottom tabs are now real screens (zero `StubScreen` call-sites remain).**
-Next = **Phase J (de-scaffold: delete the now-unused `StubScreen.kt` + fold scaffold notes)**, then a
-signed AAB → Play Console internal testing. Full plan
+(Program tab + all 6 settings/admin sub-routes) + Phase I (notifications) + Phase H (Health Connect) +
+Phase J (de-scaffold) COMPLETE — all build green; all 4 bottom tabs are real screens and the scaffold is
+fully removed (`StubScreen.kt` deleted 2026-07-08, Run 15; zero placeholders remain).**
+Next = **the user generates a signed AAB in Android Studio → Play Console internal testing** (the port is
+code-complete). Full plan
 + decisions are in `apps/android/CONTEXT.md`
 and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE
 notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen
@@ -207,7 +208,12 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase H (Health Connect) DONE + green (compile). Next: **Phase J (de-scaffold)**, then a signed AAB → Play Console internal testing. Say "continue".
+> ### ⏭️ ANDROID PORT — Phase J (de-scaffold) DONE + green (2026-07-08, Run 15). The port is CODE-COMPLETE (all phases A→J). Next: **the user generates a signed AAB in Android Studio → Play Console internal testing.** Remaining Claude-side follow-ups are the user's Pixel_8 live tests (Health Connect sync + FCM push).
+
+**Phase J is DONE** (2026-07-08, Run 15): the last scaffold placeholder `ui/StubScreen.kt` is **deleted**
+(unused since Phase G drove call-sites to 0); the `apps/android/CONTEXT.md` scaffold-removal tracker is
+folded to a CLOSED note; `:app:assembleDebug` = BUILD SUCCESSFUL. No scaffold placeholder remains anywhere
+in `apps/android` — all 4 bottom tabs + every detail/settings screen are real. **Nothing left to port.**
 
 **Phase H is DONE + compiles green** (2026-07-08, Run 14): the `health/` module + `ui/health/` screens port
 the iOS `apple-health` feature to Health Connect 1:1 (all of D-S5/D-CONF/D-LOCK/D-SUM/D-SIL; Changes API =
@@ -320,7 +326,8 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
    program-picker + Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) +
    Phase E (Members tab + 8 details) + Phase F (Lifestyle tab + timeline + workout-types manager) +
    Phase G (Program tab + 6 settings/admin sub-routes) + Phase I (notifications) + Phase H (Health Connect)
-   green (2026-07-08); all 4 tabs real. Phase J pending (de-scaffold + first internal-testing AAB).
+   + Phase J (de-scaffold) green (2026-07-08); all 4 tabs real, scaffold removed. Port is CODE-COMPLETE
+   (all phases A→J). Remaining: user generates a signed AAB → Play Console internal testing.
 
 ## Coverage
 
