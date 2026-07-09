@@ -166,7 +166,7 @@ struct StepsTimelineDetailView: View {
 
                                 StepsCalloutView(
                                     label: calloutTitle(dateString: tapped.date, label: tapped.label, period: period),
-                                    steps: tapped.steps ?? 0
+                                    steps: Int((tapped.steps ?? 0).rounded())
                                 )
                                 .position(
                                     x: clamp(anchorX, min: geo.size.width * 0.15, max: geo.size.width * 0.85),
