@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#F5761A</color>
+    <!-- Brand amber — sampled from the icon master (drawable/brand_icon.png) so the adaptive-icon
+         background matches the iOS light AppIcon exactly. -->
+    <color name="ic_launcher_background">#F9AB38</color>
 </resources>

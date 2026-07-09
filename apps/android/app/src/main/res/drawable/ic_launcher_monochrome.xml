@@ -3,15 +3,16 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Brand mark: three ascending rounded bars, black on the amber adaptive background. Geometry scaled
-         1:1 from the 1024px master (drawable/brand_icon.png) so the launcher icon matches the iOS AppIcon. -->
+    <!-- Monochrome brand mark for Android 13+ themed ("Material You") launcher icons — the system ignores
+         the fill color and tints the alpha shape. Same three-bar geometry as ic_launcher_foreground; this is
+         the Android analog of the iOS tinted AppIcon variant. -->
     <path
-        android:fillColor="#000000"
+        android:fillColor="#FFFFFF"
         android:pathData="M37.54,46.51 h4.12 a2.0,2.0 0 0 1 2.0,2.0 v14.25 a2.0,2.0 0 0 1 -2.0,2.0 h-4.12 a2.0,2.0 0 0 1 -2.0,-2.0 v-14.25 a2.0,2.0 0 0 1 2.0,-2.0 z" />
     <path
-        android:fillColor="#000000"
+        android:fillColor="#FFFFFF"
         android:pathData="M49.99,42.61 h4.23 a2.0,2.0 0 0 1 2.0,2.0 v18.15 a2.0,2.0 0 0 1 -2.0,2.0 h-4.23 a2.0,2.0 0 0 1 -2.0,-2.0 v-18.15 a2.0,2.0 0 0 1 2.0,-2.0 z" />
     <path
-        android:fillColor="#000000"
+        android:fillColor="#FFFFFF"
         android:pathData="M62.43,38.50 h4.33 a2.0,2.0 0 0 1 2.0,2.0 v22.26 a2.0,2.0 0 0 1 -2.0,2.0 h-4.33 a2.0,2.0 0 0 1 -2.0,-2.0 v-22.26 a2.0,2.0 0 0 1 2.0,-2.0 z" />
 </vector>
