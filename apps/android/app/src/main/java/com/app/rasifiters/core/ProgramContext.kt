@@ -131,6 +131,18 @@ class ProgramContext(
             return role == "admin" || role == "logger"
         }
 
+    /**
+     * Coarse widget capability (no single active program): global admin OR an admin/logger in ANY loaded
+     * program. Derived from the program LIST (not `_activeProgram`), because the quick-add widget forms
+     * have no current program — the iOS `QuickAdd*WidgetEntryView.canSelectAnyMember` analog.
+     */
+    val canLogForAnyProgramMember: Boolean
+        get() = isGlobalAdmin || _programs.value.any { isPrivilegedIn(it) }
+
+    /** Admin/logger privilege in a specific program (iOS widget-form `privileged(_:)`). */
+    fun isPrivilegedIn(program: ProgramDTO): Boolean =
+        isGlobalAdmin || program.myRole?.lowercase() in setOf("admin", "logger")
+
     /** Program admin OR global admin — gates the Members-tab "View as" selector + invite + roster editor. */
     val isProgramAdmin: Boolean
         get() = isGlobalAdmin || _activeProgram.value?.myRole?.lowercase() == "admin"
@@ -272,6 +284,19 @@ class ProgramContext(
     fun selectProgram(program: ProgramDTO) {
         _activeProgram.value = program
     }
+
+    // ---- Widget quick-add deep-link route (iOS `widgetRoute` + `returnToMyPrograms` analog) ----
+
+    /** The pending home-screen-widget deep-link, stashed by MainActivity and consumed once by RootScreen.
+     *  Survives a signed-out→signed-in transition (stash-and-replay, iOS parity); nulled on explicit logout. */
+    private val _widgetRoute = MutableStateFlow<WidgetRoute?>(null)
+    val widgetRoute: StateFlow<WidgetRoute?> = _widgetRoute.asStateFlow()
+
+    fun setWidgetRoute(route: WidgetRoute?) { _widgetRoute.value = route }
+    fun clearWidgetRoute() { _widgetRoute.value = null }
+
+    /** Drop the active program (iOS `returnToMyPrograms`) — used by the widget forms' exit-to-My-Programs. */
+    fun clearActiveProgram() { _activeProgram.value = null }
 
     // ---- Notifications (Phase I) — real-time SSE + the modal queue ----
     // The alerts layer: an SSE stream (NotificationStreamClient) pushes new alerts live, backed by a
@@ -485,6 +510,19 @@ class ProgramContext(
             .recoverCatching { throw it.asApiError() }
     }
 
+    // ---- Per-program lookups (the widget forms cache one entry per selected program, intersected) ----
+
+    /** Roster for a SPECIFIC program (the widget form's per-program member cache). Returns the active
+     *  roster as-is — the endpoint already returns the active set (no client `is_active` filter, O1). */
+    suspend fun fetchProgramMembersFor(programId: String): Result<List<ProgramMemberDTO>> =
+        runCatching { api.getProgramMembers(programId) }
+            .recoverCatching { throw it.asApiError() }
+
+    /** Workout catalog for a SPECIFIC program, non-hidden only (`is_hidden` filtered — matches web/iOS). */
+    suspend fun fetchProgramWorkoutsFor(programId: String): Result<List<ProgramWorkoutDTO>> =
+        runCatching { api.getProgramWorkouts(programId).filterNot { it.isHidden } }
+            .recoverCatching { throw it.asApiError() }
+
     // ---- Log-form writes (both bump the Summary refresh on success — D-C3) ----
 
     /** POST /workout-logs/batch. `programIds` = the full multi-program selection (current included, DC-2).
@@ -514,6 +552,32 @@ class ProgramContext(
                 _messages.tryEmit(if (n == 1) "Daily log saved" else "$n daily logs saved")
             }
     }
+
+    /**
+     * POST /workout-logs/batch with an EXPLICIT primary program (the widget form has no active program —
+     * it passes the first selected program as `program_id` + the full set as `program_ids`). Bumps the
+     * Summary refresh on success; does NOT emit `_messages` (the widget host has no Snackbar collector —
+     * success feedback is the in-view toast). iOS `QuickAddWorkoutWidgetEntryView.save()` analog.
+     */
+    suspend fun addWorkoutLogsBatchExplicit(
+        primaryProgramId: String,
+        programIds: List<String>,
+        entries: List<BulkWorkoutEntry>,
+    ): Result<Unit> =
+        runCatching { api.addWorkoutLogsBatch(BulkWorkoutRequest(primaryProgramId, programIds, entries)); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { _summaryRefreshToken.value += 1 }
+
+    /** POST /daily-health-logs/batch with an EXPLICIT primary program — the widget form's health analog of
+     *  [addWorkoutLogsBatchExplicit]. Bumps the Summary refresh; no `_messages` emit (in-view toast). */
+    suspend fun addDailyHealthLogsBatchExplicit(
+        primaryProgramId: String,
+        programIds: List<String>,
+        entries: List<BulkHealthEntry>,
+    ): Result<Unit> =
+        runCatching { api.addDailyHealthLogsBatch(BulkHealthRequest(primaryProgramId, programIds, entries)); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { _summaryRefreshToken.value += 1 }
 
     /** POST /daily-health-logs. `foodQuality` null (or omitted) clears diet; `sleepHours` null omits sleep. */
     suspend fun addDailyHealthLog(
@@ -1045,6 +1109,7 @@ class ProgramContext(
         _memberUsername.value = null
         _programs.value = emptyList()
         _activeProgram.value = null
+        _widgetRoute.value = null
         _summary.value = SummaryData()
         _summaryError.value = null
         _memberMetrics.value = emptyList()

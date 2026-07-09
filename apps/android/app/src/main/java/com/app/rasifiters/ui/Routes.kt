@@ -28,6 +28,11 @@ object Routes {
     const val SUMMARY_LOG_WORKOUT = "summary/log-workout"
     const val SUMMARY_LOG_HEALTH = "summary/log-health"
 
+    // Home-screen widget deep-link targets (Glance quick-add). Root-level screens (no active program) —
+    // the iOS `WidgetRoute.quickAddWorkout/quickAddHealth` fullScreenCover analog.
+    const val WIDGET_LOG_WORKOUT = "widget/log-workout"
+    const val WIDGET_LOG_HEALTH = "widget/log-health"
+
     // Members detail routes (Phase E). Scoped member is stashed in ProgramContext.focusMember() before push
     // (the established "static route reads context" idiom — no navArgs). Invite/roster/editor double-duty
     // with the Program tab (Phase G).

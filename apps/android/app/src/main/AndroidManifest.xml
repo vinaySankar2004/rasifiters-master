@@ -33,6 +33,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.RaSiFiters">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -91,5 +92,28 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Quick-add home-screen widgets (Jetpack Glance) — the iOS WidgetKit AddWorkout / AddDailyHealth
+             analog. Each receiver taps deep-link `rasifiters://quick-add-*` into MainActivity's VIEW filter. -->
+        <receiver
+            android:name=".widget.AddWorkoutWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_add_workout_widget_info" />
+        </receiver>
+        <receiver
+            android:name=".widget.AddDailyHealthWidgetReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/quick_add_health_widget_info" />
+        </receiver>
     </application>
 </manifest>

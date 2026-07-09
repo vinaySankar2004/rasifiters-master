@@ -4,4 +4,7 @@
          default_notification_channel_id manifest meta-data so background pushes land in a named channel. -->
     <string name="default_notification_channel_id">rasi_default</string>
     <string name="default_notification_channel_name">General</string>
+    <!-- Quick-add home-screen widget picker descriptions (Jetpack Glance; iOS WidgetKit parity). -->
+    <string name="widget_workout_description">Quick add a workout session</string>
+    <string name="widget_health_description">Quick add a daily health log</string>
 </resources>

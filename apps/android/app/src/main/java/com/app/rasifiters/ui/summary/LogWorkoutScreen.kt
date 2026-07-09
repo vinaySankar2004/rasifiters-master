@@ -52,7 +52,9 @@ import java.time.LocalDate
 
 private const val MAX_ROWS = 200
 
-private data class WorkoutRow(
+// `internal` (not private) so the widget quick-add form (QuickAddWorkoutWidgetScreen) reuses the exact
+// same row model + validation helpers + card — the iOS "same batch form as the in-app view" contract.
+internal data class WorkoutRow(
     val uid: Int,
     val memberId: String,
     val workoutName: String,
@@ -61,14 +63,14 @@ private data class WorkoutRow(
     val minutes: String,
 )
 
-private fun WorkoutRow.durationMinutes(): Int = (hours.toIntOrNull() ?: 0) * 60 + (minutes.toIntOrNull() ?: 0)
+internal fun WorkoutRow.durationMinutes(): Int = (hours.toIntOrNull() ?: 0) * 60 + (minutes.toIntOrNull() ?: 0)
 
-private fun WorkoutRow.isEmpty(ignoreMember: Boolean): Boolean {
+internal fun WorkoutRow.isEmpty(ignoreMember: Boolean): Boolean {
     val memberEmpty = ignoreMember || memberId.isBlank()
     return memberEmpty && workoutName.isBlank() && hours.isBlank() && minutes.isBlank()
 }
 
-private fun WorkoutRow.isValid(ignoreMember: Boolean): Boolean {
+internal fun WorkoutRow.isValid(ignoreMember: Boolean): Boolean {
     val h = hours.toIntOrNull() ?: 0
     val m = minutes.toIntOrNull() ?: 0
     return (ignoreMember || memberId.isNotBlank()) &&
@@ -304,7 +306,7 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
 }
 
 @Composable
-private fun WorkoutRowCard(
+internal fun WorkoutRowCard(
     index: Int,
     row: WorkoutRow,
     canSelectAnyMember: Boolean,
@@ -413,6 +415,9 @@ internal fun ProgramMultiSelect(
     isLocked: (String) -> Boolean,
     memberLockHint: String?,
     onToggle: (String) -> Unit,
+    // The widget quick-add forms have no current program, so a single visible program still needs the
+    // selector (there's nothing auto-checked). `alwaysShow=true` keeps it rendered in that case.
+    alwaysShow: Boolean = false,
 ) {
     // Show only programs the user can log to: the current program is always kept, plus any active
     // program that isn't admin-only-data-entry-locked. Drops completed/planned + locked rows.
@@ -420,7 +425,7 @@ internal fun ProgramMultiSelect(
         program.id == currentProgramId ||
             ((program.status ?: "active").lowercase() == "active" && !isLocked(program.id))
     }
-    if (visible.size <= 1) return
+    if (visible.size <= 1 && !alwaysShow) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         FormFieldLabel("Programs")
         Column(

@@ -14,7 +14,7 @@ android {
         applicationId = "com.app.rasifiters"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
+        versionCode = 2
         versionName = "1.0.0"
         vectorDrawables { useSupportLibrary = true }
     }
@@ -80,6 +80,10 @@ dependencies {
     // Health Connect (Samsung Health / the HealthKit analog — Phase H). Reads ExerciseSessionRecord →
     // /workout-logs and SleepSessionRecord → /daily-health-logs. See the health/ module + specs/features/health-connect.
     implementation(libs.androidx.health.connect.client)
+
+    // Quick-add home-screen widgets (Jetpack Glance) — the iOS WidgetKit AddWorkout/AddDailyHealth analog.
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)

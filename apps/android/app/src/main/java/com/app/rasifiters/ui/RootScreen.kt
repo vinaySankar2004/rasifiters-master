@@ -39,6 +39,8 @@ import com.app.rasifiters.ui.programs.ProgramPickerScreen
 import com.app.rasifiters.ui.shell.AppScaffold
 import com.app.rasifiters.ui.health.HealthConnectSettingsScreen
 import com.app.rasifiters.ui.health.HealthSyncConfirmationScreen
+import com.app.rasifiters.ui.summary.QuickAddHealthWidgetScreen
+import com.app.rasifiters.ui.summary.QuickAddWorkoutWidgetScreen
 
 /**
  * Root auth gate — the analog of iOS AppRootView / web middleware+useAuthGuard.
@@ -124,6 +126,32 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore)
 @Composable
 private fun SignedInGraph(programContext: ProgramContext, appearanceStore: AppearanceStore) {
     val nav = rememberNavController()
+
+    // Widget quick-add deep-link (iOS AppRootView `.fullScreenCover(item: widgetRoute)` analog). A route
+    // stashed by MainActivity — possibly while signed out (stash-and-replay, O2) — is replayed the moment
+    // this graph mounts. Consumed once (cleared right after navigating) so a re-tap can't double-present.
+    val widgetRoute by programContext.widgetRoute.collectAsStateWithLifecycle()
+    fun exitToMyPrograms() {
+        programContext.clearWidgetRoute()
+        programContext.clearActiveProgram()
+        nav.navigate(Routes.PROGRAM_PICKER) {
+            popUpTo(Routes.PROGRAM_PICKER) { inclusive = true }
+        }
+    }
+    LaunchedEffect(widgetRoute) {
+        when (widgetRoute) {
+            com.app.rasifiters.core.WidgetRoute.QUICK_ADD_WORKOUT -> {
+                nav.navigate(Routes.WIDGET_LOG_WORKOUT) { launchSingleTop = true }
+                programContext.clearWidgetRoute()
+            }
+            com.app.rasifiters.core.WidgetRoute.QUICK_ADD_HEALTH -> {
+                nav.navigate(Routes.WIDGET_LOG_HEALTH) { launchSingleTop = true }
+                programContext.clearWidgetRoute()
+            }
+            null -> Unit
+        }
+    }
+
     NavHost(navController = nav, startDestination = Routes.PROGRAM_PICKER) {
         composable(Routes.PROGRAM_PICKER) {
             ProgramPickerScreen(
@@ -164,6 +192,15 @@ private fun SignedInGraph(programContext: ProgramContext, appearanceStore: Appea
         }
         composable(Routes.HEALTH_CONNECT) {
             SettingsInset { HealthConnectSettingsScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
+        }
+
+        // Home-screen widget deep-link targets (Glance quick-add). Root-level (no active program); the
+        // custom back / system back / success dwell all exit to My Programs (iOS widget-form parity).
+        composable(Routes.WIDGET_LOG_WORKOUT) {
+            SettingsInset { QuickAddWorkoutWidgetScreen(programContext = programContext, onExit = { exitToMyPrograms() }) }
+        }
+        composable(Routes.WIDGET_LOG_HEALTH) {
+            SettingsInset { QuickAddHealthWidgetScreen(programContext = programContext, onExit = { exitToMyPrograms() }) }
         }
     }
 }
