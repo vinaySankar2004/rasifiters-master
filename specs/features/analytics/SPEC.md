@@ -1,6 +1,6 @@
 # Feature: `analytics` (v1) — program-level read aggregations
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.1 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v1Router`** half only — the
 > file is shared with `analytics-v2`, §7/D-C1), `services/analyticsService.js` (the **v1** functions + the
 > shared date/bucket helpers), `utils/dateRange.js` + `utils/queryHelpers.js` (analytics-only helpers),
@@ -11,10 +11,11 @@
 > (the `activeMembershipInclude` inner-join gate) · [`programs`](../programs/SPEC.md) (program window +
 > progress) · [`program-workouts`](../program-workouts/SPEC.md) (`ProgramWorkout.workout_name` for type
 > rollups) · [`members`](../members/SPEC.md) (name join for top performers).
-> **Deliberate changes (3, the rest faithful 1:1):** **D-C2** drop the dead `participation/mtd` v1 route
+> **Deliberate changes (4, the rest faithful 1:1):** **D-C2** drop the dead `participation/mtd` v1 route
 > (both clients use the v2 variant) · **D-C3** UTC-fix the distribution weekday bucketing · **D-C4** UTC-fix
-> the timeline chart labels (`bucketLabel`). Read-only aggregation — every query + response shape is ported
-> verbatim otherwise.
+> the timeline chart labels (`bucketLabel`) · **D-C5** (0.2.0) steps analytics — the health timeline gains
+> per-bucket `steps` + `daily_average_steps`, and a new `GET /health/steps` totals endpoint (net-new; no
+> legacy provenance). Read-only aggregation — every query + response shape is ported verbatim otherwise.
 
 ---
 
@@ -31,7 +32,7 @@ and the v1 functions of `services/analyticsService.js` (`getSummary` / `getTotal
 analytics-only utils (`dateRange.js`: `getPeriodRange`; `queryHelpers.js`: `activeMembershipInclude` /
 `percentChange` / `buildMTDDateRanges`).
 
-The 8 live v1 endpoints:
+The 9 live v1 endpoints (8 ported + 1 net-new, D-C5):
 
 1. **Summary** — `GET /summary?period=&programId=`. The big composite payload: period totals (+ % change),
    program progress, member counts, timeline, day distribution, top performers, top workout types.
@@ -39,9 +40,12 @@ The 8 live v1 endpoints:
 3. **Total duration (MTD)** — `GET /duration/total?programId=`. MTD minutes + % change.
 4. **Avg duration (MTD)** — `GET /duration/average?programId=`. MTD avg minutes/session + % change.
 5. **Activity timeline** — `GET /timeline?period=&programId=`. Bucketed workouts + active-member counts.
-6. **Health timeline** — `GET /health/timeline?period=&programId=&memberId=`. Bucketed avg sleep + diet.
+6. **Health timeline** — `GET /health/timeline?period=&programId=&memberId=`. Bucketed avg sleep + diet +
+   (0.2.0) avg steps.
 7. **Distribution by day** — `GET /distribution/day?programId=`. All-time workout counts by weekday.
 8. **Workout types** — `GET /workouts/types?programId=&memberId=&limit=`. Per-type session/duration rollup.
+9. **Health steps** (0.2.0, D-C5) — `GET /health/steps?programId=&memberId=`. Steps totals:
+   `{ total_steps, avg_steps_per_day, days }` over steps-bearing member-day rows.
 
 The 9th legacy v1 route, `GET /participation/mtd`, is **dropped** (D-C2) — both clients call the v2 variant.
 
@@ -71,6 +75,7 @@ route is `authenticateToken`-only.
 | 6 | `GET /health/timeline` | `analytics.js:83-96` → `getHealthTimeline(period, programId, memberId)` (`:363-417`) | Bucketed avg sleep + diet; optional `memberId`. |
 | 7 | `GET /distribution/day` | `analytics.js:98-107` → `getDistributionByDay(programId)` (`:419-438`) | All-time workout counts by weekday. |
 | 8 | `GET /workouts/types` | `analytics.js:109-122` → `getWorkoutTypes(programId, memberId, limit)` (`:440-469`) | Per-`ProgramWorkout.workout_name` session/duration/avg; optional `memberId`, `limit` (default 50). |
+| 9 | `GET /health/steps` | net-new (D-C5) → `getHealthSteps(programId, memberId)` | `{ total_steps, avg_steps_per_day, days }` — `SUM(steps)`/`COUNT` over non-NULL-steps rows (active-join); optional `memberId` (same role-scoping idiom as `/health/timeline`). 500 text `"Failed to compute steps analytics."`. |
 
 > **Dropped (D-C2):** `GET /participation/mtd` (`analytics.js:25-34` → `getParticipationMTD`,
 > `:255-282`) — called by **neither** client (both use `GET /api/analytics-v2/participation/mtd`). Its
@@ -100,8 +105,14 @@ throws plain `Error` (not `AppError`) on a bad `period` or a `program`-period pr
   member_ids per bucket; emit `{ date, label, workouts, active_members }` + a `daily_average`. (Labels via
   `bucketLabel` — D-C4 UTC fix.)
 - **`getHealthTimeline`** (`:363-417`) — same windowing over `daily_health_logs`; per-bucket sum/count of
-  sleep + food; emit per-bucket averages + overall `daily_average_sleep`/`daily_average_food` + `start`/`end`.
-  Optional `memberId` filter. (Labels via `bucketLabel` — D-C4 UTC fix.)
+  sleep + food + (D-C5) steps; emit per-bucket averages (`steps` = the rounded per-bucket average over
+  steps-bearing rows, `0` when none) + overall `daily_average_sleep`/`daily_average_food`/
+  `daily_average_steps` + `start`/`end`. Optional `memberId` filter. (Labels via `bucketLabel` — D-C4 UTC
+  fix.) Steps mirrors the sleep accumulation exactly — see D-C5 for the pinned group-view semantics.
+- **`getHealthSteps(programId, memberId)`** (net-new, D-C5) — 400 if no `programId`; `where = { program_id,
+  steps: { [Op.ne]: null } }` (+ `member_id` when passed), active-membership inner join;
+  `Promise.all([SUM(steps), COUNT(*)])` → `{ total_steps, days, avg_steps_per_day: round(total/days) | 0 }`.
+  Same `authenticateToken`-only posture as the rest of v1 (F2).
 - **`getDistributionByDay`** (`:419-438`) — all-time per-`log_date` counts (active-join) bucketed into the 7
   weekday names (D-C3 UTC fix). Returns `{ Sunday..Saturday: count }`.
 - **`getWorkoutTypes`** (`:440-469`) — group `workout_logs` by `ProgramWorkout.workout_name` (active-join),
@@ -124,7 +135,8 @@ Faithful names (R5); all models already ported (with associations in `models/ind
 delta** (read-only; no schema change; the two utils are new files but faithful ports). Read-only — no writes.
 
 - **`workout_logs`** (read, owned by [`workout-logs`](../workout-logs/SPEC.md)) — the workout fact table.
-- **`daily_health_logs`** (read, owned by [`daily-health-logs`](../daily-health-logs/SPEC.md)) — health fact.
+- **`daily_health_logs`** (read, owned by [`daily-health-logs`](../daily-health-logs/SPEC.md)) — health fact
+  (incl. the 0.2.0 `steps` column, read by `getHealthTimeline` + `getHealthSteps`).
 - **`program_memberships`** (read, owned by [`program-memberships`](../program-memberships/SPEC.md)) — the
   `activeMembershipInclude` inner join (joins on `member_id` only; the route `where` scopes `program_id`).
 - **`programs`** (read, owned by [`programs`](../programs/SPEC.md)) — `getSummary` progress + the `program`
@@ -204,8 +216,9 @@ contract, and the error contract (incl. the plain-`Error`→500 paths). The numb
 | **D-C2** | **Drop the dead `participation/mtd` v1 route + `getParticipationMTD`** — called by neither client (both use the v2 variant). | `analytics.js:25-34`, `analyticsService.js:255-282`; web + iOS sweeps (both → `analytics-v2/participation/mtd`). |
 | **D-C3** | **UTC-fix the distribution weekday bucketing** — add `{ timeZone: "UTC" }` to `getDistributionByDay` + `getSummary.distribution_by_day` (numeric correctness; unchanged on a UTC server). | `analyticsService.js:188, 434`; user cleanup choice. |
 | **D-C4** | **UTC-fix the timeline chart labels** — `bucketLabel` formats with `{ timeZone: "UTC" }` (+ UTC-construct the month-branch date); display-only. | `analyticsService.js:22-30`; user cleanup choice. |
-| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — the 8 live routes used 1:1 by both clients, no divergence (`limit` value + optional `memberId` vary per call site, but the route is identical). | Web sweep (`summary/lifestyle` pages + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`ProgramContext+Analytics.swift` + tabs); Explore agents. |
-| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2–D-C4.** Every aggregation query, the bucketing/windowing, all response shapes, the MTD-vs-`period` split, and the error contract are ported exactly; remaining oddities flagged (§10). | Whole v1-half review; §7. |
+| **D-C5** | **Deliberate change (0.2.0) — steps analytics.** (a) `getHealthTimeline` additively gains a per-bucket `steps` field (rounded average over the bucket's steps-bearing rows, `0` when none) + a top-level `daily_average_steps` (rounded average of the per-bucket averages over buckets with data), cloning the sleep accumulation. (b) Net-new `getHealthSteps(programId, memberId)` + `GET /health/steps` → `{ total_steps, avg_steps_per_day, days }`, role-scoped via the existing optional-`memberId` idiom. **Pinned group-view semantics (deliberate — do NOT "fix" later):** with no `memberId`, `days` counts steps-bearing **MEMBER-DAY rows** across the whole program, so `avg_steps_per_day` (and the group timeline buckets) are **per-member-day averages** — mirroring how Avg Sleep behaves — NOT the total steps per calendar day summed across the group. A calendar day where 3 members logged steps contributes 3 rows, and the group average answers "how many steps does a member take per logged day", not "how many steps does the group take per day". | User approval 2026-07-09 (steps-tracking plan, DC-1/DC-7 + orchestrator amendment A-4); `analyticsService.js getHealthTimeline`/`getHealthSteps`; `routes/analytics.js`; daily-health-logs 0.2.0 D-C4. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios, android]`** — the live routes used 1:1 by all clients, no divergence (`limit` value + optional `memberId` vary per call site, but the route is identical). `/health/steps` (D-C5) is consumed by the Lifestyle Steps card on all three clients. | Web sweep (`summary/lifestyle` pages + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`ProgramContext+Analytics.swift` + tabs) + Android port; Explore agents. |
+| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2–D-C4 + the 0.2.0 additive steps work (D-C5).** Every ported aggregation query, the bucketing/windowing, all response shapes, the MTD-vs-`period` split, and the error contract are exact; D-C5 only ADDS a timeline field + one net-new endpoint (no existing shape changes). Remaining oddities flagged (§10). | Whole v1-half review; §7. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -223,6 +236,7 @@ contract, and the error contract (incl. the plain-`Error`→500 paths). The numb
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **D-C5 — steps analytics (additive, user-approved steps-tracking plan).** `getHealthTimeline` gains a per-bucket `steps` field (rounded average over the bucket's steps-bearing rows, `0` when empty) + a top-level `daily_average_steps`, cloning the sleep accumulation; net-new `getHealthSteps(programId, memberId)` + `GET /health/steps` → `{ total_steps, avg_steps_per_day, days }` (`SUM(steps)`/`COUNT` over non-NULL-steps active-join rows; optional `memberId` role-scoping; 500 `"Failed to compute steps analytics."`). **Group-view semantics pinned (amendment A-4):** `avg_steps_per_day` + the group timeline buckets average over steps-bearing **member-day rows** (per-member-day average, mirroring Avg Sleep) — NOT total steps per calendar day summed across the group; deliberate, not to be "fixed" later. Reads the new `daily_health_logs.steps` (daily-health-logs 0.2.0 D-C4, migration `006`). Backend: `services/analyticsService.js` + `routes/analytics.js`. Purely additive → all existing response shapes byte-compatible; live binaries unaffected. `consumed_by` → `[web, ios, android]` (header reconciled). Consumed by the Lifestyle Steps analytics card + Steps Timeline on all three clients. Updated §1/§3/§4/§5, D-REF, D-S1. |
 | 0.1.1 | 2026-06-29 | **Re-export the 3 shared timeline helpers** (`resolveTimelineWindow`, `buildBuckets`, `bucketKey`) from `services/analyticsService.js`'s `module.exports` — restores the legacy export surface (legacy exported all three) that the v1 port had trimmed because no consumer existed yet. Required by the new [`member-analytics`](../member-analytics/SPEC.md) feature (its D-C2), which imports them from this service. **Additive + backward-compatible + non-behavioral** — the 8 v1 fns, their aggregations, and all response shapes are unchanged; only the module's export list grows. PATCH bump. New reverse-dependency: `member-analytics` (`depends_on: analytics`). (`analytics-v2` shares the file but owns only the v2 fns — unchanged, no bump.) |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker`. Documents the program-level analytics v1 read API (`/api/analytics`) — the `v1Router` half of the shared `routes/analytics.js` + the v1 functions + shared date/bucket helpers of `analyticsService.js` + the two analytics-only utils (`dateRange.js`/`queryHelpers.js`). Decisions: **D-C1** (scope = v1 half; `analytics-v2` → next feature, same file pair; `member-analytics` separate) · **D-C2** (drop the dead `participation/mtd` v1 route — both clients use the v2 variant) · **D-C3** (UTC-fix distribution weekday bucketing — numeric) · **D-C4** (UTC-fix timeline labels — display) · **D-REF** (`consumed_by = [web, ios]`, 8 routes 1:1, no divergence) · **D-S1** (faithful verbatim otherwise — every aggregation + shape ported exactly). Flagged F1–F7. No auth/stack migration delta (read-only; models + schema pre-ported; utils are faithful new files). |
 | 0.1.0 (built) | 2026-06-29 | **Ported to `apps/backend/`** — `utils/dateRange.js` + `utils/queryHelpers.js` (verbatim), `services/analyticsService.js` (the shared date/bucket helpers + the 8 v1 fns; `getParticipationMTD` + the v2 fns omitted — v2 appended later per D-C1; the 2 UTC cleanups applied: `bucketLabel` D-C4, `getDistributionByDay`/`getSummary.distribution_by_day` D-C3), `routes/analytics.js` (`v1Router` 8 routes, `participation/mtd` dropped per D-C2, exports `{ v1Router }` only), mounted `/api/analytics` in `server.js`. All models pre-ported. Boot check passes: 8-route stack (no `participation/mtd`), all `authenticateToken`, 8 service fns export (`getParticipationMTD` absent), both utils export, the 4 `timeZone:"UTC"` fixes present, server loads. Status 📄→🏗️ (no semver bump — the port matches the SPEC). **Pending:** runtime smoke-test vs live Supabase (Render auto-deploy on push). |

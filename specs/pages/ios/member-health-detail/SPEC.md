@@ -1,6 +1,6 @@
 # Screen: `member-health-detail` (ios) — the per-member daily-Health logs (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's health card
 > (`MemberCards.swift:192`, `NavigationLink { MemberHealthDetail(memberId:memberName:) }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/HealthSortFilterSheets.swift`
@@ -35,12 +35,12 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Controls | Sort button (dir icon + field) + Filter button (`appBlueLight` active-tint) + active-filter summary chip. | legacy `:146-244` |
-| Content list | `healthRow` per item (dot · "Sleep X hrs" · date · "Diet Y/5"); loading skeletons; "No daily health logs found." empty. | legacy `:254-334` |
+| Content list | `healthRow` per item — **DC-10** two-line (`logDate` semibold; `Sleep … · Diet … · Steps …`, `—` for missing, steps grouped); loading skeletons; "No daily health logs found." empty. | legacy `:254-334` |
 | Swipe actions | leading **Edit** (`appBlue`) → `DailyHealthEditSheet`; trailing **Delete** → confirm alert. **Gated on `!dataEntryLocked` (D-C1).** | legacy `:284-299`; this run |
 | Export toolbar | `square.and.arrow.up` → `exportCSV()` → `ShareSheet`; disabled when empty. | legacy `:98-107`, `:385-411` |
-| `HealthSortSheet` | field (checkmark) + direction lists. | legacy `:415-473` |
-| `HealthFilterSheet` | date toggles + sleep hr:min + diet 1–5 `Picker`s (no lazy type query — health has no vocabulary, F4). | legacy `:476-626` |
-| `DailyHealthEditSheet` | sleep hr:min (0:00–24:00) + diet 1–5 `Menu` + at-least-one-metric gate → `updateDailyHealthLog`. | legacy `:628-848` |
+| `HealthSortSheet` | field (checkmark) + direction lists; `HealthSortField` gains **`steps`**. | legacy `:415-473` |
+| `HealthFilterSheet` | date toggles + sleep hr:min + diet 1–5 + **steps min/max** digit fields (no lazy type query — health has no vocabulary, F4). | legacy `:476-626` |
+| `DailyHealthEditSheet` | sleep hr:min (0:00–24:00) + diet 1–5 `Menu` + **steps digit field** (blank = clear) + at-least-one-metric gate (sleep/diet/steps) → `updateDailyHealthLog(…, steps:)`. | legacy `:628-848` |
 
 ## 5. Components + features consumed
 
@@ -53,8 +53,11 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 ## 6. Data / API
 
 - **`GET /daily-health-logs?memberId=&…`** (`loadMemberHealthLogs`) — server sort/filter; `limit: 0` → backend cap (F1).
-- **`PUT /daily-health-logs`** (`updateDailyHealthLog`, Edit) · **`DELETE /daily-health-logs`** (`deleteDailyHealthLog`).
-- No lazy type query (health metrics are numeric, F4). CSV export client-side.
+- **`PUT /daily-health-logs`** (`updateDailyHealthLog(…, steps:)`, Edit — explicit null clears steps/diet) ·
+  **`DELETE /daily-health-logs`** (`deleteDailyHealthLog`).
+- The GET now flows through the new steps-aware `fetchDailyHealthLogs` (adds `minSteps`/`maxSteps`) into a
+  local `logs: [APIClient.DailyHealthLogItem]`. No lazy type query (health metrics are numeric, F4). CSV
+  export client-side (header gains a **Steps** column).
 - **`admin_only_data_entry` = LIVE** — write path; the lock hides Edit/Delete for non-admins (D-C1).
 
 ## 7. Role-based view rules
@@ -103,4 +106,5 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Steps throughout (daily-health-logs 0.2.0).** `MemberHealthDetail` reads a local `logs: [APIClient.DailyHealthLogItem]` via the new steps-aware `fetchDailyHealthLogs`/`loadMemberHealthLogs(… minSteps: maxSteps:)`. `HealthSortField` gains `steps`; `HealthFilters` gains `minSteps`/`maxSteps` (+ chip "Steps ≥/≤") + a filter-sheet "Steps" section; `healthRow` adopts the DC-10 two-line layout (`Sleep · Diet · Steps`, grouped); the CSV header gains a Steps column. `DailyHealthEditSheet` takes a `DailyHealthLogItem`, gains a Steps digit field (blank = clear), at-least-one-metric now includes steps, and calls `updateDailyHealthLog(…, steps:)` (`ProgramContext+WorkoutManagement` + the new `APIClient+DailyHealth` overload — explicit null clears). Build green-check owned by the user (Xcode). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 63) — the Members **daily-health detail** (write surface, twin of member-recent), ported into `apps/ios/.../Features/Home/Detail/MemberHealthDetail.swift` (+ its sort/filter/edit sheets); deferred stub removed; `WorkoutLogEditSheet` relocated out to `member-recent-detail`'s file. **D-SCOPE** (Members detail cluster) · **D-S1** (faithful 1:1 — both-agree write twin) · **D-C1** (web-parity `admin_only_data_entry` lock — same as member-recent) · **D-REF** (keep iOS-native; `consumed_by=[ios]`) · **D-DEPS** (no new dep). Flagged F1–F6. `admin_only_data_entry` LIVE (write path). Build green-check owned by the user (Xcode); symbols grep-verified. |

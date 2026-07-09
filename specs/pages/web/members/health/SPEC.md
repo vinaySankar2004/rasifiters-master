@@ -1,6 +1,6 @@
 # Page: `members/health` (web) — per-member daily-health log manager (members sub-route 8 of 8 — CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/health?memberId=&name=` — the **View Health** manager for one member, reached by the
 > `/members` landing's "View Health / Daily health logs" card. Sort + filter modal + CSV export over the member's
 > daily-health-log list, each row **editable** (sleep + diet modal) and **deletable**. **8th & LAST** of the eight
@@ -54,19 +54,22 @@ group.
 1. **`PageHeader`** — title "View Health", subtitle = the `name` URL param, `backHref="/members"`, and an **Export
    CSV** action button (`pill-button`, disabled when the list is empty) (`page.tsx:250-264`).
 2. **Controls `GlassCard`** (`relative z-30`) (`page.tsx:266-283`):
-   - Two `Select`s — **sort field** (Date / Sleep hours / Diet quality) and **direction** (Descending / Ascending).
+   - Two `Select`s — **sort field** (Date / Sleep hours / Diet quality / **Steps**) and **direction** (Descending / Ascending).
    - **Filter** button — opens the filter modal; highlighted (`bg-rf-accent/20`) when any filter is active.
    - A `formattedFilters` summary chip (range · "At least/At most {sleep}" · "Diet ≥/≤/n–m") when filters are set.
 3. **Error line** — `errorMessage` (mutation failures) rendered as a `text-rf-danger` `<p>` (`page.tsx:285`).
 4. **List states** (`page.tsx:287-331`): `LoadingState "Loading daily health logs..."` / `EmptyState "No daily health
-   logs found."` / the row list — one `GlassCard padding="sm"` per item (`Sleep {sleepLabel}` + date on the left,
-   `Diet {dietLabel}` on the right), with **Edit** + **Delete** buttons below when `canEdit`.
+   logs found."` / the row list — one `GlassCard padding="sm"` per item, **DC-10 two-line** (`logDate` semibold; muted
+   `Sleep {sleepLabel} · Diet {dietLabel} · Steps {stepsLabel}`, `—` for missing, steps thousands-grouped), with
+   **Edit** + **Delete** buttons below when `canEdit`.
 5. **Filter `Modal`** (`page.tsx:333-450`) — start/end date inputs, min/max **sleep** (hr+min `number` pairs), min/max
-   **diet** `Select` (1–5), and a "Clear all filters" button. **No workout-type dropdown / no lazy `program-workouts`
-   query** (health has no type vocabulary — the workouts-twin delta).
+   **diet** `Select` (1–5), **min/max steps** (`number` inputs, echoed as "Steps ≥/≤ N", cleared by Clear-all), and a
+   "Clear all filters" button. **No workout-type dropdown / no lazy `program-workouts` query** (health has no type
+   vocabulary — the workouts-twin delta).
 6. **Edit `Modal`** (`page.tsx:452-530`) — disabled Date field, an editable **Sleep time** (hr+min pair, digit-stripped
-   `inputMode="numeric"`, 0:00–24:00 validation) + a **Diet quality** `Select` (1–5 / Not set); Cancel/Save. `submitEdit`
-   guards `sleepInput.isValid` AND **at least one metric** (sleep or diet) before saving.
+   `inputMode="numeric"`, 0:00–24:00 validation) + a **Diet quality** `Select` (1–5 / Not set) + a **Steps** `number`
+   input (blank = clear → send `steps: null`; integer ≥ 0); Cancel/Save. `submitEdit` guards `sleepInput.isValid` AND
+   **at least one metric** (sleep / diet / steps) before saving.
 7. **`ConfirmDialog`** (D-C1) — the danger delete confirm (`open={!!deleteTarget}`, `loading=deleteMutation.isPending`,
    confirm → `deleteMutation.mutate(deleteTarget)`).
 
@@ -93,9 +96,10 @@ group.
   `["members","health",programId,memberId,sortField,sortDir,startDate,endDate,minSleepHoursNum,maxSleepHoursNum,minDietNum,maxDietNum]`,
   `enabled: !!token && !!programId && !!memberId`. Response `{ items: MemberHealthItem[], total }`.
 - **`PUT /api/daily-health-logs`** ← `updateDailyHealthLog(token, { program_id, member_id, log_date, sleep_hours?,
-  food_quality? })` (`logs.ts:66`) — the Edit mutation. **`member_id` is always sent** (unlike the workouts twin's
-  `member_name`-only-for-others quirk); both `sleep_hours` and `food_quality` are **nullable** (a metric cleared to
-  empty sends `null`).
+  food_quality?, steps? })` (`logs.ts:66`) — the Edit mutation. **`member_id` is always sent** (unlike the workouts
+  twin's `member_name`-only-for-others quirk); `sleep_hours`, `food_quality`, and **`steps`** are all **nullable**
+  (a metric cleared to empty sends `null`). CSV export gains a Steps column (header `"Date,Sleep hours,Diet
+  quality,Steps"`).
 - **`DELETE /api/daily-health-logs`** ← `deleteDailyHealthLog(token, { program_id, member_id, log_date })`
   (`logs.ts:83`) — the Delete mutation. Both mutations `invalidateQueries(["members","health",programId,memberId])`
   on success.
@@ -200,4 +204,5 @@ mirror).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Steps throughout the manager** (daily-health-logs 0.2.0). Sort gains a **Steps** field; the filter modal gains **min/max steps** number inputs (echoed "Steps ≥/≤ N", cleared by Clear-all); list rows adopt the **DC-10 two-line** format (`Sleep · Diet · Steps`, thousands-grouped); the Edit modal gains a **Steps** number input (blank clears → `steps: null`, integer ≥ 0; at-least-one-metric now includes steps); the `updateMutation` payload + `fetchMemberHealthLogs` params gain `steps`/`minSteps`/`maxSteps`; the CSV header gains a Steps column. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/health` (members sub-route 8 of 8 — **CLOSES the group**) — per-member daily-health log manager (sort + filter modal + CSV export + per-row Edit/Delete, URL `memberId`/`name`, non-staff own-only redirect, `admin_only_data_entry`-gated writes). The WRITE twin of `members/workouts` (run 45). D-C1 `window.confirm`→`ConfirmDialog`, D-C2 tokenize the Delete button; no hoist cleanup (deps already shared). No new dependency, zero backend work, no feature bump. |

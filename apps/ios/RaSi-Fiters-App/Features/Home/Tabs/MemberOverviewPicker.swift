@@ -274,17 +274,6 @@ struct MemberMetricsCard: View {
             }
 
             metricsGrid
-
-            HStack {
-                Label("Current Streak \(metric.current_streak)", systemImage: "flame.fill")
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.appOrangeLight)
-                    .foregroundColor(.appOrange)
-                    .cornerRadius(10)
-                Spacer()
-            }
         }
         .padding()
         .background(
@@ -337,6 +326,17 @@ struct MemberMetricsCard: View {
                 metricTile(title: "Avg Sleep", value: avgSleepValue, icon: "bed.double.fill")
                 metricTile(title: "Avg Diet Quality", value: avgFoodValue, icon: "leaf.fill")
             }
+            HStack(spacing: 10) {
+                metricTile(title: "Avg Steps", value: avgStepsValue, icon: "figure.walk")
+                Label("Current Streak \(metric.current_streak)", systemImage: "flame.fill")
+                    .font(.footnote.weight(.semibold))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.appOrangeLight)
+                    .foregroundColor(.appOrange)
+                    .cornerRadius(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -368,6 +368,13 @@ struct MemberMetricsCard: View {
     private var avgFoodValue: String {
         guard let value = metric.avg_food_quality else { return "—" }
         return "\(value) / 5"
+    }
+
+    private var avgStepsValue: String {
+        guard let value = metric.avg_steps else { return "—" }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }
 

@@ -1,6 +1,6 @@
 # Screen: `log-workout` (ios) — the Summary "Add workouts" multi-row log form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s "Add workouts" log-action card
 > (`NavigationLink { AddWorkoutsDetailView() }`). When the program is `dataEntryLocked` the card is dimmed +
 > the `NavigationLink` removed (run 54), so a locked non-admin cannot reach this screen.
@@ -51,6 +51,7 @@ enforces the `admin_only_data_entry` lock (403). Duplicate (member, workout, dat
 | Workout (per row) | Tappable `LogFieldRow` → `SearchablePickerSheet` over non-hidden `programWorkouts` (or global `workouts` if no program). | `rowCard` |
 | Date (per row) | Compact `DatePicker` (any date; new rows default to the last row's date). | `rowCard` |
 | Duration (per row) | Two `AppInputField`s (`Hours`/`Minutes`, `.numberPad`), combined to total minutes. | `rowCard` |
+| Program multi-select | `ProgramMultiSelectSection` above the rows — current program checked+disabled ("Current program"); `admin_only_data_entry`-locked programs disabled ("Admin-only — can't log"); hidden when in one program. Sends `program_ids[]` = the full selection (workout-logs 0.5.0 D-C10). | `AddWorkoutsDetailView.swift` (0.3.0) |
 | Add-row controls | "+ Add row" / "+ Add 5 rows" (disabled at 200). | `addRowControls` |
 | Summary line | "N rows • [M members •] T min total" (member count shown only for admin/logger). | `summaryLine` |
 | Save | `AppPrimaryButton` "Save all" / "Saving…"; disabled unless ≥1 valid row and 0 invalid rows. | `save()` |
@@ -71,8 +72,9 @@ onto rows (red highlight) + top error line; other errors → inline `appRed` lin
 
 ## 6. Data / API
 
-- **`POST /workout-logs/batch`** (`APIClient.addWorkoutLogsBatch`) — body `{ program_id, entries: [{
-  member_id, workout_name, date, duration }] }`. Backend `requireDataEntryAllowed` (403 when locked +
+- **`POST /workout-logs/batch`** (`APIClient.addWorkoutLogsBatch`, now `programIds:` param, 0.3.0) — body
+  `{ program_id, program_ids?, entries: [{ member_id, workout_name, date, duration }] }`. Backend
+  `requireDataEntryAllowed` per program (403 when locked +
   non-admin) + batch authorization (`workout-logs` D-C8): admin/logger/global-admin log for anyone; a plain
   member is allowed only if every `entry.member_id` equals the requester (403 "You can only log workouts for
   yourself." otherwise). Duplicate (member, workout, date) rows — in-batch or vs an existing log — → 409 with
@@ -136,5 +138,6 @@ logger can normally log for any member yet is locked out when the flag is on (ma
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-07-09 | **Multi-program logging (workout-logs 0.5.0 D-C10).** `AddWorkoutsDetailView` gains a `ProgramMultiSelectSection` above the rows (current program checked+disabled; `admin_only_data_entry`-locked programs disabled "Admin-only — can't log"; hidden when in one program) and passes `programIds: Array(selectedProgramIds)` to `APIClient.addWorkoutLogsBatch` (new `programIds:` param, `program_ids[]` body). When any selected program is non-privileged (`privileged(p)` off `p.my_role` + `isGlobalAdmin`) the per-row member field locks to self and rows reset to self on the lock transition. `ensureLookups` also fetches `programs` when empty. Build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-01 | **Merged the single `AddWorkoutDetailView` + admin-only `BulkAddWorkoutDetailView` into one multi-row `AddWorkoutsDetailView`** (both predecessors deleted; `.bulkAdd` `SummaryCardType` + `BulkAddWorkoutCard` removed; the orange "Add workout" card retitled "Add workouts" and pointed at the new view). **D-C5** — opened to plain members with the per-row member field **hidden** (each row seeded to self via `loggedInUserId`; `ignoreMember` gates the empty/valid/error checks); always posts `POST /workout-logs/batch` (backed by `workout-logs` D-C8 — members batch-log their own rows). All-or-nothing duplicate rejection + per-row red highlight retained from the bulk form. Web parity = web `summary` `LogWorkoutsForm` (v0.2.0). Updated §1–§10. `BuildProject` ✓ 0 errors (ios-build run 69). Simulator/visual check owned by the user. |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 60) — the Summary **log-workout form**, ported into `apps/ios/.../Features/Home/Detail/AddWorkoutDetailView.swift` (+ shared `LogFormComponents.swift`); the deferred stub removed. **D-REF** (legacy iOS + web `summary/log-workout` parity; `consumed_by=[ios]`) · **D-SCOPE** (cohesive log-forms cluster with `log-health`) · **D-S1** (faithful 1:1; both agree → faithful IS web parity) · **D-C1** (web-parity `admin_only_data_entry` mount guard — legacy had none; completes run-54) · **D-C2** (adopt shared `AppInputField`/`AppPrimaryButton`; +`keyboardType` param) · **D-C3** (success → `summaryRefreshToken` refresh + `dismiss`, drop the success Alert) · **D-C4** (inline errors) · **D-DEPS** (no new view component; `keyboardType` + `summaryRefreshToken` + `onChange` + `LogFormComponents`; all API/DTO/`dataEntryLocked` already ported). Flagged F1–F5. Role rules: `canSelectAnyMember` (admin/logger/global_admin) picker vs member self-lock; `admin_only_data_entry` LIVE (write path). Build green-check owned by the user (Xcode); symbols grep-verified. |

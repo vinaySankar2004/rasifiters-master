@@ -1,12 +1,13 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { fetchProgramMembers } from "@/lib/api/programs";
+import { fetchProgramMembers, fetchPrograms, type Program } from "@/lib/api/programs";
 import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
 import type { BulkRowError, BulkWorkoutEntry } from "@/lib/api/logs";
 import { Select } from "@/components/Select";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { IconLock } from "@/components/icons";
 
 const MAX_ROWS = 200;
 
@@ -94,6 +95,7 @@ export function LogWorkoutsForm({
   token,
   canSelectAnyMember,
   selfMemberId,
+  isGlobalAdmin,
   onClose,
   onSubmit,
   isSaving,
@@ -107,38 +109,51 @@ export function LogWorkoutsForm({
   canSelectAnyMember: boolean;
   /** The logged-in member's id — seeded into every row when the member column is hidden. */
   selfMemberId?: string;
+  isGlobalAdmin: boolean;
   onClose: () => void;
-  onSubmit: (entries: BulkWorkoutEntry[]) => void;
+  onSubmit: (entries: BulkWorkoutEntry[], programIds: string[]) => void;
   isSaving: boolean;
   errorMessage: string | null;
   rowErrors?: BulkRowError[] | null;
   variant?: "modal" | "page";
 }) {
-  const ignoreMember = !canSelectAnyMember;
-  // A plain member logs only for themselves, so every row is seeded from selfMemberId. If that id is missing
-  // (a stale/unhealed session), submitting would send member_id:"" and the backend rejects with a confusing
-  // "You can only log workouts for yourself." Block the save and tell the user how to recover instead.
-  const identityMissing = ignoreMember && !(selfMemberId && selfMemberId.trim());
   const [members, setMembers] = useState<{ id: string; member_name: string }[]>([]);
   const [workouts, setWorkouts] = useState<{ workout_name: string }[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [selectedProgramIds, setSelectedProgramIds] = useState<Set<string>>(new Set([programId]));
   const [lookupsLoaded, setLookupsLoaded] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [submittedOrder, setSubmittedOrder] = useState<number[]>([]);
   const nextUid = useRef(0);
   const seededRef = useRef(false);
 
+  // DC-3: logging for others requires admin/logger (or global admin) in EVERY selected program.
+  const privileged = (p: Program) => isGlobalAdmin || p.my_role === "admin" || p.my_role === "logger";
+  const memberLocked = [...selectedProgramIds].some((id) => {
+    const p = programs.find((x) => x.id === id);
+    return p ? !privileged(p) : false;
+  });
+  const effectiveCanSelectAny = canSelectAnyMember && !memberLocked;
+  const ignoreMember = !effectiveCanSelectAny;
+  // A plain member logs only for themselves, so every row is seeded from selfMemberId. If that id is missing
+  // (a stale/unhealed session), submitting would send member_id:"" and the backend rejects with a confusing
+  // "You can only log workouts for yourself." Block the save and tell the user how to recover instead.
+  const identityMissing = ignoreMember && !(selfMemberId && selfMemberId.trim());
+
   useEffect(() => {
     let active = true;
     const loadLookups = async () => {
       if (!token || !programId) return;
       try {
-        const [membersData, workoutsData] = await Promise.all([
+        const [membersData, workoutsData, programsData] = await Promise.all([
           fetchProgramMembers(token, programId),
-          fetchProgramWorkouts(token, programId)
+          fetchProgramWorkouts(token, programId),
+          fetchPrograms(token)
         ]);
         if (!active) return;
         setMembers(membersData);
         setWorkouts(workoutsData.filter((workout) => !workout.is_hidden));
+        setPrograms(programsData);
       } catch {
         // Leave lists empty; the empty-state hint covers this.
       } finally {
@@ -150,6 +165,21 @@ export function LogWorkoutsForm({
       active = false;
     };
   }, [token, programId]);
+
+  // When a non-privileged program joins the selection, every row falls back to self.
+  useEffect(() => {
+    if (!memberLocked) return;
+    setRows((prev) => prev.map((r) => ({ ...r, memberId: selfMemberId ?? "" })));
+  }, [memberLocked, selfMemberId]);
+
+  const toggleProgram = (id: string) => {
+    setSelectedProgramIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const memberOptions = useMemo(
     () => members.map((m) => ({ value: m.id, label: m.member_name })),
@@ -257,18 +287,31 @@ export function LogWorkoutsForm({
         workout_name: r.workoutName,
         date: r.date,
         duration: rowDuration(r)
-      }))
+      })),
+      [...selectedProgramIds]
     );
   };
 
   const noWorkouts = lookupsLoaded && workoutOptions.length === 0;
-  const noMembers = lookupsLoaded && canSelectAnyMember && memberOptions.length === 0;
+  const noMembers = lookupsLoaded && effectiveCanSelectAny && memberOptions.length === 0;
   const noLookups = noWorkouts || noMembers;
   const atMax = rows.length >= MAX_ROWS;
-  const columnCount = canSelectAnyMember ? 5 : 4;
+  const columnCount = effectiveCanSelectAny ? 5 : 4;
 
   const content = (
     <>
+      <ProgramMultiSelect
+        programs={programs}
+        currentProgramId={programId}
+        selectedIds={selectedProgramIds}
+        onToggle={toggleProgram}
+        isGlobalAdmin={isGlobalAdmin}
+      />
+      {memberLocked && canSelectAnyMember && (
+        <p className="mb-3 text-sm text-rf-text-muted">
+          You&apos;re not an admin or logger in every selected program — logging for yourself only.
+        </p>
+      )}
       {noLookups && (
         <p className="rounded-2xl bg-rf-surface-muted px-4 py-3 text-sm text-rf-text-muted">
           {noMembers
@@ -286,7 +329,7 @@ export function LogWorkoutsForm({
             <table className="w-full border-separate border-spacing-0 text-sm">
               <thead>
                 <tr className="text-left text-xs font-semibold uppercase tracking-wide text-rf-text-muted">
-                  {canSelectAnyMember && <th className="px-2 pb-2 font-semibold">Member</th>}
+                  {effectiveCanSelectAny && <th className="px-2 pb-2 font-semibold">Member</th>}
                   <th className="px-2 pb-2 font-semibold">Workout type</th>
                   <th className="px-2 pb-2 font-semibold">Date</th>
                   <th className="px-2 pb-2 font-semibold">Duration</th>
@@ -304,7 +347,7 @@ export function LogWorkoutsForm({
                     <tr
                       className={`align-top ${rowLevelError ? "[&>td]:bg-rf-danger/5" : ""}`}
                     >
-                      {canSelectAnyMember && (
+                      {effectiveCanSelectAny && (
                         <td className="min-w-[150px] px-2 py-1">
                           <Select
                             value={r.memberId}
@@ -396,7 +439,7 @@ export function LogWorkoutsForm({
                     Remove
                   </button>
                 </div>
-                {canSelectAnyMember && (
+                {effectiveCanSelectAny && (
                   <div>
                     <Select
                       label="Member"
@@ -474,7 +517,7 @@ export function LogWorkoutsForm({
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-rf-text-muted">
           {validRows.length} {validRows.length === 1 ? "row" : "rows"}
-          {canSelectAnyMember && (
+          {effectiveCanSelectAny && (
             <>
               {" • "}
               {distinctMembers} {distinctMembers === 1 ? "member" : "members"}
@@ -505,7 +548,7 @@ export function LogWorkoutsForm({
         <div>
           <h2 className="text-lg font-semibold text-rf-text">Add workouts</h2>
           <p className="mt-1 text-sm text-rf-text-muted">
-            Add a row per session{canSelectAnyMember ? " — member, workout, date, and duration" : " — workout, date, and duration"} — then save them all at once.
+            Add a row per session{effectiveCanSelectAny ? " — member, workout, date, and duration" : " — workout, date, and duration"} — then save them all at once.
           </p>
         </div>
         <button
@@ -519,6 +562,66 @@ export function LogWorkoutsForm({
       </div>
 
       <div className="mt-4">{content}</div>
+    </div>
+  );
+}
+
+/** Multi-program picker shared by the workouts and daily-health batch forms (DC-2/DC-4).
+ *  Hidden when the user belongs to a single program; the current program is always selected. */
+export function ProgramMultiSelect({
+  programs,
+  currentProgramId,
+  selectedIds,
+  onToggle,
+  isGlobalAdmin
+}: {
+  programs: Program[];
+  currentProgramId: string;
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  isGlobalAdmin: boolean;
+}) {
+  if (programs.length <= 1) return null;
+  return (
+    <div className="mb-4">
+      <p className="text-sm font-semibold text-rf-text">Programs</p>
+      <div className="mt-2 divide-y divide-rf-border overflow-hidden rounded-2xl border border-rf-border">
+        {programs.map((p) => {
+          const isCurrent = p.id === currentProgramId;
+          const locked = !!p.admin_only_data_entry && !isGlobalAdmin && p.my_role !== "admin";
+          const checked = !locked && (isCurrent || selectedIds.has(p.id));
+          return (
+            <button
+              key={p.id}
+              type="button"
+              disabled={isCurrent || locked}
+              onClick={() => onToggle(p.id)}
+              className={`flex w-full items-center gap-3 px-4 py-3 text-left ${locked ? "opacity-50" : ""} ${
+                isCurrent || locked ? "cursor-default" : ""
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border text-[11px] font-bold ${
+                  checked
+                    ? "border-rf-accent bg-rf-accent text-black"
+                    : "border-rf-border bg-rf-surface-muted text-transparent"
+                }`}
+              >
+                ✓
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-rf-text">{p.name}</span>
+                {isCurrent && <span className="block text-xs text-rf-text-muted">Current program</span>}
+                {!isCurrent && locked && (
+                  <span className="block text-xs text-rf-text-muted">Admin-only — can&apos;t log</span>
+                )}
+              </span>
+              {locked && <IconLock className="h-4 w-4 shrink-0 text-rf-text-muted" />}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

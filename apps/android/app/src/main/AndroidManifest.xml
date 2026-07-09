@@ -9,6 +9,7 @@
          via the Health Connect permission UI (PermissionController), not a runtime dialog. -->
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
 
     <!-- Health Connect provider visibility (needed to resolve the client on Android 13 and lower, where
          Health Connect ships as a standalone app rather than built into the platform). -->

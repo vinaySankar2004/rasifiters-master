@@ -1,6 +1,6 @@
 # Page: `summary/log-health` (web) — standalone Log-daily-health form (summary sub-route 5 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/log-health` — the **mobile log fallback** for the Log-daily-health form: a full-page
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **5th** of the six deferred
 > `/summary` sub-routes and the **2nd of the 3 log fallbacks** (sibling `log-workout` done run 36;
@@ -79,8 +79,10 @@ the workout form.
 - **Lookups (form mount):** `GET /program-memberships/members?programId` only.
 - **Success:** `invalidateQueries({ queryKey: ["summary"] })` then **`router.push("/summary")`** (D-C1; legacy
   `router.back()`).
-- **Zero backend work, NO feature bump** — the route + service + `addDailyHealthLog` all already shipped with
-  [`workout-logs`](../../../../features/workout-logs/SPEC.md) and the `summary` landing.
+- **0.2.0 (steps + batch):** the form is now the **batched multi-row** `LogDailyHealthForm` posting to
+  `addDailyHealthLogsBatch` (`POST /daily-health-logs/batch`, daily-health-logs 0.2.0 D-C5) with a
+  **steps** column, the shared `ProgramMultiSelect` (`program_ids[]`), per-row `rowErrors` plumbing, and
+  `isGlobalAdmin`; the `onSubmit` shape is `(entries, programIds)`. The route/service ship with the feature.
 
 ## 7. Role-based view rules
 
@@ -151,4 +153,5 @@ history). The backend `requireDataEntryAllowed` is the real guard (403); the cli
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Steps + batched multi-program** — the page renders the rebuilt batched multi-row `LogDailyHealthForm` (variant="page") with a **steps** column + the shared `ProgramMultiSelect` (`program_ids[]`), posting to `addDailyHealthLogsBatch` (daily-health-logs 0.2.0 D-C5) instead of the single `addDailyHealthLog`; gains per-row `rowErrors` plumbing + `isGlobalAdmin`. Same submit wiring as the summary landing (2-arg `onSubmit`). `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 37) — the **23rd web page spec**, the standalone **Log-daily-health** mobile fallback (`/summary` sub-route 5 of 6, **2nd of the 3 log fallbacks**). Faithful 1:1 port of the legacy 65-line page: a `PageShell` + `PageHeader` wrapping `LogDailyHealthForm variant="page"`, with `canLogForAny` role logic, the `admin_only_data_entry` `router.replace("/summary")` lock guard, and an `addDailyHealthLog` mutation invalidating `["summary"]`. **2nd `/summary` sub-route where `admin_only_data_entry` is live** (after `log-workout`). Decisions: **D-SCOPE** (this page; does not close the group) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — the form + api + chrome all already ported) · **D-S1** (faithful 1:1) · **D-C1** (deterministic-nav cleanup — the two `router.back()` → `router.push("/summary")`; lock `router.replace` unchanged). Flagged F1–F6 (client JWT-decode role/lock; dual lock enforcement; no view-as; no throttle; shared single-sourced form; client-only at-least-one-metric gate). **Zero backend work, NO feature bump** — `POST /daily-health-logs` already mounted (`routes/logs.js:91`). Ported `apps/web/src/app/summary/log-health/page.tsx`. `npm run build` ✓. |

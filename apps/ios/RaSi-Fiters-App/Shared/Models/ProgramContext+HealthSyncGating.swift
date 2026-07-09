@@ -13,17 +13,25 @@ extension ProgramContext {
     private enum HealthGatingKeys {
         static let workoutConfirmedProgramIds = "healthkit.confirmedProgramIds"
         static let sleepConfirmedProgramIds   = "healthkit.sleep.confirmedProgramIds"
+        static let stepsConfirmedProgramIds   = "healthkit.steps.confirmedProgramIds"
         static let workoutExcludedKeys        = "healthkit.excludedKeys"
         static let sleepExcludedKeys          = "healthkit.sleep.excludedKeys"
+        static let stepsExcludedKeys          = "healthkit.steps.excludedKeys"
     }
 
     private func confirmedKey(_ flow: PendingSyncConfirmation.Flow) -> String {
-        flow == .workouts ? HealthGatingKeys.workoutConfirmedProgramIds
-                          : HealthGatingKeys.sleepConfirmedProgramIds
+        switch flow {
+        case .workouts: return HealthGatingKeys.workoutConfirmedProgramIds
+        case .sleep:    return HealthGatingKeys.sleepConfirmedProgramIds
+        case .steps:    return HealthGatingKeys.stepsConfirmedProgramIds
+        }
     }
     private func excludedDefaultsKey(_ flow: PendingSyncConfirmation.Flow) -> String {
-        flow == .workouts ? HealthGatingKeys.workoutExcludedKeys
-                          : HealthGatingKeys.sleepExcludedKeys
+        switch flow {
+        case .workouts: return HealthGatingKeys.workoutExcludedKeys
+        case .sleep:    return HealthGatingKeys.sleepExcludedKeys
+        case .steps:    return HealthGatingKeys.stepsExcludedKeys
+        }
     }
 
     // MARK: - Confirmed programs
@@ -75,12 +83,31 @@ extension ProgramContext {
         if kept.count != keys.count { setExcludedKeys(Set(kept), flow: .sleep) }
     }
 
+    /// Steps twin of `pruneSleepExcludedKeys` — drop excluded STEPS keys older than the rolling
+    /// look-back window. Called at the start of each steps sync.
+    func pruneStepsExcludedKeys() {
+        let keys = excludedKeys(.steps)
+        guard !keys.isEmpty else { return }
+        let cal = Calendar.current
+        let cutoff = cal.date(byAdding: .day, value: -HealthKitService.stepsRecentDays,
+                              to: cal.startOfDay(for: Date())) ?? Date()
+        let cutoffYMD = ProgramContext.localYMD(cutoff)
+        let kept = keys.filter { key in
+            guard let date = key.split(separator: "|").last.map(String.init) else { return false }
+            return date >= cutoffYMD
+        }
+        if kept.count != keys.count { setExcludedKeys(Set(kept), flow: .steps) }
+    }
+
     // MARK: - Exclusion-key builders
 
     static func workoutExclusionKey(programId: String, date: String, workoutName: String) -> String {
         "\(programId)|\(date)|\(workoutName)"
     }
     static func sleepExclusionKey(programId: String, date: String) -> String {
+        "\(programId)|\(date)"
+    }
+    static func stepsExclusionKey(programId: String, date: String) -> String {
         "\(programId)|\(date)"
     }
 
@@ -115,11 +142,19 @@ extension ProgramContext {
         String(format: "%.1f h", hours)
     }
 
-    // MARK: - Presentation queue (one flow at a time; workouts first)
+    static func formatSteps(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        let grouped = formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+        return "\(grouped) steps"
+    }
 
-    /// Enqueue a freshly-computed confirmation. Only one is presented at a time; workouts take priority
-    /// over sleep, and a same-flow copy that is already presented is kept (so a background recompute
-    /// can't reset the user's in-progress review).
+    // MARK: - Presentation queue (one flow at a time; workouts > sleep > steps)
+
+    /// Enqueue a freshly-computed confirmation. Only one is presented at a time; priority is
+    /// workouts > sleep > steps — a workouts arrival defers whichever flow is showing, while sleep
+    /// and steps wait in their own deferred slots. A same-flow copy that is already presented is
+    /// kept (so a background recompute can't reset the user's in-progress review).
     @MainActor
     func enqueuePendingConfirmation(_ confirmation: PendingSyncConfirmation) {
         guard !confirmation.pages.isEmpty else { return }
@@ -127,6 +162,8 @@ extension ProgramContext {
         guard let current = pendingSyncConfirmation else {
             if confirmation.flow == .sleep, deferredSleepConfirmation != nil {
                 deferredSleepConfirmation = confirmation      // replace a stale deferred sleep flow
+            } else if confirmation.flow == .steps, deferredStepsConfirmation != nil {
+                deferredStepsConfirmation = confirmation      // replace a stale deferred steps flow
             } else {
                 pendingSyncConfirmation = confirmation
             }
@@ -135,16 +172,26 @@ extension ProgramContext {
 
         if confirmation.flow == current.flow {
             return                                            // already showing this flow — keep it
-        } else if confirmation.flow == .workouts {
-            deferredSleepConfirmation = current               // workouts win; sleep waits
+        }
+
+        switch confirmation.flow {
+        case .workouts:
+            // Workouts win; whichever flow is showing waits in its deferred slot.
+            if current.flow == .sleep {
+                deferredSleepConfirmation = current
+            } else if current.flow == .steps {
+                deferredStepsConfirmation = current
+            }
             pendingSyncConfirmation = confirmation
-        } else {
-            deferredSleepConfirmation = confirmation           // sleep waits behind workouts
+        case .sleep:
+            deferredSleepConfirmation = confirmation           // sleep waits behind the showing flow
+        case .steps:
+            deferredStepsConfirmation = confirmation           // steps waits behind everything
         }
     }
 
     /// Called by the view when it finishes (committed) or is dismissed (deferred). Commits the stashed
-    /// workout anchor only on a clean full completion, then promotes any deferred sleep flow.
+    /// workout anchor only on a clean full completion, then promotes any deferred flow (sleep first).
     @MainActor
     func finishConfirmation(_ flow: PendingSyncConfirmation.Flow, committed: Bool) {
         if flow == .workouts {
@@ -164,11 +211,20 @@ extension ProgramContext {
         if let sleep = deferredSleepConfirmation {
             deferredSleepConfirmation = nil
             let pages = sleep.pages.filter { sleepSyncProgramIds.contains($0.id) }
-            pendingSyncConfirmation = pages.isEmpty ? nil
-                : PendingSyncConfirmation(flow: .sleep, pages: pages)
-        } else {
-            pendingSyncConfirmation = nil
+            if !pages.isEmpty {
+                pendingSyncConfirmation = PendingSyncConfirmation(flow: .sleep, pages: pages)
+                return
+            }
         }
+        if let steps = deferredStepsConfirmation {
+            deferredStepsConfirmation = nil
+            let pages = steps.pages.filter { stepsSyncProgramIds.contains($0.id) }
+            if !pages.isEmpty {
+                pendingSyncConfirmation = PendingSyncConfirmation(flow: .steps, pages: pages)
+                return
+            }
+        }
+        pendingSyncConfirmation = nil
     }
 
     // MARK: - Per-page commit (called by the confirmation view's glass tick)
@@ -252,6 +308,40 @@ extension ProgramContext {
         markProgramConfirmed(page.id, flow: .sleep)
         lastSleepSyncCount += created
         persistSleepSyncSettings()
+        return true
+    }
+
+    /// Commit ONE steps program's checked days (POST-then-PUT upsert). Same contract as the sleep
+    /// commit; steps has no anchor, so each page commit is fully self-contained.
+    @MainActor
+    func commitStepsPage(_ page: PendingSyncConfirmation.ProgramPage) async -> Bool {
+        guard let token = authToken, !token.isEmpty else { return false }
+
+        let windows = await loadSyncWindows(for: [page.id], token: token)
+        guard let window = windows[page.id] else { return false }
+        if isDataEntryLocked(programId: page.id) { return false }       // locked mid-review → retry, stay unconfirmed
+
+        addExcludedKeys(page.rows.filter { !$0.isChecked }.map(\.exclusionKey), flow: .steps)
+
+        var hadRetryable = false
+        var created = 0
+        for row in page.rows where row.isChecked {
+            guard case let .steps(day) = row.payload,
+                  ProgramContext.date(day.date, isWithin: window) else { continue }
+            let outcome = await APIClient.shared.writeHealthKitStepsLog(
+                token: token, logDate: day.date, steps: day.count,
+                programId: page.id, memberId: loggedInUserId)
+            switch outcome {
+            case .created: created += 1
+            case .updated, .skipped: break
+            case .retryable: hadRetryable = true
+            }
+        }
+
+        guard !hadRetryable else { return false }
+        markProgramConfirmed(page.id, flow: .steps)
+        lastStepsSyncCount += created
+        persistStepsSyncSettings()
         return true
     }
 }

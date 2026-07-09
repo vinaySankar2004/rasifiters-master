@@ -7,20 +7,23 @@ import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, 
 import { fetchProgramMembers, type Member } from "@/lib/api/programs";
 import {
   fetchHealthTimeline,
+  fetchStepsStats,
   fetchWorkoutTypeHighestParticipation,
   fetchWorkoutTypeLongestDuration,
   fetchWorkoutTypeMostPopular,
   fetchWorkoutTypePopularity,
   fetchWorkoutTypesTotal,
   type HealthTimelinePoint,
+  type StepsStats,
   type WorkoutTypePopularity
 } from "@/lib/api/lifestyle";
+import { stepsLabel } from "@/lib/format";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { IconDumbbell as DumbbellIcon } from "@/components/icons";
+import { IconDumbbell as DumbbellIcon, IconSteps } from "@/components/icons";
 import {
   CHART_COLORS,
   CHART_TOOLTIP_CONTENT_STYLE,
@@ -154,6 +157,12 @@ export default function LifestylePage() {
     enabled: !!token && !!programId && hasMemberContext
   });
 
+  const stepsStatsQuery = useQuery({
+    queryKey: ["lifestyle", "steps", programId, memberIdForMetrics ?? "program"],
+    queryFn: () => fetchStepsStats(token, programId, memberIdForMetrics),
+    enabled: !!token && !!programId && hasMemberContext
+  });
+
   const viewAsLabel = useMemo(() => {
     if (!canViewAs) return "";
     if (adminSelectedMember) return adminSelectedMember.member_name;
@@ -274,12 +283,23 @@ export default function LifestylePage() {
             />
           </div>
 
+          <StepsStatsCard stats={stepsStatsQuery.data} isLoading={stepsStatsQuery.isLoading} />
+
           <LifestyleTimelineCard
             points={timelinePoints}
             isLoading={healthTimelineQuery.isLoading}
             onClick={() => {
               const params = memberIdForMetrics ? `?memberId=${memberIdForMetrics}` : "";
               router.push(`/lifestyle/timeline${params}`);
+            }}
+          />
+
+          <StepsTimelineCard
+            points={timelinePoints}
+            isLoading={healthTimelineQuery.isLoading}
+            onClick={() => {
+              const params = memberIdForMetrics ? `?memberId=${memberIdForMetrics}` : "";
+              router.push(`/lifestyle/steps-timeline${params}`);
             }}
           />
 
@@ -403,6 +423,94 @@ function LifestyleTimelineCard({
               />
               <Bar dataKey="sleep_hours" fill={CHART_COLORS[0]} radius={[6, 6, 0, 0]} />
               <Line type="monotone" dataKey="food_quality" stroke={CHART_COLORS[1]} strokeWidth={2} dot={{ r: 2 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </button>
+  );
+}
+
+const STEPS_ACCENT = "#14b8a6";
+
+function StepsStatsCard({ stats, isLoading }: { stats?: StepsStats; isLoading: boolean }) {
+  return (
+    <GlassCard padding="md">
+      <div className="flex items-center gap-2">
+        <IconSteps className="h-5 w-5 text-[#14b8a6]" />
+        <p className="text-sm font-semibold text-rf-text-muted">Steps</p>
+        <AccentChip label="Program to date" accent={STEPS_ACCENT} />
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-xs font-semibold text-rf-text-muted">Total steps</p>
+          <p className="mt-1 text-2xl font-bold" style={{ color: STEPS_ACCENT }}>
+            {stats ? stepsLabel(stats.total_steps) : isLoading ? "…" : "—"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-semibold text-rf-text-muted">Avg steps/day</p>
+          <p className="mt-1 text-2xl font-bold" style={{ color: STEPS_ACCENT }}>
+            {stats ? stepsLabel(stats.avg_steps_per_day) : isLoading ? "…" : "—"}
+          </p>
+        </div>
+      </div>
+    </GlassCard>
+  );
+}
+
+function StepsTimelineCard({
+  points,
+  isLoading,
+  onClick
+}: {
+  points: HealthTimelinePoint[];
+  isLoading: boolean;
+  onClick: () => void;
+}) {
+  const trimmed = useMemo(() => points.slice(-10), [points]);
+  const yMax = Math.max(1, ...trimmed.map((point) => point.steps));
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="glass-card group rounded-3xl p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
+      aria-label="View steps timeline"
+    >
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-semibold text-rf-text-muted">Steps Timeline</p>
+          <p className="text-lg font-semibold text-rf-text">Daily steps</p>
+        </div>
+        <span className="text-sm font-semibold text-rf-text-muted opacity-60 transition group-hover:opacity-100">›</span>
+      </div>
+
+      {isLoading && (
+        <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">
+          Loading timeline...
+        </div>
+      )}
+
+      {!isLoading && trimmed.length === 0 && (
+        <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">
+          No data yet.
+        </div>
+      )}
+
+      {!isLoading && trimmed.length > 0 && (
+        <div className="mt-4 h-44">
+          <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart data={trimmed}>
+              <CartesianGrid {...CHART_GRID_PROPS} />
+              <XAxis dataKey="label" tick={CHART_AXIS_TICK} />
+              <YAxis hide domain={[0, yMax * 1.1]} />
+              <Tooltip
+                contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
+                labelStyle={CHART_TOOLTIP_LABEL_STYLE}
+                formatter={(value: number) => [value.toLocaleString(), "Steps"]}
+              />
+              <Bar dataKey="steps" fill={STEPS_ACCENT} radius={[6, 6, 0, 0]} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>

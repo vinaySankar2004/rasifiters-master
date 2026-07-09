@@ -32,6 +32,12 @@ object HealthSyncNotifier {
         post(context, "Health Connect", "Synced $count $noun of sleep from Health Connect.")
     }
 
+    fun notifyStepsSuccess(context: Context, count: Int) {
+        if (count <= 0) return
+        val noun = if (count == 1) "day" else "days"
+        post(context, "Health Connect", "Synced steps for $count $noun from Health Connect.")
+    }
+
     private fun post(context: Context, title: String, body: String) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED

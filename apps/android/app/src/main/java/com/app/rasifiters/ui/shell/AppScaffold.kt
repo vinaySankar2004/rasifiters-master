@@ -41,6 +41,7 @@ import com.app.rasifiters.ui.members.MemberRecentDetailScreen
 import com.app.rasifiters.ui.members.MemberStreakDetailScreen
 import com.app.rasifiters.ui.lifestyle.LifestyleScreen
 import com.app.rasifiters.ui.lifestyle.LifestyleTimelineDetailScreen
+import com.app.rasifiters.ui.lifestyle.StepsTimelineDetailScreen
 import com.app.rasifiters.ui.lifestyle.WorkoutTypesListScreen
 import com.app.rasifiters.ui.members.MembersScreen
 import com.app.rasifiters.ui.members.ProgramMembersListScreen
@@ -174,6 +175,9 @@ fun AppScaffold(
             }
             composable(Routes.LIFESTYLE_TIMELINE) {
                 LifestyleTimelineDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.LIFESTYLE_STEPS_TIMELINE) {
+                StepsTimelineDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
             }
 
             // Members forward targets (Phase E) — the metrics/history/streak/workouts/health drill-downs

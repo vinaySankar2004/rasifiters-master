@@ -17,7 +17,13 @@ import {
   AnalyticsSummary,
   WorkoutType
 } from "@/lib/api/summary";
-import { addDailyHealthLog, addWorkoutLogsBatch, BulkRowError, BulkWorkoutEntry } from "@/lib/api/logs";
+import {
+  addDailyHealthLogsBatch,
+  addWorkoutLogsBatch,
+  BulkHealthEntry,
+  BulkRowError,
+  BulkWorkoutEntry
+} from "@/lib/api/logs";
 import { ApiError } from "@/lib/api/client";
 import { LogWorkoutsForm } from "@/components/forms/LogWorkoutsForm";
 import { LogDailyHealthForm } from "@/components/forms/LogDailyHealthForm";
@@ -47,8 +53,9 @@ export default function SummaryPage() {
   const summaryPeriod: PeriodKey = "week";
   const [showWorkoutsForm, setShowWorkoutsForm] = useState(false);
   const [showHealthForm, setShowHealthForm] = useState(false);
+  const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const canLogForAny =
-    session?.user.globalRole === "global_admin" ||
+    isGlobalAdmin ||
     program?.my_role === "admin" ||
     program?.my_role === "logger";
   const dataEntryLocked = isDataEntryLocked(session, program);
@@ -102,8 +109,8 @@ export default function SummaryPage() {
   });
 
   const workoutsMutation = useMutation({
-    mutationFn: (entries: BulkWorkoutEntry[]) =>
-      addWorkoutLogsBatch(token, { program_id: programId, entries }),
+    mutationFn: ({ entries, programIds }: { entries: BulkWorkoutEntry[]; programIds: string[] }) =>
+      addWorkoutLogsBatch(token, { program_id: programId, program_ids: programIds, entries }),
     onSuccess: async () => {
       await refreshSummaryQueries(queryClient);
       setShowWorkoutsForm(false);
@@ -111,12 +118,8 @@ export default function SummaryPage() {
   });
 
   const dailyHealthMutation = useMutation({
-    mutationFn: (payload: { member_id?: string; log_date: string; sleep_hours?: number | null; food_quality?: number | null }) => {
-      return addDailyHealthLog(token, {
-        program_id: programId,
-        ...payload
-      });
-    },
+    mutationFn: ({ entries, programIds }: { entries: BulkHealthEntry[]; programIds: string[] }) =>
+      addDailyHealthLogsBatch(token, { program_id: programId, program_ids: programIds, entries }),
     onSuccess: async () => {
       await refreshSummaryQueries(queryClient);
       setShowHealthForm(false);
@@ -239,10 +242,11 @@ export default function SummaryPage() {
           <LogWorkoutsForm
             canSelectAnyMember={canLogForAny}
             selfMemberId={session?.user.id}
+            isGlobalAdmin={isGlobalAdmin}
             programId={programId}
             token={token}
             onClose={() => setShowWorkoutsForm(false)}
-            onSubmit={(entries) => workoutsMutation.mutate(entries)}
+            onSubmit={(entries, programIds) => workoutsMutation.mutate({ entries, programIds })}
             isSaving={workoutsMutation.isPending}
             errorMessage={workoutsMutation.isError ? (workoutsMutation.error as Error).message : null}
             rowErrors={
@@ -259,10 +263,16 @@ export default function SummaryPage() {
             programId={programId}
             token={token}
             userId={session?.user.id}
+            isGlobalAdmin={isGlobalAdmin}
             onClose={() => setShowHealthForm(false)}
-            onSubmit={(payload) => dailyHealthMutation.mutate(payload)}
+            onSubmit={(entries, programIds) => dailyHealthMutation.mutate({ entries, programIds })}
             isSaving={dailyHealthMutation.isPending}
             errorMessage={dailyHealthMutation.isError ? (dailyHealthMutation.error as Error).message : null}
+            rowErrors={
+              dailyHealthMutation.error instanceof ApiError
+                ? (dailyHealthMutation.error.details as BulkRowError[] | undefined) ?? null
+                : null
+            }
           />
         </Modal>
     </PageShell>
@@ -392,7 +402,7 @@ function AddHealthCard({ onClick, disabled }: { onClick: () => void; disabled?: 
         <span className="text-sm font-semibold">›</span>
       </div>
       <h3 className="mt-4 text-xl font-bold">Log daily health</h3>
-      <p className="mt-2 text-sm text-white/80">Track sleep hours and diet quality for the day.</p>
+      <p className="mt-2 text-sm text-white/80">Track sleep, diet quality, and steps for the day.</p>
       <div className="mt-6 inline-flex items-center rounded-full bg-white/20 px-4 py-2 text-sm font-semibold">
         Log day
       </div>

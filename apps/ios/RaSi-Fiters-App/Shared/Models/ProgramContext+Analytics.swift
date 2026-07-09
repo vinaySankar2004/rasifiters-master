@@ -158,6 +158,22 @@ extension ProgramContext {
             healthTimeline = resp.buckets
             healthTimelineDailyAverageSleep = resp.daily_average_sleep
             healthTimelineDailyAverageFood = resp.daily_average_food
+            healthTimelineDailyAverageSteps = resp.daily_average_steps ?? 0
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    func loadStepsStats(memberId: String? = nil) async {
+        guard let token = authToken, !token.isEmpty else { return }
+        guard let pid = programId else {
+            errorMessage = "No program selected for steps analytics."
+            return
+        }
+        do {
+            let data = try await APIClient.shared.fetchHealthSteps(token: token, programId: pid, memberId: memberId)
+            stepsStats = data
         } catch {
             errorMessage = error.localizedDescription
         }

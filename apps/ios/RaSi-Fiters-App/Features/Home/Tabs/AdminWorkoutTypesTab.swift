@@ -68,6 +68,8 @@ struct AdminWorkoutTypesTab: View {
                         }
                     }
 
+                    StepsStatsCard(stats: programContext.stepsStats)
+
                     WorkoutTypePopularityCard(types: programContext.workoutTypes)
 
                     NavigationLink {
@@ -77,6 +79,15 @@ struct AdminWorkoutTypesTab: View {
                         )
                     } label: {
                         LifestyleTimelineCardSummary(points: programContext.healthTimeline)
+                    }
+
+                    NavigationLink {
+                        StepsTimelineDetailView(
+                            initialPeriod: .week,
+                            memberId: selectedMember?.id
+                        )
+                    } label: {
+                        StepsTimelineCardSummary(points: programContext.healthTimeline)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -130,6 +141,7 @@ struct AdminWorkoutTypesTab: View {
         await programContext.loadWorkoutTypeHighestParticipation(memberId: nil)  // Always program-wide
         await programContext.loadWorkoutTypes(memberId: memberId)
         await programContext.loadHealthTimeline(period: AdminHomeView.Period.week.apiValue, memberId: memberId)
+        await programContext.loadStepsStats(memberId: memberId)
         errorMessage = programContext.errorMessage
         isLoading = false
     }

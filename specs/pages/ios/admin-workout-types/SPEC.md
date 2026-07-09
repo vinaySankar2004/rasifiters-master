@@ -1,6 +1,6 @@
 # Screen: `AdminWorkoutTypesTab` / `StandardWorkoutTypesTab` (ios) — the Lifestyle tab (Tab 3)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** Tab 3 **"Lifestyle"** (`leaf.fill`) of `AdminHomeView`'s bottom `TabView` — the iOS analogue of
 > the web `/lifestyle` workspace tab. Role-bifurcated by `programContext.isProgramAdmin`:
 > `AdminWorkoutTypesTab` (program/global admin — view-as picker) vs `StandardWorkoutTypesTab` (logger/member —
@@ -62,8 +62,10 @@ path = web `/lifestyle/workouts`) and the full **timeline detail** (`LifestyleTi
 | Header (Admin) | `WorkoutTypesHeader(title:subtitle:)` — same shape, dumbbell `GlassButton` → `ViewWorkoutTypesListView`. | `AdminHomeHelpers.swift:90-114` |
 | View-as selector (Admin only) | Button → `MemberPickerView` sheet (`showNoneOption: true`, `noneLabel` = "None" global / "Admin" program-admin); label = selected member / "Admin" / own name. | `StandardWorkoutTypesTab.swift:251-285` |
 | 4 stat cards | `WorkoutTypesTotalCard` · `WorkoutTypeMostPopularCard` · `WorkoutTypeLongestDurationCard` · `WorkoutTypeHighestParticipationCard` — 2×2 grid over `CardShell` + `AccentChip("Program to date")`. | `AdminHomeHelpers.swift:448-591` |
+| **Steps analytics card** (0.2.0) | `StepsStatsCard(stats:)` — full-width `CardShell` (teal, `AccentChip("Program to date")`); "Total steps" / "Avg steps/day" from `loadStepsStats` (`GET /analytics/health/steps`); inserted directly after the stat row (DC-9). | `Tabs/WorkoutTypesCards.swift` |
 | Workout Type Popularity | `WorkoutTypePopularityCard(types:)` — `SegmentedMetricPicker` (count/minutes/avg) + `RankedBarList` + top-6/show-all on compact. | `AdminHomeHelpers.swift:593-676` |
 | Lifestyle Timeline card | `LifestyleTimelineCardSummary(points:)` — `CardShell(height:280)` + `ScrollableBarChart` Swift Chart (sleep `BarMark` + diet `LineMark`/`PointMark`), last 10 buckets → timeline detail. | `AdminHomeHelpers.swift:789-876` |
+| **Steps Timeline card** (0.2.0) | `StepsTimelineCardSummary(points:)` — clone of the Lifestyle Timeline card, single teal `steps` `BarMark`; inserted after the Lifestyle Timeline card (DC-9) → `StepsTimelineDetailView`. | `Tabs/WorkoutTypesCards.swift` |
 
 ## 5. Components + features consumed
 
@@ -91,7 +93,8 @@ Read-only. Zero backend work, NO new api fn — every loader landed in the found
 | `loadWorkoutTypeLongestDuration(memberId?)` | `…/longest-duration` | `{workout_name, avg_minutes}`. |
 | `loadWorkoutTypeHighestParticipation(memberId: nil)` | `…/highest-participation` | **always program-wide** — `memberId` never sent (F2, mirrors web F4). |
 | `loadWorkoutTypes(memberId?)` | `GET /analytics/workouts/types` | popularity list, sorted/sliced client-side. |
-| `loadHealthTimeline(period: "week", memberId?)` | `GET /analytics/health/timeline` | only last 10 buckets render on the card. |
+| `loadHealthTimeline(period: "week", memberId?)` | `GET /analytics/health/timeline` | only last 10 buckets render (Lifestyle + Steps timeline cards; now carries `steps` + `daily_average_steps`). |
+| `loadStepsStats(memberId?)` (0.2.0) | `GET /analytics/health/steps` | `{total_steps, avg_steps_per_day, days}` → the Steps analytics card (analytics 0.2.0 D-C5). |
 
 ## 7. Role-based view rules
 
@@ -153,4 +156,5 @@ forms on `/summary`), not this landing — the read-vs-write axis (runs 31/36/54
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-07-09 | **Steps analytics + Steps Timeline cards** (analytics 0.2.0 D-C5). Added `StepsStatsCard` (full-width teal card, Total steps / Avg steps/day) directly after the stat row and `StepsTimelineCardSummary` (single teal `steps` bar) after the Lifestyle Timeline card (DC-9) → `StepsTimelineDetailView` (both tabs). `load()` adds `loadStepsStats(memberId:)` (Admin = selected member, Standard = self); `loadHealthTimeline` also sets `healthTimelineDailyAverageSteps`. New cards in `Tabs/WorkoutTypesCards.swift`; wiring in `AdminWorkoutTypesTab`/`StandardWorkoutTypesTab`. Build green-check owned by the user (Xcode). |
 | 0.1.0 | 2026-06-30 | Initial faithful port — `AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` + 7 cards + `AccentChip`; `ViewWorkoutTypesListView` + `LifestyleTimelineDetailView` deferred as stubs (run 56). |

@@ -10,7 +10,7 @@ import { isDataEntryLocked } from "@/lib/permissions";
 import { fetchMemberHealthLogs, type MemberHealthItem } from "@/lib/api/members";
 import { deleteDailyHealthLog, updateDailyHealthLog } from "@/lib/api/logs";
 import { Select } from "@/components/Select";
-import { sleepLabel, dietLabel, downloadCsv } from "@/lib/format";
+import { sleepLabel, dietLabel, stepsLabel, downloadCsv } from "@/lib/format";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -23,7 +23,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 const SORT_FIELDS = [
   { value: "date", label: "Date" },
   { value: "sleep_hours", label: "Sleep hours" },
-  { value: "food_quality", label: "Diet quality" }
+  { value: "food_quality", label: "Diet quality" },
+  { value: "steps", label: "Steps" }
 ];
 
 const SORT_DIRS = [
@@ -70,12 +71,15 @@ export default function MemberHealthPage() {
   const [maxSleepMinutes, setMaxSleepMinutes] = useState("");
   const [minDiet, setMinDiet] = useState("");
   const [maxDiet, setMaxDiet] = useState("");
+  const [minSteps, setMinSteps] = useState("");
+  const [maxSteps, setMaxSteps] = useState("");
   const [showFilter, setShowFilter] = useState(false);
   const [editTarget, setEditTarget] = useState<MemberHealthItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MemberHealthItem | null>(null);
   const [editSleepHours, setEditSleepHours] = useState("");
   const [editSleepMinutes, setEditSleepMinutes] = useState("");
   const [editDiet, setEditDiet] = useState("");
+  const [editSteps, setEditSteps] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,6 +107,14 @@ export default function MemberHealthPage() {
     const n = parseInt(maxDiet, 10);
     return maxDiet.trim() !== "" && !Number.isNaN(n) && n >= 1 && n <= 5 ? n : undefined;
   }, [maxDiet]);
+  const minStepsNum = useMemo(() => {
+    const n = parseInt(minSteps, 10);
+    return minSteps.trim() !== "" && !Number.isNaN(n) && n >= 0 ? n : undefined;
+  }, [minSteps]);
+  const maxStepsNum = useMemo(() => {
+    const n = parseInt(maxSteps, 10);
+    return maxSteps.trim() !== "" && !Number.isNaN(n) && n >= 0 ? n : undefined;
+  }, [maxSteps]);
 
   const healthQuery = useQuery({
     queryKey: [
@@ -117,7 +129,9 @@ export default function MemberHealthPage() {
       minSleepHoursNum,
       maxSleepHoursNum,
       minDietNum,
-      maxDietNum
+      maxDietNum,
+      minStepsNum,
+      maxStepsNum
     ],
     queryFn: () =>
       fetchMemberHealthLogs(token, programId, memberId, {
@@ -129,13 +143,15 @@ export default function MemberHealthPage() {
         minSleepHours: minSleepHoursNum,
         maxSleepHours: maxSleepHoursNum,
         minFoodQuality: minDietNum,
-        maxFoodQuality: maxDietNum
+        maxFoodQuality: maxDietNum,
+        minSteps: minStepsNum,
+        maxSteps: maxStepsNum
       }),
     enabled: !!token && !!programId && !!memberId
   });
 
   const updateMutation = useMutation({
-    mutationFn: (payload: { sleep_hours?: number | null; food_quality?: number | null }) =>
+    mutationFn: (payload: { sleep_hours?: number | null; food_quality?: number | null; steps?: number | null }) =>
       updateDailyHealthLog(token, {
         program_id: programId,
         member_id: memberId,
@@ -174,7 +190,9 @@ export default function MemberHealthPage() {
     maxSleepHours.trim() ||
     maxSleepMinutes.trim() ||
     minDiet.trim() ||
-    maxDiet.trim();
+    maxDiet.trim() ||
+    minSteps.trim() ||
+    maxSteps.trim();
   const formattedFilters = useMemo(() => {
     const parts: string[] = [];
     if (startDate || endDate) parts.push(`${startDate || "Start"} – ${endDate || "End"}`);
@@ -185,8 +203,13 @@ export default function MemberHealthPage() {
       else if (minDietNum !== undefined) parts.push(`Diet ≥ ${minDietNum}`);
       else parts.push(`Diet ≤ ${maxDietNum}`);
     }
+    if (minStepsNum !== undefined || maxStepsNum !== undefined) {
+      if (minStepsNum !== undefined && maxStepsNum !== undefined) parts.push(`Steps ${minStepsNum}–${maxStepsNum}`);
+      else if (minStepsNum !== undefined) parts.push(`Steps ≥ ${minStepsNum}`);
+      else parts.push(`Steps ≤ ${maxStepsNum}`);
+    }
     return parts.length === 0 ? null : parts.join(" · ");
-  }, [startDate, endDate, minSleepHoursNum, maxSleepHoursNum, minDietNum, maxDietNum]);
+  }, [startDate, endDate, minSleepHoursNum, maxSleepHoursNum, minDietNum, maxDietNum, minStepsNum, maxStepsNum]);
 
   const parseSleepInput = (hoursText: string, minutesText: string) => {
     const trimmedHours = hoursText.trim();
@@ -214,9 +237,9 @@ export default function MemberHealthPage() {
   const handleExport = () => {
     if (!healthQuery.data || healthQuery.data.items.length === 0) return;
     const filename = `Health_${memberName.replace(/\s+/g, "")}_${startDate || "all"}_to_${endDate || "today"}.csv`;
-    let csv = "Date,Sleep hours,Diet quality\n";
+    let csv = "Date,Sleep hours,Diet quality,Steps\n";
     healthQuery.data.items.forEach((item) => {
-      csv += `${item.logDate},${item.sleepHours ?? ""},${item.foodQuality ?? ""}\n`;
+      csv += `${item.logDate},${item.sleepHours ?? ""},${item.foodQuality ?? ""},${item.steps ?? ""}\n`;
     });
     downloadCsv(filename, csv);
   };
@@ -227,23 +250,30 @@ export default function MemberHealthPage() {
     setEditSleepHours(split.hours);
     setEditSleepMinutes(split.minutes);
     setEditDiet(item.foodQuality !== null && item.foodQuality !== undefined ? String(item.foodQuality) : "");
+    setEditSteps(item.steps !== null && item.steps !== undefined ? String(item.steps) : "");
     setErrorMessage(null);
   };
 
   const submitEdit = () => {
     if (!editTarget) return;
     const dietValue = editDiet.trim() === "" ? null : Number(editDiet);
+    const stepsValue = editSteps.trim() === "" ? null : Number(editSteps.trim());
     if (!sleepInput.isValid) {
       setErrorMessage("Sleep time must be between 0:00 and 24:00.");
       return;
     }
-    if (!sleepInput.hasInput && (dietValue === null || Number.isNaN(dietValue))) {
-      setErrorMessage("Provide sleep time or diet quality before saving.");
+    if (stepsValue !== null && (!Number.isInteger(stepsValue) || stepsValue < 0)) {
+      setErrorMessage("Steps must be a non-negative whole number.");
+      return;
+    }
+    if (!sleepInput.hasInput && (dietValue === null || Number.isNaN(dietValue)) && stepsValue === null) {
+      setErrorMessage("Provide sleep time, diet quality, or steps before saving.");
       return;
     }
     updateMutation.mutate({
       sleep_hours: sleepInput.sleepValue,
-      food_quality: Number.isNaN(dietValue) ? null : dietValue
+      food_quality: Number.isNaN(dietValue) ? null : dietValue,
+      steps: stepsValue
     });
   };
 
@@ -296,14 +326,11 @@ export default function MemberHealthPage() {
         <div className="grid gap-3">
           {healthQuery.data.items.map((item) => (
             <GlassCard key={item.id} padding="sm">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-base font-semibold text-rf-text">Sleep {sleepLabel(item.sleepHours)}</p>
-                  <p className="text-xs text-rf-text-muted">{item.logDate}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-rf-text">Diet {dietLabel(item.foodQuality)}</p>
-                </div>
+              <div>
+                <p className="text-base font-semibold text-rf-text">{item.logDate}</p>
+                <p className="text-xs text-rf-text-muted">
+                  Sleep {sleepLabel(item.sleepHours)} · Diet {dietLabel(item.foodQuality)} · Steps {stepsLabel(item.steps)}
+                </p>
               </div>
               {canEdit && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -427,6 +454,28 @@ export default function MemberHealthPage() {
                 placeholder="Any"
               />
             </div>
+            <div>
+              <label className="text-sm font-semibold text-rf-text">Min steps</label>
+              <input
+                type="number"
+                min={0}
+                value={minSteps}
+                onChange={(event) => setMinSteps(event.target.value)}
+                className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+                placeholder="Any"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-semibold text-rf-text">Max steps</label>
+              <input
+                type="number"
+                min={0}
+                value={maxSteps}
+                onChange={(event) => setMaxSteps(event.target.value)}
+                className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+                placeholder="Any"
+              />
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -438,6 +487,8 @@ export default function MemberHealthPage() {
                 setMaxSleepMinutes("");
                 setMinDiet("");
                 setMaxDiet("");
+                setMinSteps("");
+                setMaxSteps("");
               }}
               className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
             >
@@ -505,6 +556,17 @@ export default function MemberHealthPage() {
                 onChange={setEditDiet}
                 placeholder="Select Rating (1-5)"
               />
+              <div>
+                <label className="text-sm font-semibold text-rf-text">Steps</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editSteps}
+                  onChange={(event) => setEditSteps(event.target.value)}
+                  className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+                  placeholder="Leave blank to clear"
+                />
+              </div>
             </div>
             <div className="mt-6 flex items-center justify-end gap-3">
               <button

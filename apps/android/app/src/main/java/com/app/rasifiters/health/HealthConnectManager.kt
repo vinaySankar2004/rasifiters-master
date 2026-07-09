@@ -6,12 +6,16 @@ import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
 import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.Period
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
@@ -32,6 +36,8 @@ class HealthConnectManager(private val context: Context) {
         setOf(HealthPermission.getReadPermission(ExerciseSessionRecord::class))
     val sleepPermissions: Set<String> =
         setOf(HealthPermission.getReadPermission(SleepSessionRecord::class))
+    val stepsPermissions: Set<String> =
+        setOf(HealthPermission.getReadPermission(StepsRecord::class))
 
     /** Whether the Health Connect SDK + a usable provider are available on this device (gates the UI). */
     val isAvailable: Boolean
@@ -45,6 +51,7 @@ class HealthConnectManager(private val context: Context) {
 
     suspend fun hasWorkoutPermission(): Boolean = grantedPermissions().containsAll(workoutPermissions)
     suspend fun hasSleepPermission(): Boolean = grantedPermissions().containsAll(sleepPermissions)
+    suspend fun hasStepsPermission(): Boolean = grantedPermissions().containsAll(stepsPermissions)
 
     // MARK: - Workouts (incremental via the changes token — the anchored-query analog)
 
@@ -164,6 +171,36 @@ class HealthConnectManager(private val context: Context) {
             if (seconds <= 0) return@mapNotNull null
             val hours = (seconds / 3600.0).coerceIn(0.0, 24.0)
             AggregatedSleep(date, (hours * 100).roundToInt() / 100.0)
+        }
+    }
+
+    // MARK: - Steps (rolling look-back window — same rolling shape as sleep, aggregated per day)
+
+    /** How many days back each steps sync re-queries — a rolling ~2-week window (iOS `stepsRecentDays`). */
+    val stepsRecentDays: Int = 14
+
+    /**
+     * Total steps per local calendar day across the last [stepsRecentDays], via
+     * `aggregateGroupByPeriod` with `StepsRecord.COUNT_TOTAL` (the HC analogue of HKStatistics
+     * cumulative-sum: it dedups overlapping sources so a phone + a watch don't double-count). Emits a row
+     * only when the day's total is > 0. Which of these days land in a program is decided per-program at
+     * write time.
+     */
+    suspend fun fetchStepsDailyTotals(): List<AggregatedSteps> {
+        val client = clientOrNull() ?: return emptyList()
+        val zone = ZoneId.systemDefault()
+        val start = LocalDate.now(zone).minusDays(stepsRecentDays.toLong()).atStartOfDay()
+        val response = client.aggregateGroupByPeriod(
+            AggregateGroupByPeriodRequest(
+                metrics = setOf(StepsRecord.COUNT_TOTAL),
+                timeRangeFilter = TimeRangeFilter.between(start, LocalDateTime.now()),
+                timeRangeSlicer = Period.ofDays(1),
+            ),
+        )
+        return response.mapNotNull { bucket ->
+            val count = bucket.result[StepsRecord.COUNT_TOTAL] ?: return@mapNotNull null
+            if (count <= 0) return@mapNotNull null
+            AggregatedSteps(bucket.startTime.toLocalDate().toString(), count.toInt())
         }
     }
 

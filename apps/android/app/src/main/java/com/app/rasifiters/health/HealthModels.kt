@@ -35,6 +35,12 @@ data class AggregatedSleep(
     val hours: Double,  // total time asleep, 2 dp, clamped 0..24
 )
 
+/** A day's total step count, bucketed by local calendar date. */
+data class AggregatedSteps(
+    val date: String,   // yyyy-MM-dd (local)
+    val count: Int,     // total steps for the day (the aggregate API dedups overlapping sources)
+)
+
 /**
  * A queued first-sync confirmation for ONE flow (workouts OR sleep), one page per program. Built by the
  * compute half of a sync and consumed by the confirmation screen, which commits a page's CHECKED rows
@@ -44,7 +50,7 @@ data class PendingSyncConfirmation(
     val flow: Flow,
     val pages: List<ProgramPage>,
 ) {
-    enum class Flow { WORKOUTS, SLEEP }
+    enum class Flow { WORKOUTS, SLEEP, STEPS }
 
     data class ProgramPage(
         val id: String,               // programId
@@ -71,6 +77,9 @@ data class PendingSyncConfirmation(
         }
         data class Sleep(val sleep: AggregatedSleep) : Payload {
             override val ymd: String get() = sleep.date
+        }
+        data class Steps(val steps: AggregatedSteps) : Payload {
+            override val ymd: String get() = steps.date
         }
     }
 }

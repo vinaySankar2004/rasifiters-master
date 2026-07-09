@@ -44,6 +44,7 @@ object Routes {
     // idiom). The workout-types manager double-duties with the Program tab (Phase G).
     const val LIFESTYLE_WORKOUT_TYPES = "lifestyle/workout-types"
     const val LIFESTYLE_TIMELINE = "lifestyle/timeline"
+    const val LIFESTYLE_STEPS_TIMELINE = "lifestyle/steps-timeline"
 
     // Program tab sub-routes (Phase G). The Members section reuses MEMBER_ROSTER/MEMBER_INVITE and the
     // Workout Types section reuses LIFESTYLE_WORKOUT_TYPES; these are the tab's own settings/admin screens.

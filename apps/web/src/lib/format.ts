@@ -45,6 +45,11 @@ export function dietLabel(value: number | null) {
   return `${value}/5`;
 }
 
+export function stepsLabel(value: number | null | undefined) {
+  if (value === null || value === undefined) return "—";
+  return value.toLocaleString();
+}
+
 export function formatDuration(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;

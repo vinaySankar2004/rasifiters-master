@@ -198,6 +198,10 @@ extension ProgramContext {
         }
     }
 
+    /// Loads a member's daily-health logs (steps-aware). Keeps the published `memberHealthLogs`
+    /// (legacy shape, no steps) refreshed for its existing consumers AND returns the full
+    /// steps-bearing items for callers that render steps (`[]` on failure).
+    @discardableResult
     @MainActor
     func loadMemberHealthLogs(
         memberId: String,
@@ -209,15 +213,17 @@ extension ProgramContext {
         minSleepHours: Double? = nil,
         maxSleepHours: Double? = nil,
         minFoodQuality: Int? = nil,
-        maxFoodQuality: Int? = nil
-    ) async {
-        guard let token = authToken, !token.isEmpty else { return }
+        maxFoodQuality: Int? = nil,
+        minSteps: Int? = nil,
+        maxSteps: Int? = nil
+    ) async -> [APIClient.DailyHealthLogItem] {
+        guard let token = authToken, !token.isEmpty else { return [] }
         guard let pid = programId else {
             errorMessage = "No program selected for daily health logs."
-            return
+            return []
         }
         do {
-            let resp = try await APIClient.shared.fetchMemberHealthLogs(
+            let resp = try await APIClient.shared.fetchDailyHealthLogs(
                 token: token,
                 programId: pid,
                 memberId: memberId,
@@ -229,11 +235,17 @@ extension ProgramContext {
                 minSleepHours: minSleepHours,
                 maxSleepHours: maxSleepHours,
                 minFoodQuality: minFoodQuality,
-                maxFoodQuality: maxFoodQuality
+                maxFoodQuality: maxFoodQuality,
+                minSteps: minSteps,
+                maxSteps: maxSteps
             )
-            memberHealthLogs = resp.items
+            memberHealthLogs = resp.items.map {
+                .init(id: $0.id, logDate: $0.logDate, sleepHours: $0.sleepHours, foodQuality: $0.foodQuality)
+            }
+            return resp.items
         } catch {
             errorMessage = error.localizedDescription
+            return []
         }
     }
 

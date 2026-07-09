@@ -198,6 +198,15 @@ export function IconSun({ className }: IconProps) {
   );
 }
 
+export function IconSteps({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
+      <circle cx="13" cy="4.5" r="2" fill="currentColor" />
+      <path d="M13 8l-2.5 5.5L8 20M13 8l3 3 3 1M13 8l-4 1-2 3M11 13.5l3 2.5.5 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function IconMoon({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">

@@ -51,6 +51,7 @@ extension APIClient {
         let current_streak: Int
         let longest_streak: Int
         let avg_food_quality: Int?
+        let avg_steps: Int?
         let mtd_workouts: Int?
         let total_hours: Int?
         let favorite_workout: String?

@@ -1,6 +1,6 @@
 # Screen: `health-connect` (android) — Health Connect sync settings + first-sync confirmation
 
-> **Status:** 🏗️ built · **Version:** 0.1.0 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.2.0 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = the [`health-connect`](../../../features/health-connect/SPEC.md) feature (the Android
 > analog of iOS [`apple-health`](../../../features/apple-health/SPEC.md)) + iOS
 > `Features/Home/Settings/AppleHealthSettingsView.swift` + `Shared/Views/HealthSyncConfirmationView.swift`.
@@ -14,7 +14,7 @@
 ## Parity (iOS `AppleHealthSettingsView` / `HealthSyncConfirmationView` 1:1)
 
 **Settings screen** — reached from **Account → Health Connect** (the Program-tab account section AND the
-picker's account sheet). Two independent sections on one screen:
+picker's account sheet). **Three** independent sections on one screen (0.2.0):
 
 - **Workouts** — a **Connect** card (requests read auth) or, once connected, a **Connected** card + **Sync
   to Programs** selection list + **Sync Status** (Last Synced · Workouts Synced · **Sync Now**) + a
@@ -23,13 +23,16 @@ picker's account sheet). Two independent sections on one screen:
   appears under Sync Now. Auto-sync failures surface passively as "Last sync couldn't reach the server —
   will retry automatically." (D-SIL); the manual Sync Now shows an inline "Couldn't reach the server" error.
 - **Sleep** — the same structure, independent toggle/permission/selection/status (Nights Synced).
-- **Unavailable** — if Health Connect isn't installed/updated, an "isn't available" card replaces both
+- **Steps** (0.2.0) — the same structure, independent toggle/permission (`READ_STEPS`)/selection/status
+  (Days Synced); `DirectionsWalk` icon, teal `#14b8a6`. The Android analog of iOS apple-health's third Steps
+  section (health-connect feature 0.2.0, D-STEPS; writes `daily_health_logs.steps`).
+- **Unavailable** — if Health Connect isn't installed/updated, an "isn't available" card replaces all three
   sections (`HealthConnectClient.getSdkStatus`).
 
 **First-sync confirmation** — a full-screen overlay (iOS `fullScreenCover` from `AppRootView`): one program
 per page, each row a toggleable check (default on), a top-right tick that commits the page's **checked**
 rows and advances; the last page finishes. **System back = defer** (nothing written, re-offered next
-trigger). Workouts are presented before sleep when both are pending.
+trigger). Presentation priority is **workouts > sleep > steps** (0.2.0).
 
 ## Android realization / deviations
 
@@ -55,4 +58,12 @@ trigger). Workouts are presented before sleep when both are pending.
 ## Backend contract (unchanged, already live)
 
 `POST /api/workout-logs` (`on_duplicate:"sum"`, D-C9) · `POST`/`PUT /api/daily-health-logs`
-(`sleep_hours` upsert) — the exact endpoints iOS Apple Health uses; no backend change, no migration.
+(`sleep_hours` + — 0.2.0 — `steps` upsert) — the exact endpoints iOS Apple Health uses; no backend change.
+The 0.2.0 steps sync depends only on daily-health-logs 0.2.0's `steps` column (migration `006`, run there).
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Third "Steps" section** on `HealthConnectSettingsScreen` (own `READ_STEPS` permission, program selection, "Days Synced" status, disconnect; `DirectionsWalk`/teal `#14b8a6`) + the steps flow in `HealthSyncConfirmationScreen` — the exact sleep model on `StepsRecord` (health-connect feature 0.2.0, D-STEPS; writes `daily_health_logs.steps` via POST→409→PUT). Confirmation priority workouts > sleep > steps. `AndroidManifest.xml` gains `android.permission.health.READ_STEPS`; `HealthSyncController`/`HealthConnectManager`/`HealthStore`/`HealthModels`/`HealthSyncNotifier` gain the steps flow. Requires daily-health-logs 0.2.0 (migration `006`). `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
+| 0.1.0 | 2026-07-08 | Initial Android port (Phase H) — workouts + sleep sync + first-sync confirmation. |

@@ -1,6 +1,6 @@
 # Feature: `member-analytics` — per-member analytics (metrics · history · streaks · recent)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/memberAnalytics.js` (the 4 routers),
 > `services/memberAnalyticsService.js` (the 4 fns + helpers), `services/analyticsService.js` (re-export the 3
 > shared timeline helpers it imports — D-C2), `server.js` (the 4 `/api/member-*` mounts).
@@ -12,9 +12,11 @@
 > [`programs`](../programs/SPEC.md) (`start_date` window anchor) ·
 > [`program-workouts`](../program-workouts/SPEC.md) (`ProgramWorkout.workout_name` for type rollups) ·
 > [`members`](../members/SPEC.md) (member names/usernames).
-> **Deliberate changes (2 cleanups, the rest faithful 1:1):** **D-C3** extract the repeated requester-access +
-> target-enrolled prelude shared by history/streaks/recent into one helper (statuses preserved 1:1); **D-C4**
-> guard a null `program.start_date` in `getMemberStreaks` (mirrors `getMemberMetrics`' existing guard).
+> **Deliberate changes (2 cleanups + 1 additive field, the rest faithful 1:1):** **D-C3** extract the
+> repeated requester-access + target-enrolled prelude shared by history/streaks/recent into one helper
+> (statuses preserved 1:1); **D-C4** guard a null `program.start_date` in `getMemberStreaks` (mirrors
+> `getMemberMetrics`' existing guard); **D-C5** (0.2.0) the metrics rollup gains `avg_steps` (average over a
+> member's steps-bearing days, rounded int — mirrors `avg_sleep_hours`).
 
 ---
 
@@ -33,9 +35,9 @@ The 4 endpoints:
 
 1. **Member metrics** — `GET /api/member-metrics?programId=&…`. The per-program **member leaderboard**: for
    every active member, an in-memory rollup (workouts, total/avg duration, active days, distinct workout types,
-   current/longest streak, MTD workouts, total hours, favorite workout, avg sleep, avg food quality), then
-   server-side **search / 16 range filters / sort**. Optional `memberId` narrows to one member (the member-card
-   variant). The richest route.
+   current/longest streak, MTD workouts, total hours, favorite workout, avg sleep, avg food quality, **avg
+   steps** — D-C5), then server-side **search / 16 range filters / sort**. Optional `memberId` narrows to one
+   member (the member-card variant). The richest route.
 2. **Member history** — `GET /api/member-history?programId=&memberId=&period=`. A single member's workout
    **activity timeline** bucketed by `period` (week/month/quarter/year/all) + a daily average. Uses the shared
    `resolveTimelineWindow`/`buildBuckets`/`bucketKey` (same machinery as analytics v1 timelines).
@@ -85,10 +87,12 @@ The `AppError`s thrown: `400` (missing required query param — `programId`, or 
   (optionally one `memberId`) + their `workout_logs` (with `ProgramWorkout.workout_name`) + `daily_health_logs`
   within the window. **In-memory rollup per member**: workouts, total/avg duration, total hours, active days
   (distinct `log_date`), distinct workout types, current/longest streak (`computeStreaks`), MTD workouts
-  (`isInCurrentMonth`), favorite workout (max session count), avg sleep, avg food quality. Then **search**
-  (name/username substring), **16 range filters** (`within` min/max; null sleep/food treated as `0`, §10 F5),
+  (`isInCurrentMonth`), favorite workout (max session count), avg sleep, avg food quality, **avg steps**
+  (rounded average over the member's steps-bearing days, `null` when none — D-C5, mirrors avg sleep). Then
+  **search** (name/username substring), **16 range filters** (`within` min/max; null sleep/food treated as
+  `0`, §10 F5 — `avg_steps` is **not** added to `SORTABLE_FIELDS` or the filter set this run, §10 F8),
   **sort** (one of `SORTABLE_FIELDS`, default `workouts`; dir default `desc`). Returns `{ program_id, total,
-  filtered, sort, direction, date_range:{start,end}, members:[…] }`.
+  filtered, sort, direction, date_range:{start,end}, members:[…] }` (each member gains `avg_steps`).
 - **`getMemberHistory(query, user)`** (`:261-301`) — `400` if no `programId`+`memberId`; access prelude
   (`ensureProgramAccess` `403` + target-membership `404 "not enrolled"`). `resolveTimelineWindow(period, programId)`
   → `buildBuckets` → fill from the member's `workout_logs` via `bucketKey`. Returns `{ period, label,
@@ -127,7 +131,7 @@ delta** (read-only; no schema change; no new tables). Read-only — no writes.
 - **`workout_logs`** (read, owned by [`workout-logs`](../workout-logs/SPEC.md)) — the primary fact table (all 4
   routes). `member_id`/`program_id`/`log_date`/`duration`/`program_workout_id`.
 - **`daily_health_logs`** (read, owned by [`daily-health-logs`](../daily-health-logs/SPEC.md)) — `sleep_hours` +
-  `food_quality` for the metrics rollup only.
+  `food_quality` + (0.2.0) `steps` for the metrics rollup only.
 - **`program_memberships`** (read, owned by [`program-memberships`](../program-memberships/SPEC.md)) — the
   active roster (metrics) + `ensureProgramAccess` + target-enrolled `404` checks.
 - **`program_workouts`** (read, owned by [`program-workouts`](../program-workouts/SPEC.md)) — `workout_name`
@@ -144,8 +148,10 @@ metrics route has no pagination (returns every matching member, §10 F3).
 ## 7. The migration delta + the deliberate changes
 
 **No auth-table / stack migration delta.** Read-only aggregation, no SSE/push, no schema change; all models +
-the timeline helpers pre-ported (the helpers just need re-exporting). So this is a **faithful 1:1 verbatim port
-with one dependency-driven change (D-C2) + two pinned cleanups (D-C3/D-C4)**:
+the timeline helpers pre-ported (the helpers just need re-exporting). The 0.2.0 `avg_steps` field reads the
+`daily_health_logs.steps` column that daily-health-logs 0.2.0 (migration `006`) added — no migration owned
+here. So this is a **faithful 1:1 verbatim port with one dependency-driven change (D-C2) + two pinned
+cleanups (D-C3/D-C4) + one additive rollup field (D-C5, 0.2.0)**:
 
 - **D-C1 — scope (its own file pair).** This SPEC owns `routes/memberAnalytics.js` (the 4 routers) +
   `services/memberAnalyticsService.js` (the 4 fns + helpers) outright — a **separate** pair from the
@@ -162,6 +168,14 @@ with one dependency-driven change (D-C2) + two pinned cleanups (D-C3/D-C4)**:
   `assertMemberAccess(programId, memberId, user)`. **Pure refactor — every 400/403/404 status + message
   preserved 1:1**; `getMemberStreaks` keeps its additional `Program.findOne` `404` after. Not applied to
   `getMemberMetrics` (different shape: program-wide, optional `memberId`, its own `Program.findOne`).
+- **D-C5 — `avg_steps` in the metrics rollup (0.2.0, additive).** The in-memory per-member rollup gains
+  `avg_steps` — `Math.round(Σ steps / count)` over the member's **steps-bearing** days (rows where `steps`
+  is non-null), `null` when the member has no such days — exactly mirroring the existing `avg_sleep_hours`
+  accumulation (`memberAnalyticsService.js:170-206`). The `steps` attribute is added to the
+  `daily_health_logs` fetch (`:122`) and each member entry echoes `avg_steps`. **Out of scope this run:**
+  `SORTABLE_FIELDS` and the 16 range filters are **not** extended for steps (the steps task covered only the
+  members-tab overview grid, not the metrics leaderboard's sort/filter/CSV — §10 F8). Additive → the
+  response only gains a field; no existing consumer breaks.
 - **D-C4 — guard null `program.start_date` in `getMemberStreaks` (cleanup C2).** `getMemberMetrics` already
   guards it (`program.start_date ? new Date(...) : null`, `:70`); `getMemberStreaks` does
   `new Date(`${program.start_date}T00:00:00Z`)` unguarded (`:317`) → a program with no `start_date` yields an
@@ -207,8 +221,9 @@ are already UTC-correct (`T00:00:00Z` parsing + `getUTC*`), unlike analytics v1.
 | **D-C2** | **Re-export the 3 timeline helpers** (`resolveTimelineWindow`/`buildBuckets`/`bucketKey`) from `analyticsService.js` and import them here, exactly as legacy did (faithful restoration of the legacy export surface; single-sourced, not duplicated). Records a `depends_on: analytics` edge; tiny additive change to the built `analytics` feature (patch bump). | `memberAnalyticsService.js:4`; legacy `analyticsService.js` exports `:17-19`; ported `analyticsService.js` `module.exports:583-597` (helpers present as consts, un-exported). User answer (faithful re-export). |
 | **D-C3** | **Cleanup C1 — extract the shared access prelude** (validate→`ensureProgramAccess`→target-enrolled `404`) shared by history/streaks/recent into `assertMemberAccess`. Pure refactor; all 400/403/404 statuses + messages preserved 1:1; streaks keeps its extra `Program.findOne`. Not applied to `getMemberMetrics`. | `memberAnalyticsService.js:261-270` / `:303-312` / `:343-352` (identical preludes). User pinned C1. |
 | **D-C4** | **Cleanup C2 — guard null `program.start_date` in `getMemberStreaks`** (mirror `getMemberMetrics`' `:70` guard; fall back to epoch lower bound). Only the null-`start_date` edge changes (was a 500 via Invalid-Date `.toISOString()`); happy-path numbers identical. | `memberAnalyticsService.js:317` (unguarded) vs `:70` (guarded). User pinned C2. |
-| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — all 4 routes used 1:1 by both clients, **no divergence**, no dead routes (`member-recent` is the shared workout-history read). | Web sweep (`members/{page,metrics,history,streaks,workouts}.tsx`) + iOS sweep (`APIClient+Members.swift` + `ProgramContext+Members.swift` + the member tabs); Explore agents. |
-| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2/D-C3/D-C4.** Every aggregation, the in-memory rollup/search/filter/sort, `computeStreaks`, the MTD/streak math, the synthetic recent-`id`, and the error contract ported exactly; no UTC cleanup (dates already UTC-correct). Remaining oddities flagged (§10). | Whole-service review; §7. |
+| **D-C5** | **Additive `avg_steps` in the metrics rollup (0.2.0).** Round the average `steps` over each member's steps-bearing days (`null` when none), mirroring `avg_sleep_hours`; adds the `steps` attribute to the `daily_health_logs` fetch. **Not** added to `SORTABLE_FIELDS` / the filter set (out of the steps-task scope — overview grid only; §10 F8). Additive response field; live binaries unaffected. | User approval 2026-07-09 (steps-tracking plan, DC-1 + brief item 4); `memberAnalyticsService.js:122,138,170-206`; daily-health-logs 0.2.0 D-C4. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios, android]`** — all 4 routes used 1:1 by all clients, **no divergence**, no dead routes (`member-recent` is the shared workout-history read). `avg_steps` (D-C5) feeds the members-tab overview grid on all three. | Web sweep (`members/{page,metrics,history,streaks,workouts}.tsx`) + iOS sweep (`APIClient+Members.swift` + `ProgramContext+Members.swift` + the member tabs) + Android port; Explore agents. |
+| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2/D-C3/D-C4 + the additive D-C5.** Every aggregation, the in-memory rollup/search/filter/sort, `computeStreaks`, the MTD/streak math, the synthetic recent-`id`, and the error contract ported exactly; D-C5 only ADDS `avg_steps` to the rollup (no sort/filter change); no UTC cleanup (dates already UTC-correct). Remaining oddities flagged (§10). | Whole-service review; §7. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -221,9 +236,11 @@ are already UTC-correct (`T00:00:00Z` parsing + `getUTC*`), unlike analytics v1.
 | **F5** | **Range filters coerce null `avg_sleep_hours`/`avg_food_quality` to `0`** (`r.avg_sleep_hours ?? 0`) — a member with no health logs is treated as `0` for those range filters (so a `min` filter excludes them). | `memberAnalyticsService.js:231,236` | Kept (faithful) — a rebuild could distinguish "no data" from `0`. |
 | **F6** | **`getMemberRecentWorkouts` returns a synthetic `id`** (`${member_id}-${program_workout_id}-${log_date}-${idx}`) — `workout_logs` has no surrogate PK, so the row id is composed for the client list key. Same pattern as the logs feature. | `memberAnalyticsService.js:401` | Kept (faithful) — a rebuild with a surrogate PK could return the real id. |
 | **F7** | **`mtd_workouts` is "month-to-date *within the requested range*"** — `isInCurrentMonth` runs on the already range-filtered logs, and "current month" is the server-clock month in UTC (`new Date()` + `getUTC*`). On Render (UTC) correct; intent is current-calendar-month. | `memberAnalyticsService.js:37-41,142` | Kept (faithful) — a full TZ audit could make the month boundary explicit. |
+| **F8** | **`avg_steps` is rollup-only — NOT sortable/filterable (0.2.0).** D-C5 adds `avg_steps` to every member entry but deliberately leaves `SORTABLE_FIELDS` + the 16 range filters untouched: the steps-tracking task scoped the client work to the members-tab **overview grid** (one Avg-Steps tile), not the metrics leaderboard's sort/filter/CSV. Like the F5 null-coercion note, a later run could promote `avg_steps` into the sort allowlist + a range filter. | `memberAnalyticsService.js` `SORTABLE_FIELDS`; steps-tracking brief "Out of scope" | Kept (deliberate, out of scope) — a candidate for a follow-up. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **D-C5 — `avg_steps` in the member-metrics rollup (additive, user-approved steps-tracking plan).** `getMemberMetrics` now computes `avg_steps` = rounded average of `steps` over each member's steps-bearing days (`null` when none), mirroring the existing `avg_sleep_hours` accumulation; the `steps` attribute is added to the `daily_health_logs` fetch (`:122`) and each member entry echoes `avg_steps`. Reads the `daily_health_logs.steps` column from daily-health-logs 0.2.0 (D-C4, migration `006`). **Deliberately NOT added to `SORTABLE_FIELDS` / the range filters** (F8) — the steps task scoped the client work to the members-tab overview grid (one Avg-Steps tile), not the metrics leaderboard's sort/filter/CSV. Purely additive → response only gains a field; live binaries unaffected. `consumed_by` → `[web, ios, android]` (header reconciled). Consumed by the members-tab overview grid on all three clients. Backend: `services/memberAnalyticsService.js`. Updated §1/§3/§4/§5/§7, D-REF, D-S1; added D-C5 + F8. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker`. Documents the per-member analytics read API — the 4 routers of `routes/memberAnalytics.js` (`/api/member-metrics` · `/api/member-history` · `/api/member-streaks` · `/api/member-recent`) + `services/memberAnalyticsService.js`, its **own file pair** (separate from analytics/analytics-v2). Decisions: **D-C1** (scope = its own pair) · **D-C2** (re-export the 3 timeline helpers `resolveTimelineWindow`/`buildBuckets`/`bucketKey` from `analyticsService.js` — faithful restoration of the legacy export surface; `depends_on: analytics`) · **D-C3** (cleanup C1 — extract the shared requester-access + target-enrolled prelude shared by history/streaks/recent; statuses preserved 1:1) · **D-C4** (cleanup C2 — guard null `program.start_date` in `getMemberStreaks`) · **D-REF** (`consumed_by = [web, ios]`, all 4 routes 1:1, no divergence) · **D-S1** (faithful verbatim otherwise; no UTC cleanup — dates already UTC-correct). Flagged F1–F7 (per-program read authz enforced; `current` streak not anchored to today; in-memory metrics filter/sort/no-pagination; possibly-unused rich fields; null sleep/food coerced to 0; synthetic recent id; MTD-within-range/UTC). No auth/stack migration delta (read-only; models + helpers pre-ported). |

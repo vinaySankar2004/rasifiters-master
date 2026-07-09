@@ -1,6 +1,6 @@
 # Page: `summary/log-workout` (web) — standalone Log-workout form (summary sub-route 4 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/log-workout` — the **mobile log fallback** for the Add-workout form: a full-page
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **4th** of the six deferred
 > `/summary` sub-routes and the **1st of the 3 log fallbacks** (siblings `log-health` + `bulk-log-workout`
@@ -78,8 +78,9 @@ differ.
 - **Lookups (form mount):** `GET /program-memberships/members?programId` + `GET /program-workouts?programId`.
 - **Success:** `invalidateQueries({ queryKey: ["summary"] })` then **`router.push("/summary")`** (D-C1; legacy
   `router.back()`).
-- **Zero backend work, NO feature bump** — the route + service + `addWorkoutLog` all already shipped with
-  [`workout-logs`](../../../../features/workout-logs/SPEC.md) and the `summary` landing.
+- **0.2.0 (multi-program):** `LogWorkoutsForm` gains the shared `ProgramMultiSelect`; the submit sends
+  `program_ids[]` = the full selection to `addWorkoutLogsBatch` (workout-logs 0.5.0 D-C10). When any
+  selected program is non-privileged the member column locks to self.
 
 ## 7. Role-based view rules
 
@@ -145,4 +146,5 @@ the **first** `/summary` sub-route where the lock actually bites (the chart dril
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Multi-program logging** — `LogWorkoutsForm` (variant="page") gains the shared `ProgramMultiSelect` and sends `program_ids[]` = the full selection to `addWorkoutLogsBatch` (workout-logs 0.5.0 D-C10); when any selected program is non-privileged the member column locks to self. Same submit wiring as the summary landing (2-arg `onSubmit`). `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 36) — the **22nd web page spec**, the standalone **Log-workout** mobile fallback (`/summary` sub-route 4 of 6, **1st of the 3 log fallbacks**). Faithful 1:1 port of the legacy 66-line page: a `PageShell` + `PageHeader` wrapping `LogWorkoutForm variant="page"`, with `canLogForAny` role logic, the `admin_only_data_entry` `router.replace("/summary")` lock guard, and an `addWorkoutLog` mutation invalidating `["summary"]`. **First `/summary` sub-route where `admin_only_data_entry` is live** (the chart drill-downs were read-only → N/A). Decisions: **D-SCOPE** (this page; does not close the group) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — the form + api + chrome all already ported) · **D-S1** (faithful 1:1) · **D-C1** (deterministic-nav cleanup — the two `router.back()` → `router.push("/summary")`; lock `router.replace` unchanged). Flagged F1–F5 (client JWT-decode role/lock; dual lock enforcement; no view-as; no throttle; shared single-sourced form). **Zero backend work, NO feature bump** — `POST /workout-logs` already mounted (`routes/logs.js:38`). Ported `apps/web/src/app/summary/log-workout/page.tsx`. `npm run build` ✓. |

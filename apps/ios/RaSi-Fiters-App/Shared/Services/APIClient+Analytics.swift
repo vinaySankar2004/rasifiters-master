@@ -45,6 +45,7 @@ extension APIClient {
         let label: String
         let sleep_hours: Double
         let food_quality: Double
+        let steps: Double?
     }
 
     struct HealthTimelineResponse: Decodable {
@@ -52,9 +53,16 @@ extension APIClient {
         let label: String
         let daily_average_sleep: Double
         let daily_average_food: Double
+        let daily_average_steps: Double?
         let buckets: [HealthTimelinePoint]
         let start: String?
         let end: String?
+    }
+
+    struct StepsStatsDTO: Decodable {
+        let total_steps: Int
+        let avg_steps_per_day: Int
+        let days: Int
     }
 
     struct DistributionByDayDTO: Decodable {
@@ -268,6 +276,24 @@ extension APIClient {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let data = try await data(for: request)
         return try JSONDecoder().decode(WorkoutTypesTotalDTO.self, from: data)
+    }
+
+    func fetchHealthSteps(token: String, programId: String, memberId: String? = nil) async throws -> StepsStatsDTO {
+        var components = URLComponents(url: baseURL.appendingPathComponent("analytics/health/steps"), resolvingAgainstBaseURL: false)!
+        var items = [URLQueryItem(name: "programId", value: programId)]
+        if let memberId {
+            items.append(URLQueryItem(name: "memberId", value: memberId))
+        }
+        components.queryItems = items
+        guard let url = components.url else {
+            throw APIError(message: "Invalid steps analytics URL")
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(StepsStatsDTO.self, from: data)
     }
 
     func fetchWorkoutTypeMostPopular(token: String, programId: String, memberId: String? = nil) async throws -> WorkoutTypeMostPopularDTO {

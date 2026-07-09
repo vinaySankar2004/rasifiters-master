@@ -1,6 +1,6 @@
 # Screen: `apple-health` (ios) — the account-menu "Apple Health" settings screen
 
-> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.4.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s `AccountMenuSheet` → "Apple Health"
 > (`AccountDestination.appleHealth` → `AppleHealthSettingsView()`).
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift`.
@@ -14,10 +14,10 @@
 
 ## 1. What it is + who uses it
 
-The **Apple Health settings screen** — **two independent sections on one screen**: a **Workouts** section and
-a **Sleep** section, each with its own connect toggle, per-program sync selection, sync status (last synced /
-count / Sync Now), and disconnect. Reached from the account menu. **iOS-only.** Available to every
-authenticated role (a member syncs their **own** workouts + sleep).
+The **Apple Health settings screen** — **three independent sections on one screen** (0.4.0): a **Workouts**
+section, a **Sleep** section, and a **Steps** section, each with its own connect toggle, per-program sync
+selection, sync status (last synced / count / Sync Now), and disconnect. Reached from the account menu.
+**iOS-only.** Available to every authenticated role (a member syncs their **own** workouts + sleep + steps).
 
 ## 2. Why it exists
 
@@ -38,7 +38,7 @@ screen is the configuration surface.
 
 | Block | What | `file:line` |
 |-------|------|-------------|
-| Header | "Apple Health" + subheading (now "workouts and sleep"). | `AppleHealthSettingsView.swift` header |
+| Header | "Apple Health" + subheading (now "workouts, sleep, and steps"). | `AppleHealthSettingsView.swift` header |
 | Unavailable row | Shown when `HealthKitService.shared.isAvailable == false`. | `unavailableRow` |
 | **Workouts** — Connect button | When not connected → `programContext.startHealthKitSync()`. | `connectButton` |
 | **Workouts** — Connected row | When connected — green "Connected" card. | `connectedRow` |
@@ -51,6 +51,12 @@ screen is the configuration surface.
 | **Sleep** — Program selection | Independent multi-select; toggles `sleepSyncProgramIds` + persists. | `sleepProgramSelectionSection` |
 | **Sleep** — Sync status | Last Synced (relative), **Nights** Synced (count), Sync Now (`performSleepSync`). | `sleepSyncStatusSection` |
 | **Sleep** — Disconnect | `programContext.clearSleepSyncSettings()`. | `sleepDisconnectSection` |
+| **Steps** — header (0.4.0) | "Steps" + "Automatically log your daily step count" (`figure.walk`, `.teal`). | `stepsHeader` |
+| **Steps** — Connect button | When steps off → `programContext.startStepsSync()` (own permission prompt). | `stepsConnectButton` |
+| **Steps** — Connected row | Green "Connected" card (`figure.walk`). | `stepsConnectedRow` |
+| **Steps** — Program selection | Independent multi-select; toggles `stepsSyncProgramIds` + persists. | `stepsProgramSelectionSection` |
+| **Steps** — Sync status | Last Synced (relative), **Days** Synced (count), Sync Now (`performStepsSync`). | `stepsSyncStatusSection` |
+| **Steps** — Disconnect | `programContext.clearStepsSyncSettings()`. | `stepsDisconnectSection` |
 
 ## 5. Components + features consumed
 
@@ -66,7 +72,8 @@ screen is the configuration surface.
 
 ## 7. Role-based view rules
 
-**No role gate** — identical for every authenticated role; sync targets the signed-in user's own logs.
+**No role gate** — identical for every authenticated role; sync targets the signed-in user's own logs
+(workouts + sleep + steps).
 `admin_only_data_entry`: a locked program the member doesn't admin is **skipped** server-side (403) during
 sync, not blocked in this UI.
 
@@ -124,3 +131,4 @@ sync, not blocked in this UI.
 | 0.3.0 | 2026-07-01 | Added a second entry point — the in-program **My Account** section (`ProgramMyAccountSection`) now shows an "Apple Health" row that opens the **same** screen with identical behavior (no auto-scoping; the program list reflects real saved state, D-ENTRY). iOS builds clean. |
 | 0.4.0 | 2026-07-01 | First sync of an unconfirmed program now opens a separate full-screen **confirmation** (`HealthSyncConfirmationView`, presented from `AppRootView`) — one program per page, selectable rows, glass-tick confirm/advance, dismiss = defer — instead of writing silently (new state in §8; D-CONF). Applies to both Connect and Sync Now while a program is unconfirmed, for workouts + sleep. Full semantics in feature `apple-health` D-CONF. iOS builds clean; user live-tested. |
 | 0.5.0 | 2026-07-01 | Both program selectors now render an **admin-locked** program (feature D-LOCK) non-selectable — lock icon + "Admin-only — can't sync", dimmed via a shared `programRow` builder — and each Sync Status section shows "N program(s) are admin-locked and won't sync" when a selected program is locked. D-ROLE corrected (the client now reads the lock; server 403 is the backstop). New §8 edge case. iOS builds clean. |
+| 0.4.0 | 2026-07-09 | Added a **third "Steps" section** on the same screen (own connect/programs/status/disconnect, `figure.walk`/`.teal`, "Days Synced") wired to the new steps sync (`startStepsSync`/`performStepsSync`/`clearStepsSyncSettings`), independent of workouts + sleep — the exact sleep model on `HKQuantityType(.stepCount)` (apple-health feature 0.7.0, D-STEPS; writes `daily_health_logs.steps`). Header subheading now "workouts, sleep, and steps". First-sync confirmation priority workouts > sleep > steps. Requires daily-health-logs 0.2.0 (migration `006`). iOS builds clean (Xcode, user). |

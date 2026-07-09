@@ -25,7 +25,11 @@ struct HealthSyncConfirmationView: View {
     }
 
     private var flowTitle: String {
-        confirmation.flow == .workouts ? "Confirm Workouts" : "Confirm Sleep"
+        switch confirmation.flow {
+        case .workouts: return "Confirm Workouts"
+        case .sleep:    return "Confirm Sleep"
+        case .steps:    return "Confirm Steps"
+        }
     }
 
     var body: some View {
@@ -126,6 +130,7 @@ struct HealthSyncConfirmationView: View {
         switch confirmation.flow {
         case .workouts: ok = await programContext.commitWorkoutPage(page)
         case .sleep:    ok = await programContext.commitSleepPage(page)
+        case .steps:    ok = await programContext.commitStepsPage(page)
         }
         isCommitting = false
 

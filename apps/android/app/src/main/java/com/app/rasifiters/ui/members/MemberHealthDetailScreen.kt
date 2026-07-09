@@ -55,6 +55,7 @@ import kotlin.math.roundToInt
  */
 enum class HealthSortField(val api: String, val label: String) {
     DATE("date", "Date"), SLEEP("sleep_hours", "Sleep Hours"), DIET("food_quality", "Diet Quality"),
+    STEPS("steps", "Steps"),
 }
 
 data class HealthFilters(
@@ -65,8 +66,11 @@ data class HealthFilters(
     val maxSleep: String = "",
     val minDiet: String = "",
     val maxDiet: String = "",
+    val minSteps: String = "",
+    val maxSteps: String = "",
 ) {
-    val isActive: Boolean get() = custom || minSleep.isNotBlank() || maxSleep.isNotBlank() || minDiet.isNotBlank() || maxDiet.isNotBlank()
+    val isActive: Boolean get() = custom || minSleep.isNotBlank() || maxSleep.isNotBlank() ||
+        minDiet.isNotBlank() || maxDiet.isNotBlank() || minSteps.isNotBlank() || maxSteps.isNotBlank()
 }
 
 private const val CLEAR_RATING = "Clear rating"
@@ -101,6 +105,8 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             maxSleepHours = filters.maxSleep.toDoubleOrNull(),
             minFoodQuality = filters.minDiet.toIntOrNull(),
             maxFoodQuality = filters.maxDiet.toIntOrNull(),
+            minSteps = filters.minSteps.toIntOrNull(),
+            maxSteps = filters.maxSteps.toIntOrNull(),
         )
         loading = false
     }
@@ -129,10 +135,13 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                     Text("Adjust filters or log daily health to get started.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 else -> items.forEach { h ->
-                    val sleep = h.sleepHours?.let { String.format(Locale.US, "Sleep %.1f hrs", it) } ?: "Sleep —"
-                    val diet = h.foodQuality?.let { "Diet $it/5" } ?: "Diet —"
+                    // DC-10 row: date on top; one muted Sleep · Diet · Steps metrics line ("—" when unset).
+                    val sleep = h.sleepHours?.let { String.format(Locale.US, "%.1f hrs", it) } ?: "—"
+                    val diet = h.foodQuality?.let { "$it/5" } ?: "—"
+                    val steps = h.steps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
                     LogRow(
-                        dotColor = AppBlueLight, title = sleep, subtitle = h.logDate, trailing = diet,
+                        dotColor = AppBlueLight, title = h.logDate,
+                        subtitle = "Sleep $sleep · Diet $diet · Steps $steps", trailing = "",
                         locked = locked, onEdit = { editItem = h }, onDelete = { deleteItem = h },
                     )
                 }
@@ -165,10 +174,12 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
         HealthEditSheet(
             item = item,
             onDismiss = { editItem = null },
-            onSave = { sleepHours, foodQuality ->
+            onSave = { sleepHours, foodQuality, steps ->
                 val id = memberId ?: return@HealthEditSheet
                 scope.launch {
-                    programContext.updateDailyHealthLog(id, item.logDate, sleepHours, foodQuality)
+                    programContext.updateDailyHealthLog(
+                        id, item.logDate, sleepHours, foodQuality, steps, stepsProvided = true,
+                    )
                         .onSuccess { editItem = null; reload() }
                         .onFailure { actionError = it.message ?: "Couldn't update the daily log." }
                 }
@@ -250,17 +261,23 @@ private fun HealthFilterSheet(
                 AppTextField(label = "Min", value = f.minDiet, onValueChange = { f = f.copy(minDiet = it.filter { c -> c.isDigit() }.take(1)) }, keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f))
                 AppTextField(label = "Max", value = f.maxDiet, onValueChange = { f = f.copy(maxDiet = it.filter { c -> c.isDigit() }.take(1)) }, keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f))
             }
+            FormFieldLabel("Steps")
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                AppTextField(label = "Min", value = f.minSteps, onValueChange = { f = f.copy(minSteps = it.filter { c -> c.isDigit() }.take(6)) }, keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f))
+                AppTextField(label = "Max", value = f.maxSteps, onValueChange = { f = f.copy(maxSteps = it.filter { c -> c.isDigit() }.take(6)) }, keyboardType = KeyboardType.Number, modifier = Modifier.weight(1f))
+            }
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HealthEditSheet(item: MemberHealthItem, onDismiss: () -> Unit, onSave: (Double?, Int?) -> Unit) {
+private fun HealthEditSheet(item: MemberHealthItem, onDismiss: () -> Unit, onSave: (Double?, Int?, Int?) -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var hours by remember { mutableStateOf(item.sleepHours?.let { it.toInt().toString() } ?: "") }
     var minutes by remember { mutableStateOf(item.sleepHours?.let { (((it - it.toInt()) * 60).roundToInt()).toString() } ?: "") }
     var diet by remember { mutableStateOf(item.foodQuality?.toString() ?: "") }
+    var steps by remember { mutableStateOf(item.steps?.toString() ?: "") }
 
     val hasSleep = hours.isNotBlank() || minutes.isNotBlank()
     val h = if (hours.isBlank()) 0 else hours.toIntOrNull()
@@ -268,7 +285,8 @@ private fun HealthEditSheet(item: MemberHealthItem, onDismiss: () -> Unit, onSav
     val sleepValue: Double? = if (hasSleep && h != null && m != null) h + m / 60.0 else null
     val sleepValid = !hasSleep || (sleepValue != null && sleepValue in 0.0..24.0)
     val foodValue = diet.toIntOrNull()
-    val hasMetric = sleepValue != null || foodValue != null
+    val stepsValue = steps.toIntOrNull()          // blank = clear (explicit null on the PUT)
+    val hasMetric = sleepValue != null || foodValue != null || stepsValue != null
     val valid = hasMetric && sleepValid
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
@@ -291,20 +309,23 @@ private fun HealthEditSheet(item: MemberHealthItem, onDismiss: () -> Unit, onSav
                 options = listOf("1", "2", "3", "4", "5") + if (diet.isNotBlank()) listOf(CLEAR_RATING) else emptyList(),
                 onSelect = { diet = if (it == CLEAR_RATING) "" else it },
             )
-            if (!hasMetric) Text("Enter sleep or diet quality.", style = MaterialTheme.typography.bodySmall, color = AppRed, fontWeight = FontWeight.SemiBold)
+            FormFieldLabel("Steps")
+            AppTextField(label = "Steps", value = steps, onValueChange = { steps = it.filter { c -> c.isDigit() }.take(6) }, keyboardType = KeyboardType.Number)
+            if (!hasMetric) Text("Enter sleep, diet quality, or steps.", style = MaterialTheme.typography.bodySmall, color = AppRed, fontWeight = FontWeight.SemiBold)
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                PillButton(label = "Save changes", onClick = { if (valid) onSave(sleepValue, foodValue) }, enabled = valid)
+                PillButton(label = "Save changes", onClick = { if (valid) onSave(sleepValue, foodValue, stepsValue) }, enabled = valid)
             }
         }
     }
 }
 
 private fun healthCsv(items: List<MemberHealthItem>): String {
-    val sb = StringBuilder("Date,Sleep Hours,Diet Quality\n")
+    val sb = StringBuilder("Date,Sleep Hours,Diet Quality,Steps\n")
     items.forEach {
         sb.append(it.logDate).append(',')
             .append(it.sleepHours?.let { s -> String.format(Locale.US, "%.1f", s) } ?: "").append(',')
-            .append(it.foodQuality ?: "").append('\n')
+            .append(it.foodQuality ?: "").append(',')
+            .append(it.steps ?: "").append('\n')
     }
     return sb.toString()
 }

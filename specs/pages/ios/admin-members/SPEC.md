@@ -6,7 +6,7 @@
 > `Detail/MemberMetricsViews.swift (MemberMetricsPreviewCard)`; `GlassButton` from `Detail/ActivityTimelineViews.swift:153`)
 > **Web sibling (co-equal reference):** `/members` landing — `specs/pages/web/members/SPEC.md`
 > **Ported to:** `apps/ios/RaSi-Fiters-App/Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,MemberOverviewPicker}.swift`
-> + `Shared/Components/GlassButton.swift` · **Run:** 55 (2026-06-30)
+> + `Shared/Components/GlassButton.swift` · **Run:** 55 (2026-06-30) · **v0.2.0** (steps-tracking, 2026-07-09)
 
 ## 1. What it is + who uses it
 The **Members tab** — Tab 2 of `AdminHomeView`, the iOS analogue of the web `/members` landing. A **per-member
@@ -109,6 +109,15 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
   `/members/{metrics,invite,list,streaks,workouts,health}` sub-routes; each a later run. Forward-nav (web F2).
 
 ## 11. Changelog
+- **v0.2.0** (2026-07-09, steps-tracking) — the member-overview grid (`MemberOverviewPicker.metricsGrid`) gains a
+  5th row: an **Avg Steps** `metricTile` (`figure.walk`, `NumberFormatter`-grouped `avg_steps` or "—" —
+  member-analytics 0.2.0) beside the existing Current-Streak badge (moved into the grid as column 2). The
+  `MemberHealthCard` 3-row preview (`MemberCards.swift`) adopts the **DC-10** two-line format
+  (`logDate` semibold; `Sleep … · Diet … · Steps …`, `—` for missing, steps grouped via a local `stepsLabel`);
+  its preview now reads a local `previewLogs: [APIClient.DailyHealthLogItem]` (reset to `[]` + `guard let memberId`
+  on `.task(id: memberId)` per amendment A-1 so a member switch never flashes the previous member's rows).
+  `MemberMetricsDTO` gains `avg_steps`; `loadMemberHealthLogs` returns `[DailyHealthLogItem]` (steps-aware) while the
+  published `memberHealthLogs` type is unchanged. Build green-check owned by the user (Xcode).
 - **v0.1.0** (run 55, 2026-06-30) — initial SPEC; Members tab body ported (2 tab bodies + 7 inline cards/picker +
   `GlassButton`); 6 detail targets deferred as stubs, `ActivityTimelineDetailView` stub extended. Faithful 1:1, no
   web-parity ADD. Build green-check owned by the user (Xcode).

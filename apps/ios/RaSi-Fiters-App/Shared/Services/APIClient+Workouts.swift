@@ -176,14 +176,14 @@ extension APIClient {
     /// existing log — are rejected server-side with a 409 + `rowErrors` (never merged).
     /// Uses `rawData(for:)` so the per-row error body survives (the shared `data(for:)` collapses
     /// errors to a flat message).
-    func addWorkoutLogsBatch(token: String, programId: String, entries: [BulkWorkoutEntry]) async throws -> BulkWorkoutResult {
+    func addWorkoutLogsBatch(token: String, programId: String, programIds: [String] = [], entries: [BulkWorkoutEntry]) async throws -> BulkWorkoutResult {
         func buildRequest(bearer: String) throws -> URLRequest {
             var request = URLRequest(url: baseURL.appendingPathComponent("workout-logs/batch"))
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
-            let body: [String: Any] = [
+            var body: [String: Any] = [
                 "program_id": programId,
                 "entries": entries.map { [
                     "member_id": $0.member_id,
@@ -192,6 +192,7 @@ extension APIClient {
                     "duration": $0.duration
                 ] }
             ]
+            if !programIds.isEmpty { body["program_ids"] = programIds }
             request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
             return request
         }

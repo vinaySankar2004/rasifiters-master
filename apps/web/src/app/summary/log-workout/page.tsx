@@ -16,8 +16,9 @@ export default function LogWorkoutsPage() {
   const queryClient = useQueryClient();
   const { session, program, token, programId } = useAuthGuard();
 
+  const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const canLogForAny =
-    session?.user.globalRole === "global_admin" ||
+    isGlobalAdmin ||
     program?.my_role === "admin" ||
     program?.my_role === "logger";
   const dataEntryLocked = isDataEntryLocked(session, program);
@@ -29,8 +30,8 @@ export default function LogWorkoutsPage() {
   }, [program?.id, dataEntryLocked, router]);
 
   const workoutsMutation = useMutation({
-    mutationFn: (entries: BulkWorkoutEntry[]) =>
-      addWorkoutLogsBatch(token, { program_id: programId, entries }),
+    mutationFn: ({ entries, programIds }: { entries: BulkWorkoutEntry[]; programIds: string[] }) =>
+      addWorkoutLogsBatch(token, { program_id: programId, program_ids: programIds, entries }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["summary"] });
       router.push("/summary");
@@ -49,10 +50,11 @@ export default function LogWorkoutsPage() {
           variant="page"
           canSelectAnyMember={canLogForAny}
           selfMemberId={session?.user.id}
+          isGlobalAdmin={isGlobalAdmin}
           programId={programId}
           token={token}
           onClose={() => router.push("/summary")}
-          onSubmit={(entries) => workoutsMutation.mutate(entries)}
+          onSubmit={(entries, programIds) => workoutsMutation.mutate({ entries, programIds })}
           isSaving={workoutsMutation.isPending}
           errorMessage={workoutsMutation.isError ? (workoutsMutation.error as Error).message : null}
           rowErrors={
