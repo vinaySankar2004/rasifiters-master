@@ -184,11 +184,12 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase I (notifications) DONE. Deploy the backend, then Phase H (Health Connect) / Phase J.
+> ### ⏭️ ANDROID PORT — Phase I (notifications) DONE + LIVE-TESTED. Next: **Phase H (Health Connect)**, then Phase J (de-scaffold). Say "continue".
 
-**Phase I is code-complete + green** (2026-07-08, Runs 10–11). I-a (in-app SSE) was **user live-tested + signed
-off**. I-b (FCM push) is wired both sides; the Firebase project is provisioned and the `FIREBASE_SERVICE_ACCOUNT`
-secret is set on Render.
+**Phase I is DONE, deployed, and user-verified end-to-end** (2026-07-08, Runs 10–12). Both halves live-tested on
+the Pixel_8: I-a (in-app SSE modal) + I-b (FCM push — real app-event path confirmed reaching the tray). Backend
+live on Render; Firebase provisioned; `FIREBASE_SERVICE_ACCOUNT` secret set. **Nothing pending on Phase I.**
+Resume at **Phase H (Health Connect)** — plan + phase list in `apps/android/CONTEXT.md`.
 
 **✅ Phase I FULLY VERIFIED end-to-end (2026-07-08).** Backend deployed live on Render (dep
 `dep-d97hd3e7r5hc73c9fj6g`, `bb2bbc2`; degrade-safe for the LIVE iOS binary). FCM push confirmed reaching the
