@@ -311,3 +311,14 @@ Staged exactly the 2 session files (explicit `git add`, no `-A`) — left the un
 cosmetic `apps/**` refinement with no `specs/features/**` or registered-path delta → reinforces the existing
 "cosmetic apps/** = no feature delta" converged lesson. Committed as a plain `fix(android):`; page SPEC
 carries its own §Changelog (v0.2.1). Blast-radius: zero feature impact. Nothing new promoted.
+
+## Run — 2026-07-09 · brand mark always-light in dark mode (ios+android+web cosmetic)
+Three session files across all three clients — iOS `BrandIcon.imageset/Contents.json` (drop dark
+appearance), Android `AuthComponents.kt` `BrandMark` (drop `isSystemInDarkTheme` swap + unused import),
+web `layout.tsx` icon/apple metadata (drop `app-icon-dark.png` dark-mode entry). Explicit `git add` of the
+3 files (no `-A`); working tree held only these. **No feature bump / no tag:** none of the paths match a
+registered `reference_impl` (the `auth` node is backend-only), and no `specs/features/**` SPEC was touched
+→ the "cosmetic apps/** = no feature delta" rule again, now spanning 3 surfaces in one commit. Deliberate
+divergence from the ported theme-aware brand mark (called out in the commit body). Committed as a plain
+`fix(ios,android,web):`, pushed to main. Blast-radius: zero feature impact. Nothing new promoted — this is
+the established multi-surface cosmetic case.
