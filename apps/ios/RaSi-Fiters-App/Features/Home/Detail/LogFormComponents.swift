@@ -82,16 +82,29 @@ struct ProgramMultiSelectSection: View {
     @Binding var selectedIds: Set<String>
     let isLocked: (String) -> Bool
     var memberLockHint: String?
+    /// Widget forms (no auto-selected program) must show the selector even for a single loggable
+    /// program; the in-app forms keep the default and hide it when only one program is loggable.
+    var alwaysShow: Bool = false
+
+    /// Programs the user can log to: the current program is always kept, plus any active program that
+    /// isn't admin-only-data-entry-locked. Drops completed/planned + locked rows (parity with web +
+    /// android). The widget passes `currentProgramId: ""`, so it shows only active + unlocked programs.
+    private var visible: [APIClient.ProgramDTO] {
+        programs.filter { program in
+            program.id == currentProgramId
+                || ((program.status?.lowercased() ?? "active") == "active" && !isLocked(program.id))
+        }
+    }
 
     var body: some View {
-        if programs.count > 1 {
+        if alwaysShow || visible.count > 1 {
             VStack(alignment: .leading, spacing: AppSpacing.sm) {
                 LogFieldLabel("Programs")
 
                 VStack(spacing: 0) {
-                    ForEach(programs, id: \.id) { program in
+                    ForEach(visible, id: \.id) { program in
                         row(program)
-                        if program.id != programs.last?.id {
+                        if program.id != visible.last?.id {
                             Divider().padding(.leading, 50)
                         }
                     }

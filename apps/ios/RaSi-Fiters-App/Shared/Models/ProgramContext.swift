@@ -314,8 +314,8 @@ final class ProgramContext: ObservableObject {
         adminOnlyDataEntry && !isProgramAdmin
     }
 
-    /// Per-program data-entry lock, by id — the multi-program sync analogue of `dataEntryLocked`
-    /// (mirrors the widget's `widgetProgramLockedForLogging`). Locked iff the program's
+    /// Per-program data-entry lock, by id — the multi-program analogue of `dataEntryLocked`, used by
+    /// the batched log forms + widgets + Apple Health syncs. Locked iff the program's
     /// `admin_only_data_entry` is on AND the viewer is neither a global admin nor that program's admin.
     /// Fail-open when the program isn't loaded; the backend 403 (`requireDataEntryAllowed`) is the
     /// backstop. Used by the Apple Health syncs, which target many programs at once.

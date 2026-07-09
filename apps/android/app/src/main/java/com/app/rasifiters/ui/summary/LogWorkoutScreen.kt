@@ -414,7 +414,13 @@ internal fun ProgramMultiSelect(
     memberLockHint: String?,
     onToggle: (String) -> Unit,
 ) {
-    if (programs.size <= 1) return
+    // Show only programs the user can log to: the current program is always kept, plus any active
+    // program that isn't admin-only-data-entry-locked. Drops completed/planned + locked rows.
+    val visible = programs.filter { program ->
+        program.id == currentProgramId ||
+            ((program.status ?: "active").lowercase() == "active" && !isLocked(program.id))
+    }
+    if (visible.size <= 1) return
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         FormFieldLabel("Programs")
         Column(
@@ -424,7 +430,7 @@ internal fun ProgramMultiSelect(
                 .background(MaterialTheme.colorScheme.surface)
                 .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(14.dp)),
         ) {
-            programs.forEachIndexed { index, program ->
+            visible.forEachIndexed { index, program ->
                 val isCurrent = program.id == currentProgramId
                 val locked = !isCurrent && isLocked(program.id)
                 val isSelected = isCurrent || program.id in selectedIds
@@ -459,7 +465,7 @@ internal fun ProgramMultiSelect(
                         )
                     }
                 }
-                if (index != programs.lastIndex) {
+                if (index != visible.lastIndex) {
                     HorizontalDivider(
                         color = MaterialTheme.colorScheme.outlineVariant,
                         modifier = Modifier.padding(start = 50.dp),

@@ -1,6 +1,6 @@
 # Screen: `log-workout` (android) — the Summary "Add workouts" multi-row log form
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios log-workout`](../../ios/log-workout/SPEC.md)
 > + [`web summary/log-workout`](../../web/summary/log-workout/SPEC.md) (`LogWorkoutsForm`) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.SUMMARY_LOG_WORKOUT` (`LogWorkoutScreen`), pushed from the
@@ -60,5 +60,6 @@ flag is on (`canLogForAnyMember` includes logger, the lock exemption does not).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-07-09 | **Loggable-only program list (D-LOGGABLE).** The shared `ProgramMultiSelect` composable now shows only loggable programs — `status == "active"` AND not `isDataEntryLocked` (current always kept) — dropping completed/locked rows (0.2.0 showed locked rows disabled "Admin-only — can't log"). Also lands on `log-health` (shared composable); mirrored on web + iOS. User request 2026-07-09 (parity + cleaner UI). `assembleDebug` BUILD SUCCESSFUL; visual run = user. |
 | 0.2.0 | 2026-07-09 | **Multi-program logging (workout-logs 0.5.0 D-C10).** `LogWorkoutScreen` gains an internal `ProgramMultiSelect` composable above the rows and passes `programIds = selectedProgramIds.toList()` to `ProgramContext.addWorkoutLogsBatch` (`program_ids[]` body); the per-row member field locks to self when any selected program is non-privileged (`privileged` = global_admin OR per-program admin/logger), rows resetting to self on the lock transition. `loadPrograms()` on mount when the roster is empty. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.0 | 2026-07-08 | Initial Android port. |

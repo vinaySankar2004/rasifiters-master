@@ -581,12 +581,18 @@ export function ProgramMultiSelect({
   onToggle: (id: string) => void;
   isGlobalAdmin: boolean;
 }) {
-  if (programs.length <= 1) return null;
+  // Show only programs the user can log to: the current program is always kept, plus any active
+  // program that isn't admin-only-data-entry-locked. Drops completed/planned + locked rows.
+  const visible = programs.filter((p) => {
+    const locked = !!p.admin_only_data_entry && !isGlobalAdmin && p.my_role !== "admin";
+    return p.id === currentProgramId || ((p.status ?? "active").toLowerCase() === "active" && !locked);
+  });
+  if (visible.length <= 1) return null;
   return (
     <div className="mb-4">
       <p className="text-sm font-semibold text-rf-text">Programs</p>
       <div className="mt-2 divide-y divide-rf-border overflow-hidden rounded-2xl border border-rf-border">
-        {programs.map((p) => {
+        {visible.map((p) => {
           const isCurrent = p.id === currentProgramId;
           const locked = !!p.admin_only_data_entry && !isGlobalAdmin && p.my_role !== "admin";
           const checked = !locked && (isCurrent || selectedIds.has(p.id));

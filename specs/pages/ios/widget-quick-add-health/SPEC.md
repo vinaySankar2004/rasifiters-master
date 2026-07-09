@@ -1,108 +1,112 @@
-# Screen: `widget-quick-add-health` (ios) — the "Quick Add Daily Health" widget deep-link form
+# Screen: `widget-quick-add-health` (ios) — the "Log daily health" widget deep-link form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** presented by `AppRootView` when a Home-Screen widget deep-links `WidgetRoute.quickAddHealth`
-> (`AppRootView.swift:83-105`, `.sheet(item: widgetRoute) { QuickAddHealthWidgetEntryView() }`, gated on
-> `authToken != nil`). Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`).
-> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddHealthWidgetEntryView.swift`.
+> (`.fullScreenCover(item: widgetRoute) { QuickAddHealthWidgetEntryView() }`, gated on `authToken != nil`).
+> Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`).
+> **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Widgets/QuickAddHealthWidgetEntryView.swift`
+> (the legacy *single-entry* sleep+diet quick-add — superseded, see §9 D-BATCH).
 > **Web parity reference:** **NONE — iOS-only** (`consumed_by=[ios]`; widgets have no web analogue).
-> Faithful-to-legacy-only (run-58 iOS-only-screen shape).
-> **Consumes:** `APIClient.fetchMembershipDetails`, `addDailyHealthLog`, `deleteDailyHealthLog` (directly); reads
-> programs/roles/user from `ProgramContext`. (No workout fetch — health has no workout field.)
-> **Stance:** faithful 1:1 port of the legacy iOS view **+ the same 3 deviations as its twin** (D-C1 per-program
-> lock, D-C2 shared chrome, D-C3 shared scaffold). The **write twin of [`widget-quick-add-workout`](../widget-quick-add-workout/SPEC.md)**. Oddities §10.
+> **In-app twin (the reference this now mirrors):** [`log-health`](../log-health/SPEC.md) — `AddDailyHealthDetailView`.
+> The widget IS that batch form + two deltas (D-BATCH).
+> **Consumes:** `APIClient.fetchMembershipDetails`, `addDailyHealthLogsBatch`; reads programs/roles/user from
+> `ProgramContext`. (No workout fetch — health has no workout field.)
+> **Stance:** the widget is now the **in-app multi-row batch "Log daily health" form** (`AddDailyHealthDetailView`),
+> **+ 2 deltas** (D-BATCH): (1) **no auto-selected program**; (2) the **custom back button** exits to My Programs.
+> The **write twin of [`widget-quick-add-workout`](../widget-quick-add-workout/SPEC.md)**. Oddities §10.
 
 ---
 
 ## 1. What it is + who uses it
 
-The **Quick Add Daily Health** widget screen — a native form reached from a Home-Screen widget that logs the
-**same daily-health metrics** (sleep hours:minutes + diet-quality 1–5) across **every selected active program** in
-one save. Same audience + role model as its workout twin (global_admin / program admin / logger any shared member;
-member self only).
+The **Log daily health** widget screen — a native form reached from a Home-Screen widget that logs **one-or-more
+days of health metrics in a single batch** across the selected program(s). It is the **same multi-row form as the
+in-app Summary "Log daily health"** screen: a **Programs** multi-select, then a table of **Entry N** rows (each:
+**member** [admins/loggers only; a plain member is locked to self], **date**, **sleep** hours+minutes, **diet
+quality** 1–5, **steps**), `+ Add row` / `+ Add 5 rows`, a footer summary, one **Save all**. Same audience + role
+model as its workout twin. **New in 0.2.0:** the widget now includes the **steps** field (the legacy widget had
+only sleep + diet) — matching the in-app form.
 
 ## 2. Why it exists
 
-The daily-health counterpart of the workout quick-add: a Home-Screen shortcut to log sleep + diet across several
-programs at once. POSTs to `/daily-health-logs` per program; the backend enforces `admin_only_data_entry` (403);
-partial failures **roll back**.
+The daily-health counterpart of the workout quick-add: a Home-Screen shortcut to batch-log sleep + diet + steps
+across several programs at once. It POSTs once to **`/daily-health-logs/batch`** with `program_ids` = the full
+selection; the backend enforces `admin_only_data_entry` (403) and **upserts** against existing (member, date)
+rows (health is state, not additive). A row is valid with **any one** of sleep / diet / steps (R-1). All-or-nothing
+— no partial writes, so **no rollback**.
 
 ## 3. Route / location
 
-Identical to the twin, but `WidgetRoute.quickAddHealth` → `QuickAddHealthWidgetEntryView()`. Leaves to **My
-Programs** via `exitToMyPrograms()`; `interactiveDismissDisabled(true)`.
+- **App:** `ios`. **Reached via:** `WidgetRoute.quickAddHealth` → `QuickAddHealthWidgetEntryView()` (zero-arg init).
+  Requires `authToken != nil`.
+- **Leaves to:** **My Programs** — on success (after a ~1.4 s toast) or the back button, via `exitToMyPrograms()`.
+  `navigationBarBackButtonHidden(true)` + `interactiveDismissDisabled(true)`.
 
 ## 4. Contents / sections
 
-Same scaffold as the twin (`WidgetQuickAddHeader` · `WidgetProgramSelector` · `WidgetMemberField` ·
-`WidgetSuccessToast`, all D-C3) with the **health-specific fields** replacing workout/duration:
+| Block | What | Shared component |
+|-------|------|------------------|
+| Header | Back button (→ `exitToMyPrograms`) + title **"Log daily health"** + the in-app subtitle. | `WidgetQuickAddHeader` |
+| Programs | Multi-select list of **loggable** programs (active + not locked); **nothing pre-checked**, always shown. | `ProgramMultiSelectSection` |
+| Entry N rows | Per row: **Member** (only when the viewer may pick — else hidden/self), **Date** (`DatePicker` bounded `...Date()` — no future), **Sleep** (`Hours`/`Minutes`, 2-digit `sanitizeDigits`), **Diet quality** (`Menu` 1–5 + Clear), **Steps** (`.numberPad`). Removable; red border + message on a client/back-end row error. | in-app `rowCard` (ported) |
+| Add-row controls | `+ Add row` / `+ Add 5 rows` (max 200). | in-app `addRowControls` (ported) |
+| Footer summary | "N rows • [M members •] Hh Mm sleep • S steps". | in-app `summaryLine` (ported) |
+| Save all | `AppPrimaryButton` "Save all" / "Saving…"; disabled unless ≥1 program AND ≥1 valid row, 0 invalid, no in-batch duplicate. | — |
+| Success toast | `WidgetSuccessToast("Daily health logged")` → auto-exit ~1.4 s. | `WidgetSuccessToast` |
 
-| Block | What | Reference `file:line` |
-|-------|------|------------------------|
-| Header | Title "Quick Add Daily Health" + subtitle. | legacy `:78-106` |
-| Log to Programs | Multi-select w/ the D-C1 per-program lock. | legacy `:108-166` |
-| Member | Picker vs locked self (shared field). | legacy `:168-223` |
-| Date | Compact `DatePicker` **bounded `...Date()`** (no future dates — the twin allows any date), bordered chrome. | legacy `:225-237` |
-| Sleep time | Two `AppInputField`s (`Hours`/`Minutes`, `.numberPad`) with a 2-digit **`sanitizeDigits`** `onChange`; an inline `appRed` "0:00–24:00" error when invalid (D-C2). | legacy `:239-275` |
-| Diet quality | A `Menu` (ratings 1–5 + Clear) presenting a `LogFieldRow` (D-C2). | legacy `:277-302` |
-| Error line (conditional) | `appRed` footnote on save failure. | legacy `:37-41` |
-| Save | `AppPrimaryButton` "Save daily log" / "Saving…" (D-C2); disabled unless ≥1 program + member + valid sleep + **at least one metric**. | legacy `:304-323` |
-| Success toast | `WidgetSuccessToast("Daily health logged")` → auto-exit ~1.4 s. | legacy `:325-338` |
-
-**Save flow** (`save()`): per program → `addDailyHealthLog(programId, memberId, logDate "yyyy-MM-dd", sleepHours:
-sleepValue, foodQuality)`; success → toast → auto-exit; partial failure → `deleteDailyHealthLog` rollback (same
-pattern as the twin).
+**Save flow** (`save()`): `ids = selectedProgramIds.sorted()`, `primary = ids.first` → one
+`APIClient.addDailyHealthLogsBatch(programId: primary, programIds: ids, entries:)` (empty fields omitted per entry
+→ drives the server upsert). On success → `summaryRefreshToken += 1`, toast, `exitToMyPrograms()` (~1.4 s). On a
+`BulkWorkoutError` (shared row-error carrier) → `applyRowErrors` red-highlights the offending rows.
 
 ## 5. Components + features consumed
 
-Same shared scaffold + chrome as the twin (D-C2/D-C3). API consumed: `fetchMembershipDetails`, `addDailyHealthLog`,
-`deleteDailyHealthLog` (no workout fetch). `ProgramContext` for programs/roles/user/`widgetRoute`.
+Same in-app shared pieces + widget chrome as the twin (see [`widget-quick-add-workout` §5](../widget-quick-add-workout/SPEC.md#5-components--features-consumed)),
+with the health `BulkRow` (sleep/diet/steps) and **no workout lookup**. API consumed: `fetchMembershipDetails`,
+`addDailyHealthLogsBatch`. `ProgramContext` for programs/roles/user/`widgetRoute`.
 
 ## 6. Data / API
 
-- **`GET /program-memberships/details?programId=`** (`fetchMembershipDetails`) — per program, active members,
-  intersected for the picker.
-- **`POST /daily-health-logs`** (`addDailyHealthLog`) — one per selected program; body carries `sleepHours?`
-  and `foodQuality?` (at least one required client-side). Backend `requireDataEntryAllowed` (403) is the boundary.
-- **`DELETE /daily-health-logs`** (`deleteDailyHealthLog`) — rollback on partial failure.
+- **`GET /program-memberships/details?programId=`** (`fetchMembershipDetails`) — per selected program, active
+  members, **intersected** for the member picker (cached per id in `programMembers`).
+- **`POST /daily-health-logs/batch`** (`addDailyHealthLogsBatch`) — ONE call, `program_id` = first selected +
+  `program_ids` = the full selection; per-entry empty fields omitted (upsert). Backend `requireDataEntryAllowed`
+  (403 per program) + upsert semantics — the real boundary. (See [`daily-health-logs`](../../../features/daily-health-logs/SPEC.md) D-C5.)
 
 ## 7. Role-based view rules
 
 Identical to the twin (see [`widget-quick-add-workout` §7](../widget-quick-add-workout/SPEC.md#7-role-based-view-rules)):
-`canSelectAnyMember` picker vs member self-lock; **`admin_only_data_entry` = LIVE, per program (D-C1)** via
-`widgetProgramLockedForLogging` (program/global admin exempt; loggers not). Legacy iOS had no lock handling.
+**loggable-only program list** (active + not `isDataEntryLocked`; `currentProgramId` is "" so nothing pre-checked);
+**member self-lock (`ignoreMember`)** when the viewer isn't admin/logger/global-admin in every selected program —
+the member column hides and all rows seed to self. A program with `admin_only_data_entry` on is **dropped** from
+the list (loggers not exempt).
 
 ## 8. States & edge cases
 
-Same as the twin, plus the health-specific gates: **sleep sanitize** (digits, max 2 chars per field), **sleep
-validity** (0:00–24:00, hours 0–24 / minutes 0–59; an out-of-range value shows the inline error and blocks save),
-and **at-least-one-metric** (`sleepValue != nil || foodQuality != nil`) required for a valid form. Date is bounded
-to today-or-earlier.
+Same as the twin, plus the health-specific gates: **sleep sanitize** (2 digits/field), **sleep validity** (0:00–
+24:00), **steps** whole-number ≥ 0, **at-least-one-metric** (`sleepValue != nil || foodQuality != nil || steps !=
+nil`), and **in-batch (member, date) duplicate** detection (client-side red highlight; the backend upserts). Date
+bounded to today-or-earlier. Transient per-program fetch failure does **not** wipe entered rows (§10 F3).
 
 ## 9. Decisions made
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-REF** | **Reference impl = legacy `QuickAddHealthWidgetEntryView`; NO web sibling — iOS-only** (`consumed_by=[ios]`). Faithful-to-legacy-only (run-58). | legacy file; run-58. |
-| **D-SCOPE** | **Ported with its twin [`widget-quick-add-workout`](../widget-quick-add-workout/SPEC.md) as one run** — the last 2 deferred stubs → **CLOSES the iOS deferred layer**; `_DeferredScreenStubs.swift` deleted. | run-58/60/63; COVERAGE ios. |
-| **D-S1** | **Stance = faithful 1:1** — multi-program select + member intersection + sanitized sleep + at-least-one-metric + save loop + rollback + exit-to-My-Programs kept verbatim **+ the deviations below**. | legacy file; user answer. |
-| **D-C1** | **Per-program `admin_only_data_entry` write-lock** — same `widgetProgramLockedForLogging` predicate + treatment as the twin (net-new; completes the run-54/60/63 arc). | user answer; run-54/60/63. |
-| **D-C2** | **Adopt shared chrome** — `LogFieldLabel`/`LogFieldRow` (labels + diet menu row), `AppInputField` (sleep fields, w/ the sanitize `onChange` applied externally), `AppPrimaryButton` (Save). The bespoke **appBlue** CTA becomes the label-capsule button (accepted). | user answer; run-60. |
-| **D-C3** | **Uses the shared scaffold** `WidgetQuickAddComponents.swift` (header · program selector · member field · toast · member option · lock helper) authored with the twin. | user answer; run-60. |
-| **D-DEPS** | **No new foundation dependency** — all API/DTO/`ProgramContext`/chrome pre-existed (run 50 + run 60); the one new file is the shared scaffold. **No feature bump** (page SPECs v0.1.0; `daily-health-logs` endpoints pre-exist — the Summary health form consumes them). | foundation inventory; run-50/60. |
+| **D-BATCH** | **The widget IS the in-app multi-row batch form** (`AddDailyHealthDetailView`), + 2 deltas: **(1) no auto-selected program** (`currentProgramId: ""`, no seeding, `alwaysShow: true`); **(2) custom back button** → `exitToMyPrograms()`. Replaces the legacy single-entry per-program-loop + rollback form. **Gains the steps field** (in-app parity). Batch save = one `POST /daily-health-logs/batch` (`program_ids` = selection, upsert). Member options are the **intersection** across selected programs. | User request 2026-07-09 ("use the in-app form, not auto-selected"); in-app `AddDailyHealthDetailView`; `daily-health-logs` D-C5. |
+| **D-LOGGABLE** | **Program list shows only loggable programs** — same shared-`ProgramMultiSelectSection` change as the twin (active + not-locked; current kept; drops completed/locked). | User request 2026-07-09. |
+| **D-REUSE** | **No new component / no new API** — reuses `ProgramMultiSelectSection`, the in-app row card/validation/save (ported into the widget's own `@State`), and `addDailyHealthLogsBatch`. Retired scaffold deleted. | in-app steps-feature; widget pattern. |
 
 ## 10. Flagged characteristics kept as-is
 
-| ID | Characteristic | Where | Rebuild-cleanup candidate? |
-|----|----------------|-------|----------------------------|
-| **F1** | **Client role gate is UI-only** — backend `requireDataEntryAllowed` is the real boundary. | `canSelectAnyMember` | Kept (faithful). |
-| **F2** | **Sequential per-program POST + best-effort rollback** (not transactional). | `save()` / `rollbackLogs()` | Kept (faithful) — bulk endpoint is a rebuild candidate. |
-| **F3** | **At-least-one-metric is a client-only gate** (`hasAtLeastOneMetric`); the backend accepts either/both. | `isFormValid` | Kept (faithful; mirrors the run-37 log-health web gate). |
-| **F4** | **Success toast + ~1.4 s auto-exit kept** (widget deep-link identity, not converted to immediate dismiss). | `scheduleSuccessDismiss()` | Kept (deliberate). |
-| **F5** | **Save button color unified** — appBlue CTA → shared label-capsule (D-C2). | `saveButton` | Kept (D-C2) — accepted. |
+| ID | Characteristic | Where | Note |
+|----|----------------|-------|------|
+| **F1** | **Client role/metric gates are UI-only** — backend `requireDataEntryAllowed` + upsert are the real boundary. | `QuickAddHealthWidgetEntryView.swift` | Kept (faithful to the in-app twin). |
+| **F2** | **Success toast + ~1.4 s auto-exit kept** (widget deep-link identity, not the in-app immediate dismiss). | `scheduleSuccessDismiss()` | Kept (deliberate, D-BATCH delta 2). |
+| **F3** | **Member intersection preserved on transient fetch failure** — reconciliation skipped while any selected program's lookup is nil. | `syncRowsAfterSelectionChange()` | Deliberate (adversary finding). |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
-| 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 65) — the **Quick Add Daily Health widget** form (write twin of `widget-quick-add-workout`), ported into `apps/ios/.../Features/Widgets/QuickAddHealthWidgetEntryView.swift` (shares `WidgetQuickAddComponents.swift`); the deferred stub removed. **D-REF** (legacy only; iOS-only, no web sibling) · **D-SCOPE** (twin cluster; last 2 stubs → **closes the iOS deferred layer**; `_DeferredScreenStubs.swift` deleted) · **D-S1** (faithful 1:1: multi-program + sanitized sleep + at-least-one-metric + save loop + rollback + exit) · **D-C1** (per-program lock, net-new) · **D-C2** (shared chrome; appBlue CTA → label-capsule) · **D-C3** (shared scaffold) · **D-DEPS** (no new foundation dep; no feature bump). Flagged F1–F5. Role rules per §7 (twin). Native build green via the xcode MCP (0 errors); symbols grep-verified. |
+| 0.2.0 | 2026-07-09 | **D-BATCH — the widget is now the in-app multi-row batch "Log daily health" form** (`AddDailyHealthDetailView`), replacing the legacy single-entry sleep+diet quick-add (per-program `addDailyHealthLog` loop + rollback). Two deltas: **no auto-selected program** + the **custom back button** exits to My Programs. **Gains the steps field** (in-app parity; the legacy widget had only sleep + diet). Save = one `POST /daily-health-logs/batch` (`program_ids` = selection, upsert; `applyRowErrors` on error). Member options stay the **intersection** across selected programs; in-batch (member, date) duplicates flagged client-side. **D-LOGGABLE** — the shared `ProgramMultiSelectSection` now lists only loggable programs (mirrored on web/android + the in-app forms). **D-REUSE** — no new component/API; retired scaffold deleted. Adversary-hardened (F3; admin rows start empty). Native build green via the xcode MCP (0 errors). |
+| 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 65) — the legacy single-entry Quick Add Daily Health widget (multi-program select + member intersection + sanitized sleep + at-least-one-metric [sleep/diet] + per-program save loop + rollback + exit-to-My-Programs) + D-C1 per-program lock, D-C2 shared chrome, D-C3 shared scaffold. Superseded by 0.2.0 (D-BATCH). |
