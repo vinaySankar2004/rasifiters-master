@@ -517,3 +517,19 @@ applied-sample ledger, D-SIL silent auto-retry). New feature SPEC `specs/feature
   cast doesn't flow into the inferred `var` type. Annotate `var token: String = savedToken` (the early return
   proves non-null). Same shape as the Run-8 `Result<Unit?>` inference gotcha: an inferred type outliving a
   smart cast.
+
+## Run 15 — 2026-07-08 — Phase J: de-scaffold (delete the now-unused StubScreen.kt)
+
+**Task.** Close the scaffold: delete `ui/StubScreen.kt` (the last placeholder, unused since Phase G drove
+`StubScreen(...)` call-sites to 0), fold the `apps/android/CONTEXT.md` scaffold-removal tracker into a
+CLOSED note, and re-verify the compile gate.
+
+**Result.** `grep -rn StubScreen apps/android` = only the definition (0 call-sites) before delete, 0
+references after. `rm ui/StubScreen.kt`; `:app:assembleDebug` = BUILD SUCCESSFUL in 6s (incremental). No
+code change needed anywhere else — a truly unused file. CONTEXT.md tracker rewritten as "Scaffold-removal —
+CLOSED (Phase J)". All 4 bottom tabs + every detail/settings screen are real; no scaffold placeholder
+remains in `apps/android`. Next (user-owned): signed AAB → Play Console internal testing.
+
+**Lesson (no new durable pattern — mechanical).** De-scaffold is just "confirm 0 call-sites via grep →
+delete the file → rebuild." The value was earlier: each phase deleting its own stub as the real screen
+landed, so Phase J is a no-op safety net, not a big removal. Nothing promoted to Converged lessons.
