@@ -123,6 +123,9 @@ referenced by this repo — no external directories need to be added.
 ```
 ICM.md  METHODOLOGY.md  CLAUDE.md  ENV_RUNBOOK.md  COVERAGE.md  PROGRESS.md
 PROGRESS_ARCHIVE.md                          (condensed run history, one line per run; not auto-loaded)
+RELEASES.md                                  (live binary + channel ledger: what version is on TestFlight/
+                                              App Store/Play internal/production, per platform; user
+                                              announces each push, Claude updates it)
 CONTEXT.md                                   (project: brand + infra + migration source)
 apps/<web|ios|android|backend>/CONTEXT.md
 specs/features/REGISTRY.md, registry.json, <feature>/SPEC.md
