@@ -16,6 +16,7 @@ export type MemberMetrics = {
   favorite_workout?: string | null;
   avg_sleep_hours?: number | null;
   avg_food_quality?: number | null;
+  avg_steps?: number | null;
 };
 
 export type MemberMetricsResponse = {
@@ -66,6 +67,7 @@ export type MemberHealthItem = {
   logDate: string;
   sleepHours: number | null;
   foodQuality: number | null;
+  steps: number | null;
 };
 
 export type MemberHealthResponse = {
@@ -180,6 +182,8 @@ export async function fetchMemberHealthLogs(
     maxSleepHours?: number;
     minFoodQuality?: number;
     maxFoodQuality?: number;
+    minSteps?: number;
+    maxSteps?: number;
   } = {}
 ) {
   const query = new URLSearchParams({
@@ -199,6 +203,10 @@ export async function fetchMemberHealthLogs(
     query.set("minFoodQuality", String(params.minFoodQuality));
   if (params.maxFoodQuality !== undefined && params.maxFoodQuality !== null)
     query.set("maxFoodQuality", String(params.maxFoodQuality));
+  if (params.minSteps !== undefined && params.minSteps !== null)
+    query.set("minSteps", String(params.minSteps));
+  if (params.maxSteps !== undefined && params.maxSteps !== null)
+    query.set("maxSteps", String(params.maxSteps));
   return apiRequest<MemberHealthResponse>(`/daily-health-logs?${query.toString()}`, { token });
 }
 

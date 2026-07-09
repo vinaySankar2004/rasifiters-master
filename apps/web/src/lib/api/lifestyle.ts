@@ -33,6 +33,7 @@ export type HealthTimelinePoint = {
   label: string;
   sleep_hours: number;
   food_quality: number;
+  steps: number;
 };
 
 export type HealthTimelineResponse = {
@@ -40,9 +41,16 @@ export type HealthTimelineResponse = {
   label: string;
   daily_average_sleep: number;
   daily_average_food: number;
+  daily_average_steps: number;
   buckets: HealthTimelinePoint[];
   start: string;
   end: string;
+};
+
+export type StepsStats = {
+  total_steps: number;
+  avg_steps_per_day: number;
+  days: number;
 };
 
 export async function fetchWorkoutTypesTotal(token: string, programId: string, memberId?: string) {
@@ -100,4 +108,10 @@ export async function fetchHealthTimeline(
   const params = new URLSearchParams({ period, programId });
   if (memberId) params.set("memberId", memberId);
   return apiRequest<HealthTimelineResponse>(`/analytics/health/timeline?${params.toString()}`, { token });
+}
+
+export async function fetchStepsStats(token: string, programId: string, memberId?: string) {
+  const params = new URLSearchParams({ programId });
+  if (memberId) params.set("memberId", memberId);
+  return apiRequest<StepsStats>(`/analytics/health/steps?${params.toString()}`, { token });
 }

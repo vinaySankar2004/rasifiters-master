@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { addDailyHealthLog } from "@/lib/api/logs";
+import { addDailyHealthLogsBatch, BulkHealthEntry, BulkRowError } from "@/lib/api/logs";
+import { ApiError } from "@/lib/api/client";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { isDataEntryLocked } from "@/lib/permissions";
 import { PageShell } from "@/components/ui/PageShell";
@@ -15,8 +16,9 @@ export default function LogHealthPage() {
   const queryClient = useQueryClient();
   const { session, program, token, programId } = useAuthGuard();
 
+  const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const canLogForAny =
-    session?.user.globalRole === "global_admin" ||
+    isGlobalAdmin ||
     program?.my_role === "admin" ||
     program?.my_role === "logger";
   const dataEntryLocked = isDataEntryLocked(session, program);
@@ -28,12 +30,8 @@ export default function LogHealthPage() {
   }, [program?.id, dataEntryLocked, router]);
 
   const dailyHealthMutation = useMutation({
-    mutationFn: (payload: {
-      member_id?: string;
-      log_date: string;
-      sleep_hours?: number | null;
-      food_quality?: number | null;
-    }) => addDailyHealthLog(token, { program_id: programId, ...payload }),
+    mutationFn: ({ entries, programIds }: { entries: BulkHealthEntry[]; programIds: string[] }) =>
+      addDailyHealthLogsBatch(token, { program_id: programId, program_ids: programIds, entries }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["summary"] });
       router.push("/summary");
@@ -44,7 +42,7 @@ export default function LogHealthPage() {
     <PageShell>
       <PageHeader
         title="Log daily health"
-        subtitle="Track sleep hours and diet quality for the day."
+        subtitle="Track sleep, diet quality, and steps — add a row per day, then save them all at once."
         backHref="/summary"
       />
       <div className="mt-6">
@@ -54,10 +52,16 @@ export default function LogHealthPage() {
           programId={programId}
           token={token}
           userId={session?.user.id}
+          isGlobalAdmin={isGlobalAdmin}
           onClose={() => router.push("/summary")}
-          onSubmit={(payload) => dailyHealthMutation.mutate(payload)}
+          onSubmit={(entries, programIds) => dailyHealthMutation.mutate({ entries, programIds })}
           isSaving={dailyHealthMutation.isPending}
           errorMessage={dailyHealthMutation.isError ? (dailyHealthMutation.error as Error).message : null}
+          rowErrors={
+            dailyHealthMutation.error instanceof ApiError
+              ? (dailyHealthMutation.error.details as BulkRowError[] | undefined) ?? null
+              : null
+          }
         />
       </div>
     </PageShell>

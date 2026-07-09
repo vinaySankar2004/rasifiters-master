@@ -25,7 +25,7 @@ import {
   type MemberMetrics,
   type MemberRecentItem
 } from "@/lib/api/members";
-import { formatShortDate, formatDuration, initials, sleepLabel, dietLabel } from "@/lib/format";
+import { formatShortDate, formatDuration, initials, sleepLabel, dietLabel, stepsLabel } from "@/lib/format";
 import { FlameIcon, IconMail as MailIcon } from "@/components/icons";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -501,8 +501,12 @@ function MemberMetricsPreview({ metric }: { metric: MemberMetrics }) {
           <p>Longest streak</p>
         </div>
       </div>
-      <div className="mt-3">
-        <span className="inline-flex items-center gap-2 rounded-full bg-amber-200/70 px-3 py-1 text-xs font-semibold text-amber-900">
+      <div className="mt-3 grid grid-cols-2 items-center gap-3">
+        <div className="metric-pill rounded-2xl px-3 py-2 text-xs text-rf-text-muted">
+          <p className="font-semibold text-rf-text">{stepsLabel(metric.avg_steps ?? null)}</p>
+          <p>Avg steps</p>
+        </div>
+        <span className="inline-flex items-center gap-2 justify-self-start rounded-full bg-amber-200/70 px-3 py-1 text-xs font-semibold text-amber-900">
           <FlameIcon className="h-3.5 w-3.5" /> Current streak {metric.current_streak}d
         </span>
       </div>
@@ -619,8 +623,12 @@ function MemberMetricsSingleCard({ metric }: { metric: MemberMetrics }) {
           <p>Longest streak</p>
         </div>
       </div>
-      <div className="mt-3">
-        <span className="inline-flex items-center gap-2 rounded-full bg-amber-200/70 px-3 py-1 text-xs font-semibold text-amber-900">
+      <div className="mt-3 grid grid-cols-2 items-center gap-3">
+        <div className="metric-pill rounded-2xl px-3 py-2 text-xs text-rf-text-muted">
+          <p className="font-semibold text-rf-text">{stepsLabel(metric.avg_steps ?? null)}</p>
+          <p>Avg steps</p>
+        </div>
+        <span className="inline-flex items-center gap-2 justify-self-start rounded-full bg-amber-200/70 px-3 py-1 text-xs font-semibold text-amber-900">
           <FlameIcon className="h-3.5 w-3.5" /> Current streak {metric.current_streak}d
         </span>
       </div>
@@ -749,12 +757,11 @@ function MemberHealthCard({ items, onClick }: { items: MemberHealthItem[]; onCli
       <div className="mt-4 space-y-2 text-sm">
         {items.length === 0 && <p className="text-sm text-rf-text-muted">No daily health logs yet.</p>}
         {items.slice(0, 3).map((item) => (
-          <div key={item.id} className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-rf-text">Sleep {sleepLabel(item.sleepHours)}</p>
-              <p className="text-xs text-rf-text-muted">{formatShortDate(item.logDate) ?? item.logDate}</p>
-            </div>
-            <p className="font-semibold text-rf-text">Diet {dietLabel(item.foodQuality)}</p>
+          <div key={item.id}>
+            <p className="font-semibold text-rf-text">{item.logDate}</p>
+            <p className="text-xs text-rf-text-muted">
+              Sleep {sleepLabel(item.sleepHours)} · Diet {dietLabel(item.foodQuality)} · Steps {stepsLabel(item.steps)}
+            </p>
           </div>
         ))}
       </div>

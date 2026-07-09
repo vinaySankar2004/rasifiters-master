@@ -19,9 +19,35 @@ export type BulkRowError = { index: number; field: string; message: string };
 
 export async function addWorkoutLogsBatch(
   token: string,
-  payload: { program_id: string; entries: BulkWorkoutEntry[] }
+  payload: { program_id: string; program_ids?: string[]; entries: BulkWorkoutEntry[] }
 ) {
   return apiRequest<BulkWorkoutResult>("/workout-logs/batch", {
+    method: "POST",
+    token,
+    body: payload
+  });
+}
+
+export type BulkHealthEntry = {
+  member_id: string;
+  log_date: string;
+  sleep_hours?: number;
+  food_quality?: number;
+  steps?: number;
+};
+
+export type BulkHealthResult = {
+  created: number;
+  updated: number;
+  programs: number;
+  total_entries: number;
+};
+
+export async function addDailyHealthLogsBatch(
+  token: string,
+  payload: { program_id: string; program_ids?: string[]; entries: BulkHealthEntry[] }
+) {
+  return apiRequest<BulkHealthResult>("/daily-health-logs/batch", {
     method: "POST",
     token,
     body: payload
@@ -53,6 +79,7 @@ export async function addDailyHealthLog(
     log_date: string;
     sleep_hours?: number | null;
     food_quality?: number | null;
+    steps?: number | null;
     member_id?: string;
   }
 ) {
@@ -70,6 +97,7 @@ export async function updateDailyHealthLog(
     log_date: string;
     sleep_hours?: number | null;
     food_quality?: number | null;
+    steps?: number | null;
     member_id?: string;
   }
 ) {
