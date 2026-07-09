@@ -36,11 +36,11 @@ GitHub + pre-cutover smoke tests (below)._
   `platform:"android"`, dereg on sign-out). **Backend delta (deploy-pending push):** `firebase-admin` FCM
   sender in `utils/pushNotifications.js` fired alongside APNs by `sendPushToMembers`; `upsertPushToken` +
   login/`PUT /device` thread a `platform` param (default `"ios"` — LIVE iOS binary unchanged);
-  `FIREBASE_SERVICE_ACCOUNT` base64 secret **already set on Render** (`sync:false`); **no migration** (the
-  `platform` column already exists). `assembleDebug` green. SPEC `specs/pages/android/notifications-alerts/`
-  (0.2.0) + `notifications` feature 0.2.1→(bump) consumed_by += android. **Backend must deploy (git push →
-  Render auto-deploy) before Android push works end-to-end.** Next: **Phase H (Health Connect)** or **Phase J
-  (de-scaffold)**.
+  `FIREBASE_SERVICE_ACCOUNT` base64 secret set on Render (`sync:false`); **no migration** (the `platform`
+  column already exists). `assembleDebug` green. SPEC `specs/pages/android/notifications-alerts/` (0.2.0) +
+  `notifications` feature **0.3.0** (consumed_by += android; committed `587eae8`, tagged
+  `feature/notifications@v0.3.0`). **Backend DEPLOYED + live** (2026-07-08, `bb2bbc2`); remaining = the user's
+  Pixel_8 push test. Next: **Phase H (Health Connect)** or **Phase J (de-scaffold)**.
 - **`android`** — 🟢 **Pre-Phase-H cleanup DONE (2026-07-08, Run 9):** app-wide **solid** background (the
   auth-only orange gradient removed); picker **"+"** → new `ProgramActionsSheet` (My Invites / Create) →
   `POST /programs` (`createProgram`); picker **account sheet wired** to the real settings screens (dead
@@ -190,12 +190,12 @@ GitHub + pre-cutover smoke tests (below)._
 off**. I-b (FCM push) is wired both sides; the Firebase project is provisioned and the `FIREBASE_SERVICE_ACCOUNT`
 secret is set on Render.
 
-**⚠️ Deploy gate:** the backend FCM code (`firebase-admin` + the dual sender + the `platform` param) is
-committed but **must be pushed to `main` so Render auto-deploys** before Android push works end-to-end. It is
-degrade-safe for the LIVE iOS binary (platform defaults to `"ios"`; FCM no-ops if the secret were absent).
-After deploy: user installs the debug APK on the Pixel_8, signs in (registers the FCM token), and tests push
-(background the app, then trigger a `program.*` event from another account → system-tray push; foreground →
-the SSE modal).
+**✅ Backend DEPLOYED (2026-07-08):** the FCM code (`firebase-admin` + dual sender + `platform` param) is live
+on Render (dep `dep-d97hd3e7r5hc73c9fj6g`, pushed `bb2bbc2`; root `200`, `/notifications/stream` `401` w/o
+token — healthy). Degrade-safe for the LIVE iOS binary (platform defaults `"ios"`). **Remaining = the user's
+device test:** install the debug APK on the Pixel_8 (needs a **Google Play Services** image), sign in
+(registers the FCM token), grant `POST_NOTIFICATIONS`, then trigger a `program.*` event from another account →
+foreground shows the SSE modal, background shows a system-tray push.
 
 ---
 
