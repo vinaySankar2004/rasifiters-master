@@ -533,3 +533,9 @@ remains in `apps/android`. Next (user-owned): signed AAB → Play Console intern
 **Lesson (no new durable pattern — mechanical).** De-scaffold is just "confirm 0 call-sites via grep →
 delete the file → rebuild." The value was earlier: each phase deleting its own stub as the real screen
 landed, so Phase J is a no-op safety net, not a big removal. Nothing promoted to Converged lessons.
+
+## Run — 2026-07-09 · create-account brand-mark nudge
+One-line change: 48dp leading `Spacer` above `BrandMark` in `CreateAccountScreen.kt` to push the
+top-anchored (tall) create-account form down off the status bar. `./gradlew :app:compileDebugKotlin` →
+`BUILD SUCCESSFUL` in 1s (incremental). No new durable pattern — trivial layout tweak; user owns the
+visual/emulator confirmation as always.

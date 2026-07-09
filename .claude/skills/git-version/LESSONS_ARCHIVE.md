@@ -302,3 +302,12 @@ contract change → blast-radius FYI, not a gate).
 - **Convention divergence handled in-doc:** DC-10 (two-line row) is shared with the compact
   `MemberHealthCard` preview, which KEPT the two-line form. Noted the divergence in all 3 page SPECs so the
   convention stays legible instead of silently forking.
+
+## Run — 2026-07-09 · create-account brand-mark nudge (Android-only cosmetic)
+Single 48dp `Spacer` added to `CreateAccountScreen.kt` + its **page** SPEC (`specs/pages/android/...`).
+Staged exactly the 2 session files (explicit `git add`, no `-A`) — left the unrelated pre-existing
+`member-health-detail` changes (3 surfaces) untouched in the working tree, as the user asked.
+**No feature bump / no tag:** the `auth` feature's `reference_impl` is backend-only, and this is a purely
+cosmetic `apps/**` refinement with no `specs/features/**` or registered-path delta → reinforces the existing
+"cosmetic apps/** = no feature delta" converged lesson. Committed as a plain `fix(android):`; page SPEC
+carries its own §Changelog (v0.2.1). Blast-radius: zero feature impact. Nothing new promoted.
