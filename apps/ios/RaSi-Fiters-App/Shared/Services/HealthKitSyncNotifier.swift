@@ -33,6 +33,12 @@ enum HealthKitSyncNotifier {
         post(title: "Apple Health", body: "Synced \(count) \(noun) of sleep from Apple Health.")
     }
 
+    static func notifyStepsSuccess(count: Int) {
+        guard count > 0 else { return }
+        let noun = count == 1 ? "day" : "days"
+        post(title: "Apple Health", body: "Synced steps for \(count) \(noun) from Apple Health.")
+    }
+
     private static func post(title: String, body: String) {
         let center = UNUserNotificationCenter.current()
         center.getNotificationSettings { settings in

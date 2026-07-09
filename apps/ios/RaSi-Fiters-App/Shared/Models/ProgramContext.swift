@@ -58,6 +58,8 @@ final class ProgramContext: ObservableObject {
     @Published var healthTimeline: [APIClient.HealthTimelinePoint]
     @Published var healthTimelineDailyAverageSleep: Double
     @Published var healthTimelineDailyAverageFood: Double
+    @Published var healthTimelineDailyAverageSteps: Double = 0
+    @Published var stepsStats: APIClient.StepsStatsDTO?
     @Published var workoutTypes: [APIClient.WorkoutTypeDTO]
     @Published var workoutTypesTotal: Int
     @Published var workoutTypeMostPopular: APIClient.WorkoutTypeMostPopularDTO?
@@ -129,11 +131,19 @@ final class ProgramContext: ObservableObject {
     @Published var lastSleepSyncCount: Int = 0
     @Published var lastSleepSyncFailed: Bool = false
 
+    // Apple Health (HealthKit) STEPS auto-sync — independent toggle; see ProgramContext+HealthKitSteps.swift
+    @Published var isStepsSyncEnabled: Bool = false
+    @Published var stepsSyncProgramIds: Set<String> = []
+    @Published var lastStepsSyncDate: Date?
+    @Published var lastStepsSyncCount: Int = 0
+    @Published var lastStepsSyncFailed: Bool = false
+
     // First-time Apple Health sync confirmation — see PendingSyncConfirmation + ProgramContext+HealthSyncGating.
     // `pendingSyncConfirmation` is the flow currently presented (globally, from AppRootView); a sleep flow
     // computed while workouts are showing waits in `deferredSleepConfirmation` (workouts get priority).
     @Published var pendingSyncConfirmation: PendingSyncConfirmation?
     var deferredSleepConfirmation: PendingSyncConfirmation?
+    var deferredStepsConfirmation: PendingSyncConfirmation?
 
     var notificationStreamClient: NotificationStreamClient?
     var notificationIds: Set<String> = []

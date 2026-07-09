@@ -43,6 +43,7 @@ struct AddWorkoutsDetailView: View {
     @State private var submittedOrder: [Int] = []
     @State private var isSaving = false
     @State private var topErrorMessage: String?
+    @State private var selectedProgramIds: Set<String> = []
 
     // Which row + which picker is currently presented.
     @State private var memberPickerRowId: Int?
@@ -56,9 +57,27 @@ struct AddWorkoutsDetailView: View {
             || programContext.loggedInUserProgramRole == "logger"
     }
 
-    /// True when the member column is hidden (plain member) — the seeded self member_id then does
-    /// not count toward a row being "filled".
-    private var ignoreMember: Bool { !canSelectAnyMember }
+    /// DC-3: privileged (can log for others) in a given program — global admin OR admin/logger there.
+    private func privileged(_ program: APIClient.ProgramDTO) -> Bool {
+        programContext.isGlobalAdmin
+            || program.my_role?.lowercased() == "admin"
+            || program.my_role?.lowercased() == "logger"
+    }
+
+    /// DC-3: member selection locks to self when ANY selected program is one the user is not
+    /// privileged in. Fail-open when a selected program isn't loaded (backend 403 is the backstop).
+    private var memberLocked: Bool {
+        selectedProgramIds.contains { id in
+            guard let program = programContext.programs.first(where: { $0.id == id }) else { return false }
+            return !privileged(program)
+        }
+    }
+
+    private var effectiveCanSelectAnyMember: Bool { canSelectAnyMember && !memberLocked }
+
+    /// True when the member column is hidden (plain member or locked) — the seeded self member_id
+    /// then does not count toward a row being "filled".
+    private var ignoreMember: Bool { !effectiveCanSelectAnyMember }
 
     private var workoutOptions: [String] {
         if programContext.programId != nil {
@@ -79,11 +98,17 @@ struct AddWorkoutsDetailView: View {
     private var summaryLine: String {
         let rowsPart = "\(validRows.count) \(validRows.count == 1 ? "row" : "rows")"
         let minutesPart = "\(totalMinutes) min total"
-        if canSelectAnyMember {
+        if effectiveCanSelectAnyMember {
             let membersPart = "\(distinctMembers) \(distinctMembers == 1 ? "member" : "members")"
             return "\(rowsPart) • \(membersPart) • \(minutesPart)"
         }
         return "\(rowsPart) • \(minutesPart)"
+    }
+
+    private var memberLockHint: String? {
+        (canSelectAnyMember && memberLocked)
+            ? "You're not an admin or logger in every selected program — logging for yourself only."
+            : nil
     }
 
     // MARK: - Body
@@ -91,11 +116,19 @@ struct AddWorkoutsDetailView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: AppSpacing.lg) {
-                Text(canSelectAnyMember
+                Text(effectiveCanSelectAnyMember
                         ? "Add a row per session — member, workout, date, and duration — then save them all at once."
                         : "Add a row per session — workout, date, and duration — then save them all at once.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
+
+                ProgramMultiSelectSection(
+                    programs: programContext.programs,
+                    currentProgramId: programContext.programId ?? "",
+                    selectedIds: $selectedProgramIds,
+                    isLocked: { programContext.isDataEntryLocked(programId: $0) },
+                    memberLockHint: memberLockHint
+                )
 
                 if rows.isEmpty {
                     emptyState
@@ -138,8 +171,21 @@ struct AddWorkoutsDetailView: View {
         .task {
             // Web parity: a locked non-admin never sees the form.
             if programContext.dataEntryLocked { dismiss(); return }
+            if let pid = programContext.programId, selectedProgramIds.isEmpty {
+                selectedProgramIds = [pid]
+            }
             await ensureLookups()
             if rows.isEmpty { addRows(1) }
+        }
+        .onChange(of: memberLocked) { _, locked in
+            // DC-3: when the selection turns member-locked, reset every row to the logged-in member.
+            guard locked else { return }
+            let selfId = programContext.loggedInUserId ?? ""
+            let selfName = programContext.loggedInUserName ?? ""
+            for i in rows.indices {
+                rows[i].memberId = selfId
+                rows[i].memberName = selfName
+            }
         }
         .sheet(item: memberPickerBinding) { target in
             SearchablePickerSheet(
@@ -187,7 +233,7 @@ struct AddWorkoutsDetailView: View {
             }
 
             // Members log only for themselves, so the member field is hidden for them entirely.
-            if canSelectAnyMember {
+            if effectiveCanSelectAnyMember {
                 LogFieldLabel("Member")
                 Button { memberPickerRowId = row.id } label: {
                     LogFieldRow(text: row.memberName.isEmpty ? "Select member" : row.memberName,
@@ -373,6 +419,12 @@ struct AddWorkoutsDetailView: View {
         if programContext.members.isEmpty || programContext.workouts.isEmpty || needsRefresh {
             await programContext.loadLookupData()
         }
+        // Program multi-select needs the full program list (with per-program roles).
+        if programContext.programs.isEmpty,
+           let token = programContext.authToken, !token.isEmpty,
+           let fetched = try? await APIClient.shared.fetchPrograms(token: token) {
+            programContext.programs = fetched
+        }
         if programContext.programId != nil {
             await programContext.loadProgramWorkouts()
         }
@@ -397,7 +449,12 @@ struct AddWorkoutsDetailView: View {
         }
 
         do {
-            _ = try await APIClient.shared.addWorkoutLogsBatch(token: token, programId: programId, entries: entries)
+            _ = try await APIClient.shared.addWorkoutLogsBatch(
+                token: token,
+                programId: programId,
+                programIds: Array(selectedProgramIds),
+                entries: entries
+            )
             programContext.summaryRefreshToken += 1 // web parity: ≈ invalidateQueries(["summary"])
             dismiss()
         } catch let error as APIClient.BulkWorkoutError {

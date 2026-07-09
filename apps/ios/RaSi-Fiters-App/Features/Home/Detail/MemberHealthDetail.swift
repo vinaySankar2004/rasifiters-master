@@ -24,12 +24,14 @@ enum HealthSortField: String, CaseIterable {
     case date
     case sleep_hours
     case food_quality
+    case steps
 
     var label: String {
         switch self {
         case .date: return "Date"
         case .sleep_hours: return "Sleep Hours"
         case .food_quality: return "Diet Quality"
+        case .steps: return "Steps"
         }
     }
 
@@ -66,9 +68,11 @@ struct HealthFilters: Equatable {
     var maxSleepHours: Double?
     var minFoodQuality: Int?
     var maxFoodQuality: Int?
+    var minSteps: Int?
+    var maxSteps: Int?
 
     var isActive: Bool {
-        startDate != nil || endDate != nil || minSleepHours != nil || maxSleepHours != nil || minFoodQuality != nil || maxFoodQuality != nil
+        startDate != nil || endDate != nil || minSleepHours != nil || maxSleepHours != nil || minFoodQuality != nil || maxFoodQuality != nil || minSteps != nil || maxSteps != nil
     }
 
     func startDateString() -> String? {
@@ -96,12 +100,13 @@ struct MemberHealthDetail: View {
     @State private var showFilterSheet = false
     @State private var filters = HealthFilters()
     @State private var isLoading = false
+    @State private var logs: [APIClient.DailyHealthLogItem] = []
     @State private var shareItem: ShareItem?
     @State private var showDeleteAlert = false
-    @State private var itemToDelete: APIClient.MemberHealthLogResponse.Item?
+    @State private var itemToDelete: APIClient.DailyHealthLogItem?
     @State private var deleteErrorMessage: String?
     @State private var showDeleteErrorAlert = false
-    @State private var itemToEdit: APIClient.MemberHealthLogResponse.Item?
+    @State private var itemToEdit: APIClient.DailyHealthLogItem?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -121,7 +126,7 @@ struct MemberHealthDetail: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
-                .disabled(programContext.memberHealthLogs.isEmpty)
+                .disabled(logs.isEmpty)
             }
         }
         .sheet(item: $shareItem) { item in
@@ -245,6 +250,20 @@ struct MemberHealthDetail: View {
                         Text("Diet ≤\(maxF)")
                             .font(.caption.weight(.medium))
                     }
+                    if let minSt = filters.minSteps {
+                        Text("·")
+                            .font(.caption)
+                            .foregroundColor(Color(.secondaryLabel))
+                        Text("Steps ≥\(stepsLabel(minSt))")
+                            .font(.caption.weight(.medium))
+                    }
+                    if let maxSt = filters.maxSteps {
+                        Text("·")
+                            .font(.caption)
+                            .foregroundColor(Color(.secondaryLabel))
+                        Text("Steps ≤\(stepsLabel(maxSt))")
+                            .font(.caption.weight(.medium))
+                    }
                     Spacer()
                     Button {
                         filters = HealthFilters()
@@ -282,7 +301,7 @@ struct MemberHealthDetail: View {
                     }
                 }
                 .padding(.horizontal, 20)
-            } else if programContext.memberHealthLogs.isEmpty {
+            } else if logs.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("No daily health logs found.")
                         .font(.subheadline.weight(.semibold))
@@ -295,7 +314,7 @@ struct MemberHealthDetail: View {
                 .padding(.vertical, 8)
             } else {
                 List {
-                    ForEach(programContext.memberHealthLogs) { item in
+                    ForEach(logs) { item in
                         healthRow(item)
                             .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
                             .listRowSeparator(.hidden)
@@ -330,21 +349,19 @@ struct MemberHealthDetail: View {
         }
     }
 
-    private func healthRow(_ item: APIClient.MemberHealthLogResponse.Item) -> some View {
+    private func healthRow(_ item: APIClient.DailyHealthLogItem) -> some View {
         HStack(spacing: 10) {
             Circle()
                 .fill(Color.appBlueLight)
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
-                Text("Sleep \(sleepLabel(item.sleepHours))")
-                    .font(.subheadline.weight(.semibold))
                 Text(item.logDate)
+                    .font(.subheadline.weight(.semibold))
+                Text("Sleep \(sleepLabel(item.sleepHours)) · Diet \(foodLabel(item.foodQuality)) · Steps \(stepsLabel(item.steps))")
                     .font(.caption)
                     .foregroundColor(Color(.secondaryLabel))
             }
             Spacer()
-            Text("Diet \(foodLabel(item.foodQuality))")
-                .font(.subheadline.weight(.semibold))
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
@@ -368,6 +385,13 @@ struct MemberHealthDetail: View {
         return "\(value)/5"
     }
 
+    private func stepsLabel(_ value: Int?) -> String {
+        guard let value else { return "—" }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d, yyyy"
@@ -378,7 +402,7 @@ struct MemberHealthDetail: View {
         guard !isLoading else { return }
         guard let mId = memberId else { return }
         isLoading = true
-        await programContext.loadMemberHealthLogs(
+        logs = await programContext.loadMemberHealthLogs(
             memberId: mId,
             limit: 0,
             startDate: filters.startDateString(),
@@ -388,12 +412,14 @@ struct MemberHealthDetail: View {
             minSleepHours: filters.minSleepHours,
             maxSleepHours: filters.maxSleepHours,
             minFoodQuality: filters.minFoodQuality,
-            maxFoodQuality: filters.maxFoodQuality
+            maxFoodQuality: filters.maxFoodQuality,
+            minSteps: filters.minSteps,
+            maxSteps: filters.maxSteps
         )
         isLoading = false
     }
 
-    private func deleteHealthLog(_ item: APIClient.MemberHealthLogResponse.Item) async {
+    private func deleteHealthLog(_ item: APIClient.DailyHealthLogItem) async {
         guard let mId = memberId else { return }
         do {
             try await programContext.deleteDailyHealthLog(
@@ -408,7 +434,7 @@ struct MemberHealthDetail: View {
     }
 
     private func exportCSV() async {
-        guard !programContext.memberHealthLogs.isEmpty else { return }
+        guard !logs.isEmpty else { return }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -418,11 +444,12 @@ struct MemberHealthDetail: View {
         let exportMemberName = (memberName ?? "Member").replacingOccurrences(of: " ", with: "")
         let fileName = "HealthLogs_\(exportMemberName)_\(startLabel)_to_\(endLabel).csv"
 
-        var csv = "Date,Sleep Hours,Diet Quality\n"
-        for log in programContext.memberHealthLogs {
+        var csv = "Date,Sleep Hours,Diet Quality,Steps\n"
+        for log in logs {
             let sleepValue = log.sleepHours.map { String(format: "%.1f", $0) } ?? ""
             let foodValue = log.foodQuality.map { "\($0)" } ?? ""
-            let line = "\(log.logDate),\(sleepValue),\(foodValue)\n"
+            let stepsValue = log.steps.map { "\($0)" } ?? ""
+            let line = "\(log.logDate),\(sleepValue),\(foodValue),\(stepsValue)\n"
             csv.append(line)
         }
 
@@ -511,6 +538,8 @@ struct HealthFilterSheet: View {
     @State private var localMaxSleepMinutes: String = ""
     @State private var localMinDiet: Int = 0  // 0 = Any
     @State private var localMaxDiet: Int = 0
+    @State private var localMinSteps: String = ""
+    @State private var localMaxSteps: String = ""
 
     private let dietOptions = [0, 1, 2, 3, 4, 5]
 
@@ -583,6 +612,29 @@ struct HealthFilterSheet: View {
                     }
                 }
 
+                Section("Steps") {
+                    HStack {
+                        Text("Min steps")
+                            .frame(width: 100, alignment: .leading)
+                        TextField("0", text: $localMinSteps)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.center)
+                            .onChange(of: localMinSteps) { _, newValue in
+                                localMinSteps = String(newValue.filter(\.isNumber))
+                            }
+                    }
+                    HStack {
+                        Text("Max steps")
+                            .frame(width: 100, alignment: .leading)
+                        TextField("0", text: $localMaxSteps)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.center)
+                            .onChange(of: localMaxSteps) { _, newValue in
+                                localMaxSteps = String(newValue.filter(\.isNumber))
+                            }
+                    }
+                }
+
                 if filters.isActive {
                     Section {
                         Button("Clear All Filters", role: .destructive) {
@@ -595,6 +647,8 @@ struct HealthFilterSheet: View {
                             localMaxSleepMinutes = ""
                             localMinDiet = 0
                             localMaxDiet = 0
+                            localMinSteps = ""
+                            localMaxSteps = ""
                         }
                     }
                 }
@@ -634,6 +688,8 @@ struct HealthFilterSheet: View {
                 }
                 localMinDiet = filters.minFoodQuality ?? 0
                 localMaxDiet = filters.maxFoodQuality ?? 0
+                localMinSteps = filters.minSteps.map { "\($0)" } ?? ""
+                localMaxSteps = filters.maxSteps.map { "\($0)" } ?? ""
             }
         }
     }
@@ -647,6 +703,10 @@ struct HealthFilterSheet: View {
         filters.maxSleepHours = maxSleepTotal > 0 ? maxSleepTotal : nil
         filters.minFoodQuality = localMinDiet >= 1 && localMinDiet <= 5 ? localMinDiet : nil
         filters.maxFoodQuality = localMaxDiet >= 1 && localMaxDiet <= 5 ? localMaxDiet : nil
+        let minStepsValue = Int(localMinSteps) ?? 0
+        let maxStepsValue = Int(localMaxSteps) ?? 0
+        filters.minSteps = minStepsValue > 0 ? minStepsValue : nil
+        filters.maxSteps = maxStepsValue > 0 ? maxStepsValue : nil
     }
 }
 
@@ -654,17 +714,18 @@ struct DailyHealthEditSheet: View {
     @EnvironmentObject var programContext: ProgramContext
     @Environment(\.dismiss) private var dismiss
     let memberId: String
-    let item: APIClient.MemberHealthLogResponse.Item
+    let item: APIClient.DailyHealthLogItem
     let onSaved: () -> Void
 
     @State private var sleepHoursText: String
     @State private var sleepMinutesText: String
     @State private var foodQuality: Int?
+    @State private var stepsText: String
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showErrorAlert = false
 
-    init(memberId: String, item: APIClient.MemberHealthLogResponse.Item, onSaved: @escaping () -> Void) {
+    init(memberId: String, item: APIClient.DailyHealthLogItem, onSaved: @escaping () -> Void) {
         self.memberId = memberId
         self.item = item
         self.onSaved = onSaved
@@ -672,6 +733,7 @@ struct DailyHealthEditSheet: View {
         _sleepHoursText = State(initialValue: split.hours)
         _sleepMinutesText = State(initialValue: split.minutes)
         _foodQuality = State(initialValue: item.foodQuality)
+        _stepsText = State(initialValue: item.steps.map { "\($0)" } ?? "")
     }
 
     private var trimmedSleepHoursText: String {
@@ -718,12 +780,28 @@ struct DailyHealthEditSheet: View {
         !hasSleepInput || sleepValue != nil
     }
 
+    private var trimmedStepsText: String {
+        stepsText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Steps value: nil when blank (clears), else the parsed non-negative integer.
+    private var stepsValue: Int? {
+        guard !trimmedStepsText.isEmpty else { return nil }
+        return Int(trimmedStepsText)
+    }
+
+    private var isStepsValid: Bool {
+        trimmedStepsText.isEmpty || (stepsValue != nil && (stepsValue ?? -1) >= 0)
+    }
+
+    private var hasStepsInput: Bool { !trimmedStepsText.isEmpty }
+
     private var hasAtLeastOneMetric: Bool {
-        sleepValue != nil || foodQuality != nil
+        sleepValue != nil || foodQuality != nil || (hasStepsInput && stepsValue != nil)
     }
 
     private var isFormValid: Bool {
-        isSleepValid && hasAtLeastOneMetric
+        isSleepValid && isStepsValid && hasAtLeastOneMetric
     }
 
     var body: some View {
@@ -799,6 +877,23 @@ struct DailyHealthEditSheet: View {
                     }
                 }
 
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Steps")
+                        .font(.subheadline.weight(.semibold))
+                    TextField("Steps", text: $stepsText)
+                        .keyboardType(.numberPad)
+                        .padding()
+                        .frame(maxWidth: .infinity)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(12)
+                        .onChange(of: stepsText) { _, newValue in
+                            let sanitized = String(newValue.filter(\.isNumber))
+                            if sanitized != newValue {
+                                stepsText = sanitized
+                            }
+                        }
+                }
+
                 Button(action: { Task { await save() } }) {
                     Group {
                         if isSaving {
@@ -838,7 +933,8 @@ struct DailyHealthEditSheet: View {
                 memberId: memberId,
                 logDate: item.logDate,
                 sleepHours: sleepValue,
-                foodQuality: foodQuality
+                foodQuality: foodQuality,
+                steps: stepsValue
             )
             onSaved()
             dismiss()

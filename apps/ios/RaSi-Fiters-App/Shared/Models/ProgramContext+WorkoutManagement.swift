@@ -43,7 +43,8 @@ extension ProgramContext {
         memberId: String,
         logDate: String,
         sleepHours: Double?,
-        foodQuality: Int?
+        foodQuality: Int?,
+        steps: Int?
     ) async throws {
         guard let token = authToken, !token.isEmpty else {
             throw APIError(message: "No auth token")
@@ -57,7 +58,8 @@ extension ProgramContext {
             memberId: memberId,
             logDate: logDate,
             sleepHours: sleepHours,
-            foodQuality: foodQuality
+            foodQuality: foodQuality,
+            steps: steps
         )
     }
 

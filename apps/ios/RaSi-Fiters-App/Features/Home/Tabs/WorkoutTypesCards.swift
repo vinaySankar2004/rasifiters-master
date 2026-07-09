@@ -179,6 +179,134 @@ struct WorkoutTypeHighestParticipationCard: View {
     }
 }
 
+struct StepsStatsCard: View {
+    let stats: APIClient.StepsStatsDTO?
+    private let accent: Color = .teal
+
+    private func grouped(_ n: Int) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
+    var body: some View {
+        CardShell(
+            background: Color(.systemBackground).opacity(0.9),
+            strokeColor: Color(.systemGray4).opacity(0.6),
+            height: 120
+        ) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Steps")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Color(.label))
+                    Spacer()
+                    AccentChip(label: "Program to date", accent: accent)
+                }
+
+                Spacer()
+
+                HStack(spacing: 20) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Total steps")
+                            .font(.caption)
+                            .foregroundColor(Color(.secondaryLabel))
+                        Text(stats.map { grouped($0.total_steps) } ?? "—")
+                            .font(.title3.weight(.bold))
+                            .foregroundColor(accent)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Avg steps/day")
+                            .font(.caption)
+                            .foregroundColor(Color(.secondaryLabel))
+                        Text(stats.map { grouped($0.avg_steps_per_day) } ?? "—")
+                            .font(.title3.weight(.bold))
+                            .foregroundColor(accent)
+                    }
+                    Spacer()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+struct StepsTimelineCardSummary: View {
+    let points: [APIClient.HealthTimelinePoint]
+    private let accent: Color = .teal
+
+    private var trimmedPoints: [APIClient.HealthTimelinePoint] {
+        Array(points.suffix(10))
+    }
+
+    private var yMax: Double {
+        max(Double(trimmedPoints.map { $0.steps ?? 0 }.max() ?? 1), 1)
+    }
+
+    var body: some View {
+        CardShell(
+            background: Color(.systemBackground).opacity(0.95),
+            strokeColor: Color(.systemGray4).opacity(0.5),
+            height: 280
+        ) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Steps Timeline")
+                            .font(.headline.weight(.semibold))
+                            .foregroundColor(Color(.label))
+                        Text("Daily steps")
+                            .font(.subheadline)
+                            .foregroundColor(Color(.secondaryLabel))
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(Color(.tertiaryLabel))
+                }
+
+                if points.isEmpty {
+                    VStack(spacing: 8) {
+                        ProgressView()
+                        Text("No data yet")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                } else {
+                    let barWidth: CGFloat = 10
+                    ScrollableBarChart(barCount: trimmedPoints.count, minBarWidth: barWidth) { _ in
+                        Chart {
+                            ForEach(trimmedPoints) { point in
+                                BarMark(
+                                    x: .value("Label", point.label),
+                                    y: .value("Steps", Double(point.steps ?? 0)),
+                                    width: .fixed(barWidth)
+                                )
+                                .foregroundStyle(accent.opacity(0.9))
+                                .cornerRadius(6)
+                            }
+                        }
+                        .chartXAxis {
+                            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                                AxisGridLine()
+                                AxisValueLabel()
+                            }
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading, values: .automatic(desiredCount: 4))
+                        }
+                        .chartYScale(domain: 0...(yMax * 1.1))
+                        .frame(height: 200)
+                        .drawingGroup()
+                    }
+                    .frame(height: 200)
+                }
+            }
+        }
+    }
+}
+
 struct WorkoutTypePopularityCard: View {
     let types: [APIClient.WorkoutTypeDTO]
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass

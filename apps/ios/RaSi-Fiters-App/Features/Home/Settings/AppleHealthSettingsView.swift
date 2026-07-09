@@ -7,8 +7,10 @@ struct AppleHealthSettingsView: View {
     @EnvironmentObject var programContext: ProgramContext
     @State private var isSyncing = false
     @State private var isSleepSyncingNow = false
+    @State private var isStepsSyncingNow = false
     @State private var workoutSyncError: String?
     @State private var sleepSyncError: String?
+    @State private var stepsSyncError: String?
 
     private let syncNowErrorText = "Couldn't reach the server. Check your connection and try again."
     private let autoRetryStatusText = "Last sync couldn't reach the server — will retry automatically."
@@ -56,6 +58,25 @@ struct AppleHealthSettingsView: View {
                         sleepSyncStatusSection
                         sleepDisconnectSection
                     }
+
+                    Divider().padding(.vertical, 4)
+
+                    // ── Steps (independent toggle, same screen) ──
+                    stepsHeader
+
+                    VStack(spacing: 12) {
+                        if programContext.isStepsSyncEnabled {
+                            stepsConnectedRow
+                        } else {
+                            stepsConnectButton
+                        }
+                    }
+
+                    if programContext.isStepsSyncEnabled {
+                        stepsProgramSelectionSection
+                        stepsSyncStatusSection
+                        stepsDisconnectSection
+                    }
                 }
 
                 Spacer()
@@ -81,7 +102,7 @@ struct AppleHealthSettingsView: View {
             Text("Apple Health")
                 .font(.title2.weight(.bold))
                 .foregroundColor(Color(.label))
-            Text("Automatically sync workouts and sleep from Apple Health")
+            Text("Automatically sync workouts, sleep, and steps from Apple Health")
                 .font(.subheadline)
                 .foregroundColor(Color(.secondaryLabel))
         }
@@ -548,6 +569,213 @@ struct AppleHealthSettingsView: View {
 
     private var lastSleepSyncLabel: String {
         guard let date = programContext.lastSleepSyncDate else { return "Never" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .short
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    // MARK: - Steps header
+
+    private var stepsHeader: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Steps")
+                .font(.title3.weight(.bold))
+                .foregroundColor(Color(.label))
+            Text("Automatically log your daily step count")
+                .font(.subheadline)
+                .foregroundColor(Color(.secondaryLabel))
+        }
+    }
+
+    // MARK: - Steps connect button
+
+    private var stepsConnectButton: some View {
+        Button {
+            programContext.startStepsSync()
+        } label: {
+            HStack(spacing: 14) {
+                iconCircle(systemName: "figure.walk", tint: .teal)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Connect Steps")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(Color(.label))
+                    Text("Grant access to read your steps")
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+                Spacer()
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(.teal)
+            }
+            .padding(14)
+            .background(cardBackground)
+            .overlay(cardBorder(.teal.opacity(0.3)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Steps connected row
+
+    private var stepsConnectedRow: some View {
+        HStack(spacing: 14) {
+            iconCircle(systemName: "figure.walk", tint: .appGreen)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Connected")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(Color(.label))
+                Text("Apple Health steps will sync automatically")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+            }
+            Spacer()
+        }
+        .padding(14)
+        .background(cardBackground)
+        .overlay(cardBorder(.appGreen.opacity(0.3)))
+    }
+
+    // MARK: - Steps program selection
+
+    private var stepsProgramSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sync to Programs")
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(Color(.secondaryLabel))
+
+            if programContext.programs.isEmpty {
+                Text("No programs available. Join or create a program first.")
+                    .font(.caption)
+                    .foregroundColor(Color(.tertiaryLabel))
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(cardBackground)
+                    .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+            } else {
+                VStack(spacing: 0) {
+                    ForEach(programContext.programs, id: \.id) { program in
+                        programRow(program, isSelected: programContext.stepsSyncProgramIds.contains(program.id)) {
+                            if programContext.stepsSyncProgramIds.contains(program.id) {
+                                programContext.stepsSyncProgramIds.remove(program.id)
+                            } else {
+                                programContext.stepsSyncProgramIds.insert(program.id)
+                            }
+                            programContext.persistStepsSyncSettings()
+                        }
+
+                        if program.id != programContext.programs.last?.id {
+                            Divider().padding(.leading, 50)
+                        }
+                    }
+                }
+                .background(cardBackground)
+                .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+            }
+        }
+    }
+
+    // MARK: - Steps sync status
+
+    private var stepsSyncStatusSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Sync Status")
+                .font(.footnote.weight(.semibold))
+                .foregroundColor(Color(.secondaryLabel))
+
+            VStack(spacing: 0) {
+                statusRow(title: "Last Synced", value: lastStepsSyncLabel)
+                Divider().padding(.leading, 14)
+                statusRow(title: "Days Synced", value: "\(programContext.lastStepsSyncCount)")
+                Divider().padding(.leading, 14)
+
+                Button {
+                    isStepsSyncingNow = true
+                    stepsSyncError = nil
+                    Task {
+                        let result = await programContext.performStepsSync()
+                        if case .failed = result { stepsSyncError = syncNowErrorText }
+                        isStepsSyncingNow = false
+                    }
+                } label: {
+                    HStack {
+                        Text("Sync Now")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.appOrange)
+                        Spacer()
+                        if isStepsSyncingNow {
+                            ProgressView().scaleEffect(0.8)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.appOrange)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+                .disabled(isStepsSyncingNow)
+            }
+            .background(cardBackground)
+            .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+
+            let lockedCount = lockedSelectedCount(programContext.stepsSyncProgramIds)
+            if lockedCount > 0 {
+                Text("\(lockedCount) program\(lockedCount == 1 ? "" : "s") are admin-locked and won't sync")
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .padding(.horizontal, 4)
+            }
+
+            // Mirrors the workout/sleep sections: silent auto-retry surfaces here, not as a banner (D-SIL).
+            if let stepsSyncError {
+                Text(stepsSyncError)
+                    .font(.caption)
+                    .foregroundColor(.appRed)
+                    .padding(.horizontal, 4)
+            } else if programContext.lastStepsSyncFailed {
+                Text(autoRetryStatusText)
+                    .font(.caption)
+                    .foregroundColor(Color(.secondaryLabel))
+                    .padding(.horizontal, 4)
+            }
+        }
+    }
+
+    // MARK: - Steps disconnect
+
+    private var stepsDisconnectSection: some View {
+        Button {
+            programContext.clearStepsSyncSettings()
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(Color.appRedLight)
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "figure.walk")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.appRed)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Disconnect Steps")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(.appRed)
+                    Text("Stop syncing steps and clear settings")
+                        .font(.caption)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
+                Spacer()
+            }
+            .padding(14)
+            .background(cardBackground)
+            .overlay(cardBorder(.appRed.opacity(0.3)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var lastStepsSyncLabel: String {
+        guard let date = programContext.lastStepsSyncDate else { return "Never" }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: Date())

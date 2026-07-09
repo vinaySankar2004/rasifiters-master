@@ -179,6 +179,8 @@ struct MemberHealthCard: View {
     @EnvironmentObject var programContext: ProgramContext
     let selectedMember: APIClient.MemberDTO?
 
+    @State private var previewLogs: [APIClient.DailyHealthLogItem] = []
+
     private var memberId: String? {
         selectedMember?.id ?? programContext.loggedInUserId
     }
@@ -207,28 +209,26 @@ struct MemberHealthCard: View {
                         .foregroundColor(Color(.tertiaryLabel))
                 }
 
-                if programContext.memberHealthLogs.isEmpty {
+                if previewLogs.isEmpty {
                     Text("No daily health logs yet.")
                         .font(.footnote)
                         .foregroundColor(Color(.secondaryLabel))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     VStack(spacing: 8) {
-                        ForEach(programContext.memberHealthLogs.prefix(3)) { item in
+                        ForEach(previewLogs.prefix(3)) { item in
                             HStack(spacing: 10) {
                                 Circle()
                                     .fill(Color.appBlueLight)
                                     .frame(width: 10, height: 10)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("Sleep \(sleepLabel(item.sleepHours))")
-                                        .font(.subheadline.weight(.semibold))
                                     Text(item.logDate)
+                                        .font(.subheadline.weight(.semibold))
+                                    Text("Sleep \(sleepLabel(item.sleepHours)) · Diet \(foodLabel(item.foodQuality)) · Steps \(stepsLabel(item.steps))")
                                         .font(.caption)
                                         .foregroundColor(Color(.secondaryLabel))
                                 }
                                 Spacer()
-                                Text("Diet \(foodLabel(item.foodQuality))")
-                                    .font(.subheadline.weight(.semibold))
                             }
                         }
                     }
@@ -246,6 +246,11 @@ struct MemberHealthCard: View {
             .adaptiveShadow(radius: 8, y: 4)
         }
         .buttonStyle(.plain)
+        .task(id: memberId) {
+            previewLogs = []   // blank instantly on member switch — prevents showing the previous member's rows
+            guard let memberId else { return }   // identity unresolved → preview stays on its existing empty state
+            previewLogs = await programContext.loadMemberHealthLogs(memberId: memberId, limit: 10)
+        }
     }
 
     private func sleepLabel(_ value: Double?) -> String {
@@ -256,5 +261,12 @@ struct MemberHealthCard: View {
     private func foodLabel(_ value: Int?) -> String {
         guard let value else { return "—" }
         return "\(value)/5"
+    }
+
+    private func stepsLabel(_ value: Int?) -> String {
+        guard let value else { return "—" }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        return formatter.string(from: NSNumber(value: value)) ?? "\(value)"
     }
 }
