@@ -6,7 +6,10 @@
     },
     "render": {
       "type": "http",
-      "url": "https://mcp.render.com/mcp"
+      "url": "https://mcp.render.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${RENDER_API_KEY}"
+      }
     },
     "supabase-rasifiters": {
       "type": "http",

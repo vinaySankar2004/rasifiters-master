@@ -57,8 +57,17 @@ copy-paste-ready code, no "as needed"/TBD/figure-it-out.
 ## MCP Servers (see `.mcp.json`)
 
 - **vercel** — `https://mcp.vercel.com` (account-level OAuth; all projects in the team).
-- **render** — `https://mcp.render.com/mcp` (account/workspace-level OAuth; all services). The backend
-  deploys as a Blueprint (`apps/backend/render.yaml`); this MCP is the create/inspect/deploy path.
+- **render** — `https://mcp.render.com/mcp` (account/workspace-level; all services). **API-key header
+  auth, not OAuth** — Render's auth server rejects dynamic client registration, so the browser flow fails
+  ("Incompatible auth server"). Instead `.mcp.json` sends `Authorization: Bearer ${RENDER_API_KEY}`; the
+  key value lives in gitignored `.claude/settings.local.json` under `env.RENDER_API_KEY` (create it at
+  dashboard.render.com → Account Settings → API Keys). No browser login — but on first use you must
+  **select a workspace** before any call: `list_workspaces` → **ask the user which** → `select_workspace`
+  (never auto-pick; wrong workspace = wrong account resources). The backend deploys as a Blueprint
+  (`apps/backend/render.yaml`); this MCP is the create/inspect/**deploy** path **and** the env-var /
+  service-management path (`update_environment_variables`, `update_web_service`). Read tools
+  (list/get/logs/metrics) are allow-listed and run freely; **prod-mutating calls confirm each time** —
+  the `deploy-scope-guard` hook guards only Bash, not MCP tools.
 - **supabase-rasifiters** — read-only, scoped to the rasifiters project (`project_ref` in
   `CONTEXT.md` §Infrastructure).
 - **xcode** — local **stdio** bridge (`xcrun mcpbridge`, Apple-native, Xcode 26.3+). The iOS build-check
@@ -68,18 +77,25 @@ copy-paste-ready code, no "as needed"/TBD/figure-it-out.
   we don't want, heavy token cost). The user runs the simulator/visual checks; the MCP is for compile only.
   See the `ios-build` skill.
 
-The three HTTP servers are OAuth-based remote MCPs — **no secrets in `.mcp.json`**; first use triggers a
-one-time browser login per server. `xcode` is local (no auth, no network).
+**vercel** and **supabase-rasifiters** are OAuth remote MCPs — **no secrets in `.mcp.json`**; first use
+triggers a one-time browser login per server. **render** uses API-key header auth via `${RENDER_API_KEY}`
+(see above) — no browser login; never click "Authenticate" on render, that re-triggers the failing OAuth
+flow. `xcode` is local (no auth, no network). No real secret is ever committed — `.mcp.json` carries only
+the `${RENDER_API_KEY}` variable name; the value stays in gitignored `.claude/settings.local.json`.
 
-**Use ONLY these project MCP servers in this workspace** (the three OAuth servers + the local `xcode`
-bridge). The claude.ai-managed connectors (`claude.ai Supabase`, `claude.ai Vercel`, `claude.ai Google
-Drive`) and `n8n` are **denied** in `.claude/settings.json` — they grant broad account-level access and
-bypass our scoping.
+**Use ONLY these project MCP servers in this workspace** (the four in this repo's `.mcp.json` + the local
+`xcode` bridge). That project-scoped `.mcp.json` is the canonical config; a redundant user-scope `vercel`
+entry may linger in `~/.claude.json` — harmless (project scope wins here), left in place so other projects
+aren't disturbed. The claude.ai-managed connectors (`claude.ai Supabase`, `claude.ai Vercel`, `claude.ai
+Google Drive`) and `n8n` are **denied** in `.claude/settings.json` — they grant broad account-level access
+and bypass our scoping.
 
-**Scope guardrail.** Vercel + Render OAuth grant access to *all* account projects/services. The
-`deploy-scope-guard.sh` PreToolUse hook restricts `vercel`/`render` commands to the rasifiters
-allow-list. When the `deploy` skill provisions the Vercel project + Render service, record their IDs in
-the product `CONTEXT.md` and fill the allow-list/scope in the hook.
+**Scope guardrail.** Vercel + Render creds grant access to *all* account projects/services. The
+`deploy-scope-guard.sh` PreToolUse hook restricts `vercel`/`render` **Bash CLI** commands to the rasifiters
+allow-list — but it does **not** cover MCP tool calls. The render MCP's write tools are therefore gated by
+**per-call confirmation** instead (reads are allow-listed and free). When the `deploy` skill provisions the
+Vercel project + Render service, record their IDs in the product `CONTEXT.md` and fill the
+allow-list/scope in the hook.
 
 ## Skills (`.claude/skills/`)
 
