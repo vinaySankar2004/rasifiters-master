@@ -190,12 +190,12 @@ GitHub + pre-cutover smoke tests (below)._
 off**. I-b (FCM push) is wired both sides; the Firebase project is provisioned and the `FIREBASE_SERVICE_ACCOUNT`
 secret is set on Render.
 
-**✅ Backend DEPLOYED (2026-07-08):** the FCM code (`firebase-admin` + dual sender + `platform` param) is live
-on Render (dep `dep-d97hd3e7r5hc73c9fj6g`, pushed `bb2bbc2`; root `200`, `/notifications/stream` `401` w/o
-token — healthy). Degrade-safe for the LIVE iOS binary (platform defaults `"ios"`). **Remaining = the user's
-device test:** install the debug APK on the Pixel_8 (needs a **Google Play Services** image), sign in
-(registers the FCM token), grant `POST_NOTIFICATIONS`, then trigger a `program.*` event from another account →
-foreground shows the SSE modal, background shows a system-tray push.
+**✅ Phase I FULLY VERIFIED end-to-end (2026-07-08).** Backend deployed live on Render (dep
+`dep-d97hd3e7r5hc73c9fj6g`, `bb2bbc2`; degrade-safe for the LIVE iOS binary). FCM push confirmed reaching the
+Pixel_8 tray (`firebase-admin` → FCM → device, `rasi_default` channel) after fixing one device-test bug: the
+Android client wasn't sending `platform` (kotlinx.serialization omits a **default-valued** property, so
+`platform = "android"` was dropped → the token stored as `'ios'` → the FCM sender skipped it). Fixed by making
+`platform` a required (always-serialized) field. Client-only fix, no backend redeploy.
 
 ---
 

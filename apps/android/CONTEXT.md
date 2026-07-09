@@ -65,7 +65,8 @@ builder), google-services plugin + `firebase-messaging` (BOM 33.7.0), `push/RaSi
 (`onNewToken`→register; `onMessageReceived` no-op — the SSE modal owns foreground), a `rasi_default` channel
 (`App.onCreate`), `POST_NOTIFICATIONS` runtime request (`RootScreen`, Android 13+), device-token registration
 (`ProgramContext.registerPushTokenIfNeeded`/`onNewPushToken` → `PUT /notifications/device` `platform:"android"`,
-deduped; sign-out `DELETE /device`). **Backend delta (deploy-pending push):** `utils/pushNotifications.js`
+deduped; sign-out `DELETE /device`). **Backend delta (DEPLOYED + push verified to the Pixel_8 tray):**
+`utils/pushNotifications.js`
 gained a `firebase-admin` FCM sender fired alongside APNs by `sendPushToMembers`; `authService.upsertPushToken`
 + the login/`PUT /device` routes thread a `platform` param (**default `"ios"`** so the LIVE iOS binary is
 unchanged); `FIREBASE_SERVICE_ACCOUNT` (base64) already on Render `sync:false`; **no migration** (the

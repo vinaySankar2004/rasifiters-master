@@ -51,6 +51,7 @@ import com.app.rasifiters.net.WorkoutTypeDTO
 import com.app.rasifiters.net.WorkoutTypeHighestParticipationDTO
 import com.app.rasifiters.net.WorkoutTypeLongestDurationDTO
 import com.app.rasifiters.net.WorkoutTypeMostPopularDTO
+import android.util.Log
 import com.app.rasifiters.net.toApiException
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
@@ -67,6 +68,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import retrofit2.HttpException
 import java.io.IOException
+
+private const val PUSH_TAG = "RaSiPush"
 
 /**
  * App-scoped state hub — the analog of the iOS `ProgramContext` ObservableObject and the web
@@ -342,11 +345,17 @@ class ProgramContext(
     private var lastRegisteredPushToken: String? = null
 
     /** Fetch the current FCM token and register it (if signed in). Called on sign-in + resume. Best-effort;
-     *  if notifications are unavailable/denied the token fetch just fails silently. */
+     *  failures are logged (a push path must not swallow errors silently). */
     fun registerPushTokenIfNeeded() {
-        if (session.accessToken.isNullOrEmpty()) return
+        if (session.accessToken.isNullOrEmpty()) { Log.d(PUSH_TAG, "register skipped — not signed in"); return }
         FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (task.isSuccessful) task.result?.let { onNewPushToken(it) }
+            if (task.isSuccessful) {
+                val token = task.result
+                Log.d(PUSH_TAG, "FCM token fetched: ${token?.take(16)}…")
+                token?.let { onNewPushToken(it) }
+            } else {
+                Log.w(PUSH_TAG, "FCM token fetch FAILED", task.exception)
+            }
         }
     }
 
@@ -356,8 +365,9 @@ class ProgramContext(
         if (token.isEmpty() || session.accessToken.isNullOrEmpty()) return
         if (token == lastRegisteredPushToken) return
         scope.launch {
-            runCatching { api.registerDevice(DeviceRegisterRequest(pushToken = token)) }
-                .onSuccess { lastRegisteredPushToken = token }
+            runCatching { api.registerDevice(DeviceRegisterRequest(pushToken = token, platform = "android")) }
+                .onSuccess { lastRegisteredPushToken = token; Log.d(PUSH_TAG, "device registered ✓") }
+                .onFailure { Log.w(PUSH_TAG, "device register FAILED", it) }
         }
     }
 

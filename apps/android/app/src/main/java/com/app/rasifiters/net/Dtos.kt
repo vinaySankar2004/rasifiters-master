@@ -86,13 +86,14 @@ data class NotificationDTO(
     @SerialName("created_at") val createdAt: String? = null,
 )
 
-/** PUT /notifications/device — register this device's FCM token. `platform="android"` routes it to the
- *  backend FCM sender (the default "ios" is reserved for the APNs path). */
+/** PUT /notifications/device — register this device's FCM token. `platform` MUST be passed explicitly
+ *  ("android"): kotlinx.serialization omits a property equal to its DEFAULT (encodeDefaults=false), so a
+ *  `= "android"` default would be dropped from the body and the backend would fall back to "ios". */
 @Serializable
 data class DeviceRegisterRequest(
     @SerialName("push_token") val pushToken: String,
+    val platform: String,
     @SerialName("device_id") val deviceId: String? = null,
-    val platform: String = "android",
 )
 
 /** DELETE /notifications/device — unregister this device's token (on sign-out). */
