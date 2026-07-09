@@ -322,3 +322,20 @@ registered `reference_impl` (the `auth` node is backend-only), and no `specs/fea
 divergence from the ported theme-aware brand mark (called out in the commit body). Committed as a plain
 `fix(ios,android,web):`, pushed to main. Blast-radius: zero feature impact. Nothing new promoted — this is
 the established multi-surface cosmetic case.
+
+## Run — 2026-07-09 · loggable-only selector (3 clients) + iOS quick-add widgets → batch form
+17 session files: 7 client code (web `LogWorkoutsForm.tsx`, android `LogWorkoutScreen.kt`, iOS
+`LogFormComponents.swift` + 2 widget views + `WidgetQuickAddComponents.swift` + a `ProgramContext.swift`
+comment) + 10 SPECs (2 feature, 6 page, registry.json, REGISTRY.md). Explicit `git add` of all 17 (repo
+clean at session start; no `-A`). **PATCH bump BOTH `workout-logs` 0.5.0→0.5.1 + `daily-health-logs`
+0.2.0→0.2.1 — the nuance vs the recent cosmetic runs:** the change is client `apps/**` (NOT the backend
+`reference_impl`), which alone = "no feature delta", BUT it also **materially edited each feature SPEC's
+consumer topology** (D-REF + F4: the iOS quick-add widget now posts to `/batch`, not single `POST /`) plus
+a §11 changelog note → that `specs/features/**` edit IS the bump driver (a note about the feature's own
+consumer behavior = PATCH). So: cosmetic apps/** with no SPEC touch = no bump (prior runs); apps/** that
+forces a feature-SPEC consumer-topology correction = PATCH. No contract change (`consumed_by`/routes/
+responses all unchanged) → blast-radius FYI, not a gate. Adversary-reviewed before commit (4 advisories
+fixed). Page SPECs carry their own bumps (widget-quick-add-* 0.2.0, log-* ios 0.3.1/0.2.1 + android 0.2.1).
+Two tags: `feature/workout-logs@v0.5.1` + `feature/daily-health-logs@v0.2.1`. Promoted nothing new — the
+"note about the feature's OWN behavior = PATCH" lesson already exists; this run is a clean instance of it
+where the behavior lives in a client, not the backend reference_impl.
