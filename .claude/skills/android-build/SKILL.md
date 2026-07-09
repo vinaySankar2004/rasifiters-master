@@ -170,6 +170,25 @@ not re-validating business logic:
   `Result` for the caller to render; a `.onSuccess`-only handler drops the error (a failed delete leaves the
   confirm `AlertDialog` stuck open). Add `.onFailure { actionError = … }` + a shared error `AlertDialog`
   (iOS shows an alert on these exact paths). (Run 9.)
+- **SSE = okhttp-sse `EventSource` on its OWN client with `readTimeout(0)`.** The stream client must NOT reuse
+  the shared ApiService OkHttpClient (its finite read timeout kills a long-lived stream) — build a dedicated
+  `OkHttpClient.Builder().readTimeout(0, SECONDS)`, set `Authorization: Bearer` explicitly on the Request (the
+  D-C2 `/notifications/stream` auth accepts header or `?token=`), and re-read the token from `Session` on each
+  `connect()` (no 401-authenticator on the stream). `EventSourceListener.onEvent(id, type, data)`: `type` is
+  the SSE `event:` field → filter `type == "notification"` (skip the `ready` handshake + pings), decode `data`
+  as the DTO. Recovery = restart on `ON_RESUME` (iOS `scenePhase == .active` parity), NOT an internal reconnect
+  loop. App-root overlay (modal queue) + stream start/stop live in `RootScreen` (the iOS `AppRootView` ZStack
+  analog); `LocalLifecycleOwner` comes from `androidx.lifecycle.compose`, not the deprecated `ui.platform`. (Run 10.)
+- **FCM: google-services plugin REQUIRES `google-services.json` at build time (else build fails).** Wire the
+  plugin via the catalog (`google-services` id 4.4.2, `apply false` in root, `alias(...)` in `app/`) + Firebase
+  BOM (`platform(libs.firebase.bom)` 33.7.0 + `firebase-messaging`, no explicit version). The json is
+  **gitignored** (public repo) but present locally at `apps/android/app/google-services.json` so the compile
+  loop still works. The `FirebaseMessagingService` reaches app state via `(application as? App)?.container`
+  (system-instantiated, no DI); `onMessageReceived` is a no-op (SSE owns foreground); token fetch is a `Task`
+  (`FirebaseMessaging.getInstance().token.addOnCompleteListener`), `POST_NOTIFICATIONS` (13+) via a
+  `RequestPermission()` launcher. Backend: `sendPushToMembers` fans out APNs+FCM; `upsertPushToken`'s new
+  `platform` param **defaults to `"ios"`** so the LIVE iOS binary is untouched; FCM credential is a Render
+  secret (`FIREBASE_SERVICE_ACCOUNT` base64), graceful-null when unset. (Run 11.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the

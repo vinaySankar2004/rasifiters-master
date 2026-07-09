@@ -345,3 +345,71 @@ Three user-reported fixes + a parallel functional audit of all four tabs vs the 
 - **Consistency cut:** dropped the inert "Health Connect" row from the picker `AccountMenuSheet` to match
   `ProgramAccountSection` (which already omits it) — Health Connect is Phase H/J; a dead row on one of two
   account surfaces is worse than none.
+
+## Run 10 — 2026-07-08 — Phase I-a: in-app SSE notifications (stream + modal queue)
+
+Ported the **in-app half** of the `notifications` feature (the FCM-push half is a scoped follow-up needing
+user Firebase provisioning + a backend deploy). Green first try (`assembleDebug` 7s); one self-introduced
+deprecation warning fixed. No Gradle change — okhttp-sse was already a declared dep.
+
+- **New:** `net/NotificationStreamClient.kt` (okhttp-sse), `ui/components/NotificationModal.kt` (Compose
+  `Dialog`). **Edited:** `net/{Dtos,ApiService}.kt` (+`NotificationDTO`, `/notifications/unacknowledged` +
+  `/{id}/acknowledge`); `core/ProgramContext.kt` (+`baseUrl` ctor param, notification state +
+  `start/stopNotificationStream`/`loadUnacknowledged`/`acknowledge`/`enqueue`/`refreshDataForNotification`);
+  `core/AppContainer.kt` (pass `BuildConfig.API_BASE_URL`); `ui/RootScreen.kt` (overlay + stream lifecycle).
+- **okhttp-sse EventSource for SSE.** `EventSources.createFactory(client).newEventSource(request, listener)`;
+  `EventSourceListener.onEvent(id, type, data)` — `type` IS the SSE `event:` field, so filter `type ==
+  "notification"` (ignore the `ready` handshake + keep-alive frames) and decode `data` as the DTO. The
+  streaming client needs its OWN OkHttpClient with **`readTimeout(0, SECONDS)`** — the shared ApiService
+  client's finite read timeout would kill a long-lived stream. Bearer header set explicitly on the Request
+  (the D-C2 stream auth accepts header OR `?token=`; header is cleanest from okhttp). No 401-authenticator on
+  the stream client — the token is just re-read from `Session` on each restart, so a refresh made by the
+  main ApiService is picked up on the next resume-restart. (Run 10.)
+- **App-root overlay + lifecycle in `RootScreen` (iOS `AppRootView` parity).** Wrap the two nav graphs in a
+  `Box`; render `notificationQueue.firstOrNull()` as the modal above them. `LaunchedEffect(token)` starts the
+  stream + backfill on sign-in / tears down on sign-out; a `DisposableEffect` `LifecycleEventObserver` restarts
+  it on **`ON_RESUME`** (the iOS `scenePhase == .active` restart) to recover a socket dropped in the
+  background — no internal reconnect loop (faithful to iOS `onError` no-op). Stream teardown also hooked into
+  `clearSession()`.
+- **`LocalLifecycleOwner` deprecation:** `androidx.compose.ui.platform.LocalLifecycleOwner` is deprecated —
+  use **`androidx.lifecycle.compose.LocalLifecycleOwner`** (the `lifecycle-runtime-compose` artifact, already
+  present). The older `ui.platform` import still compiles (existing `NotificationsScreen.kt` uses it) but
+  emits a warning; the `lifecycle.compose` package is the clean import. (Run 10.)
+- **Modal = a Compose `Dialog` with `DialogProperties(dismissOnBackPress=false, dismissOnClickOutside=false)`**
+  — the acknowledge-to-close contract (OK is the only exit). Neutral M3 `surface` card + brand-orange OK,
+  theme-aware. Single-notification QUEUE (web F7): oldest-first, one at a time, optimistic ack with
+  re-backfill on failure (F8), id-deduped. (Run 10.)
+
+## Run 11 — 2026-07-08 — Phase I-b: FCM push (Firebase Cloud Messaging)
+
+The native-push half of `notifications` (the APNs analog), both client + backend. Green in 49s (cold — pulled
+Firebase deps). User pre-provisioned the Firebase project `rasi-fiters` + placed `google-services.json`.
+
+- **google-services plugin needs `google-services.json` present at build time or the build FAILS.** Wired via
+  the version catalog: `google-services = { id = "com.google.gms.google-services", version.ref }` (v4.4.2),
+  `apply false` in the root `build.gradle.kts`, `alias(libs.plugins.google.services)` in `app/`. Firebase libs
+  via BOM: `implementation(platform(libs.firebase.bom))` (33.7.0) + `implementation(libs.firebase.messaging)`
+  (no version — the BOM pins it). The `settings.gradle.kts` `google()` repos (pluginManagement filter
+  `com.google.*`, unfiltered dependency `google()`) already resolve both the plugin + `com.google.firebase`
+  artifacts — no repo change. (Run 11.)
+- **`google-services.json` is gitignored (public repo, sole-builder Mac).** It's not a hard secret (ships in
+  the APK) but we keep it out of the public repo; it lives at `apps/android/app/google-services.json`
+  per-machine. My compile loop works because the file is present locally even though untracked. The service
+  account key (backend FCM credential) IS a real secret → Render env `FIREBASE_SERVICE_ACCOUNT` (base64),
+  never in git. (Run 11.)
+- **`FirebaseMessagingService` reaches app state via the `Application`, not DI.** The system instantiates the
+  service, so `onNewToken` calls `(application as? App)?.container?.programContext?.onNewPushToken(token)`.
+  `onMessageReceived` is a deliberate **no-op** — the in-app SSE modal owns foreground alerts; a tray push too
+  would double-alert. Background `notification` messages the OS tray shows automatically (needs a channel:
+  created in `App.onCreate`, id referenced by the `default_notification_channel_id` manifest meta-data). (Run 11.)
+- **FCM token fetch is a `Task`, not a coroutine** — `FirebaseMessaging.getInstance().token.addOnCompleteListener{}`;
+  register on sign-in + `ON_RESUME` (deduped by a `lastRegisteredPushToken`). `POST_NOTIFICATIONS` (Android
+  13+) requested from `RootScreen` via `rememberLauncherForActivityResult(RequestPermission())`; registration
+  proceeds regardless of the grant (the permission only gates DISPLAY). (Run 11.)
+- **Backend: keep the shared push entry point, add a platform param defaulting to the incumbent.**
+  `sendPushToMembers` now fans out to APNs (`platform:'ios'`) + FCM (`platform:'android'`) in parallel;
+  `upsertPushToken(memberId, token, deviceId, platform='ios')` — the **default preserves the LIVE iOS binary
+  byte-for-byte** (it sends no platform), the Android client sends `"android"`. FCM sender = `firebase-admin`
+  `sendEachForMulticast` + invalid-token pruning (`messaging/registration-token-not-registered` etc.);
+  `getFcmApp()` returns null (⇒ no-op) when `FIREBASE_SERVICE_ACCOUNT` is unset — the APNs graceful-null
+  pattern. **No migration** — `member_push_tokens.platform` already existed (default `'ios'`, indexed). (Run 11.)
