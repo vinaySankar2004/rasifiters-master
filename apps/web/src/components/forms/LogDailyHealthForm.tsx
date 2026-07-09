@@ -3,7 +3,6 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { fetchProgramMembers, fetchPrograms, type Program } from "@/lib/api/programs";
 import type { BulkHealthEntry, BulkRowError } from "@/lib/api/logs";
-import { formatDuration } from "@/lib/format";
 import { Select } from "@/components/Select";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -596,7 +595,7 @@ export function LogDailyHealthForm({
             </>
           )}
           {" • "}
-          {formatDuration(totalSleepMinutes)} sleep
+          {Math.floor(totalSleepMinutes / 60)}h {totalSleepMinutes % 60}m sleep
           {" • "}
           {totalSteps.toLocaleString()} steps
         </p>
