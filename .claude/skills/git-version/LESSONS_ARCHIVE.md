@@ -261,3 +261,21 @@ the feature-registry `version` field, so no blast-radius/tag implications.
 **Prototype-then-revert leaves no trace to commit:** added Haze (Liquid Glass) then removed it same session
 — libs.versions.toml/build.gradle net to zero for the dep, so `git status` shows only the real deltas. Don't
 hunt for the reverted dependency in the commit.
+
+## Run — 2026-07-09 — steps tracking + multi-program logging (6-feature bump, multiplex close)
+Six features bumped in one multiplex feature: daily-health-logs 0.1→0.2, workout-logs 0.4→0.5,
+analytics 0.1.1→0.2, member-analytics 0.1→0.2, apple-health 0.6→0.7, health-connect 0.1→0.2. All MINOR
+(additive schema/endpoints/fields + user-approved behavior changes recorded as D-rules; no breaking
+contract change → blast-radius FYI, not a gate).
+- **Version labels were written by the specs implementer BEFORE this git-version run** (registry.json +
+  REGISTRY.md + SPEC §11 changelog all pre-updated in the octopus merge). So git-version's job collapsed to
+  VERIFY registry↔REGISTRY↔SPEC agree + emit blast-radius + create the 6 tags. When a multiplex specs-agent
+  owns the doc bumps, don't re-edit — just reconcile and tag.
+- **Changelog lives in §11 here, not §12** (SPEC section numbering varies per feature; the skill says §12 but
+  these SPECs put Changelog at §11) and is a **Markdown table** (`| Version | Date | Change |`), not the
+  `- **vX.Y.Z**` list the skill prose assumes. Grep the version string, don't assume the list format.
+- **Tags-invariant is NOT literally count==nodes here:** 45 feature tags vs 16 registry nodes — historical
+  per-version tags accumulate (apple-health alone has v0.1..v0.7). The invariant in practice = "every
+  feature's CURRENT registry version has a matching tag," not a 1:1 total.
+- **Everything was already committed** across 3 commits (backend 2aa9a47, octopus merge a3cd5d0, iOS fix
+  0db3a81) before tagging, so tags anchored at HEAD (the final merged state), not a fresh commit.
