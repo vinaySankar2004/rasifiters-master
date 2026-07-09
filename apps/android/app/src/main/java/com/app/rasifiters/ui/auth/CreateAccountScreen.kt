@@ -67,6 +67,9 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
     // Slimmer fields let the whole form fit, so it centers as one balanced block (falls back to scroll
     // if it ever overflows on a shorter device).
     AuthScaffold {
+        // Nudge the whole block down — the tall form top-anchors, so without this the brand mark sits
+        // too high against the status bar. Scrolls if it overflows on a short device.
+        Spacer(Modifier.height(48.dp))
         BrandMark(sizeDp = 84)
         Spacer(Modifier.height(16.dp))
 

@@ -30,7 +30,9 @@
   (a `BasicTextField` in a fixed **50dp** height, **14dp**-rounded, bordered row with a placeholder — not
   Material's `OutlinedTextField`) so every field on every auth form has identical height + curve. The form is
   hosted by `AuthScaffold` which **vertically centers** it (scroll/top-anchor fallback when long). Tuned via
-  single constants in `AuthComponents.kt` (`FieldHeight`, `FieldShape`).
+  single constants in `AuthComponents.kt` (`FieldHeight`, `FieldShape`). Because this form is tall it
+  top-anchors rather than centers, so a **48dp leading `Spacer`** sits above `BrandMark` to keep the brand
+  mark off the status bar (Android-only nudge; scrolls if it overflows a short device).
 - **F1–F5 (kept):** role from body; register-then-login with no rollback on the login leg; no client rate-limit;
   no client username-format rules (server is authority).
 
@@ -38,5 +40,6 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-07-09 | UI nudge (user visual review): 48dp leading `Spacer` above `BrandMark` so the tall (top-anchored) form starts lower off the status bar — Android-only, scrolls if it overflows (A-5). |
 | 0.2.0 | 2026-07-08 | UI polish pass (user visual review). Shared compact field kit (`AppTextField`/`AppPasswordField`, 50dp/14dp — A-5), standardized **`AppDropdownField`** (opaque, width-matched — A-1; Haze/Liquid-Glass prototyped then dropped), centered `AuthScaffold`. `BrandMark(84)`. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase B). `CreateAccountScreen` composable — full field set + email hint + live password checklist + mismatch hint + gender dropdown, register→auto-login, replacing the Phase-A stub. Compile-checked green (`android-build`). Visual run = user. Noted: autoFocus deferred (A-3). |
