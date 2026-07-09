@@ -86,6 +86,17 @@ v1Router.get("/health/timeline", authenticateToken, async (req, res) => {
     }
 });
 
+v1Router.get("/health/steps", authenticateToken, async (req, res) => {
+    try {
+        const result = await analyticsService.getHealthSteps(req.query.programId, req.query.memberId);
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("Error computing steps analytics:", err);
+        res.status(500).json({ error: "Failed to compute steps analytics." });
+    }
+});
+
 v1Router.get("/distribution/day", authenticateToken, async (req, res) => {
     try {
         const result = await analyticsService.getDistributionByDay(req.query.programId);

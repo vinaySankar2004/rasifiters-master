@@ -9,24 +9,35 @@ const dailyHealthLogRouter = express.Router();
 
 // ── admin_only_data_entry lock (D-C5 — hoisted from the service into a route middleware) ──
 //
-// Resolve-or-pass-through: read body.program_id; if absent → next() (the service emits its own 400);
-// load the Program; if missing or not locked → next() (matches legacy assertDataEntryAllowed's no-throw);
-// if locked and the requester is a program admin → next(); otherwise 403 with the legacy message. This
-// preserves the 403 code + message. One ordering nuance: the lock now fires before the handler's other
-// validations, so a locked-program + non-admin + otherwise-invalid body gets 403 where legacy gave 400.
+// Resolve-or-pass-through: read body.program_ids (multi-program batch, capped at 20 → 400) falling back
+// to body.program_id; if neither is usable → next() (the service emits its own 400); for EACH id: load
+// the Program; if missing or not locked → continue (matches legacy assertDataEntryAllowed's no-throw);
+// if locked and the requester is not a program admin → 403 with the legacy message. This preserves the
+// 403 code + message. One ordering nuance: the lock now fires before the handler's other validations,
+// so a locked-program + non-admin + otherwise-invalid body gets 403 where legacy gave 400.
 async function requireDataEntryAllowed(req, res, next) {
     try {
         const program_id = req.body?.program_id;
-        if (!program_id) return next();
-
-        const program = await Program.findByPk(program_id);
-        if (!program || !program.admin_only_data_entry) return next();
-
-        if (await logService.isProgramAdmin(program_id, req.user)) return next();
-
-        return res.status(403).json({
-            error: "This program is locked: only program admins can add, edit, or delete data."
-        });
+        let ids;
+        if (Array.isArray(req.body?.program_ids) && req.body.program_ids.length) {
+            const filtered = [...new Set(req.body.program_ids.filter((v) => typeof v === "string" && v))];
+            ids = filtered.length ? filtered : (program_id ? [program_id] : []);
+        } else {
+            ids = program_id ? [program_id] : [];
+        }
+        if (!ids.length) return next();
+        if (ids.length > 20) {
+            return res.status(400).json({ error: "Too many programs (max 20)." });
+        }
+        for (const pid of ids) {
+            const program = await Program.findByPk(pid);
+            if (!program || !program.admin_only_data_entry) continue;
+            if (await logService.isProgramAdmin(pid, req.user)) continue;
+            return res.status(403).json({
+                error: "This program is locked: only program admins can add, edit, or delete data."
+            });
+        }
+        return next();
     } catch (err) {
         console.error("Error verifying data-entry permission:", err);
         return res.status(500).json({ error: "Failed to verify data-entry permission." });
@@ -97,6 +108,21 @@ dailyHealthLogRouter.post("/", authenticateToken, requireDataEntryAllowed, async
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
         console.error("Error adding daily health log:", err);
         res.status(500).json({ error: "Failed to add daily health log." });
+    }
+});
+
+dailyHealthLogRouter.post("/batch", authenticateToken, requireDataEntryAllowed, async (req, res) => {
+    try {
+        const result = await logService.addDailyHealthLogsBatch(req.body, req.user);
+        res.status(201).json(result);
+    } catch (err) {
+        if (err instanceof AppError) {
+            const payload = { error: err.message };
+            if (err.rowErrors) payload.rowErrors = err.rowErrors;
+            return res.status(err.statusCode).json(payload);
+        }
+        console.error("Error adding daily health logs batch:", err);
+        res.status(500).json({ error: "Failed to add daily health logs.", details: err.message });
     }
 });
 

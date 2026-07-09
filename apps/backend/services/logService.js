@@ -4,6 +4,7 @@ const { WorkoutLog, Member, ProgramWorkout, ProgramMembership, Workout, Program,
 const { AppError } = require("../utils/response");
 
 const MAX_BATCH_SIZE = 200;
+const MAX_BATCH_PROGRAMS = 20;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /** True if value is a real YYYY-MM-DD calendar date (rejects rollovers like 2026-02-30). */
@@ -20,6 +21,22 @@ const parseOptionalNumber = (value) => {
     const num = Number(value);
     return Number.isFinite(num) ? num : NaN;
 };
+
+/** Normalize an optional program_ids array; falls back to [program_id]. Throws 400 when neither is usable. */
+function normalizeProgramIds(program_ids, program_id) {
+    let ids;
+    if (Array.isArray(program_ids) && program_ids.length) {
+        const filtered = [...new Set(program_ids.filter((v) => typeof v === "string" && v))];
+        ids = filtered.length ? filtered : (program_id ? [program_id] : []);
+    } else {
+        ids = program_id ? [program_id] : [];
+    }
+    if (!ids.length) throw new AppError(400, "program_id is required.");
+    if (ids.length > MAX_BATCH_PROGRAMS) {
+        throw new AppError(400, `Too many programs (max ${MAX_BATCH_PROGRAMS}).`);
+    }
+    return ids;
+}
 
 // ── Authorization helpers (shared by the workout-log and daily-health-log halves) ──
 
@@ -214,8 +231,8 @@ async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_nam
  *  REJECTED (never summed): the endpoint returns 409 with per-row `rowErrors` (field "duplicate")
  *  naming every offending row so the client can highlight them, and writes nothing. Admin/logger
  *  only. Field-validation failures likewise return per-row errors mapped by original index. */
-async function addWorkoutLogsBatch({ program_id, entries }, requester) {
-    if (!program_id) throw new AppError(400, "program_id is required.");
+async function addWorkoutLogsBatch({ program_id, program_ids, entries }, requester) {
+    const programIds = normalizeProgramIds(program_ids, program_id);
     if (!Array.isArray(entries) || entries.length === 0) {
         throw new AppError(400, "entries must be a non-empty array.");
     }
@@ -226,10 +243,11 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
     // The admin_only_data_entry lock is enforced upstream by requireDataEntryAllowed (D-C5).
 
     // Admin/logger/global-admin may log for anyone; a plain member may batch-log ONLY their own rows.
-    const canLogForAny = await resolveLogPermissions(program_id, requester);
-    if (!canLogForAny) {
-        const loggingForOthers = entries.some((e) => e?.member_id !== requester?.id);
-        if (loggingForOthers) {
+    // Multi-program: the requester must hold that privilege in EVERY selected program (DC-3).
+    const loggingForOthers = entries.some((e) => e?.member_id !== requester?.id);
+    for (const pid of programIds) {
+        const canLogForAny = await resolveLogPermissions(pid, requester);
+        if (!canLogForAny && loggingForOthers) {
             throw new AppError(403, "You can only log workouts for yourself.");
         }
     }
@@ -302,25 +320,31 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
         throw err;
     }
 
-    // ── Atomic writes ──
+    // ── Atomic writes (all-or-nothing across ALL selected programs) ──
     return sequelize.transaction(async (transaction) => {
-        // Every distinct member must be an active participant.
+        const programs = await Program.findAll({ where: { id: programIds }, attributes: ["id", "name"], transaction });
+        const nameById = new Map(programs.map((p) => [p.id, p.name]));
+        const suffix = (pid) => (programIds.length > 1 ? ` (${nameById.get(pid) || "program"})` : "");
+
+        // Every distinct member must be an active participant — in every program.
         const distinctMemberIds = [...new Set(groups.map((g) => g.member_id))];
         const membershipErrors = [];
-        for (const memberId of distinctMemberIds) {
-            const membership = await ProgramMembership.findOne({
-                where: { program_id, member_id: memberId, status: "active" },
-                transaction
-            });
-            if (!membership) {
-                for (const g of groups) {
-                    if (g.member_id !== memberId) continue;
-                    for (const index of g.rowIndexes) {
-                        membershipErrors.push({
-                            index,
-                            field: "member_id",
-                            message: "Member is not an active participant in this program."
-                        });
+        for (const pid of programIds) {
+            for (const memberId of distinctMemberIds) {
+                const membership = await ProgramMembership.findOne({
+                    where: { program_id: pid, member_id: memberId, status: "active" },
+                    transaction
+                });
+                if (!membership) {
+                    for (const g of groups) {
+                        if (g.member_id !== memberId) continue;
+                        for (const index of g.rowIndexes) {
+                            membershipErrors.push({
+                                index,
+                                field: "member_id",
+                                message: `Member is not an active participant in this program${suffix(pid)}.`
+                            });
+                        }
                     }
                 }
             }
@@ -331,32 +355,40 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
             throw err;
         }
 
-        // Resolve (or create) a ProgramWorkout per distinct workout name.
+        // Resolve (or create) a ProgramWorkout per (program, workout name). The cache key MUST
+        // include the program id: a ProgramWorkout belongs to ONE program, and the FK does not
+        // guard cross-program ids — a name-only cache would silently insert program A's
+        // program_workout_id into program B's rows.
         const workoutCache = new Map();
-        for (const g of groups) {
-            const key = g.workout_name.trim().toLowerCase();
-            if (!workoutCache.has(key)) {
-                workoutCache.set(key, await resolveProgramWorkout(program_id, g.workout_name, transaction));
+        const wcKey = (pid, name) => `${pid}|${name.trim().toLowerCase()}`;
+        for (const pid of programIds) {
+            for (const g of groups) {
+                const key = wcKey(pid, g.workout_name);
+                if (!workoutCache.has(key)) {
+                    workoutCache.set(key, await resolveProgramWorkout(pid, g.workout_name, transaction));
+                }
             }
         }
 
         // Collision check against existing logs — reject (don't merge) if a record already
-        // exists for this member/workout/date. Collect ALL offenders before any write.
+        // exists for this member/workout/date in ANY program. Collect ALL offenders before any write.
         const existingErrors = [];
-        for (const g of groups) {
-            const pw = workoutCache.get(g.workout_name.trim().toLowerCase());
-            const existing = await WorkoutLog.findOne({
-                where: { program_id, member_id: g.member_id, program_workout_id: pw.id, log_date: g.date },
-                transaction
-            });
-            if (existing) {
-                for (const index of g.rowIndexes) {
-                    existingErrors.push({
-                        index,
-                        field: "duplicate",
-                        message:
-                            "A workout already exists for this member, workout, and date. It can't be added to — remove or edit the existing record."
-                    });
+        for (const pid of programIds) {
+            for (const g of groups) {
+                const pw = workoutCache.get(wcKey(pid, g.workout_name));
+                const existing = await WorkoutLog.findOne({
+                    where: { program_id: pid, member_id: g.member_id, program_workout_id: pw.id, log_date: g.date },
+                    transaction
+                });
+                if (existing) {
+                    for (const index of g.rowIndexes) {
+                        existingErrors.push({
+                            index,
+                            field: "duplicate",
+                            message:
+                                `A workout already exists for this member, workout, and date${suffix(pid)}. It can't be added to — remove or edit the existing record.`
+                        });
+                    }
                 }
             }
         }
@@ -366,20 +398,22 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
             throw err;
         }
 
-        // No collisions — every accepted group is a fresh insert.
+        // No collisions — every accepted group is a fresh insert (one per program).
         let created = 0;
         let total_minutes = 0;
-        for (const g of groups) {
-            const pw = workoutCache.get(g.workout_name.trim().toLowerCase());
-            await WorkoutLog.create({
-                program_id,
-                member_id: g.member_id,
-                program_workout_id: pw.id,
-                log_date: g.date,
-                duration: g.duration
-            }, { transaction });
-            created++;
-            total_minutes += g.duration;
+        for (const pid of programIds) {
+            for (const g of groups) {
+                const pw = workoutCache.get(wcKey(pid, g.workout_name));
+                await WorkoutLog.create({
+                    program_id: pid,
+                    member_id: g.member_id,
+                    program_workout_id: pw.id,
+                    log_date: g.date,
+                    duration: g.duration
+                }, { transaction });
+                created++;
+                total_minutes += g.duration;
+            }
         }
 
         return {
@@ -387,7 +421,8 @@ async function addWorkoutLogsBatch({ program_id, entries }, requester) {
             updated: 0,
             total_minutes,
             groups: groups.length,
-            total_entries: entries.length
+            total_entries: entries.length,
+            programs: programIds.length
         };
     });
 }
@@ -472,18 +507,23 @@ async function deleteWorkoutLog({ member_id, member_name, workout_name, date, pr
 
 // ── Daily Health Logs ──
 
-async function addDailyHealthLog({ program_id, log_date, sleep_hours, food_quality, member_id: bodyMemberId }, requester) {
+async function addDailyHealthLog({ program_id, log_date, sleep_hours, food_quality, steps, member_id: bodyMemberId }, requester) {
     if (!program_id || !log_date) throw new AppError(400, "program_id and log_date are required.");
 
     const sleepValue = parseOptionalNumber(sleep_hours);
     const foodValue = parseOptionalNumber(food_quality);
+    const stepsValue = parseOptionalNumber(steps);
 
     if (Number.isNaN(sleepValue)) throw new AppError(400, "sleep_hours must be a number.");
     if (Number.isNaN(foodValue)) throw new AppError(400, "food_quality must be a number.");
-    if (sleepValue === null && foodValue === null) throw new AppError(400, "At least one of sleep_hours or food_quality is required.");
+    if (Number.isNaN(stepsValue)) throw new AppError(400, "steps must be a number.");
+    if (sleepValue === null && foodValue === null && stepsValue === null) throw new AppError(400, "At least one of sleep_hours, food_quality, or steps is required.");
     if (sleepValue !== null && (sleepValue < 0 || sleepValue > 24)) throw new AppError(400, "sleep_hours must be between 0 and 24.");
     if (foodValue !== null && (!Number.isInteger(foodValue) || foodValue < 1 || foodValue > 5)) {
         throw new AppError(400, "food_quality must be an integer between 1 and 5.");
+    }
+    if (stepsValue !== null && (!Number.isInteger(stepsValue) || stepsValue < 0)) {
+        throw new AppError(400, "steps must be a non-negative whole number.");
     }
 
     // The admin_only_data_entry lock is enforced upstream by requireDataEntryAllowed (D-C2).
@@ -508,14 +548,187 @@ async function addDailyHealthLog({ program_id, log_date, sleep_hours, food_quali
 
     return DailyHealthLog.create({
         program_id, member_id: targetMemberId, log_date,
-        sleep_hours: sleepValue, food_quality: foodValue
+        sleep_hours: sleepValue, food_quality: foodValue, steps: stepsValue
+    });
+}
+
+/** Bulk-write daily health rows for many member/date rows in one atomic transaction, optionally
+ *  across many programs (`program_ids`, DC-2). In-batch duplicates (same member+date twice) → 409
+ *  with per-row `rowErrors` (field "duplicate"); rows colliding with EXISTING records are UPSERTED
+ *  instead — only the fields PRESENT on the entry are updated (null clears, unsent fields preserved —
+ *  same semantics as the single PUT; DC-5). Field-validation failures return per-row errors mapped
+ *  by original index. */
+async function addDailyHealthLogsBatch({ program_id, program_ids, entries }, requester) {
+    const programIds = normalizeProgramIds(program_ids, program_id);
+    if (!Array.isArray(entries) || entries.length === 0) {
+        throw new AppError(400, "entries must be a non-empty array.");
+    }
+    if (entries.length > MAX_BATCH_SIZE) {
+        throw new AppError(400, `Batch too large (max ${MAX_BATCH_SIZE} rows).`);
+    }
+
+    // The admin_only_data_entry lock is enforced upstream by requireDataEntryAllowed (D-C5).
+
+    // Admin/logger/global-admin may log for anyone; a plain member may batch-log ONLY their own rows.
+    // Multi-program: the requester must hold that privilege in EVERY selected program (DC-3).
+    const loggingForOthers = entries.some((e) => e?.member_id !== requester?.id);
+    for (const pid of programIds) {
+        const canLogForAny = await resolveLogPermissions(pid, requester);
+        if (!canLogForAny && loggingForOthers) {
+            throw new AppError(403, "You can only log your own daily health.");
+        }
+    }
+
+    // ── Per-row input validation (no DB work yet) ──
+    const rowErrors = [];
+    const parsedEntries = entries.map((entry, index) => {
+        const memberId = entry?.member_id;
+        if (!memberId || typeof memberId !== "string") {
+            rowErrors.push({ index, field: "member_id", message: "Member is required." });
+        }
+        if (!isValidDateString(entry?.log_date)) {
+            rowErrors.push({ index, field: "log_date", message: "A valid date (YYYY-MM-DD) is required." });
+        }
+
+        const hasSleepField = Object.prototype.hasOwnProperty.call(entry ?? {}, "sleep_hours");
+        const hasFoodField = Object.prototype.hasOwnProperty.call(entry ?? {}, "food_quality");
+        const hasStepsField = Object.prototype.hasOwnProperty.call(entry ?? {}, "steps");
+        const sleepValue = parseOptionalNumber(entry?.sleep_hours);
+        const foodValue = parseOptionalNumber(entry?.food_quality);
+        const stepsValue = parseOptionalNumber(entry?.steps);
+
+        if (Number.isNaN(sleepValue)) {
+            rowErrors.push({ index, field: "sleep_hours", message: "sleep_hours must be a number." });
+        } else if (sleepValue !== null && (sleepValue < 0 || sleepValue > 24)) {
+            rowErrors.push({ index, field: "sleep_hours", message: "sleep_hours must be between 0 and 24." });
+        }
+        if (Number.isNaN(foodValue)) {
+            rowErrors.push({ index, field: "food_quality", message: "food_quality must be a number." });
+        } else if (foodValue !== null && (!Number.isInteger(foodValue) || foodValue < 1 || foodValue > 5)) {
+            rowErrors.push({ index, field: "food_quality", message: "food_quality must be an integer between 1 and 5." });
+        }
+        if (Number.isNaN(stepsValue)) {
+            rowErrors.push({ index, field: "steps", message: "steps must be a number." });
+        } else if (stepsValue !== null && (!Number.isInteger(stepsValue) || stepsValue < 0)) {
+            rowErrors.push({ index, field: "steps", message: "steps must be a non-negative whole number." });
+        }
+        if (sleepValue === null && foodValue === null && stepsValue === null) {
+            rowErrors.push({ index, field: "metrics", message: "At least one of sleep, diet quality, or steps is required." });
+        }
+
+        return {
+            index,
+            member_id: memberId,
+            log_date: entry?.log_date,
+            sleepValue, foodValue, stepsValue,
+            hasSleepField, hasFoodField, hasStepsField
+        };
+    });
+    if (rowErrors.length) {
+        const err = new AppError(400, "Some rows are invalid.");
+        err.rowErrors = rowErrors;
+        throw err;
+    }
+
+    // In-batch duplicates: two+ rows for the same member/date. Flag every offending row.
+    const indexesByKey = new Map();
+    for (const e of parsedEntries) {
+        const key = `${e.member_id}|${e.log_date}`;
+        if (!indexesByKey.has(key)) indexesByKey.set(key, []);
+        indexesByKey.get(key).push(e.index);
+    }
+    const duplicateErrors = [];
+    for (const indexes of indexesByKey.values()) {
+        if (indexes.length > 1) {
+            for (const index of indexes) {
+                duplicateErrors.push({
+                    index,
+                    field: "duplicate",
+                    message:
+                        "Duplicate row — this member already has a daily health entry for this date in another row."
+                });
+            }
+        }
+    }
+    if (duplicateErrors.length) {
+        const err = new AppError(409, "Some rows duplicate another row.");
+        err.rowErrors = duplicateErrors;
+        throw err;
+    }
+
+    // ── Atomic writes (all-or-nothing across ALL selected programs) ──
+    return sequelize.transaction(async (transaction) => {
+        const programs = await Program.findAll({ where: { id: programIds }, attributes: ["id", "name"], transaction });
+        const nameById = new Map(programs.map((p) => [p.id, p.name]));
+        const suffix = (pid) => (programIds.length > 1 ? ` (${nameById.get(pid) || "program"})` : "");
+
+        // Every distinct member must be an active participant — in every program.
+        const distinctMemberIds = [...new Set(parsedEntries.map((e) => e.member_id))];
+        const membershipErrors = [];
+        for (const pid of programIds) {
+            for (const memberId of distinctMemberIds) {
+                const membership = await ProgramMembership.findOne({
+                    where: { program_id: pid, member_id: memberId, status: "active" },
+                    transaction
+                });
+                if (!membership) {
+                    for (const e of parsedEntries) {
+                        if (e.member_id !== memberId) continue;
+                        membershipErrors.push({
+                            index: e.index,
+                            field: "member_id",
+                            message: `Member is not enrolled in this program${suffix(pid)}.`
+                        });
+                    }
+                }
+            }
+        }
+        if (membershipErrors.length) {
+            const err = new AppError(400, "Some rows reference members who are not active in this program.");
+            err.rowErrors = membershipErrors;
+            throw err;
+        }
+
+        // Upsert (DC-5): a health row is state, not additive — existing (program, member, date) rows
+        // are UPDATED with only the fields present on the entry; fresh rows are created.
+        let created = 0;
+        let updated = 0;
+        for (const pid of programIds) {
+            for (const e of parsedEntries) {
+                const existing = await DailyHealthLog.findOne({
+                    where: { program_id: pid, member_id: e.member_id, log_date: e.log_date },
+                    transaction
+                });
+                if (existing) {
+                    const updateData = {};
+                    if (e.hasSleepField) updateData.sleep_hours = e.sleepValue;
+                    if (e.hasFoodField) updateData.food_quality = e.foodValue;
+                    if (e.hasStepsField) updateData.steps = e.stepsValue;
+                    await existing.update(updateData, { transaction });
+                    updated++;
+                } else {
+                    await DailyHealthLog.create({
+                        program_id: pid,
+                        member_id: e.member_id,
+                        log_date: e.log_date,
+                        sleep_hours: e.sleepValue,
+                        food_quality: e.foodValue,
+                        steps: e.stepsValue
+                    }, { transaction });
+                    created++;
+                }
+            }
+        }
+
+        return { created, updated, programs: programIds.length, total_entries: entries.length };
     });
 }
 
 async function getDailyHealthLogs({
     programId, memberId, limit = 1000,
     startDate, endDate, sortBy = "date", sortDir = "desc",
-    minSleepHours, maxSleepHours, minFoodQuality, maxFoodQuality
+    minSleepHours, maxSleepHours, minFoodQuality, maxFoodQuality,
+    minSteps, maxSteps
 }, requester) {
     if (!programId || !memberId) throw new AppError(400, "programId and memberId are required.");
 
@@ -566,10 +779,26 @@ async function getDailyHealthLogs({
         whereClause[Op.and].push({ [Op.and]: dietCond });
     }
 
+    const stepsInt = (v) => {
+        if (v === undefined || v === null || v === "") return undefined;
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) && n >= 0 ? n : undefined;
+    };
+    const minSt = stepsInt(minSteps);
+    const maxSt = stepsInt(maxSteps);
+    if (minSt !== undefined || maxSt !== undefined) {
+        const stepsCond = [{ steps: { [Op.ne]: null } }];
+        if (minSt !== undefined) stepsCond.push({ steps: { [Op.gte]: minSt } });
+        if (maxSt !== undefined) stepsCond.push({ steps: { [Op.lte]: maxSt } });
+        whereClause[Op.and] = whereClause[Op.and] || [];
+        whereClause[Op.and].push({ [Op.and]: stepsCond });
+    }
+
     let orderColumn;
     switch (sortBy) {
         case "sleep_hours": orderColumn = "sleep_hours"; break;
         case "food_quality": orderColumn = "food_quality"; break;
+        case "steps": orderColumn = "steps"; break;
         default: orderColumn = "log_date"; break;
     }
     const orderDirection = sortDir.toLowerCase() === "asc" ? "ASC" : "DESC";
@@ -577,7 +806,7 @@ async function getDailyHealthLogs({
     const queryOptions = {
         where: whereClause,
         order: [[orderColumn, orderDirection]],
-        attributes: ["program_id", "member_id", "log_date", "sleep_hours", "food_quality"]
+        attributes: ["program_id", "member_id", "log_date", "sleep_hours", "food_quality", "steps"]
     };
     const limitNum = Number(limit);
     if (limitNum > 0) queryOptions.limit = limitNum;
@@ -588,7 +817,8 @@ async function getDailyHealthLogs({
         id: `${log.member_id}-${log.log_date}-${idx}`,
         logDate: log.log_date,
         sleepHours: log.sleep_hours !== null && log.sleep_hours !== undefined ? Number(log.sleep_hours) : null,
-        foodQuality: log.food_quality !== null && log.food_quality !== undefined ? Number(log.food_quality) : null
+        foodQuality: log.food_quality !== null && log.food_quality !== undefined ? Number(log.food_quality) : null,
+        steps: log.steps !== null && log.steps !== undefined ? Number(log.steps) : null
     }));
 
     return {
@@ -602,7 +832,9 @@ async function getDailyHealthLogs({
             minSleepHours: minS ?? null,
             maxSleepHours: maxS ?? null,
             minFoodQuality: minF ?? null,
-            maxFoodQuality: maxF ?? null
+            maxFoodQuality: maxF ?? null,
+            minSteps: minSt ?? null,
+            maxSteps: maxSt ?? null
         }
     };
 }
@@ -610,21 +842,27 @@ async function getDailyHealthLogs({
 async function updateDailyHealthLog(body, requester) {
     // D-C3: single `body` param — derive both the values and the field-presence flags from it
     // (legacy took (parsed, requester, rawBody) and was called with req.body twice). Behavior identical.
-    const { program_id, log_date, sleep_hours, food_quality, member_id: bodyMemberId } = body;
+    const { program_id, log_date, sleep_hours, food_quality, steps, member_id: bodyMemberId } = body;
     if (!program_id || !log_date) throw new AppError(400, "program_id and log_date are required.");
 
     const sleepValue = parseOptionalNumber(sleep_hours);
     const foodValue = parseOptionalNumber(food_quality);
+    const stepsValue = parseOptionalNumber(steps);
     const hasSleepField = Object.prototype.hasOwnProperty.call(body, "sleep_hours");
     const hasFoodField = Object.prototype.hasOwnProperty.call(body, "food_quality");
+    const hasStepsField = Object.prototype.hasOwnProperty.call(body, "steps");
 
-    if (!hasSleepField && !hasFoodField) throw new AppError(400, "At least one of sleep_hours or food_quality is required.");
+    if (!hasSleepField && !hasFoodField && !hasStepsField) throw new AppError(400, "At least one of sleep_hours, food_quality, or steps is required.");
     if (hasSleepField && Number.isNaN(sleepValue)) throw new AppError(400, "sleep_hours must be a number.");
     if (hasFoodField && Number.isNaN(foodValue)) throw new AppError(400, "food_quality must be a number.");
-    if (sleepValue === null && foodValue === null) throw new AppError(400, "At least one of sleep_hours or food_quality is required.");
+    if (hasStepsField && Number.isNaN(stepsValue)) throw new AppError(400, "steps must be a number.");
+    if (sleepValue === null && foodValue === null && stepsValue === null) throw new AppError(400, "At least one of sleep_hours, food_quality, or steps is required.");
     if (sleepValue !== null && (sleepValue < 0 || sleepValue > 24)) throw new AppError(400, "sleep_hours must be between 0 and 24.");
     if (foodValue !== null && (!Number.isInteger(foodValue) || foodValue < 1 || foodValue > 5)) {
         throw new AppError(400, "food_quality must be an integer between 1 and 5.");
+    }
+    if (stepsValue !== null && (!Number.isInteger(stepsValue) || stepsValue < 0)) {
+        throw new AppError(400, "steps must be a non-negative whole number.");
     }
 
     // The admin_only_data_entry lock is enforced upstream by requireDataEntryAllowed (D-C2).
@@ -650,6 +888,7 @@ async function updateDailyHealthLog(body, requester) {
     const updateData = {};
     if (hasSleepField) updateData.sleep_hours = sleepValue;
     if (hasFoodField) updateData.food_quality = foodValue;
+    if (hasStepsField) updateData.steps = stepsValue;
 
     await log.update(updateData);
     return log;
@@ -689,6 +928,7 @@ module.exports = {
     updateWorkoutLog,
     deleteWorkoutLog,
     addDailyHealthLog,
+    addDailyHealthLogsBatch,
     getDailyHealthLogs,
     updateDailyHealthLog,
     deleteDailyHealthLog

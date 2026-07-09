@@ -346,13 +346,14 @@ async function getHealthTimeline(period, programId, memberId) {
     const logs = await DailyHealthLog.findAll({
         where: whereClause,
         include: [incl],
-        attributes: ["log_date", "sleep_hours", "food_quality"]
+        attributes: ["log_date", "sleep_hours", "food_quality", "steps"]
     });
 
     const buckets = buildBuckets(windowStart, windowEnd, bucketGranularity, labelMode);
     for (const bucket of buckets.values()) {
         bucket.sleep_sum = 0; bucket.sleep_count = 0;
         bucket.food_sum = 0; bucket.food_count = 0;
+        bucket.steps_sum = 0; bucket.steps_count = 0;
     }
 
     for (const log of logs) {
@@ -367,27 +368,47 @@ async function getHealthTimeline(period, programId, memberId) {
             const v = Number(log.food_quality);
             if (Number.isFinite(v)) { bucket.food_sum += v; bucket.food_count += 1; }
         }
+        if (log.steps !== null && log.steps !== undefined) {
+            const v = Number(log.steps);
+            if (Number.isFinite(v)) { bucket.steps_sum += v; bucket.steps_count += 1; }
+        }
     }
 
     const round1 = (v) => Number(v.toFixed(1));
-    let sleepAvgSum = 0, sleepAvgDays = 0, foodAvgSum = 0, foodAvgDays = 0;
+    let sleepAvgSum = 0, sleepAvgDays = 0, foodAvgSum = 0, foodAvgDays = 0, stepsAvgSum = 0, stepsAvgDays = 0;
 
     const points = Array.from(buckets.values()).map((b) => {
         const sleepAvg = b.sleep_count > 0 ? round1(b.sleep_sum / b.sleep_count) : 0;
         const foodAvg = b.food_count > 0 ? round1(b.food_sum / b.food_count) : 0;
+        const stepsAvg = b.steps_count > 0 ? Math.round(b.steps_sum / b.steps_count) : 0;
         if (b.sleep_count > 0) { sleepAvgSum += sleepAvg; sleepAvgDays += 1; }
         if (b.food_count > 0) { foodAvgSum += foodAvg; foodAvgDays += 1; }
-        return { date: b.date, label: b.label, sleep_hours: sleepAvg, food_quality: foodAvg };
+        if (b.steps_count > 0) { stepsAvgSum += stepsAvg; stepsAvgDays += 1; }
+        return { date: b.date, label: b.label, sleep_hours: sleepAvg, food_quality: foodAvg, steps: stepsAvg };
     });
 
     return {
         mode: period, label,
         daily_average_sleep: sleepAvgDays > 0 ? round1(sleepAvgSum / sleepAvgDays) : 0,
         daily_average_food: foodAvgDays > 0 ? round1(foodAvgSum / foodAvgDays) : 0,
+        daily_average_steps: stepsAvgDays > 0 ? Math.round(stepsAvgSum / stepsAvgDays) : 0,
         buckets: points,
         start: windowStart,
         end: windowEnd
     };
+}
+
+async function getHealthSteps(programId, memberId) {
+    if (!programId) throw new AppError(400, "programId is required");
+    const incl = activeMembershipInclude(programId);
+    const where = { program_id: programId, steps: { [Op.ne]: null } };
+    if (memberId) where.member_id = memberId;
+    const [total, days] = await Promise.all([
+        DailyHealthLog.sum("steps", { where, include: [incl] }),
+        DailyHealthLog.count({ where, include: [incl] })
+    ]);
+    const totalSteps = Number(total || 0);
+    return { total_steps: totalSteps, days, avg_steps_per_day: days > 0 ? Math.round(totalSteps / days) : 0 };
 }
 
 async function getDistributionByDay(programId) {
@@ -587,6 +608,7 @@ module.exports = {
     getAvgDurationMTD,
     getActivityTimeline,
     getHealthTimeline,
+    getHealthSteps,
     getDistributionByDay,
     getWorkoutTypes,
     getParticipationMTDV2,

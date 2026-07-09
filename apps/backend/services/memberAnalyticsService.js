@@ -119,7 +119,7 @@ async function getMemberMetrics({
                 log_date: { [Op.between]: [rangeStart.toISOString().slice(0, 10), rangeEnd.toISOString().slice(0, 10)] }
             } : {})
         },
-        attributes: ["member_id", "log_date", "sleep_hours", "food_quality"]
+        attributes: ["member_id", "log_date", "sleep_hours", "food_quality", "steps"]
     }) : [];
 
     const metricsMap = new Map();
@@ -135,7 +135,7 @@ async function getMemberMetrics({
             current_streak: 0, longest_streak: 0,
             mtd_workouts: 0, total_hours: 0,
             favorite_workout: null,
-            avg_sleep_hours: null, avg_food_quality: null
+            avg_sleep_hours: null, avg_food_quality: null, avg_steps: null
         });
     }
 
@@ -146,6 +146,8 @@ async function getMemberMetrics({
     const perMemberSleepCount = new Map();
     const perMemberFoodSum = new Map();
     const perMemberFoodCount = new Map();
+    const perMemberStepsSum = new Map();
+    const perMemberStepsCount = new Map();
 
     for (const log of logs) {
         const entry = metricsMap.get(log.member_id);
@@ -181,6 +183,13 @@ async function getMemberMetrics({
                 perMemberFoodCount.set(log.member_id, (perMemberFoodCount.get(log.member_id) || 0) + 1);
             }
         }
+        if (log.steps !== null && log.steps !== undefined) {
+            const v = Number(log.steps);
+            if (Number.isFinite(v)) {
+                perMemberStepsSum.set(log.member_id, (perMemberStepsSum.get(log.member_id) || 0) + v);
+                perMemberStepsCount.set(log.member_id, (perMemberStepsCount.get(log.member_id) || 0) + 1);
+            }
+        }
     }
 
     for (const [mid, entry] of metricsMap.entries()) {
@@ -206,6 +215,8 @@ async function getMemberMetrics({
         if (sc > 0) entry.avg_sleep_hours = Math.round(((perMemberSleepSum.get(mid) || 0) / sc) * 10) / 10;
         const fc = perMemberFoodCount.get(mid) || 0;
         if (fc > 0) entry.avg_food_quality = Math.round((perMemberFoodSum.get(mid) || 0) / fc);
+        const stc = perMemberStepsCount.get(mid) || 0;
+        if (stc > 0) entry.avg_steps = Math.round((perMemberStepsSum.get(mid) || 0) / stc);
     }
 
     let result = Array.from(metricsMap.values());

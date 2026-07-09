@@ -33,6 +33,10 @@ const DailyHealthLog = sequelize.define("DailyHealthLog", {
         type: DataTypes.SMALLINT,
         allowNull: true,
         field: "diet_quality"
+    },
+    steps: {
+        type: DataTypes.INTEGER,
+        allowNull: true
     }
 }, {
     tableName: "daily_health_logs",
