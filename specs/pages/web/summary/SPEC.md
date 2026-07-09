@@ -1,6 +1,6 @@
 # Page: `summary` (web) — the program workspace overview (first tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary` — **the first bottom-nav tab** of a program's workspace; the screen you land on
 > after selecting a program on the hub (`saveActiveProgram` → `router.push("/summary")`). Sibling tabs
 > (`/members`, `/lifestyle`, `/program`) and the 6 summary sub-routes are **not** in this run (deferred).
@@ -67,8 +67,8 @@ real screen — the first web surface to consume the analytics + logging backend
 | Stat cards (4) | `StatCard` ×4: MTD Participation (`participation_pct`, `active/total`), Total Workouts, Total Duration (hrs), Avg Duration (min) — each with a `change_pct` delta. | summary/page.tsx:219-256, 461-487 |
 | Distribution | Clickable card → `/summary/distribution`; a `BarChart` of workouts by day of week (Sun–Sat). | summary/page.tsx:259, 538-576 |
 | Workout Types | Clickable card → `/summary/workout-types`; top 6 types by sessions, or an empty hint. | summary/page.tsx:260, 578-604 |
-| Add Workouts modal | `Modal` + `LogWorkoutsForm` (unified multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). Admin/logger get a per-row member picker; a plain member has the member column hidden and each row seeded to self (`canSelectAnyMember` / `selfMemberId`). | summary/page.tsx (Add-workouts modal) |
-| Log Health modal | `Modal` + `LogDailyHealthForm` (member/date/sleep/diet → `addDailyHealthLog`). | summary/page.tsx (Log-health modal) |
+| Add Workouts modal | `Modal` + `LogWorkoutsForm` (unified multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). Admin/logger get a per-row member picker; a plain member has the member column hidden and each row seeded to self (`canSelectAnyMember` / `selfMemberId`). A **program multi-select** (`ProgramMultiSelect`, current program pre-checked+locked; `admin_only_data_entry`-locked programs disabled; hidden when the user is in only one program) sends `program_ids[]` = the full selection (workout-logs D-C10). | summary/page.tsx (Add-workouts modal) |
+| Log Health modal | `Modal` + `LogDailyHealthForm` (**rebuilt batched multi-row** clone of `LogWorkoutsForm` — member/date/sleep/**diet**/**steps** per row, ≤200 rows, per-row errors → `addDailyHealthLogsBatch`; the same `ProgramMultiSelect` + member-lock; at-least-one of sleep/diet/steps per row, R-1). | summary/page.tsx (Log-health modal) |
 
 **Data flow.** Eight read queries fire on mount (`enabled: !!token && !!programId`), keyed under
 `["summary", …]`. The two write mutations (`workoutsMutation` batch + `dailyHealthMutation`) each
@@ -105,8 +105,8 @@ ends in `/api`).
 | `fetchDistributionByDay` | `GET /analytics/distribution/day?programId` | `{Sunday…Saturday}` workout counts. |
 | `fetchWorkoutTypes(token, programId, 50)` | `GET /analytics/workouts/types?programId&limit` | Sorted client-side, top 6 shown. |
 | `addWorkoutLog` | `POST /workout-logs` | Lock-gated (`requireDataEntryAllowed`); member resolved from the form. |
-| `addWorkoutLogsBatch` | `POST /workout-logs/batch` | Lock-gated; ≤200 rows; 422 → per-row `rowErrors` mapped back into the form. |
-| `addDailyHealthLog` | `POST /daily-health-logs` | Lock-gated; one row per member per day. |
+| `addWorkoutLogsBatch` | `POST /workout-logs/batch` | Lock-gated; ≤200 rows; optional `program_ids[]` (≤20, D-C10); 400/409 → per-row `rowErrors` mapped back into the form. |
+| `addDailyHealthLogsBatch` | `POST /daily-health-logs/batch` | Lock-gated; ≤200 rows; optional `program_ids[]` (≤20); in-batch dup 409, existing rows upsert (D-C5); rows carry sleep/diet/**steps**. |
 | `fetchProgramMembers` / `fetchProgramWorkouts` | `GET /program-memberships/members` · `/program-workouts?programId` | Form lookups (member + workout dropdowns); workouts filtered `!is_hidden` client-side. |
 
 ## 7. Role-based view rules
@@ -167,5 +167,6 @@ disabled UI + messaging.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-07-09 | **Steps + batched multi-program logging.** The **Log daily health** modal's `LogDailyHealthForm` is rebuilt as a **batched multi-row** clone of `LogWorkoutsForm` (member/date/sleep/diet/**steps** per row, ≤200 rows, per-row `rowErrors`) posting to the net-new `addDailyHealthLogsBatch` (`POST /daily-health-logs/batch`, daily-health-logs 0.2.0 D-C5) — replacing the single `addDailyHealthLog`; at-least-one of sleep/diet/steps per row (R-1). Both forms gain a **`ProgramMultiSelect`** (exported from `LogWorkoutsForm`; current program pre-checked+locked, `admin_only_data_entry`-locked programs disabled "Admin-only — can't log", hidden for single-program users) sending `program_ids[]` = the full selection (workout-logs D-C10 / daily-health-logs D-C5); when any selected program is non-privileged the member column locks to self. Both `onSubmit` lambdas take `(entries, programIds)`; `isGlobalAdmin` passed to both. `AddHealthCard` copy → "Track sleep, diet quality, and steps for the day." `npm run build` ✓. |
 | 0.2.0 | 2026-07-01 | **Merged the single "Add workout" + admin-only "Bulk add" cards into one multi-row "Add workouts" card/form** (`components/forms/LogWorkoutsForm.tsx`, replacing `LogWorkoutForm` + `BulkLogWorkoutForm`, both deleted). The unified form always posts to `addWorkoutLogsBatch`; admin/logger get a per-row member picker, a plain member has the member column hidden with each row seeded to `selfMemberId` (backed by `workout-logs` D-C8 — members may batch-log their own rows). Summary now shows **two** action cards (Add workouts + Log daily health), both to every role. Removed the `/summary/bulk-log-workout` mobile route; `/summary/log-workout` now renders the unified form. Updated §1/§3/§4/§5/§7/§10 (F1/F2/F3/F6). `npx tsc --noEmit` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 21) — the **seventh web page spec**, the program workspace **Summary** overview (first bottom-nav tab; where a selected program lands). Documents the read overview (program-progress gauge, activity-timeline chart, 4 MTD stat cards, distribution chart, workout-types list) + the **desktop write path** (3 modal forms: log workout / bulk-log / log daily health). Consumes `analytics` + `analytics-v2` (8 reads) + `workout-logs` + `daily-health-logs` (3 writes) + `program-workouts`/`program-memberships` (form lookups) + `auth`. Decisions: **D-REF** (`consumed_by=[web]`; iOS Summary tab mirrors later) · **D-SCOPE** (landing + 3 forms this run; the 6 sub-route pages deferred) · **D-S1** (faithful 1:1) · **D-C1** (one typed cleanup — `ProgramProgressCard` `any`→`AnalyticsSummary`). Flagged F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; vestigial-here api fns; week-only landing period; over-fetched summary fields; dead `variant="page"` form branch; no client rate-limit). Ported `apps/web/src/app/summary/page.tsx` + `lib/api/{summary,logs,program-workouts}.ts` + `components/ui/{ErrorState,Input,Button}.tsx` + `components/forms/{LogWorkoutsForm,LogDailyHealthForm}.tsx`. `npm run build` ✓ (`/summary` prerendered, 107 kB — Recharts; Middleware 27.2 kB active). |

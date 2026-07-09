@@ -1,6 +1,6 @@
 # Screen: `members` (android) — the per-member performance dashboard (second bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-members`](../../ios/admin-members/SPEC.md)
 > + [`web members`](../../web/members/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBERS` (`MembersScreen`) — Tab 2 of the per-program
@@ -69,3 +69,4 @@ and re-scopes logs on the logger view-as change.
 |---------|------|--------|
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E — the Members **tab body**). Role bifurcation on `isProgramAdmin`; Invite `GlassIconButton`; `MemberMetricsPreviewCard`; searchable "View as" picker (global-admin "None" / program-admin auto-self / logger logs-only); the 5 inline cards. Read-only (iOS F1). Deviations A-1 (flat SummaryCard) + A-2 (focusMember-at-click, no navArgs). All 8 detail targets are real screens this phase. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.1 | 2026-07-08 | Visual-pass polish: **A-3** persisted "View as" (hoisted to `ProgramContext` — survives detail push+back); **A-4** icon-less metrics-preview tiles (`MiniStatTile`, "Active Days" one line); chart **tooltips** added to the history card + detail; metrics-detail title auto-fits (`DetailTopBarWithExport`); contextual menus use the shared themed `AppDropdownMenu`. |
+| 0.1.2 | 2026-07-09 | **Steps in the overview grid + View Health preview** (steps-tracking). `MetricsGrid` (`MemberCards.kt`) gains a 5th row: an **Avg Steps** `StatTile` (`Icons.AutoMirrored.Filled.DirectionsWalk`, `String.format("%,d", m.avgSteps)` or "—" — member-analytics 0.2.0) beside the `StreakChip` (moved into the grid as the 2nd column). `MemberHealthCard`'s preview rows adopt the **DC-10** two-line format (`ListLine(title = h.logDate, subtitle = "Sleep … · Diet … · Steps …")`, `—` for missing, steps grouped). `MemberMetricsDTO` gains `avg_steps`; `MemberHealthItem` gains `steps`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

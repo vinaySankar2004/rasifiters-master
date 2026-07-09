@@ -203,7 +203,7 @@
       }
     },
     "workout-logs": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/workout-logs/SPEC.md",
       "status": "built",
       "consumed_by": [
@@ -230,7 +230,7 @@
       }
     },
     "daily-health-logs": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/daily-health-logs/SPEC.md",
       "status": "built",
       "consumed_by": [
@@ -250,12 +250,13 @@
           "routes/logs.js",
           "services/logService.js",
           "models/DailyHealthLog.js",
+          "sql/006_add_steps_to_daily_health_logs.sql",
           "server.js"
         ]
       }
     },
     "analytics": {
-      "version": "0.1.1",
+      "version": "0.2.0",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "built",
       "consumed_by": [
@@ -309,7 +310,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "built",
       "consumed_by": [
@@ -353,7 +354,7 @@
       }
     },
     "apple-health": {
-      "version": "0.6.0",
+      "version": "0.7.0",
       "spec": "specs/features/apple-health/SPEC.md",
       "status": "built",
       "consumed_by": [
@@ -372,11 +373,13 @@
         "paths": [
           "RaSi-Fiters-App/Shared/Services/HealthKitService.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitService+Sleep.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthKitService+Steps.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitWorkoutTypeMap.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitAppliedLedger.swift",
           "RaSi-Fiters-App/Shared/Services/APIClient+DailyHealth.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKit.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKitSleep.swift",
+          "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKitSteps.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKitWindows.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthSyncGating.swift",
           "RaSi-Fiters-App/Shared/Models/PendingSyncConfirmation.swift",
@@ -386,7 +389,7 @@
       }
     },
     "health-connect": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/health-connect/SPEC.md",
       "status": "built",
       "consumed_by": [

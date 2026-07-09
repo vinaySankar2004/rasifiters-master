@@ -1,6 +1,6 @@
-# Screen: `log-health` (ios) — the Summary "Log daily health" form
+# Screen: `log-health` (ios) — the Summary "Log daily health" multi-row form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s "Log daily health" log-action card
 > (`AdminSummaryTab.swift:205-212`, `NavigationLink { AddDailyHealthDetailView() }`). When the program is
 > `dataEntryLocked` the card is dimmed + the `NavigationLink` removed (run 54), so a locked non-admin
@@ -10,19 +10,22 @@
 > **Web parity reference:** [`web summary/log-health`](../../web/summary/log-health/SPEC.md) — same
 > member/self-lock + date + sleep + diet form, at-least-one-metric gate, `canLogForAny` +
 > `admin_only_data_entry` lock. **Twin of** [`log-workout`](../log-workout/SPEC.md).
-> **Consumes:** `APIClient.addDailyHealthLog` (`POST /daily-health-logs`) directly (as legacy does).
+> **Consumes:** `APIClient.addDailyHealthLogsBatch` (`POST /daily-health-logs/batch`) directly (0.2.0; was
+> the single `addDailyHealthLog`).
 > **Stance:** faithful 1:1 port of the legacy iOS `AddDailyHealthDetailView` **+ 4 web-parity/consistency
-> deviations** (D-C1 lock guard, D-C2 shared chrome, D-C3 success refresh, D-C4 inline errors — the last
-> drops the legacy error/success **Alerts**). Oddities §10.
+> deviations** (D-C1 lock guard, D-C2 shared chrome, D-C3 success refresh, D-C4 inline errors) **+ D-C5
+> (0.2.0) batched multi-row rebuild with steps + program multi-select** (matching the workout form). Oddities §10.
 
 ---
 
 ## 1. What it is + who uses it
 
-The **log-health screen** — a native form to log a day's **sleep time** (hours + minutes) and/or **diet
-quality** (1–5), for a **member** (admins/loggers only; a plain member is locked to themselves) on a
-**date** (past/today only). At least one metric (sleep **or** diet) is required. The iOS analogue of web
-`/summary/log-health`; the near-twin of [`log-workout`](../log-workout/SPEC.md).
+The **log-health screen** — a native **multi-row** form (0.2.0) to log one or many days' **sleep time**
+(hours + minutes), **diet quality** (1–5), and/or **step count**, for a **member** (admins/loggers only; a
+plain member is locked to themselves) on a **date** (any date per row). At least one metric (sleep **or**
+diet **or** steps, R-1) is required per row. A **program multi-select** fans the save out to ≤20 programs
+(`program_ids[]`). The iOS analogue of web `/summary/log-health`; the near-twin of
+[`log-workout`](../log-workout/SPEC.md).
 
 ## 2. Why it exists
 
@@ -63,11 +66,14 @@ On error → inline `appRed` line (D-C4).
 
 ## 6. Data / API
 
-- **`POST /daily-health-logs`** (`APIClient.addDailyHealthLog`) — body `{ program_id, log_date,
-  member_id?, sleep_hours?, food_quality|null }`. Backend `requireDataEntryAllowed` (403 when locked +
-  non-admin) + `canLogForAny` (403 "You can only log your own daily health."); validates at-least-one-metric
-  (400), sleep 0–24 (400), diet 1–5 (400), duplicate-per-date (409). Fire-and-forget. Success bumps
-  `summaryRefreshToken` → `AdminSummaryTab` reloads (≈ web `invalidateQueries(["summary"])`).
+- **`POST /daily-health-logs/batch`** (`APIClient.addDailyHealthLogsBatch`, 0.2.0) — body `{ program_id,
+  program_ids?, entries: [{ member_id, log_date, sleep_hours?, food_quality?, steps? }] }` (empty fields
+  omitted). Backend `requireDataEntryAllowed` per program (403 when locked + non-admin) + per-program
+  `canLogForAny` (403 "You can only log your own daily health."); per-row validates at-least-one-of-three
+  (400), sleep 0–24, diet 1–5, steps ≥ 0; in-batch (member, date) dup 409 + `rowErrors`; existing rows
+  UPSERT (daily-health-logs 0.2.0 D-C5). Success bumps `summaryRefreshToken` → `AdminSummaryTab` reloads.
+  The single `POST /daily-health-logs` (`addDailyHealthLog` in `APIClient+Health.swift`) is untouched and
+  now serves only the quick-add health widget + the sleep/steps sync writers.
 
 ## 7. Role-based view rules
 
@@ -114,4 +120,5 @@ locked out when the flag is on (`canSelectAnyMember` includes logger, `isProgram
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Batched multi-row rebuild + steps + program multi-select (D-C5).** `AddDailyHealthDetailView` is rebuilt as a batched clone of `AddWorkoutsDetailView` — per-row Member · Date · Sleep hr/min · Diet menu · **Steps** digit field; up to 200 rows; client in-batch (member, date) dup check; footer per DC-11 ("{N} rows • {M} members • {H}h {M}m sleep • {S} steps"). A **`ProgramMultiSelectSection`** (current program checked+disabled, `admin_only_data_entry`-locked programs disabled "Admin-only — can't log", hidden when in one program) sends `program_ids[]` to the net-new `APIClient.addDailyHealthLogsBatch` (`POST /daily-health-logs/batch`, daily-health-logs 0.2.0 D-C5); member column locks to self when any selected program is non-privileged. At-least-one-metric now spans sleep/diet/steps (R-1). `BulkRowError`-mapped red rows on failure. Subtitle → "Add a row per day — sleep, diet quality, and steps — then save them all at once." Build green-check owned by the user (Xcode). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 60) — the Summary **log-health form**, ported into `apps/ios/.../Features/Home/Detail/AddDailyHealthDetailView.swift` (+ shared `LogFormComponents.swift`); the deferred stub removed. Twin of [`log-workout`](../log-workout/SPEC.md). **D-REF** (legacy iOS + web `summary/log-health` parity; `consumed_by=[ios]`) · **D-SCOPE** (log-forms cluster) · **D-S1** (faithful 1:1; both agree → faithful IS web parity) · **D-C1** (web-parity lock mount guard) · **D-C2** (shared chrome) · **D-C3** (success → refresh + dismiss, drop success Alert) · **D-C4** (inline errors — replaces the legacy error Alert; workout form was already inline) · **D-DEPS** (no new view component; shares `keyboardType`/`summaryRefreshToken`/`onChange`/`LogFormComponents` with log-workout; API/DTO/`dataEntryLocked` already ported). Flagged F1–F5. Role rules: `canSelectAnyMember` picker vs member self-lock; `admin_only_data_entry` LIVE (write path). Build green-check owned by the user (Xcode); symbols grep-verified. |

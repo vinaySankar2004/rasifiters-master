@@ -1,6 +1,6 @@
 # Page: `lifestyle` (web) — the workout-analytics / health-timeline dashboard (third workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle` — **the third bottom-nav tab** of a program's workspace. NOT a sleep/diet *logging*
 > screen: it is a **read-only** workout-type-analytics + health-timeline overview with the same role-gated
 > **"view as"** picker as the Members tab. The workout-type CRUD (the write path) and the full timeline detail
@@ -66,7 +66,9 @@ the tab. It is the landing/hub for the lifestyle cluster — the entry point tha
 | Stat: Most popular | `WorkoutStatCard` (violet) — top workout name + session count. | lifestyle/page.tsx:224-239 |
 | Stat: Longest duration | `WorkoutStatCard` (red) — workout name + avg minutes. | lifestyle/page.tsx:242-258 |
 | Stat: Highest participation | `WorkoutStatCard` (green) — workout name + `participation_pct`% of members. **Always program-wide** (ignores the view-as member). | lifestyle/page.tsx:259-274 |
+| Steps analytics card | `StepsStatsCard` (teal `#14b8a6`, `IconSteps`) — inserted **after** the Longest/Highest row (DC-9); 2-col "Total steps" / "Avg steps/day" from `fetchStepsStats` (`GET /analytics/health/steps`, member-scoped via the view-as memberId). | lifestyle/page.tsx (after :275) |
 | Lifestyle Timeline card | Clickable → `/lifestyle/timeline?memberId=…`; a Recharts `ComposedChart` (sleep-hours bars + diet-quality line) over the last 10 buckets of the week. | lifestyle/page.tsx:277-284, 350-412 |
+| Steps Timeline card | `StepsTimelineCard` (clone of `LifestyleTimelineCard`, teal `steps` bar) — inserted **after** the Lifestyle Timeline card (DC-9; lands between Timeline and Popularity on web, faithful insertion only); click → `/lifestyle/steps-timeline`. | lifestyle/page.tsx (after :284) |
 | Workout Type Popularity card | A sortable horizontal-bar list with a **count / total-minutes / avg-minutes** segmented toggle and a **top-10 / show-all** switch; bar colors are a hash of the workout name. | lifestyle/page.tsx:286-289, 414-508 |
 | Member Picker modal | `Modal` + search-filtered member list with an optional "None"/"Admin" row; persists the pick to `sessionStorage`. | lifestyle/page.tsx:292-307, 510-580 |
 
@@ -104,7 +106,8 @@ ends in `/api`). **All endpoints are already ported + mounted** (`apps/backend/s
 | `fetchWorkoutTypeLongestDuration(token, programId, memberId?)` | `GET /analytics-v2/workouts/types/longest-duration?programId[&memberId]` | `{workout_name, avg_minutes}`. |
 | `fetchWorkoutTypeHighestParticipation(token, programId)` | `GET /analytics-v2/workouts/types/highest-participation?programId` | `{workout_name, participation_pct, …}` — **program-wide**, `memberId` never sent (F4). |
 | `fetchWorkoutTypePopularity(token, programId, {memberId?, limit:120})` | `GET /analytics/workouts/types?programId&limit[&memberId]` | `WorkoutTypePopularity[]` — sorted/sliced client-side (F5). |
-| `fetchHealthTimeline(token, "week", programId, memberId?)` | `GET /analytics/health/timeline?period=week&programId[&memberId]` | `{buckets[], …}`; only the last 10 buckets render on the card. |
+| `fetchHealthTimeline(token, "week", programId, memberId?)` | `GET /analytics/health/timeline?period=week&programId[&memberId]` | `{buckets[], …}` — now incl. `steps` per bucket + `daily_average_steps`; the last 10 buckets feed both the Lifestyle Timeline + the Steps Timeline cards. |
+| `fetchStepsStats(token, programId, memberId?)` | `GET /analytics/health/steps?programId[&memberId]` | `{total_steps, avg_steps_per_day, days}` for the Steps analytics card (analytics 0.2.0 D-C5). |
 
 ## 7. Role-based view rules
 
@@ -167,4 +170,5 @@ read or a forward-nav link). The lock has no effect here; it governs the workout
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Two new steps cards** (analytics 0.2.0 D-C5). A **`StepsStatsCard`** (teal `#14b8a6`, new `IconSteps`; Total steps / Avg steps/day from the new `fetchStepsStats` → `GET /analytics/health/steps`, member-scoped) inserted after the Longest/Highest stat row, and a **`StepsTimelineCard`** (clone of `LifestyleTimelineCard`, single teal `steps` bar; → `/lifestyle/steps-timeline`) inserted after the Lifestyle Timeline card — both minimal faithful insertions, no reorder of existing cards (DC-9). `lib/api/lifestyle.ts` gains `StepsStats` + `fetchStepsStats` and `steps`/`daily_average_steps` on the timeline types; `lib/format.ts` gains `stepsLabel`; `components/icons` gains `IconSteps`. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 23) — the **ninth web page spec**, the program workspace **Lifestyle** tab (third bottom-nav tab). NOT a sleep/diet logging screen: a **read-only** workout-type-analytics + health-timeline overview with the same role-gated **"view as"** picker as the Members tab (4 workout-type stat cards + a sleep/diet `ComposedChart` timeline card + a sortable workout-type popularity list). Read-only — every other control is forward-nav to a deferred sub-route, so `admin_only_data_entry` is **N/A** here. Consumes `analytics` (popularity + health timeline) + `analytics-v2` (4 workout-type stats) + `program-memberships` (`fetchProgramMembers`) + `auth`; all endpoints already mounted (`server.js:74-76`), **no feature bump**. Decisions: **D-REF** (`consumed_by=[web]`; iOS home mirrors later) · **D-SCOPE** (landing page only; the 2 sub-routes `/lifestyle/{workouts,timeline}` deferred) · **D-S1** (faithful 1:1) · **D-C1** (port whole `lib/api/lifestyle.ts` verbatim) · **D-C2** (port `EmptyState.tsx` verbatim). Flagged F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; `sessionStorage` view-as + 2 parallel effects; highest-participation always program-wide; over-fetched client-sorted popularity; duplicated `MemberPickerModal`; no client throttle). Ported `apps/web/src/app/lifestyle/page.tsx` + `lib/api/lifestyle.ts` + `components/ui/EmptyState.tsx`. `npm run build` ✓ (`/lifestyle` prerendered, 13.6 kB — Recharts; Middleware 27.3 kB active). |

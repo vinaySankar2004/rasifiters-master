@@ -1,6 +1,6 @@
 # Screen: `lifestyle` (android) — the workout-types dashboard (3rd bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in the iOS Lifestyle tab
 > (`Features/Home/Tabs/{Admin,Standard}WorkoutTypesTab.swift`) + [`web lifestyle/workouts`](../../web/lifestyle/workouts/SPEC.md)
 > — this file records only the Android realization + idiom deviations.
@@ -19,6 +19,11 @@
   (segmented **Count / Total Minutes / Avg Minutes** + a ranked-bar list, top-6 + "Show all" toggle,
   per-name palette colors); the tappable **Lifestyle Timeline** preview card (sleep bars + diet line →
   the drill-down). `null` names → "N/A" + "No data".
+- **Steps cards (0.2.0, analytics 0.2.0 D-C5):** a **`StepsAnalyticsCard`** (teal `#14b8a6`, "Total Steps" /
+  "Avg Steps/Day" from `lifestyle.steps`) inserted after the stat row (DC-9), and a **`StepsTimelinePreviewCard`**
+  (clone of `LifestyleTimelinePreviewCard`, single teal `steps` bar on `SleepDietChart`/`BarLineChart`) inserted
+  after the Lifestyle Timeline preview → `Routes.LIFESTYLE_STEPS_TIMELINE`. Both defined in `LifestyleCards.kt`
+  (`private val StepsTeal = Color(0xFF14B8A6)`).
 - **Role bifurcation (`isProgramAdmin`):** admins/global-admins get a **"View as"** selector above the
   cards; loggers/members see their **own** data with no selector. Scoping mirrors iOS: admins load for the
   picked member (`null` = program-wide "Admin" view); everyone else loads for self. **Highest participation
@@ -57,16 +62,19 @@ Fires on entry, on active-program change, and on every "View as" change. Six rea
 | `getWorkoutTypeLongestDuration` | `GET /analytics-v2/workouts/types/longest-duration` | Longest duration |
 | `getWorkoutTypeHighestParticipation` | `GET /analytics-v2/workouts/types/highest-participation` (program-wide) | Highest participation |
 | `getWorkoutTypes` | `GET /analytics/workouts/types?programId&limit[&memberId]` | Workout Type Popularity |
-| `getHealthTimeline` | `GET /analytics/health/timeline?period=week&programId[&memberId]` | Lifestyle Timeline preview |
+| `getHealthTimeline` | `GET /analytics/health/timeline?period=week&programId[&memberId]` | Lifestyle Timeline + Steps Timeline previews (now carries `steps` + `dailyAverageSteps`) |
+| `getHealthSteps` (0.2.0) | `GET /analytics/health/steps?programId[&memberId]` | Steps analytics card (`LifestyleData.steps: StepsStatsDTO?`) |
 
 ## Forward targets
 
 - **Workout types manager** → `Routes.LIFESTYLE_WORKOUT_TYPES` ([`lifestyle-workout-types`](../lifestyle-workout-types/SPEC.md)).
 - **Lifestyle Timeline drill-down** → `Routes.LIFESTYLE_TIMELINE` ([`lifestyle-timeline`](../lifestyle-timeline/SPEC.md)).
+- **Steps Timeline drill-down** → `Routes.LIFESTYLE_STEPS_TIMELINE` ([`lifestyle-steps-timeline`](../lifestyle-steps-timeline/SPEC.md)).
 
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-09 | **Two steps cards** (analytics 0.2.0 D-C5). `StepsAnalyticsCard` (teal `#14b8a6`; Total Steps / Avg Steps/Day from `lifestyle.steps`) inserted after the stat Row and `StepsTimelinePreviewCard` (single teal `steps` bar, tooltip-free preview) inserted after the Lifestyle Timeline preview → `Routes.LIFESTYLE_STEPS_TIMELINE`. `ProgramContext.loadLifestyle` adds `getHealthSteps`; `LifestyleData` gains `steps: StepsStatsDTO?`; `HealthTimelinePoint` gains `steps`, `HealthTimelineResponse` gains `dailyAverageSteps`. New route in `Routes.kt` + `AppScaffold.kt`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.1 | 2026-07-08 | Load sequencing fixed to iOS parity: apply the admin "View as" default **before** the first `loadLifestyle`, in one coroutine, so a program-admin's first fetch is self-scoped (no brief program-wide flash); a `loadedOnce`-gated effect reloads on later user-initiated picks without double-fetching the initial default-set. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase F — Lifestyle tab + 4 stat cards + popularity chart + timeline preview; "View as" selector; workout-types manager + timeline drill-down forward targets). |
