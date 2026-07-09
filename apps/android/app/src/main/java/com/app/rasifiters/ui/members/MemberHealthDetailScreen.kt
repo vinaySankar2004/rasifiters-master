@@ -1,6 +1,7 @@
 package com.app.rasifiters.ui.members
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,13 +11,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -31,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -135,13 +143,12 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                     Text("Adjust filters or log daily health to get started.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
                 else -> items.forEach { h ->
-                    // DC-10 row: date on top; one muted Sleep · Diet · Steps metrics line ("—" when unset).
+                    // DC-10 row: date + ⋮ on top; three labeled metric cells (Sleep / Diet / Steps, "—" when unset).
                     val sleep = h.sleepHours?.let { String.format(Locale.US, "%.1f hrs", it) } ?: "—"
                     val diet = h.foodQuality?.let { "$it/5" } ?: "—"
                     val steps = h.steps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
-                    LogRow(
-                        dotColor = AppBlueLight, title = h.logDate,
-                        subtitle = "Sleep $sleep · Diet $diet · Steps $steps", trailing = "",
+                    HealthLogRow(
+                        date = h.logDate, sleep = sleep, diet = diet, steps = steps,
                         locked = locked, onEdit = { editItem = h }, onDelete = { deleteItem = h },
                     )
                 }
@@ -212,6 +219,75 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             confirmButton = { TextButton(onClick = { actionError = null }) { Text("OK") } },
             title = { Text("Something went wrong") },
             text = { Text(msg) },
+        )
+    }
+}
+
+/** View Health row: date + ⋮ menu on top, then three labeled metric cells (Sleep / Diet / Steps). */
+@Composable
+private fun HealthLogRow(
+    date: String,
+    sleep: String,
+    diet: String,
+    steps: String,
+    locked: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(AppBlueLight))
+            Spacer(Modifier.size(12.dp))
+            Text(
+                date, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f),
+            )
+            if (!locked) {
+                Box {
+                    Icon(
+                        Icons.Filled.MoreVert, contentDescription = "Actions",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        modifier = Modifier.size(22.dp).clip(CircleShape).clickable { menuOpen = true },
+                    )
+                    com.app.rasifiters.ui.components.AppDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Edit") }, onClick = { menuOpen = false; onEdit() })
+                        DropdownMenuItem(text = { Text("Delete", color = AppRed) }, onClick = { menuOpen = false; onDelete() })
+                    }
+                }
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            HealthMetricCell("Sleep", sleep, Modifier.weight(1f))
+            HealthMetricCell("Diet", diet, Modifier.weight(1f))
+            HealthMetricCell("Steps", steps, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun HealthMetricCell(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            label.uppercase(Locale.US), style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+        Text(
+            value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
         )
     }
 }

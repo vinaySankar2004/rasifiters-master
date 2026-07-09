@@ -350,20 +350,22 @@ struct MemberHealthDetail: View {
     }
 
     private func healthRow(_ item: APIClient.DailyHealthLogItem) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(Color.appBlueLight)
-                .frame(width: 10, height: 10)
-            VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(Color.appBlueLight)
+                    .frame(width: 10, height: 10)
                 Text(item.logDate)
                     .font(.subheadline.weight(.semibold))
-                Text("Sleep \(sleepLabel(item.sleepHours)) · Diet \(foodLabel(item.foodQuality)) · Steps \(stepsLabel(item.steps))")
-                    .font(.caption)
-                    .foregroundColor(Color(.secondaryLabel))
+                Spacer()
             }
-            Spacer()
+            HStack(spacing: 8) {
+                metricCell("Sleep", sleepLabel(item.sleepHours))
+                metricCell("Diet", foodLabel(item.foodQuality))
+                metricCell("Steps", stepsLabel(item.steps))
+            }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .padding(.horizontal, 12)
         .background(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
@@ -372,6 +374,26 @@ struct MemberHealthDetail: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12, style: .continuous)
                 .stroke(Color(.systemGray4).opacity(0.5), lineWidth: 1)
+        )
+    }
+
+    private func metricCell(_ label: String, _ value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(label.uppercased())
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(Color(.secondaryLabel))
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(Color(.label))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(.systemGray6))
         )
     }
 

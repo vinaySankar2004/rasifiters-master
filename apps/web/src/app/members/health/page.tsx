@@ -326,11 +326,14 @@ export default function MemberHealthPage() {
         <div className="grid gap-3">
           {healthQuery.data.items.map((item) => (
             <GlassCard key={item.id} padding="sm">
-              <div>
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-rf-accent" />
                 <p className="text-base font-semibold text-rf-text">{item.logDate}</p>
-                <p className="text-xs text-rf-text-muted">
-                  Sleep {sleepLabel(item.sleepHours)} · Diet {dietLabel(item.foodQuality)} · Steps {stepsLabel(item.steps)}
-                </p>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                <HealthMetric label="Sleep" value={sleepLabel(item.sleepHours)} />
+                <HealthMetric label="Diet" value={dietLabel(item.foodQuality)} />
+                <HealthMetric label="Steps" value={stepsLabel(item.steps)} />
               </div>
               {canEdit && (
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -602,6 +605,15 @@ export default function MemberHealthPage() {
         onClose={() => setDeleteTarget(null)}
       />
     </PageShell>
+  );
+}
+
+function HealthMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl bg-rf-surface-muted px-3 py-2 text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-rf-text-muted">{label}</p>
+      <p className="mt-0.5 text-sm font-semibold text-rf-text">{value}</p>
+    </div>
   );
 }
 
