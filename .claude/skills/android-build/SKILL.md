@@ -162,7 +162,12 @@ not re-validating business logic:
 - **Two NavHosts can register the SAME route constant with no conflict.** The picker (outer `SignedInGraph`
   NavHost) reaches the settings screens that also live in `AppScaffold`'s inner shell NavHost by
   re-registering the same `Routes.*` constants in the outer graph + threading `onNavigate` down to the
-  account sheet — reuse the exact composables, no duplication. (Run 9.)
+  account sheet — reuse the exact composables, no duplication. (Run 9.) **BUT the outer graph must re-supply
+  the inset the inner `Scaffold` would have.** The settings screens carry no `statusBarsPadding()` of their
+  own (`fillMaxSize().padding(20.dp)`), so in-program they sit below the status bar via `AppScaffold`'s
+  `Modifier.padding(innerPadding)`, but the picker's Scaffold-less outer NavHost drew them under the status
+  bar (edge-to-edge). Fix = wrap those outer destinations in a `Box(Modifier.fillMaxSize().statusBarsPadding())`
+  helper so both entry points anchor identically. (Run 13.)
 - **A "reset shared state on leave" must run on the long-lived context scope, NOT `rememberCoroutineScope`**
   (cancelled the instant the composable disposes → the launch never runs). Add `fun resetX(){ scope.launch{…} }`
   to `ProgramContext` and call it from `DisposableEffect{ onDispose{…} }`. Mirrors iOS `.onDisappear`. (Run 9.)

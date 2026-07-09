@@ -442,3 +442,24 @@ real push posts to the tray. **The bug wasn't in the push path — it was JSON s
   tell). `adb shell dumpsys notification` confirmed the tray post (title/text/channel=rasi_default). Backgrounded
   the app first (`input keyevent HOME`) so the `notification` message shows in the tray (foreground →
   onMessageReceived no-op by design). (Run 12.)
+
+## Run 13 — 2026-07-08 — Picker-path account-settings screens rendered under the status bar
+
+**Symptom (user):** the account/settings deep screens (My Profile, Change Password, Appearance,
+Notifications) looked right when opened from *inside a program* (Program tab → account section) but
+"started up top" (content jammed under the status bar) when opened from the **My Programs picker** →
+top-right user icon. Same screens, two looks.
+
+- **Two NavHosts, only one supplies the top inset.** The same `Routes.PROGRAM_*` settings destinations are
+  registered in BOTH `AppScaffold`'s inner shell NavHost (in-program) AND `RootScreen.SignedInGraph`'s outer
+  NavHost (picker). The screens themselves apply NO `statusBarsPadding()` — they use
+  `fillMaxSize().padding(20.dp)` and rely on the parent for the status-bar inset. In-program, `AppScaffold`'s
+  Material `Scaffold` passes it via `Modifier.padding(innerPadding)`. In the picker graph there's no Scaffold
+  and no inset → with `enableEdgeToEdge()` on, content draws from y=0 under the status bar. (Extends the Run-9
+  "two NavHosts can register the same route" lesson — the catch is the OUTER one must re-supply the inset the
+  Scaffold would have.)
+- **Fix:** a tiny `RootScreen.SettingsInset { }` wrapper — `Box(Modifier.fillMaxSize().statusBarsPadding())`
+  — around the four picker-level settings composables. Both entry points now anchor identically below the
+  status bar. `Modifier` wasn't imported in RootScreen.kt (nothing had used it) — add
+  `androidx.compose.ui.Modifier` + `foundation.layout.{fillMaxSize,statusBarsPadding}`. Compiles clean
+  (`:app:compileDebugKotlin` BUILD SUCCESSFUL). One-file change; Android-only cosmetic, no feature bump.
