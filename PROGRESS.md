@@ -24,6 +24,23 @@ _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
+- **`android`** — 🟢 **Phase I (notifications) DONE + green (2026-07-08, Runs 10–11): in-app SSE + FCM push.**
+  **I-a (Run 10, user live-tested + signed off):** the in-app half — okhttp-sse `NotificationStreamClient`
+  (`GET /notifications/stream`, Bearer header, `readTimeout(0)`) + `/unacknowledged` backfill + a
+  single-notification `NotificationModal` **queue** (oldest-first, optimistic `/:id/acknowledge`, F7/F8) mounted
+  as an app-root overlay in `RootScreen` (stream starts on sign-in, restarts on `ON_RESUME`, tears down on
+  sign-out). **I-b (Run 11): FCM push** — Firebase project `rasi-fiters` (user-provisioned;
+  `google-services.json` gitignored, sole-builder machine), google-services plugin + `firebase-messaging`,
+  `push/RaSiFirebaseMessagingService` (onNewToken→register; onMessageReceived no-op — SSE owns foreground),
+  `POST_NOTIFICATIONS` runtime request, device-token registration (`PUT /notifications/device` with
+  `platform:"android"`, dereg on sign-out). **Backend delta (deploy-pending push):** `firebase-admin` FCM
+  sender in `utils/pushNotifications.js` fired alongside APNs by `sendPushToMembers`; `upsertPushToken` +
+  login/`PUT /device` thread a `platform` param (default `"ios"` — LIVE iOS binary unchanged);
+  `FIREBASE_SERVICE_ACCOUNT` base64 secret **already set on Render** (`sync:false`); **no migration** (the
+  `platform` column already exists). `assembleDebug` green. SPEC `specs/pages/android/notifications-alerts/`
+  (0.2.0) + `notifications` feature 0.2.1→(bump) consumed_by += android. **Backend must deploy (git push →
+  Render auto-deploy) before Android push works end-to-end.** Next: **Phase H (Health Connect)** or **Phase J
+  (de-scaffold)**.
 - **`android`** — 🟢 **Pre-Phase-H cleanup DONE (2026-07-08, Run 9):** app-wide **solid** background (the
   auth-only orange gradient removed); picker **"+"** → new `ProgramActionsSheet` (My Invites / Create) →
   `POST /programs` (`createProgram`); picker **account sheet wired** to the real settings screens (dead
@@ -167,7 +184,22 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase H (Health Connect) / Phase I (SSE + FCM notifications). Say "continue" to resume.
+> ### ⏭️ ANDROID PORT — Phase I (notifications) DONE. Deploy the backend, then Phase H (Health Connect) / Phase J.
+
+**Phase I is code-complete + green** (2026-07-08, Runs 10–11). I-a (in-app SSE) was **user live-tested + signed
+off**. I-b (FCM push) is wired both sides; the Firebase project is provisioned and the `FIREBASE_SERVICE_ACCOUNT`
+secret is set on Render.
+
+**⚠️ Deploy gate:** the backend FCM code (`firebase-admin` + the dual sender + the `platform` param) is
+committed but **must be pushed to `main` so Render auto-deploys** before Android push works end-to-end. It is
+degrade-safe for the LIVE iOS binary (platform defaults to `"ios"`; FCM no-ops if the secret were absent).
+After deploy: user installs the debug APK on the Pixel_8, signs in (registers the FCM token), and tests push
+(background the app, then trigger a `program.*` event from another account → system-tray push; foreground →
+the SSE modal).
+
+---
+
+> ### ⏭️ Phase H (Health Connect) — the next porting phase after Phase I ships.
 
 **Phase G (Program tab + settings/admin sub-routes) is DONE + green + LIVE-TESTED** (2026-07-08): the
 **Program tab (Tab 4)** replaces the last `StubScreen("Program")`, plus its 6 sub-routes (My Profile ·

@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 13+ runtime permission to post notifications (FCM push; requested at runtime — Phase I-b). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:name=".App"
@@ -29,6 +31,20 @@
                 <data android:scheme="rasifiters" />
             </intent-filter>
         </activity>
+
+        <!-- FCM push (Phase I-b) — receives new-token + message events. onNewToken re-registers the device;
+             foreground messages defer to the in-app SSE modal, background ones are shown by the system tray. -->
+        <service
+            android:name=".push.RaSiFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+        <!-- Channel that background FCM "notification" messages post into (created in App.onCreate). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="@string/default_notification_channel_id" />
 
         <!-- CSV export share target — the Members detail screens write a temp .csv to cache and share it
              (parity with the iOS ShareSheet export on metrics / workouts / health). -->

@@ -239,4 +239,19 @@ interface ApiService {
 
     @PUT("program-memberships/leave")
     suspend fun leaveProgram(@Body body: LeaveProgramRequest): MessageResponse
+
+    // ---- Notifications (Phase I) — in-app SSE backfill + acknowledge (the /stream route is opened by
+    // NotificationStreamClient, not Retrofit). ----
+    @GET("notifications/unacknowledged")
+    suspend fun getUnacknowledgedNotifications(): List<NotificationDTO>
+
+    @POST("notifications/{id}/acknowledge")
+    suspend fun acknowledgeNotification(@Path("id") id: String): MessageResponse
+
+    // FCM device-token lifecycle (Phase I-b).
+    @PUT("notifications/device")
+    suspend fun registerDevice(@Body body: DeviceRegisterRequest): MessageResponse
+
+    @HTTP(method = "DELETE", path = "notifications/device", hasBody = true)
+    suspend fun unregisterDevice(@Body body: DeviceUnregisterRequest): MessageResponse
 }

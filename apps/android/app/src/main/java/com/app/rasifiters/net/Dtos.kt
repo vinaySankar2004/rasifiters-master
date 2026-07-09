@@ -68,6 +68,39 @@ data class MessageResponse(val message: String? = null)
 @Serializable
 data class ForgotPasswordRequest(val email: String)
 
+// ---- Notifications (Phase I) ----
+
+/**
+ * A single alert — the shape of `GET /notifications/unacknowledged` rows AND the SSE
+ * `event: notification` payload (both `buildNotificationPayload`, notifications SPEC §3). `type` drives
+ * the post-event data refresh (invite vs membership/program change).
+ */
+@Serializable
+data class NotificationDTO(
+    val id: String,
+    val type: String,
+    val title: String,
+    val body: String,
+    @SerialName("program_id") val programId: String? = null,
+    @SerialName("actor_member_id") val actorMemberId: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+)
+
+/** PUT /notifications/device — register this device's FCM token. `platform="android"` routes it to the
+ *  backend FCM sender (the default "ios" is reserved for the APNs path). */
+@Serializable
+data class DeviceRegisterRequest(
+    @SerialName("push_token") val pushToken: String,
+    @SerialName("device_id") val deviceId: String? = null,
+    val platform: String = "android",
+)
+
+/** DELETE /notifications/device — unregister this device's token (on sign-out). */
+@Serializable
+data class DeviceUnregisterRequest(
+    @SerialName("push_token") val pushToken: String,
+)
+
 // ---- Programs ----
 
 /**

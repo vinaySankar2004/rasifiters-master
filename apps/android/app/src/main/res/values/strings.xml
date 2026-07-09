@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">RaSi Fiters</string>
+    <!-- Default FCM notification channel (Phase I-b). Created in App.onCreate; referenced by the
+         default_notification_channel_id manifest meta-data so background pushes land in a named channel. -->
+    <string name="default_notification_channel_id">rasi_default</string>
+    <string name="default_notification_channel_name">General</string>
 </resources>

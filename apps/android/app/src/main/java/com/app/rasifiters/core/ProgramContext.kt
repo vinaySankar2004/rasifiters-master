@@ -6,6 +6,8 @@ import com.app.rasifiters.net.BulkWorkoutEntry
 import com.app.rasifiters.net.BulkWorkoutRequest
 import com.app.rasifiters.net.DailyHealthDeleteRequest
 import com.app.rasifiters.net.DailyHealthRequest
+import com.app.rasifiters.net.DeviceRegisterRequest
+import com.app.rasifiters.net.DeviceUnregisterRequest
 import com.app.rasifiters.net.DistributionByDayDTO
 import com.app.rasifiters.net.ChangeEmailRequest
 import com.app.rasifiters.net.ChangePasswordRequest
@@ -26,6 +28,8 @@ import com.app.rasifiters.net.MembershipEditRequest
 import com.app.rasifiters.net.MembershipRemoveRequest
 import com.app.rasifiters.net.MembershipUpdateRequest
 import com.app.rasifiters.net.MtdParticipationDTO
+import com.app.rasifiters.net.NotificationDTO
+import com.app.rasifiters.net.NotificationStreamClient
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.net.ProgramOrderRequest
@@ -48,6 +52,7 @@ import com.app.rasifiters.net.WorkoutTypeHighestParticipationDTO
 import com.app.rasifiters.net.WorkoutTypeLongestDurationDTO
 import com.app.rasifiters.net.WorkoutTypeMostPopularDTO
 import com.app.rasifiters.net.toApiException
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -71,6 +76,7 @@ import java.io.IOException
 class ProgramContext(
     private val api: ApiService,
     private val session: Session,
+    private val baseUrl: String,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -182,6 +188,10 @@ class ProgramContext(
 
     fun signOut() {
         scope.launch {
+            // Deregister this device from push while the access token is still valid (iOS parity).
+            lastRegisteredPushToken?.let { t ->
+                runCatching { api.unregisterDevice(DeviceUnregisterRequest(t)) }
+            }
             runCatching { api.logout(LogoutRequest(session.refreshToken)) }
             clearSession()
         }
@@ -246,6 +256,109 @@ class ProgramContext(
     /** Pick a program → hydrate the active-program state the shell reads. */
     fun selectProgram(program: ProgramDTO) {
         _activeProgram.value = program
+    }
+
+    // ---- Notifications (Phase I) — real-time SSE + the modal queue ----
+    // The alerts layer: an SSE stream (NotificationStreamClient) pushes new alerts live, backed by a
+    // `GET /notifications/unacknowledged` backfill on connect. Alerts render as a single-notification modal
+    // QUEUE (oldest-first, one at a time), acknowledged optimistically via `POST /:id/acknowledge`. Mirrors
+    // the iOS `ProgramContext+Notifications` set (notifications SPEC D-REF). FCM push is the follow-up.
+
+    private var notificationStreamClient: NotificationStreamClient? = null
+    private val notificationIds = mutableSetOf<String>()
+
+    /** The pending-alert queue; the shell shows `first` in a modal and pops it on acknowledge (web F7 parity). */
+    private val _notificationQueue = MutableStateFlow<List<NotificationDTO>>(emptyList())
+    val notificationQueue: StateFlow<List<NotificationDTO>> = _notificationQueue.asStateFlow()
+
+    /** Open (or restart) the SSE stream when signed in + run the unacknowledged backfill. Idempotent — safe
+     *  to call on launch and on every resume (iOS `startNotificationStreamIfNeeded`). */
+    fun startNotificationStreamIfNeeded() {
+        val token = session.accessToken?.takeIf { it.isNotEmpty() } ?: return
+        notificationStreamClient?.disconnect()
+        val client = NotificationStreamClient(baseUrl) { session.accessToken }
+        client.onNotification = { dto -> scope.launch { enqueueNotification(dto) } }
+        client.connect()
+        notificationStreamClient = client
+        scope.launch { loadUnacknowledgedNotifications() }
+    }
+
+    /** Tear down the stream + clear the queue (sign-out / auth-fail). */
+    fun stopNotificationStream() {
+        notificationStreamClient?.disconnect()
+        notificationStreamClient = null
+        _notificationQueue.value = emptyList()
+        notificationIds.clear()
+    }
+
+    /** Backfill the member's un-acked alerts (oldest-first). Swallowed on failure — retried on next event. */
+    suspend fun loadUnacknowledgedNotifications() {
+        if (session.accessToken.isNullOrEmpty()) return
+        runCatching { api.getUnacknowledgedNotifications() }.onSuccess { items ->
+            notificationIds.clear()
+            notificationIds.addAll(items.map { it.id })
+            _notificationQueue.value = sortNotifications(items)
+        }
+    }
+
+    /** Optimistic acknowledge: pop the alert immediately, then `POST /:id/acknowledge`; on failure re-backfill
+     *  so it reappears (iOS/web F8 parity). */
+    suspend fun acknowledgeNotification(notification: NotificationDTO) {
+        if (session.accessToken.isNullOrEmpty()) return
+        _notificationQueue.value = _notificationQueue.value.filterNot { it.id == notification.id }
+        notificationIds.remove(notification.id)
+        runCatching { api.acknowledgeNotification(notification.id) }
+            .onFailure { loadUnacknowledgedNotifications() }
+    }
+
+    private suspend fun enqueueNotification(notification: NotificationDTO) {
+        if (!notificationIds.add(notification.id)) return
+        _notificationQueue.value = sortNotifications(_notificationQueue.value + notification)
+        refreshDataForNotification(notification)
+    }
+
+    /** Invalidate the caches an event touches so the open screen reflects it (iOS `refreshDataForNotification`
+     *  / web per-notification query invalidation). Best-effort; the picker list carries invites on Android. */
+    private suspend fun refreshDataForNotification(notification: NotificationDTO) {
+        when (notification.type) {
+            "program.invite_received" -> {
+                runCatching { loadPrograms() }
+            }
+            "program.role_changed", "program.member_removed", "program.member_left",
+            "program.member_joined", "program.admin_transferred", "program.updated", "program.deleted" -> {
+                runCatching { loadPrograms() }
+                if (_activeProgram.value != null) runCatching { loadMembershipDetails() }
+            }
+        }
+    }
+
+    /** Oldest-first (ISO `created_at` string sort; missing dates sink to the front — distant past). */
+    private fun sortNotifications(items: List<NotificationDTO>): List<NotificationDTO> =
+        items.sortedBy { it.createdAt ?: "" }
+
+    // ---- Push (FCM, Phase I-b) — device-token registration (the iOS APNs device lifecycle analog) ----
+
+    /** The last token we successfully registered — dedupes redundant `PUT /device` calls. */
+    private var lastRegisteredPushToken: String? = null
+
+    /** Fetch the current FCM token and register it (if signed in). Called on sign-in + resume. Best-effort;
+     *  if notifications are unavailable/denied the token fetch just fails silently. */
+    fun registerPushTokenIfNeeded() {
+        if (session.accessToken.isNullOrEmpty()) return
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) task.result?.let { onNewPushToken(it) }
+        }
+    }
+
+    /** Register a (new) FCM token with the backend as an `android` device. Called from
+     *  [registerPushTokenIfNeeded] + the FirebaseMessagingService's `onNewToken`. */
+    fun onNewPushToken(token: String) {
+        if (token.isEmpty() || session.accessToken.isNullOrEmpty()) return
+        if (token == lastRegisteredPushToken) return
+        scope.launch {
+            runCatching { api.registerDevice(DeviceRegisterRequest(pushToken = token)) }
+                .onSuccess { lastRegisteredPushToken = token }
+        }
     }
 
     // ---- Summary dashboard (Phase D) ----
@@ -862,6 +975,8 @@ class ProgramContext(
         editMembership(memberId = memberId, role = role)
 
     private fun clearSession() {
+        stopNotificationStream()
+        lastRegisteredPushToken = null
         session.clear()
         _loggedInGender.value = null
         _authToken.value = null

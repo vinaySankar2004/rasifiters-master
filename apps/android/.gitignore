@@ -8,5 +8,9 @@
 .externalNativeBuild
 .cxx
 build/
-# Firebase config carries no secret (client config) but is env-specific; add per-machine.
-# google-services.json is committed once Phase I lands; keep out until then.
+# Firebase client config. Not a hard secret (it ships inside the APK), but the repo is PUBLIC and this
+# machine is the sole builder — so we keep it OUT of git and place it per-machine at
+# apps/android/app/google-services.json (Firebase console → project rasi-fiters → Android app → download).
+# The google-services Gradle plugin requires the file present at build time.
+app/google-services.json
+google-services.json

@@ -19,10 +19,11 @@ router.post("/login", async (req, res) => {
 
 const handleAppLogin = async (req, res) => {
     try {
-        const { identifier, username, password, push_token, device_id } = req.body;
+        const { identifier, username, password, push_token, device_id, platform } = req.body;
         const result = await authService.loginGlobal(identifier || username, password, {
             push_token,
-            device_id
+            device_id,
+            platform
         });
         res.json(result);
     } catch (err) {

@@ -73,10 +73,10 @@
       }
     },
     "notifications": {
-      "version": "0.2.1",
+      "version": "0.3.0",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
+      "consumed_by": ["web", "ios", "android"],
       "depends_on": ["auth", "members", "program-memberships"],
       "reference_impl": {
         "app": "backend",

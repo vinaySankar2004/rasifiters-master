@@ -70,4 +70,10 @@ services:
         sync: false
       - key: APNS_KEY                      # base64-encoded .p8 auth key (or use APNS_KEY_PATH)
         sync: false
+      # --- FCM push (Android; notifications SPEC — the APNs analog for the android surface). The Firebase
+      # service-account private-key JSON (Firebase console → Project settings → Service accounts → Generate
+      # new private key), base64-encoded. Secret → sync:false, out of git. getFcmApp() returns a live app
+      # when set so sendPushToMembers fires Android FCM; unset ⇒ FCM no-ops (SSE + DB delivery regardless).
+      - key: FIREBASE_SERVICE_ACCOUNT      # base64-encoded Firebase service-account JSON (project rasi-fiters)
+        sync: false
       # PORT is injected by Render (default 10000) — do NOT set it; server.js reads process.env.PORT.

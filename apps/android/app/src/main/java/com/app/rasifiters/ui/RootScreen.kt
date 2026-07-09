@@ -1,13 +1,29 @@
 package com.app.rasifiters.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.app.rasifiters.core.AppearanceStore
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.ui.components.NotificationModal
+import kotlinx.coroutines.launch
 import com.app.rasifiters.ui.auth.CreateAccountScreen
 import com.app.rasifiters.ui.auth.ForgotPasswordScreen
 import com.app.rasifiters.ui.auth.LoginScreen
@@ -27,11 +43,62 @@ import com.app.rasifiters.ui.shell.AppScaffold
 @Composable
 fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore) {
     val token by programContext.authToken.collectAsStateWithLifecycle()
+    val notificationQueue by programContext.notificationQueue.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    if (token == null) {
-        AuthGraph(programContext)
-    } else {
-        SignedInGraph(programContext, appearanceStore)
+    // Android 13+ POST_NOTIFICATIONS runtime permission — token registration proceeds regardless of the
+    // grant (the permission only gates DISPLAYING pushes; registration doesn't need it), so we ignore the result.
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { /* granted-or-not: nothing to do — FCM registration is independent of display permission */ }
+
+    // Notification lifecycle (iOS AppRootView parity): open the SSE stream + backfill + register the FCM
+    // token when signed in (and ask for POST_NOTIFICATIONS on 13+); tear the stream down on sign-out.
+    LaunchedEffect(token) {
+        if (token != null) {
+            programContext.startNotificationStreamIfNeeded()
+            programContext.registerPushTokenIfNeeded()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            programContext.stopNotificationStream()
+        }
+    }
+
+    // Restart the stream on app resume (the iOS `scenePhase == .active` restart) — recovers a socket that
+    // dropped while backgrounded and re-runs the unacknowledged backfill.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, token) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && token != null) {
+                programContext.startNotificationStreamIfNeeded()
+                programContext.registerPushTokenIfNeeded()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    Box {
+        if (token == null) {
+            AuthGraph(programContext)
+        } else {
+            SignedInGraph(programContext, appearanceStore)
+        }
+
+        // The single-notification modal queue, shown above the whole app (iOS AppRootView ZStack overlay).
+        notificationQueue.firstOrNull()?.let { notification ->
+            NotificationModal(
+                title = notification.title,
+                message = notification.body,
+                onAcknowledge = { scope.launch { programContext.acknowledgeNotification(notification) } },
+            )
+        }
     }
 }
 

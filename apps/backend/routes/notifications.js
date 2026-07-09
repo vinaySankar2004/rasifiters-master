@@ -47,7 +47,7 @@ router.put("/device", authenticateToken, async (req, res) => {
         if (!pushToken || typeof pushToken !== "string" || !pushToken.trim()) {
             return res.status(400).json({ error: "push_token is required." });
         }
-        await authService.upsertPushToken(req.user.id, pushToken.trim(), req.body.device_id);
+        await authService.upsertPushToken(req.user.id, pushToken.trim(), req.body.device_id, req.body.platform);
         res.json({ message: "Device registered for push notifications." });
     } catch (error) {
         console.error("Error registering device:", error);

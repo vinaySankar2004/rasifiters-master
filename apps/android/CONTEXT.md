@@ -59,6 +59,32 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
+🟢 **Phase I (2026-07-08, Runs 10–11): notifications — in-app SSE + FCM push.** I-b (FCM) built on top of I-a:
+Firebase project `rasi-fiters` (user-provisioned; `google-services.json` gitignored — public repo, sole
+builder), google-services plugin + `firebase-messaging` (BOM 33.7.0), `push/RaSiFirebaseMessagingService`
+(`onNewToken`→register; `onMessageReceived` no-op — the SSE modal owns foreground), a `rasi_default` channel
+(`App.onCreate`), `POST_NOTIFICATIONS` runtime request (`RootScreen`, Android 13+), device-token registration
+(`ProgramContext.registerPushTokenIfNeeded`/`onNewPushToken` → `PUT /notifications/device` `platform:"android"`,
+deduped; sign-out `DELETE /device`). **Backend delta (deploy-pending push):** `utils/pushNotifications.js`
+gained a `firebase-admin` FCM sender fired alongside APNs by `sendPushToMembers`; `authService.upsertPushToken`
++ the login/`PUT /device` routes thread a `platform` param (**default `"ios"`** so the LIVE iOS binary is
+unchanged); `FIREBASE_SERVICE_ACCOUNT` (base64) already on Render `sync:false`; **no migration** (the
+`platform` column pre-existed). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. **I-a below.**
+
+🟢 **Phase I-a (2026-07-08, Run 10): in-app real-time notifications (SSE + modal queue).** The in-app half of
+the `notifications` feature. New `net/NotificationStreamClient.kt` (okhttp-sse `EventSource`,
+`GET /notifications/stream`, Bearer header, `readTimeout(0)`; restart-on-resume recovery, no internal
+reconnect loop — iOS parity) + `ui/components/NotificationModal.kt` (Compose `Dialog`, neutral surface +
+orange OK). `ProgramContext` gained a `baseUrl` ctor param + the notification state (`notificationQueue`) +
+`start/stopNotificationStream`, `loadUnacknowledgedNotifications`, `acknowledgeNotification` (optimistic,
+re-backfill on failure), `enqueueNotification`, `refreshDataForNotification` (invite → `loadPrograms`;
+membership/program change → `loadPrograms` + `loadMembershipDetails`). `net` gained `NotificationDTO` +
+`GET /notifications/unacknowledged` + `POST /notifications/{id}/acknowledge`; `RootScreen` mounts the modal
+queue as an app-root overlay (iOS `AppRootView` ZStack analog) + drives the stream lifecycle on the auth token
++ `ON_RESUME`. No Gradle change (okhttp-sse already declared). Single-notification modal QUEUE (web F7),
+optimistic acknowledge (F8). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Thin SPEC
+`specs/pages/android/notifications-alerts/`. Next: **Phase I-b (FCM push) or Phase H (Health Connect)**.
+
 🟢 **Pre-Phase-H cleanup (2026-07-08, Run 9).** User-reported fixes + a 4-tab functional audit, before the
 next phase. (1) **Background standardized** — the faint orange gradient lived only on the auth screens; every
 screen now uses the **solid theme background** (auth included). The gradient brush was removed. (2) The picker

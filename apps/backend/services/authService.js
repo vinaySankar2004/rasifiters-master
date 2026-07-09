@@ -76,8 +76,11 @@ const supabaseSignIn = async (member, password) => {
     return data.session;
 };
 
-async function upsertPushToken(memberId, deviceToken, deviceId = null) {
-    const platform = "ios";
+// `platform` defaults to "ios" so the LIVE iOS binary (which sends no platform) keeps registering APNs
+// tokens exactly as before; the Android client passes "android" so its FCM tokens are stored + queried by
+// the FCM sender. Any other/invalid value falls back to "ios" (the column is NOT NULL, default 'ios').
+async function upsertPushToken(memberId, deviceToken, deviceId = null, platform = "ios") {
+    const resolvedPlatform = platform === "android" ? "android" : "ios";
     const existing = await MemberPushToken.findOne({
         where: { device_token: deviceToken }
     });
@@ -86,6 +89,7 @@ async function upsertPushToken(memberId, deviceToken, deviceId = null) {
         await existing.update({
             member_id: memberId,
             device_id: deviceId ?? existing.device_id,
+            platform: resolvedPlatform,
             updated_at: now
         });
         return;
@@ -93,7 +97,7 @@ async function upsertPushToken(memberId, deviceToken, deviceId = null) {
     await MemberPushToken.create({
         member_id: memberId,
         device_token: deviceToken,
-        platform,
+        platform: resolvedPlatform,
         device_id: deviceId,
         created_at: now,
         updated_at: now
@@ -132,9 +136,9 @@ async function loginGlobal(identifier, password, options = {}) {
     const session = await supabaseSignIn(member, password);
     const globalRole = member.global_role || "standard";
 
-    const { push_token: pushToken, device_id: deviceId } = options;
+    const { push_token: pushToken, device_id: deviceId, platform } = options;
     if (pushToken && typeof pushToken === "string" && pushToken.trim()) {
-        await upsertPushToken(member.id, pushToken.trim(), deviceId);
+        await upsertPushToken(member.id, pushToken.trim(), deviceId, platform);
     }
 
     return {
