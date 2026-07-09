@@ -5,8 +5,13 @@
       "version": "0.6.0",
       "spec": "specs/features/auth/SPEC.md",
       "status": "deployed",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["program-memberships"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "program-memberships"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -23,8 +28,14 @@
       "version": "0.3.0",
       "spec": "specs/features/members/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "program-memberships"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "program-memberships"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -40,8 +51,15 @@
       "version": "0.2.0",
       "spec": "specs/features/programs/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "program-memberships", "notifications"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "program-memberships",
+        "notifications"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -59,8 +77,17 @@
       "version": "0.2.0",
       "spec": "specs/features/program-memberships/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "members", "programs", "notifications", "invites"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "members",
+        "programs",
+        "notifications",
+        "invites"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -76,8 +103,16 @@
       "version": "0.3.0",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios", "android"],
-      "depends_on": ["auth", "members", "program-memberships"],
+      "consumed_by": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "depends_on": [
+        "auth",
+        "members",
+        "program-memberships"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -96,8 +131,17 @@
       "version": "0.1.0",
       "spec": "specs/features/invites/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "programs", "members", "program-memberships", "notifications"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "programs",
+        "members",
+        "program-memberships",
+        "notifications"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -113,8 +157,12 @@
       "version": "0.1.1",
       "spec": "specs/features/workouts/SPEC.md",
       "status": "built",
-      "consumed_by": ["ios"],
-      "depends_on": ["auth"],
+      "consumed_by": [
+        "ios"
+      ],
+      "depends_on": [
+        "auth"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -129,8 +177,16 @@
       "version": "0.1.0",
       "spec": "specs/features/program-workouts/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "workouts", "program-memberships", "programs"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "workouts",
+        "program-memberships",
+        "programs"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -145,8 +201,18 @@
       "version": "0.4.0",
       "spec": "specs/features/workout-logs/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "members", "programs", "program-memberships", "workouts", "program-workouts"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "members",
+        "programs",
+        "program-memberships",
+        "workouts",
+        "program-workouts"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -161,8 +227,16 @@
       "version": "0.1.0",
       "spec": "specs/features/daily-health-logs/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "programs", "program-memberships", "workout-logs"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "programs",
+        "program-memberships",
+        "workout-logs"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -177,8 +251,19 @@
       "version": "0.1.1",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "members", "programs", "program-memberships", "program-workouts", "workout-logs", "daily-health-logs"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "members",
+        "programs",
+        "program-memberships",
+        "program-workouts",
+        "workout-logs",
+        "daily-health-logs"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -194,8 +279,17 @@
       "version": "0.1.0",
       "spec": "specs/features/analytics-v2/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "analytics", "program-memberships", "program-workouts", "workout-logs"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "analytics",
+        "program-memberships",
+        "program-workouts",
+        "workout-logs"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -209,8 +303,20 @@
       "version": "0.1.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "built",
-      "consumed_by": ["web", "ios"],
-      "depends_on": ["auth", "analytics", "members", "programs", "program-memberships", "program-workouts", "workout-logs", "daily-health-logs"],
+      "consumed_by": [
+        "web",
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "analytics",
+        "members",
+        "programs",
+        "program-memberships",
+        "program-workouts",
+        "workout-logs",
+        "daily-health-logs"
+      ],
       "reference_impl": {
         "app": "backend",
         "paths": [
@@ -225,7 +331,9 @@
       "version": "0.1.0",
       "spec": "specs/features/app-config/SPEC.md",
       "status": "built",
-      "consumed_by": ["ios"],
+      "consumed_by": [
+        "ios"
+      ],
       "depends_on": [],
       "reference_impl": {
         "app": "backend",
@@ -238,8 +346,17 @@
       "version": "0.6.0",
       "spec": "specs/features/apple-health/SPEC.md",
       "status": "built",
-      "consumed_by": ["ios"],
-      "depends_on": ["auth", "programs", "program-memberships", "workouts", "workout-logs", "daily-health-logs"],
+      "consumed_by": [
+        "ios"
+      ],
+      "depends_on": [
+        "auth",
+        "programs",
+        "program-memberships",
+        "workouts",
+        "workout-logs",
+        "daily-health-logs"
+      ],
       "reference_impl": {
         "app": "ios",
         "paths": [
@@ -255,6 +372,36 @@
           "RaSi-Fiters-App/Shared/Models/PendingSyncConfirmation.swift",
           "RaSi-Fiters-App/Shared/Views/HealthSyncConfirmationView.swift",
           "RaSi-Fiters-App/Features/Home/Settings/AppleHealthSettingsView.swift"
+        ]
+      }
+    },
+    "health-connect": {
+      "version": "0.1.0",
+      "spec": "specs/features/health-connect/SPEC.md",
+      "status": "built",
+      "consumed_by": [
+        "android"
+      ],
+      "depends_on": [
+        "auth",
+        "programs",
+        "program-memberships",
+        "workouts",
+        "workout-logs",
+        "daily-health-logs"
+      ],
+      "reference_impl": {
+        "app": "android",
+        "paths": [
+          "app/src/main/java/com/app/rasifiters/health/HealthConnectManager.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthConnectWorkoutTypeMap.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthStore.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthModels.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthDates.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthSyncNotifier.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthSyncController.kt",
+          "app/src/main/java/com/app/rasifiters/ui/health/HealthConnectSettingsScreen.kt",
+          "app/src/main/java/com/app/rasifiters/ui/health/HealthSyncConfirmationScreen.kt"
         ]
       }
     }

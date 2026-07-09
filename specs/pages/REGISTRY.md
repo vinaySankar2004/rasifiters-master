@@ -70,6 +70,7 @@ idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the s
 | summary-workout-types-detail | 🏗️ v0.1.0 | `analytics` (`GET /analytics/workouts/types`, pre-loaded; %-share chart + full breakdown) | [summary-workout-types-detail SPEC](android/summary-workout-types-detail/SPEC.md) |
 | log-workout | 🏗️ v0.1.0 | `workout-logs` (`POST /workout-logs/batch`) + `program-memberships`/`program-workouts` lookups | [log-workout SPEC](android/log-workout/SPEC.md) |
 | log-health | 🏗️ v0.1.0 | `daily-health-logs` (`POST /daily-health-logs`) + `program-memberships` lookup | [log-health SPEC](android/log-health/SPEC.md) |
+| health-connect | 🏗️ v0.1.0 | `health-connect` (Health Connect workout + sleep auto-sync; settings + first-sync confirmation; reuses `POST /workout-logs` + `POST`/`PUT /daily-health-logs`) | [health-connect SPEC](android/health-connect/SPEC.md) |
 
 Inventory to document (Phases D→J): ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~forgot-password~~ ·
 ~~program-picker~~ · ~~summary (landing)~~ · ~~summary details (activity/distribution/workout-types + log-workout/

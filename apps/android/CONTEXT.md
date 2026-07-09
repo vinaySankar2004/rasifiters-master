@@ -48,10 +48,15 @@ Mobile login = `POST /auth/login/app` (returns `member_id`, accepts `push_token`
 each time. 401 → single-flight refresh + one retry, else sign-out.
 
 ## Health (Samsung Health)
-Via **Health Connect** (`androidx.health.connect`) — the HealthKit analog. Reads `ExerciseSessionRecord`
-→ `POST /workout-logs` (idempotent applied-ledger, `on_duplicate:"sum"`) and `SleepSessionRecord` →
-`daily-health-logs` upsert. Per-program toggles, data-lock aware. Phase H. New `health-connect` feature
-spec (parallels iOS `apple-health`, which stays iOS-only).
+Via **Health Connect** (`androidx.health.connect:connect-client`) — the HealthKit analog. **Built (Phase H,
+Run 14).** Reads `ExerciseSessionRecord` → `POST /workout-logs` (idempotent applied-ledger,
+`on_duplicate:"sum"`) and `SleepSessionRecord` → `daily-health-logs` upsert. Per-program toggles,
+date-window scoped (D-S5), data-lock aware (D-LOCK), first-sync confirmation (D-CONF), silent auto-retry
+(D-SIL). Incremental workouts use the **Changes API** (the anchor analog); sleep uses a rolling 14-day
+`readRecords` window. Sync runs on app triggers (launch/auth/foreground/program-entry) — **no OS-push
+background delivery** (H-1; Health Connect has none). New `health-connect` feature spec
+(`specs/features/health-connect/`, 0.1.0) parallels iOS `apple-health` (which stays iOS-only). Code:
+`health/*` + `ui/health/*`.
 
 ## Deploy
 Android Studio → signed AAB → Google Play Console **internal testing** (TestFlight analog) → closed test
@@ -59,6 +64,38 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
+🟢 **Phase H (2026-07-08, Run 14): Health Connect — workout + sleep auto-sync.** The Android analog of the
+iOS `apple-health` feature, re-expressed on **Health Connect** (`androidx.health.connect:connect-client
+1.1.0-alpha07`; new `health-connect` feature SPEC 0.1.0). New `health/` module: `HealthConnectManager`
+(availability `getSdkStatus`, read auth via `PermissionController` — not a runtime dialog; **incremental
+workouts via the Changes API** = the HKAnchoredObjectQuery analog, first sync `readRecords` from the connect
+date; **rolling 14-day sleep window** via `readRecords`; aggregation), `HealthConnectWorkoutTypeMap`
+(`ExerciseSessionRecord.EXERCISE_TYPE_*` → the library names `apple-health`'s migration `004` already seeded —
+targets ⊆ the iOS map, verified), `HealthStore` (a plain `rasi.health` `SharedPreferences` = the
+`UserDefaults` analog: workout/sleep settings + first-sync gating + the sum-on-conflict applied-sample
+ledger), `HealthModels`/`HealthDates`/`HealthSyncNotifier`, and `HealthSyncController` — the four iOS
+`ProgramContext+HealthKit{,Sleep,Windows}`/`+HealthSyncGating` extensions ported 1:1: single-flight
+(`AtomicBoolean`), per-program date-window scoping **D-S5**, first-sync confirmation gating **D-CONF**,
+admin-lock skip **D-LOCK**, sum-on-conflict + ledger **D-SUM**, silent auto-retry **D-SIL**, and the
+status-code write classification (created/summed/duplicate/skipped/retryable). UI: `ui/health/
+HealthConnectSettingsScreen` (workout + sleep toggles, program selection with locked non-selectable rows,
+sync status + Sync Now + inline/passive error, disconnect) + `ui/health/HealthSyncConfirmationScreen` (one
+program per page, checkable rows default-on, tick=commit-checked+advance, system-back=defer — a full-screen
+overlay from `RootScreen`, the iOS `AppRootView` fullScreenCover analog). Wiring: `ProgramContext` gained
+`isDataEntryLocked(programId)` + owns a `HealthSyncController` (constructed with `appContext`); `ApiService`
+gained the raw status-code writes (`postWorkoutLog` / `postDailyHealthLogRaw` / `putDailyHealthLogRaw` →
+`retrofit2.Response<Unit>` so 200/201/409/400-403-404 classify; the OkHttp Authenticator still does the 401
+refresh); account rows on the Program tab + picker sheet → `Routes.HEALTH_CONNECT`; launch/auth (`RootScreen`
+`LaunchedEffect(token)`), foreground (`ON_RESUME`), and program-entry (`AppScaffold`) sync triggers via
+`health.onTrigger()`. Manifest: `health.READ_EXERCISE`/`READ_SLEEP` permissions, the
+`com.google.android.apps.healthdata` provider `<queries>`, and the permissions-rationale intent-filters
+(`SHOW_PERMISSIONS_RATIONALE` on MainActivity + a `ViewPermissionUsageActivity` alias). **No backend change,
+no migration** — reuses the already-live `workout-logs` D-C9 (`on_duplicate:"sum"`) + the daily-health
+POST-then-PUT-on-409 upsert. **Deviation H-1:** Health Connect has no HealthKit-style immediate background
+delivery, so sync runs on app triggers (no OS-push background sync; a future `WorkManager` job could
+approximate it). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Thin SPEC
+`specs/pages/android/health-connect/`. **Next: Phase J (de-scaffold) + first internal-testing AAB.**
+
 🟢 **Phase I (2026-07-08, Runs 10–11): notifications — in-app SSE + FCM push.** I-b (FCM) built on top of I-a:
 Firebase project `rasi-fiters` (user-provisioned; `google-services.json` gitignored — public repo, sole
 builder), google-services plugin + `firebase-messaging` (BOM 33.7.0), `push/RaSiFirebaseMessagingService`
@@ -181,3 +218,5 @@ now unused (folds away at the Phase J de-scaffold). _(Phase E lit up the invite/
 that nominally belongs to the Program tab (G) — reused there in G with no rework.)_
 _(Phase C added the program-picker, a NEW screen that precedes the shell — it did not remove a stub; the
 picker's own forward-nav (create/edit + account destinations) is deferred per iOS D-SCOPE, folded in G/H.)_
+_(Phase H added the Health Connect settings + first-sync confirmation — NEW screens reached from the account
+section; no stub removed. Phase J deletes the now-unused `StubScreen.kt` file itself.)_

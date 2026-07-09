@@ -1,6 +1,7 @@
 package com.app.rasifiters.net
 
 import kotlinx.serialization.json.JsonObject
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
@@ -247,6 +248,20 @@ interface ApiService {
 
     @POST("notifications/{id}/acknowledge")
     suspend fun acknowledgeNotification(@Path("id") id: String): MessageResponse
+
+    // ---- Health Connect auto-sync (Phase H) — status-code-aware writes ----
+    // These return the raw Retrofit Response (never throw HttpException) so the sync can classify the HTTP
+    // status: workout 200=summed / 201=created / 409=duplicate / 400,403,404=skipped (the sum-on-conflict
+    // `on_duplicate:"sum"` flag + member fields go in the JsonObject body). The 401 refresh+retry is handled
+    // transparently by the OkHttp Authenticator, so a 401 reaching here means refresh failed → retryable.
+    @POST("workout-logs")
+    suspend fun postWorkoutLog(@Body body: JsonObject): Response<Unit>
+
+    @POST("daily-health-logs")
+    suspend fun postDailyHealthLogRaw(@Body body: JsonObject): Response<Unit>
+
+    @PUT("daily-health-logs")
+    suspend fun putDailyHealthLogRaw(@Body body: JsonObject): Response<Unit>
 
     // FCM device-token lifecycle (Phase I-b).
     @PUT("notifications/device")

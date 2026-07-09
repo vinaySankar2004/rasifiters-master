@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
@@ -35,14 +36,15 @@ import com.app.rasifiters.core.AppearanceMode
 import com.app.rasifiters.core.AppearanceStore
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.theme.AppOrange
+import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.programs.initialsOf
 
 /**
  * The "My Account" section shared by both Program-tab variants — the Android analog of iOS
  * `ProgramMyAccountSection`. Profile / Change Password / Appearance / Notifications rows push their
- * settings screens; Privacy Policy + Support open external links; Sign Out asks for confirmation via
- * [onSignOut]. The Apple-Health row is intentionally omitted on Android (Health Connect is Phase H/J).
+ * settings screens; the Health Connect row pushes the sync settings; Privacy Policy + Support open
+ * external links; Sign Out asks for confirmation via [onSignOut].
  */
 @Composable
 fun ProgramAccountSection(
@@ -83,6 +85,13 @@ fun ProgramAccountSection(
             title = "Notifications",
             subtitle = "Manage push notifications",
             onClick = { onNavigate(Routes.PROGRAM_NOTIFICATIONS) },
+        )
+        ProgramSettingsRow(
+            icon = Icons.Filled.MonitorHeart,
+            tint = AppRed,
+            title = "Health Connect",
+            subtitle = "Sync workouts and sleep",
+            onClick = { onNavigate(Routes.HEALTH_CONNECT) },
         )
         ProgramSettingsRow(
             icon = Icons.Filled.Description,

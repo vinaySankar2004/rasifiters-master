@@ -77,6 +77,10 @@ dependencies {
     implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.datastore.preferences)
 
+    // Health Connect (Samsung Health / the HealthKit analog — Phase H). Reads ExerciseSessionRecord →
+    // /workout-logs and SleepSessionRecord → /daily-health-logs. See the health/ module + specs/features/health-connect.
+    implementation(libs.androidx.health.connect.client)
+
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
 }

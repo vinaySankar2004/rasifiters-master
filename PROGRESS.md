@@ -12,9 +12,10 @@ Compose port of the same app against the same backend contract. Plan approved; p
 de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
 Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) + Phase E (Members tab +
 all 8 detail screens) + Phase F (Lifestyle tab + timeline drill-down + workout-types manager) + Phase G
-(Program tab + all 6 settings/admin sub-routes) COMPLETE — all build green; all 4 bottom tabs are now real
-screens (zero `StubScreen` call-sites remain).** Next = **Phase H (Health Connect) / Phase I (SSE + FCM
-notifications)**. Full plan
+(Program tab + all 6 settings/admin sub-routes) + Phase I (notifications) + Phase H (Health Connect)
+COMPLETE — all build green; all 4 bottom tabs are now real screens (zero `StubScreen` call-sites remain).**
+Next = **Phase J (de-scaffold: delete the now-unused `StubScreen.kt` + fold scaffold notes)**, then a
+signed AAB → Play Console internal testing. Full plan
 + decisions are in `apps/android/CONTEXT.md`
 and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE
 notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen
@@ -24,6 +25,28 @@ _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
+- **`android`** — 🟢 **Phase H (Health Connect) DONE + green (2026-07-08, Run 14): workout + sleep auto-sync.**
+  The Android analog of the iOS `apple-health` feature, re-expressed on **Health Connect**
+  (`androidx.health.connect:connect-client 1.1.0-alpha07`). New `health/` module — `HealthConnectManager`
+  (availability via `getSdkStatus`, read auth via `PermissionController`, **incremental workouts via the
+  Changes API** = the anchor analog, **rolling 14-day sleep window**, aggregation), `HealthConnectWorkoutTypeMap`
+  (`ExerciseSessionRecord.EXERCISE_TYPE_*` → the library names `apple-health`'s `sql/004` already seeded; targets
+  ⊆ iOS map), `HealthStore` (SharedPreferences = the UserDefaults analog: settings + first-sync gating + the
+  sum-on-conflict applied-sample ledger), `HealthModels`/`HealthDates`/`HealthSyncNotifier`, and the big
+  `HealthSyncController` (the four iOS `ProgramContext+HealthKit*` extensions ported 1:1 — single-flight,
+  per-program window scoping **D-S5**, first-sync confirmation gating **D-CONF**, admin-lock skip **D-LOCK**,
+  sum-on-conflict + ledger **D-SUM**, silent auto-retry **D-SIL**). UI: `ui/health/HealthConnectSettingsScreen`
+  (workout + sleep toggles, program selection with locked rows, sync status + Sync Now, disconnect) +
+  `ui/health/HealthSyncConfirmationScreen` (one program per page, checkable rows, tick=commit+advance,
+  back=defer — a full-screen overlay from `RootScreen`). Wiring: `ProgramContext` gained
+  `isDataEntryLocked(programId)` + owns a `HealthSyncController`; `ApiService` gained status-code-aware raw
+  writes (`postWorkoutLog`/`postDailyHealthLogRaw`/`putDailyHealthLogRaw` → `Response<Unit>`); account rows
+  (Program tab + picker sheet) + launch/auth/resume/program-entry sync triggers. **No backend change, no
+  migration** — reuses the already-live `workout-logs` D-C9 + daily-health upsert. Manifest: HC READ
+  permissions + provider `<queries>` + permissions-rationale intent-filters. Deviation **H-1**: no
+  HealthKit-style immediate background delivery (HC has none) — sync on app triggers. `./gradlew
+  :app:assembleDebug` = BUILD SUCCESSFUL. New feature SPEC `specs/features/health-connect/` (0.1.0) + thin
+  screen SPEC `specs/pages/android/health-connect/`. **User's Pixel_8 visual/live test is the remaining pass.**
 - **`android`** — 🟢 **Phase I (notifications) DONE + green (2026-07-08, Runs 10–11): in-app SSE + FCM push.**
   **I-a (Run 10, user live-tested + signed off):** the in-app half — okhttp-sse `NotificationStreamClient`
   (`GET /notifications/stream`, Bearer header, `readTimeout(0)`) + `/unacknowledged` backfill + a
@@ -184,12 +207,20 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase I (notifications) DONE + LIVE-TESTED. Next: **Phase H (Health Connect)**, then Phase J (de-scaffold). Say "continue".
+> ### ⏭️ ANDROID PORT — Phase H (Health Connect) DONE + green (compile). Next: **Phase J (de-scaffold)**, then a signed AAB → Play Console internal testing. Say "continue".
 
-**Phase I is DONE, deployed, and user-verified end-to-end** (2026-07-08, Runs 10–12). Both halves live-tested on
-the Pixel_8: I-a (in-app SSE modal) + I-b (FCM push — real app-event path confirmed reaching the tray). Backend
-live on Render; Firebase provisioned; `FIREBASE_SERVICE_ACCOUNT` secret set. **Nothing pending on Phase I.**
-Resume at **Phase H (Health Connect)** — plan + phase list in `apps/android/CONTEXT.md`.
+**Phase H is DONE + compiles green** (2026-07-08, Run 14): the `health/` module + `ui/health/` screens port
+the iOS `apple-health` feature to Health Connect 1:1 (all of D-S5/D-CONF/D-LOCK/D-SUM/D-SIL; Changes API =
+the anchor; rolling 14-day sleep window). No backend change, no migration. **User's Pixel_8 visual/live test
+is the remaining pass** (the division of labor: Claude compiles, the user verifies on device — memory
+[[ios-user-verifies-builds-visually]]). To live-test the sync you need a Health Connect provider on the
+emulator/device with some exercise/sleep data; the settings screen shows an "isn't available" card if the
+provider is missing.
+
+**Phase I** is DONE, deployed, and user-verified end-to-end (Runs 10–12). Resume at **Phase J** —
+de-scaffold: confirm zero stub screens remain (already true), delete the now-unused `ui/StubScreen.kt`, fold
+the scaffold-removal tracker into `CONTEXT.md`, final `android-build` green; then the user generates a signed
+AAB in Android Studio and pushes to Play Console internal testing.
 
 **✅ Phase I FULLY VERIFIED end-to-end (2026-07-08).** Backend deployed live on Render (dep
 `dep-d97hd3e7r5hc73c9fj6g`, `bb2bbc2`; degrade-safe for the LIVE iOS binary). FCM push confirmed reaching the
@@ -288,13 +319,13 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
    program-picker + Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) +
    Phase E (Members tab + 8 details) + Phase F (Lifestyle tab + timeline + workout-types manager) +
-   Phase G (Program tab + 6 settings/admin sub-routes) green (2026-07-08); all 4 tabs real. Phases H→J
-   pending (Health Connect · SSE+FCM · de-scaffold).
+   Phase G (Program tab + 6 settings/admin sub-routes) + Phase I (notifications) + Phase H (Health Connect)
+   green (2026-07-08); all 4 tabs real. Phase J pending (de-scaffold + first internal-testing AAB).
 
 ## Coverage
 
-- Features: **15** (backend coverage complete) — `specs/features/REGISTRY.md` + `registry.json`.
-- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **28** (thin port-notes) —
+- Features: **16** (incl. the Android-only `health-connect`) — `specs/features/REGISTRY.md` + `registry.json`.
+- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **29** (thin port-notes) —
   `specs/pages/REGISTRY.md`.
 - Legacy-parity coverage: `COVERAGE.md`.
 

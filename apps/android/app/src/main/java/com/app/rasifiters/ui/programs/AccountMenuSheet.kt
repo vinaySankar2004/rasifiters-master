@@ -55,8 +55,8 @@ private val AppearancePurple = Color(0xFF8B7CF6)
  * The inline account sheet reached from the picker header avatar — the Android analog of the iOS
  * `AccountMenuSheet`. Profile + Change Password / Appearance / Notifications rows push their settings
  * screens (via [onNavigate], reusing the Program-tab destinations); Privacy Policy / Support open external
- * links; Sign Out asks for confirmation via [onSignOut]. Health Connect stays deferred (not built on
- * Android yet — Phase H/J). Mirrors iOS §4 `AccountMenuSheet`.
+ * links; the Health Connect row pushes the sync settings; Sign Out asks for confirmation via [onSignOut].
+ * Mirrors iOS §4 `AccountMenuSheet`.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -105,8 +105,7 @@ fun AccountMenuSheet(
             AccountRow(Icons.Filled.Lock, AppOrange, "Change Password", "Update your account password") { onNavigate(Routes.PROGRAM_PASSWORD) }
             AccountRow(Icons.Filled.Palette, AppearancePurple, "Appearance", "Choose light or dark mode") { onNavigate(Routes.PROGRAM_APPEARANCE) }
             AccountRow(Icons.Filled.Notifications, AppOrange, "Notifications", "Manage push notifications") { onNavigate(Routes.PROGRAM_NOTIFICATIONS) }
-            // Health Connect is deferred (not built on Android yet — Phase H/J). Omitted here to match the
-            // Program-tab account section rather than show a dead row.
+            AccountRow(Icons.Filled.Favorite, HealthRed, "Health Connect", "Sync workouts and sleep") { onNavigate(Routes.HEALTH_CONNECT) }
             AccountRow(Icons.Filled.Description, AppOrange, "Privacy Policy", "Learn how we handle your data") {
                 uriHandler.openUri(AppLinks.privacyPolicyUri.toString())
             }

@@ -57,6 +57,7 @@ import com.app.rasifiters.ui.program.ManageRolesScreen
 import com.app.rasifiters.ui.program.MyProfileScreen
 import com.app.rasifiters.ui.program.NotificationsScreen
 import com.app.rasifiters.ui.program.ProgramScreen
+import com.app.rasifiters.ui.health.HealthConnectSettingsScreen
 
 /**
  * The per-program app shell: a bottom nav bar (Summary / Members / Lifestyle / Program) over an
@@ -85,6 +86,10 @@ fun AppScaffold(
     LaunchedEffect(Unit) {
         programContext.messages.collect { snackbarHostState.showSnackbar(it) }
     }
+
+    // Program-entry Health Connect sync trigger (iOS AdminHomeView.onAppear parity) — the guards no-op it
+    // unless connected. Other triggers (launch / auth / foreground) fire from RootScreen.
+    LaunchedEffect(Unit) { programContext.health.onTrigger() }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -158,6 +163,9 @@ fun AppScaffold(
             }
             composable(Routes.PROGRAM_ROLES) {
                 ManageRolesScreen(programContext = programContext, onBack = { nav.popBackStack() })
+            }
+            composable(Routes.HEALTH_CONNECT) {
+                HealthConnectSettingsScreen(programContext = programContext, onBack = { nav.popBackStack() })
             }
 
             // Lifestyle forward targets (Phase F) — the workout-types manager + the timeline drill-down.

@@ -1,5 +1,7 @@
 package com.app.rasifiters.core
 
+import android.content.Context
+import com.app.rasifiters.health.HealthSyncController
 import com.app.rasifiters.net.ApiService
 import com.app.rasifiters.net.AvgDurationMtdDTO
 import com.app.rasifiters.net.BulkWorkoutEntry
@@ -80,8 +82,15 @@ class ProgramContext(
     private val api: ApiService,
     private val session: Session,
     private val baseUrl: String,
+    appContext: Context,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /**
+     * Health Connect auto-sync (Phase H) — the analog of the iOS Apple-Health lifecycle that hangs off
+     * `ProgramContext`. Reads this context (token/programs/identity/lock); owns its own persisted state.
+     */
+    val health: HealthSyncController = HealthSyncController(appContext, api, this)
 
     private val _authToken = MutableStateFlow(session.accessToken)
     /** Drives the root auth gate: non-null → signed in. */
@@ -381,6 +390,20 @@ class ProgramContext(
             val isAdmin = isGlobalAdmin || program.myRole?.lowercase() == "admin"
             return !isAdmin
         }
+
+    /**
+     * Per-program data-entry lock, by id — the multi-program analog of [dataEntryLocked] (mirrors iOS
+     * `ProgramContext.isDataEntryLocked(programId:)`). Locked iff the program's `admin_only_data_entry`
+     * is on AND the viewer is neither a global admin nor that program's admin. Fail-open when the program
+     * isn't in the loaded list; the backend 403 is the backstop. Used by the Health Connect sync, which
+     * targets many programs at once.
+     */
+    fun isDataEntryLocked(programId: String): Boolean {
+        val program = _programs.value.firstOrNull { it.id == programId } ?: return false
+        if (!program.adminOnlyDataEntry) return false
+        val isAdmin = isGlobalAdmin || program.myRole?.lowercase() == "admin"
+        return !isAdmin
+    }
 
     private val _summary = MutableStateFlow(SummaryData())
     /** The active program's Summary-tab analytics (7 reads, refreshed together). */

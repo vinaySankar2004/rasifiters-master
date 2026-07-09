@@ -53,6 +53,9 @@ object Routes {
     const val PROGRAM_NOTIFICATIONS = "program/notifications"
     const val PROGRAM_EDIT = "program/edit"
     const val PROGRAM_ROLES = "program/roles"
+
+    // Health Connect settings (Phase H) — reached from the account section (Program tab + picker sheet).
+    const val HEALTH_CONNECT = "program/health"
 }
 
 /** Bottom navigation tabs, in order. */

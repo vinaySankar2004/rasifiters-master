@@ -37,6 +37,8 @@ import com.app.rasifiters.ui.program.MyProfileScreen
 import com.app.rasifiters.ui.program.NotificationsScreen
 import com.app.rasifiters.ui.programs.ProgramPickerScreen
 import com.app.rasifiters.ui.shell.AppScaffold
+import com.app.rasifiters.ui.health.HealthConnectSettingsScreen
+import com.app.rasifiters.ui.health.HealthSyncConfirmationScreen
 
 /**
  * Root auth gate — the analog of iOS AppRootView / web middleware+useAuthGuard.
@@ -47,6 +49,7 @@ import com.app.rasifiters.ui.shell.AppScaffold
 fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore) {
     val token by programContext.authToken.collectAsStateWithLifecycle()
     val notificationQueue by programContext.notificationQueue.collectAsStateWithLifecycle()
+    val pendingHealthConfirmation by programContext.health.pendingConfirmation.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -62,6 +65,7 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore)
         if (token != null) {
             programContext.startNotificationStreamIfNeeded()
             programContext.registerPushTokenIfNeeded()
+            programContext.health.onTrigger()   // Health Connect sync on launch / auth change (iOS parity)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                 PackageManager.PERMISSION_GRANTED
@@ -81,6 +85,7 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore)
             if (event == Lifecycle.Event.ON_RESUME && token != null) {
                 programContext.startNotificationStreamIfNeeded()
                 programContext.registerPushTokenIfNeeded()
+                programContext.health.onTrigger()   // Health Connect sync on foreground return (iOS scenePhase parity)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -100,6 +105,16 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore)
                 title = notification.title,
                 message = notification.body,
                 onAcknowledge = { scope.launch { programContext.acknowledgeNotification(notification) } },
+            )
+        }
+
+        // First-time Health Connect sync confirmation — a full-screen overlay above everything (iOS
+        // AppRootView fullScreenCover). Dismiss (system back) defers; the tick commits + advances.
+        pendingHealthConfirmation?.let { confirmation ->
+            HealthSyncConfirmationScreen(
+                programContext = programContext,
+                confirmation = confirmation,
+                onFinished = { committed -> programContext.health.finishConfirmation(confirmation.flow, committed) },
             )
         }
     }
@@ -146,6 +161,9 @@ private fun SignedInGraph(programContext: ProgramContext, appearanceStore: Appea
         }
         composable(Routes.PROGRAM_NOTIFICATIONS) {
             SettingsInset { NotificationsScreen(onBack = { nav.popBackStack() }) }
+        }
+        composable(Routes.HEALTH_CONNECT) {
+            SettingsInset { HealthConnectSettingsScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
         }
     }
 }

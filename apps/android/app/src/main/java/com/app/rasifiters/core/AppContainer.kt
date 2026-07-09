@@ -24,5 +24,6 @@ class AppContainer(context: Context) {
         onAuthFailure = { programContext.onAuthFailure() },
     )
 
-    val programContext: ProgramContext = ProgramContext(api, session, BuildConfig.API_BASE_URL)
+    val programContext: ProgramContext =
+        ProgramContext(api, session, BuildConfig.API_BASE_URL, context.applicationContext)
 }
