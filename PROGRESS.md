@@ -47,7 +47,8 @@ GitHub + pre-cutover smoke tests (below)._
   permissions + provider `<queries>` + permissions-rationale intent-filters. Deviation **H-1**: no
   HealthKit-style immediate background delivery (HC has none) — sync on app triggers. `./gradlew
   :app:assembleDebug` = BUILD SUCCESSFUL. New feature SPEC `specs/features/health-connect/` (0.1.0) + thin
-  screen SPEC `specs/pages/android/health-connect/`. **User's Pixel_8 visual/live test is the remaining pass.**
+  screen SPEC `specs/pages/android/health-connect/`. **User live-tested workout + sleep sync on the Pixel_8
+  and signed off (2026-07-08) — verified end-to-end.**
 - **`android`** — 🟢 **Phase I (notifications) DONE + green (2026-07-08, Runs 10–11): in-app SSE + FCM push.**
   **I-a (Run 10, user live-tested + signed off):** the in-app half — okhttp-sse `NotificationStreamClient`
   (`GET /notifications/stream`, Bearer header, `readTimeout(0)`) + `/unacknowledged` backfill + a
@@ -63,8 +64,8 @@ GitHub + pre-cutover smoke tests (below)._
   `FIREBASE_SERVICE_ACCOUNT` base64 secret set on Render (`sync:false`); **no migration** (the `platform`
   column already exists). `assembleDebug` green. SPEC `specs/pages/android/notifications-alerts/` (0.2.0) +
   `notifications` feature **0.3.0** (consumed_by += android; committed `587eae8`, tagged
-  `feature/notifications@v0.3.0`). **Backend DEPLOYED + live** (2026-07-08, `bb2bbc2`); remaining = the user's
-  Pixel_8 push test. Next: **Phase H (Health Connect)** or **Phase J (de-scaffold)**.
+  `feature/notifications@v0.3.0`). **Backend DEPLOYED + live** (2026-07-08, `bb2bbc2`); **user live-tested FCM
+  push tray delivery on the Pixel_8 and signed off (2026-07-08) — verified end-to-end.**
 - **`android`** — 🟢 **Pre-Phase-H cleanup DONE (2026-07-08, Run 9):** app-wide **solid** background (the
   auth-only orange gradient removed); picker **"+"** → new `ProgramActionsSheet` (My Invites / Create) →
   `POST /programs` (`createProgram`); picker **account sheet wired** to the real settings screens (dead
@@ -208,7 +209,7 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — Phase J (de-scaffold) DONE + green (2026-07-08, Run 15). The port is CODE-COMPLETE (all phases A→J). Next: **the user generates a signed AAB in Android Studio → Play Console internal testing.** Remaining Claude-side follow-ups are the user's Pixel_8 live tests (Health Connect sync + FCM push).
+> ### ⏭️ ANDROID PORT — CODE-COMPLETE + LIVE-VERIFIED (all phases A→J green; Phase H Health Connect sync + Phase I FCM push both user-live-tested on the Pixel_8, 2026-07-08). Next + only remaining step: **the user generates a signed AAB in Android Studio → Play Console internal testing.**
 
 **Phase J is DONE** (2026-07-08, Run 15): the last scaffold placeholder `ui/StubScreen.kt` is **deleted**
 (unused since Phase G drove call-sites to 0); the `apps/android/CONTEXT.md` scaffold-removal tracker is
@@ -217,11 +218,8 @@ in `apps/android` — all 4 bottom tabs + every detail/settings screen are real.
 
 **Phase H is DONE + compiles green** (2026-07-08, Run 14): the `health/` module + `ui/health/` screens port
 the iOS `apple-health` feature to Health Connect 1:1 (all of D-S5/D-CONF/D-LOCK/D-SUM/D-SIL; Changes API =
-the anchor; rolling 14-day sleep window). No backend change, no migration. **User's Pixel_8 visual/live test
-is the remaining pass** (the division of labor: Claude compiles, the user verifies on device — memory
-[[ios-user-verifies-builds-visually]]). To live-test the sync you need a Health Connect provider on the
-emulator/device with some exercise/sleep data; the settings screen shows an "isn't available" card if the
-provider is missing.
+the anchor; rolling 14-day sleep window). No backend change, no migration. **User live-tested workout + sleep
+sync on the Pixel_8 and signed off (2026-07-08)** — the port is verified end-to-end, not just compiling.
 
 **Phase I** is DONE, deployed, and user-verified end-to-end (Runs 10–12). Resume at **Phase J** —
 de-scaffold: confirm zero stub screens remain (already true), delete the now-unused `ui/StubScreen.kt`, fold
