@@ -413,3 +413,32 @@ Firebase deps). User pre-provisioned the Firebase project `rasi-fiters` + placed
   `sendEachForMulticast` + invalid-token pruning (`messaging/registration-token-not-registered` etc.);
   `getFcmApp()` returns null (⇒ no-op) when `FIREBASE_SERVICE_ACCOUNT` is unset — the APNs graceful-null
   pattern. **No migration** — `member_push_tokens.platform` already existed (default `'ios'`, indexed). (Run 11.)
+
+## Run 12 — 2026-07-08 — FCM debug: the kotlinx encodeDefaults gotcha (push registered as the wrong platform)
+
+Device test: push didn't arrive on Android though iOS (same event) did. Traced + fixed end-to-end; verified a
+real push posts to the tray. **The bug wasn't in the push path — it was JSON serialization.**
+
+- **kotlinx.serialization OMITS a property whose value equals its DEFAULT** (our `Json` has no
+  `encodeDefaults=true`). `DeviceRegisterRequest.platform = "android"` was a *default* → dropped from the PUT
+  body → the backend received no `platform` → fell back to `"ios"` → the token was stored `platform='ios'`, so
+  the FCM sender (`WHERE platform='android'`) never saw it. FIX: make `platform` a **required** field (no
+  default) and pass it explicitly (`DeviceRegisterRequest(pushToken=t, platform="android")`) — a property with
+  no default is always encoded. Body grew 159→180 bytes (the `,"platform":"android"` now present). Beware ANY
+  request DTO relying on a non-null default being transmitted — it silently won't be. (Run 12.)
+- **Debug technique (no source-change guesswork):** the DB is the oracle. `member_push_tokens` showed the
+  device's exact token stored under `platform='ios'` → proved registration worked but platform was wrong,
+  pointing straight at the request body (not the sender/creds). Read-only psql via `tools/render-env.sh get
+  DATABASE_URL`. (Run 12.)
+- **A silently-swallowed async path is undebuggable — add logging.** `FirebaseMessaging.getInstance().token`
+  is a `Task`; the original `if (task.isSuccessful)` (no else) + `runCatching{}` (no onFailure) logged nothing,
+  so logcat showed neither the token fetch nor the PUT. Added `Log.d/Log.w` on the token-fetch + register
+  paths (kept — a push path must not fail silently). OkHttp's `BASIC` interceptor logs the request LINE +
+  byte-count (not the body), which is how the 159→180-byte change was spotted. (Run 12.)
+- **Verify the SEND, not just registration.** A standalone `node` script (require `firebase-admin` by ABSOLUTE
+  path — Node resolves modules from the script's dir, not cwd) using the service-account JSON + the device
+  token proved the sender: `admin.messaging().send(...)` returned a message id and the device logged
+  `FirebaseMessaging: Unable to log event: analytics library is missing` (benign — the "message received"
+  tell). `adb shell dumpsys notification` confirmed the tray post (title/text/channel=rasi_default). Backgrounded
+  the app first (`input keyevent HOME`) so the `notification` message shows in the tray (foreground →
+  onMessageReceived no-op by design). (Run 12.)

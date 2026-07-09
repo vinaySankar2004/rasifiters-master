@@ -189,6 +189,15 @@ not re-validating business logic:
   `RequestPermission()` launcher. Backend: `sendPushToMembers` fans out APNs+FCM; `upsertPushToken`'s new
   `platform` param **defaults to `"ios"`** so the LIVE iOS binary is untouched; FCM credential is a Render
   secret (`FIREBASE_SERVICE_ACCOUNT` base64), graceful-null when unset. (Run 11.)
+- **kotlinx.serialization OMITS default-valued properties (no `encodeDefaults`) → a "constant" field never
+  ships.** A request DTO field like `val platform: String = "android"` is DROPPED from the JSON body whenever
+  it equals its default, so the server sees nothing and applies ITS default. Bit FCM registration: the token
+  stored as `platform='ios'`, so the Android FCM sender skipped it (push silently never arrived, though iOS
+  did). FIX: make such a field **required (no default)** and pass it explicitly — a no-default property is
+  always encoded. Audit any DTO relying on a non-null default being transmitted. Debug oracle = the DB (the
+  stored row showed the wrong platform → pointed at the body, not the sender); verify the SEND with a
+  standalone `firebase-admin` `node` script (require by ABSOLUTE path) + `adb shell dumpsys notification`. A
+  silently-swallowed `Task`/`runCatching` push path must log (`Log.w`) or it's undebuggable. (Run 12.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the
