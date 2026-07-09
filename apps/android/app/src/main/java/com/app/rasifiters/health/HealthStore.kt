@@ -19,8 +19,8 @@ class HealthStore(context: Context) {
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences("rasi.health", Context.MODE_PRIVATE)
 
-    // ── Flow selector: workouts vs sleep share the same code paths, keyed by prefix ──
-    enum class Flow(val prefix: String) { WORKOUTS("hc"), SLEEP("hc.sleep") }
+    // ── Flow selector: workouts / sleep / steps share the same code paths, keyed by prefix ──
+    enum class Flow(val prefix: String) { WORKOUTS("hc"), SLEEP("hc.sleep"), STEPS("hc.steps") }
 
     // ── Workout settings (iOS `healthkit.*`) ──
     var workoutEnabled: Boolean
@@ -67,6 +67,26 @@ class HealthStore(context: Context) {
         get() = prefs.getLong("hc.sleep.connectMillis", 0L)
         set(v) = prefs.edit { putLong("hc.sleep.connectMillis", v) }
 
+    // ── Steps settings (iOS `healthkit.steps.*`) ──
+    var stepsEnabled: Boolean
+        get() = prefs.getBoolean("hc.steps.enabled", false)
+        set(v) = prefs.edit { putBoolean("hc.steps.enabled", v) }
+    var stepsProgramIds: Set<String>
+        get() = prefs.getStringSet("hc.steps.syncProgramIds", emptySet())!!.toSet()
+        set(v) = prefs.edit { putStringSet("hc.steps.syncProgramIds", v) }
+    var lastStepsSyncMillis: Long
+        get() = prefs.getLong("hc.steps.lastSyncMillis", 0L)
+        set(v) = prefs.edit { putLong("hc.steps.lastSyncMillis", v) }
+    var lastStepsSyncCount: Int
+        get() = prefs.getInt("hc.steps.lastSyncCount", 0)
+        set(v) = prefs.edit { putInt("hc.steps.lastSyncCount", v) }
+    var lastStepsSyncFailed: Boolean
+        get() = prefs.getBoolean("hc.steps.lastSyncFailed", false)
+        set(v) = prefs.edit { putBoolean("hc.steps.lastSyncFailed", v) }
+    var stepsConnectMillis: Long
+        get() = prefs.getLong("hc.steps.connectMillis", 0L)
+        set(v) = prefs.edit { putLong("hc.steps.connectMillis", v) }
+
     // ── First-sync gating (iOS `ProgramContext+HealthSyncGating`) ──
 
     fun confirmedProgramIds(flow: Flow): Set<String> =
@@ -104,6 +124,15 @@ class HealthStore(context: Context) {
         val cutoff = HealthDates.localYMD(System.currentTimeMillis() - recentDays * DAY_MS)
         val kept = keys.filter { key -> (key.substringAfterLast('|')) >= cutoff }.toSet()
         if (kept.size != keys.size) setExcludedKeys(kept, Flow.SLEEP)
+    }
+
+    /** Drop excluded STEPS keys aged out of the rolling look-back window — they can never be re-fetched. */
+    fun pruneStepsExcludedKeys(recentDays: Int) {
+        val keys = excludedKeys(Flow.STEPS)
+        if (keys.isEmpty()) return
+        val cutoff = HealthDates.localYMD(System.currentTimeMillis() - recentDays * DAY_MS)
+        val kept = keys.filter { key -> (key.substringAfterLast('|')) >= cutoff }.toSet()
+        if (kept.size != keys.size) setExcludedKeys(kept, Flow.STEPS)
     }
 
     // ── Applied-sample ledger (iOS `HealthKitAppliedLedger`; sum-on-conflict idempotency, D-SUM) ──

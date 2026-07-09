@@ -4,6 +4,8 @@ import android.content.Context
 import com.app.rasifiters.health.HealthSyncController
 import com.app.rasifiters.net.ApiService
 import com.app.rasifiters.net.AvgDurationMtdDTO
+import com.app.rasifiters.net.BulkHealthEntry
+import com.app.rasifiters.net.BulkHealthRequest
 import com.app.rasifiters.net.BulkWorkoutEntry
 import com.app.rasifiters.net.BulkWorkoutRequest
 import com.app.rasifiters.net.DailyHealthDeleteRequest
@@ -37,6 +39,7 @@ import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.net.ProgramOrderRequest
 import com.app.rasifiters.net.ProgramWorkoutDTO
 import com.app.rasifiters.net.RegisterRequest
+import com.app.rasifiters.net.StepsStatsDTO
 import com.app.rasifiters.net.ActivityTimelinePoint
 import com.app.rasifiters.net.ActivityTimelineResponse
 import com.app.rasifiters.net.AddCustomWorkoutRequest
@@ -484,16 +487,31 @@ class ProgramContext(
 
     // ---- Log-form writes (both bump the Summary refresh on success — D-C3) ----
 
-    /** POST /workout-logs/batch. On failure the mapped [com.app.rasifiters.net.ApiException] carries rowErrors. */
-    suspend fun addWorkoutLogsBatch(entries: List<BulkWorkoutEntry>): Result<Unit> {
+    /** POST /workout-logs/batch. `programIds` = the full multi-program selection (current included, DC-2).
+     *  On failure the mapped [com.app.rasifiters.net.ApiException] carries rowErrors. */
+    suspend fun addWorkoutLogsBatch(entries: List<BulkWorkoutEntry>, programIds: List<String>): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
-        return runCatching { api.addWorkoutLogsBatch(BulkWorkoutRequest(pid, entries)); Unit }
+        return runCatching { api.addWorkoutLogsBatch(BulkWorkoutRequest(pid, programIds, entries)); Unit }
             .recoverCatching { throw it.asApiError() }
             .onSuccess {
                 _summaryRefreshToken.value += 1
                 val n = entries.size
                 _messages.tryEmit(if (n == 1) "Workout saved" else "$n workouts saved")
+            }
+    }
+
+    /** POST /daily-health-logs/batch — the batched multi-row (+ multi-program) daily-health save (DC-2/DC-5).
+     *  On failure the mapped [com.app.rasifiters.net.ApiException] carries rowErrors. */
+    suspend fun addDailyHealthLogsBatch(entries: List<BulkHealthEntry>, programIds: List<String>): Result<Unit> {
+        val pid = _activeProgram.value?.id
+            ?: return Result.failure(IllegalStateException("No active program."))
+        return runCatching { api.addDailyHealthLogsBatch(BulkHealthRequest(pid, programIds, entries)); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess {
+                _summaryRefreshToken.value += 1
+                val n = entries.size
+                _messages.tryEmit(if (n == 1) "Daily log saved" else "$n daily logs saved")
             }
     }
 
@@ -683,6 +701,8 @@ class ProgramContext(
         maxSleepHours: Double? = null,
         minFoodQuality: Int? = null,
         maxFoodQuality: Int? = null,
+        minSteps: Int? = null,
+        maxSteps: Int? = null,
     ): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
@@ -690,6 +710,7 @@ class ProgramContext(
             _memberHealthLogs.value = api.getMemberHealthLogs(
                 pid, memberId, limit, startDate, endDate, sortBy, sortDir,
                 minSleepHours, maxSleepHours, minFoodQuality, maxFoodQuality,
+                minSteps, maxSteps,
             ).items
         }.recoverCatching { throw it.asApiError() }
     }
@@ -735,12 +756,16 @@ class ProgramContext(
         }.recoverCatching { throw it.asApiError() }
     }
 
-    /** PUT /daily-health-logs — edit sleep + diet. Explicit nulls (via JsonObject) clear a metric server-side. */
+    /** PUT /daily-health-logs — edit sleep + diet + steps. Explicit nulls (via JsonObject) clear a metric
+     *  server-side; `steps` rides along only when `stepsProvided` (absence = leave unchanged — the same
+     *  presence semantics `food_quality` relies on). */
     suspend fun updateDailyHealthLog(
         memberId: String,
         logDate: String,
         sleepHours: Double?,
         foodQuality: Int?,
+        steps: Int? = null,
+        stepsProvided: Boolean = false,
     ): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
@@ -750,6 +775,7 @@ class ProgramContext(
             put("log_date", logDate)
             put("sleep_hours", sleepHours)
             put("food_quality", foodQuality)
+            if (stepsProvided) put("steps", steps)   // explicit JsonNull clears steps (mirrors food_quality)
         }
         return runCatching { api.updateDailyHealthLog(body); Unit }
             .recoverCatching { throw it.asApiError() }
@@ -865,6 +891,7 @@ class ProgramContext(
                 highestParticipation = api.getWorkoutTypeHighestParticipation(pid, null),
                 workoutTypes = api.getWorkoutTypes(pid, 100, memberId),
                 timeline = api.getHealthTimeline("week", pid, memberId),
+                steps = api.getHealthSteps(pid, memberId),
             )
         }.recoverCatching { throw it.asApiError() }.also { _lifestyleLoading.value = false }
     }
@@ -1062,4 +1089,5 @@ data class LifestyleData(
     val highestParticipation: WorkoutTypeHighestParticipationDTO? = null,
     val workoutTypes: List<WorkoutTypeDTO> = emptyList(),
     val timeline: HealthTimelineResponse? = null,
+    val steps: StepsStatsDTO? = null,
 )

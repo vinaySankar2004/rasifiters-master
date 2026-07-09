@@ -38,10 +38,15 @@ import com.app.rasifiters.core.theme.AppPurple
 import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.core.theme.workoutTypePaletteColor
 import com.app.rasifiters.net.HealthTimelineResponse
+import com.app.rasifiters.net.StepsStatsDTO
 import com.app.rasifiters.net.WorkoutTypeDTO
+import com.app.rasifiters.ui.summary.BarLineChart
 import com.app.rasifiters.ui.summary.SleepDietChart
 import com.app.rasifiters.ui.summary.SummaryCard
 import java.util.Locale
+
+/** Steps accent — teal on every surface (DC-8). */
+private val StepsTeal = Color(0xFF14B8A6)
 
 // Faithful 1:1 port of the iOS Lifestyle (workout-types) cards (Features/Home/Tabs/WorkoutTypesCards.swift),
 // in the Material idiom: SummaryCard shells (the iOS CardShell analog), brand-accent value + chip per card.
@@ -123,6 +128,52 @@ fun WorkoutTypeHighestParticipationCard(name: String?, participationPct: Double,
         if (name == null) "No data" else String.format(Locale.US, "%.1f%% of members", participationPct),
         bigNumber = false, modifier = modifier,
     )
+
+// ---- Steps analytics card (full-width, after the Longest/Highest row — DC-9) ----
+
+/** The Steps totals card: total steps + avg steps/day, program-to-date (teal accent, DC-8). */
+@Composable
+fun StepsAnalyticsCard(stats: StepsStatsDTO?) {
+    SummaryCard {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Steps", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+            AccentChip("Program to date", StepsTeal)
+            Spacer(Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                StepsStatColumn(
+                    label = "Total Steps",
+                    value = stats?.let { String.format(Locale.US, "%,d", it.totalSteps) } ?: "—",
+                    modifier = Modifier.weight(1f),
+                )
+                StepsStatColumn(
+                    label = "Avg Steps/Day",
+                    value = stats?.let { String.format(Locale.US, "%,d", it.avgStepsPerDay) } ?: "—",
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepsStatColumn(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = StepsTeal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
 
 // ---- Workout Type Popularity card (segmented metric + ranked bars) ----
 
@@ -311,6 +362,55 @@ fun LifestyleTimelinePreviewCard(timeline: HealthTimelineResponse?, onClick: () 
                     dualAxis = false,
                     barColor = AppBlue.copy(alpha = 0.9f),
                     lineColor = AppGreen,
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                )
+            }
+        }
+    }
+}
+
+// ---- Steps Timeline preview card (below Lifestyle Timeline — DC-9; tap → the drill-down) ----
+
+/** The tappable Steps-timeline preview: daily-steps bars over the recent window (teal, DC-8). No tooltip —
+ *  previews are drill-down cards (the shared BarLineChart tooltip lives on the detail screen). */
+@Composable
+fun StepsTimelinePreviewCard(timeline: HealthTimelineResponse?, onClick: () -> Unit) {
+    val points = timeline?.buckets ?: emptyList()
+    SummaryCard(modifier = Modifier.clickable(onClick = onClick), height = 300.dp) {
+        Column(modifier = Modifier.fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Steps Timeline", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Daily steps",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f),
+                )
+            }
+
+            if (points.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                    Text(
+                        "No data yet",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+            } else {
+                val trimmed = points.takeLast(10)
+                BarLineChart(
+                    values = trimmed.map { it.steps },
+                    labels = trimmed.map { it.label },
+                    lineValues = null,
+                    barColor = StepsTeal,
+                    lineColor = StepsTeal,
+                    barWidth = 14.dp,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                 )
             }

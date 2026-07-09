@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.CheckCircle
@@ -75,11 +76,15 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
     val workoutProgramIds by health.workoutProgramIds.collectAsStateWithLifecycle()
     val sleepEnabled by health.sleepEnabled.collectAsStateWithLifecycle()
     val sleepProgramIds by health.sleepProgramIds.collectAsStateWithLifecycle()
+    val stepsEnabled by health.stepsEnabled.collectAsStateWithLifecycle()
+    val stepsProgramIds by health.stepsProgramIds.collectAsStateWithLifecycle()
 
     var isSyncingWorkouts by remember { mutableStateOf(false) }
     var isSyncingSleep by remember { mutableStateOf(false) }
+    var isSyncingSteps by remember { mutableStateOf(false) }
     var workoutSyncError by remember { mutableStateOf<String?>(null) }
     var sleepSyncError by remember { mutableStateOf<String?>(null) }
+    var stepsSyncError by remember { mutableStateOf<String?>(null) }
 
     // Ensure the program list is loaded so the selection + window scoping can resolve (iOS .task).
     LaunchedEffect(Unit) { if (programs.isEmpty()) runCatching { programContext.loadPrograms() } }
@@ -92,6 +97,10 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
         PermissionController.createRequestPermissionResultContract(),
     ) { granted -> if (granted.containsAll(health.sleepPermissions)) health.enableSleepAfterPermission() }
 
+    val stepsPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract(),
+    ) { granted -> if (granted.containsAll(health.stepsPermissions)) health.enableStepsAfterPermission() }
+
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -99,7 +108,7 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
         ) {
             DetailTopBar(onBack = onBack, centerTitle = "Health Connect")
 
-            Header("Health Connect", "Automatically sync workouts and sleep from Health Connect")
+            Header("Health Connect", "Automatically sync workouts, sleep, and steps from Health Connect")
 
             if (!health.isAvailable) {
                 UnavailableCard()
@@ -160,6 +169,36 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                         sleepPermissionLauncher.launch(health.sleepPermissions)
                     }
                 }
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                // ── Steps (independent toggle, same screen) ──
+                Header("Steps", "Automatically log your daily step count", small = true)
+                if (stepsEnabled) {
+                    ConnectedRow(Icons.AutoMirrored.Filled.DirectionsWalk, "Steps will sync automatically")
+                    ProgramSelection(programs, stepsProgramIds, programContext) { health.toggleStepsProgram(it) }
+                    SyncStatus(
+                        lastSyncMillis = health.lastStepsSyncMillis.collectAsStateWithLifecycle().value,
+                        count = health.lastStepsSyncCount.collectAsStateWithLifecycle().value,
+                        countLabel = "Days Synced",
+                        isSyncing = isSyncingSteps,
+                        onSyncNow = {
+                            isSyncingSteps = true; stepsSyncError = null
+                            scope.launch {
+                                if (health.performStepsSync() is HealthSyncResult.Failed) stepsSyncError = SYNC_NOW_ERROR
+                                isSyncingSteps = false
+                            }
+                        },
+                        lockedCount = lockedCount(stepsProgramIds, programContext),
+                        inlineError = stepsSyncError,
+                        autoRetryFailed = health.lastStepsSyncFailed.collectAsStateWithLifecycle().value,
+                    )
+                    DisconnectRow(Icons.AutoMirrored.Filled.DirectionsWalk, "Disconnect Steps", "Stop syncing steps and clear settings") { health.disconnectSteps() }
+                } else {
+                    ConnectButton(Icons.AutoMirrored.Filled.DirectionsWalk, StepsTeal, "Connect Steps", "Grant access to read your steps") {
+                        stepsPermissionLauncher.launch(health.stepsPermissions)
+                    }
+                }
             }
             Spacer(Modifier.height(8.dp))
         }
@@ -168,6 +207,9 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
 
 private const val SYNC_NOW_ERROR = "Couldn't reach the server. Check your connection and try again."
 private const val AUTO_RETRY_TEXT = "Last sync couldn't reach the server — will retry automatically."
+
+/** Steps accent — teal on every surface (DC-8). */
+private val StepsTeal = Color(0xFF14B8A6)
 
 private fun lockedCount(ids: Set<String>, programContext: ProgramContext): Int =
     ids.count { programContext.isDataEntryLocked(it) }

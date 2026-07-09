@@ -61,18 +61,33 @@ class HealthSyncController(
     private val _lastSleepSyncFailed = MutableStateFlow(store.lastSleepSyncFailed)
     val lastSleepSyncFailed: StateFlow<Boolean> = _lastSleepSyncFailed.asStateFlow()
 
-    /** The confirmation currently presented (globally, from RootScreen); a sleep flow computed while
-     *  workouts are showing waits in [deferredSleep] (workouts get priority). */
+    private val _stepsEnabled = MutableStateFlow(store.stepsEnabled)
+    val stepsEnabled: StateFlow<Boolean> = _stepsEnabled.asStateFlow()
+    private val _stepsProgramIds = MutableStateFlow(store.stepsProgramIds)
+    val stepsProgramIds: StateFlow<Set<String>> = _stepsProgramIds.asStateFlow()
+    private val _lastStepsSyncMillis = MutableStateFlow(store.lastStepsSyncMillis.takeIf { it > 0 })
+    val lastStepsSyncMillis: StateFlow<Long?> = _lastStepsSyncMillis.asStateFlow()
+    private val _lastStepsSyncCount = MutableStateFlow(store.lastStepsSyncCount)
+    val lastStepsSyncCount: StateFlow<Int> = _lastStepsSyncCount.asStateFlow()
+    private val _lastStepsSyncFailed = MutableStateFlow(store.lastStepsSyncFailed)
+    val lastStepsSyncFailed: StateFlow<Boolean> = _lastStepsSyncFailed.asStateFlow()
+
+    /** The confirmation currently presented (globally, from RootScreen). A sleep/steps flow computed while a
+     *  higher-priority flow is showing waits in [deferredSleep]/[deferredSteps] (priority workouts > sleep >
+     *  steps). */
     private val _pendingConfirmation = MutableStateFlow<PendingSyncConfirmation?>(null)
     val pendingConfirmation: StateFlow<PendingSyncConfirmation?> = _pendingConfirmation.asStateFlow()
     private var deferredSleep: PendingSyncConfirmation? = null
+    private var deferredSteps: PendingSyncConfirmation? = null
 
     val isAvailable: Boolean get() = manager.isAvailable
     val workoutPermissions: Set<String> get() = manager.workoutPermissions
     val sleepPermissions: Set<String> get() = manager.sleepPermissions
+    val stepsPermissions: Set<String> get() = manager.stepsPermissions
 
     private val workoutSyncing = AtomicBoolean(false)
     private val sleepSyncing = AtomicBoolean(false)
+    private val stepsSyncing = AtomicBoolean(false)
 
     // Stashed while a first-sync confirmation awaits the user: the fetch's new changes token commits only
     // after the whole flow finishes cleanly (see [commitPendingWorkoutTokenIfClean]).
@@ -82,10 +97,11 @@ class HealthSyncController(
 
     // MARK: - Triggers
 
-    /** Run both syncs if enabled (launch / auth / foreground / program entry). Guards make this cheap. */
+    /** Run all syncs if enabled (launch / auth / foreground / program entry). Guards make this cheap. */
     fun onTrigger() {
         scope.launch { performWorkoutSync() }
         scope.launch { performSleepSync() }
+        scope.launch { performStepsSync() }
     }
 
     // MARK: - Connect / disconnect
@@ -147,6 +163,34 @@ class HealthSyncController(
         val set = store.sleepProgramIds
         store.sleepProgramIds = if (id in set) set - id else set + id
         publishSleepState()
+    }
+
+    fun enableStepsAfterPermission() {
+        store.stepsEnabled = true
+        if (store.stepsConnectMillis == 0L) {
+            store.stepsConnectMillis = System.currentTimeMillis()
+            store.clearConfirmedPrograms(HealthStore.Flow.STEPS)
+        }
+        publishStepsState()
+        scope.launch { performStepsSync() }
+    }
+
+    fun disconnectSteps() {
+        store.stepsEnabled = false
+        store.stepsProgramIds = emptySet()
+        store.lastStepsSyncMillis = 0L
+        store.lastStepsSyncCount = 0
+        store.lastStepsSyncFailed = false
+        store.stepsConnectMillis = 0L
+        store.clearConfirmedPrograms(HealthStore.Flow.STEPS)
+        store.clearExcludedKeys(HealthStore.Flow.STEPS)
+        publishStepsState()
+    }
+
+    fun toggleStepsProgram(id: String) {
+        val set = store.stepsProgramIds
+        store.stepsProgramIds = if (id in set) set - id else set + id
+        publishStepsState()
     }
 
     // MARK: - Workout sync
@@ -345,26 +389,129 @@ class HealthSyncController(
         }
     }
 
+    // MARK: - Steps sync (rolling window, upsert — the sleep model verbatim, DC-12)
+
+    suspend fun performStepsSync(): HealthSyncResult {
+        if (!store.stepsEnabled || !manager.isAvailable) return HealthSyncResult.Skipped
+        val token = programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return HealthSyncResult.Skipped
+        val programIds = store.stepsProgramIds
+        if (programIds.isEmpty()) return HealthSyncResult.Skipped
+        if (_pendingConfirmation.value?.flow == PendingSyncConfirmation.Flow.STEPS || deferredSteps != null) return HealthSyncResult.Skipped
+        if (!stepsSyncing.compareAndSet(false, true)) return HealthSyncResult.Skipped
+        token.let {}
+
+        try {
+            store.pruneStepsExcludedKeys(manager.stepsRecentDays)
+
+            val aggregated = try {
+                manager.fetchStepsDailyTotals()
+            } catch (e: Exception) {
+                return HealthSyncResult.Failed
+            }
+
+            if (aggregated.isEmpty()) {
+                store.lastStepsSyncMillis = System.currentTimeMillis()
+                store.lastStepsSyncFailed = false
+                publishStepsState()
+                return HealthSyncResult.Synced(0)
+            }
+
+            val windows = loadSyncWindows(programIds)
+            if (windows.isEmpty()) {
+                store.lastStepsSyncFailed = true; publishStepsState()
+                return HealthSyncResult.Failed
+            }
+
+            var created = 0
+            var hadRetryable = false
+            val pageRows = HashMap<String, MutableList<PendingSyncConfirmation.Row>>()
+            val confirmed = store.confirmedProgramIds(HealthStore.Flow.STEPS)
+            val excluded = store.excludedKeys(HealthStore.Flow.STEPS)
+
+            for (day in aggregated) {
+                for (pid in programIds) {
+                    val window = windows[pid] ?: continue
+                    if (!HealthDates.isWithin(day.date, window.first, window.second)) continue
+                    val key = stepsExclusionKey(pid, day.date)
+                    if (key in excluded) continue
+                    if (programContext.isDataEntryLocked(pid)) continue  // rolling window self-heals on unlock
+
+                    if (pid in confirmed) {
+                        when (writeSteps(day.date, day.count, pid)) {
+                            SleepOutcome.CREATED -> created++
+                            SleepOutcome.UPDATED, SleepOutcome.SKIPPED -> Unit
+                            SleepOutcome.RETRYABLE -> hadRetryable = true
+                        }
+                    } else {
+                        pageRows.getOrPut(pid) { mutableListOf() }.add(
+                            PendingSyncConfirmation.Row(
+                                title = "Steps",
+                                subtitle = "${displayDate(day.date)} · ${formatSteps(day.count)}",
+                                exclusionKey = key,
+                                payload = PendingSyncConfirmation.Payload.Steps(day),
+                            ),
+                        )
+                    }
+                }
+            }
+
+            for (pid in programIds) {
+                if (pid !in confirmed && pageRows[pid] == null && !programContext.isDataEntryLocked(pid)) {
+                    store.markProgramConfirmed(pid, HealthStore.Flow.STEPS)
+                }
+            }
+
+            store.lastStepsSyncMillis = System.currentTimeMillis()
+            store.lastStepsSyncCount += created
+            store.lastStepsSyncFailed = hadRetryable
+            publishStepsState()
+
+            val pages = buildConfirmationPages(pageRows)
+            if (pages.isEmpty()) {
+                HealthSyncNotifier.notifyStepsSuccess(context, created)
+                return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(created)
+            }
+            enqueuePendingConfirmation(PendingSyncConfirmation(PendingSyncConfirmation.Flow.STEPS, pages))
+            return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(created)
+        } finally {
+            stepsSyncing.set(false)
+        }
+    }
+
     // MARK: - Confirmation queue + per-page commit
 
     private fun enqueuePendingConfirmation(confirmation: PendingSyncConfirmation) {
         if (confirmation.pages.isEmpty()) return
         val current = _pendingConfirmation.value
         if (current == null) {
-            if (confirmation.flow == PendingSyncConfirmation.Flow.SLEEP && deferredSleep != null) {
-                deferredSleep = confirmation
-            } else {
-                _pendingConfirmation.value = confirmation
-            }
+            _pendingConfirmation.value = confirmation
             return
         }
-        when {
-            confirmation.flow == current.flow -> Unit                               // already showing this flow
-            confirmation.flow == PendingSyncConfirmation.Flow.WORKOUTS -> {          // workouts win; sleep waits
-                deferredSleep = current
+        if (confirmation.flow == current.flow) return                               // already showing this flow
+        // Priority workouts > sleep > steps: a higher-priority arrival preempts; lower-priority waits.
+        when (confirmation.flow) {
+            PendingSyncConfirmation.Flow.WORKOUTS -> {                              // workouts win over anything
+                stashDeferred(current)
                 _pendingConfirmation.value = confirmation
             }
-            else -> deferredSleep = confirmation                                     // sleep waits behind workouts
+            PendingSyncConfirmation.Flow.SLEEP -> {
+                if (current.flow == PendingSyncConfirmation.Flow.WORKOUTS) {
+                    deferredSleep = confirmation                                    // sleep waits behind workouts
+                } else {                                                            // current is steps → sleep preempts
+                    deferredSteps = current
+                    _pendingConfirmation.value = confirmation
+                }
+            }
+            PendingSyncConfirmation.Flow.STEPS -> deferredSteps = confirmation      // steps waits behind either
+        }
+    }
+
+    /** Stash a preempted confirmation back into its flow's deferred slot (workouts never defers). */
+    private fun stashDeferred(c: PendingSyncConfirmation) {
+        when (c.flow) {
+            PendingSyncConfirmation.Flow.SLEEP -> deferredSleep = c
+            PendingSyncConfirmation.Flow.STEPS -> deferredSteps = c
+            PendingSyncConfirmation.Flow.WORKOUTS -> Unit
         }
     }
 
@@ -381,14 +528,24 @@ class HealthSyncController(
     }
 
     private fun promoteDeferredConfirmation() {
-        val sleep = deferredSleep
-        if (sleep != null) {
+        // Priority: promote deferred sleep before deferred steps (workouts > sleep > steps).
+        deferredSleep?.let { sleep ->
             deferredSleep = null
             val pages = sleep.pages.filter { it.id in store.sleepProgramIds }
-            _pendingConfirmation.value = if (pages.isEmpty()) null else PendingSyncConfirmation(PendingSyncConfirmation.Flow.SLEEP, pages)
-        } else {
-            _pendingConfirmation.value = null
+            if (pages.isNotEmpty()) {
+                _pendingConfirmation.value = PendingSyncConfirmation(PendingSyncConfirmation.Flow.SLEEP, pages)
+                return
+            }
         }
+        deferredSteps?.let { steps ->
+            deferredSteps = null
+            val pages = steps.pages.filter { it.id in store.stepsProgramIds }
+            if (pages.isNotEmpty()) {
+                _pendingConfirmation.value = PendingSyncConfirmation(PendingSyncConfirmation.Flow.STEPS, pages)
+                return
+            }
+        }
+        _pendingConfirmation.value = null
     }
 
     private fun commitPendingWorkoutTokenIfClean() {
@@ -459,6 +616,34 @@ class HealthSyncController(
         store.markProgramConfirmed(page.id, HealthStore.Flow.SLEEP)
         store.lastSleepSyncCount += created
         publishSleepState()
+        return true
+    }
+
+    /** Commit ONE steps program's checked days (POST-then-PUT upsert). Steps has no token, so each page
+     *  commit is fully self-contained (the sleep-page model verbatim). */
+    suspend fun commitStepsPage(page: PendingSyncConfirmation.ProgramPage): Boolean {
+        programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return false
+        val window = loadSyncWindows(setOf(page.id))[page.id] ?: return false
+        if (programContext.isDataEntryLocked(page.id)) return false
+
+        store.addExcludedKeys(page.rows.filterNot { it.isChecked }.map { it.exclusionKey }, HealthStore.Flow.STEPS)
+
+        var hadRetryable = false
+        var created = 0
+        for (row in page.rows.filter { it.isChecked }) {
+            val day = (row.payload as? PendingSyncConfirmation.Payload.Steps)?.steps ?: continue
+            if (!HealthDates.isWithin(day.date, window.first, window.second)) continue
+            when (writeSteps(day.date, day.count, page.id)) {
+                SleepOutcome.CREATED -> created++
+                SleepOutcome.UPDATED, SleepOutcome.SKIPPED -> Unit
+                SleepOutcome.RETRYABLE -> hadRetryable = true
+            }
+        }
+
+        if (hadRetryable) return false
+        store.markProgramConfirmed(page.id, HealthStore.Flow.STEPS)
+        store.lastStepsSyncCount += created
+        publishStepsState()
         return true
     }
 
@@ -533,10 +718,34 @@ class HealthSyncController(
         }
     }
 
+    private suspend fun writeSteps(date: String, steps: Int, programId: String): SleepOutcome {
+        val body = buildJsonObject {
+            put("program_id", programId)
+            put("log_date", date)
+            put("steps", steps)
+            programContext.loggedInMemberId?.let { put("member_id", it) }
+        }
+        val postCode = try { api.postDailyHealthLogRaw(body).code() } catch (e: Exception) { return SleepOutcome.RETRYABLE }
+        return when (postCode) {
+            in 200..299 -> SleepOutcome.CREATED
+            400, 403, 404 -> SleepOutcome.SKIPPED
+            409 -> {
+                val putCode = try { api.putDailyHealthLogRaw(body).code() } catch (e: Exception) { return SleepOutcome.RETRYABLE }
+                when (putCode) {
+                    in 200..299 -> SleepOutcome.UPDATED
+                    400, 403, 404 -> SleepOutcome.SKIPPED
+                    else -> SleepOutcome.RETRYABLE
+                }
+            }
+            else -> SleepOutcome.RETRYABLE
+        }
+    }
+
     // MARK: - Gating / display helpers
 
     private fun workoutExclusionKey(programId: String, date: String, name: String) = "$programId|$date|$name"
     private fun sleepExclusionKey(programId: String, date: String) = "$programId|$date"
+    private fun stepsExclusionKey(programId: String, date: String) = "$programId|$date"
 
     private fun buildConfirmationPages(pageRows: Map<String, List<PendingSyncConfirmation.Row>>): List<PendingSyncConfirmation.ProgramPage> {
         val nameById = programContext.programs.value.associate { it.id to it.name }
@@ -566,6 +775,14 @@ class HealthSyncController(
         _lastSleepSyncFailed.value = store.lastSleepSyncFailed
     }
 
+    private fun publishStepsState() {
+        _stepsEnabled.value = store.stepsEnabled
+        _stepsProgramIds.value = store.stepsProgramIds
+        _lastStepsSyncMillis.value = store.lastStepsSyncMillis.takeIf { it > 0 }
+        _lastStepsSyncCount.value = store.lastStepsSyncCount
+        _lastStepsSyncFailed.value = store.lastStepsSyncFailed
+    }
+
     companion object {
         private val displayFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
 
@@ -577,5 +794,7 @@ class HealthSyncController(
         }
 
         fun formatHours(hours: Double): String = String.format(Locale.getDefault(), "%.1f h", hours)
+
+        fun formatSteps(count: Int): String = String.format(Locale.getDefault(), "%,d steps", count)
     }
 }

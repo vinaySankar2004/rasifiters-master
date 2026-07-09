@@ -73,7 +73,11 @@ fun HealthSyncConfirmationScreen(
     // System back = defer (nothing lost).
     BackHandler { onFinished(false) }
 
-    val flowTitle = if (confirmation.flow == PendingSyncConfirmation.Flow.WORKOUTS) "Confirm Workouts" else "Confirm Sleep"
+    val flowTitle = when (confirmation.flow) {
+        PendingSyncConfirmation.Flow.WORKOUTS -> "Confirm Workouts"
+        PendingSyncConfirmation.Flow.SLEEP -> "Confirm Sleep"
+        PendingSyncConfirmation.Flow.STEPS -> "Confirm Steps"
+    }
 
     fun confirmCurrentPage() {
         val current = pages.getOrNull(pageIndex) ?: return
@@ -85,6 +89,7 @@ fun HealthSyncConfirmationScreen(
             val ok = when (confirmation.flow) {
                 PendingSyncConfirmation.Flow.WORKOUTS -> programContext.health.commitWorkoutPage(committedPage)
                 PendingSyncConfirmation.Flow.SLEEP -> programContext.health.commitSleepPage(committedPage)
+                PendingSyncConfirmation.Flow.STEPS -> programContext.health.commitStepsPage(committedPage)
             }
             isCommitting = false
             if (!ok) {

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
@@ -294,8 +295,6 @@ fun MemberMetricsCard(metric: MemberMetricsDTO, hero: MetricSortField) {
             }
             Spacer(Modifier.height(14.dp))
             MetricsGrid(metric)
-            Spacer(Modifier.height(12.dp))
-            StreakChip(metric.currentStreak)
         }
     }
 }
@@ -304,6 +303,7 @@ fun MemberMetricsCard(metric: MemberMetricsDTO, hero: MetricSortField) {
 private fun MetricsGrid(m: MemberMetricsDTO) {
     val avgSleep = m.avgSleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "—"
     val avgDiet = m.avgFoodQuality?.let { "$it" } ?: "—"
+    val avgSteps = m.avgSteps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatTile(Icons.Filled.FitnessCenter, "Workouts", "${m.workouts}", Modifier.weight(1f))
@@ -320,6 +320,13 @@ private fun MetricsGrid(m: MemberMetricsDTO) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatTile(Icons.Filled.Bedtime, "Avg Sleep", avgSleep, Modifier.weight(1f))
             StatTile(Icons.Filled.Restaurant, "Avg Diet Quality", avgDiet, Modifier.weight(1f))
+        }
+        // Row 5 (steps feature): Avg Steps tile + the current-streak chip promoted into the grid (DC-9/DC-10).
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            StatTile(Icons.AutoMirrored.Filled.DirectionsWalk, "Avg Steps", avgSteps, Modifier.weight(1f))
+            Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                StreakChip(m.currentStreak)
+            }
         }
     }
 }
@@ -491,10 +498,17 @@ fun MemberHealthCard(programContext: ProgramContext, onClick: () -> Unit) {
             if (logs.isEmpty()) {
                 EmptyLine("No daily health logs yet.")
             } else {
+                // DC-10 row: date on top; one muted Sleep · Diet · Steps metrics line below ("—" when unset).
                 logs.take(3).forEach { h ->
-                    val sleep = h.sleepHours?.let { String.format(Locale.US, "Sleep %.1f hrs", it) } ?: "Sleep —"
-                    val diet = h.foodQuality?.let { "Diet $it/5" } ?: "Diet —"
-                    ListLine(dotColor = AppBlueLight, title = sleep, subtitle = h.logDate, trailing = diet)
+                    val sleep = h.sleepHours?.let { String.format(Locale.US, "%.1f hrs", it) } ?: "—"
+                    val diet = h.foodQuality?.let { "$it/5" } ?: "—"
+                    val steps = h.steps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
+                    ListLine(
+                        dotColor = AppBlueLight,
+                        title = h.logDate,
+                        subtitle = "Sleep $sleep · Diet $diet · Steps $steps",
+                        trailing = "",
+                    )
                 }
             }
         }

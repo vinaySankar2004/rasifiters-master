@@ -132,11 +132,20 @@ fun LifestyleScreen(programContext: ProgramContext, onNavigate: (String) -> Unit
                 )
             }
 
+            // Steps analytics card — right after the Longest/Highest row (DC-9).
+            StepsAnalyticsCard(stats = lifestyle.steps)
+
             WorkoutTypePopularityCard(types = lifestyle.workoutTypes)
 
             LifestyleTimelinePreviewCard(
                 timeline = lifestyle.timeline,
                 onClick = { onNavigate(Routes.LIFESTYLE_TIMELINE) },
+            )
+
+            // Steps Timeline preview — directly after the Lifestyle Timeline card (DC-9).
+            StepsTimelinePreviewCard(
+                timeline = lifestyle.timeline,
+                onClick = { onNavigate(Routes.LIFESTYLE_STEPS_TIMELINE) },
             )
 
             Spacer(Modifier.height(8.dp))

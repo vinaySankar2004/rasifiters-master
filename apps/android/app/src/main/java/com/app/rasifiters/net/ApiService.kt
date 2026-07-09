@@ -91,6 +91,12 @@ interface ApiService {
         @Query("memberId") memberId: String? = null,
     ): HealthTimelineResponse
 
+    @GET("analytics/health/steps")
+    suspend fun getHealthSteps(
+        @Query("programId") programId: String,
+        @Query("memberId") memberId: String? = null,
+    ): StepsStatsDTO
+
     @GET("analytics-v2/workouts/types/total")
     suspend fun getWorkoutTypesTotal(
         @Query("programId") programId: String,
@@ -145,6 +151,9 @@ interface ApiService {
     @POST("daily-health-logs")
     suspend fun addDailyHealthLog(@Body body: DailyHealthRequest): MessageResponse
 
+    @POST("daily-health-logs/batch")
+    suspend fun addDailyHealthLogsBatch(@Body body: BulkHealthRequest): BulkHealthResult
+
     // ---- Members tab (Phase E) — reads ----
     // Metrics carries ~20 optional filter params → a QueryMap of only the present (non-null) params.
     @GET("member-metrics")
@@ -190,6 +199,8 @@ interface ApiService {
         @Query("maxSleepHours") maxSleepHours: Double? = null,
         @Query("minFoodQuality") minFoodQuality: Int? = null,
         @Query("maxFoodQuality") maxFoodQuality: Int? = null,
+        @Query("minSteps") minSteps: Int? = null,
+        @Query("maxSteps") maxSteps: Int? = null,
     ): MemberHealthLogResponse
 
     @GET("program-memberships/details")

@@ -239,6 +239,7 @@ data class HealthTimelinePoint(
     val label: String = "",
     @SerialName("sleep_hours") val sleepHours: Double = 0.0,
     @SerialName("food_quality") val foodQuality: Double = 0.0,
+    val steps: Int = 0,
 )
 
 /** GET /analytics/health/timeline — the Lifestyle-tab sleep-bars + diet-line chart + daily averages. */
@@ -248,9 +249,18 @@ data class HealthTimelineResponse(
     val label: String = "",
     @SerialName("daily_average_sleep") val dailyAverageSleep: Double = 0.0,
     @SerialName("daily_average_food") val dailyAverageFood: Double = 0.0,
+    @SerialName("daily_average_steps") val dailyAverageSteps: Int = 0,
     val buckets: List<HealthTimelinePoint> = emptyList(),
     val start: String? = null,
     val end: String? = null,
+)
+
+/** GET /analytics/health/steps — the Lifestyle-tab Steps analytics card (role-scoped via memberId). */
+@Serializable
+data class StepsStatsDTO(
+    @SerialName("total_steps") val totalSteps: Long = 0,
+    @SerialName("avg_steps_per_day") val avgStepsPerDay: Int = 0,
+    val days: Int = 0,
 )
 
 /** GET /analytics-v2/workouts/types/total — the "Total workout types" card. */
@@ -336,10 +346,13 @@ data class BulkWorkoutEntry(
     val duration: Int,
 )
 
-/** POST /workout-logs/batch body — atomic all-or-nothing multi-row insert. */
+/** POST /workout-logs/batch body — atomic all-or-nothing multi-row insert. `program_ids` (optional)
+ *  carries the full multi-program selection (current program included); the backend falls back to
+ *  `program_id` when absent, so older payloads keep working (DC-2). */
 @Serializable
 data class BulkWorkoutRequest(
     @SerialName("program_id") val programId: String,
+    @SerialName("program_ids") val programIds: List<String>? = null,
     val entries: List<BulkWorkoutEntry>,
 )
 
@@ -371,6 +384,34 @@ data class DailyHealthRequest(
     @SerialName("food_quality") val foodQuality: Int? = null,
 )
 
+/** One row of the batched Log-daily-health form. Empty metrics are OMITTED (never null) — JSON presence
+ *  drives the backend's upsert-what's-present semantics (DC-5/DC-6). */
+@Serializable
+data class BulkHealthEntry(
+    @SerialName("member_id") val memberId: String,
+    @SerialName("log_date") val logDate: String,
+    @SerialName("sleep_hours") val sleepHours: Double? = null,
+    @SerialName("food_quality") val foodQuality: Int? = null,
+    val steps: Int? = null,
+)
+
+/** POST /daily-health-logs/batch body — atomic multi-row (+ optional multi-program, DC-2) upsert. */
+@Serializable
+data class BulkHealthRequest(
+    @SerialName("program_id") val programId: String,
+    @SerialName("program_ids") val programIds: List<String>? = null,
+    val entries: List<BulkHealthEntry>,
+)
+
+/** POST /daily-health-logs/batch success envelope. */
+@Serializable
+data class BulkHealthResult(
+    val created: Int = 0,
+    val updated: Int = 0,
+    val programs: Int = 0,
+    @SerialName("total_entries") val totalEntries: Int = 0,
+)
+
 // ---- Members tab (Phase E) — metrics / history / streaks / recent / health / membership ----
 // The member-analytics reads. NOTE the wire-casing split (faithful to the backend contract):
 //   • member-metrics + member-history responses use snake_case keys → @SerialName.
@@ -392,6 +433,7 @@ data class MemberMetricsDTO(
     @SerialName("current_streak") val currentStreak: Int = 0,
     @SerialName("longest_streak") val longestStreak: Int = 0,
     @SerialName("avg_food_quality") val avgFoodQuality: Int? = null,
+    @SerialName("avg_steps") val avgSteps: Int? = null,
     @SerialName("mtd_workouts") val mtdWorkouts: Int? = null,
     @SerialName("total_hours") val totalHours: Int? = null,
     @SerialName("favorite_workout") val favoriteWorkout: String? = null,
@@ -464,6 +506,7 @@ data class MemberHealthItem(
     val logDate: String = "",
     val sleepHours: Double? = null,
     val foodQuality: Int? = null,
+    val steps: Int? = null,
 )
 
 @Serializable

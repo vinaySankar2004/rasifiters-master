@@ -18,7 +18,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,11 +39,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.ApiException
 import com.app.rasifiters.net.BulkRowError
 import com.app.rasifiters.net.BulkWorkoutEntry
+import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.auth.PillButton
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -81,10 +87,22 @@ private fun WorkoutRow.isValid(ignoreMember: Boolean): Boolean {
 @Composable
 fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
-    val canSelectAnyMember = programContext.canLogForAnyMember
-    val ignoreMember = !canSelectAnyMember
+    val baseCanSelectAnyMember = programContext.canLogForAnyMember
     val selfMemberId = programContext.loggedInMemberId
     val selfName = programContext.loggedInMemberName ?: "You"
+
+    // Multi-program selection (DC-2): the current program is always selected; picking a program where the
+    // user is neither admin nor logger locks member selection to self (DC-3 — the backend re-enforces).
+    val programs by programContext.programs.collectAsStateWithLifecycle()
+    val currentProgramId = programContext.activeProgram.collectAsStateWithLifecycle().value?.id ?: ""
+    var selectedProgramIds by remember { mutableStateOf(setOf(currentProgramId)) }
+    fun privileged(p: ProgramDTO): Boolean =
+        programContext.isGlobalAdmin || p.myRole?.lowercase() in setOf("admin", "logger")
+    val memberLocked = selectedProgramIds.any { id ->
+        programs.firstOrNull { it.id == id }?.let { !privileged(it) } ?: false
+    }
+    val canSelectAnyMember = baseCanSelectAnyMember && !memberLocked
+    val ignoreMember = !canSelectAnyMember
     val identityMissing = ignoreMember && selfMemberId.isNullOrBlank()
 
     var memberOptions by remember { mutableStateOf<List<PickerOption>>(emptyList()) }
@@ -115,10 +133,11 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
         rowErrors = rowErrors?.filterNot { submittedOrder.getOrNull(it.index) == uid }?.takeIf { it.isNotEmpty() }
     }
 
-    // Mount: lock guard (D-C1) + lookups + one starter row.
+    // Mount: lock guard (D-C1) + lookups (incl. the program list for the multi-select) + one starter row.
     LaunchedEffect(Unit) {
         if (programContext.dataEntryLocked) { onBack(); return@LaunchedEffect }
         addRows(1)
+        if (programContext.programs.value.isEmpty()) programContext.loadPrograms()
         programContext.loadProgramMembers().onSuccess { list ->
             memberOptions = list.map { PickerOption(it.id, it.memberName) }
         }
@@ -126,6 +145,13 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
             workoutOptions = list.map { PickerOption(it.workoutName, it.workoutName) }
         }
         lookupsLoaded = true
+    }
+
+    // Lock transition (DC-3): every row's member resets to self the moment the selection turns non-privileged.
+    LaunchedEffect(memberLocked) {
+        if (memberLocked) {
+            for (i in rows.indices) rows[i] = rows[i].copy(memberId = selfMemberId ?: "")
+        }
     }
 
     val nonEmpty = rows.filterNot { it.isEmpty(ignoreMember) }
@@ -165,7 +191,7 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
         errorMessage = null
         rowErrors = null
         scope.launch {
-            programContext.addWorkoutLogsBatch(entries)
+            programContext.addWorkoutLogsBatch(entries, selectedProgramIds.toList())
                 .onSuccess { saving = false; onBack() }
                 .onFailure { e ->
                     saving = false
@@ -198,6 +224,20 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 subtitle,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
+
+            ProgramMultiSelect(
+                programs = programs,
+                currentProgramId = currentProgramId,
+                selectedIds = selectedProgramIds,
+                isLocked = { programContext.isDataEntryLocked(it) },
+                memberLockHint = if (memberLocked && baseCanSelectAnyMember)
+                    "You're not an admin or logger in every selected program — logging for yourself only."
+                else null,
+                onToggle = { id ->
+                    selectedProgramIds =
+                        if (id in selectedProgramIds) selectedProgramIds - id else selectedProgramIds + id
+                },
             )
 
             if (lookupsLoaded && workoutOptions.isEmpty()) {
@@ -357,6 +397,80 @@ private fun AddRowLink(label: String, enabled: Boolean, onClick: () -> Unit) {
         color = if (enabled) AppOrange else AppOrange.copy(alpha = 0.4f),
         modifier = Modifier.clickable(enabled = enabled, onClick = onClick),
     )
+}
+
+/**
+ * The multi-program selector shared by both log forms (DC-2/DC-3/DC-4). The current program is always
+ * checked + disabled ("Current program"); `admin_only_data_entry` programs the user can't log to render
+ * locked ("Admin-only — can't log", mirroring the health-sync program rows); hidden entirely when the
+ * user belongs to only one program. `memberLockHint` (DC-3) renders as a footnote when non-null.
+ */
+@Composable
+internal fun ProgramMultiSelect(
+    programs: List<ProgramDTO>,
+    currentProgramId: String,
+    selectedIds: Set<String>,
+    isLocked: (String) -> Boolean,
+    memberLockHint: String?,
+    onToggle: (String) -> Unit,
+) {
+    if (programs.size <= 1) return
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FormFieldLabel("Programs")
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(14.dp)),
+        ) {
+            programs.forEachIndexed { index, program ->
+                val isCurrent = program.id == currentProgramId
+                val locked = !isCurrent && isLocked(program.id)
+                val isSelected = isCurrent || program.id in selectedIds
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(enabled = !isCurrent && !locked) { onToggle(program.id) }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        when {
+                            locked -> Icons.Filled.Lock
+                            isSelected -> Icons.Filled.CheckCircle
+                            else -> Icons.Filled.RadioButtonUnchecked
+                        },
+                        contentDescription = null,
+                        tint = if (isSelected && !locked) AppOrange
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(program.name, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when {
+                                isCurrent -> "Current program"
+                                locked -> "Admin-only — can't log"
+                                else -> program.status ?: "Active"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                }
+                if (index != programs.lastIndex) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.padding(start = 50.dp),
+                    )
+                }
+            }
+        }
+        memberLockHint?.let {
+            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+        }
+    }
 }
 
 @Composable
