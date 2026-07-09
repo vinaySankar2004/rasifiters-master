@@ -72,8 +72,10 @@ Phase H/J). (4) **Edge-back**: on any of the 4 main tabs, system back / left-edg
 picker (`AppScaffold` `BackHandler`). **Audit fixes:** member workout/health log Edit+Delete now surface
 mutation errors (were `onSuccess`-only); the workout log form clears a row's stale server error on edit; the
 member workout-history detail resets the shared timeline to "week" on leave (new
-`ProgramContext.resetMemberHistoryToWeek`). Known-cosmetic (not fixed): Lifestyle program-admins see a brief
-program-wide load before self resolves (iOS avoids this). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL.
+`ProgramContext.resetMemberHistoryToWeek`); the **Lifestyle load is now sequenced like iOS** — the admin
+"View as" default is applied before the first `loadLifestyle`, so program-admins no longer see a brief
+program-wide flash (a `loadedOnce`-gated effect handles later picks without double-fetching).
+`./gradlew :app:assembleDebug` = BUILD SUCCESSFUL.
 Next: **Phase H (Health Connect) / Phase I (SSE + FCM)**.
 
 🟡 **Phase G COMPLETE (2026-07-08).** The **Program tab (Tab 4)** + its settings/admin sub-routes are ported

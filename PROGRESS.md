@@ -29,8 +29,9 @@ GitHub + pre-cutover smoke tests (below)._
   `POST /programs` (`createProgram`); picker **account sheet wired** to the real settings screens (dead
   Health-Connect row removed); **edge-back** from the 4 main tabs → picker (`AppScaffold` `BackHandler`); +
   audit fixes (member workout/health log Edit/Delete now surface errors; workout-form stale row-error clears
-  on edit; member-history detail resets the shared timeline to "week" on leave). `assembleDebug` green; full
-  detail in `apps/android/CONTEXT.md` + `specs/pages/android/program-picker/SPEC.md` (v0.2.0).
+  on edit; member-history detail resets the shared timeline to "week" on leave; **Lifestyle load sequenced
+  like iOS** — no program-admin program-wide flash). `assembleDebug` green; full detail in
+  `apps/android/CONTEXT.md` + `specs/pages/android/{program-picker (v0.2.0),lifestyle (v0.1.1)}/SPEC.md`.
 - **`android`** — 🟡 **Phase G DONE (2026-07-08).** The **Program tab (Tab 4)** + its **6 settings/admin
   sub-routes** are ported + green (`ui/program/{ProgramScreen,ProgramSections,ProgramCards,
   ProgramAccountSection,ProfileScreen,ChangePasswordScreen,AppearanceScreen,NotificationsScreen,

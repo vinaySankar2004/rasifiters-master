@@ -1,6 +1,6 @@
 # Screen: `lifestyle` (android) — the workout-types dashboard (3rd bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in the iOS Lifestyle tab
 > (`Features/Home/Tabs/{Admin,Standard}WorkoutTypesTab.swift`) + [`web lifestyle/workouts`](../../web/lifestyle/workouts/SPEC.md)
 > — this file records only the Android realization + idiom deviations.
@@ -31,6 +31,11 @@
   `ProgramContext` (`lifestyleViewAsId` + `lifestyleViewAsChosen`, seeded once per program by
   `ensureLifestyleViewAsDefault`), **separate** from the Members-tab selection, so it survives a push into
   the timeline detail / manager and back. The timeline detail reads the same slot for its member scope.
+- **Load sequencing (iOS `AdminWorkoutTypesTab.task` parity):** the admin default is applied **before** the
+  first load, in one coroutine — `ensureLifestyleViewAsDefault()` then `loadLifestyle(resolvedMemberId)` —
+  so a program-admin's first fetch is already self-scoped (no brief program-wide flash). A second effect
+  reloads only on a later, user-initiated "View as" change, gated on a `loadedOnce` flag so the initial
+  default-set (which also moves `viewAsId`) doesn't double-fetch.
 - **Deviation A-1 (charts on Canvas):** the popularity chart is a Compose ranked-bar list (track + colored
   fill, iOS `RankedBarList`); the timeline preview is drawn on the shared `SleepDietChart` Canvas
   (single-axis, no tooltip — tapping the card navigates). iOS's glassy `CardShell` → a flat Material
@@ -58,3 +63,10 @@ Fires on entry, on active-program change, and on every "View as" change. Six rea
 
 - **Workout types manager** → `Routes.LIFESTYLE_WORKOUT_TYPES` ([`lifestyle-workout-types`](../lifestyle-workout-types/SPEC.md)).
 - **Lifestyle Timeline drill-down** → `Routes.LIFESTYLE_TIMELINE` ([`lifestyle-timeline`](../lifestyle-timeline/SPEC.md)).
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-07-08 | Load sequencing fixed to iOS parity: apply the admin "View as" default **before** the first `loadLifestyle`, in one coroutine, so a program-admin's first fetch is self-scoped (no brief program-wide flash); a `loadedOnce`-gated effect reloads on later user-initiated picks without double-fetching the initial default-set. |
+| 0.1.0 | 2026-07-08 | Initial Android port (Phase F — Lifestyle tab + 4 stat cards + popularity chart + timeline preview; "View as" selector; workout-types manager + timeline drill-down forward targets). |

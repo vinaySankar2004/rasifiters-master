@@ -333,8 +333,15 @@ Three user-reported fixes + a parallel functional audit of all four tabs vs the 
   `_memberHistory` to "week" on leave via `DisposableEffect{onDispose{}}` → new fire-and-forget
   `ProgramContext.resetMemberHistoryToWeek` on the app scope (a `rememberCoroutineScope` is cancelled on
   dispose, so the reset must run on the long-lived context scope, not a composable one).
-- **Known-accepted (not fixed):** Lifestyle program-admins see one transient program-wide `loadLifestyle(null)`
-  before the view-as default resolves to self — end state correct, cosmetic flash only.
+- **Lifestyle program-admin flash — FIXED (iOS parity).** Root cause was two racing `LaunchedEffect`s: one
+  set the view-as default (async, awaits the roster) while a second immediately loaded with the still-null
+  `viewAsId` (program-wide), then reloaded when the default resolved to self. Fix: collapse to ONE
+  program-keyed coroutine that applies the default THEN loads with the resolved member; a second effect keyed
+  on `viewAsId` reloads on later user picks, gated on a `remember(program.id){ loadedOnce }` flag so the
+  initial default-set (which also moves `viewAsId`) doesn't double-fetch — and so re-entering the tab with a
+  chosen member doesn't double-load either. Mirrors iOS `AdminWorkoutTypesTab.task` (`applyDefault(); if
+  selectedMember == nil { load() }`). LESSON: when a default is applied by one effect and a load is triggered
+  by another effect that reads the value the default sets, they RACE — sequence them in a single coroutine.
 - **Consistency cut:** dropped the inert "Health Connect" row from the picker `AccountMenuSheet` to match
   `ProgramAccountSection` (which already omits it) — Health Connect is Phase H/J; a dead row on one of two
   account surfaces is worse than none.

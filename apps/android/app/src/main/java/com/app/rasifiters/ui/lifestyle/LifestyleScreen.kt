@@ -59,10 +59,20 @@ fun LifestyleScreen(programContext: ProgramContext, onNavigate: (String) -> Unit
     var showPicker by remember { mutableStateOf(false) }
 
     // Admins scope to the "View as" pick (null = program-wide); everyone else sees their own data.
-    val effectiveMemberId = if (isAdmin) viewAsId else programContext.loggedInMemberId
-
-    LaunchedEffect(program?.id) { if (isAdmin) programContext.ensureLifestyleViewAsDefault() }
-    LaunchedEffect(program?.id, isAdmin, effectiveMemberId) { programContext.loadLifestyle(effectiveMemberId) }
+    // Apply the admin default BEFORE the first load, in ONE coroutine, so a program-admin's first fetch is
+    // already self-scoped — no brief program-wide flash. Mirrors iOS AdminWorkoutTypesTab.task (apply the
+    // default, then load once). A second effect reloads only on a later, user-initiated "View as" change —
+    // gated on loadedOnce so the initial default-set (which also moves viewAsId) doesn't double-fetch.
+    val loadedOnce = remember(program?.id) { mutableStateOf(false) }
+    LaunchedEffect(program?.id, isAdmin) {
+        if (isAdmin) programContext.ensureLifestyleViewAsDefault()
+        val memberId = if (isAdmin) programContext.lifestyleViewAsId.value else programContext.loggedInMemberId
+        programContext.loadLifestyle(memberId)
+        loadedOnce.value = true
+    }
+    LaunchedEffect(viewAsId) {
+        if (isAdmin && loadedOnce.value) programContext.loadLifestyle(viewAsId)
+    }
 
     val selected = roster.firstOrNull { it.id == viewAsId }
     val viewAsLabel = selected?.memberName
