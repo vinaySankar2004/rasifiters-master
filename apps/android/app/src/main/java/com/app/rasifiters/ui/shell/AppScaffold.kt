@@ -1,5 +1,6 @@
 package com.app.rasifiters.ui.shell
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
@@ -71,6 +72,12 @@ fun AppScaffold(
     val nav = rememberNavController()
     val backStackEntry by nav.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.hierarchy
+
+    // System back / left-edge swipe from any of the 4 main tabs returns to the program picker (My Programs)
+    // in one gesture, instead of the default tab-to-start-tab pop. On a detail/log screen this stays
+    // disabled, so back there pops the detail as usual.
+    val onMainTab = MainTab.entries.any { it.route == backStackEntry?.destination?.route }
+    BackHandler(enabled = onMainTab) { onSwitchProgram() }
 
     // App-wide success confirmations (e.g. "3 workouts saved") — the Android-idiom acknowledgement of a
     // successful write, shown as a Snackbar after the form pops back (ProgramContext.messages).

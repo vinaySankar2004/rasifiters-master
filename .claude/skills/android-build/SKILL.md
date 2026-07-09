@@ -152,6 +152,24 @@ not re-validating business logic:
 - **Account-menu "Support" opens the web `/support` page (`AppLinks.supportUri`), NOT a `mailto:`** — matches
   iOS `APIConfig.supportURL`. The `mailto:` (`supportMailtoUri`) is only the forgot-password recovery
   fallback (iOS `supportEmailURL`). Don't conflate the two. (Run 8b.)
+- **"Standardize the background across ALL pages" = converge the ODD screens onto the common style, NOT
+  impose the odd style on all.** Only the auth screens had a faint orange gradient; every other screen was a
+  flat dark `background`. The ask was to make auth match the flat background — I first spread the gradient
+  everywhere and was corrected. Confirm the target style before a mass sed. Mechanically, a screen root's
+  fill is `Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)`; `Modifier.background`
+  also has a `Brush` overload (fully-qualified call in a sed avoids per-file imports) if you ever DO want a
+  shared brush — but here the right answer was the solid theme color everywhere, auth included. (Run 9.)
+- **Two NavHosts can register the SAME route constant with no conflict.** The picker (outer `SignedInGraph`
+  NavHost) reaches the settings screens that also live in `AppScaffold`'s inner shell NavHost by
+  re-registering the same `Routes.*` constants in the outer graph + threading `onNavigate` down to the
+  account sheet — reuse the exact composables, no duplication. (Run 9.)
+- **A "reset shared state on leave" must run on the long-lived context scope, NOT `rememberCoroutineScope`**
+  (cancelled the instant the composable disposes → the launch never runs). Add `fun resetX(){ scope.launch{…} }`
+  to `ProgramContext` and call it from `DisposableEffect{ onDispose{…} }`. Mirrors iOS `.onDisappear`. (Run 9.)
+- **Member-detail log Edit/Delete must surface mutation failures.** `ProgramContext` mutation actions return
+  `Result` for the caller to render; a `.onSuccess`-only handler drops the error (a failed delete leaves the
+  confirm `AlertDialog` stuck open). Add `.onFailure { actionError = … }` + a shared error `AlertDialog`
+  (iOS shows an alert on these exact paths). (Run 9.)
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the

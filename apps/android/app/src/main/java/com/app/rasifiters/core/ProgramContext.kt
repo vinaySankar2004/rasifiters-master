@@ -9,6 +9,7 @@ import com.app.rasifiters.net.DailyHealthRequest
 import com.app.rasifiters.net.DistributionByDayDTO
 import com.app.rasifiters.net.ChangeEmailRequest
 import com.app.rasifiters.net.ChangePasswordRequest
+import com.app.rasifiters.net.CreateProgramRequest
 import com.app.rasifiters.net.ForgotPasswordRequest
 import com.app.rasifiters.net.InviteRequest
 import com.app.rasifiters.net.LeaveProgramRequest
@@ -198,6 +199,17 @@ class ProgramContext(
             .recoverCatching { throw it.asApiError() }
             .also { _programsLoading.value = false }
     }
+
+    /** POST /programs — create a program (creator becomes its admin); reload the list to include it (iOS parity). */
+    suspend fun createProgram(
+        name: String,
+        status: String,
+        startDate: String?,
+        endDate: String?,
+    ): Result<Unit> = runCatching {
+        api.createProgram(CreateProgramRequest(name.trim(), status, startDate, endDate))
+        loadPrograms().getOrThrow()
+    }.recoverCatching { throw it.asApiError() }
 
     /** Optimistic local reorder during a drag — the source of the persisted order (see [persistProgramOrder]). */
     fun moveProgram(from: Int, to: Int) {
@@ -475,6 +487,13 @@ class ProgramContext(
             _memberHistory.value = resp
             resp
         }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** Reset the shared member-history to the default "week" window when the history detail leaves — the
+     *  Members-tab card reads this shared state, so a detail left on Month/Year/Program would otherwise
+     *  linger there (iOS `ActivityTimelineDetailView.onDisappear` parity). Fire-and-forget on the app scope. */
+    fun resetMemberHistoryToWeek(memberId: String) {
+        scope.launch { runCatching { loadMemberHistory(memberId, "week") } }
     }
 
     /** GET /member-streaks — server-computed streaks + milestone ladder. */

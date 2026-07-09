@@ -298,3 +298,43 @@ Verified the picker's white FABs/avatar are the *intentional* `onBackground` hig
 (`AppLinks.supportUri`), not the `mailto:` (which stays the forgot-password recovery fallback only). Both
 the picker `AccountMenuSheet` and the new `ProgramAccountSection` updated. `./gradlew :app:assembleDebug` =
 BUILD SUCCESSFUL (~3s). Both patterns promoted to Converged lessons.
+
+### Run 9 — 2026-07-08 — pre-phase fixes (app-wide gradient · picker "+" create/invites · picker settings wiring) + 4-tab functional audit
+
+Three user-reported fixes + a parallel functional audit of all four tabs vs the iOS reference.
+`./gradlew :app:assembleDebug` = BUILD SUCCESSFUL (~4s) after all edits.
+
+- **Standardized every screen to ONE solid background (removed the auth-only orange gradient).** MISREAD
+  first: the request "standardize the background for ALL pages" meant make the auth screens (splash/login/
+  create — the only ones with the pre-existing faint orange→bg wash from `AuthComponents.authGradient`) match
+  the flat dark background used by the picker/tabs/details — NOT spread the gradient everywhere. I did the
+  latter first (a `@Composable appBackgroundBrush()` gradient sed'd onto all 26 roots) and the user
+  corrected it. Fix: reverted all 26 roots back to `background(MaterialTheme.colorScheme.background)` and
+  changed `AuthBackground` to the same solid fill; deleted `appBackgroundBrush` + `authGradient`. LESSON:
+  "standardize X across all pages" usually means converge the ODD screens onto the common style, not impose
+  the odd style on all — confirm which is the target before a 26-file sed. (The `Modifier.background(Brush)`
+  overload + fully-qualified-call-avoids-imports sed technique itself is still a good tool; it was the
+  DIRECTION that was wrong.)
+- **Two NavHosts can register the SAME route constant with no conflict.** The picker lives in the OUTER
+  `SignedInGraph` NavHost; the settings screens (`PROGRAM_PROFILE/PASSWORD/APPEARANCE/NOTIFICATIONS`) were only
+  in `AppScaffold`'s INNER shell NavHost. Re-registered the same 4 route constants in the picker graph and
+  passed `onNavigate` down `ProgramPickerScreen` → `AccountMenuSheet` so the account sheet reaches them before
+  any program is open — reusing the exact same screen composables, zero duplication.
+- **Picker "+" = tabbed `ProgramActionsSheet` (My Invites / Create), iOS parity.** New `POST /programs`
+  (`createProgram` on ApiService + ProgramContext, reloads the list after — backend returns a slim
+  id+message, not a full ProgramDTO). Invites tab reuses the existing `respondToInvite` path (same as the
+  inline cards) rather than porting the iOS pending-invites subsystem (separate endpoint + block-future +
+  admin grouping) — Android already surfaces invites inline, so this stays consistent.
+- **Audit fixes (medium/low, all iOS-parity):** (1) member workout/health log Edit+Delete swallowed
+  mutation errors (only `.onSuccess`) → added `.onFailure` + an error `AlertDialog` on both detail screens
+  (iOS shows alerts; a failed delete otherwise left the confirm dialog stuck open). (2) `LogWorkoutScreen`
+  stale per-row server error now clears on any row edit (`rowErrors = rowErrors?.filterNot{ order[it.index]==uid }`)
+  — iOS `AddWorkoutsDetailView` clears on edit. (3) `MemberHistoryDetailScreen` now resets the SHARED
+  `_memberHistory` to "week" on leave via `DisposableEffect{onDispose{}}` → new fire-and-forget
+  `ProgramContext.resetMemberHistoryToWeek` on the app scope (a `rememberCoroutineScope` is cancelled on
+  dispose, so the reset must run on the long-lived context scope, not a composable one).
+- **Known-accepted (not fixed):** Lifestyle program-admins see one transient program-wide `loadLifestyle(null)`
+  before the view-as default resolves to self — end state correct, cosmetic flash only.
+- **Consistency cut:** dropped the inert "Health Connect" row from the picker `AccountMenuSheet` to match
+  `ProgramAccountSection` (which already omits it) — Health Connect is Phase H/J; a dead row on one of two
+  account surfaces is worse than none.

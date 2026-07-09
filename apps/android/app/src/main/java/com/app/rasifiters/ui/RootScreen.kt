@@ -12,6 +12,10 @@ import com.app.rasifiters.ui.auth.CreateAccountScreen
 import com.app.rasifiters.ui.auth.ForgotPasswordScreen
 import com.app.rasifiters.ui.auth.LoginScreen
 import com.app.rasifiters.ui.auth.SplashScreen
+import com.app.rasifiters.ui.program.AppearanceScreen
+import com.app.rasifiters.ui.program.ChangePasswordScreen
+import com.app.rasifiters.ui.program.MyProfileScreen
+import com.app.rasifiters.ui.program.NotificationsScreen
 import com.app.rasifiters.ui.programs.ProgramPickerScreen
 import com.app.rasifiters.ui.shell.AppScaffold
 
@@ -43,6 +47,9 @@ private fun SignedInGraph(programContext: ProgramContext, appearanceStore: Appea
                     programContext.selectProgram(program)
                     nav.navigate(Routes.SHELL)
                 },
+                // Account-sheet destinations (My Profile / Change Password / Appearance / Notifications)
+                // reuse the Program-tab settings screens, reachable from the picker before any program is open.
+                onNavigate = { route -> nav.navigate(route) },
             )
         }
         composable(Routes.SHELL) {
@@ -53,6 +60,20 @@ private fun SignedInGraph(programContext: ProgramContext, appearanceStore: Appea
                 // the picker is the start destination, so a pop restores it, refreshed by local state).
                 onSwitchProgram = { nav.popBackStack(Routes.PROGRAM_PICKER, inclusive = false) },
             )
+        }
+
+        // Account settings reached from the picker's account sheet (no active program needed).
+        composable(Routes.PROGRAM_PROFILE) {
+            MyProfileScreen(programContext = programContext, onBack = { nav.popBackStack() })
+        }
+        composable(Routes.PROGRAM_PASSWORD) {
+            ChangePasswordScreen(programContext = programContext, onBack = { nav.popBackStack() })
+        }
+        composable(Routes.PROGRAM_APPEARANCE) {
+            AppearanceScreen(appearanceStore = appearanceStore, onBack = { nav.popBackStack() })
+        }
+        composable(Routes.PROGRAM_NOTIFICATIONS) {
+            NotificationsScreen(onBack = { nav.popBackStack() })
         }
     }
 }

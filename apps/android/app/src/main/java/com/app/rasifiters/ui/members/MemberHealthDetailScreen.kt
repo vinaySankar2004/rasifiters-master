@@ -159,6 +159,8 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
         )
     }
 
+    var actionError by remember { mutableStateOf<String?>(null) }
+
     editItem?.let { item ->
         HealthEditSheet(
             item = item,
@@ -168,6 +170,7 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                 scope.launch {
                     programContext.updateDailyHealthLog(id, item.logDate, sleepHours, foodQuality)
                         .onSuccess { editItem = null; reload() }
+                        .onFailure { actionError = it.message ?: "Couldn't update the daily log." }
                 }
             },
         )
@@ -181,10 +184,23 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             confirmButton = {
                 TextButton(onClick = {
                     val id = memberId
-                    if (id != null) scope.launch { programContext.deleteDailyHealthLog(id, item.logDate).onSuccess { deleteItem = null; reload() } }
+                    if (id != null) scope.launch {
+                        programContext.deleteDailyHealthLog(id, item.logDate)
+                            .onSuccess { deleteItem = null; reload() }
+                            .onFailure { deleteItem = null; actionError = it.message ?: "Couldn't delete the daily log." }
+                    }
                 }) { Text("Delete", color = AppRed) }
             },
             dismissButton = { TextButton(onClick = { deleteItem = null }) { Text("Cancel") } },
+        )
+    }
+
+    actionError?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { actionError = null },
+            confirmButton = { TextButton(onClick = { actionError = null }) { Text("OK") } },
+            title = { Text("Something went wrong") },
+            text = { Text(msg) },
         )
     }
 }

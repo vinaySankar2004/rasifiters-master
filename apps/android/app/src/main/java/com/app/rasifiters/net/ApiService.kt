@@ -41,6 +41,9 @@ interface ApiService {
     @GET("programs")
     suspend fun getPrograms(): List<ProgramDTO>
 
+    @POST("programs")
+    suspend fun createProgram(@Body body: CreateProgramRequest): CreateProgramResponse
+
     @PUT("programs/order")
     suspend fun saveProgramOrder(@Body body: ProgramOrderRequest): MessageResponse
 

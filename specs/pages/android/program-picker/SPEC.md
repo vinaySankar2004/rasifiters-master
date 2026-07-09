@@ -1,16 +1,17 @@
 # Screen: `program-picker` (android) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-picker`](../../ios/program-picker/SPEC.md)
 > + [`web programs`](../../web/programs/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `SignedInGraph` route `Routes.PROGRAM_PICKER` (`ProgramPickerScreen`) — the
 > signed-in landing; picking a program navigates to `Routes.SHELL` (`AppScaffold`, the per-program tab shell).
 > **Consumes:** [`programs`](../../../features/programs/SPEC.md) + [`invites`](../../../features/invites/SPEC.md)
 > via `ProgramContext` — `GET /programs`, `PUT /programs/order`, `DELETE /programs/:id`, `PUT /program-memberships`.
-> **Files:** `ui/programs/ProgramPickerScreen.kt` + `ui/programs/AccountMenuSheet.kt`.
-> **Scope (mirrors iOS D-SCOPE):** the PICKER ONLY. Forward-nav (create-program/invites "+" sheet, the account
-> destinations Profile/Change-Password/Appearance/Notifications/Health-Connect) is DEFERRED and stubbed until
-> later phases (create/edit → later; account rows → Phase G; Health Connect → Phase H).
+> **Files:** `ui/programs/ProgramPickerScreen.kt` + `ui/programs/AccountMenuSheet.kt` + `ui/programs/ProgramActionsSheet.kt`.
+> **Scope:** the picker + its forward-nav are now wired. The **"+"** opens the `ProgramActionsSheet`
+> (My Invites / Create); the account sheet's **Profile / Change Password / Appearance / Notifications** rows
+> navigate to the real settings screens (registered in `SignedInGraph`, reusing the Program-tab screens).
+> **Health Connect** remains deferred (Phase H/J) and is now **omitted** from the sheet (not shown as a dead row).
 
 ## Parity + Android-idiom deviations
 
@@ -39,14 +40,26 @@
   list) — matches iOS's `nil` `.onMove` while filtering. New programs land at the bottom (server `NULLS LAST`).
 - **Deviation A-3 (account sheet):** a Material3 `ModalBottomSheet` (iOS `AccountMenuSheet` analog). Privacy
   Policy / Support open externally via `LocalUriHandler` (Support → the `mailto:` recovery fallback in
-  `AppLinks`, since Android has no separate support URL); Profile/Change-Password/Appearance/Notifications/
-  **Health Connect** rows are present but currently **dismiss** (deferred destinations). The iOS "Apple Health"
-  row is realized as **"Health Connect"** (the Samsung-Health-via-Health-Connect analog, Phase H).
+  `AppLinks`, since Android has no separate support URL); **Profile / Change Password / Appearance /
+  Notifications** rows now **navigate** to the real settings screens (same screens the Program tab uses,
+  registered in `SignedInGraph` so they're reachable before any program is open). The iOS "Apple Health" row
+  ("Health Connect" on Android) is **omitted** here — deferred to Phase H/J — matching `ProgramAccountSection`.
 - **Deviation A-4 (invite badge source):** the "+" pending badge counts `my_status ∈ {invited, requested}` in
-  the loaded list (iOS loads a separate `loadPendingInvites`; the picker-only scope has no invites sheet yet).
+  the loaded list (iOS loads a separate `loadPendingInvites`; Android surfaces invites both inline on cards and
+  in the actions sheet's My Invites tab, both driven by the same loaded list).
+- **Deviation A-5 (the "+" actions sheet):** `ProgramActionsSheet` — a `ModalBottomSheet` with a **My Invites /
+  Create** segmented toggle (iOS `ProgramActionsSheet` analog). Opens on **My Invites** when invites are pending,
+  else **Create**. *Create* = name/status/start/end form → `POST /programs` → reload list (creator becomes admin).
+  *My Invites* = pending-invite cards (Accept/Decline, reusing `respondToInvite`) + a "No pending invitations"
+  empty state. The tab-content region is pinned to a fixed height so the sheet doesn't resize when toggling
+  tabs. Unlike iOS, Android does **not** port the separate pending-invites subsystem (block-future / admin
+  grouping / revoke) — invites reuse the loaded-list Accept/Decline path, consistent with the inline cards.
+- **Deviation A-6 (edge-back to picker):** on any of the 4 main tabs, the system back / left-edge-swipe pops the
+  whole shell straight back to the picker in one gesture (a `BackHandler` in `AppScaffold`), instead of the
+  default tab→start-tab pop. On a detail/log screen it's disabled, so back there pops the detail as usual.
 - **F-kept (from iOS/web):** client-side role gating is UI-only (the backend re-authorizes every call); the pick
   currently hydrates only the active `ProgramDTO` into `ProgramContext` (membership/lookup hydration lands with
-  the downstream screens); the "+" create/invites sheet is a deferred no-op.
+  the downstream screens).
 
 ## Data / API (all via `ProgramContext`, Bearer-authed by the OkHttp layer)
 
@@ -54,6 +67,9 @@
   progress_percent, my_role, my_status, admin_only_data_entry`) — `loadPrograms()` on entry.
 - **`PUT /programs/order`** (`{ program_ids }`) — `persistProgramOrder(previousOrder)` after a drop; returns
   `{ message }`; optimistic with revert-on-failure.
+- **`POST /programs`** (`{ name, status, start_date, end_date }`) — `createProgram()` from the actions sheet's
+  Create tab; the creator becomes the program's admin. Backend defaults a blank/unknown status → `planned` and
+  returns a slim `{ id, message }`, so we **reload** the list rather than decode a full `ProgramDTO`.
 - **`DELETE /programs/:id`** — `deleteProgram()`; drops the card locally on success.
 - **`PUT /program-memberships`** (`{ program_id, member_id, status }`) — `respondToInvite()`: Accept `"active"` /
   Decline·Cancel `"removed"`, then reloads the list.
@@ -62,4 +78,5 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-08 | Forward-nav wired (pre-Phase-H cleanup). New `ProgramActionsSheet` (My Invites / Create) on the "+" → `POST /programs` `createProgram` (ApiService + ProgramContext + `CreateProgramRequest/Response`), fixed-height tab region so the sheet doesn't resize between tabs (A-5). Account sheet's Profile/Change-Password/Appearance/Notifications rows now navigate to the real settings screens (registered in `SignedInGraph`); Health-Connect row removed (deferred, A-3). Edge-back from the 4 main tabs pops to the picker (A-6, `AppScaffold` `BackHandler`). App-wide background standardized to the solid theme background (auth-only orange gradient removed). Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase C — first authenticated screen). `ProgramPickerScreen` + `AccountMenuSheet`; `ProgramContext` gains `programs`/`activeProgram` state + `loadPrograms`/`moveProgram`/`persistProgramOrder`/`deleteProgram`/`respondToInvite`/`selectProgram`; `ProgramDTO` + order/membership DTOs + 4 endpoints. Faithful to iOS/web incl. D-C1 error banner + D-N1 reorder/search; Android-idiom deviations A-1..A-4 (overflow-menu Edit/Delete, long-press-drag reorder, `ModalBottomSheet` account sheet, list-derived invite badge). Forward-nav deferred per D-SCOPE. `RootScreen` now routes token→picker→shell. Compile-checked green (`android-build`, `assembleDebug` BUILD SUCCESSFUL). Visual run = user. |

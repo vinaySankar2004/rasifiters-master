@@ -131,6 +131,12 @@ fun MemberHistoryDetailScreen(programContext: ProgramContext, onBack: () -> Unit
         loading = false
     }
 
+    // Restore the shared history to "week" on leave so the Members-tab card doesn't linger on a non-week
+    // period the user selected here (iOS onDisappear parity).
+    DisposableEffect(memberId) {
+        onDispose { memberId?.let { programContext.resetMemberHistoryToWeek(it) } }
+    }
+
     val rangeLabel = if (period.key == "week") "This Week" else serverLabel.ifBlank { period.range }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {

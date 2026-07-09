@@ -24,6 +24,13 @@ _(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3
 (approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
 GitHub + pre-cutover smoke tests (below)._
 
+- **`android`** — 🟢 **Pre-Phase-H cleanup DONE (2026-07-08, Run 9):** app-wide **solid** background (the
+  auth-only orange gradient removed); picker **"+"** → new `ProgramActionsSheet` (My Invites / Create) →
+  `POST /programs` (`createProgram`); picker **account sheet wired** to the real settings screens (dead
+  Health-Connect row removed); **edge-back** from the 4 main tabs → picker (`AppScaffold` `BackHandler`); +
+  audit fixes (member workout/health log Edit/Delete now surface errors; workout-form stale row-error clears
+  on edit; member-history detail resets the shared timeline to "week" on leave). `assembleDebug` green; full
+  detail in `apps/android/CONTEXT.md` + `specs/pages/android/program-picker/SPEC.md` (v0.2.0).
 - **`android`** — 🟡 **Phase G DONE (2026-07-08).** The **Program tab (Tab 4)** + its **6 settings/admin
   sub-routes** are ported + green (`ui/program/{ProgramScreen,ProgramSections,ProgramCards,
   ProgramAccountSection,ProfileScreen,ChangePasswordScreen,AppearanceScreen,NotificationsScreen,
@@ -180,10 +187,9 @@ forgot-password fallback). (3) **light-mode rows** — inner setting rows use a 
 the settings-row subtitle shrank to `bodySmall`/one-line. **Dark mode was user-approved as-is and is
 untouched by the light fix.**
 
-> ⚠️ **UNCOMMITTED (user's choice 2026-07-08):** all Phase G + 8b work is in the working tree only — NOT
-> committed/pushed (user wants to continue in a new session). **Next session: commit first** via the
-> `git-version` skill (touched surface = `android`; no feature-registry version bump — Android is a client
-> port, not a backend feature), then proceed to Phase H/I.
+> ✅ **COMMITTED:** Phase G + Runs 8/8b are committed (`7e7ad7e` feat(android): Phase G, `a98bc10` chore(skills)).
+> The **Run 9 pre-Phase-H cleanup** (background/`+`/account-nav/edge-back + audit fixes) is committed on top of
+> those (2026-07-08). Working tree clean → **just say "continue" to start Phase H/I in a new session.**
 
 Resume at **Phase H** — **Health Connect** (Samsung Health; the HealthKit analog: `ExerciseSessionRecord` →
 `/workout-logs`, `SleepSessionRecord` → `/daily-health-logs`; per-program toggles, data-lock aware; the

@@ -48,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -70,19 +69,11 @@ private val EMAIL_RE = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
 
 fun isEmailValid(email: String): Boolean = EMAIL_RE.matches(email.trim())
 
-/** The branded gradient brush (faint orange wash → theme background). Shared by the splash + scaffold. */
-@Composable
-private fun authGradient(): Brush {
-    val scheme = MaterialTheme.colorScheme
-    return Brush.verticalGradient(
-        listOf(AppOrange.copy(alpha = 0.10f), scheme.background, scheme.background),
-    )
-}
-
-/** Plain gradient background — used by the splash (no glass/overlay needed there). */
+/** Plain solid screen background — the theme background, so the auth screens match every other page
+ *  (standardized: no orange wash anywhere). */
 @Composable
 fun AuthBackground(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.fillMaxSize().background(authGradient())) {
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         content()
     }
 }

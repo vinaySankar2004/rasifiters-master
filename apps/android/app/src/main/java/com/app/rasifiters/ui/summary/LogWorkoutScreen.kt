@@ -111,6 +111,8 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
     fun updateRow(uid: Int, transform: (WorkoutRow) -> WorkoutRow) {
         val i = rows.indexOfFirst { it.uid == uid }
         if (i >= 0) rows[i] = transform(rows[i])
+        // Editing a row clears any stale server error still shown on it (iOS AddWorkoutsDetailView parity).
+        rowErrors = rowErrors?.filterNot { submittedOrder.getOrNull(it.index) == uid }?.takeIf { it.isNotEmpty() }
     }
 
     // Mount: lock guard (D-C1) + lookups + one starter row.

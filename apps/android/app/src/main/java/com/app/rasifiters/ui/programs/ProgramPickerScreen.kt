@@ -77,8 +77,8 @@ import java.util.Locale
  * Lists the member's programs as cards; opens a program (→ the shell), accepts/declines invites inline,
  * deletes managed programs (Android-idiom overflow menu vs the iOS swipe), reaches the account sheet, and
  * carries the net-new drag-to-reorder + floating search (iOS D-N1). Faithful 1:1 to the iOS SPEC plus its
- * one web-parity addition — a visible error banner (D-C1). Forward-nav (create/edit, account destinations)
- * is DEFERRED per the iOS D-SCOPE and stubbed until later phases.
+ * one web-parity addition — a visible error banner (D-C1). The "+" opens the [ProgramActionsSheet]
+ * (My Invites / Create); the account sheet reaches the settings screens via [onNavigate].
  *
  * Android-idiom deviations (recorded in specs/pages/android/program-picker/SPEC.md):
  *  • Edit/Delete via a per-card overflow (⋮) menu, not iOS swipe actions — long-press is the reorder gesture.
@@ -88,6 +88,7 @@ import java.util.Locale
 fun ProgramPickerScreen(
     programContext: ProgramContext,
     onOpenProgram: (ProgramDTO) -> Unit,
+    onNavigate: (String) -> Unit,
 ) {
     val programs by programContext.programs.collectAsStateWithLifecycle()
     val loading by programContext.programsLoading.collectAsStateWithLifecycle()
@@ -98,6 +99,7 @@ fun ProgramPickerScreen(
     var searchOpen by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showAccount by remember { mutableStateOf(false) }
+    var showActions by remember { mutableStateOf(false) }
     var showSignOut by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ProgramDTO?>(null) }
 
@@ -228,18 +230,25 @@ fun ProgramPickerScreen(
             )
             CircleButton(
                 icon = Icons.Filled.Add,
-                contentDescription = "Create program",
+                contentDescription = "Create program or view invites",
                 badgeCount = pendingInvites,
-                // DEFERRED (iOS D-SCOPE): the create-program / invites sheet lands in a later phase.
-                onClick = { },
+                onClick = { showActions = true },
             )
         }
+    }
+
+    if (showActions) {
+        ProgramActionsSheet(
+            programContext = programContext,
+            onDismiss = { showActions = false },
+        )
     }
 
     if (showAccount) {
         AccountMenuSheet(
             programContext = programContext,
             onDismiss = { showAccount = false },
+            onNavigate = { route -> showAccount = false; onNavigate(route) },
             onSignOut = { showAccount = false; showSignOut = true },
         )
     }

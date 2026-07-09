@@ -59,6 +59,23 @@ Android Studio → signed AAB → Google Play Console **internal testing** (Test
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
+🟢 **Pre-Phase-H cleanup (2026-07-08, Run 9).** User-reported fixes + a 4-tab functional audit, before the
+next phase. (1) **Background standardized** — the faint orange gradient lived only on the auth screens; every
+screen now uses the **solid theme background** (auth included). The gradient brush was removed. (2) The picker
+**"+" now works** — new `ui/programs/ProgramActionsSheet.kt` (My Invites / Create segmented sheet); Create →
+`POST /programs` (`createProgram` on ApiService + ProgramContext + `CreateProgramRequest/Response`), reloads
+the list; invites reuse the loaded-list Accept/Decline. Tab-content region pinned to a fixed height so the
+sheet doesn't resize between tabs. (3) The picker **account sheet is wired** — Profile/Change-Password/
+Appearance/Notifications navigate to the real settings screens (registered in `SignedInGraph`, reusing the
+Program-tab screens); the dead **Health Connect** row was removed (matches `ProgramAccountSection`; still
+Phase H/J). (4) **Edge-back**: on any of the 4 main tabs, system back / left-edge-swipe pops straight to the
+picker (`AppScaffold` `BackHandler`). **Audit fixes:** member workout/health log Edit+Delete now surface
+mutation errors (were `onSuccess`-only); the workout log form clears a row's stale server error on edit; the
+member workout-history detail resets the shared timeline to "week" on leave (new
+`ProgramContext.resetMemberHistoryToWeek`). Known-cosmetic (not fixed): Lifestyle program-admins see a brief
+program-wide load before self resolves (iOS avoids this). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL.
+Next: **Phase H (Health Connect) / Phase I (SSE + FCM)**.
+
 🟡 **Phase G COMPLETE (2026-07-08).** The **Program tab (Tab 4)** + its settings/admin sub-routes are ported
 + green (`ui/program/`). Role-bifurcated on `isProgramAdmin`: **standard** = read-only Program Info card
 (client date math) + Switch + Leave + My Account; **admin/global-admin** = Program Info action section

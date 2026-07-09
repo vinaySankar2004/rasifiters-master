@@ -91,6 +91,20 @@ data class ProgramDTO(
     @SerialName("admin_only_data_entry") val adminOnlyDataEntry: Boolean = false,
 )
 
+/** POST /programs — create a program (the creator becomes its admin). The backend drops any
+ *  `description` (D-C2) and defaults an unknown/blank status to "planned". */
+@Serializable
+data class CreateProgramRequest(
+    val name: String,
+    val status: String,
+    @SerialName("start_date") val startDate: String? = null,
+    @SerialName("end_date") val endDate: String? = null,
+)
+
+/** POST /programs response — the new program's id + a success message (we reload the list after). */
+@Serializable
+data class CreateProgramResponse(val id: String? = null, val message: String? = null)
+
 /** PUT /programs/order — the full display order (invited/requested rows included). */
 @Serializable
 data class ProgramOrderRequest(@SerialName("program_ids") val programIds: List<String>)

@@ -175,6 +175,8 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
         )
     }
 
+    var actionError by remember { mutableStateOf<String?>(null) }
+
     editItem?.let { item ->
         WorkoutEditSheet(
             item = item,
@@ -186,6 +188,7 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                         memberName = if (other) memberName else null,
                         workoutName = item.workoutType, date = item.workoutDate, durationMinutes = minutes,
                     ).onSuccess { editItem = null; reload() }
+                        .onFailure { actionError = it.message ?: "Couldn't update the workout." }
                 }
             },
         )
@@ -199,11 +202,22 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             confirmButton = {
                 TextButton(onClick = {
                     scope.launch {
-                        programContext.deleteWorkoutLog(memberId, null, item.workoutType, item.workoutDate).onSuccess { deleteItem = null; reload() }
+                        programContext.deleteWorkoutLog(memberId, null, item.workoutType, item.workoutDate)
+                            .onSuccess { deleteItem = null; reload() }
+                            .onFailure { deleteItem = null; actionError = it.message ?: "Couldn't delete the workout." }
                     }
                 }) { Text("Delete", color = AppRed) }
             },
             dismissButton = { TextButton(onClick = { deleteItem = null }) { Text("Cancel") } },
+        )
+    }
+
+    actionError?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { actionError = null },
+            confirmButton = { TextButton(onClick = { actionError = null }) { Text("OK") } },
+            title = { Text("Something went wrong") },
+            text = { Text(msg) },
         )
     }
 }

@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.AppLinks
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.theme.AppOrange
+import com.app.rasifiters.ui.Routes
 
 /** Icon-badge accent for the health row (the HealthKit heart analog). */
 private val HealthRed = Color(0xFFE0554E)
@@ -52,15 +53,17 @@ private val AppearancePurple = Color(0xFF8B7CF6)
 
 /**
  * The inline account sheet reached from the picker header avatar — the Android analog of the iOS
- * `AccountMenuSheet`. Profile + Change Password / Appearance / Notifications / Health Connect rows are
- * DEFERRED forward-nav (land in Phase G/H) and currently just dismiss the sheet; Privacy Policy / Support
- * open external links; Sign Out asks for confirmation via [onSignOut]. Mirrors iOS §4 `AccountMenuSheet`.
+ * `AccountMenuSheet`. Profile + Change Password / Appearance / Notifications rows push their settings
+ * screens (via [onNavigate], reusing the Program-tab destinations); Privacy Policy / Support open external
+ * links; Sign Out asks for confirmation via [onSignOut]. Health Connect stays deferred (not built on
+ * Android yet — Phase H/J). Mirrors iOS §4 `AccountMenuSheet`.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountMenuSheet(
     programContext: ProgramContext,
     onDismiss: () -> Unit,
+    onNavigate: (String) -> Unit,
     onSignOut: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -92,17 +95,18 @@ fun AccountMenuSheet(
             }
             Spacer(Modifier.height(4.dp))
 
-            // Profile row (initials avatar) — DEFERRED destination
+            // Profile row (initials avatar) → My Profile
             ProfileRow(
                 name = name ?: "Your Profile",
                 username = username,
-                onClick = onDismiss,
+                onClick = { onNavigate(Routes.PROGRAM_PROFILE) },
             )
 
-            AccountRow(Icons.Filled.Lock, AppOrange, "Change Password", "Update your account password", onDismiss)
-            AccountRow(Icons.Filled.Palette, AppearancePurple, "Appearance", "Choose light or dark mode", onDismiss)
-            AccountRow(Icons.Filled.Notifications, AppOrange, "Notifications", "Manage push notifications", onDismiss)
-            AccountRow(Icons.Filled.Favorite, HealthRed, "Health Connect", "Sync workouts automatically", onDismiss)
+            AccountRow(Icons.Filled.Lock, AppOrange, "Change Password", "Update your account password") { onNavigate(Routes.PROGRAM_PASSWORD) }
+            AccountRow(Icons.Filled.Palette, AppearancePurple, "Appearance", "Choose light or dark mode") { onNavigate(Routes.PROGRAM_APPEARANCE) }
+            AccountRow(Icons.Filled.Notifications, AppOrange, "Notifications", "Manage push notifications") { onNavigate(Routes.PROGRAM_NOTIFICATIONS) }
+            // Health Connect is deferred (not built on Android yet — Phase H/J). Omitted here to match the
+            // Program-tab account section rather than show a dead row.
             AccountRow(Icons.Filled.Description, AppOrange, "Privacy Policy", "Learn how we handle your data") {
                 uriHandler.openUri(AppLinks.privacyPolicyUri.toString())
             }
