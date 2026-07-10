@@ -246,11 +246,11 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ TWO STORE PUSHES, EACH ITS OWN NEW SESSION (app is feature-complete on all 4 surfaces; backend + web live; auth v0.9.0 link/unlink user-verified on all 3 platforms 2026-07-10).
+> ### ⏭️ ONE STORE PUSH REMAINING (app is feature-complete on all 4 surfaces; backend + web live; auth v0.9.0 link/unlink user-verified on all 3 platforms 2026-07-10).
 >
-> **Session A — iOS TestFlight.** Archive `apps/ios` (Xcode build is also the authoritative iOS compile of the v0.8.0+v0.9.0 code), bump `CURRENT_PROJECT_VERSION` 48→49 (**same** MARKETING_VERSION → instant beta, no review — memory `testflight-versioning-convention`) → upload → TestFlight. The new binary carries federated sign-in (v0.8.0) + account-settings linking (v0.9.0). Update `RELEASES.md` + memory `release-channel-ledger` when it ships.
+> **Session A — iOS TestFlight — ✅ DONE 2026-07-10.** Archived `apps/ios`, bumped `CURRENT_PROJECT_VERSION` 48→49 (same MARKETING_VERSION 1.3.1), uploaded → **1.3.1 (49) is live on TestFlight** (Beta Testers + Internal, status Testing). First binary carrying federated sign-in (v0.8.0) + account-settings linking (v0.9.0). `RELEASES.md` updated.
 >
-> **Session B — first Android release (dev verification now APPROVED).** Generate a signed AAB in Android Studio → Play Console **internal testing** (the Compose port has been code-complete since Phase J). **Also add the release-keystore SHA-1 to the Google Android OAuth client** (Google Cloud console) or Continue-with-Google fails on the release build. Update `RELEASES.md` when it lands on Play internal.
+> **Session B — first Android release (dev verification now APPROVED) — NEXT.** Generate a signed AAB in Android Studio → Play Console **internal testing** (the Compose port has been code-complete since Phase J). **Also add the release-keystore SHA-1 to the Google Android OAuth client** (Google Cloud console) or Continue-with-Google fails on the release build. Update `RELEASES.md` when it lands on Play internal.
 >
 > _(Below: the prior Android-port next-step, now folded into Session B above.)_
 
