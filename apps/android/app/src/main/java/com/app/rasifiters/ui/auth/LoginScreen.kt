@@ -6,7 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -88,6 +91,34 @@ fun LoginScreen(
                     loading = false
                 }
             },
+        )
+
+        Spacer(Modifier.height(20.dp))
+        // "or" divider + social sign-in (Continue with Google). A needs-profile success routes to the
+        // create-account wizard's social branch; an existing-member success flips the root gate automatically.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.widthIn(max = 260.dp).fillMaxWidth(),
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+            Text(
+                "or",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                modifier = Modifier.padding(horizontal = 12.dp),
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+        }
+        Spacer(Modifier.height(16.dp))
+        GoogleSignInButton(
+            onIdToken = { idToken ->
+                scope.launch {
+                    programContext.socialSignIn(idToken)
+                        .onSuccess { needsProfile -> if (needsProfile) onCreateAccount() }
+                        .onFailure { errorMessage = it.message ?: "Sign-in failed" }
+                }
+            },
+            onError = { errorMessage = it },
         )
 
         Spacer(Modifier.height(16.dp))

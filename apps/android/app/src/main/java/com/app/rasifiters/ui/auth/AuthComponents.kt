@@ -143,15 +143,18 @@ fun AppTextField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    enabled: Boolean = true,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val textColor = if (enabled) scheme.onSurface else scheme.onSurface.copy(alpha = 0.5f)
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth().height(FieldHeight),
         singleLine = true,
-        textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
+        textStyle = MaterialTheme.typography.bodyLarge.copy(color = textColor),
         cursorBrush = SolidColor(AppOrange),
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         visualTransformation = visualTransformation,
@@ -342,5 +345,23 @@ fun PolicyRow(label: String, satisfied: Boolean) {
             color = if (satisfied) MaterialTheme.colorScheme.onSurface
             else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
+    }
+}
+
+/** The wizard's step indicator — a row of filled (current) / empty dots for the multi-page sign-up flow. */
+@Composable
+fun StepDots(current: Int, total: Int) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        repeat(total) { index ->
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (index == current) AppOrange
+                        else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f),
+                    ),
+            )
+        }
     }
 }
