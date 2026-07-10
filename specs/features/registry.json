@@ -256,7 +256,7 @@
       }
     },
     "analytics": {
-      "version": "0.3.0",
+      "version": "0.3.1",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "built",
       "consumed_by": [

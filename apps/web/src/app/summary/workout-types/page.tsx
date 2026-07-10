@@ -1,8 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchWorkoutTypes } from "@/lib/api/summary";
+import { workoutTypeColor } from "@/lib/workout-colors";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,7 +12,6 @@ import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { formatTotalDuration } from "@/lib/format";
 import {
-  CHART_COLORS,
   CHART_TOOLTIP_CONTENT_STYLE,
   CHART_TOOLTIP_LABEL_STYLE,
   CHART_GRID_PROPS
@@ -61,7 +61,11 @@ export default function WorkoutTypesPage() {
                         labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                         formatter={(value: number) => [formatTotalDuration(value), "Total time"]}
                       />
-                      <Bar dataKey="total_duration" fill={CHART_COLORS[0]} radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="total_duration" radius={[8, 8, 0, 0]}>
+                        {data.map((type) => (
+                          <Cell key={type.workout_name} fill={workoutTypeColor(type.workout_name)} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -69,7 +73,13 @@ export default function WorkoutTypesPage() {
                 <ul className="mt-6 space-y-2 text-sm">
                   {data.map((type) => (
                     <li key={type.workout_name} className="flex items-center justify-between">
-                      <span className="font-semibold text-rf-text">{type.workout_name}</span>
+                      <span className="flex items-center gap-2 font-semibold text-rf-text">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: workoutTypeColor(type.workout_name) }}
+                        />
+                        {type.workout_name}
+                      </span>
                       <span className="text-rf-text-muted">
                         {formatTotalDuration(type.total_duration)} · {type.sessions} sessions
                       </span>

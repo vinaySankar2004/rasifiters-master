@@ -26,6 +26,7 @@ import {
 } from "@/lib/api/logs";
 import { ApiError } from "@/lib/api/client";
 import { formatTotalDuration } from "@/lib/format";
+import { workoutTypeColor } from "@/lib/workout-colors";
 import { LogWorkoutsForm } from "@/components/forms/LogWorkoutsForm";
 import { LogDailyHealthForm } from "@/components/forms/LogDailyHealthForm";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
@@ -546,7 +547,13 @@ function WorkoutTypesCard({ types, onClick }: { types: WorkoutType[]; onClick: (
         <ul className="mt-4 space-y-2 text-sm">
           {types.map((type) => (
             <li key={type.workout_name} className="flex items-center justify-between">
-              <span className="font-semibold text-rf-text">{type.workout_name}</span>
+              <span className="flex items-center gap-2 font-semibold text-rf-text">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: workoutTypeColor(type.workout_name) }}
+                />
+                {type.workout_name}
+              </span>
               <span className="text-rf-text-muted">{formatTotalDuration(type.total_duration)}</span>
             </li>
           ))}
