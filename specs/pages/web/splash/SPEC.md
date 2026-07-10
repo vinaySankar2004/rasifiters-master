@@ -1,7 +1,9 @@
 # Page: `splash` (web) — the public entry / welcome screen
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
-> **Route:** `/splash` (the root `/` redirects here — `src/app/page.tsx`).
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
+> **Route:** `/splash`. As of v0.2.1 the root `/` serves the **marketing landing page**
+> (`src/components/landing/`), not this screen; `/splash` is **retained but unlinked** (reachable by
+> direct URL only), so its typewriter intro is preserved, just no longer the default entry.
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/splash/page.tsx` (+ `components/BrandMark.tsx`).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) (the foundation `useAuth` context —
 > `session` + `isBootstrapping`; no API call).
@@ -14,8 +16,9 @@
 
 ## 1. What it is + who uses it
 
-The **public welcome screen** — the first thing an unauthenticated visitor sees (the root `/` redirects to
-`/splash`). It plays a short typewriter intro, shows the RaSi Fiters brand logo, and reveals a single **"Sign
+The **public welcome screen**. Historically the first thing an unauthenticated visitor saw (the root `/`
+redirected here); as of v0.2.1 the root `/` serves the marketing landing page instead and this screen is
+kept but unlinked (direct-URL only). It plays a short typewriter intro, shows the RaSi Fiters brand logo, and reveals a single **"Sign
 in"** call-to-action that routes to `/login`. Used by **everyone pre-auth**; an already-authenticated visitor
 is immediately redirected away to `/programs` and never sees it.
 
@@ -28,7 +31,8 @@ of the public/auth path (splash → login → create-account) that proves auth e
 ## 3. Route / location
 
 - **App:** `web`. **Route:** `/splash`. **Public** (no auth required; not in the `middleware.ts` matcher).
-- **Reached via:** the root route `/` (`src/app/page.tsx` → `redirect("/splash")`), or directly.
+- **Reached via:** direct URL only (as of v0.2.1). The root route `/` no longer redirects here — it
+  renders the marketing landing page (`src/app/page.tsx` → `Landing`). Previously `/` → `redirect("/splash")`.
 - **Leaves to:** `/login` (the Sign-in CTA) · `/programs` (auto-redirect when a session already exists).
 
 ## 4. Contents / sections
@@ -108,5 +112,6 @@ role-adjacent behavior is uniform across **every** role:
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-07-09 | **Root route repointed off splash.** `/` now serves the new web **marketing landing page** (`src/components/landing/`, rendered by `src/app/page.tsx`); the splash screen is **retained but unlinked** (direct-URL only), so its behavior is unchanged but it is no longer the default entry. Doc-accuracy patch — no change to `splash/page.tsx` itself. `src/app/page.tsx`; `src/app/shell.tsx` (bare passthrough for `/`). |
 | 0.2.0 | 2026-06-30 | **Tap-to-skip the intro (D-SKIP).** Clicking anywhere on the splash now instantly fast-forwards the typewriter to its final state (both sentences + Sign-in CTA) via a `skipRef` guard + `skip()` handler on the root container; no-op once the CTA shows so the Sign-in link still navigates. A deliberate cross-app addition (not in the legacy reference), mirrored on iOS. `apps/web/src/app/splash/page.tsx`. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` — the **first web page spec**. Documents the public `splash` welcome screen (root `/` → `/splash`): typewriter intro, `BrandMark` logo, Sign-in CTA → `/login`, authenticated→`/programs` redirect. Consumes only `auth` (foundation `useAuth`); no API. Decisions: **D-REF** (`consumed_by = [web]`; iOS `SplashView` divergence — placeholder icon + no redirect; web keeps the real logo, iOS placeholder flagged as a defect) · **D-S1** (faithful 1:1, no code changes). Flagged F1–F4 (web-only auth redirect; no loading gate / splash flash; **iOS placeholder = defect to fix on the iOS port**; type-speed divergence). Role rules N/A (public/pre-auth). Ported `src/app/splash/page.tsx` + `src/components/BrandMark.tsx`. |

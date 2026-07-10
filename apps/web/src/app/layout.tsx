@@ -25,10 +25,17 @@ export const viewport: Viewport = {
   ]
 };
 
+const TITLE = "RaSi Fiters: Fitness programs, tracked together";
+const DESCRIPTION =
+  "Join a fitness program, log workouts and daily health, and track your whole group's progress with leaderboards, streaks and analytics. On iPhone, Android and the web.";
+
 export const metadata: Metadata = {
   metadataBase,
-  title: "RaSi Fiters",
-  description: "RaSi Fiters web app",
+  title: {
+    default: TITLE,
+    template: "%s · RaSi Fiters"
+  },
+  description: DESCRIPTION,
   applicationName: "RaSi Fiters",
   icons: {
     icon: [
@@ -43,15 +50,15 @@ export const metadata: Metadata = {
     locale: "en",
     url: metadataBase.origin,
     siteName: "RaSi Fiters",
-    title: "RaSi Fiters",
-    description: "RaSi Fiters web app",
-    images: [{ url: "/brand/app-icon.png", width: 512, height: 512, alt: "RaSi Fiters" }]
+    title: TITLE,
+    description: DESCRIPTION,
+    images: [{ url: "/marketing/og-image.png", width: 1200, height: 630, alt: "RaSi Fiters, fitness programs tracked together" }]
   },
   twitter: {
     card: "summary_large_image",
-    title: "RaSi Fiters",
-    description: "RaSi Fiters web app",
-    images: ["/brand/app-icon.png"]
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/marketing/og-image.png"]
   },
   robots: {
     index: true,

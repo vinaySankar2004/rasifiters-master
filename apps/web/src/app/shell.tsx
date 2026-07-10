@@ -16,6 +16,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     body.style.overflow = "";
   }, [pathname]);
 
+  // The public landing page (`/`) owns its own full-bleed layout — skip the app-bg
+  // chrome, glow orbs, bottom nav and NotificationsGate entirely.
+  if (pathname === "/") {
+    return <>{children}</>;
+  }
+
   return (
     <div className="app-bg">
       <div
