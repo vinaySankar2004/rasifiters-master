@@ -286,6 +286,122 @@ async function exchangeGoogleAuthCode(code) {
     return body.id_token;
 }
 
+// ---- NET-NEW (SPEC v0.9.0 / D-C10): auth phase-2 — link/unlink provider identities in account settings.
+// R1-preserving: the CLIENT obtains the provider token exactly like /oauth (native id_token, or a web Google
+// auth `code`) and POSTs to these AUTHENTICATED routes. Linking uses GoTrue's session-bound
+// linkIdentityIdToken (POST /token?grant_type=id_token&link_identity=true) to attach the identity to the
+// member's EXISTING auth user — NO same-email auto-link toggle, so /oauth's D-C8 409 stays intact. Unlink
+// and link both bind an ephemeral client to the caller's OWN session; both require Supabase "Manual linking".
+const providerLabel = (p) => (p === "google" ? "Google" : p === "apple" ? "Apple" : "Email");
+
+// Normalized identity view for the clients. GoTrue exposes each sign-in method as an identity row; the
+// email/password credential is the "email" provider. has_password is derived robustly (identity row and/or
+// app_metadata.providers) so it stays consistent across GoTrue versions.
+function buildIdentitiesResponse(user, opts = {}) {
+    const rawIdentities = user?.identities || [];
+    const providers = user?.app_metadata?.providers || [];
+    const identities = rawIdentities.map((i) => ({
+        provider: i.provider,
+        email: i.identity_data?.email || null
+    }));
+    const hasPassword =
+        opts.forcePassword === true ||
+        identities.some((i) => i.provider === "email") ||
+        providers.includes("email");
+    return { identities, has_password: hasPassword };
+}
+
+async function getAuthUser(memberId) {
+    const member = await Member.findByPk(memberId);
+    if (!member || !member.auth_user_id) throw new AppError(404, "Account not found.");
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(member.auth_user_id);
+    if (error || !data?.user) throw new AppError(404, "Account not found.");
+    return { member, user: data.user };
+}
+
+async function listIdentities(memberId) {
+    const { user } = await getAuthUser(memberId);
+    return buildIdentitiesResponse(user);
+}
+
+async function linkProvider(memberId, { provider, id_token, nonce, code, accessToken, refreshToken }) {
+    const allowed = ["google", "apple"];
+    if (!provider || !allowed.includes(provider)) throw new AppError(400, "Unsupported provider.");
+    if (!accessToken || !refreshToken) throw new AppError(400, "Session required to link an account.");
+
+    // WEB sends a one-time Google auth `code` (custom-button flow) → exchange for an id_token here.
+    if (!id_token && code) {
+        if (provider !== "google") throw new AppError(400, "Auth-code exchange is Google-only.");
+        id_token = await exchangeGoogleAuthCode(code);
+    }
+    if (!id_token) throw new AppError(400, "Missing provider token.");
+
+    const { member } = await getAuthUser(memberId);
+
+    // Bind an EPHEMERAL client to the caller's OWN session, then link the id_token identity onto that user.
+    const client = makeEphemeralAuthClient();
+    const { error: sessErr } = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    if (sessErr) throw new AppError(401, "Session expired. Sign in again to manage linked accounts.");
+
+    const { error: linkErr } = await client.auth.linkIdentity({
+        provider, token: id_token, ...(nonce ? { nonce } : {})
+    });
+    if (linkErr) {
+        console.error("[linkProvider] provider=%s rejected — code=%s status=%s msg=%s",
+            provider, linkErr.code, linkErr.status, linkErr.message);
+        const msg = (linkErr.message || "").toLowerCase();
+        if (msg.includes("already") || msg.includes("exists") || linkErr.status === 422) {
+            throw new AppError(409, `That ${providerLabel(provider)} account is already linked to a different account.`);
+        }
+        if (msg.includes("manual linking") || msg.includes("not enabled") || msg.includes("disabled")) {
+            throw new AppError(400, "Account linking is not available right now.");
+        }
+        throw new AppError(401, linkErr.message ? `Link failed: ${linkErr.message}` : "Could not link that account.");
+    }
+
+    const { data: refreshed } = await supabaseAdmin.auth.admin.getUserById(member.auth_user_id);
+    return { message: `${providerLabel(provider)} account linked.`, ...buildIdentitiesResponse(refreshed?.user) };
+}
+
+async function unlinkProvider(memberId, { provider, accessToken, refreshToken }) {
+    const allowed = ["google", "apple"];
+    if (!provider || !allowed.includes(provider)) throw new AppError(400, "Unsupported provider.");
+    if (!accessToken || !refreshToken) throw new AppError(400, "Session required to unlink.");
+
+    const { member, user } = await getAuthUser(memberId);
+    const identities = user.identities || [];
+    const target = identities.find((i) => i.provider === provider);
+    if (!target) throw new AppError(400, `No ${providerLabel(provider)} account is linked.`);
+
+    // Guard: never strip the member's last usable sign-in method. Password counts once (whether or not GoTrue
+    // materialized an "email" identity row); federated identities count individually.
+    const federatedCount = identities.filter((i) => i.provider !== "email").length;
+    const hasPassword = buildIdentitiesResponse(user).has_password;
+    const remaining = (federatedCount - 1) + (hasPassword ? 1 : 0);
+    if (remaining < 1) throw new AppError(400, "You can't remove your only sign-in method.");
+
+    const client = makeEphemeralAuthClient();
+    const { error: sessErr } = await client.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+    if (sessErr) throw new AppError(401, "Session expired. Sign in again to manage linked accounts.");
+    const { error: unlinkErr } = await client.auth.unlinkIdentity(target);
+    if (unlinkErr) throw new AppError(400, unlinkErr.message || "Could not unlink that account.");
+
+    const { data: refreshed } = await supabaseAdmin.auth.admin.getUserById(member.auth_user_id);
+    return { message: `${providerLabel(provider)} account unlinked.`, ...buildIdentitiesResponse(refreshed?.user) };
+}
+
+async function setPassword(memberId, newPassword) {
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) throw new AppError(400, passwordError);
+    const { member } = await getAuthUser(memberId);
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(member.auth_user_id, { password: newPassword });
+    if (error) throw new AppError(400, "Could not set password.");
+    const { data: refreshed } = await supabaseAdmin.auth.admin.getUserById(member.auth_user_id);
+    // Authoritative: we just set the password, so has_password is true regardless of whether GoTrue surfaced
+    // an "email" identity row (login via signInWithPassword works on encrypted_password directly).
+    return { message: "Password set successfully.", ...buildIdentitiesResponse(refreshed?.user, { forcePassword: true }) };
+}
+
 async function socialSignIn({ provider, id_token, nonce, first_name, last_name, code }, options = {}) {
     const allowed = ["google", "apple"];
     if (!provider || !allowed.includes(provider)) throw new AppError(400, "Unsupported provider.");
@@ -596,6 +712,10 @@ module.exports = {
     register,
     socialSignIn,
     completeSocialRegistration,
+    listIdentities,
+    linkProvider,
+    unlinkProvider,
+    setPassword,
     changePassword,
     changeEmail,
     requestPasswordReset,

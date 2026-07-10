@@ -131,6 +131,59 @@ router.post("/oauth/complete", async (req, res) => {
     }
 });
 
+// NET-NEW (SPEC v0.9.0 / D-C10) — auth phase-2: manage the signed-in member's linked sign-in identities.
+// All authenticated + additive: the LIVE iOS 1.3.1/46 + live Android never call these → degrade gracefully.
+// link/unlink bind the caller's own Supabase session server-side, so the client sends its refresh_token.
+router.get("/identities", authenticateToken, async (req, res) => {
+    try {
+        res.json(await authService.listIdentities(req.user.id));
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[identities] error:", err);
+        res.status(500).json({ error: "Server error while reading sign-in methods." });
+    }
+});
+
+router.post("/link", authenticateToken, async (req, res) => {
+    try {
+        const authz = req.headers.authorization || "";
+        const accessToken = authz.startsWith("Bearer ") ? authz.slice(7) : null;
+        const { provider, id_token, code, nonce, refresh_token } = req.body;
+        res.json(await authService.linkProvider(req.user.id, {
+            provider, id_token, code, nonce, accessToken, refreshToken: refresh_token
+        }));
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[link] error:", err);
+        res.status(500).json({ error: "Server error while linking account." });
+    }
+});
+
+router.post("/unlink", authenticateToken, async (req, res) => {
+    try {
+        const authz = req.headers.authorization || "";
+        const accessToken = authz.startsWith("Bearer ") ? authz.slice(7) : null;
+        const { provider, refresh_token } = req.body;
+        res.json(await authService.unlinkProvider(req.user.id, {
+            provider, accessToken, refreshToken: refresh_token
+        }));
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[unlink] error:", err);
+        res.status(500).json({ error: "Server error while unlinking account." });
+    }
+});
+
+router.post("/set-password", authenticateToken, async (req, res) => {
+    try {
+        res.json(await authService.setPassword(req.user.id, req.body.new_password));
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[set-password] error:", err);
+        res.status(500).json({ error: "Server error while setting password." });
+    }
+});
+
 // NET-NEW (SPEC v0.3.0 / D-C4) — self-service password recovery, request step. Public, privacy-safe:
 // always 200 with a generic message (no account-enumeration). Pairs with POST /reset-password (next run).
 router.post("/forgot-password", async (req, res) => {
