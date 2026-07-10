@@ -31,8 +31,8 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | App Store (public) | 1.3.0 (40) | Ready for Distribution (live) | — | current public release; oldest live binary the backend must stay compatible with |
-| TestFlight — external ("Beta Testers") | 1.3.1 (47) | Testing | 2026-07-09 | 6 testers; the build in active beta use |
-| TestFlight — internal ("Internal") | 1.3.1 (47) | Testing | 2026-07-09 | same build |
+| TestFlight — external ("Beta Testers") | 1.3.1 (48) | Testing | 2026-07-09 | 6 testers; the only build in active beta use (supersedes 47) |
+| TestFlight — internal ("Internal") | 1.3.1 (48) | Testing | 2026-07-09 | same build |
 
 ### Android
 
@@ -45,5 +45,6 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
-| 2026-07-09 | iOS | 1.3.1 (47) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers) |
+| 2026-07-09 | iOS | 1.3.1 (48) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers; sole live beta) |
+| 2026-07-09 | iOS | 1.3.1 (47) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Superseded by (48) |
 | (predates ledger) | iOS | 1.3.0 (40) | App Store | released to public | Ready for Distribution (live) |
