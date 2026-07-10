@@ -206,6 +206,38 @@ export default function ProgramsPage() {
   }, [orderedPrograms, search, searchActive]);
   const canReorder = !searchActive && visiblePrograms.length > 1;
 
+  const renderSearchButton = () => (
+    <button
+      type="button"
+      onClick={() => {
+        setSearchOpen((open) => {
+          if (open) setSearch("");
+          return !open;
+        });
+      }}
+      className="fab-button flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
+      aria-label={searchOpen ? "Close search" : "Search programs"}
+    >
+      <SearchIcon className="h-5 w-5" />
+    </button>
+  );
+
+  const renderAddButton = () => (
+    <button
+      type="button"
+      onClick={() => setShowActions(true)}
+      className="fab-button relative flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
+      aria-label="Program actions"
+    >
+      <span className="text-xl font-semibold">+</span>
+      {pendingInvitesCount > 0 && (
+        <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rf-danger px-1 text-[11px] font-semibold text-white">
+          {pendingInvitesCount}
+        </span>
+      )}
+    </button>
+  );
+
   return (
     <>
       <PageShell>
@@ -217,19 +249,8 @@ export default function ProgramsPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setSearchOpen((open) => {
-                  if (open) setSearch("");
-                  return !open;
-                });
-              }}
-              className="fab-button flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
-              aria-label={searchOpen ? "Close search" : "Search programs"}
-            >
-              <SearchIcon className="h-5 w-5" />
-            </button>
+            {/* Search + add live in the header on desktop; on mobile they float bottom-right (iOS parity) */}
+            <div className="hidden sm:block">{renderSearchButton()}</div>
             <button
               type="button"
               onClick={() => setShowAccount(true)}
@@ -238,19 +259,7 @@ export default function ProgramsPage() {
             >
               <IconUser className="h-5 w-5" />
             </button>
-            <button
-              type="button"
-              onClick={() => setShowActions(true)}
-              className="fab-button relative flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
-              aria-label="Program actions"
-            >
-              <span className="text-xl font-semibold">+</span>
-              {pendingInvitesCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rf-danger px-1 text-[11px] font-semibold text-white">
-                  {pendingInvitesCount}
-                </span>
-              )}
-            </button>
+            <div className="hidden sm:block">{renderAddButton()}</div>
           </div>
         </header>
 
@@ -283,7 +292,7 @@ export default function ProgramsPage() {
           <p className="text-sm font-semibold text-rf-danger">{orderError}</p>
         )}
 
-        <section className="space-y-6">
+        <section className="space-y-6 pb-28 sm:pb-0">
           {programsQuery.isLoading && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center text-rf-text-muted">
               Loading programs…
@@ -349,10 +358,16 @@ export default function ProgramsPage() {
             })}
           </Reorder.Group>
         </section>
+
+        {/* Mobile-only floating action stack (iOS parity): search above add, bottom-right */}
+        <div className="fixed z-40 flex flex-col items-center gap-3 bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(1.5rem,env(safe-area-inset-right))] sm:hidden">
+          {renderSearchButton()}
+          {renderAddButton()}
+        </div>
       </PageShell>
 
       <Modal open={showActions} onClose={() => setShowActions(false)}>
-        <div className="modal-surface flex w-full max-w-2xl max-h-[90vh] flex-col overflow-hidden rounded-3xl p-6">
+        <div className="modal-surface flex w-full max-w-2xl max-h-[90dvh] flex-col overflow-hidden rounded-3xl p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-rf-text">Program Actions</h2>
             <button
@@ -1001,22 +1016,22 @@ function CreateProgramTab({
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div>
+        <div className="min-w-0">
           <label className="text-sm font-semibold text-rf-text">Start date</label>
           <input
             type="date"
             value={startDate}
             onChange={(event) => setStartDate(event.target.value)}
-            className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+            className="input-shell mt-2 w-full min-w-0 rounded-2xl px-4 py-3 text-sm font-medium"
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="text-sm font-semibold text-rf-text">End date</label>
           <input
             type="date"
             value={endDate}
             onChange={(event) => setEndDate(event.target.value)}
-            className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+            className="input-shell mt-2 w-full min-w-0 rounded-2xl px-4 py-3 text-sm font-medium"
           />
         </div>
       </div>
@@ -1091,22 +1106,22 @@ function EditProgramModal({
       />
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <div>
+          <div className="min-w-0">
             <label className="text-sm font-semibold text-rf-text">Start date</label>
             <input
               type="date"
               value={startDate ?? ""}
               onChange={(event) => setStartDate(event.target.value)}
-              className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+              className="input-shell mt-2 w-full min-w-0 rounded-2xl px-4 py-3 text-sm font-medium"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="text-sm font-semibold text-rf-text">End date</label>
             <input
               type="date"
               value={endDate ?? ""}
               onChange={(event) => setEndDate(event.target.value)}
-              className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
+              className="input-shell mt-2 w-full min-w-0 rounded-2xl px-4 py-3 text-sm font-medium"
             />
           </div>
         </div>
