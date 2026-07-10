@@ -1,6 +1,6 @@
 # Feature: `member-analytics` — per-member analytics (metrics · history · streaks · recent)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.3.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/memberAnalytics.js` (the 4 routers),
 > `services/memberAnalyticsService.js` (the 4 fns + helpers), `services/analyticsService.js` (re-export the 3
 > shared timeline helpers it imports — D-C2), `server.js` (the 4 `/api/member-*` mounts).

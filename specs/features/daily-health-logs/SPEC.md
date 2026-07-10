@@ -1,6 +1,6 @@
 # Feature: `daily-health-logs` — logging daily sleep + diet + steps (CRUD + batch)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/logs.js` (the **`dailyHealthLogRouter`** half — the
 > file is shared with `workout-logs`, §7/D-C1), `services/logService.js` (the **daily-health** functions +
 > the daily-health-only `parseOptionalNumber` helper), `models/DailyHealthLog.js`, `server.js`

@@ -1,6 +1,6 @@
 # Feature: `workout-logs` — logging workouts (single, batch, edit, delete)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.5.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.5.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/logs.js` (the **`workoutLogRouter`** half only — the
 > file is shared with `daily-health-logs`, §7/D-C1), `services/logService.js` (the **workout-log** functions
 > + the shared log helpers), `models/WorkoutLog.js`, `server.js` (`/api/workout-logs` mount).

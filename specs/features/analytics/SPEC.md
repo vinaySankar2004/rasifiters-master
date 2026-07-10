@@ -1,6 +1,6 @@
 # Feature: `analytics` (v1) — program-level read aggregations
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.3.2 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v1Router`** half only — the
 > file is shared with `analytics-v2`, §7/D-C1), `services/analyticsService.js` (the **v1** functions + the
 > shared date/bucket helpers), `utils/dateRange.js` + `utils/queryHelpers.js` (analytics-only helpers),
