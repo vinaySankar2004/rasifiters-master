@@ -299,3 +299,19 @@ specific "list navigator issues" tool must be called after the build tool.
   `$(CURRENT_PROJECT_VERSION)`), full rebuild green (~19s).
 - **Lesson:** a "pre-TestFlight check" is compile + versioning — always compare the current build number
   against the last-shipped one (`git log -S "CURRENT_PROJECT_VERSION = <n>"`) before handing off.
+
+## Run — auth v0.8.0 custom federated buttons (2026-07-10)
+- **Change:** GoogleSignIn-iOS SPM package + Sign in with Apple capability (user-added in Xcode); custom
+  dark-pill Google + Apple buttons; native `SignInWithAppleButton` replaced by a standalone
+  `AppleSignInCoordinator` (`ASAuthorizationController` delegate, self-retained during the flow); new
+  `GoogleG.imageset` SVG asset. `ProgramContext+Auth.swift` / `LoginView.swift` / `CreateAccountView.swift`.
+- **MCP absent this session** → used the run-75 CLI fallback (`-destination 'generic/platform=iOS'
+  CODE_SIGNING_ALLOWED=NO`). **BUILD SUCCEEDED, 0 errors** (~after cached package resolution).
+- **Gotcha (new):** `xcodebuild … -resolvePackageDependencies build` **resolves ONLY** — the
+  `-resolvePackageDependencies` flag suppresses the `build` action (log ends at "Resolved source packages",
+  exit 0, no `** BUILD SUCCEEDED **`). Use it once to fetch a newly-added SPM package, then run a SEPARATE
+  plain `… build` to actually compile. Gate on the `** BUILD SUCCEEDED **` marker, not just exit 0.
+- **SPM version drift is fine:** implementer coded against "GoogleSignIn 7.x" but SPM resolved **9.2.0**;
+  the async `GIDSignIn.sharedInstance.signIn(withPresenting:)` + `result.user.idToken?.tokenString` surface
+  is unchanged across 7→9, compiled clean. A custom (non-`SignInWithAppleButton`) SIWA flow via
+  `ASAuthorizationController` with a self-retained coordinator compiles with no project.pbxproj edits.

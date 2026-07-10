@@ -80,6 +80,11 @@ The user owns the visual/runtime confirmation in the simulator.
   -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` compiles clean — the **device**
   destination sidesteps the CoreSimulator/actool quirk (it's simulator-runtime-specific). No reboot needed.
   Gate on exit code + `BUILD SUCCEEDED`; run in background (~2–4 min, slower than the MCP's incremental).
+  **Gotcha (run auth-v0.8.0):** `-resolvePackageDependencies build` together **resolves ONLY** (the flag
+  suppresses the build action → log ends at "Resolved source packages", exit 0, NO `** BUILD SUCCEEDED **`).
+  For a newly-added SPM package, resolve once, then run a SEPARATE plain `… build`. Gate on the
+  `** BUILD SUCCEEDED **` marker, not exit 0 alone. (SPM version drift is fine — code written for GoogleSignIn
+  7.x compiled clean against the 9.2.0 the graph resolved.)
 - **New `.swift` files** added under the `apps/ios` synchronized folder group are picked up by the open
   Xcode automatically — `BuildProject` compiled a brand-new file (BulkAddWorkoutDetailView.swift) with no
   manual project.pbxproj edit needed.
