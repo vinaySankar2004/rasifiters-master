@@ -45,6 +45,18 @@ services:
       # is on Vercel this is a forward dependency; unset → Supabase falls back to its Site URL.
       - key: PASSWORD_RESET_REDIRECT_URL
         value: https://rasifiters.com/reset-password
+      # --- Federated sign-in (auth SPEC v0.7.0 / D-C8) — Google + Apple provider client IDs. NON-SECRET.
+      # Audience validation is enforced by Supabase inside signInWithIdToken (the providers are configured
+      # in the Supabase Dashboard with these same IDs); the backend does NOT re-check them. Fill with the
+      # real Google Cloud OAuth client IDs + Apple Services ID.
+      - key: GOOGLE_WEB_CLIENT_ID
+        value: REPLACE_WITH_GOOGLE_WEB_CLIENT_ID
+      - key: GOOGLE_IOS_CLIENT_ID
+        value: REPLACE_WITH_GOOGLE_IOS_CLIENT_ID
+      - key: GOOGLE_ANDROID_CLIENT_ID
+        value: REPLACE_WITH_GOOGLE_ANDROID_CLIENT_ID
+      - key: APPLE_SERVICES_ID
+        value: REPLACE_WITH_APPLE_SERVICES_ID
       # SUPABASE_JWKS_URL / SUPABASE_JWT_ISS intentionally unset — they default off SUPABASE_URL
       # (${SUPABASE_URL}/auth/v1/.well-known/jwks.json) per auth SPEC D-C2. The project's JWT signing
       # keys are already migrated to asymmetric ES256 (verified live), so JWKS verify finds a key.

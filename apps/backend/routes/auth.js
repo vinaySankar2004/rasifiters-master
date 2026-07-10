@@ -2,6 +2,7 @@ const express = require("express");
 const { authenticateToken } = require("../middleware/auth");
 const authService = require("../services/authService");
 const { AppError } = require("../utils/response");
+const { verifySupabaseJwt } = require("../config/supabase");
 
 const router = express.Router();
 
@@ -80,6 +81,53 @@ router.post("/register", async (req, res) => {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
         console.error("Registration error:", err);
         res.status(500).json({ error: "Server error during registration" });
+    }
+});
+
+// NET-NEW (SPEC v0.7.0 / D-C8) — federated sign-in. Public. Exchanges a client-obtained provider id_token
+// via Supabase signInWithIdToken (R1: the client never embeds Supabase). Returns a login AuthResponse when
+// the member exists, or { needs_profile:true, ... } for a brand-new social user (→ /oauth/complete).
+router.post("/oauth", async (req, res) => {
+    try {
+        const { provider, id_token, nonce, first_name, last_name, push_token, device_id, platform } = req.body;
+        const result = await authService.socialSignIn(
+            { provider, id_token, nonce, first_name, last_name },
+            { push_token, device_id, platform }
+        );
+        res.json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[oauth] error:", err);
+        res.status(500).json({ error: "Server error during federated sign-in" });
+    }
+});
+
+// NET-NEW (SPEC v0.7.0 / D-C9) — finish a brand-new federated sign-up. The pending Supabase access_token
+// from POST /oauth is the Bearer (verified directly via JWKS — no member row exists yet to map through
+// authenticateToken). Creates members + member_emails linked to the already-created auth user, then
+// returns the login AuthResponse (echoing the same session the client already holds).
+router.post("/oauth/complete", async (req, res) => {
+    try {
+        const authz = req.headers.authorization || "";
+        const bearer = authz.startsWith("Bearer ") ? authz.slice(7) : null;
+        if (!bearer) return res.status(401).json({ error: "Missing session token." });
+        let payload;
+        try {
+            payload = await verifySupabaseJwt(bearer);
+        } catch (_) {
+            return res.status(401).json({ error: "Invalid or expired session token." });
+        }
+        const { username, gender, first_name, last_name, refresh_token } = req.body;
+        const result = await authService.completeSocialRegistration(
+            payload.sub,
+            { username, gender, first_name, last_name },
+            { access_token: bearer, refresh_token }
+        );
+        res.status(201).json(result);
+    } catch (err) {
+        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        console.error("[oauth/complete] error:", err);
+        res.status(500).json({ error: "Server error during federated sign-up" });
     }
 });
 

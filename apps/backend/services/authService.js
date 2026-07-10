@@ -249,6 +249,156 @@ async function register({ username, password, first_name, last_name, email, gend
     }
 }
 
+// ---- NET-NEW (SPEC v0.7.0 / D-C8, D-C9): federated (Google/Apple) sign-in ---------------------
+// R1-preserving: the CLIENT gets the provider id_token from its native SDK (GSI / Credential Manager /
+// ASAuthorization) and POSTs it here; the backend exchanges it via Supabase signInWithIdToken — clients
+// NEVER embed Supabase. socialSignIn returns the SAME AuthResponse shape as loginGlobal for an existing
+// member (by auth_user_id, else by verified provider email → link if unlinked), or { needs_profile:true,
+// prefill, pending session } for a brand-new social user (→ completeSocialRegistration, no password step).
+// NOTE: signInWithIdToken uses the ANON client and is gated by the project "Allow new users to sign up"
+// toggle (unlike register()'s admin.createUser, which bypasses it) — see infra checklist.
+async function socialSignIn({ provider, id_token, nonce, first_name, last_name }, options = {}) {
+    const allowed = ["google", "apple"];
+    if (!provider || !allowed.includes(provider)) throw new AppError(400, "Unsupported provider.");
+    if (!id_token) throw new AppError(400, "Missing provider token.");
+
+    const { data, error } = await supabaseAuth.auth.signInWithIdToken({
+        provider,
+        token: id_token,
+        ...(nonce ? { nonce } : {})
+    });
+    if (error || !data?.session || !data?.user) throw new AppError(401, "Federated sign-in failed.");
+
+    const session = data.session;
+    const authUserId = data.user.id;
+    const providerEmail = normalizeEmail(data.user.email);
+
+    // 1) Already linked to this auth user → straight sign-in.
+    let member = await Member.findOne({ where: { auth_user_id: authUserId } });
+
+    // 2) Not linked by auth_user_id, but the verified provider email matches an existing member.
+    if (!member && providerEmail) {
+        const emailRow = await MemberEmail.findOne({
+            where: { email: providerEmail },
+            include: [{ model: Member }]
+        });
+        if (emailRow?.Member) {
+            const candidate = emailRow.Member;
+            if (!candidate.auth_user_id) {
+                // Unlinked member (e.g. legacy import) — safe to adopt this provider identity.
+                await candidate.update({ auth_user_id: authUserId });
+                member = candidate;
+            } else if (candidate.auth_user_id === authUserId) {
+                member = candidate;
+            } else {
+                // BLOCKING-FIX: email already belongs to a DIFFERENT auth user (has an email/password
+                // login, or a different provider). Do NOT return this session — its sub maps to no member
+                // and would 401 on every protected route. Reject and steer them to their existing login.
+                // (Product decision: linking Google to an existing account is a phase-2 account-settings
+                // feature, not this endpoint.)
+                throw new AppError(409, "An account with this email already exists. Sign in with your password.");
+            }
+        }
+    }
+
+    if (member) {
+        const { push_token: pushToken, device_id: deviceId, platform } = options;
+        if (pushToken && typeof pushToken === "string" && pushToken.trim()) {
+            await upsertPushToken(member.id, pushToken.trim(), deviceId, platform);
+        }
+        return buildSocialAuthResponse(member, {
+            access_token: session.access_token,
+            refresh_token: session.refresh_token
+        });
+    }
+
+    // 3) Brand-new social identity — needs username + gender before a member row can exist. Hand back the
+    //    prefill + the (inert-until-completion) Supabase session so /oauth/complete can finish the sign-up.
+    //    Google carries the name in user_metadata; Apple carries it ONLY in the client's first-auth
+    //    credential, forwarded here as first_name/last_name hints.
+    const meta = data.user.user_metadata || {};
+    const fullName = (meta.full_name || meta.name || "").trim();
+    const parts = fullName ? fullName.split(/\s+/) : [];
+    const firstName = meta.given_name || parts.shift() || (first_name || "").trim() || "";
+    const lastName = meta.family_name || parts.join(" ") || (last_name || "").trim() || "";
+    return {
+        needs_profile: true,
+        email: providerEmail || "",
+        first_name: firstName,
+        last_name: lastName,
+        token: session.access_token,
+        refresh_token: session.refresh_token
+    };
+}
+
+// Finish a brand-new federated sign-up. The Supabase auth user was ALREADY created by socialSignIn; here
+// we only create members + member_emails linked to it (NO createUser, NO password). authUserId comes from
+// JWKS-verifying the pending Bearer in the route (the member doesn't exist yet, so authenticateToken can't
+// map it). The client re-sends its refresh_token so we echo the SAME session. Mirrors register()'s txn +
+// compensation, with a race guard: on a concurrent double-submit we DON'T delete the shared auth user.
+async function completeSocialRegistration(authUserId, { username, gender, first_name, last_name }, tokens) {
+    if (!authUserId) throw new AppError(401, "Invalid session.");
+    const uname = (username || "").trim();
+    if (!uname) throw new AppError(400, "username is required.");
+
+    const { data: userData, error: userErr } = await supabaseAdmin.auth.admin.getUserById(authUserId);
+    if (userErr || !userData?.user) throw new AppError(401, "Invalid session.");
+    const email = normalizeEmail(userData.user.email);
+    if (!email) throw new AppError(400, "Provider account has no email.");
+
+    // Idempotency: a double-submit that already created the member just signs in.
+    const already = await Member.findOne({ where: { auth_user_id: authUserId } });
+    if (already) return buildSocialAuthResponse(already, tokens);
+
+    const existingMember = await Member.findOne({ where: { username: uname } });
+    if (existingMember) throw new AppError(400, "Username already exists");
+    const existingEmail = await MemberEmail.findOne({ where: { email } });
+    if (existingEmail) throw new AppError(400, "Email already exists");
+
+    const transaction = await sequelize.transaction();
+    try {
+        const newMember = await Member.create({
+            username: uname,
+            first_name: (first_name || "").trim() || uname,
+            last_name: (last_name || "").trim() || "",
+            gender: gender || null,
+            auth_user_id: authUserId
+        }, { transaction });
+
+        await MemberEmail.create({
+            member_id: newMember.id,
+            email,
+            is_primary: true,
+            verified_at: new Date()   // provider-verified email
+        }, { transaction });
+
+        await transaction.commit();
+        return buildSocialAuthResponse(newMember, tokens);
+    } catch (err) {
+        await transaction.rollback();
+        // Race guard: if a concurrent completion already created the member for this auth user, DON'T
+        // delete the shared auth user — return that member's session (idempotent recovery).
+        const raced = await Member.findOne({ where: { auth_user_id: authUserId } });
+        if (raced) return buildSocialAuthResponse(raced, tokens);
+        try { await supabaseAdmin.auth.admin.deleteUser(authUserId); } catch (_) { /* best-effort */ }
+        throw err;
+    }
+}
+
+// buildSocialAuthResponse ALWAYS echoes refresh_token (may be the client-re-sent value on /oauth/complete;
+// clients must tolerate it being absent). Match the loginGlobal payload shape exactly.
+function buildSocialAuthResponse(member, tokens) {
+    return {
+        token: tokens.access_token,
+        refresh_token: tokens.refresh_token,
+        member_id: member.id,
+        username: member.username,
+        member_name: formatMemberName(member),
+        global_role: member.global_role || "standard",
+        message: "Login successful"
+    };
+}
+
 async function changePassword(memberId, newPassword) {
     if (!newPassword) throw new AppError(400, "new_password is required.");
 
@@ -401,6 +551,8 @@ module.exports = {
     refreshAccessToken,
     logout,
     register,
+    socialSignIn,
+    completeSocialRegistration,
     changePassword,
     changeEmail,
     requestPasswordReset,
