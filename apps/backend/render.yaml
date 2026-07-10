@@ -50,13 +50,13 @@ services:
       # in the Supabase Dashboard with these same IDs); the backend does NOT re-check them. Fill with the
       # real Google Cloud OAuth client IDs + Apple Services ID.
       - key: GOOGLE_WEB_CLIENT_ID
-        value: REPLACE_WITH_GOOGLE_WEB_CLIENT_ID
+        value: 938606130476-9vhk5o43c2g0ib4a167l1o4mmnt52f9b.apps.googleusercontent.com
       - key: GOOGLE_IOS_CLIENT_ID
-        value: REPLACE_WITH_GOOGLE_IOS_CLIENT_ID
+        value: 938606130476-if8tb58822r2d75l7fq90v2jiqek6bkh.apps.googleusercontent.com
       - key: GOOGLE_ANDROID_CLIENT_ID
-        value: REPLACE_WITH_GOOGLE_ANDROID_CLIENT_ID
+        value: 938606130476-9env4iuuajogs7k03asn4ghcm27ugsdu.apps.googleusercontent.com
       - key: APPLE_SERVICES_ID
-        value: REPLACE_WITH_APPLE_SERVICES_ID
+        value: com.app.rasifiters.signin
       # SUPABASE_JWKS_URL / SUPABASE_JWT_ISS intentionally unset — they default off SUPABASE_URL
       # (${SUPABASE_URL}/auth/v1/.well-known/jwks.json) per auth SPEC D-C2. The project's JWT signing
       # keys are already migrated to asymmetric ES256 (verified live), so JWKS verify finds a key.

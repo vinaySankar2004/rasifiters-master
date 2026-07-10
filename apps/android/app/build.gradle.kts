@@ -28,7 +28,7 @@ android {
             buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api.onrender.com/api\"")
             // Credential Manager's serverClientId — the Google Cloud OAuth WEB client id (non-secret; it's the
             // audience the backend verifies the Google id_token against). USER must fill this in.
-            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"REPLACE_WITH_GOOGLE_WEB_CLIENT_ID\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"938606130476-9vhk5o43c2g0ib4a167l1o4mmnt52f9b.apps.googleusercontent.com\"")
         }
         release {
             isMinifyEnabled = false
@@ -39,7 +39,7 @@ android {
             // Same prod API base as the web + iOS release clients.
             buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api.onrender.com/api\"")
             // Credential Manager's serverClientId — the Google Cloud OAuth WEB client id (non-secret). USER must fill.
-            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"REPLACE_WITH_GOOGLE_WEB_CLIENT_ID\"")
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"938606130476-9vhk5o43c2g0ib4a167l1o4mmnt52f9b.apps.googleusercontent.com\"")
         }
     }
 

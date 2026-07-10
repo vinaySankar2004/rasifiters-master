@@ -11,7 +11,7 @@
 		<string>fetch</string>
 	</array>
 	<key>GIDClientID</key>
-	<string>REPLACE_WITH_GOOGLE_IOS_CLIENT_ID</string>
+	<string>938606130476-if8tb58822r2d75l7fq90v2jiqek6bkh.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -27,7 +27,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.REPLACE_WITH_REVERSED_IOS_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.938606130476-if8tb58822r2d75l7fq90v2jiqek6bkh</string>
 			</array>
 		</dict>
 	</array>
