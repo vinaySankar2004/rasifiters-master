@@ -12,7 +12,8 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 
 | Page | Route | Status | Consumes (features) | Spec |
 |------|-------|--------|---------------------|------|
-| splash | `/splash` (root `/` redirects here) | 🏗️ v0.2.0 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
+| landing | `/` (root, **public marketing**) | 🏗️ v0.1.0 | `auth` (foundation `useAuth` for the auth-aware CTA; no API) | [landing SPEC](web/landing/SPEC.md) |
+| splash | `/splash` (retained, **unlinked**; root `/` now serves landing) | 🏗️ v0.2.1 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
 | login | `/login` | 🏗️ v0.1.1 | `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers) | [login SPEC](web/login/SPEC.md) |
 | forgot-password | `/forgot-password` | 🏗️ v0.1.0 | `auth` v0.3.0 (`requestPasswordReset()` `POST /auth/forgot-password`, `useAuth`); `SUPPORT_EMAIL` | [forgot-password SPEC](web/forgot-password/SPEC.md) |
 | reset-password | `/reset-password` | 🏗️ v0.1.0 | `auth` v0.4.0 (`resetPassword()` `POST /auth/reset-password`, `useAuth`, `ApiError`) | [reset-password SPEC](web/reset-password/SPEC.md) |
