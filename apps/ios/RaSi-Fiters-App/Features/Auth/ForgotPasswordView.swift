@@ -22,12 +22,10 @@ struct ForgotPasswordView: View {
                 .ignoresSafeArea()
 
             ScrollView {
-                VStack(spacing: 24) {
-                    BrandMark(size: 90)
-                        .padding(.top, 10)
-                        .padding(.bottom, 6)
+                VStack(spacing: 16) {
+                    BrandMark(size: 64)
 
-                    VStack(alignment: .center, spacing: 10) {
+                    VStack(alignment: .center, spacing: 8) {
                         Text("Reset your password")
                             .font(.title.bold())
                             .foregroundColor(Color(.label))
@@ -125,7 +123,7 @@ struct ForgotPasswordView: View {
                     Spacer(minLength: 20)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 40)
+                .padding(.top, 24)
             }
         }
         .navigationTitle("")

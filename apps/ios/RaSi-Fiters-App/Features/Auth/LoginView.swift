@@ -21,7 +21,7 @@ struct LoginView: View {
             AppGradient.background(for: colorScheme)
                 .ignoresSafeArea()
 
-            VStack(spacing: 28) {
+            VStack(spacing: 16) {
                 NavigationLink(
                     destination: ProgramPickerView()
                         .navigationBarBackButtonHidden(true),
@@ -38,11 +38,9 @@ struct LoginView: View {
                 }
 
                 // Real brand icon (matches web; replaces the legacy placeholder).
-                BrandMark(size: 90)
-                    .padding(.top, 10)
-                    .padding(.bottom, 6)
+                BrandMark(size: 64)
 
-                VStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .center, spacing: 8) {
                     Text("Welcome Back")
                         .font(.title.bold())
                         .foregroundColor(Color(.label))
@@ -53,7 +51,7 @@ struct LoginView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
 
-                VStack(spacing: 16) {
+                VStack(spacing: 14) {
                     AppInputField(
                         title: "Username or Email",
                         text: $identifier
@@ -94,47 +92,49 @@ struct LoginView: View {
 
                 socialSignInSection
 
-                // Self-service password recovery — the email-request step is native (ForgotPasswordView).
-                // The emailed link still opens rasifiters.com/reset-password in the browser to set the new
-                // password (that shared page is client-neutral; the set-new-password step isn't duplicated).
-                NavigationLink {
-                    ForgotPasswordView()
-                } label: {
-                    Text("Forgot your password?")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundColor(.appOrange)
-                }
-
-                HStack(spacing: 6) {
-                    Text("New here?")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
-
+                // Footer cluster — one tight VStack so the links sit close + evenly, no dead space.
+                VStack(spacing: 12) {
+                    // Self-service password recovery — the email-request step is native (ForgotPasswordView).
+                    // The emailed link still opens rasifiters.com/reset-password in the browser to set the new
+                    // password (that shared page is client-neutral; the set-new-password step isn't duplicated).
                     NavigationLink {
-                        CreateAccountView()
+                        ForgotPasswordView()
                     } label: {
-                        Text("Create an account")
+                        Text("Forgot your password?")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(.appOrange)
+                    }
+
+                    HStack(spacing: 6) {
+                        Text("New here?")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+
+                        NavigationLink {
+                            CreateAccountView()
+                        } label: {
+                            Text("Create an account")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.appOrange)
+                        }
+                    }
+
+                    VStack(spacing: 4) {
+                        Text("Training hard? Login to track your progress.")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .frame(maxWidth: .infinity, alignment: .center)
+
+                        Link("Privacy Policy", destination: APIConfig.privacyPolicyURL)
                             .font(.footnote.weight(.semibold))
                             .foregroundColor(.appOrange)
                     }
                 }
 
-                VStack(spacing: 4) {
-                    Text("Training hard? Login to track your progress.")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(maxWidth: .infinity, alignment: .center)
-
-                    Link("Privacy Policy", destination: APIConfig.privacyPolicyURL)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundColor(.appOrange)
-                }
-                .padding(.top, 6)
-
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.top, 60)
+            .padding(.top, 24)
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -156,7 +156,7 @@ struct LoginView: View {
     // MARK: - Social sign-in (Google + Apple)
 
     private var socialSignInSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Rectangle().fill(Color(.separator)).frame(height: 1)
                 Text("or")
