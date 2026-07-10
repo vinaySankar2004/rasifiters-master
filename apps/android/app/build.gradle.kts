@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,9 +9,30 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+// Release signing config, loaded from a gitignored per-machine keystore.properties (repo is PUBLIC — the
+// keystore + passwords never live in git). If the file is absent (any other machine / CI), we skip the
+// signingConfig entirely so the build still succeeds; the release output is simply unsigned there.
+// See keystore.properties.template for the format.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+val keystoreProperties = Properties().apply {
+    if (hasReleaseKeystore) FileInputStream(keystorePropertiesFile).use { load(it) }
+}
+
 android {
     namespace = "com.app.rasifiters"
     compileSdk = 36
+
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
 
     defaultConfig {
         applicationId = "com.app.rasifiters"
@@ -31,6 +55,11 @@ android {
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"938606130476-9vhk5o43c2g0ib4a167l1o4mmnt52f9b.apps.googleusercontent.com\"")
         }
         release {
+            // Sign with the upload key when keystore.properties is present (this machine); otherwise leave
+            // unsigned so non-signing machines/CI still build.
+            if (hasReleaseKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

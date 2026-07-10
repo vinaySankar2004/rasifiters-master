@@ -14,3 +14,10 @@ build/
 # The google-services Gradle plugin requires the file present at build time.
 app/google-services.json
 google-services.json
+
+# Release signing — HARD secrets. Repo is PUBLIC: the upload keystore + its passwords must NEVER be
+# committed. The .jks itself lives OUTSIDE the repo (see keystore.properties.template); keystore.properties
+# (path + passwords) is per-machine only. Losing the .jks is recoverable via Play App Signing key reset.
+keystore.properties
+*.jks
+*.keystore
