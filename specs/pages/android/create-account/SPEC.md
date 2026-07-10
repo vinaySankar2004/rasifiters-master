@@ -21,7 +21,12 @@
 - **Deviation A-7 (social 2-step branch, v0.7.0):** when `ProgramContext.pendingSocial` is non-null (a brand-new
   Google user, set by `socialSignIn` after `POST /auth/oauth` returns `needs_profile`), the wizard is **2 pages**
   (no password page): (0) First/Last name **prefilled from Google** (editable) → (1) Username + gender + **locked
-  Email** (from Google, rendered via `AppTextField(enabled=false)`). Final "Create Account" runs
+  Email** (from Google, rendered via `AppTextField(enabled=false)`). **Page 0 also carries the same "or"
+  divider + `GoogleSignInButton`** as the login entry — but only in email mode (`!social`), so the button
+  disappears once the social branch engages. Tapping it here calls `socialSignIn(idToken)`; on `needs_profile`
+  the wizard **recomposes in-place** into the 2-page social branch (the `pageCount` lambda + `remember(pending)`
+  prefill both react to `social` flipping true — names refill from Google, email locks, the password page drops,
+  `StepDots` shows 2), and a non-needs-profile success flips the root gate. Final "Create Account" runs
   `completeSocial(username, gender, first, last)` → `POST /auth/oauth/complete`; the root gate swaps on success.
   A `pendingSocial`-in-`ProgramContext` idiom (not nav args) carries the pending session (access/refresh token +
   email + name prefill); it's cleared on completion and on sign-out. Entry is from the Login screen's **Continue

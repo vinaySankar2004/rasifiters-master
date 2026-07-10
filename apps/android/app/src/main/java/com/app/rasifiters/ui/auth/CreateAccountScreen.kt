@@ -9,11 +9,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -149,6 +151,40 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                         0 -> {
                             AppTextField("First Name", firstName, { firstName = it })
                             AppTextField("Last Name", lastName, { lastName = it })
+                            // Email-mode only: "or" divider + Continue with Google (parity with the login
+                            // entry). A needs_profile result sets pendingSocial → this wizard recomposes
+                            // IN-PLACE into the 2-page social branch (prefill + locked email, no password);
+                            // a non-needs-profile success flips the root gate via authToken.
+                            if (!social) {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.widthIn(max = 260.dp).fillMaxWidth(),
+                                    ) {
+                                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                                        Text(
+                                            "or",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                            modifier = Modifier.padding(horizontal = 12.dp),
+                                        )
+                                        HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
+                                    }
+                                    GoogleSignInButton(
+                                        onIdToken = { idToken ->
+                                            scope.launch {
+                                                programContext.socialSignIn(idToken)
+                                                    .onFailure { errorMessage = it.message ?: "Sign-in failed" }
+                                            }
+                                        },
+                                        onError = { errorMessage = it },
+                                    )
+                                }
+                            }
                         }
                         1 -> {
                             AppTextField("Username", username, { username = it })
