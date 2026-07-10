@@ -1,17 +1,21 @@
 # Page: `create-account` (web) — the public sign-up screen
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
-> **Route:** `/create-account` (reached from the login page's "New here? Create an account" link).
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Route:** `/create-account` (reached from the login page's "New here? Create an account" link, or from
+> `/login` with `?social=1` for a brand-new Google user finishing their profile).
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/create-account/page.tsx`
 > (+ `components/{Select,SelectMobile}.tsx`, `components/BrandMark.tsx`).
 > **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `registerAccount()` (`POST /auth/register`)
-> then `login()` (`POST /auth/login/global`), the foundation `useAuth` context
-> (`session`, `setSession`, `isBootstrapping`), and the client JWT helpers (`decodeJwtPayload` /
-> `resolveGlobalRole`).
+> then `login()` (`POST /auth/login/global`); **`socialSignIn()` (`POST /auth/oauth`) +
+> `completeSocialRegistration()` (`POST /auth/oauth/complete`)** for the Google branch; the foundation
+> `useAuth` context (`session`, `setSession`, `isBootstrapping`), and the client JWT helpers
+> (`decodeJwtPayload` / `resolveGlobalRole`). New component: `GoogleSignInButton`.
 > **Cross-app:** iOS `CreateAccountView.swift` (`Features/Auth/`) — same field set + register-then-login;
-> the inline validation / authed-redirect / live-checklist cleanups are web-first (F-rows; mirror at the iOS port).
-> **Stance:** faithful port **+ 5 deliberate deviations** (D-C1…D-C5) — inline email validation (the
-> D-PLAN item-3 mandate), authed redirect, live password checklist, muted mismatch hint, autoFocus.
+> the inline validation / authed-redirect / live-checklist cleanups + the 3-step wizard + Google branch are
+> web-first (F-rows; mirror at the iOS/Android ports).
+> **Stance:** faithful port **+ 8 deliberate deviations** (D-C1…D-C8) — inline email validation (the
+> D-PLAN item-3 mandate), authed redirect, live password checklist, muted mismatch hint, autoFocus,
+> **3-step wizard (D-C6), Google social sign-up branch (D-C7), "Continue with Google" button (D-C8)**.
 > Oddities flagged §10.
 
 ---
@@ -58,12 +62,26 @@ register-then-auto-login is faithful to legacy.
 | Sign-in link | "Already have an account? **Sign in**" → `/login`. | create-account/page.tsx:239-247 |
 | Footer | "By creating an account, you accept our **Privacy Policy**" → `PRIVACY_POLICY_URL`. | create-account/page.tsx:249-257 |
 
-**Submit flow** (create-account/page.tsx:57-102):
-guard `canSubmit && !isLoading` → build payload `{ first_name, last_name, username, email, password,
-gender? }` → `registerAccount(payload)` → `login(username, password)` → `decodeJwtPayload` →
-`resolveGlobalRole` → build session → `setSession` → `router.push("/programs")`. Errors caught → red banner;
-`finally` clears `isLoading`. **`canSubmit`** requires all names + username non-empty, a **format-valid email**
-(D-C1; was legacy's non-empty-only), the password meeting policy, and `password === confirmPassword`.
+**Wizard structure (D-C6/D-C7).** The page is a **local 3-step state machine** (`step`, `mode`; no form lib):
+a 2/3-dot progress row sits above the form and each step renders only its own fields (one screen, no scroll).
+- **`mode="email"` (3 steps):** Step 1 = First/Last name **+ the "Continue with Google" button** (D-C8, under
+  an "or" divider); Step 2 = Username + Email (inline hint) + Gender (optional); Step 3 = Password + Confirm
+  + live checklist + mismatch hint. Per-step **Continue** is gated (`canContinue`): S1 both names, S2 username
+  + format-valid email, S3 policy-pass + match. Steps 2-3 show a **Back** button. Step 3's button is the
+  submit → the **unchanged** email path: `registerAccount` → `login` → build session → `/programs`.
+- **`mode="social"` (2 steps, D-C7):** entered when a brand-new Google user needs a profile. Step 1 = First/Last
+  name (prefilled from Google, editable; no Google button); Step 2 = Username + **read-only locked Email**
+  (prefilled, no password step). Step 2's button = "Create Account" → `completeSocialRegistration(pendingToken,
+  { username, gender?, first_name, last_name, refresh_token })` → build session inline → `/programs`.
+
+**Google flow (D-C8).** `GoogleSignInButton` (GSI, lazy-loaded) → ID token → `socialSignIn({ provider:"google",
+id_token })`. If `needs_profile` → switch to `mode="social"` (stash `pendingToken`/`pendingRefresh`/`lockedEmail`,
+prefill names, `step=1`). Else build session inline → `/programs`. A **409** ("account with this email already
+exists…") surfaces in the red error banner. On-mount, `?social=1` adopts a pending session stashed by the login
+page in `sessionStorage["rf_pending_social"]` (then clears it). Renders nothing (no divider/button) until
+`NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` is configured, so the page builds/deploys before the id is set.
+
+Errors caught → red banner; `finally` clears `isLoading`.
 
 ## 5. Components + features consumed
 
@@ -121,12 +139,15 @@ after a program is selected).
 | ID | Decision | Rests on |
 |----|----------|----------|
 | **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/create-account/page.tsx` (+ `Select`/`SelectMobile`/`BrandMark`). `consumed_by = [web]`.** **Cross-app:** iOS `CreateAccountView.swift` registers the same field set then logs in; the inline-validation / authed-redirect / checklist cleanups are web-first and mirror at the iOS port (F-rows). | `create-account/page.tsx`; user answer (faithful + cleanups). |
-| **D-S1** | **Stance = faithful port of the legacy page + the 5 deviations below.** The field set, the register-then-auto-login flow, the chrome (`BrandMark`/`motion`/`input-shell`/`rf-*`), the Show/Hide toggles, the gender `Select`, the sign-in + Privacy links, and `/programs` on success are ported verbatim. | `create-account/page.tsx:1-261`; user answers (run 19). |
+| **D-S1** | **Stance = faithful port of the legacy page + the 8 deviations below (D-C1…D-C8).** The field set, the register-then-auto-login flow, the chrome (`BrandMark`/`motion`/`input-shell`/`rf-*`), the Show/Hide toggles, the gender `Select`, the sign-in + Privacy links, and `/programs` on success are ported verbatim. | `create-account/page.tsx:1-261`; user answers (run 19). |
 | **D-C1** | **Inline email-format validation (D-PLAN item 3).** Email becomes **format-validated** on the client — `canSubmit` now requires a regex-valid email (the same loose `EMAIL_RE` as forgot-password) and a muted "Enter a valid email address." hint shows when typed-but-invalid. Legacy validated only non-empty + HTML5 `type="email"`. The backend already requires + format-validates email (so this is forward-only; existing/placeholder accounts untouched). | D-PLAN item 3 (login SPEC); forgot-password SPEC D-C2 (same regex); auth `register` email-required; user answer ("inline regex, match forgot-password"). |
 | **D-C2** | **Already-authenticated → `/programs` redirect.** A `useEffect` redirects an authed visitor (`!isBootstrapping && session`) to `/programs`, matching login/forgot/reset. Legacy create-account had **no** such redirect (an authed user could open the sign-up form). | Sibling pages (login/forgot/reset redirects); user answer ("add redirect"). |
 | **D-C3** | **Live password-policy checklist** replacing legacy's always-visible static hint line. A ✓/○ list (≥8 chars · uppercase · lowercase · number) appears once the user starts typing and turns green per satisfied rule, mirroring the server `validatePassword` policy. Merges the two password-hint cleanup options the user selected (the conditional-hint behavior is subsumed by the checklist's appear-on-type). | legacy static line `create-account/page.tsx:215-218`; auth `validatePassword`; user answer (both hint options). |
 | **D-C4** | **Muted confirm-mismatch hint** ("Passwords don't match.") aligned to reset-password's styling, instead of legacy's red "Passwords do not match." text. | reset-password SPEC (muted mismatch hint); `create-account/page.tsx:219-221`; user answer. |
 | **D-C5** | **`autoFocus` the First Name field** so the form is immediately typeable on load. Pure nicety; no behavior change. | user answer. |
+| **D-C6** | **3-step wizard** (auth v0.7.0). The single legacy form is split into a local 3-step state machine (name → username/email/gender → password/confirm) with a progress-dot row, per-step Continue gates, and a Back button, so each step fits one screen. No new lib — the exact tokens/components/validators are reused; the email submit path is byte-for-byte the legacy register-then-login. | Approved multiplex plan (web §Step 4); `create-account/page.tsx`. |
+| **D-C7** | **Google social sign-up branch** — a 2-step variant (`mode="social"`: name → username, **no password**, **read-only locked email**) for a brand-new federated user. Entered either inline after `socialSignIn` returns `needs_profile`, or on-mount via `?social=1` + `sessionStorage["rf_pending_social"]` (stashed by the login page). Finishes with `completeSocialRegistration()` → build session → `/programs`. | Approved plan (web §Step 4); auth `POST /auth/oauth` + `/auth/oauth/complete` contract. |
+| **D-C8** | **"Continue with Google" button** (`GoogleSignInButton`, GSI lazy-loaded) under the step-1 name fields with an "or" divider. Client id = `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` (public, non-secret); when unset the button **and its divider render nothing** so the page still builds/deploys. A 409 (email already on a password account) surfaces in the error banner. | Approved plan (web §Step 3/4); `config.ts` `GOOGLE_WEB_CLIENT_ID`; `GoogleSignInButton.tsx`. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -137,10 +158,11 @@ after a program is selected).
 | **F3** | **No bootstrap loading gate — brief form flash for authenticated users** (mirrors login F2). The form renders immediately; the D-C2 redirect fires only after `!isBootstrapping`. | `create-account/page.tsx` (the D-C2 `useEffect`) | Kept (faithful) — cosmetic. |
 | **F4** | **No client-side rate limiting** on repeated sign-up attempts (mirrors login F4 / auth F4). | `create-account/page.tsx:57-102` | Kept (faithful) — any throttling belongs server-side. |
 | **F5** | **No username-format rules client-side** — username is only checked non-empty; uniqueness + any rules are enforced server-side (400 "Username already exists"). | `create-account/page.tsx:50` | Kept (faithful) — server is the authority. |
-| **F6** | **The cleanups are web-first; iOS `CreateAccountView` lacks them** (inline email validation, authed redirect, live checklist, muted mismatch hint, autoFocus). | iOS `CreateAccountView.swift` (`Features/Auth/`) | **Yes — iOS gap** to reconcile at the iOS create-account port. |
+| **F6** | **The cleanups are web-first; iOS `CreateAccountView` lacks them** (inline email validation, authed redirect, live checklist, muted mismatch hint, autoFocus, **3-step wizard + Google branch**). | iOS `CreateAccountView.swift` (`Features/Auth/`) | **Yes — iOS/Android gap** to reconcile at the iOS/Android create-account ports. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-10 | **Federated sign-in + 3-step wizard (auth v0.7.0).** The single form became a **local 3-step state machine** (name → username/email/gender → password/confirm) with a progress-dot row, per-step Continue gates + Back, no new lib; the email submit path is unchanged (register-then-auto-login). Added a **"Continue with Google" button** (`GoogleSignInButton`, GSI) under step 1 and a **2-step social sign-up branch** (`mode="social"`: prefilled editable names → username + read-only locked email, no password) finishing via `completeSocialRegistration()`. On-mount `?social=1` adopts a pending session stashed by the login page; a 409 (email already on a password account) surfaces in the error banner. The Google button + divider render nothing until `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` is set (page still builds/deploys). New decisions **D-C6** (3-step wizard) · **D-C7** (social branch) · **D-C8** (Google button); consumes `socialSignIn()` `POST /auth/oauth` + `completeSocialRegistration()` `POST /auth/oauth/complete`. `npm run build` ✓ (`/create-account` prerendered, 5.99 kB). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 19) — the **fifth web page spec** (closing the public/auth path: splash → login → forgot → reset → create-account). Documents the public `/create-account` sign-up screen: first/last name + username + email + optional gender (`Select`) + password + confirm, register-then-auto-login → `/programs`, sign-in + Privacy links. Consumes `auth` (`registerAccount()` `POST /auth/register` + `login()`, `useAuth`, jwt helpers). Decisions: **D-REF** (`consumed_by=[web]`; iOS `CreateAccountView` mirrors later) · **D-S1** (faithful port + 5 deviations) · **D-C1** (inline email-format validation — D-PLAN item 3, mirrors forgot-password regex) · **D-C2** (already-authed → `/programs` redirect — legacy had none) · **D-C3** (live password-policy checklist replacing the static hint) · **D-C4** (muted confirm-mismatch hint) · **D-C5** (autoFocus First Name). Flagged F1–F6 (client JWT decode; register-then-login no-rollback; bootstrap form flash; no client rate-limit; no client username rules; cleanups web-first / iOS gap). Ported `apps/web/src/app/create-account/page.tsx` + the `Select`/`SelectMobile` dependency; `npm run build` ✓ (`/create-account` prerendered, 6.25 kB). |
