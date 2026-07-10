@@ -339,3 +339,21 @@ fixed). Page SPECs carry their own bumps (widget-quick-add-* 0.2.0, log-* ios 0.
 Two tags: `feature/workout-logs@v0.5.1` + `feature/daily-health-logs@v0.2.1`. Promoted nothing new — the
 "note about the feature's OWN behavior = PATCH" lesson already exists; this run is a clean instance of it
 where the behavior lives in a client, not the backend reference_impl.
+
+### 2026-07-10 — Run: `auth` v0.8.0→**v0.9.0** MINOR (account-settings link/unlink + add-password, D-C10)
+Closing run of the first full `multiplex` pipeline. Touched 14 code files (backend 2 + web 3 + ios 4 +
+android 5) + 3 registry/spec files; the backend 2 were committed+deployed SEPARATELY FIRST (`e49880a`, the
+shared-prereq commit — a plain `feat(auth)` with NO version bump, deployed to Render before the clients),
+then git-version ran over the client+SPEC set at close (`1def2b4`). **Detect/bump call:** feature = `auth`
+(SPEC edit + `apps/**` under no reference_impl — the SPEC edit is the bump driver). **MINOR** (0.8.0→0.9.0):
+four NET-NEW authenticated routes = the feature's owned interface genuinely EXPANDED, but purely ADDITIVE
+(no existing route/shape/JWT/middleware changed). **Blast-radius: FYI, not a gate** — `auth`'s dependents
+(≈10 features) + apps [web,ios,android] all consume the middleware/existing routes, not the new ones → **zero
+dependent re-version** (the "additive owned-interface change → MINOR, no propagation" convergent lesson, same
+shape as 0.6.0 `/me` + 0.7.0 `/oauth`). Staged the 15 files explicitly (no `-A`; repo clean at start). One
+tag `feature/auth@v0.9.0` → `git tag -l "feature/*"` count still equals the registry node count. **Non-obvious
+bit:** authored the SPEC's semantic content (D-C10 decision, §3 routes 15–18, the §1/D-C3 `[web,ios]`→
+`[web,ios,android]` doc-lag fix, F11 disposition) BY HAND before invoking git-version, and let git-version own
+only the version-string + §12 changelog row + registry/REGISTRY bump + tag — cleaner than making git-version
+infer a rich decision entry. Also had to swap the §12 changelog row order (0.9.0 must sit ABOVE 0.8.0 —
+newest-first — after inserting on the wrong anchor). Promoted nothing new.

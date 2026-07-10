@@ -83,3 +83,13 @@ anything you'd want adversarially checked before the user tests it on prod.
   here. Confirm each surface builds, then the USER tests on prod. Never guess-green the iOS
   compile — it needs the `xcode` MCP with Xcode open (user-side); flag it UNVERIFIED if you can't
   drive it. Backend deploys first + degrades gracefully for the live binary.
+- (Run 1, 2026-07-10) Directory-disjoint surfaces don't need worktrees: web/ios/android/backend
+  live in separate `apps/**` trees, so parallel implementers editing disjoint directories in the
+  SAME main working tree can't collide — skip the expensive worktree isolation (reserve it for
+  same-file parallel edits) and the merge/adversary/commit is trivial (all changes already in one
+  tree). Prove disjointness by directory up front.
+- (Run 1, 2026-07-10) Honor backend-first at DEPLOY time, not build time, via TWO pushes: build +
+  impl-adversary the whole cross-surface diff FIRST (deploy nothing), then commit+push backend →
+  confirm it's live (a new route flips 404→401) → git-version the clients + push → web deploys.
+  Deferring the deploy until after the adversary avoids shipping a contract the clients never
+  validated against, while the two-push order still lands backend before web.
