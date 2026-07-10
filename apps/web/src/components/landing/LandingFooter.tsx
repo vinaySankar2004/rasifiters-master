@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/BrandMark";
-import { PRIVACY_PATH, SUPPORT_PATH, SUPPORT_EMAIL } from "./content";
+import { PRIVACY_PATH, SUPPORT_PATH } from "./content";
 
 export function LandingFooter() {
   return (
@@ -14,7 +14,6 @@ export function LandingFooter() {
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-rf-text-muted">
           <Link href={PRIVACY_PATH} className="transition-colors hover:text-rf-text">Privacy</Link>
           <Link href={SUPPORT_PATH} className="transition-colors hover:text-rf-text">Support</Link>
-          <a href={`mailto:${SUPPORT_EMAIL}`} className="transition-colors hover:text-rf-text">{SUPPORT_EMAIL}</a>
         </nav>
 
         <p className="text-sm text-rf-text-muted">© 2026 RaSi Fiters</p>
