@@ -14,10 +14,10 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 |------|-------|--------|---------------------|------|
 | landing | `/` (root, **public marketing**) | 🏗️ v0.1.0 | `auth` (foundation `useAuth` for the auth-aware CTA; no API) | [landing SPEC](web/landing/SPEC.md) |
 | splash | `/splash` (retained, **unlinked**; root `/` now serves landing) | 🏗️ v0.2.1 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
-| login | `/login` | 🏗️ v0.2.0 | `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers) | [login SPEC](web/login/SPEC.md) |
+| login | `/login` | 🏗️ v0.2.1 | `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers) | [login SPEC](web/login/SPEC.md) |
 | forgot-password | `/forgot-password` | 🏗️ v0.1.0 | `auth` v0.3.0 (`requestPasswordReset()` `POST /auth/forgot-password`, `useAuth`); `SUPPORT_EMAIL` | [forgot-password SPEC](web/forgot-password/SPEC.md) |
 | reset-password | `/reset-password` | 🏗️ v0.1.0 | `auth` v0.4.0 (`resetPassword()` `POST /auth/reset-password`, `useAuth`, `ApiError`) | [reset-password SPEC](web/reset-password/SPEC.md) |
-| create-account | `/create-account` | 🏗️ v0.2.0 | `auth` (`registerAccount()` `POST /auth/register` + `login()`, `useAuth`, jwt helpers) | [create-account SPEC](web/create-account/SPEC.md) |
+| create-account | `/create-account` | 🏗️ v0.2.1 | `auth` (`registerAccount()` `POST /auth/register` + `login()`, `useAuth`, jwt helpers) | [create-account SPEC](web/create-account/SPEC.md) |
 | programs | `/programs` (first **protected** route) | 🏗️ v0.2.1 | `programs` v0.2.0 + `program-memberships` + `invites` (CRUD, invites, membership, `saveProgramOrder` `PUT /programs/order` drag-reorder + collapsed floating search) + `auth` (`useAuth`/`useAuthGuard`) | [programs SPEC](web/programs/SPEC.md) |
 | summary | `/summary` (first **workspace tab**) | 🏗️ v0.3.0 | `analytics` + `analytics-v2` (8 reads) + `workout-logs` 0.5.0 + `daily-health-logs` 0.2.0 (batched multi-program writes) + `program-workouts`/`program-memberships` (form lookups + program multi-select) + `auth` (`useAuthGuard`) | [summary SPEC](web/summary/SPEC.md) |
 | summary/log-workout | `/summary/log-workout` | 🏗️ v0.2.0 | `workout-logs` 0.5.0 (`POST /workout-logs/batch` + `program_ids[]`) + `program-memberships`/`program-workouts` lookups + `auth` | [summary/log-workout SPEC](web/summary/log-workout/SPEC.md) |
@@ -40,8 +40,8 @@ history/workouts/streaks) · lifestyle (+ timeline/workouts).
 | Screen | Status | Consumes (features) | Spec |
 |--------|--------|---------------------|------|
 | splash | 🏗️ v0.2.0 | `auth` (root `authToken` bifurcation; no API) | [splash SPEC](ios/splash/SPEC.md) |
-| login | 🏗️ v0.2.0 | `auth` (`APIClient.loginGlobal()` `POST /auth/login/global`, `ProgramContext+Auth`) | [login SPEC](ios/login/SPEC.md) |
-| create-account | 🏗️ v0.2.0 | `auth` (`registerAccount()` `POST /auth/register` + `loginGlobal()`, `ProgramContext+Auth`) | [create-account SPEC](ios/create-account/SPEC.md) |
+| login | 🏗️ v0.2.1 | `auth` (`APIClient.loginGlobal()` `POST /auth/login/global`, `ProgramContext+Auth`) | [login SPEC](ios/login/SPEC.md) |
+| create-account | 🏗️ v0.2.1 | `auth` (`registerAccount()` `POST /auth/register` + `loginGlobal()`, `ProgramContext+Auth`) | [create-account SPEC](ios/create-account/SPEC.md) |
 | program-picker | 🏗️ v0.2.2 | `programs` v0.2.0/`invites` via `ProgramContext` (`fetchPrograms` `GET /programs`, `saveProgramOrder` `PUT /programs/order` long-press reorder + collapsed floating search, `deleteProgram`, `updateMembershipStatus` `PUT /program-memberships`, `loadPendingInvites`/`loadMembershipDetails`/`loadLookupData`/`persistSession`/`signOut`) | [program-picker SPEC](ios/program-picker/SPEC.md) |
 | admin-home (shell) | 🏗️ v0.1.0 | pure nav — `ProgramContext.isProgramAdmin` for the 4-tab `Admin*/Standard*` bifurcation; no API | [admin-home SPEC](ios/admin-home/SPEC.md) |
 | admin-summary (tab) | 🏗️ v0.1.0 | `analytics`/`analytics-v2` via `ProgramContext+Analytics` (MTD + timeline + distribution + workout-types loaders); `programs` (`ProgramDTO.admin_only_data_entry` → data-lock). 5 detail views stubbed | [admin-summary SPEC](ios/admin-summary/SPEC.md) |
@@ -71,8 +71,8 @@ idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the s
 | Screen | Status | Consumes (features) | Spec |
 |--------|--------|---------------------|------|
 | splash | 🏗️ v0.1.0 | `auth` (root `authToken` gate; no API) | [splash SPEC](android/splash/SPEC.md) |
-| login | 🏗️ v0.2.0 | `auth` (`ProgramContext.login()` `POST /auth/login/app`) | [login SPEC](android/login/SPEC.md) |
-| create-account | 🏗️ v0.3.0 | `auth` (`register()` `POST /auth/register` + `login()` `POST /auth/login/app`) | [create-account SPEC](android/create-account/SPEC.md) |
+| login | 🏗️ v0.2.1 | `auth` (`ProgramContext.login()` `POST /auth/login/app`) | [login SPEC](android/login/SPEC.md) |
+| create-account | 🏗️ v0.3.1 | `auth` (`register()` `POST /auth/register` + `login()` `POST /auth/login/app`) | [create-account SPEC](android/create-account/SPEC.md) |
 | forgot-password | 🏗️ v0.1.1 | `auth` (`forgotPassword()` `POST /auth/forgot-password`); `AppLinks.SUPPORT_EMAIL` | [forgot-password SPEC](android/forgot-password/SPEC.md) |
 | program-picker | 🏗️ v0.1.0 | `programs`/`invites` (`GET /programs`, `PUT /programs/order`, `DELETE /programs/:id`, `PUT /program-memberships`) | [program-picker SPEC](android/program-picker/SPEC.md) |
 | summary | 🏗️ v0.1.0 | `analytics`/`analytics-v2` (7 reads: MTD participation/workouts/duration/avg, timeline, distribution, workout-types) | [summary SPEC](android/summary/SPEC.md) |
