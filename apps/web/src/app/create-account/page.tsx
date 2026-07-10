@@ -241,16 +241,16 @@ export default function CreateAccountPage() {
       : "Continue";
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center px-6 pb-12 pt-14 sm:px-10 sm:pt-20">
+    <div className="relative flex min-h-screen flex-col items-center px-6 pb-8 pt-10 sm:px-10 sm:pt-14">
       <motion.div
         className="flex w-full max-w-md flex-col items-center"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
       >
-        <BrandMark size={128} />
+        <BrandMark size={96} />
 
-        <div className="mt-8 text-center">
+        <div className="mt-5 text-center">
           <h1 className="text-2xl font-semibold text-rf-text sm:text-3xl">Create Account</h1>
           <p className="mt-2 text-sm font-semibold text-rf-text-muted sm:text-base">
             Start tracking your fitness journey
@@ -258,7 +258,7 @@ export default function CreateAccountPage() {
         </div>
 
         {/* Step progress dots (D-C6): 3 for email sign-up, 2 for the social branch (name → username). */}
-        <div className="mt-6 flex items-center gap-2" aria-hidden>
+        <div className="mt-4 flex items-center gap-2" aria-hidden>
           {Array.from({ length: totalSteps }, (_, i) => i + 1).map((dot) => (
             <span
               key={dot}
@@ -269,7 +269,7 @@ export default function CreateAccountPage() {
           ))}
         </div>
 
-        <form onSubmit={handlePrimary} className="mt-8 flex w-full flex-col gap-4">
+        <form onSubmit={handlePrimary} className="mt-6 flex w-full flex-col gap-4">
           {step === 1 && (
             <>
               <label className="input-shell flex items-center gap-3 rounded-2xl px-4 py-3">
@@ -445,7 +445,7 @@ export default function CreateAccountPage() {
           </div>
         </form>
 
-        <div className="mt-6 flex items-center gap-2 text-sm text-rf-text-muted sm:text-base">
+        <div className="mt-4 flex items-center gap-2 text-sm text-rf-text-muted sm:text-base">
           <span>Already have an account?</span>
           <Link
             href="/login"
@@ -455,7 +455,7 @@ export default function CreateAccountPage() {
           </Link>
         </div>
 
-        <div className="mt-8 text-center text-xs text-rf-text-muted sm:text-sm">
+        <div className="mt-5 text-center text-xs text-rf-text-muted sm:text-sm">
           <p>By creating an account, you accept our</p>
           <Link
             href={PRIVACY_POLICY_URL}
