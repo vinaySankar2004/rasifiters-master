@@ -5,18 +5,17 @@ import { PRIVACY_PATH, SUPPORT_PATH } from "./content";
 export function LandingFooter() {
   return (
     <footer className="border-t border-rf-border/60">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <BrandMark size={28} />
-          <span className="font-semibold tracking-tight text-rf-text">RaSi Fiters</span>
-        </div>
-
-        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-rf-text-muted">
-          <Link href={PRIVACY_PATH} className="transition-colors hover:text-rf-text">Privacy</Link>
-          <Link href={SUPPORT_PATH} className="transition-colors hover:text-rf-text">Support</Link>
-        </nav>
-
-        <p className="text-sm text-rf-text-muted">© 2026 RaSi Fiters</p>
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-5 py-5 text-xs text-rf-text-muted">
+        <span className="flex items-center gap-2 font-medium text-rf-text">
+          <BrandMark size={18} />
+          RaSi Fiters
+        </span>
+        <span aria-hidden="true" className="opacity-50">·</span>
+        <Link href={PRIVACY_PATH} className="transition-colors hover:text-rf-text">Privacy</Link>
+        <span aria-hidden="true" className="opacity-50">·</span>
+        <Link href={SUPPORT_PATH} className="transition-colors hover:text-rf-text">Support</Link>
+        <span aria-hidden="true" className="opacity-50">·</span>
+        <span>© 2026</span>
       </div>
     </footer>
   );
