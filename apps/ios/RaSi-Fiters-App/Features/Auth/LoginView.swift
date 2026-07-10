@@ -223,11 +223,12 @@ struct LoginView: View {
             guard let presenter = AuthPresenter.rootViewController else {
                 throw APIError(message: "Unable to present Google sign-in.")
             }
-            let idToken = try await programContext.startGoogleSignIn(presenting: presenter)
+            let google = try await programContext.startGoogleSignIn(presenting: presenter)
             let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
             let response = try await APIClient.shared.socialSignIn(
                 provider: "google",
-                idToken: idToken,
+                idToken: google.idToken,
+                nonce: google.nonce,
                 pushToken: pushToken
             )
             await handleSocialResponse(response)

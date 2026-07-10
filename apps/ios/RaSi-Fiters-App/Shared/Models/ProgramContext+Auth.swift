@@ -241,15 +241,28 @@ extension ProgramContext {
         persistSession()
     }
 
-    /// Presents the Google sign-in sheet and returns the Google ID token (to POST to `/auth/oauth`).
-    /// `GIDClientID` in Info.plist configures the client id; no manual `GIDConfiguration` needed.
+    /// Presents the Google sign-in sheet and returns the Google ID token + the raw nonce (to POST to
+    /// `/auth/oauth`). `GIDClientID` in Info.plist configures the client id; no manual `GIDConfiguration`
+    /// needed. GoogleSignIn iOS embeds a nonce in the id_token, and Supabase's `signInWithIdToken`
+    /// requires the passed nonce and the token's nonce to BOTH exist and match — so we mirror the Apple
+    /// flow: hand GoogleSignIn the SHA256 of a raw nonce (Google echoes it verbatim into the token) and
+    /// forward the RAW nonce to the backend (GoTrue re-hashes it and compares). Without this the backend
+    /// passes no nonce while the token has one → "Passed nonce and nonce in id_token should either both
+    /// exist or not."
     @MainActor
-    func startGoogleSignIn(presenting: UIViewController) async throws -> String {
-        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting)
+    func startGoogleSignIn(presenting: UIViewController) async throws -> (idToken: String, nonce: String) {
+        let rawNonce = AppleSignInCoordinator.randomNonceString()
+        let hashedNonce = AppleSignInCoordinator.sha256(rawNonce)
+        let result = try await GIDSignIn.sharedInstance.signIn(
+            withPresenting: presenting,
+            hint: nil,
+            additionalScopes: nil,
+            nonce: hashedNonce
+        )
         guard let idToken = result.user.idToken?.tokenString else {
             throw APIError(message: "Google sign-in did not return an ID token.")
         }
-        return idToken
+        return (idToken, rawNonce)
     }
 
     /// Runs OUR OWN Sign-in-with-Apple flow (custom pill button, not Apple's widget): builds an
