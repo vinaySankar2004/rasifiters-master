@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Home-screen widget-picker preview (wide banner) for the quick-add-workout Glance widget.
-     Static layout mirroring AddWorkoutWidget's expanded state; reuses the same shape/icon drawables
-     so the picker shows the real orange card instead of the generic app-icon placeholder. -->
+     Static layout mirroring AddWorkoutWidget's redesigned state (hero glyph + short label + full-width
+     CTA — D-ANDROID-WIDGET-4); reuses the same shape/icon drawables so the picker shows the real orange
+     card instead of the generic app-icon placeholder. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:minWidth="250dp"
     android:minHeight="110dp"
     android:orientation="vertical"
+    android:gravity="center_horizontal"
     android:background="@drawable/widget_bg_workout"
     android:padding="14dp">
 
@@ -43,34 +45,34 @@
             android:tint="#99000000" />
     </LinearLayout>
 
+    <!-- Hero glyph -->
+    <ImageView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/ic_widget_bolt"
+        android:tint="#000000" />
+
+    <!-- Short label -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Add workout session"
+        android:text="Add session"
         android:textColor="#000000"
         android:textStyle="bold"
-        android:textSize="18sp" />
+        android:textSize="16sp" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:maxLines="2"
-        android:text="Quick add a session for any program."
-        android:textColor="#A6000000"
-        android:textSize="13sp" />
-
+    <!-- Full-width CTA -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="16dp"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:background="@drawable/widget_capsule_orange"
-        android:paddingLeft="14dp"
-        android:paddingRight="14dp"
-        android:paddingTop="7dp"
-        android:paddingBottom="7dp">
+        android:paddingTop="9dp"
+        android:paddingBottom="9dp">
 
         <ImageView
             android:layout_width="14dp"

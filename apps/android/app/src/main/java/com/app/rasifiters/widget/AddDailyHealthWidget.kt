@@ -74,7 +74,9 @@ class AddDailyHealthWidget : GlanceAppWidget() {
                 .background(ImageProvider(R.drawable.widget_bg_health))
                 .padding(14.dp)
                 .clickable(actionStartActivity(deepLink)),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Top affordance row: add-circle (left) + chevron (right) — matches the workout tile.
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -86,7 +88,7 @@ class AddDailyHealthWidget : GlanceAppWidget() {
                     contentAlignment = Alignment.Center,
                 ) {
                     Image(
-                        provider = ImageProvider(R.drawable.ic_widget_bed),
+                        provider = ImageProvider(R.drawable.ic_widget_plus),
                         contentDescription = null,
                         colorFilter = ColorFilter.tint(white),
                         modifier = GlanceModifier.size(16.dp),
@@ -101,30 +103,33 @@ class AddDailyHealthWidget : GlanceAppWidget() {
                 )
             }
 
-            Spacer(GlanceModifier.height(6.dp))
+            // Hero glyph + short label, centered in the flexible middle (twin weighted
+            // spacers keep the block centered and gap-free at any widget height — D-ANDROID-WIDGET-4).
+            Spacer(GlanceModifier.defaultWeight())
+            Image(
+                provider = ImageProvider(R.drawable.ic_widget_bed),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(white),
+                modifier = GlanceModifier.size(if (wide) 48.dp else 36.dp),
+            )
+            Spacer(GlanceModifier.height(8.dp))
             Text(
-                text = if (wide) "Log daily health" else "Log health",
+                text = if (wide) "Log health" else "Health",
                 style = TextStyle(
                     color = white,
-                    fontSize = if (wide) 18.sp else 15.sp,
+                    fontSize = if (wide) 16.sp else 13.sp,
                     fontWeight = FontWeight.Bold,
                 ),
                 maxLines = 1,
             )
-            Spacer(GlanceModifier.height(2.dp))
-            Text(
-                text = if (wide) "Quick add a health log for any program." else "Quick add",
-                style = TextStyle(color = white75, fontSize = 12.sp),
-                maxLines = 2,
-            )
-
             Spacer(GlanceModifier.defaultWeight())
 
+            // Full-width CTA pinned to the bottom (capsule is a radius-999 shape drawable → stretches cleanly).
             Box(
                 modifier = GlanceModifier
-                    .height(if (wide) 32.dp else 28.dp)
-                    .background(ImageProvider(R.drawable.widget_capsule_translucent))
-                    .padding(horizontal = if (wide) 14.dp else 10.dp),
+                    .fillMaxWidth()
+                    .height(if (wide) 40.dp else 34.dp)
+                    .background(ImageProvider(R.drawable.widget_capsule_translucent)),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

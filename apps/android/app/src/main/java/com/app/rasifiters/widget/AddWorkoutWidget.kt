@@ -67,7 +67,6 @@ class AddWorkoutWidget : GlanceAppWidget() {
         )
         val black = ColorProvider(Color.Black)
         val black60 = ColorProvider(Color.Black.copy(alpha = 0.6f))
-        val black65 = ColorProvider(Color.Black.copy(alpha = 0.65f))
 
         Column(
             modifier = GlanceModifier
@@ -75,7 +74,9 @@ class AddWorkoutWidget : GlanceAppWidget() {
                 .background(ImageProvider(R.drawable.widget_bg_workout))
                 .padding(14.dp)
                 .clickable(actionStartActivity(deepLink)),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Top affordance row: add-circle (left) + chevron (right).
             Row(
                 modifier = GlanceModifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -102,30 +103,33 @@ class AddWorkoutWidget : GlanceAppWidget() {
                 )
             }
 
-            Spacer(GlanceModifier.height(6.dp))
+            // Hero glyph + short label, centered in the flexible middle (twin weighted
+            // spacers keep the block centered and gap-free at any widget height — D-ANDROID-WIDGET-4).
+            Spacer(GlanceModifier.defaultWeight())
+            Image(
+                provider = ImageProvider(R.drawable.ic_widget_bolt),
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(black),
+                modifier = GlanceModifier.size(if (wide) 48.dp else 36.dp),
+            )
+            Spacer(GlanceModifier.height(8.dp))
             Text(
-                text = if (wide) "Add workout session" else "Add workout",
+                text = if (wide) "Add session" else "Add",
                 style = TextStyle(
                     color = black,
-                    fontSize = if (wide) 18.sp else 15.sp,
+                    fontSize = if (wide) 16.sp else 13.sp,
                     fontWeight = FontWeight.Bold,
                 ),
                 maxLines = 1,
             )
-            Spacer(GlanceModifier.height(2.dp))
-            Text(
-                text = if (wide) "Quick add a session for any program." else "Quick add",
-                style = TextStyle(color = black65, fontSize = 12.sp),
-                maxLines = 2,
-            )
-
             Spacer(GlanceModifier.defaultWeight())
 
+            // Full-width CTA pinned to the bottom (capsule is a radius-999 shape drawable → stretches cleanly).
             Box(
                 modifier = GlanceModifier
-                    .height(if (wide) 32.dp else 28.dp)
-                    .background(ImageProvider(R.drawable.widget_capsule_orange))
-                    .padding(horizontal = if (wide) 14.dp else 10.dp),
+                    .fillMaxWidth()
+                    .height(if (wide) 40.dp else 34.dp)
+                    .background(ImageProvider(R.drawable.widget_capsule_orange)),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {

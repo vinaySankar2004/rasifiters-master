@@ -1,13 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Home-screen widget-picker preview (wide banner) for the quick-add-health Glance widget.
-     Static layout mirroring AddDailyHealthWidget's expanded state; reuses the same shape/icon
-     drawables so the picker shows the real blue card instead of the generic app-icon placeholder. -->
+     Static layout mirroring AddDailyHealthWidget's redesigned state (hero glyph + short label + full-width
+     CTA — D-ANDROID-WIDGET-4); reuses the same shape/icon drawables so the picker shows the real blue
+     card instead of the generic app-icon placeholder. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:minWidth="250dp"
     android:minHeight="110dp"
     android:orientation="vertical"
+    android:gravity="center_horizontal"
     android:background="@drawable/widget_bg_health"
     android:padding="14dp">
 
@@ -25,7 +27,7 @@
                 android:layout_width="16dp"
                 android:layout_height="16dp"
                 android:layout_gravity="center"
-                android:src="@drawable/ic_widget_bed"
+                android:src="@drawable/ic_widget_plus"
                 android:tint="#FFFFFFFF" />
         </FrameLayout>
 
@@ -43,34 +45,34 @@
             android:tint="#BFFFFFFF" />
     </LinearLayout>
 
+    <!-- Hero glyph -->
+    <ImageView
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/ic_widget_bed"
+        android:tint="#FFFFFFFF" />
+
+    <!-- Short label -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Log daily health"
+        android:text="Log health"
         android:textColor="#FFFFFFFF"
         android:textStyle="bold"
-        android:textSize="18sp" />
+        android:textSize="16sp" />
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:maxLines="2"
-        android:text="Quick add a health log for any program."
-        android:textColor="#BFFFFFFF"
-        android:textSize="13sp" />
-
+    <!-- Full-width CTA -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="16dp"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:background="@drawable/widget_capsule_translucent"
-        android:paddingLeft="14dp"
-        android:paddingRight="14dp"
-        android:paddingTop="7dp"
-        android:paddingBottom="7dp">
+        android:paddingTop="9dp"
+        android:paddingBottom="9dp">
 
         <ImageView
             android:layout_width="14dp"
