@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		31E51B7BAB2A4482A3DF408C /* AddWorkoutWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7B63B4C7144C40BE5BE624 /* AddWorkoutWidget.swift */; };
+		8A4C753F30018ACD0084EE27 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 8A4C753E30018ACD0084EE27 /* GoogleSignIn */; };
 		E5BBB09EDCC846A89DD03571 /* Widgets.appex in CopyFiles */ = {isa = PBXBuildFile; fileRef = FE7B5D9E57C14C9AA2332D2E /* Widgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -74,6 +75,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8A4C753F30018ACD0084EE27 /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -129,6 +131,7 @@
 			);
 			name = "RaSi-Fiters-App";
 			packageProductDependencies = (
+				8A4C753E30018ACD0084EE27 /* GoogleSignIn */,
 			);
 			productName = "RaSi-Fiters-App";
 			productReference = 8A5EC6272EEA7CFA003215B8 /* RaSi-Fiters-App.app */;
@@ -180,6 +183,9 @@
 			);
 			mainGroup = 8A5EC61E2EEA7CFA003215B8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8A4C753D30018ACD0084EE27 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8A5EC6282EEA7CFA003215B8 /* Products */;
 			projectDirPath = "";
@@ -363,6 +369,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "RaSi-Fiters-App/RaSi-Fiters-App.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 48;
 				DEVELOPMENT_TEAM = VSTTF2AM22;
@@ -512,6 +519,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8A4C753D30018ACD0084EE27 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		8A4C753E30018ACD0084EE27 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8A4C753D30018ACD0084EE27 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 8A5EC61F2EEA7CFA003215B8 /* Project object */;
 }
