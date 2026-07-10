@@ -32,6 +32,8 @@ import com.app.rasifiters.net.MembershipEditRequest
 import com.app.rasifiters.net.MembershipRemoveRequest
 import com.app.rasifiters.net.MembershipUpdateRequest
 import com.app.rasifiters.net.MtdParticipationDTO
+import com.app.rasifiters.net.OAuthCompleteRequest
+import com.app.rasifiters.net.OAuthRequest
 import com.app.rasifiters.net.NotificationDTO
 import com.app.rasifiters.net.NotificationStreamClient
 import com.app.rasifiters.net.ProgramDTO
@@ -166,12 +168,99 @@ class ProgramContext(
     /** Mobile login via POST /auth/login/app. Persists tokens + identity, flips the gate. */
     suspend fun login(identifier: String, password: String): Result<Unit> = runCatching {
         val resp = api.loginApp(LoginRequest(identifier = identifier, password = password))
-        session.saveTokens(resp.token, resp.refreshToken)
-        session.saveIdentity(resp.memberId, resp.username, resp.memberName, resp.globalRole)
-        _authToken.value = resp.token
-        _globalRole.value = resp.globalRole
-        _memberName.value = resp.memberName
-        _memberUsername.value = resp.username
+        applyLoginSession(resp.token, resp.refreshToken, resp.memberId, resp.username, resp.memberName, resp.globalRole)
+    }.recoverCatching { throw it.asApiError() }
+
+    /** The single session-write path shared by password login + social sign-in/completion: persist tokens +
+     *  identity and flip the StateFlows that drive the root gate + header. */
+    private fun applyLoginSession(
+        token: String,
+        refreshToken: String,
+        memberId: String?,
+        username: String?,
+        memberName: String?,
+        globalRole: String?,
+    ) {
+        session.saveTokens(token, refreshToken)
+        session.saveIdentity(memberId, username, memberName, globalRole)
+        _authToken.value = token
+        _globalRole.value = globalRole
+        _memberName.value = memberName
+        _memberUsername.value = username
+    }
+
+    // ---- Social sign-in (Continue with Google) — the id_token exchange + brand-new-user profile completion.
+    // Credential Manager acquisition lives in the UI layer (needs an Activity/Context); this hub owns only the
+    // two API-facing steps. Mirrors the iOS/web /auth/oauth + /auth/oauth/complete flow.
+
+    /** A brand-new social user's pending session, stashed between /auth/oauth (needs_profile) and the wizard's
+     *  /auth/oauth/complete. The pending access token authorizes the completion call. */
+    data class PendingSocial(
+        val token: String,
+        val refreshToken: String?,
+        val email: String?,
+        val firstName: String?,
+        val lastName: String?,
+    )
+
+    private val _pendingSocial = MutableStateFlow<PendingSocial?>(null)
+    /** Non-null → CreateAccountScreen renders the 2-step social branch (locked email, no password). */
+    val pendingSocial: StateFlow<PendingSocial?> = _pendingSocial.asStateFlow()
+
+    /**
+     * POST /auth/oauth — exchange a Google id_token. Existing member → apply the session (returns false, the
+     * root gate swaps). Brand-new social user → stash the pending session + prefill (returns true, the screen
+     * routes to the completion wizard). The device push token rides along when we already have one.
+     */
+    suspend fun socialSignIn(idToken: String): Result<Boolean> = runCatching {
+        val resp = api.oauth(OAuthRequest(provider = "google", idToken = idToken, pushToken = lastRegisteredPushToken))
+        if (resp.needsProfile) {
+            _pendingSocial.value = PendingSocial(
+                token = resp.token ?: error("Missing pending token."),
+                refreshToken = resp.refreshToken,
+                email = resp.email,
+                firstName = resp.firstName,
+                lastName = resp.lastName,
+            )
+            true
+        } else {
+            applyLoginSession(
+                token = resp.token ?: error("Missing token."),
+                refreshToken = resp.refreshToken ?: error("Missing refresh token."),
+                memberId = resp.memberId,
+                username = resp.username,
+                memberName = resp.memberName,
+                globalRole = resp.globalRole,
+            )
+            false
+        }
+    }.recoverCatching { throw it.asApiError() }
+
+    /**
+     * POST /auth/oauth/complete — finish a brand-new social user's profile (Bearer = the pending access token).
+     * Applies the returned login session (falling back to the pending refresh token when the response omits it)
+     * and clears the pending state; the root gate swaps on success.
+     */
+    suspend fun completeSocial(
+        username: String,
+        gender: String?,
+        firstName: String?,
+        lastName: String?,
+    ): Result<Unit> = runCatching {
+        val pending = _pendingSocial.value ?: error("No pending social sign-in.")
+        val resp = api.oauthComplete(
+            "Bearer ${pending.token}",
+            OAuthCompleteRequest(username, gender, firstName, lastName, refreshToken = pending.refreshToken),
+        )
+        applyLoginSession(
+            token = resp.token ?: error("Missing token."),
+            refreshToken = resp.refreshToken ?: pending.refreshToken ?: error("Missing refresh token."),
+            memberId = resp.memberId,
+            username = resp.username,
+            memberName = resp.memberName,
+            globalRole = resp.globalRole,
+        )
+        _pendingSocial.value = null
     }.recoverCatching { throw it.asApiError() }
 
     suspend fun register(
@@ -1102,6 +1191,7 @@ class ProgramContext(
         stopNotificationStream()
         lastRegisteredPushToken = null
         session.clear()
+        _pendingSocial.value = null
         _loggedInGender.value = null
         _authToken.value = null
         _globalRole.value = null

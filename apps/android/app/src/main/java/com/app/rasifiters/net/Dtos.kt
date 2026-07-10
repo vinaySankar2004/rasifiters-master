@@ -68,6 +68,46 @@ data class MessageResponse(val message: String? = null)
 @Serializable
 data class ForgotPasswordRequest(val email: String)
 
+/** POST /auth/oauth body — a provider-issued id_token exchange (Google now; `provider="google"`). `push_token`/
+ *  `device_id` ride along so a social sign-in registers this device just like password login (iOS/web parity). */
+@Serializable
+data class OAuthRequest(
+    val provider: String,
+    @SerialName("id_token") val idToken: String,
+    val nonce: String? = null,
+    @SerialName("push_token") val pushToken: String? = null,
+    @SerialName("device_id") val deviceId: String? = null,
+)
+
+/** POST /auth/oauth AND /auth/oauth/complete response — login payload (refresh_token may be echoed and can
+ *  be absent) OR needs_profile=true + prefill + pending session. refreshToken nullable so a completion that
+ *  omits it never fails to decode. */
+@Serializable
+data class OAuthResponse(
+    val token: String? = null,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+    @SerialName("member_id") val memberId: String? = null,
+    val username: String? = null,
+    @SerialName("member_name") val memberName: String? = null,
+    @SerialName("global_role") val globalRole: String? = null,
+    @SerialName("needs_profile") val needsProfile: Boolean = false,
+    val email: String? = null,
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("last_name") val lastName: String? = null,
+    val message: String? = null,
+)
+
+/** POST /auth/oauth/complete body — the profile-completion for a brand-new social user (Bearer = the pending
+ *  access token from the needs_profile response). `refresh_token` echoes the pending refresh back to the backend. */
+@Serializable
+data class OAuthCompleteRequest(
+    val username: String,
+    val gender: String? = null,
+    @SerialName("first_name") val firstName: String? = null,
+    @SerialName("last_name") val lastName: String? = null,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+)
+
 // ---- Notifications (Phase I) ----
 
 /**

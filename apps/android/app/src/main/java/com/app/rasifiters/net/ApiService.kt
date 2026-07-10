@@ -6,6 +6,7 @@ import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.HTTP
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -37,6 +38,14 @@ interface ApiService {
 
     @POST("auth/forgot-password")
     suspend fun forgotPassword(@Body body: ForgotPasswordRequest): MessageResponse
+
+    // Social sign-in: exchange a Google id_token (existing member → login; new user → needs_profile + pending
+    // session), then complete the pending profile. Both return the nullable-refresh OAuthResponse.
+    @POST("auth/oauth")
+    suspend fun oauth(@Body body: OAuthRequest): OAuthResponse
+
+    @POST("auth/oauth/complete")
+    suspend fun oauthComplete(@Header("Authorization") bearer: String, @Body body: OAuthCompleteRequest): OAuthResponse
 
     // ---- Programs ----
     @GET("programs")

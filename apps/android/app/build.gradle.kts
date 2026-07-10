@@ -26,6 +26,9 @@ android {
             // (Local-backend testing is the exception: temporarily swap to "http://10.0.2.2:5001/api",
             // the emulator's alias for the host Mac's localhost.)
             buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api.onrender.com/api\"")
+            // Credential Manager's serverClientId — the Google Cloud OAuth WEB client id (non-secret; it's the
+            // audience the backend verifies the Google id_token against). USER must fill this in.
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"REPLACE_WITH_GOOGLE_WEB_CLIENT_ID\"")
         }
         release {
             isMinifyEnabled = false
@@ -35,6 +38,8 @@ android {
             )
             // Same prod API base as the web + iOS release clients.
             buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api.onrender.com/api\"")
+            // Credential Manager's serverClientId — the Google Cloud OAuth WEB client id (non-secret). USER must fill.
+            buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"REPLACE_WITH_GOOGLE_WEB_CLIENT_ID\"")
         }
     }
 
@@ -87,4 +92,9 @@ dependencies {
 
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
+
+    // Credential Manager + Google ID — "Continue with Google" (returns a Google id_token → backend /auth/oauth).
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 }
