@@ -53,6 +53,20 @@ func workoutPopularitySorted(
     types.sorted { metric.value(for: $0) > metric.value(for: $1) }
 }
 
+// Total time spent, showing the two largest units: "45m" → "3h 12m" → "1d 4h".
+// Scales up to days only for large aggregate totals (workout-type program-to-date sums).
+func formatWorkoutMinutes(_ minutes: Int) -> String {
+    if minutes < 60 { return "\(minutes)m" }
+    if minutes < 1440 {
+        let h = minutes / 60
+        let m = minutes % 60
+        return m == 0 ? "\(h)h" : "\(h)h \(m)m"
+    }
+    let d = minutes / 1440
+    let h = (minutes % 1440) / 60
+    return h == 0 ? "\(d)d" : "\(d)d \(h)h"
+}
+
 func workoutTypePaletteColor(for name: String) -> Color {
     let palette = Color.chartPalette
     var hash = 5381

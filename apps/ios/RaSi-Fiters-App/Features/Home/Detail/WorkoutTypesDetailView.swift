@@ -17,11 +17,11 @@ struct WorkoutTypesDetailView: View {
     @State private var selected: APIClient.WorkoutTypeDTO?
 
     private var sortedTypes: [APIClient.WorkoutTypeDTO] {
-        types.sorted { $0.sessions > $1.sessions }
+        types.sorted { $0.total_duration > $1.total_duration }
     }
 
-    private var totalSessions: Double {
-        max(Double(sortedTypes.reduce(0) { $0 + $1.sessions }), 1)
+    private var totalDuration: Double {
+        max(Double(sortedTypes.reduce(0) { $0 + $1.total_duration }), 1)
     }
 
     private var chartTypes: [APIClient.WorkoutTypeDTO] {
@@ -50,13 +50,13 @@ struct WorkoutTypesDetailView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 200)
             } else {
-                Text("Workouts (Program to date)")
+                Text("Time spent (Program to date)")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(Color(.secondaryLabel))
 
                 Chart {
                     ForEach(chartTypes) { t in
-                        let percent = Double(t.sessions) / totalSessions
+                        let percent = Double(t.total_duration) / totalDuration
                         BarMark(
                             x: .value("Percent", percent),
                             y: .value("Type", t.workout_name)
@@ -89,7 +89,7 @@ struct WorkoutTypesDetailView: View {
                             .foregroundColor(Color(.secondaryLabel))
                             .frame(maxWidth: .infinity, alignment: .leading)
 
-                        let total = max(sortedTypes.reduce(0) { $0 + $1.sessions }, 1)
+                        let total = max(sortedTypes.reduce(0) { $0 + $1.total_duration }, 1)
                         ForEach(sortedTypes) { t in
                             WorkoutTypeRow(type: t, total: total, isOthers: false)
                         }
@@ -111,7 +111,7 @@ struct WorkoutTypeRow: View {
     var isOthers: Bool = false
 
     private var share: Double {
-        total > 0 ? Double(type.sessions) / Double(total) : 0
+        total > 0 ? Double(type.total_duration) / Double(total) : 0
     }
 
     var body: some View {
@@ -125,10 +125,10 @@ struct WorkoutTypeRow: View {
                     .lineLimit(1)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(type.sessions)")
+                    Text(formatWorkoutMinutes(type.total_duration))
                         .font(.headline.weight(.semibold))
                         .foregroundColor(Color(.label))
-                    Text("\(type.avg_duration_minutes) min avg")
+                    Text("\(type.sessions) sessions")
                         .font(.caption)
                         .foregroundColor(Color(.secondaryLabel))
                 }

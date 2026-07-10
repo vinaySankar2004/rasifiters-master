@@ -58,6 +58,21 @@ export function formatDuration(totalMinutes: number): string {
   return `${h}h ${m}m`;
 }
 
+// Like formatDuration, but scales up to days for large aggregate totals (e.g. total
+// time spent on a workout type across a whole program). Shows the two largest units:
+// "45m" → "3h 12m" → "1d 4h".
+export function formatTotalDuration(totalMinutes: number): string {
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  if (totalMinutes < 1440) {
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
+  const d = Math.floor(totalMinutes / 1440);
+  const h = Math.floor((totalMinutes % 1440) / 60);
+  return h === 0 ? `${d}d` : `${d}d ${h}h`;
+}
+
 export function escapeCsv(value: string) {
   return `"${value.replace(/"/g, '""')}"`;
 }

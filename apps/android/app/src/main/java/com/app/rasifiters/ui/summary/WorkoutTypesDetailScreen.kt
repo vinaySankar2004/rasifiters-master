@@ -42,8 +42,8 @@ import kotlin.math.roundToInt
 @Composable
 fun WorkoutTypesDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val summary by programContext.summary.collectAsStateWithLifecycle()
-    val types = summary.workoutTypes.sortedByDescending { it.sessions }
-    val total = types.sumOf { it.sessions }.coerceAtLeast(1)
+    val types = summary.workoutTypes.sortedByDescending { it.totalDuration }
+    val total = types.sumOf { it.totalDuration }.coerceAtLeast(1)
     val chartRows = topSixWithOthers(summary.workoutTypes)
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -59,7 +59,7 @@ fun WorkoutTypesDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             Column {
                 Text("Workout Types", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
                 Text(
-                    "Workouts (Program to date)",
+                    "Time spent (Program to date)",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
@@ -75,7 +75,7 @@ fun WorkoutTypesDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             // %-share chart (top 5 + Others)
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 chartRows.forEach { t ->
-                    val fraction = (t.sessions.toFloat() / total).coerceIn(0f, 1f)
+                    val fraction = (t.totalDuration.toFloat() / total).coerceIn(0f, 1f)
                     val pct = (fraction * 100).roundToInt()
                     val color = if (t.workoutName == "Others") MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                     else workoutTypePaletteColor(t.workoutName)
@@ -93,7 +93,7 @@ fun WorkoutTypesDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             )
 
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                types.forEach { t -> BreakdownRow(type = t, fraction = (t.sessions.toFloat() / total).coerceIn(0f, 1f)) }
+                types.forEach { t -> BreakdownRow(type = t, fraction = (t.totalDuration.toFloat() / total).coerceIn(0f, 1f)) }
             }
         }
     }
@@ -139,9 +139,9 @@ private fun BreakdownRow(type: WorkoutTypeDTO, fraction: Float) {
                 modifier = Modifier.weight(1f),
             )
             Column(horizontalAlignment = Alignment.End) {
-                Text("${type.sessions}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(formatWorkoutDuration(type.totalDuration), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
-                    "${type.avgDurationMinutes} min avg",
+                    "${type.sessions} sessions",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )

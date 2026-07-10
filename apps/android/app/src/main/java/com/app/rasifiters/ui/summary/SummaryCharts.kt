@@ -169,7 +169,7 @@ fun WorkoutTypesCard(types: List<WorkoutTypeDTO>, onClick: () -> Unit) {
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f),
                         )
-                        Text("${t.sessions}", style = MaterialTheme.typography.bodyMedium)
+                        Text(formatWorkoutDuration(t.totalDuration), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             }
@@ -177,9 +177,27 @@ fun WorkoutTypesCard(types: List<WorkoutTypeDTO>, onClick: () -> Unit) {
     }
 }
 
-/** iOS `WorkoutTypesSummaryCard.topSixWithOthers`: top 5 by sessions + an "Others" rollup. */
+/**
+ * Total time spent, showing the two largest units: "45m" → "3h 12m" → "1d 4h".
+ * Scales up to days only for large aggregate totals (workout-type program-to-date sums).
+ */
+internal fun formatWorkoutDuration(minutes: Int): String = when {
+    minutes < 60 -> "${minutes}m"
+    minutes < 1440 -> {
+        val h = minutes / 60
+        val m = minutes % 60
+        if (m == 0) "${h}h" else "${h}h ${m}m"
+    }
+    else -> {
+        val d = minutes / 1440
+        val h = (minutes % 1440) / 60
+        if (h == 0) "${d}d" else "${d}d ${h}h"
+    }
+}
+
+/** iOS `WorkoutTypesSummaryCard.topSixWithOthers`: top 5 by total time + an "Others" rollup. */
 internal fun topSixWithOthers(types: List<WorkoutTypeDTO>): List<WorkoutTypeDTO> {
-    val sorted = types.sortedByDescending { it.sessions }
+    val sorted = types.sortedByDescending { it.totalDuration }
     val topFive = sorted.take(5)
     val others = sorted.drop(5)
     val list = topFive.toMutableList()

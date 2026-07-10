@@ -25,6 +25,7 @@ import {
   BulkWorkoutEntry
 } from "@/lib/api/logs";
 import { ApiError } from "@/lib/api/client";
+import { formatTotalDuration } from "@/lib/format";
 import { LogWorkoutsForm } from "@/components/forms/LogWorkoutsForm";
 import { LogDailyHealthForm } from "@/components/forms/LogDailyHealthForm";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
@@ -143,7 +144,7 @@ export default function SummaryPage() {
 
   const topWorkoutTypes = useMemo(() => {
     const types = workoutTypesQuery.data ?? [];
-    return [...types].sort((a, b) => b.sessions - a.sessions).slice(0, 6);
+    return [...types].sort((a, b) => b.total_duration - a.total_duration).slice(0, 6);
   }, [workoutTypesQuery.data]);
 
   const userInitials = useMemo(() => {
@@ -546,7 +547,7 @@ function WorkoutTypesCard({ types, onClick }: { types: WorkoutType[]; onClick: (
           {types.map((type) => (
             <li key={type.workout_name} className="flex items-center justify-between">
               <span className="font-semibold text-rf-text">{type.workout_name}</span>
-              <span className="text-rf-text-muted">{type.sessions} sessions</span>
+              <span className="text-rf-text-muted">{formatTotalDuration(type.total_duration)}</span>
             </li>
           ))}
         </ul>

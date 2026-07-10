@@ -307,7 +307,7 @@ struct WorkoutTypesSummaryCard: View {
     let types: [APIClient.WorkoutTypeDTO]
 
     private var topSixWithOthers: [APIClient.WorkoutTypeDTO] {
-        let sorted = types.sorted { $0.sessions > $1.sessions }
+        let sorted = types.sorted { $0.total_duration > $1.total_duration }
         let topFive = Array(sorted.prefix(5))
         let others = Array(sorted.dropFirst(5))
         var list = topFive
@@ -357,7 +357,7 @@ struct WorkoutTypesSummaryCard: View {
                                     .font(.subheadline.weight(.semibold))
                                     .lineLimit(1)
                                 Spacer()
-                                Text("\(t.sessions)")
+                                Text(formatWorkoutMinutes(t.total_duration))
                                     .font(.subheadline.weight(.medium))
                                     .foregroundColor(Color(.label))
                             }

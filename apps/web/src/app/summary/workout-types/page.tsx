@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { formatTotalDuration } from "@/lib/format";
 import {
   CHART_COLORS,
   CHART_TOOLTIP_CONTENT_STYLE,
@@ -25,7 +26,7 @@ export default function WorkoutTypesPage() {
     enabled: !!token && !!programId
   });
 
-  const data = typesQuery.data ?? [];
+  const data = [...(typesQuery.data ?? [])].sort((a, b) => b.total_duration - a.total_duration);
 
   return (
     <PageShell maxWidth="4xl">
@@ -58,9 +59,9 @@ export default function WorkoutTypesPage() {
                       <Tooltip
                         contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
                         labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-                        formatter={(value: number) => [value, "Sessions"]}
+                        formatter={(value: number) => [formatTotalDuration(value), "Total time"]}
                       />
-                      <Bar dataKey="sessions" fill={CHART_COLORS[0]} radius={[8, 8, 0, 0]} />
+                      <Bar dataKey="total_duration" fill={CHART_COLORS[0]} radius={[8, 8, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -70,7 +71,7 @@ export default function WorkoutTypesPage() {
                     <li key={type.workout_name} className="flex items-center justify-between">
                       <span className="font-semibold text-rf-text">{type.workout_name}</span>
                       <span className="text-rf-text-muted">
-                        {type.sessions} sessions · avg {type.avg_duration_minutes} min
+                        {formatTotalDuration(type.total_duration)} · {type.sessions} sessions
                       </span>
                     </li>
                   ))}
