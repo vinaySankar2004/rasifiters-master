@@ -1,4 +1,9 @@
 import Foundation
+import UIKit
+import Security
+import GoogleSignIn
+import AuthenticationServices
+import CryptoKit
 
 extension ProgramContext {
     // MARK: - Session Persistence & Auth
@@ -210,5 +215,110 @@ extension ProgramContext {
         Task {
             try? await APIClient.shared.registerDevice(token: token, pushToken: deviceToken)
         }
+    }
+
+    // MARK: - Federated Sign-in (Google / Apple)
+
+    /// Writes an authenticated `AuthResponse` into the shared context — the single session-write path
+    /// shared by password login (`LoginView`), password sign-up (`CreateAccountView`) and federated
+    /// sign-in. Extracted 1:1 from the former inline `handleLogin`/`handleCreateAccount` writes.
+    @MainActor
+    func applyAuthResponse(_ r: AuthResponse) async {
+        let role = (r.globalRole ?? "").lowercased()
+        authToken = r.token
+        refreshToken = r.refreshToken
+        globalRole = role.isEmpty ? "standard" : role
+        loggedInUserId = r.memberId
+        loggedInUsername = r.username
+        if let name = r.memberName {
+            loggedInUserName = name
+            adminName = name
+        } else if let uname = r.username {
+            loggedInUserName = uname
+            adminName = uname
+        }
+        await loadLookupData()
+        persistSession()
+    }
+
+    /// Presents the Google sign-in sheet and returns the Google ID token (to POST to `/auth/oauth`).
+    /// `GIDClientID` in Info.plist configures the client id; no manual `GIDConfiguration` needed.
+    @MainActor
+    func startGoogleSignIn(presenting: UIViewController) async throws -> String {
+        let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: presenting)
+        guard let idToken = result.user.idToken?.tokenString else {
+            throw APIError(message: "Google sign-in did not return an ID token.")
+        }
+        return idToken
+    }
+}
+
+/// Pending federated sign-up carried from `LoginView` (a `needs_profile` OAuth response) into
+/// `CreateAccountView`'s social branch, which finishes registration via `/auth/oauth/complete`.
+struct PendingSocial {
+    let token: String
+    let refreshToken: String?
+    let email: String?
+    let firstName: String?
+    let lastName: String?
+}
+
+/// Resolves the current key window / top view controller for presenting the Google sheet + the
+/// Sign-in-with-Apple authorization (both need a UIKit presentation anchor from SwiftUI).
+@MainActor
+enum AuthPresenter {
+    static var keyWindow: UIWindow? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }
+    }
+
+    static var rootViewController: UIViewController? {
+        var top = keyWindow?.rootViewController
+        while let presented = top?.presentedViewController { top = presented }
+        return top
+    }
+}
+
+/// Sign-in-with-Apple crypto + credential helpers. Presentation is owned by SwiftUI's
+/// `SignInWithAppleButton` (see `LoginView`); this type supplies the raw nonce (whose SHA256 is set
+/// on the request), and decodes the returned credential into (idToken, fullName) for `/auth/oauth`.
+enum AppleSignInCoordinator {
+    /// A cryptographically-random nonce; its SHA256 goes on the request, the raw value goes to the
+    /// backend for replay protection (matches Supabase's `signInWithIdToken` nonce contract).
+    static func randomNonceString(length: Int = 32) -> String {
+        precondition(length > 0)
+        let charset: [Character] = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._")
+        var result = ""
+        var remaining = length
+        while remaining > 0 {
+            var randoms = [UInt8](repeating: 0, count: 16)
+            let status = SecRandomCopyBytes(kSecRandomDefault, randoms.count, &randoms)
+            guard status == errSecSuccess else {
+                fatalError("SecRandomCopyBytes failed: \(status)")
+            }
+            for random in randoms where remaining > 0 {
+                if Int(random) < charset.count {
+                    result.append(charset[Int(random)])
+                    remaining -= 1
+                }
+            }
+        }
+        return result
+    }
+
+    static func sha256(_ input: String) -> String {
+        SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Extracts the identity token + first-auth name hints from an Apple authorization.
+    static func decode(_ authorization: ASAuthorization) throws -> (idToken: String, fullName: PersonNameComponents?) {
+        guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+              let tokenData = credential.identityToken,
+              let idToken = String(data: tokenData, encoding: .utf8) else {
+            throw APIError(message: "Apple sign-in failed to return an identity token.")
+        }
+        return (idToken, credential.fullName)
     }
 }

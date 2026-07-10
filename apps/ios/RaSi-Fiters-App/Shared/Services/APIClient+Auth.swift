@@ -128,6 +128,45 @@ extension APIClient {
         return try JSONDecoder().decode(RegisterResponse.self, from: data)
     }
 
+    /// Federated sign-in — POST auth/oauth. `firstName`/`lastName` are Apple first-auth name hints
+    /// (Apple returns the name ONLY on the first authorization, so forward them when present).
+    func socialSignIn(provider: String, idToken: String, nonce: String? = nil,
+                      firstName: String? = nil, lastName: String? = nil,
+                      pushToken: String? = nil, deviceId: String? = nil) async throws -> AuthResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/oauth"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body: [String: String] = ["provider": provider, "id_token": idToken]
+        if let nonce { body["nonce"] = nonce }
+        if let firstName, !firstName.isEmpty { body["first_name"] = firstName }
+        if let lastName, !lastName.isEmpty { body["last_name"] = lastName }
+        if let pushToken, !pushToken.isEmpty { body["push_token"] = pushToken }
+        if let deviceId, !deviceId.isEmpty { body["device_id"] = deviceId }
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(AuthResponse.self, from: data)
+    }
+
+    /// Finish a new federated sign-up — POST auth/oauth/complete. The pending access_token is sent as
+    /// the Bearer; the pending refresh_token is re-sent in the body (the backend rotates the session).
+    func completeSocialRegistration(pendingToken: String, refreshToken: String?, username: String,
+                                    gender: String?, firstName: String?, lastName: String?) async throws -> AuthResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/oauth/complete"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(pendingToken)", forHTTPHeaderField: "Authorization")
+        var body: [String: String] = ["username": username]
+        if let gender, !gender.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { body["gender"] = gender }
+        if let firstName, !firstName.isEmpty { body["first_name"] = firstName }
+        if let lastName, !lastName.isEmpty { body["last_name"] = lastName }
+        if let refreshToken, !refreshToken.isEmpty { body["refresh_token"] = refreshToken }
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(AuthResponse.self, from: data)
+    }
+
     /// Triggers a Supabase password-reset email via the Express proxy. Privacy-safe: the backend always
     /// returns a generic 200 regardless of whether the email maps to an account (no enumeration), so the
     /// caller shows the same confirmation either way. Mirrors the web `POST /auth/forgot-password` flow.

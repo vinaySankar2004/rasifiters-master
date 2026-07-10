@@ -1,6 +1,6 @@
 # Screen: `create-account` (ios) — the public sign-up screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `LoginView`'s "New here? Create an account" link (`NavigationLink → CreateAccountView()`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Auth/CreateAccountView.swift`.
 > **Web parity reference:** [`web create-account`](../../web/create-account/SPEC.md) — same field set +
@@ -37,6 +37,27 @@ register-then-auto-login is faithful to legacy.
 - **Leaves to:** `ProgramPickerView` (on successful sign-up — `navigateToProgramPicker`, **and** the root
   swaps once `authToken` is set) · back to `LoginView` (the "Already have an account? Sign in" button →
   `dismiss()`) · `APIConfig.privacyPolicyURL` (external).
+
+## 3a. Layout — 3-step paged wizard (v0.2.0, D-C6)
+
+The single scrolling form is now a **paged `TabView`** (`.tabViewStyle(.page(indexDisplayMode:.never))`,
+`selection: $step` — the same idiom as `ProgramActionsSheet`), with a **custom 3-dot indicator** + **Back /
+Continue** capsules below the pager. The `BrandMark` + heading sit **above** the pager (static); each page
+holds one field group so it fits one screen with **no inner scroll**:
+
+- **Page 0** — First Name + Last Name (First Name `@FocusState` autoFocus, D-C5).
+- **Page 1** — Username + gender `Menu` + Email (inline email-format hint, D-C2).
+- **Page 2** — Password + Confirm + the live policy checklist (D-C3) + mismatch hint (D-C4).
+
+Per-page validation gates **Continue** (page 0: both names; page 1: username + valid email; page 2: policy
++ match). The last page's Continue reads **"Create Account"** → `handleCreateAccount()`. **Back** appears
+from page 1 on.
+
+**Social branch (D-C7)** — when pushed with a `PendingSocial` (a `needs_profile` OAuth hand-off from
+`LoginView`), `.onAppear` sets a local social mode: prefill First/Last (**editable**) + Email from the
+provider and **lock** the Email field (`.disabled`), and show **only pages 0–1** (no password page). The
+last-page Continue calls `APIClient.completeSocialRegistration()` (`POST /auth/oauth/complete`, pending
+access_token as Bearer + re-sent refresh_token) → `ProgramContext.applyAuthResponse` → `ProgramPickerView`.
 
 ## 4. Contents / sections
 
@@ -119,6 +140,8 @@ only *after* the post-register auto-login.
 | **D-C3** | **Live password-policy checklist (web D-C3)** replacing the legacy static hint line. A ✓/○ list (≥8 · uppercase · lowercase · number) appears on the first keystroke and greens (`appGreen`) per satisfied rule, mirroring the server `validatePassword` policy. | web create-account D-C3; legacy static line `:71-75`; user answer. |
 | **D-C4** | **Muted confirm-mismatch hint (web D-C4)** ("Passwords don't match.", `secondaryLabel`) instead of legacy's `appRed` "Passwords do not match." | web create-account D-C4; legacy `:77-82`; user answer. |
 | **D-C5** | **`autoFocus` the First Name field (web D-C5)** via `@FocusState` set ~350 ms after appear. | web create-account D-C5; user answer. |
+| **D-C6** | **3-step paged wizard (v0.2.0).** The single scrolling form → a paged `TabView(.page)` with a `@State step`, a custom 3-dot indicator, and Back/Continue capsules; per-page validation gates Continue; the final Continue = "Create Account" → the unchanged `handleCreateAccount()`. Field set, validators, and the register-then-auto-login flow are byte-for-byte the same — only the layout is paged. | user request; `ProgramActionsSheet` paged idiom; web parity. |
+| **D-C7** | **Federated social branch (v0.2.0).** A `pendingSocial: PendingSocial?` init param (set by `LoginView` on a `needs_profile` OAuth response) puts the view in a **2-step** social mode: prefill First/Last (editable) + Email (locked) from the provider, drop the password page, and finish via `APIClient.completeSocialRegistration()` (`POST /auth/oauth/complete`) → `applyAuthResponse` → `ProgramPickerView`. | landed `/auth/oauth/complete`; login D-C3; `ProgramContext.applyAuthResponse`. |
 | **D-DEPS** | **One new dependency — `BrandMark.swift` + the `BrandIcon.imageset`** (shared with splash/login). The checklist (`policyRow`) + email regex are inline view helpers (no new module). Every other import was ported in the foundation (run 50). | foundation inventory (run 50). |
 
 > **D-C-note — the web "already-authed → redirect" cleanup (web create-account D-C2) is N/A on iOS.** The
@@ -139,4 +162,5 @@ only *after* the post-register auto-login.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-10 | **Paged 3-step wizard + federated social branch (D-C6, D-C7).** The single scrolling form became a paged `TabView(.page)` (`@State step`, custom 3-dot indicator, Back/Continue capsules, per-page gating) — page 0 names, page 1 username/gender/email, page 2 password/confirm/checklist; final Continue = "Create Account" → the unchanged `handleCreateAccount()` (field set + validators + register-then-auto-login byte-for-byte identical, now routed through the extracted `ProgramContext.applyAuthResponse`). New `pendingSocial: PendingSocial?` init param drives a 2-step social mode (from `LoginView`'s `needs_profile` OAuth hand-off): prefill First/Last (editable) + Email (locked), no password page, finish via `APIClient.completeSocialRegistration()` (`POST /auth/oauth/complete`) → `applyAuthResponse` → `ProgramPickerView`. iOS compile is USER-run (Xcode + xcode MCP). `apps/ios/.../Features/Auth/CreateAccountView.swift`. |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **third iOS screen spec** (closing the iOS public/auth path: splash → login → create-account). Documents the public `CreateAccountView`: first/last name + username + email + optional gender (`Menu`) + password + confirm, register-then-auto-login → `ProgramPickerView`, sign-in (`dismiss()`) + Privacy links. Consumes `auth` (`registerAccount()` `POST /auth/register` + `loginGlobal()`, `ProgramContext+Auth`). Decisions: **D-REF** (`consumed_by=[ios]`; legacy iOS + web parity) · **D-S1** (faithful 1:1 port + 4 deviations) · **D-C1** (real `BrandMark`) · **D-C2** (inline email-format validation + muted hint, web D-C1) · **D-C3** (live password checklist replacing the static hint, web D-C3) · **D-C4** (muted mismatch hint, web D-C4) · **D-C5** (autoFocus First Name, web D-C5); **D-C-note** (web's authed-redirect cleanup is N/A — the iOS root handles it). Flagged F1–F5 (role from body; register-then-login no-rollback; no client rate-limit; no client username rules; gender sent as-is). Role rules N/A (public/pre-auth). Ported `apps/ios/.../Features/Auth/CreateAccountView.swift`. Build green-check owned by the user (Xcode). |
