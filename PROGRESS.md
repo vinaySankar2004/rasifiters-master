@@ -7,7 +7,31 @@
 
 ## Current phase
 
-**LATEST (2026-07-10): Signup wizard + Google/Apple federated sign-in SHIPPED — `auth` v0.8.0.** The
+**LATEST (2026-07-10): Account-settings link/unlink Google (+ Apple on iOS) + add-password SHIPPED — `auth`
+v0.9.0.** The deferred phase-2 of federated sign-in: a signed-in member can now **link/unlink** their Google
+identity (and Apple on iOS) and **add a password** to a social-only account, from a net-new **"Sign-in
+methods"** section on each account/settings screen (web `program/profile`, iOS `MyProfileView`, Android
+`ProfileScreen`). Built end-to-end via the **multiplex pipeline** (scout → plan → plan-adversary → user
+approval → backend + 3 parallel implementers → impl-adversary **SHIP** → compile-check → git-version). Four
+NET-NEW authenticated additive routes (`GET /identities`, `POST /link`, `POST /unlink`, `POST /set-password`,
+**D-C10**). **R1 preserved:** link = session-bound GoTrue `linkIdentity` (`linkIdentityIdToken`) binding an
+ephemeral client to the caller's OWN Supabase user (`makeEphemeralAuthClient` + `setSession` on Bearer +
+body `refresh_token`) → attaches the identity onto the existing `auth_user_id`; **no OAuth redirect, no
+same-email auto-link toggle, no second `auth.users` row → `/oauth`'s D-C8 409 stays untouched.** Requires the
+Supabase **"Manual linking"** (`security_manual_linking_enabled`) toggle — **user enabled it 2026-07-10**.
+Apple link/unlink is **iOS-only** (F9); web + android show Google + password. **Backend (Render) + web
+(Vercel) DEPLOYED; user live-tested link/unlink + add-password on ALL THREE platforms and signed off
+(2026-07-10).** No new env, no migration. Compile: backend live (routes 401), web `npm run build` ✓, android
+`assembleDebug` ✓, iOS static-clean (Xcode build is the user's TestFlight archive). Committed `e49880a`
+(backend) + `1def2b4` (clients+SPEC), tagged `feature/auth@v0.9.0`. **NOT-YET-ON-STORE tail:** the new
+iOS/Android binaries now carry BOTH v0.8.0 (federated sign-in) + v0.9.0 (linking) and are code-complete +
+compile-clean but **not yet on TestFlight/Play** — shipping them is the user's next two sessions (iOS:
+archive, bump `CURRENT_PROJECT_VERSION` 48→49 same marketing version; Android: **dev verification now
+APPROVED** → first signed AAB → Play internal testing + add the release SHA-1 to the Google Android OAuth
+client). Load-bearing details: `specs/features/auth/SPEC.md` §9 D-C10 + auto-memory
+`link-unlink-account-settings-shipped`.
+
+**PRIOR (2026-07-10): Signup wizard + Google/Apple federated sign-in SHIPPED — `auth` v0.8.0.** The
 Create Account flow is now a 3-step no-scroll wizard on all 3 clients, with Continue-with-Google
 (web/iOS/Android) + Sign-in-with-Apple (iOS), custom dark-pill buttons, and the auth screens tightened to
 fit one screen. Backend (Render) + web (Vercel) **deployed**; **live-tested on all 3 platforms**. R1
@@ -222,7 +246,13 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ANDROID PORT — CODE-COMPLETE + LIVE-VERIFIED (all phases A→J green; Phase H Health Connect sync + Phase I FCM push both user-live-tested on the Pixel_8, 2026-07-08). Next + only remaining step: **the user generates a signed AAB in Android Studio → Play Console internal testing.**
+> ### ⏭️ TWO STORE PUSHES, EACH ITS OWN NEW SESSION (app is feature-complete on all 4 surfaces; backend + web live; auth v0.9.0 link/unlink user-verified on all 3 platforms 2026-07-10).
+>
+> **Session A — iOS TestFlight.** Archive `apps/ios` (Xcode build is also the authoritative iOS compile of the v0.8.0+v0.9.0 code), bump `CURRENT_PROJECT_VERSION` 48→49 (**same** MARKETING_VERSION → instant beta, no review — memory `testflight-versioning-convention`) → upload → TestFlight. The new binary carries federated sign-in (v0.8.0) + account-settings linking (v0.9.0). Update `RELEASES.md` + memory `release-channel-ledger` when it ships.
+>
+> **Session B — first Android release (dev verification now APPROVED).** Generate a signed AAB in Android Studio → Play Console **internal testing** (the Compose port has been code-complete since Phase J). **Also add the release-keystore SHA-1 to the Google Android OAuth client** (Google Cloud console) or Continue-with-Google fails on the release build. Update `RELEASES.md` when it lands on Play internal.
+>
+> _(Below: the prior Android-port next-step, now folded into Session B above.)_
 
 **Phase J is DONE** (2026-07-08, Run 15): the last scaffold placeholder `ui/StubScreen.kt` is **deleted**
 (unused since Phase G drove call-sites to 0); the `apps/android/CONTEXT.md` scaffold-removal tracker is
