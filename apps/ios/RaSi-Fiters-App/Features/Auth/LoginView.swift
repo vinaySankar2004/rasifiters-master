@@ -15,8 +15,6 @@ struct LoginView: View {
     // Federated sign-up hand-off: a `needs_profile` OAuth response pushes CreateAccountView in social mode.
     @State private var pendingSocial: PendingSocial?
     @State private var navigateToCreateAccount: Bool = false
-    // Raw Sign-in-with-Apple nonce; its SHA256 is set on the request, the raw value is sent to the backend.
-    @State private var currentAppleNonce: String = ""
 
     var body: some View {
         ZStack {
@@ -169,36 +167,23 @@ struct LoginView: View {
             .frame(maxWidth: 240)
 
             Button(action: { Task { await handleGoogleSignIn() } }) {
-                HStack(spacing: 10) {
-                    Image(systemName: "g.circle.fill")
-                        .font(.headline)
-                    Text("Continue with Google")
-                        .font(.headline.weight(.semibold))
+                FederatedSignInLabel(title: "Continue with Google") {
+                    Image("GoogleG")
+                        .resizable()
+                        .renderingMode(.original)
+                        .frame(width: 18, height: 18)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .frame(maxWidth: 240)
-                .foregroundColor(Color(.label))
-                .background(
-                    Capsule()
-                        .stroke(Color(.systemGray3), lineWidth: 1)
-                )
-                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(isLoading)
 
-            SignInWithAppleButton(.signIn) { request in
-                let nonce = AppleSignInCoordinator.randomNonceString()
-                currentAppleNonce = nonce
-                request.requestedScopes = [.fullName, .email]
-                request.nonce = AppleSignInCoordinator.sha256(nonce)
-            } onCompletion: { result in
-                Task { await handleAppleCompletion(result) }
+            Button(action: { Task { await handleAppleSignIn() } }) {
+                FederatedSignInLabel(title: "Continue with Apple") {
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 18))
+                }
             }
-            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(maxWidth: 240, minHeight: 48)
-            .clipShape(Capsule())
+            .buttonStyle(.plain)
             .disabled(isLoading)
         }
     }
@@ -255,29 +240,24 @@ struct LoginView: View {
     }
 
     @MainActor
-    private func handleAppleCompletion(_ result: Result<ASAuthorization, Error>) async {
-        switch result {
-        case .success(let authorization):
-            guard !isLoading else { return }
-            isLoading = true
-            defer { isLoading = false }
-            do {
-                let decoded = try AppleSignInCoordinator.decode(authorization)
-                let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
-                let response = try await APIClient.shared.socialSignIn(
-                    provider: "apple",
-                    idToken: decoded.idToken,
-                    nonce: currentAppleNonce,
-                    firstName: decoded.fullName?.givenName,
-                    lastName: decoded.fullName?.familyName,
-                    pushToken: pushToken
-                )
-                await handleSocialResponse(response)
-            } catch {
-                alertMessage = error.localizedDescription
-                isShowingAlert = true
-            }
-        case .failure(let error):
+    private func handleAppleSignIn() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let apple = try await programContext.startAppleSignIn()
+            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
+            let response = try await APIClient.shared.socialSignIn(
+                provider: "apple",
+                idToken: apple.idToken,
+                nonce: apple.nonce,
+                firstName: apple.firstName,
+                lastName: apple.lastName,
+                pushToken: pushToken
+            )
+            await handleSocialResponse(response)
+        } catch {
             if !isAppleCancellation(error) {
                 alertMessage = error.localizedDescription
                 isShowingAlert = true
@@ -310,6 +290,35 @@ struct LoginView: View {
 
     private func isGoogleCancellation(_ error: Error) -> Bool {
         (error as? GIDSignInError)?.code == .canceled
+    }
+}
+
+/// Shared dark-pill chrome for the federated sign-in buttons (Google + Apple), mirroring web:
+/// an input-surface capsule (the same `systemGray3` hairline `AppInputField` uses, no fill — the
+/// dark app gradient shows through) sized to the primary "Login" CTA (vertical padding 14, capped
+/// at 240pt), with a centered 18pt logo, 8pt gap, and a body-semibold label in the primary label
+/// color. Used by both `LoginView` and `CreateAccountView` (same module). The `.original`
+/// rendering mode on the Google asset keeps its multicolor "G"; the Apple `apple.logo` SF Symbol
+/// inherits the primary label color from this container.
+struct FederatedSignInLabel<Logo: View>: View {
+    let title: String
+    @ViewBuilder let logo: () -> Logo
+
+    var body: some View {
+        HStack(spacing: 8) {
+            logo()
+            Text(title)
+                .font(.body.weight(.semibold))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .frame(maxWidth: 240)
+        .foregroundColor(Color(.label))
+        .background(
+            Capsule()
+                .stroke(Color(.systemGray3), lineWidth: 1)
+        )
+        .contentShape(Capsule())
     }
 }
 

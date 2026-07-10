@@ -30,7 +30,6 @@ struct CreateAccountView: View {
     // The active federated hand-off (from the init param OR set in-place by a Google/Apple tap here);
     // non-nil ⇒ social mode. `didConfigure` guards the one-time prefill from the init param.
     @State private var social: PendingSocial? = nil
-    @State private var currentAppleNonce: String = ""
     @State private var didConfigure: Bool = false
     // autoFocus the First Name field on load (matches web D-C5).
     @FocusState private var firstNameFocused: Bool
@@ -158,36 +157,23 @@ struct CreateAccountView: View {
             .frame(maxWidth: 240)
 
             Button(action: { Task { await handleGoogleSignIn() } }) {
-                HStack(spacing: 10) {
-                    Image(systemName: "g.circle.fill")
-                        .font(.headline)
-                    Text("Continue with Google")
-                        .font(.headline.weight(.semibold))
+                FederatedSignInLabel(title: "Continue with Google") {
+                    Image("GoogleG")
+                        .resizable()
+                        .renderingMode(.original)
+                        .frame(width: 18, height: 18)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .frame(maxWidth: 240)
-                .foregroundColor(Color(.label))
-                .background(
-                    Capsule()
-                        .stroke(Color(.systemGray3), lineWidth: 1)
-                )
-                .contentShape(Capsule())
             }
             .buttonStyle(.plain)
             .disabled(isLoading)
 
-            SignInWithAppleButton(.signIn) { request in
-                let nonce = AppleSignInCoordinator.randomNonceString()
-                currentAppleNonce = nonce
-                request.requestedScopes = [.fullName, .email]
-                request.nonce = AppleSignInCoordinator.sha256(nonce)
-            } onCompletion: { result in
-                Task { await handleAppleCompletion(result) }
+            Button(action: { Task { await handleAppleSignIn() } }) {
+                FederatedSignInLabel(title: "Continue with Apple") {
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 18))
+                }
             }
-            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
-            .frame(maxWidth: 240, minHeight: 48)
-            .clipShape(Capsule())
+            .buttonStyle(.plain)
             .disabled(isLoading)
         }
     }
@@ -490,29 +476,24 @@ struct CreateAccountView: View {
     }
 
     @MainActor
-    private func handleAppleCompletion(_ result: Result<ASAuthorization, Error>) async {
-        switch result {
-        case .success(let authorization):
-            guard !isLoading else { return }
-            isLoading = true
-            defer { isLoading = false }
-            do {
-                let decoded = try AppleSignInCoordinator.decode(authorization)
-                let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
-                let response = try await APIClient.shared.socialSignIn(
-                    provider: "apple",
-                    idToken: decoded.idToken,
-                    nonce: currentAppleNonce,
-                    firstName: decoded.fullName?.givenName,
-                    lastName: decoded.fullName?.familyName,
-                    pushToken: pushToken
-                )
-                await handleSocialResponse(response)
-            } catch {
-                alertMessage = error.localizedDescription
-                isShowingAlert = true
-            }
-        case .failure(let error):
+    private func handleAppleSignIn() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let apple = try await programContext.startAppleSignIn()
+            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
+            let response = try await APIClient.shared.socialSignIn(
+                provider: "apple",
+                idToken: apple.idToken,
+                nonce: apple.nonce,
+                firstName: apple.firstName,
+                lastName: apple.lastName,
+                pushToken: pushToken
+            )
+            await handleSocialResponse(response)
+        } catch {
             if !isAppleCancellation(error) {
                 alertMessage = error.localizedDescription
                 isShowingAlert = true

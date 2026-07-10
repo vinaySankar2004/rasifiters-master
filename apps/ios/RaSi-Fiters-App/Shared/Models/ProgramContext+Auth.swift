@@ -251,6 +251,18 @@ extension ProgramContext {
         }
         return idToken
     }
+
+    /// Runs OUR OWN Sign-in-with-Apple flow (custom pill button, not Apple's widget): builds an
+    /// `ASAuthorizationController`, presents it, and returns the identity token + raw nonce + the
+    /// first-auth name hints (to POST to `/auth/oauth`). The coordinator retains itself for the
+    /// flow's duration, so no stored property on `ProgramContext` is needed. Throws
+    /// `ASAuthorizationError.canceled` when the user dismisses (callers swallow that case).
+    @MainActor
+    func startAppleSignIn() async throws -> (idToken: String, nonce: String, firstName: String?, lastName: String?) {
+        let coordinator = AppleSignInCoordinator()
+        let result = try await coordinator.start()
+        return (result.idToken, result.nonce, result.fullName?.givenName, result.fullName?.familyName)
+    }
 }
 
 /// Pending federated sign-up carried from `LoginView` (a `needs_profile` OAuth response) into
@@ -281,10 +293,49 @@ enum AuthPresenter {
     }
 }
 
-/// Sign-in-with-Apple crypto + credential helpers. Presentation is owned by SwiftUI's
-/// `SignInWithAppleButton` (see `LoginView`); this type supplies the raw nonce (whose SHA256 is set
-/// on the request), and decodes the returned credential into (idToken, fullName) for `/auth/oauth`.
-enum AppleSignInCoordinator {
+/// Standalone Sign-in-with-Apple controller. Drives OUR OWN custom pill button (the native
+/// `SignInWithAppleButton` widget is gone): generates the raw nonce (whose SHA256 is set on the
+/// request), runs an `ASAuthorizationController`, and returns (idToken, rawNonce, fullName) via an
+/// async continuation. Retains itself (`selfRetain`) and the controller for the flow's duration so
+/// neither is deallocated mid-request; both are released once the continuation resolves.
+final class AppleSignInCoordinator: NSObject {
+    typealias AppleCredentials = (idToken: String, nonce: String, fullName: PersonNameComponents?)
+
+    private var continuation: CheckedContinuation<AppleCredentials, Error>?
+    private var rawNonce: String = ""
+    private var controller: ASAuthorizationController?
+    private var selfRetain: AppleSignInCoordinator?
+
+    /// Presents the Apple authorization sheet and suspends until it completes, is cancelled, or
+    /// errors. `request.nonce` carries the SHA256 of the raw nonce; the raw value is returned so the
+    /// caller can forward it to the backend (matches Supabase's `signInWithIdToken` nonce contract).
+    @MainActor
+    func start() async throws -> AppleCredentials {
+        let nonce = Self.randomNonceString()
+        rawNonce = nonce
+
+        let request = ASAuthorizationAppleIDProvider().createRequest()
+        request.requestedScopes = [.fullName, .email]
+        request.nonce = Self.sha256(nonce)
+
+        return try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            self.selfRetain = self
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            self.controller = controller
+            controller.performRequests()
+        }
+    }
+
+    /// Releases the flow-scoped strong references once the continuation has resolved.
+    private func finish() {
+        continuation = nil
+        controller = nil
+        selfRetain = nil
+    }
+
     /// A cryptographically-random nonce; its SHA256 goes on the request, the raw value goes to the
     /// backend for replay protection (matches Supabase's `signInWithIdToken` nonce contract).
     static func randomNonceString(length: Int = 32) -> String {
@@ -311,14 +362,31 @@ enum AppleSignInCoordinator {
     static func sha256(_ input: String) -> String {
         SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
     }
+}
 
-    /// Extracts the identity token + first-auth name hints from an Apple authorization.
-    static func decode(_ authorization: ASAuthorization) throws -> (idToken: String, fullName: PersonNameComponents?) {
+extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
+    func authorizationController(controller: ASAuthorizationController,
+                                 didCompleteWithAuthorization authorization: ASAuthorization) {
         guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
               let tokenData = credential.identityToken,
               let idToken = String(data: tokenData, encoding: .utf8) else {
-            throw APIError(message: "Apple sign-in failed to return an identity token.")
+            continuation?.resume(throwing: APIError(message: "Apple sign-in failed to return an identity token."))
+            finish()
+            return
         }
-        return (idToken, credential.fullName)
+        continuation?.resume(returning: (idToken, rawNonce, credential.fullName))
+        finish()
+    }
+
+    func authorizationController(controller: ASAuthorizationController,
+                                 didCompleteWithError error: Error) {
+        continuation?.resume(throwing: error)
+        finish()
+    }
+}
+
+extension AppleSignInCoordinator: ASAuthorizationControllerPresentationContextProviding {
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        AuthPresenter.keyWindow ?? ASPresentationAnchor()
     }
 }
