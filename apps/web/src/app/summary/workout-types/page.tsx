@@ -59,6 +59,10 @@ export default function WorkoutTypesPage() {
                       <Tooltip
                         contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
                         labelStyle={CHART_TOOLTIP_LABEL_STYLE}
+                        // Per-Cell bars leave the Bar with no `fill`, so Recharts defaults the item
+                        // (value) text to near-black — unreadable on the dark surface. Pin it to the
+                        // theme text color so the tooltip reads in both light and dark mode.
+                        itemStyle={{ color: "var(--rf-text)" }}
                         formatter={(value: number) => [formatTotalDuration(value), "Total time"]}
                       />
                       <Bar dataKey="total_duration" radius={[8, 8, 0, 0]}>
