@@ -303,7 +303,14 @@ async function socialSignIn({ provider, id_token, nonce, first_name, last_name, 
         token: id_token,
         ...(nonce ? { nonce } : {})
     });
-    if (error || !data?.session || !data?.user) throw new AppError(401, "Federated sign-in failed.");
+    if (error || !data?.session || !data?.user) {
+        console.error(
+            "[socialSignIn] provider=%s signInWithIdToken rejected — status=%s code=%s msg=%s",
+            provider, error?.status, error?.code, error?.message
+        );
+        // Surface the real Supabase reason (e.g. audience/client-id mismatch) instead of a generic message.
+        throw new AppError(401, error?.message ? `Sign-in failed: ${error.message}` : "Federated sign-in failed.");
+    }
 
     const session = data.session;
     const authUserId = data.user.id;
