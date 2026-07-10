@@ -71,3 +71,16 @@ distilled "Converged lessons"). Append one entry per run.
     After a new surface lands, sweep those four specifically. **Correct `consumed_by` from CODE (the client's API
     layer — `ApiService.kt`/`APIClient`/web api calls), not from the SPEC's `consumed_by` array**, which predates the
     port.
+- **Run 4 (2026-07-10) — scope:** whole-repo, run inline as the closing due-diligence pass after shipping `auth`
+  v0.9.0 (account-settings link/unlink). **Counts: 4 🔴-minor (SPEC line-3 header lags), 0 🟡, 0 🔵 → healthy.**
+  Core sync invariant PERFECT for all 16 features (`registry.version == §12 top == git tag`, incl. the just-shipped
+  `auth@v0.9.0`); all `reference_impl.paths` exist; 0 dangling `depends_on`; 16 features == 16 distinct feature tags;
+  surface-count prose (`{web,ios,android,backend}`) all correct. The ONLY drift was the **recurring line-3 `Version:`
+  header-prose class** (already a Converged lesson): `workout-logs` 0.5.0→0.5.1, `daily-health-logs` 0.2.0→0.2.1,
+  `analytics` 0.2.0→0.3.2, `member-analytics` 0.2.0→0.3.1 — all PRE-EXISTING (last SPEC commits from prior sessions
+  93c9446/45ad9f6/198c84b), header trailing while registry+§12+tag stayed synced; the status token (`🏗️ built`) was
+  correct, only the version number lagged. Fixed all 4 (one-token each) + committed, since the user asked to clean
+  stale docs. Nothing from the auth v0.9.0 session was drifted — the git-version close was clean. Left as-is (below
+  the bar): REGISTRY.md narrative "Backend feature coverage complete (14 features)" — historical prose, not clearly
+  wrong (backend-only count vs 16 total incl. android-only `health-connect`). Promoted nothing new — clean recurrence
+  of the header-lag class.
