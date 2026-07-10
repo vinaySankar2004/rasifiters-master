@@ -47,8 +47,8 @@ fun ForgotPasswordScreen(programContext: ProgramContext, onBackToLogin: () -> Un
     val uriHandler = LocalUriHandler.current
 
     AuthScaffold {
-        BrandMark(sizeDp = 88)
-        Spacer(Modifier.height(24.dp))
+        BrandMark(sizeDp = 64)
+        Spacer(Modifier.height(16.dp))
 
         Text("Reset your password", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
@@ -59,7 +59,7 @@ fun ForgotPasswordScreen(programContext: ProgramContext, onBackToLogin: () -> Un
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
 
-        Spacer(Modifier.height(30.dp))
+        Spacer(Modifier.height(20.dp))
         if (submitted) {
             Text(
                 text = "If an account with that email exists, we've sent a password reset link. " +
@@ -115,7 +115,7 @@ fun ForgotPasswordScreen(programContext: ProgramContext, onBackToLogin: () -> Un
         }
 
         // Always-visible contact fallback — for migrated no-email accounts that can't receive an email.
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             "No email on your account?",
             style = MaterialTheme.typography.bodySmall,

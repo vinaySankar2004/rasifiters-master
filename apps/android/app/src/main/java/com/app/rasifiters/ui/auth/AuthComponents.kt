@@ -97,7 +97,7 @@ fun AuthScaffold(
                     .heightIn(min = maxHeight)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 28.dp)
-                    .padding(top = if (centered) 24.dp else 72.dp, bottom = 32.dp),
+                    .padding(top = if (centered) 20.dp else 64.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = if (centered) Arrangement.Center else Arrangement.Top,
                 content = content,

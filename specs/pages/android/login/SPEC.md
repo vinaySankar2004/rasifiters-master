@@ -1,6 +1,6 @@
 # Screen: `login` (android) — the public sign-in screen + entry to auth-recovery
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios login`](../../ios/login/SPEC.md) +
 > [`web login`](../../web/login/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `AuthGraph` route `Routes.LOGIN` (`LoginScreen`), pushed from splash.
@@ -37,6 +37,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-07-10 | **Fit-on-one-screen layout tighten (no scroll).** After the Google button pushed the footer down, compressed the auth screens' vertical rhythm so Login fits a standard phone with no scroll: `BrandMark` 88→64 (Login/Forgot), 84→64 (Create); `AuthScaffold` padding top 24→20 / bottom 32→24; Login inter-block Spacers reduced (brand 24→16, pre-fields 30→20, fields `spacedBy` 14→12, pre-Login 24→16, pre-"or" 20→14, pre-Google 16→12, pre-forgot 16→12, and the outsized footer gap 28→16 — dropped the redundant 6dp spacer above the "New here?" row). Forgot/Create tightened to match. Spacing/sizing only — **no auth logic or button-style change**. Compile-checked green (`:app:assembleDebug`). |
 | 0.2.1 | 2026-07-10 | **Google button restyle (web parity).** `GoogleSignInButton` is now a custom **dark pill** — the pill shape + 48dp height of `PillButton` with `AppTextField`'s input-surface fill (theme background) + a 1dp `onSurface` alpha-0.22 hairline border, centering the **multicolor Google "G"** (`ic_google_g`, 18dp, untinted) + SemiBold "Continue with Google" in `onSurface`. Reads as a sibling of the filled Login CTA, one emphasis step lower. Auth logic (Credential Manager → `socialSignIn`) unchanged. Compile-checked green (`:app:assembleDebug`). |
 | 0.2.0 | 2026-07-10 | **Continue with Google.** Added an "or" divider + `GoogleSignInButton` (Credential Manager → Google `id_token` → `ProgramContext.socialSignIn` → `POST /auth/oauth`); existing member logs in via the root-gate flip, a `needs_profile` result routes to the create-account social wizard (A-4). Compile-checked green (`:app:assembleDebug`). USER fills `GOOGLE_WEB_CLIENT_ID` in `build.gradle.kts`. |
 | 0.1.1 | 2026-07-08 | UI polish (user visual review): shared compact field kit (`AppTextField`, 50dp/14dp), slimmer `PillButton` (48dp), centered `AuthScaffold`, tightened spacing. Verified live against the Render backend. |
