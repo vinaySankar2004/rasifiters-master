@@ -45,7 +45,7 @@ struct CreateAccountView: View {
             AppGradient.background(for: colorScheme)
                 .ignoresSafeArea()
 
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 NavigationLink(
                     destination: ProgramPickerView()
                         .navigationBarBackButtonHidden(true),
@@ -55,10 +55,9 @@ struct CreateAccountView: View {
                 }
 
                 // Real brand icon (matches web; replaces the legacy placeholder).
-                BrandMark(size: 90)
-                    .padding(.top, 6)
+                BrandMark(size: 64)
 
-                VStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .center, spacing: 6) {
                     Text("Create Account")
                         .font(.title.bold())
                         .foregroundColor(Color(.label))
@@ -103,7 +102,7 @@ struct CreateAccountView: View {
                 .padding(.bottom, 8)
             }
             .padding(.horizontal, 20)
-            .padding(.top, 30)
+            .padding(.top, 20)
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -146,7 +145,7 @@ struct CreateAccountView: View {
     // MARK: - Social sign-in (Google + Apple) — mirrors LoginView
 
     private var socialSignInSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 12) {
             HStack(spacing: 12) {
                 Rectangle().fill(Color(.separator)).frame(height: 1)
                 Text("or")
