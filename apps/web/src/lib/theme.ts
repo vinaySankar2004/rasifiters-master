@@ -27,19 +27,21 @@ export function applyTheme(preference: ThemePreference) {
 }
 
 // The mobile status-bar tint (iOS Safari notch area / Android address bar) is driven by the
-// `theme-color` meta. The static metas in layout.tsx key off the OS `prefers-color-scheme`,
-// but the actual page theme keys off `data-theme` — which can be an explicit user override.
-// When those diverge the status bar mismatches the page (dark page, white bar), so here we
-// authoritatively replace the meta with the RESOLVED theme's --rf-bg value.
+// `theme-color` meta. It must track the RESOLVED app theme (`data-theme`, which can be an
+// explicit user override), not the OS `prefers-color-scheme`. layout.tsx no longer emits any
+// theme-color meta, so this single JS-owned meta is authoritative — the pre-paint bootstrap in
+// layout.tsx creates it, and this keeps it in sync on runtime toggles / system changes.
+// IMPORTANT: update-or-create only — never removeChild. The meta is ours (React does not manage
+// it); removing nodes React tracks corrupted the head tree and crashed on client navigation.
 function syncThemeColorMeta(resolved: "light" | "dark") {
   const color = resolved === "dark" ? "#070809" : "#f4f3f7";
-  document.head
-    .querySelectorAll('meta[name="theme-color"]')
-    .forEach((meta) => meta.parentElement?.removeChild(meta));
-  const meta = document.createElement("meta");
-  meta.setAttribute("name", "theme-color");
+  let meta = document.head.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.setAttribute("name", "theme-color");
+    document.head.appendChild(meta);
+  }
   meta.setAttribute("content", color);
-  document.head.appendChild(meta);
 }
 
 export function resolveTheme(preference: ThemePreference): "light" | "dark" {

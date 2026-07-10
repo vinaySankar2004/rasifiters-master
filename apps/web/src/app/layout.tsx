@@ -18,12 +18,19 @@ const metadataBase = new URL(appUrl);
 
 export const viewport: Viewport = {
   width: "device-width",
-  initialScale: 1,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f3f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#070809" }
-  ]
+  initialScale: 1
+  // NOTE: theme-color is intentionally NOT set here. It must follow the RESOLVED app theme
+  // (data-theme, which can be an explicit user override), not the OS prefers-color-scheme.
+  // The pre-paint bootstrap script below owns a single theme-color meta; lib/theme.ts keeps
+  // it in sync at runtime. (A Next-managed meta here would be re-added on every navigation
+  // and fight the JS-owned one — the source of the earlier client-side crash.)
 };
+
+// Runs synchronously before first paint: resolves the stored theme, sets data-theme +
+// color-scheme, and writes the theme-color meta iOS Safari samples during parse. Doing this
+// pre-paint (not in a useEffect) is what makes the mobile status bar match a dark override and
+// removes the light->dark theme flash. Kept dependency-free and inlined so it can't be deferred.
+const THEME_BOOTSTRAP = `(function(){try{var k="rf:appearance",p=localStorage.getItem(k);if(p!=="light"&&p!=="dark"&&p!=="system")p="system";var r=p==="system"?(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):p;var e=document.documentElement;e.dataset.theme=r;e.style.colorScheme=r;var c=r==="dark"?"#070809":"#f4f3f7";var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement("meta");m.setAttribute("name","theme-color");document.head.appendChild(m);}m.setAttribute("content",c);}catch(_){}})();`;
 
 const TITLE = "RaSi Fiters: Fitness programs, tracked together";
 const DESCRIPTION =
@@ -74,6 +81,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={manrope.variable}>
       <body>
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
         <AppProviders>
           <AppShell>{children}</AppShell>
         </AppProviders>
