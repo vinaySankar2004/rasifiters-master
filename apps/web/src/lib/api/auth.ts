@@ -60,9 +60,15 @@ export type SocialSignInResponse = LoginResponse & {
   last_name?: string;
 };
 
-// Federated sign-in. The GSI callback yields a Google ID token; the backend exchanges it via Supabase
-// (R1: the browser never embeds Supabase). Returns a login session OR needs_profile for a new social user.
-export async function socialSignIn(payload: { provider: "google" | "apple"; id_token: string; nonce?: string }) {
+// Federated sign-in. The web custom button yields a Google auth `code` (auth-code/popup flow); the backend
+// exchanges it for an id_token and hands it to Supabase (R1: the browser never embeds Supabase, never holds
+// the client secret). Returns a login session OR needs_profile for a new social user.
+export async function socialSignIn(payload: {
+  provider: "google" | "apple";
+  id_token?: string;
+  code?: string;
+  nonce?: string;
+}) {
   return apiRequest<SocialSignInResponse>("/auth/oauth", { method: "POST", body: payload });
 }
 

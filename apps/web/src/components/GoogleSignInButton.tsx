@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { GOOGLE_WEB_CLIENT_ID } from "@/lib/config";
 
-// "Continue with Google" via Google Identity Services (GSI). The script is lazy-injected once; the GSI
-// callback hands back a Google ID token (response.credential) which the caller forwards to the backend
-// /auth/oauth exchange (R1: the browser never embeds Supabase). Renders nothing when the client id is
-// unset so the page still builds/deploys before NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID is configured.
+// "Continue with Google" — OUR OWN button (not Google's branded widget). Uses the GSI auth-CODE flow
+// (google.accounts.oauth2.initCodeClient, popup ux): on click we open Google's account popup and get a
+// one-time authorization `code`, which the caller POSTs to the backend /auth/oauth. The backend exchanges
+// it for an id_token (redirect_uri "postmessage") and hands it to Supabase — R1: the browser never embeds
+// Supabase and never holds the client secret. This is why we can fully style the button to match the app,
+// unlike the id_token/One-Tap flow which forces Google's own widget. Renders nothing until the client id
+// is configured so the page still builds/deploys.
 
 declare global {
   interface Window {
@@ -20,7 +23,7 @@ const GSI_SRC = "https://accounts.google.com/gsi/client";
 function loadGsi(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (typeof window === "undefined") return reject(new Error("no window"));
-    if (window.google?.accounts?.id) return resolve();
+    if (window.google?.accounts?.oauth2) return resolve();
     const existing = document.querySelector<HTMLScriptElement>(`script[src="${GSI_SRC}"]`);
     if (existing) {
       existing.addEventListener("load", () => resolve(), { once: true });
@@ -37,15 +40,39 @@ function loadGsi(): Promise<void> {
   });
 }
 
+function GoogleGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+      <path
+        fill="#EA4335"
+        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+      />
+      <path
+        fill="#4285F4"
+        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+      />
+      <path
+        fill="#34A853"
+        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+      />
+    </svg>
+  );
+}
+
 export function GoogleSignInButton({
-  onCredential,
+  onCode,
   disabled
 }: {
-  onCredential: (idToken: string) => void;
+  onCode: (code: string) => void;
   disabled?: boolean;
 }) {
-  const targetRef = useRef<HTMLDivElement | null>(null);
-  const readyRef = useRef(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const codeClientRef = useRef<any>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (!GOOGLE_WEB_CLIENT_ID) return;
@@ -53,52 +80,42 @@ export function GoogleSignInButton({
 
     loadGsi()
       .then(() => {
-        if (cancelled || !window.google?.accounts?.id) return;
-        window.google.accounts.id.initialize({
+        if (cancelled || !window.google?.accounts?.oauth2) return;
+        codeClientRef.current = window.google.accounts.oauth2.initCodeClient({
           client_id: GOOGLE_WEB_CLIENT_ID,
-          callback: (response: { credential?: string }) => {
-            if (response?.credential) onCredential(response.credential);
+          scope: "openid email profile",
+          ux_mode: "popup",
+          callback: (response: { code?: string }) => {
+            if (response?.code) onCode(response.code);
           }
         });
-        readyRef.current = true;
-        if (targetRef.current) {
-          window.google.accounts.id.renderButton(targetRef.current, {
-            type: "standard",
-            theme: "outline",
-            size: "large",
-            shape: "pill",
-            text: "continue_with",
-            width: 320
-          });
-        }
+        setReady(true);
       })
       .catch(() => {
-        // GSI unavailable (offline/blocked) — leave the fallback affordance in place.
+        // GSI unavailable (offline/blocked) — button stays disabled.
       });
 
     return () => {
       cancelled = true;
     };
-  }, [onCredential]);
+  }, [onCode]);
+
+  const handleClick = useCallback(() => {
+    codeClientRef.current?.requestCode();
+  }, []);
 
   // No client id configured yet — render nothing so the page still builds/deploys.
   if (!GOOGLE_WEB_CLIENT_ID) return null;
 
   return (
-    <div className="flex w-full flex-col items-center">
-      <div ref={targetRef} className="flex justify-center" />
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => {
-          if (readyRef.current) window.google?.accounts?.id?.prompt();
-        }}
-        className="sr-only"
-        aria-hidden
-        tabIndex={-1}
-      >
-        Continue with Google
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={disabled || !ready}
+      className="input-shell inline-flex min-h-[50px] w-full items-center justify-center gap-3 rounded-full px-6 text-base font-semibold text-[color:var(--rf-text)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <GoogleGlyph />
+      <span>Continue with Google</span>
+    </button>
   );
 }

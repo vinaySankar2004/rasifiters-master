@@ -149,12 +149,12 @@ export default function CreateAccountPage() {
   // straight into the session; brand-new social user → switch to the social branch to finish the profile.
   // useCallback keeps the identity stable across keystroke re-renders so GoogleSignInButton doesn't re-init GSI.
   const handleGoogle = useCallback(
-    async (idToken: string) => {
+    async (code: string) => {
       if (isLoading) return;
       setIsLoading(true);
       setErrorMessage(null);
       try {
-        const r = await socialSignIn({ provider: "google", id_token: idToken });
+        const r = await socialSignIn({ provider: "google", code });
         if (r.needs_profile) {
           setMode("social");
           setPendingToken(r.token ?? "");
@@ -305,7 +305,7 @@ export default function CreateAccountPage() {
                     <span>or</span>
                     <span className="h-px flex-1 bg-rf-text-muted/25" />
                   </div>
-                  <GoogleSignInButton onCredential={handleGoogle} disabled={isLoading} />
+                  <GoogleSignInButton onCode={handleGoogle} disabled={isLoading} />
                 </>
               )}
             </>

@@ -68,6 +68,8 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY    # service-role key — admin createUser/updateUser/deleteUser
         sync: false
+      - key: GOOGLE_WEB_CLIENT_SECRET     # Web OAuth client secret — web "Continue with Google" auth-code exchange (D-C8)
+        sync: false
       # --- APNs push (notifications SPEC §6, D-C8) — creds PROVISIONED 2026-06-30 (token-based APNs Auth
       # Key .p8: Key ID RA353TA52W, Team VSTTF2AM22, topic com.app.rasifiters). Enter the 4 values in the
       # Render Dashboard (the .p8 base64 is secret → sync:false, out of git); getProvider() then returns a

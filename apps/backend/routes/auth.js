@@ -89,9 +89,9 @@ router.post("/register", async (req, res) => {
 // the member exists, or { needs_profile:true, ... } for a brand-new social user (→ /oauth/complete).
 router.post("/oauth", async (req, res) => {
     try {
-        const { provider, id_token, nonce, first_name, last_name, push_token, device_id, platform } = req.body;
+        const { provider, id_token, code, nonce, first_name, last_name, push_token, device_id, platform } = req.body;
         const result = await authService.socialSignIn(
-            { provider, id_token, nonce, first_name, last_name },
+            { provider, id_token, code, nonce, first_name, last_name },
             { push_token, device_id, platform }
         );
         res.json(result);

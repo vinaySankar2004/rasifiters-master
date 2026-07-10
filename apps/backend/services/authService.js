@@ -257,9 +257,45 @@ async function register({ username, password, first_name, last_name, email, gend
 // prefill, pending session } for a brand-new social user (→ completeSocialRegistration, no password step).
 // NOTE: signInWithIdToken uses the ANON client and is gated by the project "Allow new users to sign up"
 // toggle (unlike register()'s admin.createUser, which bypasses it) — see infra checklist.
-async function socialSignIn({ provider, id_token, nonce, first_name, last_name }, options = {}) {
+// Exchange a Google OAuth 2.0 authorization code (web auth-code / popup flow, redirect_uri "postmessage")
+// for an id_token. WEB uses this flow so it can render its OWN "Continue with Google" button — GSI's
+// id_token flow forces Google's branded widget. The browser never holds the client secret (R1: the
+// exchange stays server-side). Requires GOOGLE_WEB_CLIENT_SECRET (a real secret — Render env, uncommitted).
+async function exchangeGoogleAuthCode(code) {
+    const clientId = process.env.GOOGLE_WEB_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_WEB_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new AppError(500, "Google web sign-in is not configured.");
+    let res;
+    try {
+        res = await fetch("https://oauth2.googleapis.com/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                code,
+                client_id: clientId,
+                client_secret: clientSecret,
+                redirect_uri: "postmessage",
+                grant_type: "authorization_code"
+            })
+        });
+    } catch (_) {
+        throw new AppError(502, "Could not reach Google.");
+    }
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok || !body.id_token) throw new AppError(401, "Google authorization failed.");
+    return body.id_token;
+}
+
+async function socialSignIn({ provider, id_token, nonce, first_name, last_name, code }, options = {}) {
     const allowed = ["google", "apple"];
     if (!provider || !allowed.includes(provider)) throw new AppError(400, "Unsupported provider.");
+
+    // WEB sends a one-time auth `code` (custom-button auth-code flow); exchange it for an id_token here.
+    // Native mobile (GoogleSignIn / Credential Manager / ASAuthorization) keeps sending id_token directly.
+    if (!id_token && code) {
+        if (provider !== "google") throw new AppError(400, "Auth-code exchange is Google-only.");
+        id_token = await exchangeGoogleAuthCode(code);
+    }
     if (!id_token) throw new AppError(400, "Missing provider token.");
 
     const { data, error } = await supabaseAuth.auth.signInWithIdToken({
