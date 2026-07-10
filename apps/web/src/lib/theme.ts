@@ -23,6 +23,23 @@ export function applyTheme(preference: ThemePreference) {
   const resolved = resolveTheme(preference);
   root.dataset.theme = resolved;
   root.style.colorScheme = resolved;
+  syncThemeColorMeta(resolved);
+}
+
+// The mobile status-bar tint (iOS Safari notch area / Android address bar) is driven by the
+// `theme-color` meta. The static metas in layout.tsx key off the OS `prefers-color-scheme`,
+// but the actual page theme keys off `data-theme` — which can be an explicit user override.
+// When those diverge the status bar mismatches the page (dark page, white bar), so here we
+// authoritatively replace the meta with the RESOLVED theme's --rf-bg value.
+function syncThemeColorMeta(resolved: "light" | "dark") {
+  const color = resolved === "dark" ? "#070809" : "#f4f3f7";
+  document.head
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((meta) => meta.parentElement?.removeChild(meta));
+  const meta = document.createElement("meta");
+  meta.setAttribute("name", "theme-color");
+  meta.setAttribute("content", color);
+  document.head.appendChild(meta);
 }
 
 export function resolveTheme(preference: ThemePreference): "light" | "dark" {
