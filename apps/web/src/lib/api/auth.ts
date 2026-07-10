@@ -53,6 +53,28 @@ export async function registerAccount(payload: {
   });
 }
 
+export type SocialSignInResponse = LoginResponse & {
+  needs_profile?: boolean;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+};
+
+// Federated sign-in. The GSI callback yields a Google ID token; the backend exchanges it via Supabase
+// (R1: the browser never embeds Supabase). Returns a login session OR needs_profile for a new social user.
+export async function socialSignIn(payload: { provider: "google" | "apple"; id_token: string; nonce?: string }) {
+  return apiRequest<SocialSignInResponse>("/auth/oauth", { method: "POST", body: payload });
+}
+
+// Finish a new federated sign-up: the pending Supabase access_token (from socialSignIn) is the Bearer;
+// re-send the refresh_token so the backend echoes the same session back in the AuthResponse.
+export async function completeSocialRegistration(
+  pendingToken: string,
+  payload: { username: string; gender?: string; first_name?: string; last_name?: string; refresh_token?: string }
+) {
+  return apiRequest<LoginResponse>("/auth/oauth/complete", { method: "POST", token: pendingToken, body: payload });
+}
+
 export type RefreshResponse = {
   token: string;
   refresh_token?: string;

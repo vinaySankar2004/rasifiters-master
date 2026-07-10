@@ -22,3 +22,6 @@ export const PRIVACY_POLICY_URL =
 // (forgot-password page). PLACEHOLDER — may change; overridden by NEXT_PUBLIC_SUPPORT_EMAIL at deploy.
 export const SUPPORT_EMAIL =
   process.env.NEXT_PUBLIC_SUPPORT_EMAIL ?? "vinay.sankara@gmail.com";
+
+// Google Identity Services client id for "Continue with Google" (auth SPEC D-C8). Public (non-secret).
+export const GOOGLE_WEB_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? "";

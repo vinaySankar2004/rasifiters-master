@@ -4,13 +4,14 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { BrandMark } from "@/components/BrandMark";
-import { login } from "@/lib/api/auth";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { login, socialSignIn, type LoginResponse } from "@/lib/api/auth";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { decodeJwtPayload, resolveGlobalRole, type DecodedAuthToken } from "@/lib/auth/jwt";
-import { PRIVACY_POLICY_URL } from "@/lib/config";
+import { GOOGLE_WEB_CLIENT_ID, PRIVACY_POLICY_URL } from "@/lib/config";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 
 export default function LoginPage() {
@@ -47,14 +48,9 @@ export default function LoginPage() {
     }
   }, [isBootstrapping, session, router]);
 
-  const handleLogin = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!canSubmit || isLoading) return;
-    setIsLoading(true);
-    setErrorMessage(null);
-
-    try {
-      const response = await login(identifier.trim(), password);
+  // Build the session from a login/social AuthResponse and route to /programs (F1: client-side JWT decode).
+  const applyLogin = useCallback(
+    (response: LoginResponse) => {
       const decoded = decodeJwtPayload<DecodedAuthToken>(response.token);
       const resolvedGlobalRole = resolveGlobalRole({
         tokenGlobalRole: decoded?.global_role,
@@ -62,7 +58,7 @@ export default function LoginPage() {
         responseGlobalRole: response.global_role,
         responseRole: (response as { role?: string }).role
       });
-      const nextSession = {
+      setSession({
         token: response.token,
         refreshToken: response.refresh_token,
         user: {
@@ -71,9 +67,21 @@ export default function LoginPage() {
           memberName: decoded?.member_name ?? response.member_name,
           globalRole: resolvedGlobalRole
         }
-      };
-      setSession(nextSession);
+      });
       router.push("/programs");
+    },
+    [router, setSession]
+  );
+
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!canSubmit || isLoading) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const response = await login(identifier.trim(), password);
+      applyLogin(response);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to login. Try again.";
@@ -82,6 +90,40 @@ export default function LoginPage() {
       setIsLoading(false);
     }
   };
+
+  // "Continue with Google" (D-C2): backend /auth/oauth exchange. A returning member signs straight in; a
+  // brand-new Google user needs a profile → stash the pending Supabase session and hand off to create-account.
+  // useCallback keeps the identity stable across keystroke re-renders so GoogleSignInButton doesn't re-init GSI.
+  const handleGoogle = useCallback(
+    async (idToken: string) => {
+      if (isLoading) return;
+      setIsLoading(true);
+      setErrorMessage(null);
+      try {
+        const r = await socialSignIn({ provider: "google", id_token: idToken });
+        if (r.needs_profile) {
+          sessionStorage.setItem(
+            "rf_pending_social",
+            JSON.stringify({
+              token: r.token,
+              refresh_token: r.refresh_token,
+              email: r.email,
+              first_name: r.first_name,
+              last_name: r.last_name
+            })
+          );
+          router.push("/create-account?social=1");
+        } else {
+          applyLogin(r);
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : "Google sign-in failed. Try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [isLoading, router, applyLogin]
+  );
 
   return (
     <div className="relative flex min-h-screen flex-col items-center px-6 pb-12 pt-14 sm:px-10 sm:pt-20">
@@ -160,6 +202,18 @@ export default function LoginPage() {
           >
             {isLoading ? "Signing in..." : "Login"}
           </button>
+
+          {/* "Continue with Google" (D-C2) — hidden entirely until NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID is set. */}
+          {GOOGLE_WEB_CLIENT_ID && (
+            <>
+              <div className="mt-1 flex items-center gap-3 text-xs font-semibold text-rf-text-muted">
+                <span className="h-px flex-1 bg-rf-text-muted/25" />
+                <span>or</span>
+                <span className="h-px flex-1 bg-rf-text-muted/25" />
+              </div>
+              <GoogleSignInButton onCredential={handleGoogle} disabled={isLoading} />
+            </>
+          )}
         </form>
 
         {/*

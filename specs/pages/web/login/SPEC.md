@@ -1,15 +1,18 @@
 # Page: `login` (web) — the public sign-in screen + entry to auth-recovery
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/login` (reached from `/splash` Sign-in CTA, a middleware redirect when a session is missing/expired, or `/reset-password` on a successful reset).
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/login/page.tsx` (+ `components/BrandMark.tsx`).
-> **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `login()` (`POST /auth/login/global`),
-> the foundation `useAuth` context (`session`, `setSession`, `isBootstrapping`), and the client JWT helpers
-> (`decodeJwtPayload` / `resolveGlobalRole`).
+> **Consumes (features):** [`auth`](../../../features/auth/SPEC.md) — `login()` (`POST /auth/login/global`)
+> **+ `socialSignIn()` (`POST /auth/oauth`)** for the Google button; the foundation `useAuth` context
+> (`session`, `setSession`, `isBootstrapping`), and the client JWT helpers (`decodeJwtPayload` /
+> `resolveGlobalRole`). New component: `GoogleSignInButton`.
 > **Cross-app:** iOS `LoginView.swift` (`Features/Auth/`) — same single "Username or Email" identifier +
-> password + Show/Hide, same `/auth/login/global` call; iOS has **no** "Forgot password?" link (D-REF; F3).
-> **Stance:** faithful 1:1 (D-S1) **+ ONE migration addition** — a "Forgot your password?" link (D-C1)
-> that opens the new Supabase-Auth self-service recovery path. Oddities flagged §10.
+> password + Show/Hide, same `/auth/login/global` call; iOS has **no** "Forgot password?" link nor Google
+> button yet (D-REF; F3).
+> **Stance:** faithful 1:1 (D-S1) **+ TWO migration additions** — a "Forgot your password?" link (D-C1)
+> and a **"Continue with Google" button (D-C2)** that opens the new Supabase-Auth federated sign-in path.
+> Oddities flagged §10.
 
 ---
 
@@ -47,6 +50,7 @@ and now the **entry to password recovery** (the migration-added "Forgot your pas
 | Password input + toggle | Password input with a Show/Hide text button (`showPassword`), `autoComplete="current-password"`. | login/page.tsx:118-134 |
 | Error banner (conditional) | Red box with the caught error message (default "Unable to login. Try again."). | login/page.tsx:136-140 |
 | Submit button | "Login" / "Signing in…" (when `isLoading`); disabled while `!canSubmit \|\| isLoading`. | login/page.tsx:142-148 |
+| **"Continue with Google" button** | **MIGRATION ADDITION (not in legacy)** — an "or" divider + `GoogleSignInButton` (GSI) under the submit button. Hidden entirely (button + divider) until `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` is set. | `apps/web/src/app/login/page.tsx` (added block); see D-C2 |
 | **"Forgot your password?" link** | **MIGRATION ADDITION (not in legacy)** — `next/link` → `/forgot-password`, placed below the form. | `apps/web/src/app/login/page.tsx` (added block); see D-C1 |
 | Sign-up link | "New here? **Create an account**" → `/create-account`. | login/page.tsx:151-159 |
 | Footer | "Training hard? Login to track your progress." + a "Privacy Policy" link → `PRIVACY_POLICY_URL`. | login/page.tsx:161-168 |
@@ -109,7 +113,8 @@ applies only after a program is selected).
 |----|----------|----------|
 | **D-REF** | **Reference impl = legacy `rasifiters-webapp/src/app/login/page.tsx` (+ `BrandMark.tsx`). `consumed_by = [web]`.** **Cross-app:** iOS `LoginView.swift` is functionally identical (single "Username or Email" identifier + password + Show/Hide, same `/auth/login/global` call) — the only divergence is the new "Forgot password?" link, which web gains first per the auth-recovery plan and iOS mirrors later (F3). | `login/page.tsx`; iOS `LoginView.swift:1-192`, `APIClient+Auth.swift:50`; user answer (web-first auth recovery). |
 | **D-S1** | **Stance = faithful 1:1, no behavior change to the existing form.** Port `login/page.tsx` verbatim — identifier+password, Show/Hide, `canSubmit` gate, JWT decode + `resolveGlobalRole`, session build, `/programs` redirect, `?reason` banner, create-account + Privacy links. Oddities → §10 flags, not changes. | `login/page.tsx:1-173`; user answer (faithful as-is). |
-| **D-C1** | **ONE migration addition — a "Forgot your password?" link → `/forgot-password`**, placed below the form. This is the only deviation from the faithful port; it's the entry point to the new Supabase-Auth recovery flow (the whole reason for adopting Supabase Auth). Legacy and iOS have no such link. | User requirement (auth self-service); legacy has zero recovery flow (both clients); `apps/web/src/app/login/page.tsx`. |
+| **D-C1** | **Migration addition — a "Forgot your password?" link → `/forgot-password`**, placed below the form. The entry point to the Supabase-Auth recovery flow (the whole reason for adopting Supabase Auth). Legacy and iOS have no such link. | User requirement (auth self-service); legacy has zero recovery flow (both clients); `apps/web/src/app/login/page.tsx`. |
+| **D-C2** | **Migration addition — a "Continue with Google" button** (auth v0.7.0). An "or" divider + `GoogleSignInButton` (GSI lazy-loaded) under the submit button. Its callback yields a Google ID token → `socialSignIn({ provider:"google", id_token })` (backend `POST /auth/oauth`, R1: browser never embeds Supabase). A returning member → build session inline → `/programs`; a **brand-new** Google user (`needs_profile`) → stash `{token, refresh_token, email, first_name, last_name}` in `sessionStorage["rf_pending_social"]` and `router.push("/create-account?social=1")` to finish the profile. A **409** (email already on a password account) surfaces inline. Client id = public `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`; when unset, button + divider render nothing (page still builds/deploys). Legacy + iOS have no such button (F3). | Approved multiplex plan (web §Step 5); auth `POST /auth/oauth` contract; `GoogleSignInButton.tsx`; `config.ts` `GOOGLE_WEB_CLIENT_ID`. |
 | **D-PLAN** | **Auth-recovery path plan (scope: login page only this run; the rest follow).** Resolved with the user so the link's destination + mechanics are pinned: (1) **forgot-password page** = **always-send + always-visible contact link** — always call Supabase `resetPasswordForEmail` (privacy-safe "if an account exists, a link was sent"; no enumeration) AND always show a "No email on your account? Contact us" `mailto:` (support = **`vinay.sankara@gmail.com`**, a **placeholder that may change**, wired as a config value); (2) the **reset flow runs through the Express backend** (METHODOLOGY R1 — clients never embed Supabase) → new routes (e.g. `POST /auth/forgot-password`, `POST /auth/reset-password`) + a **MINOR bump on the `auth` feature SPEC**; (3) **sign-up email becomes mandatory + format-validated** (forward-only — existing/placeholder accounts untouched). Each is its **own** follow-up spec/port. | User answers (4-Q decision round, 2026-06-29); auth SPEC §3/§10 (no reset route today; `resetPasswordForEmail` unused); members SPEC D-C2 (register already requires email + creates a loginable Supabase user). |
 
 ## 10. Flagged characteristics kept as-is
@@ -126,5 +131,6 @@ applies only after a program is selected).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-10 | **Added a "Continue with Google" button (D-C2, auth v0.7.0).** An "or" divider + `GoogleSignInButton` (GSI) under the submit button → `socialSignIn()` `POST /auth/oauth`: a returning member signs straight in (session built inline → `/programs`); a brand-new Google user (`needs_profile`) stashes the pending Supabase session in `sessionStorage["rf_pending_social"]` and hands off to `/create-account?social=1`. A 409 (email already on a password account) surfaces inline. Button + divider hidden until `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` is set (page still builds/deploys). `handleLogin` refactored to share an `applyLogin` session-builder with the Google path (no behavior change). Minor bump (additive; existing password login unchanged). `npm run build` ✓ (`/login` prerendered, 3.42 kB). |
 | 0.1.1 | 2026-06-29 | **Added the `?reason=password-reset` confirmation banner** (a green positive variant alongside the amber `expired`/`invalid` session-loss banners) — the landing point after a successful password reset (`/reset-password` → `/login?reason=password-reset`, reset-password SPEC D-C2). Patch bump (additive UI; no behavior change to the login flow). `apps/web/src/app/login/page.tsx`. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` — the **second web page spec** (after `splash`). Documents the public `/login` sign-in screen: identifier (username-or-email) + password + Show/Hide, `?reason` session-loss banner, error banner, JWT decode + `resolveGlobalRole` → `setSession` → `/programs`, already-authed redirect, create-account + Privacy links. Consumes `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers). Decisions: **D-REF** (`consumed_by=[web]`; iOS `LoginView` identical except the new recovery link) · **D-S1** (faithful 1:1, no behavior change) · **D-C1** (ONE migration addition — "Forgot your password?" link → `/forgot-password`) · **D-PLAN** (auth-recovery path: forgot-password = always-send + always-visible `mailto:` contact link to `vinay.sankara@gmail.com` placeholder; reset runs through Express → `auth` MINOR bump; sign-up email mandatory+validated forward-only — each a follow-up spec). Flagged F1–F5 (client JWT decode; no bootstrap gate / form flash; iOS recovery gap; no client rate-limit; no inline validation). Ported `apps/web/src/app/login/page.tsx` (faithful + the recovery link); `npm run build` ✓ (`/login` prerendered). |
