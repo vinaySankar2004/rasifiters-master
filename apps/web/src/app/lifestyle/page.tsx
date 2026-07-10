@@ -285,6 +285,11 @@ export default function LifestylePage() {
 
           <StepsStatsCard stats={stepsStatsQuery.data} isLoading={stepsStatsQuery.isLoading} />
 
+          <WorkoutTypePopularityCard
+            types={workoutTypePopularityQuery.data ?? []}
+            isLoading={workoutTypePopularityQuery.isLoading}
+          />
+
           <LifestyleTimelineCard
             points={timelinePoints}
             isLoading={healthTimelineQuery.isLoading}
@@ -301,11 +306,6 @@ export default function LifestylePage() {
               const params = memberIdForMetrics ? `?memberId=${memberIdForMetrics}` : "";
               router.push(`/lifestyle/steps-timeline${params}`);
             }}
-          />
-
-          <WorkoutTypePopularityCard
-            types={workoutTypePopularityQuery.data ?? []}
-            isLoading={workoutTypePopularityQuery.isLoading}
           />
         </div>
 
