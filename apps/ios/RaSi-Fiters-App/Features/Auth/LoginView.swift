@@ -1,4 +1,6 @@
 import SwiftUI
+import AuthenticationServices
+import GoogleSignIn
 
 struct LoginView: View {
     @EnvironmentObject var programContext: ProgramContext
@@ -10,6 +12,11 @@ struct LoginView: View {
     @State private var alertMessage: String?
     @State private var isShowingAlert: Bool = false
     @State private var navigateToProgramPicker: Bool = false
+    // Federated sign-up hand-off: a `needs_profile` OAuth response pushes CreateAccountView in social mode.
+    @State private var pendingSocial: PendingSocial?
+    @State private var navigateToCreateAccount: Bool = false
+    // Raw Sign-in-with-Apple nonce; its SHA256 is set on the request, the raw value is sent to the backend.
+    @State private var currentAppleNonce: String = ""
 
     var body: some View {
         ZStack {
@@ -21,6 +28,13 @@ struct LoginView: View {
                     destination: ProgramPickerView()
                         .navigationBarBackButtonHidden(true),
                     isActive: $navigateToProgramPicker
+                ) {
+                    EmptyView()
+                }
+
+                NavigationLink(
+                    destination: CreateAccountView(pendingSocial: pendingSocial),
+                    isActive: $navigateToCreateAccount
                 ) {
                     EmptyView()
                 }
@@ -79,6 +93,8 @@ struct LoginView: View {
                 .buttonStyle(.plain)
                 .adaptiveShadow(radius: 8, y: 4)
                 .disabled(isLoading || identifier.isEmpty || password.isEmpty)
+
+                socialSignInSection
 
                 // Self-service password recovery — the email-request step is native (ForgotPasswordView).
                 // The emailed link still opens rasifiters.com/reset-password in the browser to set the new
@@ -139,6 +155,56 @@ struct LoginView: View {
         }
     }
 
+    // MARK: - Social sign-in (Google + Apple)
+
+    private var socialSignInSection: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 12) {
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+                Text("or")
+                    .font(.footnote)
+                    .foregroundColor(Color(.secondaryLabel))
+                Rectangle().fill(Color(.separator)).frame(height: 1)
+            }
+            .frame(maxWidth: 240)
+
+            Button(action: { Task { await handleGoogleSignIn() } }) {
+                HStack(spacing: 10) {
+                    Image(systemName: "g.circle.fill")
+                        .font(.headline)
+                    Text("Continue with Google")
+                        .font(.headline.weight(.semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .frame(maxWidth: 240)
+                .foregroundColor(Color(.label))
+                .background(
+                    Capsule()
+                        .stroke(Color(.systemGray3), lineWidth: 1)
+                )
+                .contentShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(isLoading)
+
+            SignInWithAppleButton(.signIn) { request in
+                let nonce = AppleSignInCoordinator.randomNonceString()
+                currentAppleNonce = nonce
+                request.requestedScopes = [.fullName, .email]
+                request.nonce = AppleSignInCoordinator.sha256(nonce)
+            } onCompletion: { result in
+                Task { await handleAppleCompletion(result) }
+            }
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(maxWidth: 240, minHeight: 48)
+            .clipShape(Capsule())
+            .disabled(isLoading)
+        }
+    }
+
+    // MARK: - Handlers
+
     private func handleLogin() async {
         guard !isLoading else { return }
         isLoading = true
@@ -152,23 +218,7 @@ struct LoginView: View {
                 pushToken: pushToken,
                 deviceId: nil
             )
-            let role = (response.globalRole ?? "").lowercased()
-
-            // Store token and user info in shared context
-            programContext.authToken = response.token
-            programContext.refreshToken = response.refreshToken
-            programContext.globalRole = role.isEmpty ? "standard" : role
-            programContext.loggedInUserId = response.memberId
-            programContext.loggedInUsername = response.username
-            if let name = response.memberName {
-                programContext.loggedInUserName = name
-                programContext.adminName = name
-            } else if let uname = response.username {
-                programContext.loggedInUserName = uname
-                programContext.adminName = uname
-            }
-            await programContext.loadLookupData()
-            programContext.persistSession()
+            await programContext.applyAuthResponse(response)
 
             // Both global_admin and standard users go to ProgramPickerView
             navigateToProgramPicker = true
@@ -176,6 +226,90 @@ struct LoginView: View {
             alertMessage = error.localizedDescription
             isShowingAlert = true
         }
+    }
+
+    @MainActor
+    private func handleGoogleSignIn() async {
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            guard let presenter = AuthPresenter.rootViewController else {
+                throw APIError(message: "Unable to present Google sign-in.")
+            }
+            let idToken = try await programContext.startGoogleSignIn(presenting: presenter)
+            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
+            let response = try await APIClient.shared.socialSignIn(
+                provider: "google",
+                idToken: idToken,
+                pushToken: pushToken
+            )
+            await handleSocialResponse(response)
+        } catch {
+            if !isGoogleCancellation(error) {
+                alertMessage = error.localizedDescription
+                isShowingAlert = true
+            }
+        }
+    }
+
+    @MainActor
+    private func handleAppleCompletion(_ result: Result<ASAuthorization, Error>) async {
+        switch result {
+        case .success(let authorization):
+            guard !isLoading else { return }
+            isLoading = true
+            defer { isLoading = false }
+            do {
+                let decoded = try AppleSignInCoordinator.decode(authorization)
+                let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
+                let response = try await APIClient.shared.socialSignIn(
+                    provider: "apple",
+                    idToken: decoded.idToken,
+                    nonce: currentAppleNonce,
+                    firstName: decoded.fullName?.givenName,
+                    lastName: decoded.fullName?.familyName,
+                    pushToken: pushToken
+                )
+                await handleSocialResponse(response)
+            } catch {
+                alertMessage = error.localizedDescription
+                isShowingAlert = true
+            }
+        case .failure(let error):
+            if !isAppleCancellation(error) {
+                alertMessage = error.localizedDescription
+                isShowingAlert = true
+            }
+        }
+    }
+
+    /// Branches an OAuth response: a brand-new social user (needs_profile) is routed to the
+    /// CreateAccountView social branch to pick a username; an existing member is logged straight in.
+    @MainActor
+    private func handleSocialResponse(_ response: AuthResponse) async {
+        if response.needsProfile == true {
+            pendingSocial = PendingSocial(
+                token: response.token,
+                refreshToken: response.refreshToken,
+                email: response.email,
+                firstName: response.firstName,
+                lastName: response.lastName
+            )
+            navigateToCreateAccount = true
+        } else {
+            await programContext.applyAuthResponse(response)
+            navigateToProgramPicker = true
+        }
+    }
+
+    private func isAppleCancellation(_ error: Error) -> Bool {
+        (error as? ASAuthorizationError)?.code == .canceled
+    }
+
+    private func isGoogleCancellation(_ error: Error) -> Bool {
+        (error as? GIDSignInError)?.code == .canceled
     }
 }
 
