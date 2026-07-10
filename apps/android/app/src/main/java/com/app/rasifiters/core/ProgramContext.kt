@@ -17,7 +17,9 @@ import com.app.rasifiters.net.ChangeEmailRequest
 import com.app.rasifiters.net.ChangePasswordRequest
 import com.app.rasifiters.net.CreateProgramRequest
 import com.app.rasifiters.net.ForgotPasswordRequest
+import com.app.rasifiters.net.IdentitiesResponse
 import com.app.rasifiters.net.InviteRequest
+import com.app.rasifiters.net.LinkRequest
 import com.app.rasifiters.net.LeaveProgramRequest
 import com.app.rasifiters.net.LoginRequest
 import com.app.rasifiters.net.MemberDTO
@@ -41,7 +43,9 @@ import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.net.ProgramOrderRequest
 import com.app.rasifiters.net.ProgramWorkoutDTO
 import com.app.rasifiters.net.RegisterRequest
+import com.app.rasifiters.net.SetPasswordRequest
 import com.app.rasifiters.net.StepsStatsDTO
+import com.app.rasifiters.net.UnlinkRequest
 import com.app.rasifiters.net.ActivityTimelinePoint
 import com.app.rasifiters.net.ActivityTimelineResponse
 import com.app.rasifiters.net.AddCustomWorkoutRequest
@@ -262,6 +266,23 @@ class ProgramContext(
         )
         _pendingSocial.value = null
     }.recoverCatching { throw it.asApiError() }
+
+    // ---- Auth phase-2 (D-C10): linked sign-in identities ----
+    suspend fun listIdentities(): Result<IdentitiesResponse> =
+        runCatching { api.listIdentities() }.recoverCatching { throw it.asApiError() }
+
+    suspend fun linkGoogle(idToken: String): Result<IdentitiesResponse> =
+        runCatching {
+            api.linkIdentity(LinkRequest(provider = "google", idToken = idToken, refreshToken = session.refreshToken))
+        }.recoverCatching { throw it.asApiError() }
+
+    suspend fun unlink(provider: String): Result<IdentitiesResponse> =
+        runCatching { api.unlinkIdentity(UnlinkRequest(provider = provider, refreshToken = session.refreshToken)) }
+            .recoverCatching { throw it.asApiError() }
+
+    suspend fun setAccountPassword(newPassword: String): Result<IdentitiesResponse> =
+        runCatching { api.setPassword(SetPasswordRequest(newPassword)) }
+            .recoverCatching { throw it.asApiError() }
 
     suspend fun register(
         firstName: String,

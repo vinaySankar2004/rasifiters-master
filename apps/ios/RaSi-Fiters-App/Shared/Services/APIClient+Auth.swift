@@ -247,4 +247,46 @@ extension APIClient {
         let data = try await data(for: request)
         return try JSONDecoder().decode(DeleteAccountResponse.self, from: data)
     }
+
+    // Auth phase-2 (D-C10) — manage linked sign-in identities. All authenticated. link/unlink thread the
+    // caller's refresh token so the backend can bind the session (linkIdentityIdToken / unlinkIdentity).
+    func listIdentities(token: String) async throws -> IdentitiesResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/identities"))
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(IdentitiesResponse.self, from: data)
+    }
+
+    func linkProvider(token: String, refreshToken: String, provider: String, idToken: String, nonce: String? = nil) async throws -> IdentitiesResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/link"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        var body: [String: String] = ["provider": provider, "id_token": idToken, "refresh_token": refreshToken]
+        if let nonce { body["nonce"] = nonce }
+        request.httpBody = try JSONEncoder().encode(body)
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(IdentitiesResponse.self, from: data)
+    }
+
+    func unlinkProvider(token: String, refreshToken: String, provider: String) async throws -> IdentitiesResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/unlink"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(["provider": provider, "refresh_token": refreshToken])
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(IdentitiesResponse.self, from: data)
+    }
+
+    func setPassword(token: String, newPassword: String) async throws -> IdentitiesResponse {
+        var request = URLRequest(url: baseURL.appendingPathComponent("auth/set-password"))
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try JSONEncoder().encode(["new_password": newPassword])
+        let data = try await data(for: request)
+        return try JSONDecoder().decode(IdentitiesResponse.self, from: data)
+    }
 }

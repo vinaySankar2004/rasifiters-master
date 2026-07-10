@@ -4,7 +4,15 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth/auth-provider";
-import { deleteAccount as deleteAccountApi, changeEmail as changeEmailApi } from "@/lib/api/auth";
+import {
+  deleteAccount as deleteAccountApi,
+  changeEmail as changeEmailApi,
+  listIdentities,
+  linkGoogle as linkGoogleApi,
+  unlinkProvider as unlinkProviderApi,
+  setPassword as setPasswordApi,
+  type IdentitiesResponse
+} from "@/lib/api/auth";
 import { fetchMemberProfile, updateMemberProfile, type MemberProfile } from "@/lib/api/members";
 import { initials } from "@/lib/format";
 import { GENDER_OPTIONS } from "@/lib/genders";
@@ -14,6 +22,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Select } from "@/components/Select";
+import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 
 // Same loose, deliberately-permissive email regex as the create-account / forgot-password pages.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -47,10 +56,50 @@ export default function ProfilePage() {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [emailSuccess, setEmailSuccess] = useState(false);
 
+  // Sign-in methods (auth phase-2). Password policy mirror of the backend validatePassword.
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [showPwForm, setShowPwForm] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+
   const profileQuery = useQuery({
     queryKey: ["account", "profile", session?.user.id],
     queryFn: () => fetchMemberProfile(token, session?.user.id ?? ""),
     enabled: !!token && !!session?.user.id
+  });
+
+  const hasRefreshToken = !!session?.refreshToken;
+
+  const identitiesQuery = useQuery({
+    queryKey: ["account", "identities", session?.user.id],
+    queryFn: () => listIdentities(token),
+    enabled: !!token && !!session?.user.id
+  });
+
+  const applyIdentities = (data: IdentitiesResponse) => {
+    if (session?.user.id) {
+      queryClient.setQueryData(["account", "identities", session.user.id], {
+        identities: data.identities, has_password: data.has_password
+      });
+    }
+  };
+
+  const linkGoogleMutation = useMutation({
+    mutationFn: (code: string) => linkGoogleApi(token, code, session?.refreshToken ?? ""),
+    onSuccess: (data) => { setLinkError(null); applyIdentities(data); },
+    onError: (e) => setLinkError(e instanceof Error ? e.message : "Unable to link account.")
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: (provider: string) => unlinkProviderApi(token, provider, session?.refreshToken ?? ""),
+    onSuccess: (data) => { setLinkError(null); applyIdentities(data); },
+    onError: (e) => setLinkError(e instanceof Error ? e.message : "Unable to unlink account.")
+  });
+
+  const setPasswordMutation = useMutation({
+    mutationFn: () => setPasswordApi(token, newPassword),
+    onSuccess: (data) => { setPwError(null); setShowPwForm(false); setNewPassword(""); applyIdentities(data); },
+    onError: (e) => setPwError(e instanceof Error ? e.message : "Unable to set password.")
   });
 
   useEffect(() => {
@@ -142,6 +191,12 @@ export default function ProfilePage() {
   const canSave = firstName.trim().length > 0 && lastName.trim().length > 0 && !updateMutation.isPending;
   const canSubmitEmail =
     EMAIL_RE.test(newEmail.trim()) && emailPassword.length > 0 && !emailMutation.isPending;
+
+  const identities = identitiesQuery.data?.identities ?? [];
+  const hasGoogle = identities.some((i) => i.provider === "google");
+  const hasPassword = identitiesQuery.data?.has_password ?? true;
+  const PW_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}$/;
+  const canSubmitPassword = PW_RE.test(newPassword) && !setPasswordMutation.isPending;
 
   return (
     <>
@@ -301,6 +356,79 @@ export default function ProfilePage() {
                 </button>
               </div>
             )}
+          </div>
+
+          <div className="space-y-3 border-t border-rf-border pt-4">
+            <p className="text-sm font-semibold text-rf-text">Sign-in methods</p>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-rf-text">Google</p>
+                <p className="truncate text-sm text-rf-text-muted">
+                  {hasGoogle ? (identities.find((i) => i.provider === "google")?.email ?? "Linked") : "Not linked"}
+                </p>
+              </div>
+              {hasGoogle ? (
+                <button
+                  type="button"
+                  disabled={!hasRefreshToken || identities.length <= 1 || unlinkMutation.isPending}
+                  onClick={() => { setLinkError(null); unlinkMutation.mutate("google"); }}
+                  className="shrink-0 rounded-2xl border border-rf-border px-4 py-2 text-sm font-semibold text-rf-text disabled:opacity-50"
+                >
+                  Unlink
+                </button>
+              ) : (
+                <GoogleSignInButton
+                  compact
+                  disabled={!hasRefreshToken || linkGoogleMutation.isPending}
+                  onCode={(code) => { setLinkError(null); linkGoogleMutation.mutate(code); }}
+                />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-rf-text">Password</p>
+                <p className="truncate text-sm text-rf-text-muted">{hasPassword ? "Enabled" : "Not set"}</p>
+              </div>
+              {!hasPassword && (
+                <button
+                  type="button"
+                  onClick={() => { setShowPwForm((p) => !p); setPwError(null); setNewPassword(""); }}
+                  className="shrink-0 rounded-2xl border border-rf-border px-4 py-2 text-sm font-semibold text-rf-text"
+                >
+                  {showPwForm ? "Cancel" : "Add password"}
+                </button>
+              )}
+            </div>
+
+            {showPwForm && !hasPassword && (
+              <div className="space-y-3">
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => { setNewPassword(e.target.value); if (pwError) setPwError(null); }}
+                  className="input-shell w-full rounded-2xl px-4 py-3 text-sm font-medium"
+                  placeholder="New password"
+                  autoComplete="new-password"
+                />
+                <p className="text-xs text-rf-text-muted">At least 8 characters with an uppercase, a lowercase, and a number.</p>
+                <button
+                  type="button"
+                  disabled={!canSubmitPassword}
+                  onClick={() => { setPwError(null); setPasswordMutation.mutate(); }}
+                  className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
+                >
+                  {setPasswordMutation.isPending ? "Saving..." : "Save password"}
+                </button>
+              </div>
+            )}
+
+            {!hasRefreshToken && (
+              <p className="text-xs text-rf-text-muted">Sign out and back in to manage linked accounts.</p>
+            )}
+            {linkError && <p className="text-sm font-semibold text-rf-danger">{linkError}</p>}
+            {pwError && <p className="text-sm font-semibold text-rf-danger">{pwError}</p>}
           </div>
 
           {!isGlobalAdmin && (

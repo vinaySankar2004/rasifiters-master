@@ -47,6 +47,19 @@ interface ApiService {
     @POST("auth/oauth/complete")
     suspend fun oauthComplete(@Header("Authorization") bearer: String, @Body body: OAuthCompleteRequest): OAuthResponse
 
+    // Auth phase-2 (D-C10) — linked sign-in identities. Bearer auto-injected by the OkHttp auth layer.
+    @GET("auth/identities")
+    suspend fun listIdentities(): IdentitiesResponse
+
+    @POST("auth/link")
+    suspend fun linkIdentity(@Body body: LinkRequest): IdentitiesResponse
+
+    @POST("auth/unlink")
+    suspend fun unlinkIdentity(@Body body: UnlinkRequest): IdentitiesResponse
+
+    @POST("auth/set-password")
+    suspend fun setPassword(@Body body: SetPasswordRequest): IdentitiesResponse
+
     // ---- Programs ----
     @GET("programs")
     suspend fun getPrograms(): List<ProgramDTO>

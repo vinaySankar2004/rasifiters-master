@@ -65,10 +65,14 @@ function GoogleGlyph() {
 
 export function GoogleSignInButton({
   onCode,
-  disabled
+  disabled,
+  compact = false
 }: {
   onCode: (code: string) => void;
   disabled?: boolean;
+  // Opt-in settings-row variant: a small pill sized like the sibling text-buttons (Unlink / Add password),
+  // instead of the full-width login pill. Default stays full-width so LoginView's usage is unchanged.
+  compact?: boolean;
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const codeClientRef = useRef<any>(null);
@@ -106,6 +110,20 @@ export function GoogleSignInButton({
 
   // No client id configured yet — render nothing so the page still builds/deploys.
   if (!GOOGLE_WEB_CLIENT_ID) return null;
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={disabled || !ready}
+        className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-rf-border px-4 py-2 text-sm font-semibold text-rf-text transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <GoogleGlyph />
+        <span>Link</span>
+      </button>
+    );
+  }
 
   return (
     <button

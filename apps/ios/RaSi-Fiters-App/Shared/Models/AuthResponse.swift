@@ -36,3 +36,20 @@ struct AuthResponse: Decodable {
         let email: String?
     }
 }
+
+struct IdentitiesResponse: Decodable {
+    let identities: [Identity]
+    let hasPassword: Bool
+    let message: String?
+
+    enum CodingKeys: String, CodingKey {
+        case identities
+        case hasPassword = "has_password"
+        case message
+    }
+
+    struct Identity: Decodable {
+        let provider: String
+        let email: String?
+    }
+}

@@ -108,6 +108,34 @@ data class OAuthCompleteRequest(
     @SerialName("refresh_token") val refreshToken: String? = null,
 )
 
+// ---- Auth phase-2 (D-C10): linked sign-in identities ----
+@Serializable
+data class IdentityDTO(val provider: String, val email: String? = null)
+
+@Serializable
+data class IdentitiesResponse(
+    val identities: List<IdentityDTO> = emptyList(),
+    @SerialName("has_password") val hasPassword: Boolean = true,
+    val message: String? = null,
+)
+
+@Serializable
+data class LinkRequest(
+    val provider: String,
+    @SerialName("id_token") val idToken: String,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+    val nonce: String? = null,
+)
+
+@Serializable
+data class UnlinkRequest(
+    val provider: String,
+    @SerialName("refresh_token") val refreshToken: String? = null,
+)
+
+@Serializable
+data class SetPasswordRequest(@SerialName("new_password") val newPassword: String)
+
 // ---- Notifications (Phase I) ----
 
 /**

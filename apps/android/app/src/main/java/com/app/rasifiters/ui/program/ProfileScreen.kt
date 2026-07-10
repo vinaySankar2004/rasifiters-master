@@ -30,16 +30,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.theme.AppOrange
+import com.app.rasifiters.net.IdentityDTO
 import com.app.rasifiters.ui.auth.AppDropdownField
 import com.app.rasifiters.ui.auth.AppPasswordField
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.auth.PillButton
+import com.app.rasifiters.ui.auth.fetchGoogleIdToken
 import com.app.rasifiters.ui.auth.isEmailValid
 import com.app.rasifiters.ui.programs.initialsOf
 import com.app.rasifiters.ui.summary.DetailTopBar
@@ -79,6 +84,17 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var emailError by remember { mutableStateOf<String?>(null) }
     var emailSuccess by remember { mutableStateOf(false) }
 
+    // Sign-in methods (auth phase-2, D-C10). Google + add-password only (Apple is iOS-only, F9).
+    val context = LocalContext.current
+    var identities by remember { mutableStateOf<List<IdentityDTO>>(emptyList()) }
+    var hasPassword by remember { mutableStateOf(true) }
+    var linkBusy by remember { mutableStateOf(false) }
+    var linkError by remember { mutableStateOf<String?>(null) }
+    var showPwForm by remember { mutableStateOf(false) }
+    var newPassword by remember { mutableStateOf("") }
+    var pwVisible by remember { mutableStateOf(false) }
+    var settingPw by remember { mutableStateOf(false) }
+
     LaunchedEffect(memberName) {
         val parts = (memberName ?: "").trim().split(Regex("\\s+"), limit = 2)
         firstName = parts.getOrNull(0) ?: ""
@@ -90,6 +106,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
             currentEmail = member.email
             member.gender?.let { gender = it }
         }
+        programContext.listIdentities().onSuccess { identities = it.identities; hasPassword = it.hasPassword }
     }
 
     val isProgramAdmin = programContext.isProgramAdmin
@@ -227,6 +244,97 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     loading = isChangingEmail,
                 )
             }
+
+            // Sign-in methods (auth phase-2, D-C10). Google + add-password only (Apple is iOS-only, F9).
+            SectionDivider()
+            Text("Sign-in methods", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+
+            val googleLinked = identities.any { it.provider == "google" }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Google", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (googleLinked) identities.first { it.provider == "google" }.email ?: "Linked" else "Not linked",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                TextButton(
+                    enabled = !linkBusy && !(googleLinked && identities.size <= 1),
+                    onClick = {
+                        linkBusy = true; linkError = null
+                        scope.launch {
+                            try {
+                                val result = if (googleLinked) {
+                                    programContext.unlink("google")
+                                } else {
+                                    val idToken = fetchGoogleIdToken(context)
+                                    programContext.linkGoogle(idToken)
+                                }
+                                result.onSuccess { identities = it.identities; hasPassword = it.hasPassword }
+                                    .onFailure { linkError = it.message ?: "Couldn't update Google link." }
+                            } catch (_: GetCredentialCancellationException) {
+                                // User dismissed the picker — stay silent.
+                            } catch (e: Exception) {
+                                linkError = e.message ?: "Google sign-in failed."
+                            }
+                            linkBusy = false
+                        }
+                    },
+                ) { Text(if (googleLinked) "Unlink" else "Link", color = AppOrange, fontWeight = FontWeight.SemiBold) }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Password", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (hasPassword) "Enabled" else "Not set",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                if (!hasPassword) {
+                    TextButton(onClick = { showPwForm = !showPwForm; linkError = null; newPassword = "" }) {
+                        Text(if (showPwForm) "Cancel" else "Add password", color = AppOrange, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+            if (showPwForm && !hasPassword) {
+                FormFieldLabel("New password")
+                AppPasswordField("New password", newPassword, { newPassword = it }, pwVisible, { pwVisible = !pwVisible })
+                Text(
+                    "At least 8 characters with an uppercase, a lowercase, and a number.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                )
+                val pwOk = Regex("^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}$").matches(newPassword)
+                PillButton(
+                    label = "Save password",
+                    onClick = {
+                        settingPw = true; linkError = null
+                        scope.launch {
+                            programContext.setAccountPassword(newPassword)
+                                .onSuccess { identities = it.identities; hasPassword = it.hasPassword; showPwForm = false; newPassword = "" }
+                                .onFailure { linkError = it.message ?: "Couldn't set password." }
+                            settingPw = false
+                        }
+                    },
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    enabled = pwOk && !settingPw,
+                    loading = settingPw,
+                )
+            }
+            linkError?.let { FormErrorText(it) }
 
             // Delete account (not shown to global admins, matching iOS)
             if (!isGlobalAdmin) {

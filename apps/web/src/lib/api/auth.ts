@@ -146,3 +146,33 @@ export async function deleteAccount(token: string) {
     token
   });
 }
+
+export type Identity = { provider: string; email?: string | null };
+export type IdentitiesResponse = { identities: Identity[]; has_password: boolean; message?: string };
+
+// Auth phase-2 (D-C10). List the signed-in member's linked sign-in methods.
+export async function listIdentities(token: string) {
+  return apiRequest<IdentitiesResponse>("/auth/identities", { token });
+}
+
+// Link Google via the web custom-button auth `code`. refreshToken is threaded so the backend can bind the
+// caller's own Supabase session server-side (linkIdentityIdToken) — R1 preserved.
+export async function linkGoogle(token: string, code: string, refreshToken: string) {
+  return apiRequest<IdentitiesResponse>("/auth/link", {
+    method: "POST", token, body: { provider: "google", code, refresh_token: refreshToken }
+  });
+}
+
+// Unlink a provider (refresh_token bound server-side, same as link).
+export async function unlinkProvider(token: string, provider: string, refreshToken: string) {
+  return apiRequest<IdentitiesResponse>("/auth/unlink", {
+    method: "POST", token, body: { provider, refresh_token: refreshToken }
+  });
+}
+
+// Social-only member adds an email/password credential.
+export async function setPassword(token: string, newPassword: string) {
+  return apiRequest<IdentitiesResponse>("/auth/set-password", {
+    method: "POST", token, body: { new_password: newPassword }
+  });
+}

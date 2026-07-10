@@ -276,6 +276,44 @@ extension ProgramContext {
         let result = try await coordinator.start()
         return (result.idToken, result.nonce, result.fullName?.givenName, result.fullName?.familyName)
     }
+
+    // MARK: - Linked sign-in methods (auth phase-2, D-C10)
+
+    @MainActor
+    func fetchIdentities() async throws -> IdentitiesResponse {
+        guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
+        return try await APIClient.shared.listIdentities(token: token)
+    }
+
+    @MainActor
+    func linkGoogle() async throws -> IdentitiesResponse {
+        guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
+        guard let refresh = refreshToken, !refresh.isEmpty else { throw APIError(message: "Session expired. Sign in again to manage linked accounts.") }
+        guard let presenter = AuthPresenter.rootViewController else { throw APIError(message: "Unable to present Google sign-in.") }
+        let google = try await startGoogleSignIn(presenting: presenter)
+        return try await APIClient.shared.linkProvider(token: token, refreshToken: refresh, provider: "google", idToken: google.idToken, nonce: google.nonce)
+    }
+
+    @MainActor
+    func linkApple() async throws -> IdentitiesResponse {
+        guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
+        guard let refresh = refreshToken, !refresh.isEmpty else { throw APIError(message: "Session expired. Sign in again to manage linked accounts.") }
+        let apple = try await startAppleSignIn()
+        return try await APIClient.shared.linkProvider(token: token, refreshToken: refresh, provider: "apple", idToken: apple.idToken, nonce: apple.nonce)
+    }
+
+    @MainActor
+    func unlink(provider: String) async throws -> IdentitiesResponse {
+        guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
+        guard let refresh = refreshToken, !refresh.isEmpty else { throw APIError(message: "Session expired. Sign in again to manage linked accounts.") }
+        return try await APIClient.shared.unlinkProvider(token: token, refreshToken: refresh, provider: provider)
+    }
+
+    @MainActor
+    func setPassword(newPassword: String) async throws -> IdentitiesResponse {
+        guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
+        return try await APIClient.shared.setPassword(token: token, newPassword: newPassword)
+    }
 }
 
 /// Pending federated sign-up carried from `LoginView` (a `needs_profile` OAuth response) into

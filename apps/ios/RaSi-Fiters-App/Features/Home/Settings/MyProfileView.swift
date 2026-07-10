@@ -1,4 +1,6 @@
 import SwiftUI
+import AuthenticationServices
+import GoogleSignIn
 
 /// "My Profile" — the account-menu profile screen (ProgramMyAccountSection → My Profile).
 /// Faithful 1:1 port of the legacy iOS screen (first/last name + gender + delete account),
@@ -26,6 +28,15 @@ struct MyProfileView: View {
     @State private var isChangingEmail = false
     @State private var emailError: String?
     @State private var showEmailSuccess = false
+
+    // Sign-in methods (auth phase-2, D-C10)
+    @State private var identities: [IdentitiesResponse.Identity] = []
+    @State private var hasPassword = true
+    @State private var linkError: String?
+    @State private var isLinking = false
+    @State private var showPasswordForm = false
+    @State private var newAccountPassword = ""
+    @State private var isSettingPassword = false
 
     private let genderOptions = ["Male", "Female", "Non-binary", "Prefer not to say"]
 
@@ -60,6 +71,8 @@ struct MyProfileView: View {
                 .disabled(isSaving)
 
                 emailSection
+
+                signInMethodsSection
 
                 // Delete Account Section
                 if !programContext.isGlobalAdmin {
@@ -115,6 +128,7 @@ struct MyProfileView: View {
         .task {
             // Web-parity ADD: fetch the current email for display (GET /members/:id).
             await loadCurrentEmail()
+            await loadIdentities()
         }
     }
 
@@ -201,6 +215,102 @@ struct MyProfileView: View {
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private var signInMethodsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Divider()
+            Text("Sign-in methods").font(.subheadline.weight(.semibold))
+
+            providerRow(provider: "google", label: "Google")
+            providerRow(provider: "apple", label: "Apple")
+
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Password").font(.subheadline.weight(.semibold))
+                    Text(hasPassword ? "Enabled" : "Not set").font(.subheadline).foregroundColor(Color(.secondaryLabel))
+                }
+                Spacer()
+                if !hasPassword {
+                    Button(showPasswordForm ? "Cancel" : "Add password") {
+                        showPasswordForm.toggle(); linkError = nil; newAccountPassword = ""
+                    }.font(.footnote.weight(.semibold)).foregroundColor(.appOrange)
+                }
+            }
+
+            if showPasswordForm && !hasPassword {
+                AppInputField(title: "New password", text: $newAccountPassword, isSecure: true)
+                Text("At least 8 characters with an uppercase, a lowercase, and a number.")
+                    .font(.caption).foregroundColor(Color(.tertiaryLabel))
+                AppPrimaryButton(title: "Save password", isLoading: isSettingPassword) {
+                    Task { await addPassword() }
+                }.frame(maxWidth: .infinity).disabled(!isNewPasswordValid || isSettingPassword)
+            }
+
+            if let linkError {
+                Text(linkError).font(.footnote.weight(.semibold)).foregroundColor(.appRed)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func providerRow(provider: String, label: String) -> some View {
+        let linked = identities.contains { $0.provider == provider }
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(.subheadline.weight(.semibold))
+                Text(linked ? (identities.first { $0.provider == provider }?.email ?? "Linked") : "Not linked")
+                    .font(.subheadline).foregroundColor(Color(.secondaryLabel)).lineLimit(1).truncationMode(.middle)
+            }
+            Spacer()
+            Button(linked ? "Unlink" : "Link") {
+                Task { await toggleProvider(provider, linked: linked) }
+            }
+            .font(.footnote.weight(.semibold))
+            .foregroundColor(.appOrange)
+            .disabled(isLinking || (linked && identities.count <= 1))
+        }
+    }
+
+    private var isNewPasswordValid: Bool {
+        newAccountPassword.range(of: "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}$", options: .regularExpression) != nil
+    }
+
+    private func loadIdentities() async {
+        do { apply(try await programContext.fetchIdentities()) } catch { /* faithful-swallow: section still usable */ }
+    }
+
+    private func apply(_ r: IdentitiesResponse) {
+        identities = r.identities
+        hasPassword = r.hasPassword
+    }
+
+    private func toggleProvider(_ provider: String, linked: Bool) async {
+        isLinking = true; linkError = nil
+        defer { isLinking = false }
+        do {
+            if linked {
+                apply(try await programContext.unlink(provider: provider))
+            } else {
+                apply(try await (provider == "apple" ? programContext.linkApple() : programContext.linkGoogle()))
+            }
+        } catch {
+            if !isCancellation(error) { linkError = error.localizedDescription }
+        }
+    }
+
+    private func addPassword() async {
+        isSettingPassword = true; linkError = nil
+        defer { isSettingPassword = false }
+        do {
+            apply(try await programContext.setPassword(newPassword: newAccountPassword))
+            showPasswordForm = false; newAccountPassword = ""
+        } catch { linkError = error.localizedDescription }
+    }
+
+    private func isCancellation(_ error: Error) -> Bool {
+        (error as? ASAuthorizationError)?.code == .canceled || (error as? GIDSignInError)?.code == .canceled
     }
 
     private var genderPicker: some View {

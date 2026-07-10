@@ -105,3 +105,19 @@ fun GoogleSignInButton(
         )
     }
 }
+
+/**
+ * Headless Google id_token acquisition for the account-settings LINK flow (no button chrome).
+ * Reuses the same [GetGoogleIdOption] + web-client-id audience as [GoogleSignInButton]. Throws
+ * [GetCredentialCancellationException] on user dismissal (callers stay silent).
+ */
+suspend fun fetchGoogleIdToken(context: android.content.Context): String {
+    val credentialManager = CredentialManager.create(context)
+    val googleIdOption = GetGoogleIdOption.Builder()
+        .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+        .setFilterByAuthorizedAccounts(false)
+        .build()
+    val request = GetCredentialRequest.Builder().addCredentialOption(googleIdOption).build()
+    val result = credentialManager.getCredential(context, request)
+    return GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+}
