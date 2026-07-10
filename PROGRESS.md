@@ -7,7 +7,20 @@
 
 ## Current phase
 
-**ACTIVE WORKSTREAM (2026-07-08): Android port — the 4th surface (`apps/android`).** A faithful 1:1
+**LATEST (2026-07-10): Signup wizard + Google/Apple federated sign-in SHIPPED — `auth` v0.8.0.** The
+Create Account flow is now a 3-step no-scroll wizard on all 3 clients, with Continue-with-Google
+(web/iOS/Android) + Sign-in-with-Apple (iOS), custom dark-pill buttons, and the auth screens tightened to
+fit one screen. Backend (Render) + web (Vercel) **deployed**; **live-tested on all 3 platforms**. R1
+preserved (native id_token / web auth-`code` → `/api/auth/oauth` → Supabase `signInWithIdToken`; new
+`/oauth/complete` two-step for new social users; **409** on a same-email collision). Load-bearing details +
+the iOS GoogleSignIn-9.2.0 nonce quirk + the infra are in `specs/features/auth/SPEC.md` §9 (D-C8/D-C9) and
+the auto-memory `federated-signin-shipped`. **Not-yet-done tail:** the new iOS/Android **binaries are
+code-complete + compile-clean but NOT yet on TestFlight/Play** — shipping them is the user's next step (iOS
+bump `CURRENT_PROJECT_VERSION` 48→49, same marketing version; Android `bundleRelease` + add the release
+SHA-1 to the Google Android OAuth client). **NEXT PLANNED TASK (new session):** link/unlink Google+Apple in
+**account settings** on all 3 surfaces (see auto-memory `link-google-account-settings-followup`).
+
+**PRIOR WORKSTREAM (2026-07-08, COMPLETE): Android port — the 4th surface (`apps/android`).** A faithful 1:1
 Compose port of the same app against the same backend contract. Plan approved; phased scaffold→port→
 de-scaffold sequence (A→J). **Phase A (foundation) + Phase B (auth path) + Phase C (program-picker) +
 Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) + Phase E (Members tab +
