@@ -121,9 +121,9 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                 .padding(top = 24.dp, bottom = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Spacer(Modifier.height(24.dp))
-            BrandMark(sizeDp = 84)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
+            BrandMark(sizeDp = 64)
+            Spacer(Modifier.height(12.dp))
             Text("Create Account", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(6.dp))
             Text(
@@ -132,9 +132,9 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             StepDots(current = pagerState.currentPage, total = pageCount)
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
 
             // The wizard pages. Swipe is disabled — navigation is button-driven so each page's Continue gate
             // bites. Each page verticalScrolls as a short-device fallback (A-5).

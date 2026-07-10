@@ -58,8 +58,8 @@ fun LoginScreen(
     }
 
     AuthScaffold {
-        BrandMark(sizeDp = 88)
-        Spacer(Modifier.height(24.dp))
+        BrandMark(sizeDp = 64)
+        Spacer(Modifier.height(16.dp))
 
         Text("Welcome Back", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(6.dp))
@@ -69,8 +69,8 @@ fun LoginScreen(
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
 
-        Spacer(Modifier.height(30.dp))
-        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Spacer(Modifier.height(20.dp))
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppTextField("Username or Email", identifier, { identifier = it })
             AppPasswordField(
                 "Password", password, { password = it }, passwordVisible,
@@ -78,7 +78,7 @@ fun LoginScreen(
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
         PillButton(
             label = "Login",
             loading = loading,
@@ -93,7 +93,7 @@ fun LoginScreen(
             },
         )
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(14.dp))
         // "or" divider + social sign-in (Continue with Google). A needs-profile success routes to the
         // create-account wizard's social branch; an existing-member success flips the root gate automatically.
         Row(
@@ -109,7 +109,7 @@ fun LoginScreen(
             )
             HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
         GoogleSignInButton(
             onIdToken = { idToken ->
                 scope.launch {
@@ -121,12 +121,11 @@ fun LoginScreen(
             onError = { errorMessage = it },
         )
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
         TextButton(onClick = onForgotPassword, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
             Text("Forgot your password?", color = AppOrange, style = MaterialTheme.typography.bodySmall)
         }
 
-        Spacer(Modifier.height(6.dp))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
                 "New here?",
@@ -138,7 +137,7 @@ fun LoginScreen(
             }
         }
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(16.dp))
         Text(
             "Training hard? Login to track your progress.",
             style = MaterialTheme.typography.bodySmall,
