@@ -10,7 +10,7 @@ export default function PublicPrivacyPolicyPage() {
     <PageShell maxWidth="3xl">
       <PageHeader
         title="Privacy Policy"
-        subtitle="Effective date: 2026-07-09"
+        subtitle="Effective date: 2026-07-10"
         actions={
           <Link
             href="/support"
@@ -123,7 +123,11 @@ export default function PublicPrivacyPolicyPage() {
 
         <div>
           <p className="text-base font-semibold text-rf-text">Children&apos;s privacy</p>
-          <p className="mt-2">RaSi Fiters is not intended for children under 4.</p>
+          <p className="mt-2">
+            RaSi Fiters is intended for adults aged 18 and over. It is not directed to children, and we
+            do not knowingly collect personal information from anyone under 18. If you believe a child has
+            provided us with personal information, please contact us and we will delete it.
+          </p>
         </div>
 
         <div>
