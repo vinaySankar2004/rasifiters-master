@@ -1,6 +1,6 @@
 # Screen: `create-account` (ios) — the public sign-up screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `LoginView`'s "New here? Create an account" link (`NavigationLink → CreateAccountView()`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Auth/CreateAccountView.swift`.
 > **Web parity reference:** [`web create-account`](../../web/create-account/SPEC.md) — same field set +
@@ -42,8 +42,9 @@ register-then-auto-login is faithful to legacy.
 
 The single scrolling form is now a **paged `TabView`** (`.tabViewStyle(.page(indexDisplayMode:.never))`,
 `selection: $step` — the same idiom as `ProgramActionsSheet`), with a **custom 3-dot indicator** + **Back /
-Continue** capsules below the pager. The `BrandMark` + heading sit **above** the pager (static); each page
-holds one field group so it fits one screen with **no inner scroll**:
+Continue** capsules below the pager. The `BrandMark` + heading sit **above** the pager; each page holds one
+field group. The whole form is wrapped in a **`ScrollView`** and the pager is pinned to a **measured height**
+(see **Keyboard handling**, D-C10) so the keyboard never collapses or hides the fields:
 
 - **Page 0** — First Name + Last Name (First Name `@FocusState` autoFocus, D-C5).
 - **Page 1** — Username + gender `Menu` + Email (inline email-format hint, D-C2).
@@ -52,6 +53,15 @@ holds one field group so it fits one screen with **no inner scroll**:
 Per-page validation gates **Continue** (page 0: both names; page 1: username + valid email; page 2: policy
 + match). The last page's Continue reads **"Create Account"** → `handleCreateAccount()`. **Back** appears
 from page 1 on.
+
+**Keyboard handling (D-C10, v0.2.2)** — the form is a `ScrollView` (`.scrollDismissesKeyboard(.interactively)`,
+`.scrollBounceBehavior(.basedOnSize)`), and the paged `TabView` — which has **no intrinsic height** — is
+pinned via a `PageContentHeightKey` `PreferenceKey` (max-reduce, the `HeaderHeightKey` idiom) to the tallest
+page's **measured content height**. Without the pin the pager was the only flexible child, so the keyboard's
+safe-area inset collapsed it to ~0 and hid the inputs with no way to scroll. Now the focused field scrolls
+into view, the user can scroll to everything (incl. Back/Continue), swipe-down dismisses the keyboard, and the
+pager grows to fit the live password checklist without clipping. Pages are top-aligned (measured content +
+trailing spacer) so fields don't shift vertically between steps. Matches the web/Android keyboard behavior.
 
 **Federated buttons on page 0 (D-C8; restyled D-C9, v0.2.1)** — the name page also carries the **same**
 "or" divider + **custom dark-pill** "Continue with Google" + "Continue with Apple" section as `LoginView`
@@ -138,6 +148,9 @@ only *after* the post-register auto-login.
 - **Already authenticated:** N/A — gated at the root (`AppRootView`); the web's authed→redirect cleanup
   (web create-account D-C2) has **no iOS analogue**.
 - **autoFocus:** First Name focuses ~350 ms after appear (D-C5) so the form is immediately typeable.
+- **Keyboard:** the form scrolls (D-C10) — the focused field scrolls above the keyboard, the user can scroll
+  to any field + the Back/Continue buttons, and swiping down dismisses the keyboard. The pager can't collapse
+  under the keyboard's safe-area inset, and it grows to fit the live password checklist without clipping.
 - **Forward dependency:** `ProgramPickerView` (post-signup target) remains a deferred stub.
 
 ## 9. Decisions made
@@ -155,6 +168,7 @@ only *after* the post-register auto-login.
 | **D-C7** | **Federated social branch (v0.2.0).** Social mode is driven by a local `social: PendingSocial?` state, entered via `enterSocialMode(with:)` from either the `pendingSocial` init param (set by `LoginView` on a `needs_profile` OAuth response) **or** an in-place Google/Apple tap on this screen. It puts the view in a **2-step** flow: prefill First/Last (editable) + Email (locked) from the provider, drop the password page, and finish via `APIClient.completeSocialRegistration()` (`POST /auth/oauth/complete`) → `applyAuthResponse` → `ProgramPickerView`. | landed `/auth/oauth/complete`; login D-C3; `ProgramContext.applyAuthResponse`. |
 | **D-C8** | **Federated buttons on create-account too (parity, v0.2.0).** The name page carries the same "Continue with Google" + native `SignInWithAppleButton` section as `LoginView` (email mode only). A `needs_profile` result transitions THIS view into the social branch **in-place** (no second `CreateAccountView` push) via `enterSocialMode`; an existing member → `applyAuthResponse`; 409 → the existing `Alert`. | user parity decision (2026-07-10); login D-C3; mirrors `LoginView.socialSignInSection`. |
 | **D-C9** | **Federated buttons restyled to custom dark pills + Apple via a standalone controller (v0.2.1)** — mirrors login D-C4. Both name-page buttons use the shared `FederatedSignInLabel` dark pill (input-surface capsule matching `AppInputField`; multicolor `GoogleG` for Google, `apple.logo` for Apple). Apple's tap calls `ProgramContext.startAppleSignIn()` (our own `ASAuthorizationController`) instead of the native `SignInWithAppleButton`; the `socialSignIn` call, the in-place `enterSocialMode` on `needs_profile`, and `applyAuthResponse` are unchanged. App-Store-4.8-compliant custom SIWA button. | user request (2026-07-10 — web parity); login D-C4; `FederatedSignInLabel`, `ProgramContext.startAppleSignIn`. |
+| **D-C10** | **Keyboard-avoidance fix (v0.2.2).** The form is wrapped in a `ScrollView` (`.scrollDismissesKeyboard(.interactively)` + `.scrollBounceBehavior(.basedOnSize)`) and the paged `TabView` is pinned to its tallest page's **measured content height** via a new `PageContentHeightKey` `PreferenceKey` (max-reduce). Fixes the keyboard collapsing the pager / hiding the fields with no scroll. Field set, validators, and the register-then-auto-login flow are unchanged — **layout-interaction only** (corrects §3a's former "no inner scroll"). User live-verified on device. | user report (2026-07-11); `ForgotPasswordView` `ScrollView` idiom; `HeaderHeightKey` measure idiom; web/Android parity. |
 | **D-DEPS** | **One new dependency — `BrandMark.swift` + the `BrandIcon.imageset`** (shared with splash/login). The checklist (`policyRow`) + email regex are inline view helpers (no new module). v0.2.1 uses the shared `GoogleG.imageset` (added by login D-DEPS). Every other import was ported in the foundation (run 50). | foundation inventory (run 50). |
 
 > **D-C-note — the web "already-authed → redirect" cleanup (web create-account D-C2) is N/A on iOS.** The
@@ -175,6 +189,7 @@ only *after* the post-register auto-login.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-07-11 | **Keyboard-avoidance fix (D-C10).** Wrapped the sign-up form in a `ScrollView` (`.scrollDismissesKeyboard(.interactively)` + `.scrollBounceBehavior(.basedOnSize)`) and pinned the paged `TabView` to its tallest page's **measured content height** via a new `PageContentHeightKey` `PreferenceKey` (max-reduce, the `HeaderHeightKey` idiom). Root cause: the pager had no intrinsic height and was the only flexible child, so the keyboard's safe-area inset collapsed it to ~0 — the inputs vanished with nothing to scroll. Now the focused field scrolls into view, the user can scroll to every field + Back/Continue, swipe-down dismisses the keyboard, and the pager grows to fit the live password checklist without clipping; pages are top-aligned so fields don't jump between steps. Field set, validators, and the register-then-auto-login flow are byte-for-byte unchanged (layout-interaction only); corrects §3a's former "no inner scroll". User live-verified on device; compile green via `xcodebuild` device destination (xcode MCP absent this session). `apps/ios/.../Features/Auth/CreateAccountView.swift`. |
 | 0.2.1 | 2026-07-10 | **Federated buttons restyled to custom dark pills + Apple via a standalone controller (D-C9).** The name-page "Continue with Google" + "Continue with Apple" buttons now use the shared `FederatedSignInLabel` dark pill (input-surface capsule = `AppInputField`'s `systemGray3` hairline, no fill, geometry mirroring the primary CTA; 18pt logo + 8pt gap + body-semibold primary-label text) — multicolor `GoogleG` asset for Google, `apple.logo` SF Symbol for Apple, matching web/login. The native `SignInWithAppleButton` is removed; Apple runs through `ProgramContext.startAppleSignIn()` → our own `ASAuthorizationController`. The `socialSignIn` call, the in-place `enterSocialMode` on `needs_profile`, and `applyAuthResponse` routing are unchanged; user-cancel stays silent. iOS compile is USER-run (Xcode). `apps/ios/.../Features/Auth/CreateAccountView.swift` (+ shared `ProgramContext+Auth.swift`, `LoginView.swift`'s `FederatedSignInLabel`, `GoogleG.imageset`). |
 | 0.2.0 | 2026-07-10 | **Federated buttons on create-account too + in-place social transition (D-C8, follow-up).** The name page now shows the same "Continue with Google" + native `SignInWithAppleButton` section as `LoginView` (email mode only). A `needs_profile` tap here transitions THIS view into the social branch **in-place** (`enterSocialMode`; no second `CreateAccountView` push); an existing-member result → `applyAuthResponse` → `ProgramPickerView`; 409 → the existing `Alert`. Social mode is now a settable local `social: PendingSocial?` state (entered from the init param OR in-place); `isSocial` is a computed `social != nil`. `apps/ios/.../Features/Auth/CreateAccountView.swift`. |
 | 0.2.0 | 2026-07-10 | **Paged 3-step wizard + federated social branch (D-C6, D-C7).** The single scrolling form became a paged `TabView(.page)` (`@State step`, custom 3-dot indicator, Back/Continue capsules, per-page gating) — page 0 names, page 1 username/gender/email, page 2 password/confirm/checklist; final Continue = "Create Account" → the unchanged `handleCreateAccount()` (field set + validators + register-then-auto-login byte-for-byte identical, now routed through the extracted `ProgramContext.applyAuthResponse`). New `pendingSocial: PendingSocial?` init param drives a 2-step social mode (from `LoginView`'s `needs_profile` OAuth hand-off): prefill First/Last (editable) + Email (locked), no password page, finish via `APIClient.completeSocialRegistration()` (`POST /auth/oauth/complete`) → `applyAuthResponse` → `ProgramPickerView`. iOS compile is USER-run (Xcode + xcode MCP). `apps/ios/.../Features/Auth/CreateAccountView.swift`. |

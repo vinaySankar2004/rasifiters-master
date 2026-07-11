@@ -27,6 +27,11 @@ struct CreateAccountView: View {
     @State private var navigateToProgramPicker: Bool = false
     // Paged-wizard state: current page.
     @State private var step: Int = 0
+    // Measured height of the tallest wizard page's field group. The paged TabView has no intrinsic
+    // height, so we pin it to this — without it the TabView is the only flexible child and collapses
+    // to ~0 when the keyboard's avoidance inset squeezes the layout (the "fields vanish" bug). The
+    // whole screen is now a ScrollView, so the focused field scrolls into view instead of hiding.
+    @State private var pageContentHeight: CGFloat = 0
     // The active federated hand-off (from the init param OR set in-place by a Google/Apple tap here);
     // non-nil ⇒ social mode. `didConfigure` guards the one-time prefill from the init param.
     @State private var social: PendingSocial? = nil
@@ -45,64 +50,73 @@ struct CreateAccountView: View {
             AppGradient.background(for: colorScheme)
                 .ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                NavigationLink(
-                    destination: ProgramPickerView()
-                        .navigationBarBackButtonHidden(true),
-                    isActive: $navigateToProgramPicker
-                ) {
-                    EmptyView()
-                }
-
-                // Real brand icon (matches web; replaces the legacy placeholder).
-                BrandMark(size: 64)
-
-                VStack(alignment: .center, spacing: 6) {
-                    Text("Create Account")
-                        .font(.title.bold())
-                        .foregroundColor(Color(.label))
-
-                    Text(isSocial ? "Finish setting up your account" : "Start tracking your fitness journey")
-                        .font(.callout.weight(.semibold))
-                        .foregroundColor(Color(.secondaryLabel))
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-
-                // Paged wizard — one field group per page, no inner scroll (each page fits one screen).
-                TabView(selection: $step) {
-                    namePage.tag(0)
-                    detailsPage.tag(1)
-                    if !isSocial {
-                        passwordPage.tag(2)
+            // Scrollable so keyboard-avoidance scrolls (not collapses) the form — matches ForgotPasswordView.
+            ScrollView {
+                VStack(spacing: 16) {
+                    NavigationLink(
+                        destination: ProgramPickerView()
+                            .navigationBarBackButtonHidden(true),
+                        isActive: $navigateToProgramPicker
+                    ) {
+                        EmptyView()
                     }
+
+                    // Real brand icon (matches web; replaces the legacy placeholder).
+                    BrandMark(size: 64)
+
+                    VStack(alignment: .center, spacing: 6) {
+                        Text("Create Account")
+                            .font(.title.bold())
+                            .foregroundColor(Color(.label))
+
+                        Text(isSocial ? "Finish setting up your account" : "Start tracking your fitness journey")
+                            .font(.callout.weight(.semibold))
+                            .foregroundColor(Color(.secondaryLabel))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+
+                    // Paged wizard — one field group per page. Pinned to the measured tallest-page height
+                    // (see `pageContentHeight`) so it can't collapse under the keyboard.
+                    TabView(selection: $step) {
+                        namePage.tag(0)
+                        detailsPage.tag(1)
+                        if !isSocial {
+                            passwordPage.tag(2)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: pageContentHeight > 0 ? pageContentHeight : 300)
+                    .onPreferenceChange(PageContentHeightKey.self) { pageContentHeight = $0 }
+                    .animation(.default, value: step)
+                    .animation(.default, value: pageContentHeight)
+
+                    pageIndicator
+
+                    navButtons
+
+                    VStack(spacing: 6) {
+                        Text("By creating an account, you accept our")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+
+                        Link("Privacy Policy", destination: APIConfig.privacyPolicyURL)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(.appOrange)
+                    }
+
+                    Button(action: { dismiss() }) {
+                        Text("Already have an account? Sign in")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundColor(Color(.secondaryLabel))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 8)
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.default, value: step)
-
-                pageIndicator
-
-                navButtons
-
-                VStack(spacing: 6) {
-                    Text("By creating an account, you accept our")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
-
-                    Link("Privacy Policy", destination: APIConfig.privacyPolicyURL)
-                        .font(.footnote.weight(.semibold))
-                        .foregroundColor(.appOrange)
-                }
-
-                Button(action: { dismiss() }) {
-                    Text("Already have an account? Sign in")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundColor(Color(.secondaryLabel))
-                }
-                .buttonStyle(.plain)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
+            .scrollDismissesKeyboard(.interactively)
+            .scrollBounceBehavior(.basedOnSize)
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
@@ -129,17 +143,17 @@ struct CreateAccountView: View {
     // MARK: - Pages
 
     private var namePage: some View {
-        VStack(spacing: 16) {
-            AppInputField(title: "First Name", text: $firstName, autocapitalization: .words)
-                .focused($firstNameFocused)
-            AppInputField(title: "Last Name", text: $lastName, autocapitalization: .words)
-            // Federated sign-in — email mode only (hidden once the wizard is in the social branch).
-            if !isSocial {
-                socialSignInSection
+        measuredPage {
+            VStack(spacing: 16) {
+                AppInputField(title: "First Name", text: $firstName, autocapitalization: .words)
+                    .focused($firstNameFocused)
+                AppInputField(title: "Last Name", text: $lastName, autocapitalization: .words)
+                // Federated sign-in — email mode only (hidden once the wizard is in the social branch).
+                if !isSocial {
+                    socialSignInSection
+                }
             }
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 4)
     }
 
     // MARK: - Social sign-in (Google + Apple) — mirrors LoginView
@@ -178,70 +192,88 @@ struct CreateAccountView: View {
     }
 
     private var detailsPage: some View {
-        VStack(spacing: 16) {
-            AppInputField(title: "Username", text: $username)
+        measuredPage {
+            VStack(spacing: 16) {
+                AppInputField(title: "Username", text: $username)
 
-            genderPicker
+                genderPicker
 
-            VStack(alignment: .leading, spacing: 6) {
-                AppInputField(title: "Email", text: $email)
-                    .disabled(isSocial)
-                    .opacity(isSocial ? 0.6 : 1)
-                if isSocial {
-                    // Email is the verified address from the connected account — locked.
-                    Text("Email from your connected account.")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else if !email.isEmpty && !isEmailValid {
-                    // Inline email-format validation (matches web D-C1).
-                    Text("Enter a valid email address.")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 6) {
+                    AppInputField(title: "Email", text: $email)
+                        .disabled(isSocial)
+                        .opacity(isSocial ? 0.6 : 1)
+                    if isSocial {
+                        // Email is the verified address from the connected account — locked.
+                        Text("Email from your connected account.")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else if !email.isEmpty && !isEmailValid {
+                        // Inline email-format validation (matches web D-C1).
+                        Text("Enter a valid email address.")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
-            Spacer(minLength: 0)
         }
-        .padding(.horizontal, 4)
     }
 
     private var passwordPage: some View {
-        VStack(spacing: 16) {
-            AppInputField(
-                title: "Password",
-                text: $password,
-                isSecure: !isPasswordVisible,
-                accessory: AnyView(AppPasswordToggleButton(isVisible: $isPasswordVisible))
-            )
+        measuredPage {
+            VStack(spacing: 16) {
+                AppInputField(
+                    title: "Password",
+                    text: $password,
+                    isSecure: !isPasswordVisible,
+                    accessory: AnyView(AppPasswordToggleButton(isVisible: $isPasswordVisible))
+                )
 
-            AppInputField(
-                title: "Confirm Password",
-                text: $confirmPassword,
-                isSecure: !isConfirmPasswordVisible,
-                accessory: AnyView(AppPasswordToggleButton(isVisible: $isConfirmPasswordVisible))
-            )
+                AppInputField(
+                    title: "Confirm Password",
+                    text: $confirmPassword,
+                    isSecure: !isConfirmPasswordVisible,
+                    accessory: AnyView(AppPasswordToggleButton(isVisible: $isConfirmPasswordVisible))
+                )
 
-            VStack(spacing: 8) {
-                // Live password-policy checklist (matches web D-C3).
-                if !password.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        policyRow("At least 8 characters", password.count >= 8)
-                        policyRow("An uppercase letter", hasMatch("[A-Z]"))
-                        policyRow("A lowercase letter", hasMatch("[a-z]"))
-                        policyRow("A number", hasMatch("[0-9]"))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                if !confirmPassword.isEmpty && confirmPassword != password {
-                    // Muted mismatch hint (matches web D-C4).
-                    Text("Passwords don't match.")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
+                VStack(spacing: 8) {
+                    // Live password-policy checklist (matches web D-C3).
+                    if !password.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            policyRow("At least 8 characters", password.count >= 8)
+                            policyRow("An uppercase letter", hasMatch("[A-Z]"))
+                            policyRow("A lowercase letter", hasMatch("[a-z]"))
+                            policyRow("A number", hasMatch("[0-9]"))
+                        }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if !confirmPassword.isEmpty && confirmPassword != password {
+                        // Muted mismatch hint (matches web D-C4).
+                        Text("Passwords don't match.")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
             }
+        }
+    }
+
+    /// Wraps a wizard page's field group: reports its NATURAL content height (so the paged TabView can
+    /// be pinned to the tallest page and never collapse) and top-aligns the fields within the page via a
+    /// trailing spacer, so fields don't shift vertically as you swipe between pages. The height is
+    /// measured on the content itself — not the spacer — so a growing page (e.g. the live password
+    /// checklist) enlarges the TabView instead of clipping.
+    private func measuredPage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            content()
+                .background(
+                    GeometryReader { geo in
+                        Color.clear.preference(key: PageContentHeightKey.self, value: geo.size.height)
+                    }
+                )
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 4)
@@ -528,6 +560,15 @@ struct CreateAccountView: View {
 
     private func isGoogleCancellation(_ error: Error) -> Bool {
         (error as? GIDSignInError)?.code == .canceled
+    }
+}
+
+/// Max-reduce preference key carrying each wizard page's natural content height, so the paged TabView
+/// (which has no intrinsic height) can be pinned to the tallest page and never collapse under the keyboard.
+private struct PageContentHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
 
