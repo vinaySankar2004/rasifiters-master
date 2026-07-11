@@ -29,7 +29,9 @@ const END_DATE_DAYS = Number(process.env.TESTBED_END_DAYS || 90);
 const MODE = process.argv.includes("--reset") ? "reset" : "refresh";
 
 // ── Non-secret config (usernames + role matrix + program names). ava.rivera rotates admin→logger→member. ──
-const MEMBERS = ["ava.rivera", "liam.kim", "mia.patel", "zoe.chen", "ethan.m", "aria.shah", "lucas.b", "mason.w"];
+// NOTE: liam.kim is intentionally excluded — his Supabase Auth password isn't the shared test password
+// and can't be reset via the API; he's not needed. Re-add him here + in a roster below if ever reset.
+const MEMBERS = ["ava.rivera", "mia.patel", "zoe.chen", "ethan.m", "aria.shah", "lucas.b", "mason.w"];
 
 const PROGRAMS = [
   {
@@ -44,7 +46,7 @@ const PROGRAMS = [
     name: "RaSi Spring Shred",
     admin: "mason.w",
     admin_only_data_entry: true,
-    roster: [ ["ava.rivera", "logger"], ["aria.shah", "member"], ["lucas.b", "member"], ["liam.kim", "member"] ],
+    roster: [ ["ava.rivera", "logger"], ["aria.shah", "member"], ["lucas.b", "member"] ],
   },
   {
     name: "RaSi Summer Strong",

@@ -45,7 +45,7 @@ Optional env: `TESTBED_SEED_DAYS` (default 14), `TESTBED_END_DAYS` (default 90),
 | Program | Admin | ava.rivera | Others |
 |---|---|---|---|
 | RaSi Winter Reset | ava.rivera | **admin** | mia (logger), zoe (member), ethan (member) |
-| RaSi Spring Shred* | mason.w | **logger** | aria, lucas, liam (members) |
+| RaSi Spring Shred* | mason.w | **logger** | aria, lucas (members) |
 | RaSi Summer Strong | mia.patel | **member** | zoe (logger), ethan, mason (members) |
 
 \* "RaSi Spring Shred" has `admin_only_data_entry = true`, so ava's **logger** role there is meaningful
@@ -56,8 +56,9 @@ Optional env: `TESTBED_SEED_DAYS` (default 14), `TESTBED_END_DAYS` (default 90),
 Re-runnable safely: enrollment checks current membership first; daily-health uses the batch UPSERT
 endpoint; workout logs are inserted row-by-row and duplicates (409) are skipped.
 
-## Known caveat
+## Excluded account
 
-`liam.kim`'s login currently fails (his Supabase Auth password isn't the shared test password). The
-script logs a warning and skips only his enrollment; everything else proceeds. Reset his password (Supabase
-dashboard → Authentication → Users, or the app's Forgot-password flow) and re-run to include him.
+`liam.kim` is intentionally excluded — his Supabase Auth password isn't the shared test password and
+can't be reset via the API (only via the Supabase dashboard). He isn't needed. The 7 accounts above are
+plenty. To re-add him: reset his password in the Supabase dashboard, then add him back to `MEMBERS` and a
+program roster in `seed.mjs`.
