@@ -1,6 +1,6 @@
 # Page: `landing` (web) — the public marketing landing page (root `/`)
 
-> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/` (the root). **Public** — not in the `middleware.ts` matcher.
 > **Provenance:** **NET-NEW** — not ported from the legacy app. The legacy root `/` only `redirect()`ed to
 > `/splash`; this is the ICM's **first net-new web page** (no legacy reference to be faithful to). Replaces
@@ -85,6 +85,18 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 `description`, and OpenGraph + Twitter cards pointing at `/marketing/og-image.png` (1200×630). `metadataBase`
 = `NEXT_PUBLIC_APP_URL ?? https://rasifiters.com`; `robots: index, follow`.
 
+**Indexing infra (D-LAND-10).** Three additive metadata routes back the same `NEXT_PUBLIC_APP_URL`:
+- `src/app/robots.ts` → `/robots.txt`: `Allow: /`, a `Sitemap:` line, and `host`; disallows the auth-gated
+  app routes (`/programs`, `/program`, `/members`, `/summary`, `/lifestyle`, `/reset-password`,
+  `/delete-account`) and the unlinked `/splash` to keep crawl budget on marketing pages.
+- `src/app/sitemap.ts` → `/sitemap.xml`: the 6 public entry pages only (`/`, `/login`, `/create-account`,
+  `/forgot-password`, `/privacy-policy`, `/support`); `/` weekly/priority 1, the rest monthly/0.6.
+- `SoftwareApplication` JSON-LD (schema.org) inlined in `layout.tsx` `<head>`: `name: "RaSi Fiters"`,
+  `applicationCategory: HealthApplication`, `operatingSystem: "iOS, Android, Web"`, `sameAs` → the App
+  Store listing, free `Offer`. Ties the site to the existing app entity and asserts the "Fiters" spelling
+  as intentional. (Marketing URL on the App Store listing points back at `rasifiters.com` for the reverse
+  link — user-confirmed 2026-07-11.)
+
 ## 7. Decisions (D-rules)
 
 | # | Decision | Where |
@@ -98,6 +110,7 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 | **D-LAND-7** | **Program status colors mirror the app's `StatusBadge`:** active → accent (orange), completed → success (green), planned → info (blue); progress bars color-matched. | `screens.tsx`; `components/ui/StatusBadge.tsx` |
 | **D-LAND-8** | **Copy hygiene.** No em dashes; plain, specific, benefit-led wording (AI-slop patterns avoided). Platform mentions kept to the cross-platform section + store badges, not repeated across every section. | `content.ts`; user (2026-07-09) |
 | **D-LAND-9** | **Desktop-only scroll cue.** A bouncing down-chevron ("SCROLL") pinned to the hero bottom nudges visitors past the fold on wide viewports (where the hero can fill the screen and look complete); fades out on first scroll, is `hidden md:flex` (mobile already overflows), and renders static under reduced-motion. | `ScrollCue.tsx`; user (2026-07-10) |
+| **D-LAND-10** | **Indexing infra for brand discovery.** Add `robots.ts` (`/robots.txt`, allow-all + sitemap ref, disallow auth-gated routes), `sitemap.ts` (`/sitemap.xml`, 6 public pages), and `SoftwareApplication` JSON-LD in `layout.tsx` (`sameAs` → App Store). Additive metadata only — no visible/behavior change. Paired with the site's Search Console setup + the App Store Marketing URL (`rasifiters.com`) so Google links site ↔ app entity for the near-uncontested "RaSi Fiters" query. | `robots.ts`; `sitemap.ts`; `layout.tsx`; user (2026-07-11) |
 
 ## 8. Open items / flags
 
@@ -113,5 +126,6 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-07-11 | Add **indexing infra** for brand discovery (D-LAND-10): net-new `src/app/robots.ts` (`/robots.txt` — `Allow: /`, `Sitemap:` ref, `host`, disallow auth-gated routes + `/splash`) and `src/app/sitemap.ts` (`/sitemap.xml` — 6 public entry pages), plus `SoftwareApplication` JSON-LD in `layout.tsx` (`name: RaSi Fiters`, `sameAs` → App Store listing). Purely additive metadata (typecheck + `next build` green; both routes register as static). Pairs with the owner-side Search Console verify + App Store Marketing URL (`rasifiters.com`) to establish the site↔app entity link for the uncontested "RaSi Fiters" query. §6 updated. |
 | 0.1.1 | 2026-07-10 | Add **desktop-only scroll cue** to the hero (`ScrollCue.tsx`, third client island): a bouncing "SCROLL ⌄" chevron pinned to the section bottom that fades out on first scroll (`scrollY > 24`), so visitors on wide viewports (where the hero can fill the screen and read as complete) are nudged past the fold. `hidden md:flex` (absent on mobile), static under reduced-motion. Decision D-LAND-9. User-verified live. |
 | 0.1.0 | 2026-07-09 | Initial SPEC + build + deploy — **first net-new web page** (no legacy reference). Public marketing landing at `/` replacing the splash redirect (splash retained, unlinked). Sections: sticky header, hero (Summary dashboard in an iPhone frame), 3 feature rows, analytics highlight (browser frame), feature grid, cross-platform (equal-height iPhone + Pixel), final CTA, footer. ~90% generated in-theme UI (no screenshots) that adapts to light/dark; realistic iPhone (Dynamic Island) + Pixel (punch-hole) device frames; App Store badge live + Google Play "Coming soon"; auth-aware CTA (Log in / Open app, no forced redirect); upgraded SEO metadata + 1200×630 OG image. Decisions D-LAND-1…8. Consumes only `auth` foundation (`useAuth`); no API. `src/app/page.tsx`, `src/app/shell.tsx`, `src/app/layout.tsx`, `src/components/landing/**`, `public/marketing/og-image.png`. |

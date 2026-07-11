@@ -36,6 +36,26 @@ const TITLE = "RaSi Fiters: Fitness programs, tracked together";
 const DESCRIPTION =
   "Join a fitness program, log workouts and daily health, and track your whole group's progress with leaderboards, streaks and analytics. On iPhone, Android and the web.";
 
+// SoftwareApplication structured data (schema.org). Helps Google associate the
+// site with the existing RaSi Fiters app entity (sameAs → App Store). The exact
+// brand spelling is repeated here so "Fiters" reads as intentional, not a typo.
+const APP_STORE_URL = "https://apps.apple.com/ca/app/rasi-fiters/id6758078961";
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "RaSi Fiters",
+  applicationCategory: "HealthApplication",
+  operatingSystem: "iOS, Android, Web",
+  url: appUrl,
+  description: DESCRIPTION,
+  sameAs: [APP_STORE_URL],
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "USD"
+  }
+} as const;
+
 export const metadata: Metadata = {
   metadataBase,
   title: {
@@ -82,6 +102,10 @@ export default function RootLayout({
     <html lang="en" className={manrope.variable}>
       <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
+        />
         <AppProviders>
           <AppShell>{children}</AppShell>
         </AppProviders>
