@@ -23,12 +23,11 @@ Apple link/unlink is **iOS-only** (F9); web + android show Google + password. **
 (Vercel) DEPLOYED; user live-tested link/unlink + add-password on ALL THREE platforms and signed off
 (2026-07-10).** No new env, no migration. Compile: backend live (routes 401), web `npm run build` ✓, android
 `assembleDebug` ✓, iOS static-clean (Xcode build is the user's TestFlight archive). Committed `e49880a`
-(backend) + `1def2b4` (clients+SPEC), tagged `feature/auth@v0.9.0`. **NOT-YET-ON-STORE tail:** the new
-iOS/Android binaries now carry BOTH v0.8.0 (federated sign-in) + v0.9.0 (linking) and are code-complete +
-compile-clean but **not yet on TestFlight/Play** — shipping them is the user's next two sessions (iOS:
-archive, bump `CURRENT_PROJECT_VERSION` 48→49 same marketing version; Android: **dev verification now
-APPROVED** → first signed AAB → Play internal testing + add the release SHA-1 to the Google Android OAuth
-client). Load-bearing details: `specs/features/auth/SPEC.md` §9 D-C10 + auto-memory
+(backend) + `1def2b4` (clients+SPEC), tagged `feature/auth@v0.9.0`. **STORE tail — now SHIPPED (2026-07-10):**
+the new iOS/Android binaries carry BOTH v0.8.0 (federated sign-in) + v0.9.0 (linking) and are now on their
+test channels — **iOS 1.3.1 (50) on TestFlight**, **Android 1.0.0 (3) on Play closed testing** (see
+`RELEASES.md`; the release SHA-1 was registered in Firebase for Continue-with-Google). Load-bearing details:
+`specs/features/auth/SPEC.md` §9 D-C10 + auto-memory
 `link-unlink-account-settings-shipped`.
 
 **PRIOR (2026-07-10): Signup wizard + Google/Apple federated sign-in SHIPPED — `auth` v0.8.0.** The
@@ -225,8 +224,9 @@ GitHub + pre-cutover smoke tests (below)._
 - **`backend`** — DEPLOYED + LIVE on Render (`rasifiters-api`, `https://rasifiters-api.onrender.com`); auth
   round-trip verified live against migrated data. All backend features ported (`specs/features/REGISTRY.md`).
 - **`web`** — COMPLETE + LIVE on `https://rasifiters.com` (Vercel `rasifiters`, git auto-deploy on `main`).
-  34 page SPECs (legacy-parity + the net-new `forgot-password`/`reset-password` recovery pages); signed-in
-  proxy round-trip user-verified live (profile edit, email change, password recovery).
+  Page SPECs indexed in `specs/pages/REGISTRY.md` (legacy-parity + the net-new `forgot-password`/
+  `reset-password` recovery pages + `privacy-policy`/`support` legal); signed-in proxy round-trip
+  user-verified live (profile edit, email change, password recovery).
 - **`ios`** — CODE-COMPLETE (runs 50→74). All screens + widgets + Apple Health auto-sync (workouts **+ sleep**,
   the latter net-new in `apple-health` 0.2.0 → `daily_health_logs.sleep_hours`, no backend/migration change)
   ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS
@@ -246,13 +246,13 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ ONE STORE PUSH REMAINING (app is feature-complete on all 4 surfaces; backend + web live; auth v0.9.0 link/unlink user-verified on all 3 platforms 2026-07-10).
+> ### ⏭️ BOTH TEST-TRACK PUSHES DONE — remaining gate is Play *production* (12 testers × 14 days). App is feature-complete on all 4 surfaces; backend + web live; auth v0.9.0 link/unlink user-verified on all 3 platforms 2026-07-10.
 >
-> **Session A — iOS TestFlight — ✅ DONE 2026-07-10.** Archived `apps/ios`, bumped `CURRENT_PROJECT_VERSION` 48→49 (same MARKETING_VERSION 1.3.1), uploaded → **1.3.1 (49) is live on TestFlight** (Beta Testers + Internal, status Testing). First binary carrying federated sign-in (v0.8.0) + account-settings linking (v0.9.0). `RELEASES.md` updated.
+> **Session A — iOS TestFlight — ✅ DONE 2026-07-10.** Archived `apps/ios`, bumped `CURRENT_PROJECT_VERSION` (same MARKETING_VERSION 1.3.1), uploaded → **1.3.1 (50) is the live TestFlight beta** (Beta Testers + Internal, status Testing; (49) superseded, (46) expired). Carries federated sign-in (v0.8.0) + account-settings linking (v0.9.0) + the keyboard-dismissal change (214ea97). See `RELEASES.md`.
 >
-> **Session B — first Android release (dev verification now APPROVED) — NEXT.** Generate a signed AAB in Android Studio → Play Console **internal testing** (the Compose port has been code-complete since Phase J). **Also add the release-keystore SHA-1 to the Google Android OAuth client** (Google Cloud console) or Continue-with-Google fails on the release build. Update `RELEASES.md` when it lands on Play internal.
+> **Session B — first Android release — ✅ DONE 2026-07-10.** Signed AAB (versionCode 3) → **Play Console closed testing ("Alpha"), approved & available**. First Android release; Play App Signing SHA-1 registered in Firebase for Continue-with-Google. See `RELEASES.md`.
 >
-> _(Below: the prior Android-port next-step, now folded into Session B above.)_
+> **Remaining to reach Play production:** ≥12 testers opted in to the closed track for ≥14 days (currently 0 opted in) — a user-driven waiting gate, no code/doc work. iOS App Store submission (marketing-version bump) is the parallel user step when ready.
 
 **Phase J is DONE** (2026-07-08, Run 15): the last scaffold placeholder `ui/StubScreen.kt` is **deleted**
 (unused since Phase G drove call-sites to 0); the `apps/android/CONTEXT.md` scaffold-removal tracker is
@@ -373,8 +373,8 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 ## Coverage
 
 - Features: **16** (incl. the Android-only `health-connect`) — `specs/features/REGISTRY.md` + `registry.json`.
-- Web page SPECs: **34** · iOS screen SPECs: **31** · Android screen SPECs: **29** (thin port-notes) —
-  `specs/pages/REGISTRY.md`.
+- Page/screen SPECs: web **37** · iOS **32** · Android **32** (thin port-notes) — see `specs/pages/REGISTRY.md`
+  (the canonical index; don't restate hard counts elsewhere — they drift).
 - Legacy-parity coverage: `COVERAGE.md`.
 
 ## Open items (carry until resolved)

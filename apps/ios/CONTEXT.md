@@ -112,7 +112,7 @@ the web SPECs flagged for this port, all resolved toward web parity:
 was already ported in the foundation (run 50).
 
 ## Status
-🟢 **Code-complete (runs 50→74).** All screens + widgets + Apple Health auto-sync (workouts + sleep) ported;
-the deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS screen
-SPECs. Next: TestFlight — bump the version/build, flip `APNS_PRODUCTION=true`, archive + upload (see
-`PROGRESS.md` for the live checklist). Visual/runtime verification is the user's, in Xcode.
+🟢 **Code-complete (runs 50→74) + LIVE on TestFlight.** All screens + widgets + Apple Health auto-sync
+(workouts + sleep) ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the
+`xcode` MCP. Screen-SPEC count lives in `specs/pages/REGISTRY.md` (the canonical index). Current TestFlight
+binary is tracked in `RELEASES.md`. Visual/runtime verification is the user's, in Xcode.

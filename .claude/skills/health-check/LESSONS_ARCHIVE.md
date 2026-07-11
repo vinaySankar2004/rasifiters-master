@@ -84,3 +84,25 @@ distilled "Converged lessons"). Append one entry per run.
   the bar): REGISTRY.md narrative "Backend feature coverage complete (14 features)" — historical prose, not clearly
   wrong (backend-only count vs 16 total incl. android-only `health-connect`). Promoted nothing new — clean recurrence
   of the header-lag class.
+- **Run 5 (2026-07-10) — scope:** whole-repo, run standalone then user opted to apply + commit. **Counts: 6 🔴
+  (grouped) · 2 🟡 · 0 🔵 → healthy core, stale current-state prose.** Mechanical records PERFECT again (registry ==
+  highest tag == §12 changelog top == line-3 `Version:` header for all 16 features — the Run 4 header-lag class did
+  NOT recur; reference_impl paths all resolve; 0 dangling `depends_on`). **This run's dominant class = the two store
+  pushes** (iOS 1.3.1 (50) TestFlight + Android 1.0.0 (3) Play *closed* testing, both 2026-07-10, recorded correctly
+  in the append-only `RELEASES.md` + git `chore(releases)` commits) froze the human-written current-state prose:
+  (🔴 D1) `specs/pages/REGISTRY.md` iOS section had only 13 rows for 32 on-disk SPEC dirs — **19 built screens
+  un-indexed** while the "Inventory to document" note still listed them as pending (contrast the android section:
+  clean 32==32 with an "Inventory: COMPLETE" trailer — iOS simply lagged during the runs 50→74 burst). Added the 19
+  rows + rewrote the trailer to COMPLETE. (🔴 D2) web section missing 2 rows (`privacy-policy`/`support`, also stuck
+  in the to-do note). (🔴 D3/D4/D5/D6) ICM "The apps" + PROGRESS "Next action"/"Coverage" + apps/{ios,android}
+  CONTEXT all carried stale channel status ("awaiting AAB → Play *internal* testing", "1.3.1 (46)"), stale page
+  counts (iOS 31/android 29-30 vs actual 32/32), and a "not-yet-on-store" tail that both pushes had already
+  resolved. **Fix pattern applied for the 🟡s:** replaced restated hard counts with a pointer to
+  `specs/pages/REGISTRY.md` and restated channel/binary status with a pointer to `RELEASES.md` (their SoT homes per
+  the METHODOLOGY table) rather than re-syncing copies that will only drift again. Left the dated R6 (2026-06-28
+  "three surfaces / {web,ios,backend}") + all struck 2026-07-05 ship-log entries as history per the append-only rule.
+  **New durable pattern (candidate for Converged lessons): a store push is its own drift class** — `RELEASES.md` +
+  git `chore(releases)` stay correct, but the orientation prose that *restates* channel/binary/version (ICM "The
+  apps", PROGRESS "Next action") and any "not-yet-on-store" tail all freeze. After a push, sweep those and prefer a
+  pointer to `RELEASES.md` over a restated build number. Same shape as Run 3's "new surface" class, applied to
+  release channels.

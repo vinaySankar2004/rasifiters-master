@@ -30,11 +30,12 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | program/edit | `/program/edit` (program-settings **sub-route** 1/6) | 🏗️ v0.1.0 | `programs` (`updateProgram` `PUT /programs/:id`) + `auth` (`useAuthGuard`) | [program/edit SPEC](web/program/edit/SPEC.md) |
 | program/roles | `/program/roles` (program-settings **sub-route** 2/6) | 🏗️ v0.1.0 | `program-memberships` (`fetchMembershipDetails` `GET /program-memberships/details` + `updateMembership` `PUT /program-memberships`) + `auth` (`useAuthGuard`) | [program/roles SPEC](web/program/roles/SPEC.md) |
 | delete-account | `/delete-account` (**public** legal — net-new for Play) | 🏗️ v0.1.0 | none — static account-deletion instructions (`PageShell`/`PageHeader`/`GlassCard` + `next/link`); no API, no auth | [delete-account SPEC](web/delete-account/SPEC.md) |
+| privacy-policy | `/privacy-policy` (**public** legal) | 🏗️ v0.1.0 | none — static policy page (`PageShell`/`PageHeader`/`GlassCard`); no API, no auth | [privacy-policy SPEC](web/privacy-policy/SPEC.md) |
+| support | `/support` (**public**) | 🏗️ v0.1.0 | none — static support/contact page (`PageShell`/`PageHeader`/`GlassCard`); no API, no auth | [support SPEC](web/support/SPEC.md) |
 
-Inventory to document (from the research pass): splash · login · create-account · privacy-policy · support ·
-programs · ~~program~~ (landing + ~~edit~~ + ~~roles~~ done; + profile/password/appearance/privacy) · summary (+ activity/distribution/
-workout-types/log-workout/log-health/bulk-log-workout) · members (+ list/detail/invite/metrics/health/
-history/workouts/streaks) · lifestyle (+ timeline/workouts).
+**Inventory: COMPLETE** — all web page specs are documented above (the `privacy-policy` + `support` legal/
+support pages were added to the index 2026-07-10; `program`/`summary`/`members`/`lifestyle` list their
+sub-routes as nested rows above).
 
 ## ios (SwiftUI) — reference: `ios-mobile`
 
@@ -53,16 +54,39 @@ history/workouts/streaks) · lifestyle (+ timeline/workouts).
 | member-health-detail | 🏗️ v0.2.1 | `daily-health-logs` 0.2.0 (`GET`/`PUT`/`DELETE` — steps sort/filter/edit/CSV, stacked metric-cell rows) | [member-health-detail SPEC](ios/member-health-detail/SPEC.md) |
 | admin-workout-types / standard-workout-types (Lifestyle tab) | 🏗️ v0.2.0 | `analytics` 0.2.0 (health timeline steps + `health/steps`) — adds the Steps analytics + Steps Timeline cards | [admin-workout-types SPEC](ios/admin-workout-types/SPEC.md) |
 | lifestyle-steps-timeline | 🏗️ v0.1.0 | `analytics` 0.2.0 (`GET /analytics/health/timeline`; daily-steps drill-down) via `ProgramContext.loadHealthTimeline` | [lifestyle-steps-timeline SPEC](ios/lifestyle-steps-timeline/SPEC.md) |
+| lifestyle-timeline | 🏗️ v0.1.0 | `analytics` (`ProgramContext.loadHealthTimeline` `GET /analytics/health/timeline`) — the Sleep · Diet-quality timeline drill-down | [lifestyle-timeline SPEC](ios/lifestyle-timeline/SPEC.md) |
+| summary-activity-detail | 🏗️ v0.1.0 | `analytics` (`ProgramContext.loadActivityTimeline`/`loadMemberHistory` `GET /analytics/timeline`) — the Workout Activity Timeline drill-down | [summary-activity-detail SPEC](ios/summary-activity-detail/SPEC.md) |
+| summary-distribution-detail | 🏗️ v0.1.0 | `analytics` (`ProgramContext.distributionByDayCounts`, loaded by `AdminSummaryTab`) — the Workout Distribution by Day drill-down | [summary-distribution-detail SPEC](ios/summary-distribution-detail/SPEC.md) |
+| summary-workout-types-detail | 🏗️ v0.1.0 | `analytics-v2` (`ProgramContext.workoutTypes`, loaded by `AdminSummaryTab`) — the Workout Types drill-down | [summary-workout-types-detail SPEC](ios/summary-workout-types-detail/SPEC.md) |
+| member-metrics-detail | 🏗️ v0.1.0 | `member-analytics` (`ProgramContext.loadMemberMetrics` `GET /member-metrics`; read-only) — the Member Performance Metrics table | [member-metrics-detail SPEC](ios/member-metrics-detail/SPEC.md) |
+| member-recent-detail | 🏗️ v0.1.0 | `member-analytics`/`workout-logs` (`ProgramContext.loadMemberRecent` + `updateWorkoutLog`/`deleteWorkoutLog`/`loadProgramWorkouts`) — per-member Workout history (write surface) | [member-recent-detail SPEC](ios/member-recent-detail/SPEC.md) |
+| member-streaks-detail | 🏗️ v0.1.0 | `member-analytics` (`ProgramContext.memberStreaks` `GET /member-streaks`) — Streak Stats + milestone ladder | [member-streaks-detail SPEC](ios/member-streaks-detail/SPEC.md) |
+| admin-program / standard-program (Program tab) | 🏗️ v0.1.0 | `programs`/`program-memberships` via `ProgramContext` (program info, `leaveProgram()`, admin/standard bifurcation) — the Program tab (Tab 4) | [admin-program SPEC](ios/admin-program/SPEC.md) |
+| program-actions | 🏗️ v0.1.0 | `programs` (`createProgram()`) + `invites` — the create-program + invites sheet (the picker "+" target) | [program-actions SPEC](ios/program-actions/SPEC.md) |
+| program-member-management | 🏗️ v0.1.0 | `program-memberships` (`fetchMembershipDetails`, role/removal mutations) — the Program tab's Member Management section | [program-member-management SPEC](ios/program-member-management/SPEC.md) |
+| program-role-management | 🏗️ v0.1.0 | `program-memberships` (`fetchMembershipDetails` + role updates) — the Program tab's Role Management section | [program-role-management SPEC](ios/program-role-management/SPEC.md) |
+| program-workout-types | 🏗️ v0.1.0 | `program-workouts` (add/rename/delete/toggle) — the Program tab's Workout Types section | [program-workout-types SPEC](ios/program-workout-types/SPEC.md) |
+| edit-program | 🏗️ v0.1.0 | `programs` (`updateProgram()` `PUT /programs/:id`) — the swipe-to-edit program editor | [edit-program SPEC](ios/edit-program/SPEC.md) |
+| my-profile | 🏗️ v0.1.0 | `auth` (`APIClient.changeEmail()`, profile update, delete account) — the account-menu "My Profile" screen | [my-profile SPEC](ios/my-profile/SPEC.md) |
+| change-password | 🏗️ v0.1.0 | `auth` (`APIClient.changePassword()`) — the account-menu "Change Password" screen | [change-password SPEC](ios/change-password/SPEC.md) |
+| appearance | 🏗️ v0.1.0 | none — pure client preference (`ThemeManager` → `UserDefaults`) — the account-menu "Appearance" theme picker | [appearance SPEC](ios/appearance/SPEC.md) |
+| notifications | 🏗️ v0.1.0 | `notifications` + the OS push subsystem (`UserNotifications`) — the account-menu "Notifications" settings screen | [notifications SPEC](ios/notifications/SPEC.md) |
+| widget-quick-add-workout | 🏗️ v0.2.0 | `workout-logs` (`addWorkoutLogsBatch`) + `program-workouts`/`program-memberships` lookups — the "Add workouts" widget deep-link form (ios-only) | [widget-quick-add-workout SPEC](ios/widget-quick-add-workout/SPEC.md) |
+| widget-quick-add-health | 🏗️ v0.2.0 | `daily-health-logs` (`addDailyHealthLogsBatch`) + `program-memberships` lookup — the "Log daily health" widget deep-link form (ios-only) | [widget-quick-add-health SPEC](ios/widget-quick-add-health/SPEC.md) |
 
 > **Stance for all iOS screens:** match the CURRENT built web app, not just legacy iOS (web is a co-equal
 > reference point) — resolve cross-app divergences toward web parity. The auth path landed the real
 > `BrandMark` (vs the legacy placeholder), Login's "Forgot your password?" web-recovery link, and the 4
 > create-account cleanups; all `consumed_by=[ios]`, role N/A pre-auth.
 
-Inventory to document: ~~splash~~ · ~~login~~ · ~~create-account~~ · ~~program-picker~~ · admin-home (summary/members/
-lifestyle/program tabs, admin + standard variants) · member-detail (metrics/history/streaks/recent/health) ·
-settings (profile/password/appearance/notifications) · widgets (quick-add-workout, quick-add-health,
-ios-only) · notification-modal.
+**Inventory: COMPLETE** (all screens documented above; the settings sub-routes, member/summary detail
+drill-downs, the Program tab + its 4 sections, and the two ios-only quick-add widgets were added to the
+index 2026-07-10 after the runs 50→74 build burst). All 32 iOS screen specs are documented above — splash /
+login / create-account / program-picker, the 4-tab admin-home shell (Summary / Members / Lifestyle / Program,
+admin + standard variants), every detail drill-down (member metrics/history/streaks/recent/health + summary
+activity/distribution/workout-types + both lifestyle timelines), the log-workout/log-health forms, the account
+settings screens (my-profile / change-password / appearance / notifications), apple-health, the Program tab's
+4 management sections, and the two quick-add widgets (workout + daily-health).
 
 ## android (Compose) — port of web + ios (thin port-notes)
 

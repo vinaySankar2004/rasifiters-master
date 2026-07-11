@@ -157,6 +157,15 @@ structural — overall healthy / needs attention"); and which items, if approved
   **Establish `consumed_by` ground truth from CODE — the client's API layer (`ApiService.kt` / `APIClient` /
   web `api.*` calls) — NOT from the feature SPEC's `consumed_by` array**, which predates the port. Leave dated
   decision-log entries (e.g. METHODOLOGY R-rows) as history; fix only live/instructional prose.
+- **A store push is its own drift class (Run 5, the iOS-TestFlight + Android-Play-closed-testing pushes).** The
+  append-only records stay correct — `RELEASES.md` + the git `chore(releases)` commits — but every doc that
+  *restates* channel/binary/version freezes: `ICM.md` "The apps", `PROGRESS.md` "Next action" + "Coverage", the
+  per-app `CONTEXT.md` status, and any "not-yet-on-store" tail. After a push, sweep those four. **Prefer a pointer
+  to `RELEASES.md` (channel/binary) and `specs/pages/REGISTRY.md` (page counts) over a restated number** — a copied
+  build-number or screen-count will only drift again next push. Same shape as the Run-3 "new surface" class, applied
+  to release channels. Note the page-SPEC index itself lags during a run burst (Run 5: iOS section indexed 13 of 32
+  screens while android was a clean 32==32) — recheck `specs/pages/REGISTRY.md` row-count vs on-disk SPEC dirs per
+  surface, and its "Inventory to document" trailer (a stale one lists shipped screens as pending).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:**

@@ -17,8 +17,8 @@ HealthKit, FCM vs APNs) and are recorded per-screen in `specs/pages/android/<scr
   in DataStore.
 - Real-time: SSE (okhttp-sse) — Phase I. Push: **FCM** — Phase I.
 - applicationId / package: `com.app.rasifiters` (matches the iOS bundle-id root). URL scheme `rasifiters://`.
-- Version: `versionName` 1.0.0, `versionCode` 1. Beta convention (Play internal testing): bump
-  `versionCode` per push; `versionName` moves only for production submissions.
+- Version: `versionName` 1.0.0, `versionCode` 3 (current live on Play closed testing; see `RELEASES.md`).
+  Beta convention: bump `versionCode` per push; `versionName` moves only for production submissions.
 
 ## Build & toolchain
 - **Pure-CLI build** (no MCP needed, unlike iOS). Compile-check: `cd apps/android && ./gradlew
@@ -59,8 +59,9 @@ background delivery** (H-1; Health Connect has none). New `health-connect` featu
 `health/*` + `ui/health/*`.
 
 ## Deploy
-Android Studio → signed AAB → Google Play Console **internal testing** (TestFlight analog) → closed test
-(≥12 testers / 14 days, one-time for personal accounts) → production. Health Connect access needs a
+Android Studio → signed AAB → Google Play Console **closed testing** (went straight to closed, skipping
+internal — no personal Android device) → production (gated on ≥12 testers / 14 days, one-time for personal
+accounts). **1.0.0 (3) is approved & available on the closed track (2026-07-10; see `RELEASES.md`).** Health Connect access needs a
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
@@ -95,7 +96,7 @@ POST-then-PUT-on-409 upsert. **Deviation H-1:** Health Connect has no HealthKit-
 delivery, so sync runs on app triggers (no OS-push background sync; a future `WorkManager` job could
 approximate it). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Thin SPEC
 `specs/pages/android/health-connect/`. **Phase J (de-scaffold) DONE 2026-07-08 — `ui/StubScreen.kt`
-deleted; next: user generates a signed AAB → Play Console internal testing.**
+deleted. Signed AAB (versionCode 3) shipped → **Play Console closed testing, approved & available 2026-07-10** (see `RELEASES.md`).**
 
 🟢 **Phase I (2026-07-08, Runs 10–11): notifications — in-app SSE + FCM push.** I-b (FCM) built on top of I-a:
 Firebase project `rasi-fiters` (user-provisioned; `google-services.json` gitignored — public repo, sole
