@@ -1,6 +1,6 @@
 # Page: `landing` (web) — the public marketing landing page (root `/`)
 
-> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/` (the root). **Public** — not in the `middleware.ts` matcher.
 > **Provenance:** **NET-NEW** — not ported from the legacy app. The legacy root `/` only `redirect()`ed to
 > `/splash`; this is the ICM's **first net-new web page** (no legacy reference to be faithful to). Replaces
@@ -41,12 +41,13 @@ To give the app a real, professional marketing front door (replacing the placeho
 ## 4. Contents / sections
 
 All section components live under `src/components/landing/`. Copy + constants are centralized in
-`content.ts`; there are **two client islands** (`AuthCta`, `Reveal`); everything else is a server component.
+`content.ts`; there are **three client islands** (`AuthCta`, `Reveal`, `ScrollCue`); everything else is a
+server component.
 
 | Section | What | Component |
 |---------|------|-----------|
 | Header (sticky, glass) | BrandMark + wordmark; `Features`/`Analytics` anchors; auth-aware CTA; "Get the app" → `#download`. | `LandingHeader.tsx` |
-| Hero | Eyebrow "For your whole group", H1 "Fitness programs, tracked together.", subtitle, `StoreBadges`, hero `AuthCta`, trust line, and a generated Summary dashboard inside a realistic iPhone frame. | `Hero.tsx` · `panels.tsx` (`HeroDashboard`) · `devices.tsx` (`IPhoneFrame`) |
+| Hero | Eyebrow "For your whole group", H1 "Fitness programs, tracked together.", subtitle, `StoreBadges`, hero `AuthCta`, trust line, and a generated Summary dashboard inside a realistic iPhone frame. Plus a **desktop-only scroll cue** pinned to the section bottom. | `Hero.tsx` · `panels.tsx` (`HeroDashboard`) · `devices.tsx` (`IPhoneFrame`) · `ScrollCue.tsx` |
 | Feature rows (×3, alternating) | Programs & roles · Workouts & daily health · Auto-sync (Apple Health / Health Connect) + notifications. Each = copy + bullets + a generated phone screen. | `FeatureRows.tsx` · `screens.tsx` (`ProgramsScreen`/`LogScreen`/`SyncScreen`) |
 | Analytics highlight | The full Summary dashboard recreated in a browser frame + a 68.2% participation stat callout. | `AnalyticsHighlight.tsx` · `panels.tsx` (`DashboardPreview`) · `frames.tsx` (`BrowserFrame`) |
 | Feature grid | Six capability cards (Leaderboards, Streaks & milestones, Participation, Workout-type mix, Invites, Activity timeline). | `FeatureGrid.tsx` |
@@ -62,7 +63,10 @@ is the social share image `public/marketing/og-image.png` (1200×630).
 
 **Motion.** `Reveal.tsx` wraps sections in a Framer Motion `whileInView` fade-up (`viewport once`), and
 falls back to static render under `prefers-reduced-motion`. Section content is server-rendered (in the SSR
-HTML) for SEO; only the entrance transition is client-side.
+HTML) for SEO; only the entrance transition is client-side. `ScrollCue.tsx` adds a **desktop-only** (`md+`)
+gently-bouncing down-chevron pinned to the hero bottom that fades out on first scroll (`scrollY > 24`) — a
+"there's more below" nudge, since a wide hero can fill the viewport and read as a complete page; static
+(no bounce) under `prefers-reduced-motion`, and absent on mobile where content already overflows (D-LAND-9).
 
 ## 5. Role-based view rules
 
@@ -93,6 +97,7 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 | **D-LAND-6** | **Realistic device frames.** iPhone = Dynamic Island + side buttons; Pixel = center punch-hole + right buttons; the two cross-platform phones are held to **equal height** via a flex-stretch chain; labelled with the Apple + Android glyphs. | `devices.tsx`; `CrossPlatform.tsx`; user (2026-07-09) |
 | **D-LAND-7** | **Program status colors mirror the app's `StatusBadge`:** active → accent (orange), completed → success (green), planned → info (blue); progress bars color-matched. | `screens.tsx`; `components/ui/StatusBadge.tsx` |
 | **D-LAND-8** | **Copy hygiene.** No em dashes; plain, specific, benefit-led wording (AI-slop patterns avoided). Platform mentions kept to the cross-platform section + store badges, not repeated across every section. | `content.ts`; user (2026-07-09) |
+| **D-LAND-9** | **Desktop-only scroll cue.** A bouncing down-chevron ("SCROLL") pinned to the hero bottom nudges visitors past the fold on wide viewports (where the hero can fill the screen and look complete); fades out on first scroll, is `hidden md:flex` (mobile already overflows), and renders static under reduced-motion. | `ScrollCue.tsx`; user (2026-07-10) |
 
 ## 8. Open items / flags
 
@@ -108,4 +113,5 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-07-10 | Add **desktop-only scroll cue** to the hero (`ScrollCue.tsx`, third client island): a bouncing "SCROLL ⌄" chevron pinned to the section bottom that fades out on first scroll (`scrollY > 24`), so visitors on wide viewports (where the hero can fill the screen and read as complete) are nudged past the fold. `hidden md:flex` (absent on mobile), static under reduced-motion. Decision D-LAND-9. User-verified live. |
 | 0.1.0 | 2026-07-09 | Initial SPEC + build + deploy — **first net-new web page** (no legacy reference). Public marketing landing at `/` replacing the splash redirect (splash retained, unlinked). Sections: sticky header, hero (Summary dashboard in an iPhone frame), 3 feature rows, analytics highlight (browser frame), feature grid, cross-platform (equal-height iPhone + Pixel), final CTA, footer. ~90% generated in-theme UI (no screenshots) that adapts to light/dark; realistic iPhone (Dynamic Island) + Pixel (punch-hole) device frames; App Store badge live + Google Play "Coming soon"; auth-aware CTA (Log in / Open app, no forced redirect); upgraded SEO metadata + 1200×630 OG image. Decisions D-LAND-1…8. Consumes only `auth` foundation (`useAuth`); no API. `src/app/page.tsx`, `src/app/shell.tsx`, `src/app/layout.tsx`, `src/components/landing/**`, `public/marketing/og-image.png`. |
