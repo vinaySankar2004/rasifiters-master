@@ -315,3 +315,39 @@ specific "list navigator issues" tool must be called after the build tool.
   the async `GIDSignIn.sharedInstance.signIn(withPresenting:)` + `result.user.idToken?.tokenString` surface
   is unchanged across 7→9, compiled clean. A custom (non-`SignInWithAppleButton`) SIWA flow via
   `ASAuthorizationController` with a self-retained coordinator compiles with no project.pbxproj edits.
+
+## Run — CreateAccountView keyboard-avoidance fix (2026-07-11)
+- **Change:** `CreateAccountView.swift` only — fixed the sign-up wizard's keyboard behavior (keyboard was
+  hiding the fields / no scroll). Wrapped the form in a `ScrollView` (+`.scrollDismissesKeyboard(.interactively)`,
+  `.scrollBounceBehavior(.basedOnSize)`) and pinned the paged `.page` `TabView` to a **measured** height via a
+  `PageContentHeightKey` PreferenceKey (max-reduce, same idiom as `HeaderHeightKey`). Root cause: the TabView
+  had no intrinsic height → only flexible child → keyboard-avoidance inset collapsed it to ~0.
+- **MCP absent this session** (xcode tools not in the ToolSearch index — Xcode not open / server not loaded).
+  Fell back to `xcodebuild -project … -scheme RaSi-Fiters-App -destination 'generic/platform=iOS'
+  CODE_SIGNING_ALLOWED=NO build`, filtered `grep -E "error:|warning:.*CreateAccount|BUILD (SUCCEEDED|FAILED)"`,
+  run in background. **`** BUILD SUCCEEDED **`**, 0 errors, no new warnings. Device destination sidesteps the
+  CoreSimulator/actool quirk — reconfirmed.
+- **Note on nesting:** a horizontally-paging `.page` TabView inside a vertical `ScrollView` compiles + is a
+  supported combo; vertical drags propagate to the ScrollView, horizontal to the TabView. User verifies the
+  gesture feel visually.
+
+---
+
+## Run — tap-target audit (InviteMemberView Send Invitation)
+- **Task:** user reported the Send Invitation button only responds when the icon+text is tapped, not the
+  full orange pill. Broad ask: audit ALL iOS buttons for the same limited-hit-area bug and fix.
+- **Root cause (SwiftUI):** a `Button`'s hit region = its **label content's** shape. `sendButton` chained
+  `.frame(maxWidth:.infinity)/.padding()/.background/.cornerRadius` on the **Button (outside** the label
+  closure) with **no `.contentShape`**, so only the small centered icon+text was tappable; the padded
+  orange area was drawn-but-dead.
+- **Audit result:** exhaustive per-site read of all ~180 Button sites → **exactly ONE** offender
+  (`InviteMemberView.swift:112`). Every other button either styles INSIDE its label closure (label fills
+  the frame) or already has `.contentShape(...)`. Shared `AppPrimaryButton`/`AppDestructiveButton` are the
+  correct reference (styling inside label + `.contentShape(Capsule())`). No custom `ButtonStyle` exists
+  anywhere, so no style-level central fix — offenders are per-site.
+- **Fix pattern (durable):** move the area/background modifiers INSIDE the label closure (wrap the
+  if/else in a `Group`), add `.contentShape(RoundedRectangle(cornerRadius: 14))`, add `.buttonStyle(.plain)`,
+  keep `.disabled(...)` on the Button. Whole pill now tappable.
+- **Build:** MCP `xcode` tools absent this session → device-destination fallback
+  `xcodebuild … -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` → `** BUILD SUCCEEDED **`,
+  0 errors. User verifies the tap visually in the sim.
