@@ -1,0 +1,4 @@
+# Never commit test-bed secrets/config that may hold the password (repo is public).
+.env
+*.local.json
+*.local.mjs
