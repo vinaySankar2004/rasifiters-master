@@ -209,8 +209,10 @@ picker, so it masquerades as a device / SHA-1 / login bug but is none of those. 
 - **Keep it in Production** — don't click "Back to testing." Any future rebuild / new GCP project must publish
   the consent screen **before** shipping Continue-with-Google to real users (same rule for iOS).
 
-**`google-services.json` note:** `apps/android/app/google-services.json` currently carries
-`"oauth_client": []` (it predates the SHA-1 registration). This is **harmless at runtime** — the Android app
-reads the Web client ID from `BuildConfig.GOOGLE_WEB_CLIENT_ID`, not from this file — but to keep the repo 1:1
-with Firebase, re-download it (Firebase → Project Settings → Android app → *google-services.json*) whenever
-fingerprints/clients change and commit it.
+**`google-services.json` note:** `apps/android/app/google-services.json` is **gitignored**
+(`apps/android/.gitignore:16`) — deliberately kept out of this **public** repo because it carries the
+Firebase `api_key`. It's a **local-only** build input, so it never appears in git. Runtime doesn't depend on
+it anyway — the Android app reads the Web client ID from `BuildConfig.GOOGLE_WEB_CLIENT_ID`, not this file.
+Keep the **local** copy fresh: re-download (Firebase → Project Settings → Android app →
+*google-services.json*) whenever fingerprints/clients change. Last refreshed 2026-07-11 — `oauth_client` now
+carries the Web client `client_type: 3`, plus the iOS client in `other_platform_oauth_client`.
