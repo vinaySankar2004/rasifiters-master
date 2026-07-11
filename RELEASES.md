@@ -39,13 +39,14 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | Play Store (production) | none yet | not released | — | no public release yet; gated on the closed-test 12-testers-for-14-days requirement |
-| Play Console — closed testing ("Alpha") | 1.0.0 (3) | Submitted for review | 2026-07-10 | **FIRST Android release.** Signed AAB (upload key + Play App Signing); all app-content + store listing complete; managed publishing off → auto-rolls to the closed track on approval. Play App Signing SHA-1 registered in Firebase for Continue-with-Google |
+| Play Console — closed testing ("Alpha") | 1.0.0 (3) | Available (approved) | 2026-07-10 | **FIRST Android release** — approved & live on the closed track. Signed AAB (upload key + Play App Signing); all app-content + store listing complete. Play App Signing SHA-1 registered in Firebase for Continue-with-Google. Next gate to production: ≥12 testers opted-in for ≥14 days (currently 0 opted in) |
 | Play Console — internal testing | (skipped) | not used | — | went straight to closed testing (no personal Android device to run internal builds) |
 
 ## Release log (append-only, newest first)
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | approved / available | **Available on the closed track** — **FIRST Android release** (signed AAB, versionCode 3). Review passed. Next: add ≥12 testers, opt them in, 14-day clock before production access |
 | 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | submitted for review | In review — **FIRST Android release** (signed AAB, versionCode 3). Auto-rolls to the closed track on approval |
 | 2026-07-10 | iOS | 1.3.1 (50) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers; sole live beta — all previous builds expired). Adds keyboard-dismissal change (214ea97) |
 | 2026-07-10 | iOS | 1.3.1 (49) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Expired (superseded by 50). Carried auth v0.8.0 + v0.9.0 |
