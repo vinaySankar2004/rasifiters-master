@@ -109,23 +109,29 @@ struct InviteMemberView: View {
     }
 
     private var sendButton: some View {
+        // Styling lives INSIDE the label closure (+ contentShape) so the whole
+        // pill is tappable, not just the icon+text. Matches AppPrimaryButton.
         Button(action: { Task { await sendInvite() } }) {
-            if isSending {
-                ProgressView()
-                    .tint(.black)
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "paperplane.fill")
-                    Text("Send Invitation")
-                        .font(.headline.weight(.semibold))
+            Group {
+                if isSending {
+                    ProgressView()
+                        .tint(.black)
+                } else {
+                    HStack(spacing: 8) {
+                        Image(systemName: "paperplane.fill")
+                        Text("Send Invitation")
+                            .font(.headline.weight(.semibold))
+                    }
                 }
             }
+            .frame(maxWidth: .infinity)
+            .padding()
+            .background(isFormValid ? Color.appOrange : Color(.systemGray3))
+            .foregroundColor(.black)
+            .cornerRadius(14)
+            .contentShape(RoundedRectangle(cornerRadius: 14))
         }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(isFormValid ? Color.appOrange : Color(.systemGray3))
-        .foregroundColor(.black)
-        .cornerRadius(14)
+        .buttonStyle(.plain)
         .disabled(!isFormValid || isSending)
     }
 

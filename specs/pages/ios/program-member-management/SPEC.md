@@ -101,6 +101,7 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 | **D-DEPS** | **No new dependency** — every API fn, DTO, `ProgramContext` wrapper, theme color, and `sectionHeader`/`settingsRow` helper already ported (foundation run 50 + run 57). | grep-verified |
 | **D-C1** | **Tokenize bare colors** — `.orange`→`Color.appOrange` (avatar/star/save), `.blue`→`Color.appBlue` (invite row + info-note); light-mode-safe (run-26/61). | `MemberManagementSection.swift`, `InviteMemberView.swift` |
 | **D-C2** | **Clear stale error on edit** — `MemberDetailEditView` clears the error `.onChange` of `joinedAt`/`isActive`; `InviteMemberView` clears `.onChange` of `username`. Matches web members/detail D-C3 + members/invite D-C2. | web SPECs |
+| **D-C3** | **Full-pill tap target on Send Invitation** — the CTA's `.frame/.padding/.background/.cornerRadius` now live INSIDE the `Button` label closure with `.contentShape(RoundedRectangle(cornerRadius: 14))` + `.buttonStyle(.plain)`, so the whole orange pill is tappable (not just the icon+text). Matches the `AppPrimaryButton` reference pattern. No behavior/contract change. | `InviteMemberView.swift`; `AppButton.swift` |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -120,5 +121,8 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 
 ## 11. Changelog
 
+- **0.1.1** (2026-07-11) — D-C3: fix limited tap target on the Send Invitation CTA (styling moved inside the
+  Button label + `.contentShape` → whole pill tappable). Audit swept all ~180 iOS buttons; this was the only
+  offender. No behavior/contract change.
 - **0.1.0** (run 62, 2026-06-30) — initial port. Section + roster + editor + invite; 6 shared stubs removed
   (double-duty with the Members tab). Faithful 1:1 + D-C1 tokenize + D-C2 clear-stale-error.
