@@ -372,3 +372,21 @@ pre-existing doc-lag:** the pages REGISTRY still showed landing `v0.1.0` though 
 (the D-LAND-9 run bumped the SPEC but not the REGISTRY row) — reconciled to `v0.1.2` this pass. Verified 1:1 is
 N/A (NET-NEW page, no legacy reference). Staged the 5 files explicitly (no `-A`). Promoted the page-spec-bump
 rule note here; nothing for the lean SKILL yet (single occurrence).
+
+---
+
+## Run — iOS tap-target fix (InviteMemberView Send Invitation), 2026-07-11
+- **Changeset:** `InviteMemberView.swift` (impl bug-fix) + `specs/pages/ios/program-member-management/SPEC.md`
+  (D-C3 decision row + 0.1.1 page-changelog entry). Session also touched two LESSONS_ARCHIVE.md (ios-build,
+  git-version).
+- **No feature bump.** The touched iOS file is NOT in any feature's registered `reference_impl.paths` (the
+  `invites`/`members` reference_impl are backend `routes/…js` only), and no `specs/features/**` SPEC changed.
+  Per converged lessons, a cosmetic/impl-only fix with no feature-SPEC or registered-path delta → **no semver
+  bump, no feature tag, no registry.json edit**. Versioning happened on the **page** spec (0.1.0→0.1.1), which
+  is independent of feature tags.
+- **Staging discipline held.** `git status` showed unrelated in-flight files from another session
+  (`CreateAccountView.swift` + `specs/pages/ios/create-account/SPEC.md`, ~257 lines) — deliberately LEFT
+  UNSTAGED; flagged to the user. Staged only this session's 2 product/doc files, lessons in a separate
+  `chore(skills)` commit.
+- **Commit shape:** `fix(program-member-management): …` for the code+page-spec; `chore(skills): …` for the two
+  lessons archives. iOS-only change → no Vercel/Render deploy; TestFlight is the user's path.
