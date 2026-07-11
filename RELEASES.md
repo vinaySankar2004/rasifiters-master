@@ -46,6 +46,8 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-07-11 | iOS | 1.4.0 (53) | App Store (public) | submitting for review | In review — **first App Store submission since 1.3.0**. Marketing bump 1.3.1→1.4.0 (new version record 1.4.0 "Prepare for Submission"); build 52→53. Carries everything in 1.3.1 (52). Submitted to App Store review in parallel with external Beta App Review |
+| 2026-07-11 | iOS | 1.4.0 (53) | TestFlight — external ("Beta Testers") | uploading + submitting for beta review | Beta App Review pending — **first build of the 1.4.0 train**, so external distribution requires one-time Beta App Review. Once approved, later 1.4.0 builds (54+) to the same external testers clear near-instantly |
 | 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | approved / available | **Available on the closed track** — **FIRST Android release** (signed AAB, versionCode 3). Review passed. Next: add ≥12 testers, opt them in, 14-day clock before production access |
 | 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | submitted for review | In review — **FIRST Android release** (signed AAB, versionCode 3). Auto-rolls to the closed track on approval |
 | 2026-07-11 | iOS | 1.3.1 (52) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers; **sole live beta** — 51 and all previous builds expired & removed from testing). Adds the iOS Send Invitation full-pill tap-target fix (program-member-management D-C3 — commit abbdf9f) |
