@@ -104,7 +104,7 @@
       }
     },
     "notifications": {
-      "version": "0.3.0",
+      "version": "0.3.1",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "built",
       "consumed_by": [

@@ -98,9 +98,20 @@ struct AppRootView: View {
                         await programContext.performSleepSync()
                     }
                     let settings = await UNUserNotificationCenter.current().notificationSettings()
-                    if settings.authorizationStatus == .denied {
+                    switch settings.authorizationStatus {
+                    case .authorized, .provisional, .ephemeral:
+                        // Self-healing registration: re-request a fresh APNs token on every
+                        // foreground while authorized. iOS does NOT re-register when the user flips
+                        // the OS-level toggle — the app must call this itself — so a token that was
+                        // pruned server-side (e.g. after an APNs sandbox→production env change) is
+                        // otherwise never resent. The call is cheap + idempotent; the resulting
+                        // didRegister callback re-POSTs the token via registerPushTokenIfNeeded.
+                        UIApplication.shared.registerForRemoteNotifications()
+                    case .denied:
                         let storedToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
                         await programContext.deregisterPushTokenIfDenied(deviceToken: storedToken)
+                    default:
+                        break
                     }
                 }
             }
