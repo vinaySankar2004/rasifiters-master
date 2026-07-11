@@ -30,9 +30,9 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| App Store (public) | 1.3.0 (40) | Ready for Distribution (live) | — | current public release; oldest live binary the backend must stay compatible with |
-| TestFlight — external ("Beta Testers") | 1.3.1 (52) | Testing | 2026-07-11 | 7 testers; the only build in active beta use (all previous builds — incl. 51 — expired & removed from testing). Adds the iOS Send Invitation full-pill tap-target fix (program-member-management D-C3) on top of the push-token registration fix + keyboard-dismissal change + auth v0.8.0/v0.9.0 |
-| TestFlight — internal ("Internal") | 1.3.1 (52) | Testing | 2026-07-11 | same build |
+| App Store (public) | 1.3.0 (40) | Ready for Distribution (live) | — | current public release; oldest live binary the backend must stay compatible with. 1.4.0 (53) submitted & Waiting for Review (2026-07-11) |
+| TestFlight — external ("Beta Testers") | 1.3.1 (52) | Testing (52); 1.4.0 (53) Waiting for Review | 2026-07-11 | 7 testers. 52 remains the active external build until 1.4.0 (53) clears its one-time first-of-train Beta App Review. 52 adds the iOS Send Invitation full-pill tap-target fix (program-member-management D-C3) on top of the push-token registration fix + keyboard-dismissal change + auth v0.8.0/v0.9.0 |
+| TestFlight — internal ("Internal") | 1.4.0 (53) | Testing | 2026-07-11 | internal gets 53 immediately (no beta review). Ahead of external until 53's Beta App Review clears |
 
 ### Android
 
@@ -46,8 +46,8 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
-| 2026-07-11 | iOS | 1.4.0 (53) | App Store (public) | submitting for review | In review — **first App Store submission since 1.3.0**. Marketing bump 1.3.1→1.4.0 (new version record 1.4.0 "Prepare for Submission"); build 52→53. Carries everything in 1.3.1 (52). Submitted to App Store review in parallel with external Beta App Review |
-| 2026-07-11 | iOS | 1.4.0 (53) | TestFlight — external ("Beta Testers") | uploading + submitting for beta review | Beta App Review pending — **first build of the 1.4.0 train**, so external distribution requires one-time Beta App Review. Once approved, later 1.4.0 builds (54+) to the same external testers clear near-instantly |
+| 2026-07-11 | iOS | 1.4.0 (53) | App Store (public) | submitted for review | **Waiting for Review** — **first App Store submission since 1.3.0** (submission ID `7de4968b-e3cd-4dcd-b537-b78f813a370f`, submitted 2:46 PM). Marketing bump 1.3.1→1.4.0 (new version record 1.4.0); build 52→53. Carries everything in 1.3.1 (52). In review in parallel with external Beta App Review |
+| 2026-07-11 | iOS | 1.4.0 (53) | TestFlight — external ("Beta Testers") | submitted for beta review | **Waiting for Review** (Beta App Review) — **first build of the 1.4.0 train**, so external distribution requires one-time Beta App Review. Also live on Internal now. Once approved, later 1.4.0 builds (54+) to the same external testers clear near-instantly |
 | 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | approved / available | **Available on the closed track** — **FIRST Android release** (signed AAB, versionCode 3). Review passed. Next: add ≥12 testers, opt them in, 14-day clock before production access |
 | 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | submitted for review | In review — **FIRST Android release** (signed AAB, versionCode 3). Auto-rolls to the closed track on approval |
 | 2026-07-11 | iOS | 1.3.1 (52) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers; **sole live beta** — 51 and all previous builds expired & removed from testing). Adds the iOS Send Invitation full-pill tap-target fix (program-member-management D-C3 — commit abbdf9f) |
