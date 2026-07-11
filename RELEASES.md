@@ -38,13 +38,15 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| Play Store (production) | none yet | not released | — | no public release yet |
-| Play Console — internal testing | none yet | not submitted | — | port code-complete; waiting on Google account verification, then first internal-testing upload |
+| Play Store (production) | none yet | not released | — | no public release yet; gated on the closed-test 12-testers-for-14-days requirement |
+| Play Console — closed testing ("Alpha") | 1.0.0 (3) | Submitted for review | 2026-07-10 | **FIRST Android release.** Signed AAB (upload key + Play App Signing); all app-content + store listing complete; managed publishing off → auto-rolls to the closed track on approval. Play App Signing SHA-1 registered in Firebase for Continue-with-Google |
+| Play Console — internal testing | (skipped) | not used | — | went straight to closed testing (no personal Android device to run internal builds) |
 
 ## Release log (append-only, newest first)
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | submitted for review | In review — **FIRST Android release** (signed AAB, versionCode 3). Auto-rolls to the closed track on approval |
 | 2026-07-10 | iOS | 1.3.1 (49) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers; sole live beta). Carries auth v0.8.0 + v0.9.0 |
 | 2026-07-09 | iOS | 1.3.1 (48) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Superseded by (49) |
 | 2026-07-09 | iOS | 1.3.1 (47) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Superseded by (48) |
