@@ -31,8 +31,8 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | App Store (public) | 1.3.0 (40) | Ready for Distribution (live) | — | current public release; oldest live binary the backend must stay compatible with |
-| TestFlight — external ("Beta Testers") | 1.3.1 (49) | Testing | 2026-07-10 | 6 testers; the only build in active beta use (supersedes 48). First binary carrying auth v0.8.0 (federated sign-in) + v0.9.0 (link/unlink account settings) |
-| TestFlight — internal ("Internal") | 1.3.1 (49) | Testing | 2026-07-10 | same build |
+| TestFlight — external ("Beta Testers") | 1.3.1 (50) | Testing | 2026-07-10 | 7 testers; the only build in active beta use (all previous builds expired). Adds the keyboard-dismissal change (214ea97) on top of auth v0.8.0 + v0.9.0 |
+| TestFlight — internal ("Internal") | 1.3.1 (50) | Testing | 2026-07-10 | same build |
 
 ### Android
 
@@ -47,7 +47,8 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
 | 2026-07-10 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | submitted for review | In review — **FIRST Android release** (signed AAB, versionCode 3). Auto-rolls to the closed track on approval |
-| 2026-07-10 | iOS | 1.3.1 (49) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers; sole live beta). Carries auth v0.8.0 + v0.9.0 |
+| 2026-07-10 | iOS | 1.3.1 (50) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Testing (live to testers; sole live beta — all previous builds expired). Adds keyboard-dismissal change (214ea97) |
+| 2026-07-10 | iOS | 1.3.1 (49) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Expired (superseded by 50). Carried auth v0.8.0 + v0.9.0 |
 | 2026-07-09 | iOS | 1.3.1 (48) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Superseded by (49) |
 | 2026-07-09 | iOS | 1.3.1 (47) | TestFlight (Beta Testers + Internal) | uploaded + distributed | Superseded by (48) |
 | (predates ledger) | iOS | 1.3.0 (40) | App Store | released to public | Ready for Distribution (live) |
