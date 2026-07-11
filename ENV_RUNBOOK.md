@@ -170,3 +170,47 @@ self-issued JWT machinery + the `refresh_tokens` table (R1).
 > When adding a NEW env var anywhere: update the app's `.env.example` + this inventory + (if it
 > gates a feature) the feature SPEC, then set it on the platform per §2. Fill each `TODO(provision)`
 > the moment the real Render/Vercel/Supabase resource exists.
+
+---
+
+## 7. Google Sign-In / OAuth (Firebase + Google Auth Platform)
+
+Continue-with-Google on all three clients (web / iOS / Android) rides on **one** Google Cloud project —
+**`rasi-fiters`** (project number `938606130476`), linked to Firebase. There are **no OAuth secrets in the
+app**: each client mints a Google **id_token** client-side (Android = Credential Manager, iOS = GoogleSignIn,
+web = auth-code flow) and posts it to the backend `POST /api/auth/oauth`, which hands it to Supabase
+`signInWithIdToken`. Supabase validates the token's audience against the provider client IDs set in its Auth
+dashboard. So the values below are all **non-secret** and safe to record.
+
+**Load-bearing config (non-secret):**
+- **Web OAuth client ID** — used as the `serverClientId` by Android's Credential Manager and by the web flow:
+  `938606130476-9vhk5o43c2g0ib4a167l1o4mmnt52f9b.apps.googleusercontent.com`. On Android it's injected as
+  `GOOGLE_WEB_CLIENT_ID` via `buildConfigField` in `apps/android/app/build.gradle.kts` (debug **and** release).
+- **Android package**: `com.app.rasifiters` (must match the Firebase Android app + the OAuth Android clients).
+- **SHA-1 fingerprints registered in Firebase** (Project Settings → Android app → *SHA certificate
+  fingerprints*) — required for Credential Manager to return a credential on a **Play-distributed** build:
+  - `E8:3A:D5:50:0F:05:32:80:9F:E3:9A:97:FF:B5:98:62:5E:7A:49:01` — **Play App Signing** key (Google re-signs
+    *every* Play build with this; THE critical one for closed/open/prod testers). Source: Play Console →
+    *Test and release → App integrity → App signing*.
+  - `C3:9B:3E:F8:0F:EF:DC:A2:5F:54:D5:FA:61:A0:12:B3:22:33:8D:D1` — **upload** key.
+  - The local **debug** keystore SHA-1 is what makes the **emulator** work; on a fresh machine, register that
+    machine's `~/.android/debug.keystore` SHA-1 too if the emulator can't sign in.
+
+**⚠️ The consent-screen gotcha (cost a debugging session, 2026-07-11 — Android closed testing).**
+Google Sign-In fails for **every account that is not a project owner/editor or a listed test user** while the
+**OAuth consent screen** is in **Testing** publishing status. On Android this surfaces as Credential Manager
+throwing `NoCredentialException` → the **"Login / No credentials available"** dialog — *before* any account
+picker, so it masquerades as a device / SHA-1 / login bug but is none of those. Classic tell: **works for you
+(owner) on the emulator, fails for a friend tester on a real Play build.**
+- **Where:** Google Cloud Console → **Google Auth Platform → Audience** → **Publishing status**.
+- **Fix:** click **Publish app** → status becomes **In production**. Because we request only the basic
+  **`email` / `profile` / `openid`** scopes (no sensitive/restricted scopes), publishing is **instant — no
+  Google verification review**. Done 2026-07-11; user live-tested → works.
+- **Keep it in Production** — don't click "Back to testing." Any future rebuild / new GCP project must publish
+  the consent screen **before** shipping Continue-with-Google to real users (same rule for iOS).
+
+**`google-services.json` note:** `apps/android/app/google-services.json` currently carries
+`"oauth_client": []` (it predates the SHA-1 registration). This is **harmless at runtime** — the Android app
+reads the Web client ID from `BuildConfig.GOOGLE_WEB_CLIENT_ID`, not from this file — but to keep the repo 1:1
+with Firebase, re-download it (Firebase → Project Settings → Android app → *google-services.json*) whenever
+fingerprints/clients change and commit it.

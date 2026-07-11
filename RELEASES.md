@@ -39,7 +39,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | Play Store (production) | none yet | not released | — | no public release yet; gated on the closed-test 12-testers-for-14-days requirement |
-| Play Console — closed testing ("Alpha") | 1.0.0 (3) | Available (approved) | 2026-07-10 | **FIRST Android release** — approved & live on the closed track. Signed AAB (upload key + Play App Signing); all app-content + store listing complete. Play App Signing SHA-1 registered in Firebase for Continue-with-Google. Next gate to production: ≥12 testers opted-in for ≥14 days (currently 0 opted in) |
+| Play Console — closed testing ("Alpha") | 1.0.0 (3) | Available (approved) | 2026-07-10 | **FIRST Android release** — approved & live on the closed track. Signed AAB (upload key + Play App Signing); all app-content + store listing complete. Play App Signing SHA-1 registered in Firebase for Continue-with-Google. **2026-07-11: Continue-with-Google fixed for all testers** — the OAuth consent screen (Google Auth Platform → Audience) was published from *Testing* to **Production**; while in Testing only owners/test-users got a credential and non-owner testers saw "No credentials available" (see `ENV_RUNBOOK.md` §7). Next gate to production: ≥12 testers opted-in for ≥14 days (currently 0 opted in) |
 | Play Console — internal testing | (skipped) | not used | — | went straight to closed testing (no personal Android device to run internal builds) |
 
 ## Release log (append-only, newest first)

@@ -7,7 +7,21 @@
 
 ## Current phase
 
-**LATEST (2026-07-10): Account-settings link/unlink Google (+ Apple on iOS) + add-password SHIPPED — `auth`
+**LATEST (2026-07-11): Android Continue-with-Google fixed for ALL Play testers — OAuth consent screen
+published to Production (ops fix, no code/binary change).** A friend on the Android **Play closed-testing**
+build (1.0.0 (3)) hit **"Login / No credentials available"** on *Continue with Google*, though it worked on
+the emulator. Root cause was **not** the SHA-1 (both Play App Signing `E8:3A:D5…` + upload `C3:9B:3E…` are
+correctly registered in Firebase) and **not** a code bug — the **Google Auth Platform → Audience** consent
+screen was in **Testing** status with **0 test users**, so only project owners/editors could obtain a Google
+credential; Credential Manager threw `NoCredentialException` for every other account (the emulator worked only
+because it was signed in as the owner). **Fix:** published the consent screen to **Production** (instant — we
+request only the basic `email`/`profile`/`openid` scopes, so no Google verification review). **User
+live-tested on the real device → works.** Durable capture: new **`ENV_RUNBOOK.md` §7** (Google Sign-In /
+OAuth — client IDs, SHA-1s, and the consent-screen-must-be-Production rule). **Non-blocking follow-up:**
+`apps/android/app/google-services.json` still has `oauth_client: []` (stale but harmless — the app uses
+`BuildConfig.GOOGLE_WEB_CLIENT_ID`); re-download from Firebase to keep the repo 1:1 with the console.
+
+**PRIOR (2026-07-10): Account-settings link/unlink Google (+ Apple on iOS) + add-password SHIPPED — `auth`
 v0.9.0.** The deferred phase-2 of federated sign-in: a signed-in member can now **link/unlink** their Google
 identity (and Apple on iOS) and **add a password** to a social-only account, from a net-new **"Sign-in
 methods"** section on each account/settings screen (web `program/profile`, iOS `MyProfileView`, Android
