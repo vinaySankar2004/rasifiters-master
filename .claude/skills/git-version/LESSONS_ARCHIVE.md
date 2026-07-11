@@ -357,3 +357,18 @@ bit:** authored the SPEC's semantic content (D-C10 decision, §3 routes 15–18,
 only the version-string + §12 changelog row + registry/REGISTRY bump + tag — cleaner than making git-version
 infer a rich decision entry. Also had to swap the §12 changelog row order (0.9.0 must sit ABOVE 0.8.0 —
 newest-first — after inserting on the wrong anchor). Promoted nothing new.
+
+---
+
+**2026-07-11 — landing SEO indexing infra → PATCH page-spec bump (v0.1.1→v0.1.2), no feature tag.** Changeset =
+`apps/web/src/app/{robots.ts,sitemap.ts}` (net-new) + `layout.tsx` (JSON-LD) — additive Next metadata routes,
+zero visible/behavior change. Mapped NOT to any `registry.json` feature (nothing owns `layout.tsx`/`src/app`)
+but to the **landing PAGE spec** (`specs/pages/web/landing/SPEC.md`). **Convergent lesson (new): page-spec
+changes version independently of the feature graph** — bump the SPEC header + §Changelog + add a D-rule (D-LAND-10),
+bump the `specs/pages/REGISTRY.md` row, and **do NOT cut a `feature/<f>@v` tag** (page specs aren't in the
+registry node/tag invariant; `git tag -l "*land*"` is empty by design). PATCH because additive metadata on a
+net-new page with no contract/behavior delta (same shape as a faithful asset refinement). **Also caught a
+pre-existing doc-lag:** the pages REGISTRY still showed landing `v0.1.0` though the SPEC was already `0.1.1`
+(the D-LAND-9 run bumped the SPEC but not the REGISTRY row) — reconciled to `v0.1.2` this pass. Verified 1:1 is
+N/A (NET-NEW page, no legacy reference). Staged the 5 files explicitly (no `-A`). Promoted the page-spec-bump
+rule note here; nothing for the lean SKILL yet (single occurrence).
