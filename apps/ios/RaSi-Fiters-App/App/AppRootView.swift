@@ -12,12 +12,18 @@ struct AppRootView: View {
                     // Authenticated: show program picker flow
                     NavigationStack {
                         ProgramPickerView()
+                            .keyboardDoneToolbar()
                     }
+                    .dismissKeyboardOnTap()
+                    .scrollDismissesKeyboard(.interactively)
                 } else {
                     // Unauthenticated: show splash/login flow
                     NavigationStack {
                         SplashView()
+                            .keyboardDoneToolbar()
                     }
+                    .dismissKeyboardOnTap()
+                    .scrollDismissesKeyboard(.interactively)
                 }
             }
 

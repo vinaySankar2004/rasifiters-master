@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -14,7 +15,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -54,6 +57,7 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore)
     val pendingHealthConfirmation by programContext.health.pendingConfirmation.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     // Android 13+ POST_NOTIFICATIONS runtime permission — token registration proceeds regardless of the
     // grant (the permission only gates DISPLAYING pushes; registration doesn't need it), so we ignore the result.
@@ -94,7 +98,13 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Box {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { focusManager.clearFocus() })
+            },
+    ) {
         if (token == null) {
             AuthGraph(programContext)
         } else {

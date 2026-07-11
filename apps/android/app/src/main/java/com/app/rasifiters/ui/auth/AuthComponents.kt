@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -51,7 +52,9 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -142,11 +145,13 @@ fun AppTextField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Text,
+    imeAction: ImeAction = ImeAction.Done,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     enabled: Boolean = true,
     trailing: @Composable (() -> Unit)? = null,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val focusManager = LocalFocusManager.current
     val textColor = if (enabled) scheme.onSurface else scheme.onSurface.copy(alpha = 0.5f)
     BasicTextField(
         value = value,
@@ -156,7 +161,8 @@ fun AppTextField(
         singleLine = true,
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = textColor),
         cursorBrush = SolidColor(AppOrange),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         visualTransformation = visualTransformation,
         decorationBox = { innerField ->
             Row(

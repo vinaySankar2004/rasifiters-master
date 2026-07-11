@@ -32,6 +32,12 @@
   account-picker sheet is silent; any real failure surfaces in the existing "Login" error dialog.
 - **F1–F5 (kept, from iOS/web):** role from response body not a JWT decode; no client rate-limit; no inline
   field validation (identifier is dual-purpose); recovery *request* is native, set-new-password stays on web.
+- **Global keyboard dismissal (UX-polish, ALL input screens app-wide — parity with web/iOS):** the root `Box` in
+  `ui/RootScreen.kt` clears focus (+ hides the IME) on any outside tap via `detectTapGestures` →
+  `LocalFocusManager.clearFocus()`; the shared `ui/auth/AuthComponents.kt` `AppTextField`/`AppPasswordField`
+  set `imeAction = Done` → `KeyboardActions(onDone = clearFocus)` — this shared primitive is used on ~13 screens
+  app-wide, so the Done affordance lands everywhere, not just auth (noted here as the priority auth surface).
+  IME back/down-chevron already dismisses natively. **No auth-logic change.**
 
 ## Changelog
 

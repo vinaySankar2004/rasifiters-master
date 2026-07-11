@@ -5,9 +5,11 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { NotificationsGate } from "@/components/NotificationsGate";
 import { SummaryIcon, MembersIcon, LifestyleIcon, ProgramIcon } from "@/components/icons";
+import { useDismissKeyboard } from "@/lib/hooks/use-dismiss-keyboard";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  useDismissKeyboard();
   const showNav = ["/summary", "/members", "/lifestyle", "/program"].includes(pathname);
 
   useEffect(() => {

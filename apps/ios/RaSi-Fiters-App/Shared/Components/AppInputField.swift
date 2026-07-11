@@ -14,11 +14,13 @@ struct AppInputField: View {
                 SecureField(title, text: $text)
                     .textInputAutocapitalization(.never)
                     .disableAutocorrection(true)
+                    .submitLabel(.done)
             } else {
                 TextField(title, text: $text)
                     .keyboardType(keyboardType)
                     .textInputAutocapitalization(autocapitalization)
                     .disableAutocorrection(true)
+                    .submitLabel(.done)
             }
 
             if let accessory {
