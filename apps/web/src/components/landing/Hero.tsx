@@ -4,6 +4,7 @@ import { AuthCta } from "./AuthCta";
 import { IPhoneFrame } from "./devices";
 import { HeroDashboard } from "./panels";
 import { Reveal } from "./Reveal";
+import { ScrollCue } from "./ScrollCue";
 
 export function Hero() {
   return (
@@ -36,6 +37,8 @@ export function Hero() {
           </IPhoneFrame>
         </Reveal>
       </div>
+
+      <ScrollCue />
     </section>
   );
 }
