@@ -23,11 +23,11 @@ Notes on Play requirements:
 
 | File | Screen to capture | Suggested caption (optional overlay) |
 |------|-------------------|--------------------------------------|
-| `01-programs.png` | Your training programs list | Run or join training programs |
-| `02-summary.png` | Progress dashboard (charts + month stats) | See your progress at a glance |
-| `03-log-workout.png` | Logging a workout | Log workouts in seconds |
-| `04-log-health.png` | Logging daily lifestyle data (steps, sleep, diet) | Track steps, sleep and diet |
-| `05-members.png` | Members / group progress | Follow your whole group |
+| `01-splash.png` | Splash / brand screen | RaSi Fiters |
+| `02-programs.png` | Your training programs list | Run or join training programs |
+| `03-summary.png` | Progress dashboard (charts + month stats) | See your progress at a glance |
+| `04-log-workout.png` | Logging a workout | Log workouts in seconds |
+| `05-member.png` | Member / group progress | Follow member progress |
 | `06-lifestyle.png` | Lifestyle trends and charts | Watch your trends build |
 | `07-program.png` | Program management (admin view) | Manage members and roles |
 | `08-health-sync.png` | **Health Connect** sync screen | Sync from Health Connect |
