@@ -390,3 +390,14 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   `chore(skills)` commit.
 - **Commit shape:** `fix(program-member-management): …` for the code+page-spec; `chore(skills): …` for the two
   lessons archives. iOS-only change → no Vercel/Render deploy; TestFlight is the user's path.
+
+## Run 2026-07-15 — chore(releases): iOS 1.4.0 (53) fully live + Android 12/12 tester gate
+
+- **Changeset:** `RELEASES.md` only — ledger flip on user announcement: iOS 1.4.0 (53) approved & live on
+  App Store (replaces 1.3.0 (40)); external TestFlight Beta App Review cleared (external+internal aligned
+  on 53); Android closed testing reached 12/12 opted-in testers, day 2 of the 14-day production clock
+  (started ~2026-07-13, unlocks ~2026-07-27).
+- **Feature detection:** no feature paths touched → plain `chore(releases)` commit (350f41a), no bump, no tag.
+- **Pattern (already converged):** RELEASES.md update protocol — user announces, snapshot table flips +
+  append-only log rows added, `chore(releases)` commit. Non-push milestone rows (tester-gate reached) fit
+  the log fine alongside push rows.
