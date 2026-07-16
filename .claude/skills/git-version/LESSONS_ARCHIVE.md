@@ -401,3 +401,22 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
 - **Pattern (already converged):** RELEASES.md update protocol — user announces, snapshot table flips +
   append-only log rows added, `chore(releases)` commit. Non-push milestone rows (tester-gate reached) fit
   the log fine alongside push rows.
+
+## Run 2026-07-15 — feat(member-analytics): 0.4.0 D-C7 Active-Days-primary swap (multiplex Run 2)
+
+- **Changeset:** 19 files across all four surfaces — 9 code (backend service default-sort flip; web/iOS/Android
+  hero/subtitle/tile-order/default-sort swaps) + 10 docs (feature SPEC §9 D-C7 + changelog, registry.json,
+  BOTH REGISTRY.md files, 6 page SPECs). Feature: `member-analytics` 0.3.1 → **0.4.0** (MINOR — deliberate
+  user-requested behavior change, backward-compatible owned-interface delta: default `sort` semantic only,
+  all shipped clients pass `sort` explicitly → zero dependent re-version, blast radius FYI not gate).
+- **Two-push backend-first (Run-1 multiplex pattern, 2nd confirmation):** commit 1 = backend only
+  (00e5c25) → push → Render deploy `status: live` confirmed via MCP read tool → commit 2 = clients + docs
+  (9931308) + tag `feature/member-analytics@v0.4.0` → push → Vercel Production Ready in 49s. Confirmation
+  signal was deploy status (not a route-behavior probe) — the flipped default is unreachable from outside
+  since every client sends `sort` explicitly.
+- **Caught by this skill's step-5 checklist:** the approved plan bumped `specs/pages/REGISTRY.md` +
+  `registry.json` but MISSED `specs/features/REGISTRY.md`'s version cell (still 0.3.1) — fixed inline before
+  commit 2. Lesson: implementer-prepared doc bumps still need the step-5 sweep; there are TWO REGISTRY.md
+  surfaces (features + pages) and plans tend to name only one.
+- **Tags invariant:** one tag on the FINAL commit of a two-push feature change (not the backend precursor).
+  Lessons in this separate `chore(skills)` commit per protocol.
