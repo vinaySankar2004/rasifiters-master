@@ -420,3 +420,11 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   surfaces (features + pages) and plans tend to name only one.
 - **Tags invariant:** one tag on the FINAL commit of a two-push feature change (not the backend precursor).
   Lessons in this separate `chore(skills)` commit per protocol.
+
+## Run: iOS large-screen pass ship (2026-07-16)
+- Cross-cutting presentation-only `apps/ios/**` pass (37 files + 1 new shared helper) → applied the
+  "purely cosmetic apps/** refinement ≠ feature delta" lesson at scale: NO per-feature bumps/tags even
+  though the paths overlap many features' reference_impl — the alternative (PATCH-bumping ~15 features
+  for one layout idiom) is registry noise. Single `feat(ios)` commit.
+- Three-shape split held: feat(ios) code → chore(releases) pbxproj+RELEASES+PROGRESS → chore(skills)
+  lessons. Within-train TestFlight iteration = build-only bump (1.4.2 55→56), marketing untouched.
