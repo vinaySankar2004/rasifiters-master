@@ -351,3 +351,68 @@ specific "list navigator issues" tool must be called after the build tool.
 - **Build:** MCP `xcode` tools absent this session → device-destination fallback
   `xcodebuild … -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` → `** BUILD SUCCEEDED **`,
   0 errors. User verifies the tap visually in the sim.
+
+## Run: large-screen Phase 1 (auth + program picker), 2026-07-16
+- **Change:** new `Shared/Extensions/View+AdaptiveLayout.swift` (`AdaptiveLayout.formMaxWidth`
+  520 / `contentMaxWidth` 700 + `.adaptiveColumn(max:)` = cap-then-recenter double-frame) applied
+  to Splash/Login/ForgotPassword/CreateAccount/EditProgramInfo columns + ProgramPicker header,
+  search pill, cards, banners, empty states. Caps > any iPhone width → compact rendering untouched.
+- **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 23.5s. New file under the
+  synchronized group picked up automatically (again confirms no pbxproj edit needed).
+- **Pattern:** sheets need NO capping on iPad/Mac — they present as ~540pt form sheets already;
+  only full-screen pushes + List rows need `.adaptiveColumn`. List-row caps keep swipeActions +
+  full-row tap targets (contentShape after the recenter frame spans the row).
+
+## Run: large-screen Phase 1 correction (swipe reveals escaped the column), 2026-07-16
+- **CORRECTION to the prior run's pattern:** capping List ROW content does NOT contain swipe
+  actions — the row itself stays window-wide, so the Edit/Delete reveal + slide animation appear at
+  the WINDOW edge, outside the column. Cap the List container instead (`.frame(maxWidth:
+  contentMaxWidth + 40)` to cover the 20pt row insets) and drop per-row caps; swipe reveals,
+  drag-reorder, and slide animations then stay inside the column. FAB overlay container gets the
+  same +40 cap so buttons align with the card edge exactly as on iPhone.
+- **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 22s. Standing rules recorded in
+  project memory (`ios-large-screen-column-rules`).
+
+## Run: large-screen Phase 2 (Summary tab + its 5 detail pushes), 2026-07-16
+- **Change:** per the ios-large-screen-column-rules memory — capped the CONTAINER content on
+  AdminSummaryTab (ScrollView column, contentMaxWidth+40), ActivityTimeline/DistributionByDay/
+  WorkoutTypes detail (root VStacks, contentMaxWidth+40), AddWorkouts/AddDailyHealth forms
+  (formMaxWidth 520). Chart widths are GeometryReader-fluid so they inherit the column; chart
+  callouts clamp within plot geo → stay inside. Card drag-reorder (onDrag/onDrop) targets are the
+  card views themselves → drops stay in-column. SearchablePickerSheet/system sheets untouched.
+- **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 22s.
+
+## Run: large-screen Phase 3 (Members tab + all pushes), 2026-07-16
+- **Change:** container caps per column rules — Admin/StandardMembersTab scroll columns,
+  MemberMetricsDetailView scroll content, MemberHealthDetail + MemberRecentDetail (capped the OUTER
+  VStack that wraps controls+List so swipe edit/delete reveals stay in-column), MemberStreakDetail,
+  ProgramMembersListView (List root; also gave it a matching systemGroupedBackground backdrop so the
+  side gutters don't color-mismatch the grouped List on iPad/Mac), MemberDetailEditView +
+  InviteMemberView (formMaxWidth). MemberPicker/sort/filter sheets untouched (form sheets).
+- **Pattern:** a default-styled (grouped) List capped narrower than the window needs a `.background`
+  matching systemGroupedBackground behind it — otherwise the gutters show the window background as
+  visible bands in light mode.
+- **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 23s.
+
+## Run: large-screen Phase 4 (Lifestyle tab + pushes), 2026-07-16
+- **Change:** container caps — Admin/StandardWorkoutTypesTab scroll columns, Lifestyle/Steps
+  timeline detail root VStacks (contentMaxWidth+40), ViewWorkoutTypesListView (grouped List with
+  swipe actions → cap + systemGroupedBackground backdrop, same pattern as ProgramMembersListView).
+  Cards (WorkoutTypesCards) fluid → inherit column. MemberPicker + add/edit workout sheets untouched.
+- **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 22s.
+
+## Run: large-screen Phase 5+6 (Program tab + Settings + shared modals) — COMPLETES THE APP-WIDE PASS, 2026-07-16
+- **Change:** Admin/StandardProgramTab scroll columns (contentMaxWidth+40), ManageRolesView
+  (grouped List → cap + backdrop), all 5 Settings screens (formMaxWidth), HealthSyncConfirmationView
+  (fullScreenCover → capped content; fullScreenCovers span the whole window on iPad/Mac unlike
+  sheets). NotificationModalView + ForcedUpdateModalView already fixed 360pt centered cards — no-op.
+- **Coverage complete:** every screen in specs/pages/ios (minus widgets, by design) now follows the
+  ios-large-screen-column-rules memory. New-screen rule going forward: apply the column cap from birth.
+- **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 21.5s.
+
+## Run: large-screen final (widget quick-add entry forms) — 100% coverage, 2026-07-16
+- **Change:** QuickAddWorkout/QuickAddHealth WidgetEntryView scroll content → formMaxWidth cap
+  (the in-app forms the widget deep-links open via AppRootView, NOT the widget tiles — tiles are
+  system-managed and out of scope). WidgetSuccessToast is a content-hugging centered pill — no-op.
+- **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 22.5s. Large-screen pass complete
+  across every in-app screen + modal.
