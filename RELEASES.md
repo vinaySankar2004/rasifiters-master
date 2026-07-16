@@ -31,7 +31,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | App Store (public) | 1.4.0 (53) | Ready for Distribution (live) | 2026-07-15 (announced) | **current public release** — approved & live (replaces 1.3.0 (40)). Oldest live iOS binary the backend must stay compatible with is now 1.4.0 (53) — though users on un-updated 1.3.0 installs may linger; keep degrading gracefully |
-| TestFlight — external ("Beta Testers") | 1.4.0 (53) | Testing | 2026-07-15 (announced) | Beta App Review cleared — external now on the 1.4.0 train (was 1.3.1 (52)). Later 1.4.0 builds (54+) to the same testers clear near-instantly |
+| TestFlight — external ("Beta Testers") | 1.4.0 (53) | Testing | 2026-07-15 (announced) | Beta App Review cleared — external now on the 1.4.0 train (was 1.3.1 (52)). NOTE 2026-07-16: the 1.4.0 train is now CLOSED (App Store approval of 53 closed it); next beta builds ship as 1.4.1+, whose first external build re-runs Beta App Review |
 | TestFlight — internal ("Internal") | 1.4.0 (53) | Testing | 2026-07-11 | internal and external now aligned on 53 |
 
 ### Android
@@ -46,7 +46,8 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
-| 2026-07-15 | iOS | 1.4.0 (54) | TestFlight (Beta Testers + Internal) | preparing upload | **Uploading (announced)** — carries member-analytics 0.4.0 D-C7 (Active Days = primary member-metrics stat, commit 9931308). Same-marketing-version build bump 53→54 → distributes near-instantly (1.4.0 train's Beta App Review already cleared) |
+| 2026-07-16 | iOS | 1.4.1 (54) | TestFlight (Beta Testers + Internal) | preparing upload | **Uploading (announced)** — carries member-analytics 0.4.0 D-C7. Marketing bump 1.4.0→1.4.1 forced by train closure (below); build stays 54. NEW train ⇒ first external distribution needs one-time Beta App Review again |
+| 2026-07-16 | iOS | 1.4.0 (54) | TestFlight | upload FAILED | **Train closed** — Apple rejected the upload (90186 "Invalid Pre-Release Train: '1.4.0' is closed for new build submissions" + 90062 CFBundleShortVersionString must exceed approved 1.4.0): once 1.4.0 (53) was APPROVED for the App Store, the 1.4.0 train stopped accepting new builds. Lesson: same-version build bumps only work while the train is still beta-only. Superseded by 1.4.1 (54) |
 | 2026-07-15 | Android | 1.0.0 (4) | Play — closed testing ("Alpha") | preparing upload | **Uploading (announced)** — carries member-analytics 0.4.0 D-C7. versionCode 3→4, versionName unchanged (no production release yet). Does NOT reset the 14-day production clock (same track, testers stay opted in) |
 | 2026-07-15 | iOS | 1.4.0 (53) | App Store (public) | approved / released | **Ready for Distribution (live)** — announced live by the user 2026-07-15. Replaces 1.3.0 (40) as the public release. iOS 1.4.0 train fully shipped (App Store + both TestFlight channels) |
 | 2026-07-15 | iOS | 1.4.0 (53) | TestFlight — external ("Beta Testers") | beta review approved | **Testing** — one-time first-of-train Beta App Review cleared; external testers moved off 1.3.1 (52) onto 53. Future 1.4.0 builds distribute near-instantly |
