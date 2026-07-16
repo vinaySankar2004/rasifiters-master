@@ -7,7 +7,23 @@
 
 ## Current phase
 
-**LATEST (2026-07-11): Android Continue-with-Google fixed for ALL Play testers — OAuth consent screen
+**LATEST (2026-07-15): Active Days is now the PRIMARY member-metrics stat — `member-analytics` v0.4.0
+(D-C7), SHIPPED + user-verified on all three platforms.** First user-feedback-driven change post-rebuild
+(deliberate, NOT faithful-as-is → new SPEC §9 **D-C7**): Active Days and Workouts traded places in every
+primary slot on web/iOS/Android — metric-card hero (big orange number) = Active Days, subtitle = "Workouts
+N", iOS/Android grid row 1 = [Active Days, Workouts] (web: first tile replaces Workouts in place — web
+carries the secondary stat in the subtitle), Member Performance Metrics **default sort = active_days**
+(option lists/CSV/filters/"MTD Workouts" untouched), and the admin preview's starred top member = top-by-
+active-days (it's just `members[0]` of the server-sorted response). Backend default `sort` flipped too
+(semantic only — every shipped binary passes `sort` explicitly, so live 1.4.0 (53)/1.0.0 (3) unaffected).
+Built end-to-end via the **multiplex pipeline** (Run 2: plan-pipeline clean → user approved → 4 parallel
+implementers in the main tree → impl-adversary APPROVE → compile gate web/android/backend ✓). Two-push
+backend-first deploy: `00e5c25` (backend, confirmed live on Render) → `9931308` (clients + docs, tagged
+`feature/member-analytics@v0.4.0`, Vercel Ready). **User live-tested web + iOS + Android → all perfect
+(2026-07-15).** STORE tail: iOS 1.4.0 (54) build bump → TestFlight; Android 1.0.0 (4) → Play closed testing
+(see `RELEASES.md`).
+
+**PRIOR (2026-07-11): Android Continue-with-Google fixed for ALL Play testers — OAuth consent screen
 published to Production (ops fix, no code/binary change).** A friend on the Android **Play closed-testing**
 build (1.0.0 (3)) hit **"Login / No credentials available"** on *Continue with Google*, though it worked on
 the emulator. Root cause was **not** the SHA-1 (both Play App Signing `E8:3A:D5…` + upload `C3:9B:3E…` are

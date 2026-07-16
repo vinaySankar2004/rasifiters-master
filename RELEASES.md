@@ -46,6 +46,8 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-07-15 | iOS | 1.4.0 (54) | TestFlight (Beta Testers + Internal) | preparing upload | **Uploading (announced)** — carries member-analytics 0.4.0 D-C7 (Active Days = primary member-metrics stat, commit 9931308). Same-marketing-version build bump 53→54 → distributes near-instantly (1.4.0 train's Beta App Review already cleared) |
+| 2026-07-15 | Android | 1.0.0 (4) | Play — closed testing ("Alpha") | preparing upload | **Uploading (announced)** — carries member-analytics 0.4.0 D-C7. versionCode 3→4, versionName unchanged (no production release yet). Does NOT reset the 14-day production clock (same track, testers stay opted in) |
 | 2026-07-15 | iOS | 1.4.0 (53) | App Store (public) | approved / released | **Ready for Distribution (live)** — announced live by the user 2026-07-15. Replaces 1.3.0 (40) as the public release. iOS 1.4.0 train fully shipped (App Store + both TestFlight channels) |
 | 2026-07-15 | iOS | 1.4.0 (53) | TestFlight — external ("Beta Testers") | beta review approved | **Testing** — one-time first-of-train Beta App Review cleared; external testers moved off 1.3.1 (52) onto 53. Future 1.4.0 builds distribute near-instantly |
 | 2026-07-15 | Android | 1.0.0 (3) | Play — closed testing ("Alpha") | tester gate reached | **12/12 testers opted in** — 14-day production clock running, day 2 of 14 (started ~2026-07-13; production access unlocks ~2026-07-27) |
