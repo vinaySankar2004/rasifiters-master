@@ -285,7 +285,7 @@ fun MemberMetricsCard(metric: MemberMetricsDTO, hero: MetricSortField) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(metric.memberName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
-                        "Active days ${metric.activeDays}",
+                        "Workouts ${metric.workouts}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )
@@ -308,8 +308,8 @@ private fun MetricsGrid(m: MemberMetricsDTO) {
     val avgSteps = m.avgSteps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatTile(Icons.Filled.FitnessCenter, "Workouts", "${m.workouts}", Modifier.weight(1f))
             StatTile(Icons.Filled.CalendarMonth, "Active Days", "${m.activeDays}", Modifier.weight(1f))
+            StatTile(Icons.Filled.FitnessCenter, "Workouts", "${m.workouts}", Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             StatTile(Icons.Filled.FormatListBulleted, "Workout Types", "${m.workoutTypes}", Modifier.weight(1f))
@@ -358,7 +358,7 @@ fun MemberMetricsPreviewCard(programContext: ProgramContext, onClick: () -> Unit
 
     LaunchedEffect(Unit) {
         loading = true
-        programContext.loadMemberMetrics(sort = "workouts", direction = "desc")
+        programContext.loadMemberMetrics(sort = "active_days", direction = "desc")
         loading = false
     }
 
@@ -387,15 +387,15 @@ fun MemberMetricsPreviewCard(programContext: ProgramContext, onClick: () -> Unit
                             modifier = Modifier.weight(1f),
                         )
                         Column(horizontalAlignment = Alignment.End) {
-                            Text("${top.workouts}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppOrange)
-                            Text("Workouts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                            Text("${top.activeDays}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = AppOrange)
+                            Text("Active Days", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         }
                     }
                     Spacer(Modifier.height(12.dp))
                     // Icon-less mini tiles here (matches iOS preview) so "Active Days" stays on one line.
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        MiniStatTile("Workouts", "${top.workouts}", Modifier.weight(1f))
                         MiniStatTile("Active Days", "${top.activeDays}", Modifier.weight(1f))
+                        MiniStatTile("Workouts", "${top.workouts}", Modifier.weight(1f))
                         MiniStatTile("Types", "${top.workoutTypes}", Modifier.weight(1f))
                     }
                 }

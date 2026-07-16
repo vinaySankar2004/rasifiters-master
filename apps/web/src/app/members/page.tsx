@@ -148,7 +148,7 @@ export default function MembersPage() {
     queryKey: ["members", "metrics", programId, "preview"],
     queryFn: () =>
       fetchMemberMetrics(token, programId, {
-        sort: "workouts",
+        sort: "active_days",
         direction: "desc"
       }),
     enabled: !!token && !!programId && isProgramAdmin
@@ -467,18 +467,18 @@ function MemberMetricsPreview({ metric }: { metric: MemberMetrics }) {
           </div>
           <div>
             <p className="text-base font-semibold text-rf-text">{metric.member_name}</p>
-            <p className="text-xs text-rf-text-muted">Active days {metric.active_days}</p>
+            <p className="text-xs text-rf-text-muted">Workouts {metric.workouts}</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold text-rf-accent">{metric.workouts}</p>
-          <p className="text-xs text-rf-text-muted">Workouts</p>
+          <p className="text-xl font-bold text-rf-accent">{metric.active_days}</p>
+          <p className="text-xs text-rf-text-muted">Active Days</p>
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3 text-xs text-rf-text-muted">
         <div className="metric-pill rounded-2xl px-3 py-2">
-          <p className="font-semibold text-rf-text">{metric.workouts}</p>
-          <p>Workouts</p>
+          <p className="font-semibold text-rf-text">{metric.active_days}</p>
+          <p>Active days</p>
         </div>
         <div className="metric-pill rounded-2xl px-3 py-2">
           <p className="font-semibold text-rf-text">{metric.total_duration}</p>
@@ -590,11 +590,11 @@ function MemberMetricsSingleCard({ metric }: { metric: MemberMetrics }) {
       <div className="mt-3 flex items-center justify-between">
         <div>
           <p className="text-base font-semibold text-rf-text">{metric.member_name}</p>
-          <p className="text-xs text-rf-text-muted">Active days {metric.active_days}</p>
+          <p className="text-xs text-rf-text-muted">Workouts {metric.workouts}</p>
         </div>
         <div className="text-right">
-          <p className="text-xl font-bold text-rf-accent">{metric.workouts}</p>
-          <p className="text-xs text-rf-text-muted">Workouts</p>
+          <p className="text-xl font-bold text-rf-accent">{metric.active_days}</p>
+          <p className="text-xs text-rf-text-muted">Active Days</p>
         </div>
       </div>
       <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-rf-text-muted">

@@ -1,6 +1,6 @@
 # Page: `members` (web) — the member-overview / "view-as" dashboard (second workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members` — **the second bottom-nav tab** of a program's workspace. NOT a roster-management
 > screen: it is a per-member performance dashboard with a role-gated **"view as"** picker. The actual roster,
 > invite form, full metrics table, and per-member detail/log views are **sub-routes, deferred** (see §3).
@@ -54,7 +54,7 @@ fans out to the roster (`/members/list`), the invite form (`/members/invite`), t
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Header | "Members" + active program name; a **View Members** pill (→ `/members/list`, shown only when `!canViewAs`) and an **Invite** mail button (→ `/members/invite`, shown when `canInvite`). | members/page.tsx:225-251 |
-| Metrics preview | `isProgramAdmin`-only card → `/members/metrics`; shows member count + the top member's `MemberMetricsPreview` (avatar, workouts, 6 metric pills, an **Avg Steps** tile + current-streak chip on a 2-col grid row — member-analytics 0.2.0 `avg_steps`). | members/page.tsx:253-282, 454-505 |
+| Metrics preview | `isProgramAdmin`-only card → `/members/metrics`; shows member count + the top member's `MemberMetricsPreview` (avatar, **Active Days hero** — D-C7 primary-stat swap, "Workouts N" subtitle, 6 metric pills led by Active days, an **Avg Steps** tile + current-streak chip on a 2-col grid row — member-analytics 0.4.0 `avg_steps`). | members/page.tsx:253-282, 454-505 |
 | View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "None"). | members/page.tsx:284-294 |
 | Empty hint | `canViewAs` + no selection → "Select a member to view their performance cards." | members/page.tsx:296-300 |
 | Member Overview card | PTD progress % (active_days / program total days), MTD workouts, total time, favorite workout, progress bar. | members/page.tsx:304-308, 507-574 |
@@ -98,7 +98,7 @@ ends in `/api`). **All endpoints are already ported + mounted** (`apps/backend/s
 | Call | Endpoint | Notes |
 |------|----------|-------|
 | `fetchProgramMembers(token, programId)` | `GET /program-memberships/members?programId` | The active-member list for the view-as picker (id + member_name). |
-| `fetchMemberMetrics(token, programId, {sort,direction})` | `GET /member-metrics?programId&sort&direction` | Admin **preview** — full list; only `.total` + `.members[0]` shown (F5 over-fetch). |
+| `fetchMemberMetrics(token, programId, {sort,direction})` | `GET /member-metrics?programId&sort&direction` | Admin **preview** — full list; only `.total` + `.members[0]` shown (F5 over-fetch). sort=active_days (D-C7 0.4.0; top member = members[0] → top-by-active-days). |
 | `fetchMemberMetrics(token, programId, {memberId})` | `GET /member-metrics?programId&memberId` | The selected member's single overview (`members[0]`). |
 | `fetchMemberHistory(token, programId, memberId, "week")` | `GET /member-history?programId&memberId&period=week` | `{label, daily_average, buckets[]}` for the activity chart. |
 | `fetchMemberStreaks(token, programId, memberId)` | `GET /member-streaks?programId&memberId` | `{currentStreakDays, longestStreakDays, milestones[]}`. |
@@ -166,5 +166,6 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — Active Days is the primary stat: metrics-preview fetch sort=active_days (star/top member = top-by-active-days), preview + single-card hero = Active Days, subtitle = "Workouts N", first grid tile = Active days (in-place swap, tile count unchanged). MTD Workouts line untouched. |
 | 0.2.0 | 2026-07-09 | **Steps in the overview grid + View Health preview.** Both `MemberMetricsPreview` (admin preview) and `MemberMetricsSingleCard` (member-self) replace their trailing streak badge with a 2-col grid row 5: an **Avg Steps** metric tile (`stepsLabel(metric.avg_steps)`, thousands-grouped, `—` when null — member-analytics 0.2.0) beside the current-streak chip. `MemberHealthCard`'s 3-row preview → the DC-10 two-line format (`logDate` semibold; muted `Sleep {…} · Diet {…} · Steps {…}`). New helper `stepsLabel` in `lib/format.ts`; `MemberMetrics` type gains `avg_steps`, `MemberHealthItem` gains `steps`. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 22) — the **eighth web page spec**, the program workspace **Members** tab (second bottom-nav tab). NOT a roster-management screen: a per-member overview dashboard with a role-gated **"view as"** picker (admin/global-admin view-as any member with optional "None"; logger own cards + a logs-scoped view-as; member own cards incl. a Metrics-single card). Read-only — every other control is forward-nav to a deferred sub-route, so `admin_only_data_entry` is **N/A** here. Consumes `member-analytics` (metrics/history/streaks/recent) + `daily-health-logs` (health card) + `program-memberships` (`fetchProgramMembers`) + `auth`; all endpoints already mounted. Decisions: **D-REF** (`consumed_by=[web]`; iOS Members tab mirrors later) · **D-SCOPE** (landing page only; the 8 sub-routes deferred) · **D-S1** (faithful 1:1) · **D-C1** (port whole `lib/api/members.ts` verbatim) · **D-C2** (hoist `formatDuration` → `lib/format.ts`) · **D-C3** (de-dup the two `MemberPickerModal` blocks via an `activePicker` discriminant, behavior-preserving). Flagged F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; `sessionStorage` view-as + 4 parallel effects; vestigial-here api fns; over-fetched metrics preview; two near-duplicate metric renderers; no client throttle). Ported `apps/web/src/app/members/page.tsx` + `lib/api/members.ts`; added `formatDuration` to `lib/format.ts`. `npm run build` ✓ (`/members` prerendered, 7.78 kB — Recharts; Middleware 27.3 kB active). |

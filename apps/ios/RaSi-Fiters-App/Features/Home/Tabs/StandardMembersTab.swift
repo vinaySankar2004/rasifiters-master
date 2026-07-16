@@ -60,7 +60,7 @@ struct StandardMembersTab: View {
 
                         // Logged-in user's MemberMetricsCard — needs a concrete metric row, so keep its own gate.
                         if let metrics = loggedInUserMetrics {
-                            MemberMetricsCard(metric: metrics, hero: .workouts)
+                            MemberMetricsCard(metric: metrics, hero: .active_days)
                         }
 
                         // History and Streak (always the logged-in user for standard and logger)
@@ -172,7 +172,7 @@ struct StandardMembersTab: View {
         // Load member metrics for the logged-in user
         await programContext.loadMemberMetrics(
             search: "",
-            sort: "workouts",
+            sort: "active_days",
             direction: "desc",
             filters: [:],
             dateRange: (nil, nil)

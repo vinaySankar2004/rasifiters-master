@@ -1,6 +1,6 @@
 # Page: `members/metrics` (web) — program-wide member performance metrics + CSV export (members sub-route 4 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/metrics` — the **Member Performance Metrics** dashboard reached by the `/members` landing's
 > metrics card (program-admin / global_admin only as an entry path). A searchable, sortable, filterable grid of
 > per-member metric cards + a client-side **Export CSV**. **4th** of the eight deferred `/members` sub-routes
@@ -55,9 +55,9 @@ find outliers, and exports the table to CSV for offline reporting.
    - **Filters button** — opens the filter modal (`setShowFilters(true)`) (`:197-203`).
 3. **States** — `LoadingState` / `ErrorState` / `EmptyState` ("No members to display.") (`:206-216`).
 4. **Cards grid** — one `MemberMetricsCard` per member (`:218-225`):
-   - avatar (`initials`) · name · "Active days N" · a **hero metric** whose value+label follow the current
+   - avatar (`initials`) · name · "Workouts N" · a **hero metric** whose value+label follow the current
      `sortField` (`MemberMetricsCard.heroValue`/`heroLabel`, `:240-268`).
-   - a 6-cell mini-grid (workouts · total mins · types · avg sleep · avg diet · longest streak) (`:283-303`).
+   - a 6-cell mini-grid (active days · total mins · types · avg sleep · avg diet · longest streak) (`:283-303`).
    - an amber **"Current streak Nd"** flame badge — **D-C1** tokenized `bg-rf-warning/20 text-rf-warning`
      (legacy `bg-amber-200/70 text-amber-900`) (`:304-308`).
 5. **Filters `Modal`** (`MetricsFilterModal`, `:227-234`, `:312-396`) — a `Clear all` / `Done` header, a date-range
@@ -162,15 +162,16 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
   `escapeCsv` escapes only `member_name` (numeric fields are emitted raw — safe, they contain no commas/quotes).
   `null` avg sleep/diet → empty cells. Faithful.
 - **F5 — hero metric is sort-coupled.** The big number on each card (`heroValue`/`heroLabel`) is whatever the current
-  `sortField` selects (`current_streak` → "Current Streak", default → "Workouts"). A display nicety, not a separate
+  `sortField` selects (`current_streak` → "Current Streak", fallback label → "Active Days"; default sort = active_days, D-C7). A display nicety, not a separate
   control. Faithful.
 - **F6 — `current_streak` / `longest_streak` filters are min-only.** `FilterRange` for both streaks passes `maxValue=""`
   and a one-arg `onChange` (`:391-392`) — no upper bound by design. Faithful.
 - **F7 — no `force-dynamic`, all state local.** No URL search params; search/sort/filter live in component state, so
-  a refresh resets to defaults (`workouts`/`desc`/all). Faithful.
+  a refresh resets to defaults (`active_days`/`desc`/all — D-C7 0.4.0). Faithful.
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (sortField initial state active_days; option list order unchanged), card subtitle = "Workouts N", first grid tile = Active days (in-place swap). CSV export unchanged. |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/metrics` (members sub-route 4 of 8) — program-wide member performance dashboard (search/sort/filter + per-member cards + client-side CSV export); D-C1 full-tokenize the amber flame badge → `rf-warning`. No new dependency, zero backend work, no feature bump. |

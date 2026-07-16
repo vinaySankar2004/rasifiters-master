@@ -85,7 +85,7 @@ export default function MemberMetricsPage() {
   const { program, token, programId } = useAuthGuard();
 
   const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState("workouts");
+  const [sortField, setSortField] = useState("active_days");
   const [direction, setDirection] = useState("desc");
   const [filters, setFilters] = useState<MetricsFilters>(defaultFilters);
   const [showFilters, setShowFilters] = useState(false);
@@ -264,7 +264,7 @@ function MemberMetricsCard({ metric, hero }: { metric: MemberMetrics; hero: stri
 
   const heroLabel = useMemo(() => {
     const found = SORT_OPTIONS.find((option) => option.value === hero);
-    return found?.label ?? "Workouts";
+    return found?.label ?? "Active Days";
   }, [hero]);
 
   return (
@@ -276,7 +276,7 @@ function MemberMetricsCard({ metric, hero }: { metric: MemberMetrics; hero: stri
           </div>
           <div>
             <p className="text-base font-semibold text-rf-text">{metric.member_name}</p>
-            <p className="text-xs text-rf-text-muted">Active days {metric.active_days}</p>
+            <p className="text-xs text-rf-text-muted">Workouts {metric.workouts}</p>
           </div>
         </div>
         <div className="text-right">
@@ -286,8 +286,8 @@ function MemberMetricsCard({ metric, hero }: { metric: MemberMetrics; hero: stri
       </div>
         <div className="mt-4 grid grid-cols-3 gap-3 text-xs text-rf-text-muted">
           <div className="metric-pill rounded-2xl px-3 py-2">
-            <p className="font-semibold text-rf-text">{metric.workouts}</p>
-            <p>Workouts</p>
+            <p className="font-semibold text-rf-text">{metric.active_days}</p>
+            <p>Active days</p>
           </div>
           <div className="metric-pill rounded-2xl px-3 py-2">
             <p className="font-semibold text-rf-text">{metric.total_duration}</p>

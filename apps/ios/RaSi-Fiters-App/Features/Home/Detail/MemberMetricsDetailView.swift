@@ -19,7 +19,7 @@ import SwiftUI
 struct MemberMetricsDetailView: View {
     @EnvironmentObject var programContext: ProgramContext
     @State private var searchText = ""
-    @State private var sortField: SortField = .workouts
+    @State private var sortField: SortField = .active_days
     @State private var sortDirection: SortDirection = .desc
     @State private var showSortSheet = false
     @State private var showFilterSheet = false

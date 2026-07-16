@@ -161,7 +161,7 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
         loading = true
         programContext.ensureMembersLoaded()
         if (selfId != null) {
-            programContext.loadMemberMetrics(sort = "workouts", direction = "desc")
+            programContext.loadMemberMetrics(sort = "active_days", direction = "desc")
             selfMetrics = programContext.memberMetrics.value.firstOrNull { it.memberId == selfId }
             programContext.focusMember(selfId, selfName)
             programContext.loadMemberOverview(selfId)
@@ -196,7 +196,7 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
     }
 
     MemberOverviewCard(programContext)
-    selfMetrics?.let { MemberMetricsCard(it, MetricSortField.WORKOUTS) }
+    selfMetrics?.let { MemberMetricsCard(it, MetricSortField.ACTIVE_DAYS) }
     MemberHistoryCard(programContext, onClick = {
         programContext.focusMember(selfId, selfName); onNavigate(Routes.MEMBER_HISTORY)
     })

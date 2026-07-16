@@ -1,6 +1,6 @@
 # Screen: `member-metrics-detail` (ios) — the Member Performance Metrics table
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's metrics-preview card
 > (`AdminMembersTab.swift:45`, `NavigationLink { MemberMetricsDetailView() }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/MemberMetricsViews.swift`
@@ -89,11 +89,12 @@ no logging, no lock.
 | **F1** | **Server-driven sort/filter/search** — every control change re-fetches (not client-side filtered); mirrors web F1. | `MemberMetricsDetailView.swift` `.onChange` | Kept (faithful). |
 | **F2** | **Entry-path asymmetry** — the Members tab links here only for `isProgramAdmin`, but the screen + backend (`ensureProgramAccess`) allow any active member reaching it directly (mirrors web F2). | `AdminMembersTab.swift:45`; backend | Kept (faithful); backend is the real boundary. |
 | **F3** | **Client CSV export** (no server endpoint) — mirrors web F4. | `exportCSV()` | Kept (faithful). |
-| **F4** | **Hero metric is sort-coupled** (the big number follows `sortField`) — mirrors web F5. | `MemberMetricsCard(hero:)` | Kept (faithful). |
+| **F4** | **Hero metric is sort-coupled** (the big number follows `sortField`) — mirrors web F5. Default sortField = `.active_days` (D-C7 0.4.0; was `.workouts`). | `MemberMetricsCard(hero:)` | Kept (faithful). |
 | **F5** | **`showShare` @State is vestigial** — declared but unused (the sheet drives off `shareItem`). | `MemberMetricsDetailView.swift` | Kept (faithful); drop on a rebuild sweep. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (sortField initial `.active_days`; `SortField.allCases` order + CSV unchanged). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 63) — the Members **metrics-detail table**, ported into `apps/ios/.../Features/Home/Detail/MemberMetricsDetailView.swift` (+ co-located `MetricsFilters`/`SortSheet`/`FilterSheet`); deferred stub removed. **D-SCOPE** (Members detail cluster) · **D-S1** (faithful 1:1 — both-agree = web parity) · **D-REF** (keep iOS-native; `consumed_by=[ios]`) · **D-DEPS** (no new dep — `SortField`/`SortDirection`/`MemberMetricsCard` reused from run 55). Flagged F1–F5. Read-only → `admin_only_data_entry` N/A. Build green-check owned by the user (Xcode); symbols grep-verified. |

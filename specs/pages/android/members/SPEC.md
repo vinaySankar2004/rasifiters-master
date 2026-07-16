@@ -1,6 +1,6 @@
 # Screen: `members` (android) — the per-member performance dashboard (second bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.2 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-members`](../../ios/admin-members/SPEC.md)
 > + [`web members`](../../web/members/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBERS` (`MembersScreen`) — Tab 2 of the per-program
@@ -19,7 +19,7 @@
     self via `loggedInMemberId`); and, once a member is picked, the **5 member cards** (Overview · History ·
     Streak · Recent · Health).
   - **Logger / member variant** (`StandardMembersBody`): the viewer's own **Overview** + self **`MemberMetricsCard`**
-    (hero = Workouts) + **History** + **Streak**, then **Recent + Health**. A **logger** additionally gets a
+    (hero = Active Days — D-C7) + **History** + **Streak**, then **Recent + Health**. A **logger** additionally gets a
     **logs-only "View as"** that re-scopes only Recent + Health (`LaunchedEffect(loggerViewAsId)`); a plain member
     has no picker.
 - **Read-only tab (iOS F1):** every loader's error is swallowed — a failed read just leaves the empty/placeholder
@@ -42,7 +42,7 @@
   NOT screen-local `remember` — so the pick **survives a detail push + back** (Nav-Compose disposes the tab
   composable on push; screen-local state would reset to the default). See [[persist-tab-selections-across-nav]].
 - **Deviation A-4 (icon-less metrics-preview tiles):** the 3 mini tiles in `MemberMetricsPreviewCard`
-  (Workouts / Active Days / Types) drop the metric icon (`MiniStatTile`) so "Active Days" stays on one line —
+  (Active Days / Workouts / Types — D-C7 order) drop the metric icon (`MiniStatTile`) so "Active Days" stays on one line —
   matches the iOS preview (icons appear only in the full metric grid, not the tab-level preview).
 - **Charts carry the shared tooltip:** the Workout-Activity-Timeline card + the history detail pass
   `BarLineChart(tooltip = …)` (`memberWorkoutsTooltip` — "MMM d" title + "N workouts" row) — every chart has the
@@ -67,6 +67,7 @@ and re-scopes logs on the logger view-as change.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — Active Days primary: self card hero ACTIVE_DAYS + load sort=active_days; metric-card subtitle = "Workouts N" + grid row 1 = [Active Days, Workouts]; preview load sort=active_days (top member = top-by-active-days), hardcoded hero = activeDays/"Active Days", mini tiles [Active Days, Workouts, Types]. MTD Workouts untouched. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E — the Members **tab body**). Role bifurcation on `isProgramAdmin`; Invite `GlassIconButton`; `MemberMetricsPreviewCard`; searchable "View as" picker (global-admin "None" / program-admin auto-self / logger logs-only); the 5 inline cards. Read-only (iOS F1). Deviations A-1 (flat SummaryCard) + A-2 (focusMember-at-click, no navArgs). All 8 detail targets are real screens this phase. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.1 | 2026-07-08 | Visual-pass polish: **A-3** persisted "View as" (hoisted to `ProgramContext` — survives detail push+back); **A-4** icon-less metrics-preview tiles (`MiniStatTile`, "Active Days" one line); chart **tooltips** added to the history card + detail; metrics-detail title auto-fits (`DetailTopBarWithExport`); contextual menus use the shared themed `AppDropdownMenu`. |
 | 0.1.2 | 2026-07-09 | **Steps in the overview grid + View Health preview** (steps-tracking). `MetricsGrid` (`MemberCards.kt`) gains a 5th row: an **Avg Steps** `StatTile` (`Icons.AutoMirrored.Filled.DirectionsWalk`, `String.format("%,d", m.avgSteps)` or "—" — member-analytics 0.2.0) beside the `StreakChip` (moved into the grid as the 2nd column). `MemberHealthCard`'s preview rows adopt the **DC-10** two-line format (`ListLine(title = h.logDate, subtitle = "Sleep … · Diet … · Steps …")`, `—` for missing, steps grouped). `MemberMetricsDTO` gains `avg_steps`; `MemberHealthItem` gains `steps`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

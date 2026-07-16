@@ -261,7 +261,7 @@ struct MemberMetricsCard: View {
                     Text(metric.member_name)
                         .font(.headline.weight(.semibold))
                         .foregroundColor(Color(.label))
-                    Text("Active days \(metric.active_days)")
+                    Text("Workouts \(metric.workouts)")
                         .font(.footnote)
                         .foregroundColor(Color(.secondaryLabel))
                 }
@@ -316,8 +316,8 @@ struct MemberMetricsCard: View {
     private var metricsGrid: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                metricTile(title: "Workouts", value: "\(metric.workouts)", icon: "figure.strengthtraining.traditional")
                 metricTile(title: "Active Days", value: "\(metric.active_days)", icon: "calendar")
+                metricTile(title: "Workouts", value: "\(metric.workouts)", icon: "figure.strengthtraining.traditional")
             }
             HStack(spacing: 10) {
                 metricTile(title: "Workout Types", value: "\(metric.workout_types)", icon: "list.bullet")
@@ -386,7 +386,7 @@ struct MemberMetricsCard: View {
 struct MemberMetricsPreviewCard: View {
     @EnvironmentObject var programContext: ProgramContext
     @State private var isLoading = false
-    @State private var sortField: SortField = .workouts
+    @State private var sortField: SortField = .active_days
     @State private var sortDirection: SortDirection = .desc
 
     var body: some View {
@@ -458,8 +458,8 @@ struct MemberMetricsPreviewCard: View {
                 }
             }
             HStack(spacing: 12) {
-                miniTile(title: "Workouts", value: "\(metric.workouts)")
                 miniTile(title: "Active Days", value: "\(metric.active_days)")
+                miniTile(title: "Workouts", value: "\(metric.workouts)")
                 miniTile(title: "Types", value: "\(metric.workout_types)")
             }
         }

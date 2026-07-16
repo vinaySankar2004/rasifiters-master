@@ -105,7 +105,7 @@ fun MemberMetricsDetailScreen(programContext: ProgramContext, onBack: () -> Unit
 
     var search by remember { mutableStateOf("") }
     var committedSearch by remember { mutableStateOf("") }
-    var sortField by remember { mutableStateOf(MetricSortField.WORKOUTS) }
+    var sortField by remember { mutableStateOf(MetricSortField.ACTIVE_DAYS) }
     var sortDir by remember { mutableStateOf(SortDir.DESC) }
     var filters by remember { mutableStateOf(MetricsFilters()) }
     var showSort by remember { mutableStateOf(false) }

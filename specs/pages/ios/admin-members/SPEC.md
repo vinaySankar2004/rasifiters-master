@@ -6,7 +6,7 @@
 > `Detail/MemberMetricsViews.swift (MemberMetricsPreviewCard)`; `GlassButton` from `Detail/ActivityTimelineViews.swift:153`)
 > **Web sibling (co-equal reference):** `/members` landing — `specs/pages/web/members/SPEC.md`
 > **Ported to:** `apps/ios/RaSi-Fiters-App/Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,MemberOverviewPicker}.swift`
-> + `Shared/Components/GlassButton.swift` · **Run:** 55 (2026-06-30) · **v0.2.0** (steps-tracking, 2026-07-09)
+> + `Shared/Components/GlassButton.swift` · **Run:** 55 (2026-06-30) · **v0.3.0** (Active-Days-primary, 2026-07-15)
 
 ## 1. What it is + who uses it
 The **Members tab** — Tab 2 of `AdminHomeView`, the iOS analogue of the web `/members` landing. A **per-member
@@ -42,7 +42,7 @@ adapted to native idioms (a view-as **sheet** + `NavigationLink` push detail vie
 |---|---|---|
 | Header (title · program name · **View Members** `GlassButton`) | `StandardMembersTab.swift:31-47` | View Members → `ProgramMembersListView` (deferred stub) |
 | `MemberOverviewCard` (self) | `:55-57` | |
-| `MemberMetricsCard(metric:, hero: .workouts)` (self) | `:60-62` | the member-self metrics card |
+| `MemberMetricsCard(metric:, hero: .active_days)` (self — D-C7 primary-stat swap) | `:60-62` | the member-self metrics card |
 | `MemberHistoryCard` · `MemberStreakCard` (self) | `:65-68` | |
 | **logger only:** `loggerViewAsSelector` sheet, then `MemberRecentCard` + `MemberHealthCard` scoped to the picked member | `:70-74, 105-144` | logger can view-as another member's **logs only** |
 | **member:** `MemberRecentCard` + `MemberHealthCard` (self) | `:76-81` | |
@@ -109,6 +109,10 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
   `/members/{metrics,invite,list,streaks,workouts,health}` sub-routes; each a later run. Forward-nav (web F2).
 
 ## 11. Changelog
+- **v0.3.0** (2026-07-15, member-analytics 0.4.0 D-C7) — **Active Days primary**: self card hero `.active_days` +
+  load `sort=active_days` (`StandardMembersTab`); `MemberMetricsCard` subtitle = "Workouts N" + grid row 1 =
+  [Active Days, Workouts]; `MemberMetricsPreviewCard` default sort `.active_days` (top member = top-by-active-days)
+  + mini tiles [Active Days, Workouts, Types]. Sort option list order unchanged; MTD Workouts untouched.
 - **v0.2.0** (2026-07-09, steps-tracking) — the member-overview grid (`MemberOverviewPicker.metricsGrid`) gains a
   5th row: an **Avg Steps** `metricTile` (`figure.walk`, `NumberFormatter`-grouped `avg_steps` or "—" —
   member-analytics 0.2.0) beside the existing Current-Streak badge (moved into the grid as column 2). The
