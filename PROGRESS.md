@@ -7,7 +7,26 @@
 
 ## Current phase
 
-**LATEST (2026-07-15): Active Days is now the PRIMARY member-metrics stat — `member-analytics` v0.4.0
+**LATEST (2026-07-16): iOS large-screen (iPad / Mac "Designed for iPad") adaptive-column pass — 100%
+screen coverage, compile-green, user live-verified phase-by-phase on his MacBook.** Presentation-only,
+iOS-surface-only (no behavior/API/backend change → live binaries unaffected). New shared
+`AdaptiveLayout` enum + `.adaptiveColumn(max:)` helper (`apps/ios/RaSi-Fiters-App/Shared/Extensions/
+View+AdaptiveLayout.swift`): `formMaxWidth` 520 (auth/settings/log forms) and `contentMaxWidth` 700
+(card lists, tabs, chart details), both wider than any iPhone so compact rendering stays
+pixel-identical (faithful-as-is on iPhone). Every in-app screen now renders as a centered
+iPhone-portrait-like column on regular-width windows: auth flow + splash, program picker (incl. FABs
+pinned to the column edge), all 4 tabs in both role variants, every detail push (charts, member
+details, log forms), management lists, all 5 settings screens, app-level modals
+(HealthSyncConfirmationView fullScreenCover), and the widget quick-add entry forms. **Load-bearing
+rule (memory `ios-large-screen-column-rules`): cap the CONTAINER (List/ScrollView), never per-row
+content — row caps leave swipe reveals/slide animations at the window edge.** Grouped Lists capped
+narrower than the window need a matching `systemGroupedBackground` backdrop; sheets are exempt
+(present as ~540pt form sheets); fullScreenCovers are NOT exempt. 37 files touched + 1 new; iOS
+compile gate green after every phase (xcode MCP `BuildProject`). STORE tail: build bump 1.4.2
+(55)→(56) for TestFlight external beta — a no-review addition to the 1.4.2 train once (55)'s pending
+Beta App Review clears (see `RELEASES.md`).
+
+**PRIOR (2026-07-15): Active Days is now the PRIMARY member-metrics stat — `member-analytics` v0.4.0
 (D-C7), SHIPPED + user-verified on all three platforms.** First user-feedback-driven change post-rebuild
 (deliberate, NOT faithful-as-is → new SPEC §9 **D-C7**): Active Days and Workouts traded places in every
 primary slot on web/iOS/Android — metric-card hero (big orange number) = Active Days, subtitle = "Workouts
