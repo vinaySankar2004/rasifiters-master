@@ -163,6 +163,8 @@ struct AddDailyHealthDetailView: View {
                 .padding(.top, AppSpacing.sm)
             }
             .padding(20)
+            .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Log daily health")
         .navigationBarTitleDisplayMode(.inline)

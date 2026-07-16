@@ -37,6 +37,8 @@ struct MemberMetricsDetailView: View {
             .padding(.horizontal, 20)
             .padding(.top, 16)
             .padding(.bottom, 24)
+            .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle("Member Performance Metrics")
         .navigationBarTitleDisplayMode(.inline)

@@ -102,6 +102,8 @@ struct WorkoutTypesDetailView: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+        .frame(maxWidth: .infinity)
     }
 }
 

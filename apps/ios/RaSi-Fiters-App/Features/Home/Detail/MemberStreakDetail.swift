@@ -41,6 +41,8 @@ struct MemberStreakDetail: View {
             Spacer()
         }
         .padding(16)
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+        .frame(maxWidth: .infinity)
         .navigationTitle("Streak Stats")
         .navigationBarTitleDisplayMode(.inline)
     }

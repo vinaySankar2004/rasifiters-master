@@ -118,6 +118,11 @@ struct ViewWorkoutTypesListView: View {
                 }
             }
         }
+        // Container cap (large-screen column rules): keeps swipe reveals in-column; matching
+        // backdrop so the gutters beside the capped grouped List don't color-mismatch on iPad/Mac.
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .searchable(text: $searchText, prompt: "Search workout types")
         .navigationTitle("Workout Types")
         .navigationBarTitleDisplayMode(.inline)

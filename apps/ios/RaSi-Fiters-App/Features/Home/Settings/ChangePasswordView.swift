@@ -85,6 +85,8 @@ struct ChangePasswordView: View {
                 .disabled(!isValid || isSaving)
             }
             .padding(20)
+            .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+            .frame(maxWidth: .infinity)
         }
         .adaptiveBackground(topLeading: true)
         .navigationTitle("Change Password")

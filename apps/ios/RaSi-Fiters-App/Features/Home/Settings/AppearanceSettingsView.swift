@@ -113,6 +113,8 @@ struct AppearanceSettingsView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 24)
+            .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+            .frame(maxWidth: .infinity)
         }
         .background(Color.appBackground.ignoresSafeArea())
         .navigationTitle("Appearance")

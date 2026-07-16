@@ -89,8 +89,9 @@ struct SplashView: View {
                         .foregroundColor(Color(.label))
                         .multilineTextAlignment(.leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: AdaptiveLayout.formMaxWidth, alignment: .leading)
                 .padding(.horizontal, 16)
+                .frame(maxWidth: .infinity)
 
                 Spacer()
 

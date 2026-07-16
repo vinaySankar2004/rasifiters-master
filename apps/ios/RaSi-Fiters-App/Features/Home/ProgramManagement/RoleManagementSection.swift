@@ -212,6 +212,10 @@ struct ManageRolesView: View {
                 .padding(.vertical, 8)
             }
         }
+        // Container cap (large-screen column rules) + matching backdrop for the grouped-List gutters.
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Manage Roles")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable {

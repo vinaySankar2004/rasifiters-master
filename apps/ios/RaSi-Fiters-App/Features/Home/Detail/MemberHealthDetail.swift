@@ -117,6 +117,10 @@ struct MemberHealthDetail: View {
 
             contentList
         }
+        // Container cap (large-screen column rules): the List lives inside this VStack, so swipe
+        // reveals + slide animations stay inside the column on iPad/Mac.
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+        .frame(maxWidth: .infinity)
         .navigationTitle("View Health")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

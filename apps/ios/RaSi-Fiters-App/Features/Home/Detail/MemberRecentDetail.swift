@@ -127,6 +127,10 @@ struct MemberRecentDetail: View {
             // List section for swipe-to-delete support
             contentList
         }
+        // Container cap (large-screen column rules): the List lives inside this VStack, so swipe
+        // reveals + slide animations stay inside the column on iPad/Mac.
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+        .frame(maxWidth: .infinity)
         .navigationTitle("View Workouts")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

@@ -95,6 +95,8 @@ struct MyProfileView: View {
                 }
             }
             .padding(20)
+            .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+            .frame(maxWidth: .infinity)
         }
         .adaptiveBackground(topLeading: true)
         .navigationTitle("My Profile")

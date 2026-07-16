@@ -114,6 +114,8 @@ struct CreateAccountView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
+                .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+                .frame(maxWidth: .infinity)
             }
             .scrollDismissesKeyboard(.interactively)
             .scrollBounceBehavior(.basedOnSize)

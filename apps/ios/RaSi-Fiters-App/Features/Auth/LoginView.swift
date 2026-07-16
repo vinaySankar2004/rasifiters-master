@@ -135,6 +135,7 @@ struct LoginView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
+            .frame(maxWidth: AdaptiveLayout.formMaxWidth)
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)

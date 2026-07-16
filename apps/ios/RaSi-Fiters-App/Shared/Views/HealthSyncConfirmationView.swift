@@ -41,6 +41,10 @@ struct HealthSyncConfirmationView: View {
                     ProgressView()
                 }
             }
+            // Container cap (large-screen column rules): presented as a fullScreenCover, so the
+            // confirm list would otherwise span the whole iPad/Mac window.
+            .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+            .frame(maxWidth: .infinity)
             .navigationTitle(flowTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

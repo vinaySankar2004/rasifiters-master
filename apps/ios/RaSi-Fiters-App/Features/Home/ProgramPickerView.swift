@@ -86,21 +86,27 @@ struct ProgramPickerView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            // Cap the List itself — not the row content — so swipe reveals, slide animations, and
+            // drag-reorder all stay inside the column on iPad/Mac (+40 covers the 20pt row insets).
+            .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
 
             // Header at top (+ the floating search pill when active)
             VStack(spacing: 12) {
                 pickerHeader
+                    .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 8)
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
                 if isSearching {
                     searchPill
+                        .frame(maxWidth: AdaptiveLayout.contentMaxWidth)
                         .padding(.horizontal, 20)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
                 Spacer()
             }
 
-            // Floating actions at bottom right (search above the "+")
+            // Floating actions at bottom right (search above the "+") — pinned to the trailing
+            // edge of the content column, not the window, so they stay with the cards on iPad/Mac.
             VStack {
                 Spacer()
                 HStack {
@@ -112,6 +118,7 @@ struct ProgramPickerView: View {
                     .padding(.trailing, 20)
                     .padding(.bottom, 24)
                 }
+                .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
             }
 
         }

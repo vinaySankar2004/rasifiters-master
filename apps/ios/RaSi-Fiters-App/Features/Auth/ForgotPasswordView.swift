@@ -124,6 +124,8 @@ struct ForgotPasswordView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
+                .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationTitle("")

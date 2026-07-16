@@ -204,6 +204,8 @@ struct QuickAddWorkoutWidgetEntryView: View {
                     .padding(.top, AppSpacing.sm)
                 }
                 .padding(20)
+                .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+                .frame(maxWidth: .infinity)
             }
 
             if showSuccessToast {

@@ -44,6 +44,8 @@ struct AdminProgramTab: View {
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
                 .padding(.bottom, 24)
+                .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+                .frame(maxWidth: .infinity)
             }
         }
         .navigationDestination(isPresented: $showSelectProgram) {

@@ -41,6 +41,8 @@ struct InviteMemberView: View {
                     sendButton
                 }
                 .padding(20)
+                .frame(maxWidth: AdaptiveLayout.formMaxWidth, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
 
             if showSuccessToast {

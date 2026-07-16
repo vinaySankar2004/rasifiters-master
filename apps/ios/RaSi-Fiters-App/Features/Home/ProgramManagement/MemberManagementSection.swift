@@ -95,6 +95,11 @@ struct ProgramMembersListView: View {
                 }
             }
         }
+        // Container cap (large-screen column rules) + a matching backdrop so the area beside the
+        // capped List doesn't show a mismatched color on iPad/Mac.
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+        .frame(maxWidth: .infinity)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .searchable(text: $searchText, prompt: "Search members")
         .navigationTitle("Members")
         .navigationBarTitleDisplayMode(.inline)
@@ -282,6 +287,8 @@ struct MemberDetailEditView: View {
                 }
             }
             .padding(20)
+            .frame(maxWidth: AdaptiveLayout.formMaxWidth, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .adaptiveBackground(topLeading: true)
         .navigationTitle("Member Details")

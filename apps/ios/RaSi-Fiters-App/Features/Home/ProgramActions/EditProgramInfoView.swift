@@ -166,6 +166,8 @@ struct EditProgramInfoView: View {
                 .disabled(!canSave)
             }
             .padding(20)
+            .frame(maxWidth: AdaptiveLayout.formMaxWidth, alignment: .leading)
+            .frame(maxWidth: .infinity)
         }
         .adaptiveBackground(topLeading: true)
         .navigationTitle("Edit Program")
