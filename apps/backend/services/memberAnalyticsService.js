@@ -62,7 +62,7 @@ const SORTABLE_FIELDS = new Set([
 const milestonesList = [3, 7, 14, 30, 60, 90];
 
 async function getMemberMetrics({
-    programId, search = "", sort = "workouts", direction = "desc",
+    programId, search = "", sort = "active_days", direction = "desc",
     startDate, endDate, memberId,
     workoutsMin, workoutsMax, totalDurationMin, totalDurationMax,
     avgDurationMin, avgDurationMax, avgSleepHoursMin, avgSleepHoursMax,
@@ -75,7 +75,7 @@ async function getMemberMetrics({
     const hasAccess = await ensureProgramAccess(user.id, user.global_role, programId);
     if (!hasAccess) throw new AppError(403, "Access denied. Program membership required.");
 
-    const sortField = SORTABLE_FIELDS.has(sort) ? sort : "workouts";
+    const sortField = SORTABLE_FIELDS.has(sort) ? sort : "active_days";
     const dir = direction === "asc" ? "asc" : "desc";
 
     const program = await Program.findOne({ where: { id: programId, is_deleted: false } });
