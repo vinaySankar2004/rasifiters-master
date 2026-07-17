@@ -22,9 +22,11 @@ rule (memory `ios-large-screen-column-rules`): cap the CONTAINER (List/ScrollVie
 content — row caps leave swipe reveals/slide animations at the window edge.** Grouped Lists capped
 narrower than the window need a matching `systemGroupedBackground` backdrop; sheets are exempt
 (present as ~540pt form sheets); fullScreenCovers are NOT exempt. 37 files touched + 1 new; iOS
-compile gate green after every phase (xcode MCP `BuildProject`). STORE tail: build bump 1.4.2
-(55)→(56) for TestFlight external beta — a no-review addition to the 1.4.2 train once (55)'s pending
-Beta App Review clears (see `RELEASES.md`).
+compile gate green after every phase (xcode MCP `BuildProject`). STORE tail (final, 2026-07-17): **1.4.2 (56)
+submitted for App Store review** as the next public release (with the new 13" iPad + refreshed iPhone
+screenshots); 1.4.1 (54) approved → current public release; repo pre-bumped to 1.4.3 (57), which the
+user then uploaded as the external-TestFlight ahead-train build (Beta App Review pending); the 1.4.2
+TestFlight builds (55/56) were removed from testing (see `RELEASES.md`).
 
 **PRIOR (2026-07-15): Active Days is now the PRIMARY member-metrics stat — `member-analytics` v0.4.0
 (D-C7), SHIPPED + user-verified on all three platforms.** First user-feedback-driven change post-rebuild

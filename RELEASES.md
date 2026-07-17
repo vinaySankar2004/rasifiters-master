@@ -31,7 +31,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | App Store (public) | 1.4.1 (54) | Ready for Distribution (live) | 2026-07-17 (per ASC, seen in console) | **current public release** — approved (replaces 1.4.0 (53)); 1.4.1 train closed. **1.4.2 (56) submitted for App Store review 2026-07-17, Waiting for Review** (carries the large-screen iPad/Mac pass + new iPad/iPhone screenshots) — flips this cell on approval. Oldest live iOS binary the backend must stay compatible with is 1.4.0 (53); un-updated older installs may linger; keep degrading gracefully |
-| TestFlight — external ("Beta Testers") | 1.4.2 (55) | Waiting for Review (Beta App Review) | 2026-07-16 (announced) | the ahead-train build (same code as 1.4.1 (54): member-analytics 0.4.0 D-C7) — one-time Beta App Review of the new train pending; **all previous TestFlight builds removed/expired by the user 2026-07-16** (group shows 1 build: 1.4.2 (55)), so external testers have no active build until this clears |
+| TestFlight — external ("Beta Testers") | 1.4.3 (57) | Waiting for Review (Beta App Review) | 2026-07-17 (announced) | the ahead-train build (same code as the 1.4.2 (56) App Store candidate: large-screen pass) — first of the 1.4.3 train, one-time Beta App Review pending; **user removed the 1.4.2 builds (55/56) from testing 2026-07-17** ("no point" — (56) is the store submission), group shows 1 build: 1.4.3 (57), 8 testers; external testers have no active build until this clears |
 | TestFlight — internal ("Internal") | 1.4.1 (54) | Uploaded | 2026-07-16 (announced) | 1.4.1 (54) = **App Store candidate** (now in App Store review; internal-only on TestFlight, skipped external beta by convention). Prior builds (≤53) removed/expired |
 
 ### Android
@@ -47,6 +47,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-07-17 | iOS | 1.4.3 (57) | TestFlight — external ("Beta Testers") | uploaded + submitted for beta review | **Waiting for Review (Beta App Review)** — first build of the 1.4.3 ahead-train (same code as the 1.4.2 (56) store candidate). User also **removed the 1.4.2 builds (55/56) from TestFlight testing** — (55)'s pending beta review is moot, (56) is the App Store submission; group shows only 1.4.3 (57) |
 | 2026-07-17 | iOS | 1.4.2 (56) | App Store (public) | submitted for review | **Waiting for Review (user-announced)** — plan changed from TestFlight-only: (56) submitted as the next public release. Carries the large-screen iPad/Mac adaptive-column pass + the new 13" iPad screenshot set and refreshed iPhone member shot. On approval the 1.4.2 train closes |
 | 2026-07-17 | iOS | 1.4.1 (54) | App Store (public) | approved / released | **Ready for Distribution (live)** — seen in ASC console 2026-07-17; replaces 1.4.0 (53) as the public release |
 | 2026-07-16 | iOS | 1.4.2 (56) | TestFlight — external ("Beta Testers") | build bump, upload planned | **SUPERSEDED by the 2026-07-17 App Store submission** — (56) was uploaded and became the App Store candidate instead of a beta-only build (see rows above). Original intent: no-review addition to the 1.4.2 train behind (55)'s Beta App Review |
