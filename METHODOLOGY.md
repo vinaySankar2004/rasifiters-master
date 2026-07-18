@@ -49,11 +49,12 @@ set (rolled out as the contract proves out — shipped features are single-file 
   client = web or iOS? table names? flags?) asked by `question-asker`.
 - **CHANGELOG.md** — semver history + audit notes.
 
-> RaSi is a shared-backend app, so most feature SPECs touch **all three** rooms: the backend route(s)
-> + model(s), the web client surface, and the iOS client surface. The SPEC's provenance header records
-> the original paths it was ported from in each of `{backend, rasifiters-webapp, ios-mobile}` (archived).
-> But a feature can also be **client-specific** — its `consumed_by` may be `[web]` or `[ios]` only (e.g.
-> iOS widgets / deep links are ios-only) — so not every SPEC touches all three rooms.
+> RaSi is a shared-backend app, so most feature SPECs touch **all four** rooms: the backend route(s)
+> + model(s) and the web, iOS, and Android client surfaces. The SPEC's provenance header records
+> the original paths it was ported from in each of `{backend, rasifiters-webapp, ios-mobile}` (archived;
+> Android post-dates the legacy app, so it has no provenance room). But a feature can also be
+> **client-specific** — its `consumed_by` may be a single app (e.g. iOS widgets / deep links are
+> ios-only; `health-connect` is android-only) — so not every SPEC touches all four rooms.
 
 ## Page/screen-spec template (web + iOS + Android pages)
 
@@ -128,6 +129,7 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 | Per-page/screen truth | `specs/pages/{web,ios,android}/<page>/SPEC.md` |
 | Per-app infra (IDs, env, ports) | `apps/<app>/CONTEXT.md` |
 | Env var inventory + how to inspect/change | `ENV_RUNBOOK.md` |
+| Live binary / channel state (what's on TestFlight / App Store / Play, per platform) | `RELEASES.md` (other docs point, never restate build numbers) |
 | Skill run history (verbose) | `<skill>/LESSONS_ARCHIVE.md` (not auto-loaded) |
 
 ## Log retention & pruning (when a dated log earns its keep)

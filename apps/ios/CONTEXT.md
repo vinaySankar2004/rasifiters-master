@@ -11,9 +11,12 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
 - Tokens in **Keychain**; session metadata in UserDefaults
 - Real-time: Server-Sent Events stream; Push: APNs
 - Bundle id: `com.app.rasifiters` (app) · `com.app.rasifiters.widgets` (widgets) · URL scheme `rasifiters://`
-- Version: marketing **1.3.1**, build **46** (app + widgets unified; the widget Info.plist inherits via
-  `$(CURRENT_PROJECT_VERSION)`). Beta convention: bump the **build number only** per TestFlight push
-  (same-version builds skip beta review); the marketing version moves only for App Store submissions.
+- Version: the next-out version is whatever `project.pbxproj` says (`MARKETING_VERSION` /
+  `CURRENT_PROJECT_VERSION`; app + widgets unified — the widget Info.plist inherits via
+  `$(CURRENT_PROJECT_VERSION)`); what is **live per channel** is tracked in `RELEASES.md` (the SoT — don't
+  restate numbers here). Beta convention: bump the **build number only** per TestFlight push
+  (same-version builds skip beta review); the marketing version moves only for App Store submissions
+  (one-train-ahead — see `RELEASES.md`).
   Pre-upload gate: the build number must exceed the last-shipped one
   (`git log -S "CURRENT_PROJECT_VERSION = <n>"` to check).
 
@@ -112,7 +115,7 @@ the web SPECs flagged for this port, all resolved toward web parity:
 was already ported in the foundation (run 50).
 
 ## Status
-🟢 **Code-complete (runs 50→74) + LIVE on TestFlight.** All screens + widgets + Apple Health auto-sync
+🟢 **Code-complete + LIVE (App Store + TestFlight).** All screens + widgets + Apple Health auto-sync
 (workouts + sleep) ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the
-`xcode` MCP. Screen-SPEC count lives in `specs/pages/REGISTRY.md` (the canonical index). Current TestFlight
-binary is tracked in `RELEASES.md`. Visual/runtime verification is the user's, in Xcode.
+`xcode` MCP. Screen-SPEC count lives in `specs/pages/REGISTRY.md` (the canonical index). What's live on
+each channel is tracked in `RELEASES.md`. Visual/runtime verification is the user's, in Xcode.

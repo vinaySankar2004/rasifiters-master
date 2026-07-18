@@ -175,7 +175,8 @@ credentials / token), `403` (global-admin delete block), `404` (credentials/acco
 
 ## 5. Data / schema touchpoints
 
-Owned/required by this feature (faithful names, R5; schema in `apps/backend/sql/001_schema.sql`):
+Required by this feature (faithful names, R5; schema in `apps/backend/sql/001_schema.sql`; the app tables
+below are **owned by the `members` feature** — auth reads/writes them but does not own their schema):
 
 - **`members`** — `id` (preserved UUID, the FK anchor for everything), `username` (unique), `first_name`,
   `last_name`, `gender`, `global_role` (`'standard'|'global_admin'`), `status` (`'active'|'disabled'`),

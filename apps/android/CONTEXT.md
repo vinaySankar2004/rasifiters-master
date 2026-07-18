@@ -17,7 +17,8 @@ HealthKit, FCM vs APNs) and are recorded per-screen in `specs/pages/android/<scr
   in DataStore.
 - Real-time: SSE (okhttp-sse) — Phase I. Push: **FCM** — Phase I.
 - applicationId / package: `com.app.rasifiters` (matches the iOS bundle-id root). URL scheme `rasifiters://`.
-- Version: `versionName` 1.0.0, `versionCode` 3 (current live on Play closed testing; see `RELEASES.md`).
+- Version: the next-out version is whatever `app/build.gradle.kts` says (`versionName` / `versionCode`);
+  what is **live per channel** is tracked in `RELEASES.md` (the SoT — don't restate numbers here).
   Beta convention: bump `versionCode` per push; `versionName` moves only for production submissions.
 
 ## Build & toolchain

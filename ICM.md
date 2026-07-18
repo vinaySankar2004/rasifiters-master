@@ -30,13 +30,13 @@ from, as history.
 | `backend` | Node/Express + Sequelize | Render (Blueprint) | The single API + data source for both clients. Talks to Supabase Postgres + proxies Supabase Auth. |
 | `web` | Next.js 14 (App Router) + TS | Vercel | The web client. |
 | `ios` | SwiftUI (iOS 18.6) | App Store | The iOS client. |
-| `android` | Jetpack Compose (Kotlin) | Play Store | The Android client — 4th surface, a faithful 1:1 Compose port; code-complete (all 4 tabs, build green, de-scaffolded 2026-07-08) and **live on Play closed testing** (1.0.0 (3), approved 2026-07-10; see `RELEASES.md`). Consumes `backend` like web/iOS. |
+| `android` | Jetpack Compose (Kotlin) | Play Store | The Android client — 4th surface, a faithful 1:1 Compose port; code-complete (all 4 tabs, build green, de-scaffolded 2026-07-08) and **live on Play closed testing** (current build per `RELEASES.md`). Consumes `backend` like web/iOS. |
 
 `web`, `ios`, and `android` all consume `backend`. Supabase project ref: **`kpadxjekpiwfkqcxtrio`** (org `RaSi Fiters`
 / `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). **All four
 surfaces are built:** `web` → Vercel project `rasifiters`, LIVE at
 **`https://rasifiters.com`**; `backend` → Render `rasifiters-api`, LIVE at `https://rasifiters-api.onrender.com`;
-`ios` → SwiftUI (iOS 18.6 target), code-complete (native build green), **LIVE on TestFlight**; `android` →
+`ios` → SwiftUI (iOS 18.6 target), code-complete (native build green), **LIVE on the App Store + TestFlight**; `android` →
 Compose, code-complete (Gradle build green), **live on Play closed testing**. Current per-channel binary
 versions live in **`RELEASES.md`** (the SoT for what's on which channel); page/screen counts live in
 `specs/pages/REGISTRY.md`.

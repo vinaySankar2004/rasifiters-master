@@ -8,7 +8,8 @@
 > `apps/backend/render.yaml` (non-secret vars inline; secrets as `sync: false`).
 
 Scope: the "RaSi Fiters" app, surfaces `backend` (Node/Express + Sequelize on **Render**), `web`
-(Next.js 14 on **Vercel**), `ios` (SwiftUI, App Store) — all sharing the **one** backend API. Data
+(Next.js 14 on **Vercel**), `ios` (SwiftUI, App Store), and `android` (Jetpack Compose, Play Store;
+like iOS, no server-side env — see §7 for its Google sign-in setup) — all sharing the **one** backend API. Data
 + auth on **Supabase** (`METHODOLOGY.md` R1/R4). **Infra is provisioned + LIVE (2026-06-28/29):** Supabase
 ref `kpadxjekpiwfkqcxtrio`, Render service `rasifiters-api` = `srv-d90tgmv7f7vs73cudptg`
 (`https://rasifiters-api.onrender.com`), Vercel project `rasifiters` (team `personal-vinayak`) on

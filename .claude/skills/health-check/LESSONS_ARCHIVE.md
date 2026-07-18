@@ -106,3 +106,26 @@ distilled "Converged lessons"). Append one entry per run.
   apps", PROGRESS "Next action") and any "not-yet-on-store" tail all freeze. After a push, sweep those and prefer a
   pointer to `RELEASES.md` over a restated build number. Same shape as Run 3's "new surface" class, applied to
   release channels.
+- **Run 6 (2026-07-18) — scope:** whole-repo, standalone; user approved the full plan, all fixes applied + committed.
+  **Counts: 10 🔴 · 4 🟡 · 1 🔵 → healthy core, week-of-releases prose drift.** Mechanical version sync PERFECT again
+  (all 16 quadruples registry == §11 top == tag == REGISTRY cell; line-3 headers all current — the Run-4 class did
+  not recur; reference_impl paths all resolve; schema ownership unique; skill/agent indexes exact). The dominant
+  classes were the two known ones. **Run-5 store-push class recurred across the 1.4.x burst** (ICM android "(3)" vs
+  live (4); PROGRESS "Next action" frozen at 2026-07-10 incl. a flat-wrong "0 opted in" vs 12/12; apps/{ios,android}
+  CONTEXT restated 1.3.1 (46)/versionCode 3) — all pointerized to `RELEASES.md`. **Run-5's page-index sub-class also
+  recurred, web this time:** `specs/pages/REGISTRY.md` web table had 20 rows vs 37 on-disk SPEC dirs (17 sub-routes
+  of summary/members/lifestyle/program never indexed) under a false "Inventory: COMPLETE" trailer — mirror of Run 5's
+  iOS 13/32. Back-filled all 17 rows from SPEC headers. **New finds:** (🔴) apps/backend/CONTEXT.md §Status frozen at
+  the 2026-06-28 auth-only seed ("only /api/auth mounted", "DELETE /account 501") contradicting its own §Endpoints —
+  verified the 501 is closed in code (`authService.deleteAccount` → `cascadeMemberDeletion`) before rewriting; (🔴)
+  one malformed tag `feature/notifications@0.3.1` missing the `v` prefix (value in sync everywhere; recreated as
+  `@v0.3.1` + deleted old, local+remote); (🔴) 4 features (`members`/`programs`/`program-memberships`/
+  `program-workouts`) had REGISTRY.md Apps cells + SPEC headers lagging registry.json's `[web,ios,android]` (Run-3
+  class; also fixed the Apps legend line that only offered `web ios`; ground-truthed that `invites` android absence
+  is CORRECT — no invite calls in the Android API layer); (🟡→fixed) METHODOLOGY live contract prose "all three
+  rooms" + ENV_RUNBOOK scope line omitted android; (🟡→fixed) auth SPEC §5 "Owned/required" soft-co-claimed
+  `members`/`member_emails` — retagged "required, owned by `members`". **The one 🔵 (passed all 4 gates):** the
+  METHODOLOGY SoT table had NO row for release/channel state despite RELEASES.md declaring itself that SoT — the
+  structural root of the recurring store-push class; added the row. False positives to suppress: none new; noted the
+  "Distilled from N runs" converged lesson is now moot (no skill carries such a header anymore) and `git-version`'s
+  archive uses date-based run headings, so the anchored `Run [0-9]+` grep doesn't apply to it.

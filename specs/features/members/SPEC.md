@@ -1,6 +1,6 @@
 # Feature: `members` — member directory, profiles, and admin lifecycle
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/members.js`, `services/memberService.js`,
 > `models/Member.js`, `models/MemberEmail.js`, `server.js:47`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken` / `isAdmin`).

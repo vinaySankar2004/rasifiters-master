@@ -1,6 +1,6 @@
 # Feature: `invites` — program invitations (send · inbox · accept/decline/revoke · block)
 
-> **Status:** 📄 documented · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Provenance (legacy, archived):** `backend` — `routes/invites.js`, `services/inviteService.js`,
 > `models/ProgramInvite.js`, `models/ProgramInviteBlock.js`, `server.js:50` (co-mounted at
 > `/api/program-memberships`).

@@ -6,18 +6,18 @@ Human index of **shared feature specs** (cross-cutting capabilities). The machin
 [`../pages/REGISTRY.md`](../pages/REGISTRY.md).
 
 Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retired.
-**Apps** = which clients consume it: `web ios` (shared), `web` (web-only), or `ios` (ios-only).
+**Apps** = which clients consume it: any subset of `web` `ios` `android` (all three = fully shared; a single app = that-app-only).
 
 | Feature | Version | Status | Apps | Reference impl | Spec |
 |---------|---------|--------|------|----------------|------|
 | `auth` | 0.9.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/auth.js`, `services/authService.js`, `middleware/auth.js`) | [auth/SPEC.md](auth/SPEC.md) |
-| `members` | 0.3.0 | 🏗️ | `web` `ios` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
-| `programs` | 0.2.0 | 🏗️ | `web` `ios` | `backend` (`routes/programs.js`, `services/programService.js`, `models/{Program,ProgramMembership,MemberProgramOrder}.js`, `sql/005`) | [programs/SPEC.md](programs/SPEC.md) |
-| `program-memberships` | 0.2.0 | 🏗️ | `web` `ios` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
+| `members` | 0.3.0 | 🏗️ | `web` `ios` `android` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
+| `programs` | 0.2.0 | 🏗️ | `web` `ios` `android` | `backend` (`routes/programs.js`, `services/programService.js`, `models/{Program,ProgramMembership,MemberProgramOrder}.js`, `sql/005`) | [programs/SPEC.md](programs/SPEC.md) |
+| `program-memberships` | 0.2.0 | 🏗️ | `web` `ios` `android` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
 | `notifications` | 0.3.1 | 🏗️ | `web` `ios` `android` | `backend` (`routes/notifications.js`, `utils/{notifications,notificationStreams,pushNotifications}.js`, `models/{Notification,NotificationRecipient,MemberPushToken}.js`) | [notifications/SPEC.md](notifications/SPEC.md) |
 | `invites` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/invites.js`, `services/inviteService.js`, `models/{ProgramInvite,ProgramInviteBlock}.js`) | [invites/SPEC.md](invites/SPEC.md) |
 | `workouts` | 0.1.1 | 🏗️ | `ios` | `backend` (`routes/workouts.js`, `services/workoutService.js` [library half], `models/Workout.js`) | [workouts/SPEC.md](workouts/SPEC.md) |
-| `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
+| `program-workouts` | 0.1.0 | 🏗️ | `web` `ios` `android` | `backend` (`routes/programWorkouts.js`, `services/workoutService.js` [program half], `models/ProgramWorkout.js`) | [program-workouts/SPEC.md](program-workouts/SPEC.md) |
 | `workout-logs` | 0.5.1 | 🏗️ | `web` `ios` `android` | `backend` (`routes/logs.js` [workout half], `services/logService.js` [workout half + shared helpers], `models/WorkoutLog.js`) | [workout-logs/SPEC.md](workout-logs/SPEC.md) |
 | `daily-health-logs` | 0.2.1 | 🏗️ | `web` `ios` `android` | `backend` (`routes/logs.js` [health half], `services/logService.js` [health half + `parseOptionalNumber`], `models/DailyHealthLog.js`, `sql/006`) | [daily-health-logs/SPEC.md](daily-health-logs/SPEC.md) |
 | `analytics` | 0.3.2 | 🏗️ | `web` `ios` `android` | `backend` (`routes/analytics.js` [v1 half], `services/analyticsService.js` [v1 + shared helpers], `utils/{dateRange,queryHelpers}.js`) | [analytics/SPEC.md](analytics/SPEC.md) |

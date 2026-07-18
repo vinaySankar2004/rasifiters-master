@@ -146,9 +146,10 @@ structural — overall healthy / needs attention"); and which items, if approved
   tool. Two gotchas: (1) the DEFAULT `ensure_ascii=True` escapes the `$comment`'s em-dashes to `—` —
   always pass `ensure_ascii=False`; (2) use `object_pairs_hook=OrderedDict` + write a trailing newline. For a
   single-field change a surgical string Edit is still fine; for a repeated-target patch, script it.
-- **The living skills' "Distilled from N runs" headers are a recurring drift class** — they lag their
-  LESSONS_ARCHIVE run counts. Always recompute against `grep -cE "^#+ +Run [0-9]+"` (heading-anchored;
-  unanchored grep catches prose) and check the count vs the max run index.
+- **The living skills' "Distilled from N runs" headers were a recurring drift class** — they lagged their
+  LESSONS_ARCHIVE run counts. As of Run 6 no SKILL.md carries such a header anymore; if one reappears,
+  recompute against `grep -cE "^#+ +Run [0-9]+"` (heading-anchored; unanchored grep catches prose). Caveat:
+  `git-version`'s archive uses date-based run headings, so the anchored grep doesn't apply to it.
 - **Adding a whole new surface is its own drift class (Run 3, the `android` add).** The mechanical records
   (git tags, `reference_impl.paths`, per-app `CONTEXT.md`) stay correct, but four things lag together and must
   be swept explicitly after a surface lands: (1) the cross-surface graph `registry.json` `consumed_by`; (2) the
@@ -163,9 +164,12 @@ structural — overall healthy / needs attention"); and which items, if approved
   per-app `CONTEXT.md` status, and any "not-yet-on-store" tail. After a push, sweep those four. **Prefer a pointer
   to `RELEASES.md` (channel/binary) and `specs/pages/REGISTRY.md` (page counts) over a restated number** — a copied
   build-number or screen-count will only drift again next push. Same shape as the Run-3 "new surface" class, applied
-  to release channels. Note the page-SPEC index itself lags during a run burst (Run 5: iOS section indexed 13 of 32
-  screens while android was a clean 32==32) — recheck `specs/pages/REGISTRY.md` row-count vs on-disk SPEC dirs per
-  surface, and its "Inventory to document" trailer (a stale one lists shipped screens as pending).
+  to release channels. Note the page-SPEC index itself lags during a run burst — a CONFIRMED recurring class
+  (Run 5: iOS section indexed 13 of 32; Run 6: web section indexed 20 of 37, the sub-routes of
+  summary/members/lifestyle/program never got rows despite a "COMPLETE" trailer) — always diff
+  `find specs/pages/<surface> -name SPEC.md | wc -l` vs the REGISTRY row count per surface, and distrust
+  the "Inventory: COMPLETE"/"to document" trailer (a stale one lists shipped screens as pending or
+  asserts completeness over a partial table).
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:**

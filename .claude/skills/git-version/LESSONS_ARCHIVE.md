@@ -428,3 +428,13 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   for one layout idiom) is registry noise. Single `feat(ios)` commit.
 - Three-shape split held: feat(ios) code → chore(releases) pbxproj+RELEASES+PROGRESS → chore(skills)
   lessons. Within-train TestFlight iteration = build-only bump (1.4.2 55→56), marketing untouched.
+
+## Run: health-check Run 6 doc sweep (2026-07-18)
+- 18-file docs/skills-only sweep touching SIX feature SPECs (members/programs/program-memberships/
+  program-workouts headers +android; invites status header; auth §5 ownership wording) → NO bumps/tags:
+  every SPEC edit synced prose to already-recorded truth (registry.json untouched, no contract/behavior
+  delta) — the drift-correction analog of the "cosmetic-pass-at-scale ≠ feature delta" lesson. Single
+  chore(docs) commit.
+- Tag hygiene: recreated malformed `feature/notifications@0.3.1` as `@v0.3.1` (same commit 18168ba),
+  deleted old, pushed both refs — the v-prefix convention is part of the tags invariant; the version
+  VALUE was in sync everywhere, only the tag string was off.

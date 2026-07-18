@@ -43,19 +43,15 @@ auto-deploy on push to `main` touching `apps/backend/**`. The 3 secrets (`DATABA
 per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 
 ## Status
-🏗️ building — **`auth` feature ported** into this dir (2026-06-28): the data-layer foundation
-(`config/database.js` → `DATABASE_URL`, all 13 models + `models/index.js` minus the retired
-`member_credentials`/`refresh_tokens`, `utils/response.js`, `middleware/errorHandler.js`) + the auth slice
-(`config/supabase.js`, `middleware/auth.js` Supabase-JWT verify, `services/authService.js`, `routes/auth.js`,
-`server.js` mounting only `/api/auth`). `npm install` + boot-check pass (syntax, module load, jose JWKS wire).
+🚀 **Feature-complete + LIVE on Render.** All ~11 route groups (see §Endpoints) are mounted and serving
+all three clients + the store binaries; backend feature coverage is complete (14 features — `COVERAGE.md`).
+The 2026-06-28 auth-first port (data-layer foundation + `/api/auth`, deployed + verified live same day) was
+the seed; every remaining route group landed feature-by-feature — the per-feature record is
+`specs/features/registry.json` + each SPEC's changelog. `DELETE /api/auth/account` runs the full
+cross-feature cascade (`cascadeMemberDeletion` + Supabase auth-user delete) — the early 501 gap is closed.
 
-**Known gaps (intentional, incremental):**
-- `DELETE /api/auth/account` returns **501** until the cross-feature cascade (program-memberships +
-  notifications) is ported — its delete logic is owned by those features (SPEC D-C1).
-- Remaining route groups (members, programs, logs, …) are **not yet mounted** — ported as each feature is
-  documented + built (COVERAGE.md).
-- **Provisioning prerequisite:** the Supabase project must migrate its JWT signing keys to **asymmetric
-  (ECC P-256 / ES256)** so JWKS verification (D-C2) finds a key; set `SUPABASE_*` env per `.env.example`.
-- **Deployed to Render + verified live (2026-06-28):** full auth round-trip green against migrated data
-  (login → guarded route via JWKS verify → refresh → logout); see auth SPEC §12. `/api/auth` is the only
-  mounted route group so far.
+**Operational invariants:**
+- **Live-binary compatibility:** the backend must degrade gracefully for every binary listed live in
+  `RELEASES.md` (oldest included); backend deploys first.
+- Supabase JWT signing keys are **asymmetric (ECC P-256 / ES256)** — JWKS verification (D-C2) depends on
+  this; `SUPABASE_*` env per `ENV_RUNBOOK.md` / `.env.example`.

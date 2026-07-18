@@ -279,10 +279,10 @@ GitHub + pre-cutover smoke tests (below)._
   Page SPECs indexed in `specs/pages/REGISTRY.md` (legacy-parity + the net-new `forgot-password`/
   `reset-password` recovery pages + `privacy-policy`/`support` legal); signed-in proxy round-trip
   user-verified live (profile edit, email change, password recovery).
-- **`ios`** — CODE-COMPLETE (runs 50→74). All screens + widgets + Apple Health auto-sync (workouts **+ sleep**,
+- **`ios`** — CODE-COMPLETE. All screens + widgets + Apple Health auto-sync (workouts **+ sleep**,
   the latter net-new in `apple-health` 0.2.0 → `daily_health_logs.sleep_hours`, no backend/migration change)
-  ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP. 31 iOS
-  screen SPECs. `apple-health` polished to **0.6.0** (2026-07-05): per-program date-window scoping (0.3.0),
+  ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the `xcode` MCP.
+  Screen-SPEC index: `specs/pages/REGISTRY.md`. `apple-health` polished to **0.6.0** (2026-07-05): per-program date-window scoping (0.3.0),
   gated first-sync confirmation (0.4.0), admin-lock-aware sync (0.5.0), and the two user-reported sync
   fixes (0.6.0): **sum-on-conflict** — same-type later-in-the-day workouts now add minutes to the day's
   row via the new `on_duplicate:"sum"` flag on `POST /api/workout-logs` (`workout-logs` 0.4.0 D-C9, the
@@ -298,13 +298,11 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ BOTH TEST-TRACK PUSHES DONE — remaining gate is Play *production* (12 testers × 14 days). App is feature-complete on all 4 surfaces; backend + web live; auth v0.9.0 link/unlink user-verified on all 3 platforms 2026-07-10.
+> ### ⏭️ BOTH STORE TRAINS IN REVIEW — the remaining gates are user-driven waits. App is feature-complete on all 4 surfaces; backend + web live. Channel/build specifics live in `RELEASES.md` (the SoT — don't restate build numbers here).
 >
-> **Session A — iOS TestFlight — ✅ DONE 2026-07-10.** Archived `apps/ios`, bumped `CURRENT_PROJECT_VERSION` (same MARKETING_VERSION 1.3.1), uploaded → **1.3.1 (50) is the live TestFlight beta** (Beta Testers + Internal, status Testing; (49) superseded, (46) expired). Carries federated sign-in (v0.8.0) + account-settings linking (v0.9.0) + the keyboard-dismissal change (214ea97). See `RELEASES.md`.
+> **iOS** — 1.4.1 is **live on the public App Store**; the next public release (1.4.2) is in App Store review, and the ahead-train external-beta build (1.4.3) is in Beta App Review (one-train-ahead convention). No code/doc work pending — flip `RELEASES.md` as the user announces review outcomes.
 >
-> **Session B — first Android release — ✅ DONE 2026-07-10.** Signed AAB (versionCode 3) → **Play Console closed testing ("Alpha"), approved & available**. First Android release; Play App Signing SHA-1 registered in Firebase for Continue-with-Google. See `RELEASES.md`.
->
-> **Remaining to reach Play production:** ≥12 testers opted in to the closed track for ≥14 days (currently 0 opted in) — a user-driven waiting gate, no code/doc work. iOS App Store submission (marketing-version bump) is the parallel user step when ready.
+> **Android** — live on Play closed testing. **Production gate: 12/12 testers opted in, 14-day clock running (unlocks ~2026-07-27)** — a user-driven waiting gate, no code/doc work. First Play production submission follows the unlock.
 
 **Phase J is DONE** (2026-07-08, Run 15): the last scaffold placeholder `ui/StubScreen.kt` is **deleted**
 (unused since Phase G drove call-sites to 0); the `apps/android/CONTEXT.md` scaffold-removal tracker is

@@ -1,6 +1,6 @@
 # Feature: `program-memberships` — enrollment, roles, status & the member-exit cascade
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/memberships.js`, `services/membershipService.js`,
 > `utils/programMemberships.js` (`handleMemberExit`), `models/ProgramMembership.js`, `server.js:49`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (`authenticateToken` + the program-admin authz pattern) ·
