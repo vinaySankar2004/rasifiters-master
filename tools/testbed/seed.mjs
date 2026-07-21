@@ -239,6 +239,13 @@ async function main() {
       const program = await findProgramByName(admin, cfg.name);
       if (!program) { log(`  ✗ "${cfg.name}" not found — run with --reset first`); continue; }
       log(`  ↻ "${cfg.name}" (${program.id})`);
+      // Re-ensure the roster: manual testing can remove members (e.g. ava leaving a program),
+      // and a refresh must restore the canonical role matrix, not just top up whoever is left.
+      for (const [uname, role] of cfg.roster) {
+        const ms = ok(uname);
+        if (!ms) { log(`    ⚠ skip ${uname} (not logged in)`); continue; }
+        await ensureMembership(program, admin, ms, role);
+      }
       await seedProgram(program, admin);
       await extendEndDate(program, admin);
     }
