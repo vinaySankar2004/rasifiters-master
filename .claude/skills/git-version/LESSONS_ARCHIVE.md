@@ -444,3 +444,8 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   Android gate checkpoint day 7/14) → single `chore(releases)` commit, zero feature impact, no tag.
   Nothing to do on the version pipeline: the one-train-ahead pre-bump to 1.4.3 (57) already happened
   at submission time (2026-07-17), confirming the convention's value — approval day is a no-op in-repo.
+
+## Run: testbed seeder roster self-heal (2026-07-20)
+- `tools/testbed/seed.mjs` fix (--refresh re-ensures roster) → `tools/**` is not a registered
+  reference_impl path → plain `chore(testbed)` commit, no bump/tag, zero feature blast-radius.
+  Confirms the map-changeset-first lesson covers repo tooling dirs, not just docs/skills.
