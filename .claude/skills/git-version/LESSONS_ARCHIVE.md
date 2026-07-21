@@ -438,3 +438,9 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
 - Tag hygiene: recreated malformed `feature/notifications@0.3.1` as `@v0.3.1` (same commit 18168ba),
   deleted old, pushed both refs — the v-prefix convention is part of the tags invariant; the version
   VALUE was in sync everywhere, only the tag string was off.
+
+## Run: channel-ledger update — 1.4.2 live + 1.4.3 beta Testing + Android day 7 (2026-07-20)
+- Pure RELEASES.md status-flip run (App Store cell 1.4.1→1.4.2, external TestFlight Waiting→Testing,
+  Android gate checkpoint day 7/14) → single `chore(releases)` commit, zero feature impact, no tag.
+  Nothing to do on the version pipeline: the one-train-ahead pre-bump to 1.4.3 (57) already happened
+  at submission time (2026-07-17), confirming the convention's value — approval day is a no-op in-repo.
