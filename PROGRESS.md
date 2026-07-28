@@ -298,11 +298,11 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ BOTH STORE TRAINS IN REVIEW — the remaining gates are user-driven waits. App is feature-complete on all 4 surfaces; backend + web live. Channel/build specifics live in `RELEASES.md` (the SoT — don't restate build numbers here).
+> ### ⏭️ NO OPEN WORK — the remaining gates are user-driven waits. App is feature-complete on all 4 surfaces; backend + web live. Channel/build specifics live in `RELEASES.md` (the SoT — don't restate build numbers here).
 >
-> **iOS** — 1.4.1 is **live on the public App Store**; the next public release (1.4.2) is in App Store review, and the ahead-train external-beta build (1.4.3) is in Beta App Review (one-train-ahead convention). No code/doc work pending — flip `RELEASES.md` as the user announces review outcomes.
+> **iOS** — **live on the public App Store**, with the ahead-train build on external TestFlight (Beta App Review cleared, so later builds of that train distribute near-instantly). One-train-ahead convention satisfied; no code/doc work pending.
 >
-> **Android** — live on Play closed testing. **Production gate: 12/12 testers opted in, 14-day clock running (unlocks ~2026-07-27)** — a user-driven waiting gate, no code/doc work. First Play production submission follows the unlock.
+> **Android** — live on Play closed testing. The **12-tester × 14-day production gate is CLEARED** and **production access was applied for on 2026-07-28** (Play reviews in ≤7 days, emails the account owner). A user-driven wait, no code/doc work. On approval: create the first Play **production** release, then flip `RELEASES.md`.
 
 **Phase J is DONE** (2026-07-08, Run 15): the last scaffold placeholder `ui/StubScreen.kt` is **deleted**
 (unused since Phase G drove call-sites to 0); the `apps/android/CONTEXT.md` scaffold-removal tracker is

@@ -62,7 +62,8 @@ background delivery** (H-1; Health Connect has none). New `health-connect` featu
 ## Deploy
 Android Studio → signed AAB → Google Play Console **closed testing** (went straight to closed, skipping
 internal — no personal Android device) → production (gated on ≥12 testers / 14 days, one-time for personal
-accounts). **1.0.0 (3) is approved & available on the closed track (2026-07-10; see `RELEASES.md`).** Health Connect access needs a
+accounts; that gate is cleared and production access is applied for — status per `RELEASES.md`, the SoT for
+channel state). Health Connect access needs a
 permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
 
 ## Status
