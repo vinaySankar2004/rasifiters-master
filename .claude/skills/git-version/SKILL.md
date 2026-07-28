@@ -77,7 +77,8 @@ For each such feature/version:
 ```bash
 git tag feature/<feature>@v<X.Y.Z> "$(git log -1 --format=%H -- specs/features/<feature>/SPEC.md)"
 ```
-Verify: `git tag -l "feature/*"` count must equal the registry node count.
+Verify: every feature's **current** `version` in `registry.json` has a matching
+`feature/<feature>@v<X.Y.Z>` tag (the total tag count is higher — tags accumulate one per version).
 
 ## Converged lessons (durable — fold new patterns here as they recur)
 - **Map the changeset to feature(s) first:** detect which `reference_impl` paths a commit touches; a mixed
@@ -101,7 +102,10 @@ Verify: `git tag -l "feature/*"` count must equal the registry node count.
   producer, is fine — satisfy it when the other node lands; a phase-closing run reconciles the accumulated set.
   First-time node creation that *satisfies* a pre-existing dangling edge is **additive, FYI only, no gate** —
   hard-gate only when an **existing** node's contract changes.
-- **Tags invariant:** `git tag -l "feature/*"` count must equal the registry node count after each run.
+- **Tags invariant:** after each run, every feature's **current** `version` in `registry.json` must have a
+  matching `feature/<feature>@v<X.Y.Z>` tag (v-prefixed). It is NOT a count match — tags are append-only
+  history (one per version shipped), so `git tag -l "feature/*"` far exceeds the node count
+  (57 tags / 16 features as of 2026-07-28) and a count comparison always looks broken.
 - **Commit shapes:** (a) *progress* `feat` (ports code, defers the status flip); (b) *flip* (status
   `documented→rebuilt→deployed`, refresh `feature/<f>@<v>` tag, **no semver bump** for a faithful rebuild);
   (c) *contract change* → real semver bump + §12 Changelog; (d) *faithful asset/format refinement* on a

@@ -449,3 +449,20 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
 - `tools/testbed/seed.mjs` fix (--refresh re-ensures roster) → `tools/**` is not a registered
   reference_impl path → plain `chore(testbed)` commit, no bump/tag, zero feature blast-radius.
   Confirms the map-changeset-first lesson covers repo tooling dirs, not just docs/skills.
+
+## Run: Play production-access application + stale-snapshot sweep (2026-07-28)
+- Android closed-test gate cleared (12 testers x 14 days, completed 2026-07-27) → the "Apply for access
+  to production" form submitted 2026-07-28 11:47. Pure ledger/status run: `chore(releases)`, zero feature
+  impact, no bump/tag — same shape as the 2026-07-20 channel-ledger run. Application answers themselves
+  are worth recording in the log row (they are the durable record of what was claimed to Google).
+- **New durable pattern — snapshot rows must not carry live-state claims.** The RELEASES.md "prior (3)"
+  row still read "14-day clock running, day 7 of 14 as of 2026-07-20". Append-only LOG rows are dated
+  and stay true forever; SNAPSHOT-table rows are read as current, so any in-flight assertion in one goes
+  stale silently. Keep volatile state in the one current-state row and have superseded rows point at it.
+  Same failure mode found in PROGRESS.md's Next action (iOS bullet claimed 1.4.1 public / 1.4.2 in review
+  eight days after 1.4.2 went live) — the "don't restate build numbers, RELEASES.md is SoT" rule exists
+  precisely because restated state rots.
+- **SKILL.md defect fixed:** the tags invariant said tag count must equal registry node count. False by
+  construction — tags accumulate one per version (57 tags / 16 features today), so the check always
+  "fails". Corrected to: every feature's CURRENT registry version has a matching v-prefixed tag
+  (verified true, 0 missing, 2026-07-28).
