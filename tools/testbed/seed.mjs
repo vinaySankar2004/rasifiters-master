@@ -124,6 +124,23 @@ async function findProgramByName(session, name) {
   return (progs.data || []).find((p) => p.name === name) || null;
 }
 
+// Locate a program across ALL test sessions, and report which session (if any) currently admins it.
+// Needed because testers can transfer admin / remove the configured admin — looking the program up only
+// through cfg.admin's own session then makes it look deleted when it is merely drifted.
+async function locateProgram(sessions, name, preferredAdmin) {
+  const order = [preferredAdmin, ...Object.keys(sessions).filter((u) => u !== preferredAdmin)];
+  let program = null;
+  for (const u of order) {
+    const s = sessions[u];
+    if (!s?.ok) continue;
+    const p = await findProgramByName(s, name);
+    if (!p) continue;
+    program = program || p;
+    if (p.my_role === "admin") return { program: p, adminSession: s };
+  }
+  return program ? { program, adminSession: null } : null;
+}
+
 async function ensureMembership(program, adminSession, memberSession, role) {
   const details = await api("GET", `/program-memberships/details?programId=${program.id}`, adminSession.token);
   const existing = (details.data || []).find((m) => m.member_id === memberSession.memberId);
@@ -234,17 +251,33 @@ async function main() {
   } else {
     log("\n── REFRESH (top up data + extend end dates; non-destructive) ──");
     for (const cfg of PROGRAMS) {
-      const admin = ok(cfg.admin);
-      if (!admin) { log(`  ✗ SKIP "${cfg.name}" — admin ${cfg.admin} not logged in`); continue; }
-      const program = await findProgramByName(admin, cfg.name);
-      if (!program) { log(`  ✗ "${cfg.name}" not found — run with --reset first`); continue; }
+      const wantAdmin = ok(cfg.admin);
+      if (!wantAdmin) { log(`  ✗ SKIP "${cfg.name}" — admin ${cfg.admin} not logged in`); continue; }
+      const located = await locateProgram(sessions, cfg.name, cfg.admin);
+      if (!located) { log(`  ✗ "${cfg.name}" not found — run with --reset first`); continue; }
+      const { program } = located;
+      let admin = located.adminSession;
+      if (!admin) { log(`  ✗ "${cfg.name}" (${program.id}) — no test account admins it any more; run with --reset`); continue; }
       log(`  ↻ "${cfg.name}" (${program.id})`);
+      // Admin drift: a tester can promote someone else and drop the configured admin. Repair by having
+      // the CURRENT admin re-enroll + re-promote cfg.admin, then run the rest under cfg.admin's session.
+      if (admin.username !== cfg.admin) {
+        log(`    ⤿ admin drift — currently ${admin.username}; restoring ${cfg.admin} as admin`);
+        await ensureMembership(program, admin, wantAdmin, "admin");
+        admin = wantAdmin;
+      }
       // Re-ensure the roster: manual testing can remove members (e.g. ava leaving a program),
       // and a refresh must restore the canonical role matrix, not just top up whoever is left.
       for (const [uname, role] of cfg.roster) {
         const ms = ok(uname);
         if (!ms) { log(`    ⚠ skip ${uname} (not logged in)`); continue; }
         await ensureMembership(program, admin, ms, role);
+      }
+      // Any leftover admin that is neither cfg.admin nor a roster entry stays put — flag it rather than
+      // silently demoting a real person a tester may have added on purpose.
+      const details = await api("GET", `/program-memberships/details?programId=${program.id}`, admin.token);
+      for (const m of (details.data || []).filter((x) => x.status === "active" && x.program_role === "admin")) {
+        if (m.member_id !== wantAdmin.memberId) log(`    ⚠ extra admin left in place: ${m.username || m.member_id}`);
       }
       await seedProgram(program, admin);
       await extendEndDate(program, admin);
