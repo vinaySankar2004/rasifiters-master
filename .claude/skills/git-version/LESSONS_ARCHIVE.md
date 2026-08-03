@@ -466,3 +466,8 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   construction — tags accumulate one per version (57 tags / 16 features today), so the check always
   "fails". Corrected to: every feature's CURRENT registry version has a matching v-prefixed tag
   (verified true, 0 missing, 2026-07-28).
+
+## Run 2026-08-03 — chore(releases): Android production access granted
+- Routine ledger flip (441366b): RELEASES.md only — production-access application → granted, no
+  binary/release yet. Docs-only chore, zero feature impact, no tag. No new pattern; matches the
+  ddc90c2 "applied" run's shape (status-flip rows keep volatile state in the current-state row).
