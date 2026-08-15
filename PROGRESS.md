@@ -121,8 +121,8 @@ notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin
 (`specs/pages/android/`).
 
 _(Prior milestone:) Rebuild COMPLETE + SHIPPED across the first 3 surfaces: iOS on TestFlight (approved, in
-beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Its tail is now closed too — the GitHub repo
-went public 2026-07-06; only the batched backend smoke-tests remain (below)._
+beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Its tail is fully closed — the GitHub repo
+went public 2026-07-06 and the batched backend smoke-tests were closed as obsolete 2026-08-15 (below)._
 
 - **`android`** — 🟢 **Phase H (Health Connect) DONE + green (2026-07-08, Run 14): workout + sleep auto-sync.**
   The Android analog of the iOS `apple-health` feature, re-expressed on **Health Connect**
@@ -387,9 +387,9 @@ nav icon parity landed — memory [[android-neutral-m3-surface-roles]].)_
 
 ---
 
-> ### ⏭️ (Parallel tail, first 3 surfaces) SHIPPED — the only step still open is the batched backend smoke-tests (7)
+> ### ✅ (Parallel tail, first 3 surfaces) SHIPPED — checklist fully closed
 
-Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one open step):
+Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (all steps closed):
 
 1. [x] **Move the repo** → `~/Desktop/rasifiters-master` (standalone; legacy no longer a sibling).
 2. [x] **Run migration `apps/backend/sql/004_seed_healthkit_workout_types.sql` on Supabase** — done by user.
@@ -411,8 +411,11 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
    apple-health 0.6.0, program reorder/search 0.2.x, autocapitalization; same-version builds skip beta
    review (auto-approved, live to the external Beta Testers group in minutes — memory:
    testflight-versioning-convention). **LIVE binary = 1.3.1 (46).**
-7. [ ] **Pre-cutover backend smoke-tests** (batched; needs a live admin JWT the user supplies) if not already
-   covered by the web signed-in round-trip.
+7. [x] **Pre-cutover backend smoke-tests** — **CLOSED 2026-08-15 as obsolete (not performed).** The gate was
+   "do the authenticated routes work before we flip the domain?"; cutover was 2026-06-29 and the backend has
+   since served ~7 weeks of production traffic across four public surfaces. Covered in practice by that live
+   traffic plus `tools/testbed/seed.mjs`'s authenticated admin round-trip. See the Open-items note below for
+   the one residual (`DELETE /api/auth/account`).
 
 ## Build sequence
 
@@ -448,7 +451,22 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
   pre-public health check (2026-07-01) found no tracked secrets.
 - **Re-auth the Render + Vercel MCPs** — both OAuth sessions have gone stale before (400/403); re-connect
   via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + local `vercel` CLI work meanwhile.
-- **Backend runtime smoke-tests** are batched to a pass needing a live admin JWT (user supplies) — the last
-  open item from the original ship checklist.
+- ~~**Backend runtime smoke-tests**~~ **CLOSED 2026-08-15 as obsolete, not performed** — this was a
+  *pre-cutover* gate ("do the authenticated routes work before we flip the domain?") and cutover was
+  2026-06-29. Since then all 16 mounted route groups (`apps/backend/server.js:65-80`) have served ~7 weeks of
+  real production traffic across four public surfaces, which answers the question far better than a one-time
+  script would; and `tools/testbed/seed.mjs` already performs the authenticated admin round-trip it asked for
+  (API-only against the live backend: `/auth/login/app`, `/programs`, `/program-memberships` + invites,
+  `/workout-logs`, `/daily-health-logs/batch`). The one gap it left behind is now its own item, below.
+- **Self-serve account deletion (`DELETE /api/auth/account`) is effectively unexercised** (carried out of the
+  closed smoke-test item above, 2026-08-15). Live traffic proves the *common* paths, not the destructive rare
+  ones. Nuance: the cascade itself (`cascadeMemberDeletion`, `apps/backend/utils/programMemberships.js:167`)
+  is **shared** with the admin path `DELETE /api/members/:id` (`services/memberService.js:171`), so it is not
+  wholly untested — what's rarely hit is this specific self-serve route
+  (`apps/backend/routes/auth.js:241` → `services/authService.js:692`), which pairs that cascade with the
+  Supabase auth-user delete for the *caller's own* account. Irreversible, touches every table. **Not
+  scheduled** — verifying it means seeding a throwaway account via `tools/testbed/`, deleting through the
+  app, then checking for orphaned rows. Low likelihood, high blast radius; flagged so the risk stays explicit
+  rather than forgotten. NOT a ship blocker.
 - **`notifications` cross-feature emits** are intentionally deferred in backend services (documented in-code
   TODOs) — wire when that work is scheduled; not blocking ship.
