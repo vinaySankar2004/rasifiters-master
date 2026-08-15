@@ -46,7 +46,7 @@ the manifests, planner obeys the SPEC D-rules, git-version writes the changelog 
    the `xcode` MCP (Xcode open, user-side) or is flagged user-run. **No further verify step** —
    the user tests the live behavior on prod after the push.
 5. **Close** — orchestrator merges worktrees, runs `git-version` (feature bump + registry +
-   REGISTRY.md + SPEC §11/§12 changelog + tag), pushes, deploys (backend → Render FIRST, then web
+   REGISTRY.md + SPEC §11 changelog + tag), pushes, deploys (backend → Render FIRST, then web
    → Vercel; the user ships the iOS/Android binaries), updates page specs if routes/screens moved.
 
 ## Briefing rules

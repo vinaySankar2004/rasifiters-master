@@ -20,9 +20,10 @@ resolved its scope boundary, guardrails, and faithful-vs-change stance with the 
 From a session rooted at `rasifiters-master/`. Cite `file:line` from the **surface being documented**.
 The rebuild is complete and standalone — the implementation under `apps/` is the source of truth (each
 existing SPEC's `Provenance` header records the archived original it was ported from, as history). RaSi
-Fiters is ONE app with three surfaces (**apps**):
+Fiters is ONE app with four surfaces (**apps**):
 - **web** — Next.js 14 App Router (`apps/web/src/app/**`, e.g. `summary/`, `members/`, `program/`, `lifestyle/`).
 - **ios** — SwiftUI (`apps/ios/RaSi-Fiters-App/Features/**`, e.g. `Home/`, `Auth/`, `Onboarding/`).
+- **android** — Jetpack Compose (`apps/android/app/src/main/java/com/app/rasifiters/ui/**`, e.g. `summary/`, `members/`, `lifestyle/`, `program/`).
 - **backend** — Node/Express + Sequelize (`apps/backend/routes/**`, e.g. `members.js`, `workouts.js`, `analytics.js`, `auth.js`).
 
 ## Prereqs (confirm first)

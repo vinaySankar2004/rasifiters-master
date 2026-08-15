@@ -1,6 +1,6 @@
 ---
 name: health-check
-description: Periodic ICM doc-health cross-review — a read-only audit of rasifiters-master's docs for factual drift, redundancy (single-source-of-truth violations), and genuine structural decay, plus doc↔code consistency (registry↔SPEC↔tag sync, reference_impl paths exist, schema ownership, manifest↔code). STRICT by design — restructuring is proposed only when REALLY needed; the healthy result is "no action". Runs as a standalone task in a fresh session, ends with a graded report via plan mode (no auto-apply). Optionally scoped to ONE app (web · backend · ios). NOT the per-feature `audit` skill. Trigger — "health check", "doc health", "icm health", "cross-review the docs", "/health-check". LIVING — append LESSONS_ARCHIVE.md every run.
+description: Periodic ICM doc-health cross-review — a read-only audit of rasifiters-master's docs for factual drift, redundancy (single-source-of-truth violations), and genuine structural decay, plus doc↔code consistency (registry↔SPEC↔tag sync, reference_impl paths exist, schema ownership, manifest↔code). STRICT by design — restructuring is proposed only when REALLY needed; the healthy result is "no action". Runs as a standalone task in a fresh session, ends with a graded report via plan mode (no auto-apply). Optionally scoped to ONE app (web · backend · ios · android). NOT the per-feature `audit` skill. Trigger — "health check", "doc health", "icm health", "cross-review the docs", "/health-check". LIVING — append LESSONS_ARCHIVE.md every run.
 ---
 
 # Health Check — ICM doc-health cross-review (LIVING)
@@ -28,7 +28,7 @@ original app it was rebuilt from is archived and is NOT a reference; each SPEC's
 where it was ported from, as history. reference_impl paths (registry.json) resolve against `apps/<app>/`.
 
 ## Scope
-- **Default = whole repo** (all apps — web, backend, ios — all features, top-level + skill docs).
+- **Default = whole repo** (all apps — web, backend, ios, android — all features, top-level + skill docs).
 - **App-scoped** (user names an app, e.g. "health check web"): restrict to that app's
   `apps/<app>/**` PLUS the shared docs those touch (registry rows, the feature
   SPECs the app consumes, the page SPECs under `specs/pages/<app>/**`, the routing-table row). State the
@@ -60,14 +60,14 @@ already in plan mode, behave as if it is (no writes).
    Drop anything that doesn't clear all four gates.
 6. **Present report + plan** via `ExitPlanMode`: findings grouped by severity, each with
    evidence + the exact remediation (file:line → change). Note which approved-but-unresolved
-   items should fold into ICM.md's "Open follow-ups" (if such a doc exists). Stop. Do not apply.
+   items should fold into `PROGRESS.md`'s "Open items (carry until resolved)". Stop. Do not apply.
 
 ## Check catalog
 
 **A. Factual drift / breakage (🔴 — objective, always reported):**
 | Check | How |
 |-------|-----|
-| Registry↔SPEC↔tag sync | each `registry.json` `version` == the SPEC's top §12 version == a `git tag -l "feature/<f>@*"` tag; REGISTRY.md cell matches |
+| Registry↔SPEC↔tag sync | each `registry.json` `version` == the SPEC's top §11 version == a `git tag -l "feature/<f>@*"` tag; REGISTRY.md cell matches |
 | `reference_impl.paths` exist | every path a SPEC's reference_impl names resolves to a real, non-empty file under `apps/<web|backend|ios>/` |
 | Dependency graph closure | `A depends_on B` ⇒ `B.consumed_by` includes A (both halves written) |
 | Schema-ownership uniqueness | each table claimed by exactly one feature SPEC (no two claim the same; none unclaimed) |
@@ -82,7 +82,7 @@ already in plan mode, behave as if it is (no writes).
 |-------|-----|
 | Single-source-of-truth violation | the same fact maintained in ≥2 docs where the SoT table says one is canonical → propose: keep canonical, replace the copy with a pointer |
 | Drift-prone duplication | values likely to change (IDs, env vars, ports, version numbers, Supabase/Vercel/Render refs) restated outside their canonical CONTEXT.md/registry |
-| Volatile-doc log accumulation | a volatile doc (`ICM.md` Open follow-ups, any current-state list) still carries struck `DONE` entries past one pass, or un-struck items whose work is clearly shipped → propose pruning, gated on the doc blast-radius check (outcome lives in its canonical home) |
+| Volatile-doc log accumulation | a volatile doc (`PROGRESS.md` "Open items" / "Next action", any current-state list) still carries struck `DONE` entries past one pass, or un-struck items whose work is clearly shipped → propose pruning, gated on the doc blast-radius check (outcome lives in its canonical home) |
 
 **C. Structural decay (🔵 — only past the strict bar, often zero per run):**
 | Check | How |
@@ -113,7 +113,7 @@ expected healthy outcome.
 A single plan (via `ExitPlanMode`) with: the resolved scope; findings grouped 🔴/🟡/🔵 each with
 `file:line` evidence + exact remediation; a one-line health verdict ("N drift, M redundancy, K
 structural — overall healthy / needs attention"); and which items, if approved, fold into ICM.md
-"Open follow-ups". No files written. No fixes applied.
+`PROGRESS.md` "Open items". No files written. No fixes applied.
 
 ## Converged lessons (durable — the patterns that recur, project-agnostic)
 - The SoT table (when it exists) is the yardstick for every 🟡 finding — cite it. Until one exists in
@@ -121,9 +121,9 @@ structural — overall healthy / needs attention"); and which items, if approved
   itself a 🔵 candidate.
 - Re-read the load-bearing doc at report time; Explore inventories go stale.
 - A clean run (only 🔴 fixes, no 🔵) is the goal, not a failure — resist manufacturing structure work.
-- **Version sync = §12 top + registry `version`; NO version folders.** SPECs live flat at
+- **Version sync = §11 top + registry `version`; NO version folders.** SPECs live flat at
   `specs/features/<feature>/SPEC.md` (no `<version>/` segment) and keep the full changelog inside the SPEC.
-  The real invariant is `registry.version` == the SPEC **§12 Changelog top entry** == the highest
+  The real invariant is `registry.version` == the SPEC **§11 Changelog top entry** == the highest
   `feature/<f>@*` git tag. Ignore "max-semver-in-file" comparisons (they catch prose cross-refs to other
   features' versions) — Explore inventory agents tend to raise these as bogus alarms.
 - **A SPEC's line-3 `Version:` prose header is a DISTINCT drift class from the sync invariant** — it can lag
@@ -170,6 +170,24 @@ structural — overall healthy / needs attention"); and which items, if approved
   `find specs/pages/<surface> -name SPEC.md | wc -l` vs the REGISTRY row count per surface, and distrust
   the "Inventory: COMPLETE"/"to document" trailer (a stale one lists shipped screens as pending or
   asserts completeness over a partial table).
+- **The store-push class has a production/GA tail (Run 7, the Android Play production launch).** Going from a
+  *test* channel to *public* re-stales every doc the earlier push already touched, because they were rewritten
+  to say "live on closed testing / TestFlight" — the very phrase that is now wrong. Re-sweep the same four,
+  plus: the gate prose ("access applied for", "N-day clock"), the build-sequence checkbox, and `PROGRESS.md`
+  "Current phase" (a launch is a milestone, not just a channel flip). **And follow the version through:** the
+  released build number is now *consumed*, so pre-bump the repo (iOS `CURRENT_PROJECT_VERSION` / Android
+  `versionCode`) in the same pass — otherwise the next upload is rejected by the store, not by us.
+- **Status fields never self-advance (Run 7).** `registry.json` `status` + the SPEC line-3 `Status:` header get
+  written when a feature is *built* and are then never revisited — Run 7 found 15/16 features at 🏗️ "built"
+  while every one was deployed and public. Nothing in the normal `git-version` flow touches them (a version
+  bump edits `version`, not `status`), so this drifts silently forever. Sweep 📄→🏗️→🚀 at each shipping
+  milestone, in all three homes at once: `registry.json`, `specs/features/REGISTRY.md`, and each SPEC header.
+- **A cross-reference that every doc restates is never self-correcting (Run 7).** "SPEC §12 Changelog" appeared
+  in METHODOLOGY + 3 skills (including `git-version`'s frontmatter description) — and every SPEC actually uses
+  `## 11. Changelog`. Likewise 5 docs pointed at an `ICM.md` "Open follow-ups" section that has never existed
+  (the real home is `PROGRESS.md` "Open items"). Six prior runs read past both because the docs agreed *with
+  each other*. **Grep every referenced section number / heading name against the artifacts it names**, not
+  against the other docs: `grep -h "^## .*Changelog" specs/**/SPEC.md | sort -u`.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:**

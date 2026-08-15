@@ -471,3 +471,19 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
 - Routine ledger flip (441366b): RELEASES.md only — production-access application → granted, no
   binary/release yet. Docs-only chore, zero feature impact, no tag. No new pattern; matches the
   ddc90c2 "applied" run's shape (status-flip rows keep volatile state in the current-state row).
+
+## Run 2026-08-15 — health-check Run 7 sweep: Android GA + 15 status flips (3 commits, no tags)
+- Split into three commits by concern, per the "lessons edits = a separate chore(skills) commit" rule:
+  `chore(releases)` (RELEASES.md + the Android `versionCode` 4→5 pre-bump), `docs(icm)` (the whole
+  doc/registry/SPEC sweep), `chore(skills)` (4 SKILL.md fixes + both LESSONS_ARCHIVEs).
+- **Blast radius: zero feature impact.** 15 `specs/features/*/SPEC.md` files were touched, which normally
+  smells like a bump — but the edit was the line-3 `Status:` field only (🏗️→🚀), i.e. commit shape **(b)
+  status flip**: no contract, no behavior, no `reference_impl` path, no owned-interface delta. **No semver
+  bump, no §11 changelog row.** `apps/android/app/build.gradle.kts` + three `CONTEXT.md`s matched no
+  feature's `reference_impl.paths` either — confirmed by script, not by eye.
+- **New durable pattern — a status flip refreshes the tag only if the tag is WRONG.** Shape (b) says
+  "refresh the `feature/<f>@<v>` tag", but here all 16 current versions already had correct, correctly-placed
+  tags. Moving 15 tags onto a docs commit would have needed `push --force` on a **public** repo and would
+  have destroyed the accurate anchor for when each version actually landed. **Read the invariant as
+  "current version HAS a matching tag", not "the tag points at the newest commit that mentions it."**
+  Re-tag only when the invariant is actually broken (missing/malformed/version-mismatched tag).

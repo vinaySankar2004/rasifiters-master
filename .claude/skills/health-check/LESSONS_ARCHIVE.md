@@ -129,3 +129,42 @@ distilled "Converged lessons"). Append one entry per run.
   structural root of the recurring store-push class; added the row. False positives to suppress: none new; noted the
   "Distilled from N runs" converged lesson is now moot (no skill carries such a header anymore) and `git-version`'s
   archive uses date-based run headings, so the anchored `Run [0-9]+` grep doesn't apply to it.
+
+- **Run 7 (2026-08-15) — scope:** whole-repo. Standalone session, triggered by the user announcing the
+  **Android production launch** ("we out there now") with a Play Console dashboard screenshot. Run inline
+  (no Explore fan-out — the session's harness disallowed subagents), verifying every finding by direct read.
+  - Counts: 🔴 9 · 🟡 3 · 🔵 0. (Healthy — no restructuring cleared the bar.)
+  - **Mechanically clean before starting:** registry↔SPEC↔tag sync across all 16 features, all 16 SPEC
+    changelog tops, all `reference_impl` paths resolve, dependency-graph closure, page-SPEC counts
+    (web 37 · iOS 32 · Android 32) exactly matching `specs/pages/REGISTRY.md` rows. The Run-5 page-index-lag
+    class did NOT recur — that sweep held.
+  - Proposed → accepted (all applied; user pre-approved the 3 judgment calls via AskUserQuestion):
+    (🔴 store-push class, the production tail) `RELEASES.md` Android production row still said "submitted —
+    in review" → flipped to LIVE (2026-08-06, 100% rollout) + 2 new log rows; `ICM.md` ×2, `PROGRESS.md`
+    (Current phase, Next action, build-sequence step 8, two historical "→ Play Console internal testing"
+    next-steps), `apps/android/CONTEXT.md` (Deploy + a new 🚀 Status line) all still said "live on Play
+    closed testing". (🔴) `COVERAGE.md` intro still read "Fresh scaffold — nothing documented yet" while
+    every row was ticked. (🔴) **Every doc said "SPEC §12 Changelog" but all 16 feature SPECs and all page
+    SPECs use `## 11. Changelog`** — 13 refs across METHODOLOGY + 3 skills incl. `git-version`'s frontmatter
+    description; repointed to §11. (🔴) **`ICM.md` "Open follow-ups" never existed** — 5 refs (METHODOLOGY
+    SoT table, git-version, health-check ×3) + CLAUDE.md pointed at a phantom section; real home is
+    `PROGRESS.md` "Open items (carry until resolved)". (🔴) `question-asker/SKILL.md` still said "ONE app
+    with **three** surfaces" and omitted android from its path list (Run-3 class, this skill was missed);
+    this skill's own Scope + description also omitted android. (🔴) 15/16 features stuck at 🏗️ "built"
+    though all are public → flipped to 🚀 in registry.json + REGISTRY.md + 15 SPEC headers. (🔴) two
+    PROGRESS open items resolved long ago ("Make the GitHub repo public" — verified PUBLIC via
+    `gh repo view`; the member-identity self-heal iOS tail) → struck + DONE; the two older struck-DONE
+    entries deleted per log hygiene after confirming their outcomes live in `RELEASES.md` / `ENV_RUNBOOK.md`.
+    (🟡) `COVERAGE.md` restated 15 feature versions that lagged registry (auth v0.4.0 vs 0.9.0) → stripped,
+    canonical homes named in a new banner. (🟡) `apps/web/CONTEXT.md` restated "36/36 pages" (actual 37) and
+    `apps/backend/CONTEXT.md` "14 features" → both replaced with pointers.
+  - Code change (user-approved, not a doc fix): `apps/android/app/build.gradle.kts` versionCode 4 → 5 —
+    the live production build consumed 4, so Play rejects any re-upload at it.
+  - False positives correctly suppressed: `METHODOLOGY.md:204` "three surfaces / `apps/{web,ios,backend}`"
+    is inside the **dated R6 decision-log entry** — history, left alone (the converged lesson held);
+    `(built)`/`(deployed 🚀)` labels inside dated SPEC changelog rows are history, not status drift.
+  - New durable patterns promoted to Converged lessons: (1) the store-push class has a **production/GA
+    tail** with its own version-consumption follow-through; (2) **status fields never self-advance** —
+    sweep 🏗️→🚀 at each shipping milestone; (3) **a cross-reference every doc restates is never
+    self-correcting** — grep the referenced section/heading against the artifacts themselves, don't trust
+    that 6 prior runs read past it.
