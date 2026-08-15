@@ -1,6 +1,6 @@
 # Feature: `analytics-v2` — the v2 analytics aggregates (participation + workout-type stats)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v2Router`** half only — the
 > file is shared with [`analytics`](../analytics/SPEC.md) v1, §7/D-C1), `services/analyticsService.js` (the
 > **v2** functions; the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` already

@@ -1,6 +1,6 @@
 # Feature: `health-connect` — Health Connect (Samsung Health) workout + sleep + steps auto-sync (Android)
 
-> **Status:** 🏗️ built (`apps/android/` + existing backend endpoints) · **Version:** 0.2.0 ·
+> **Status:** 🚀 deployed (`apps/android/` + existing backend endpoints) · **Version:** 0.2.0 ·
 > **Apps (`consumed_by`):** `android`
 > **Provenance:** the Android analog of the iOS [`apple-health`](../apple-health/SPEC.md) feature (0.7.0),
 > re-expressed on **Health Connect** (`androidx.health.connect:connect-client`) instead of HealthKit.

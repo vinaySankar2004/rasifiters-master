@@ -95,8 +95,9 @@ shell chrome, the icon library, and the API client + auth API module.
 🚀 **LIVE on the custom domain `https://rasifiters.com` (2026-06-29)** — project `rasifiters` on Vercel,
 git auto-deploy on `main` wired; domain cutover done (moved off the old `rasi-fiters` project). Smoke test
 green on the domain (public pages 200, protected routes guard-bounce, apex→www, `/favicon.ico` 200 logo,
-backend healthy). The web surface is feature-complete (36/36 pages + the notifications client). The signed-in
-web→backend proxy round-trip is the one unverified surface (no test creds; the user is live-testing). History:
+backend healthy). The web surface is feature-complete — every page ported plus the notifications client
+(count per `specs/pages/REGISTRY.md`, the canonical index; don't restate it here). The signed-in
+web→backend round-trip has since been live-verified by the user many times over. History:
 
 🏗️ foundation scaffolded + builds green (2026-06-29). **7 pages ported** via the `question-asker` page loop:
 the public/auth path (`splash` → `login` → `forgot-password` → `reset-password` → `create-account`), the

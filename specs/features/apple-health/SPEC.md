@@ -1,6 +1,6 @@
 # Feature: `apple-health` — Apple Health (HealthKit) workout + sleep + steps auto-sync (iOS)
 
-> **Status:** 🏗️ built (`apps/ios/` + backend touchpoints) · **Version:** 0.7.0 · **Apps (`consumed_by`):** `ios`
+> **Status:** 🚀 deployed (`apps/ios/` + backend touchpoints) · **Version:** 0.7.0 · **Apps (`consumed_by`):** `ios`
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` **PR #4** (`apple-health` branch) —
 > `HealthKitService.swift`, `HealthKitWorkoutTypeMap.swift`, `ProgramContext+HealthKit.swift`,
 > `AppleHealthSettingsView.swift`. Ported to `apps/ios` and **corrected for our stack** (curated library +

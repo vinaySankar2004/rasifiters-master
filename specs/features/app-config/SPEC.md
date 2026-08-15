@@ -1,6 +1,6 @@
 # Feature: `app-config` — the iOS version gate (+ a push index)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `ios`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `ios`
 > **Provenance (legacy, archived):** `backend` — `server.js` (the inline `GET /api/app-config` route +
 > the `MIN_IOS_VERSION` env). **No service / model / route file** — it is a single static inline route.
 > **Depends on:** nothing (no auth — the gate is public, hit before login).

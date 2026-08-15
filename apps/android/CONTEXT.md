@@ -61,12 +61,17 @@ background delivery** (H-1; Health Connect has none). New `health-connect` featu
 
 ## Deploy
 Android Studio → signed AAB → Google Play Console **closed testing** (went straight to closed, skipping
-internal — no personal Android device) → production (gated on ≥12 testers / 14 days, one-time for personal
-accounts; that gate is cleared and production access is applied for — status per `RELEASES.md`, the SoT for
-channel state). Health Connect access needs a
-permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM sender (Phase I).
+internal — no personal Android device) → **production, now LIVE** (the ≥12-testers / 14-days gate and the
+production-access application are both cleared; current channel state + build numbers per `RELEASES.md`, the
+SoT). Bump `versionCode` before every upload — the live production build's code is consumed. Health Connect
+access needs a permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM
+sender (Phase I).
 
 ## Status
+🚀 **LIVE on the public Google Play Store (production, 2026-08-06).** The first Android production release
+rolled out at 100% to 176 countries + rest of world; the repo is pre-bumped one train ahead for the next
+upload. Version/channel specifics live in `RELEASES.md` (don't restate build numbers here).
+
 🟢 **Phase H (2026-07-08, Run 14): Health Connect — workout + sleep auto-sync.** The Android analog of the
 iOS `apple-health` feature, re-expressed on **Health Connect** (`androidx.health.connect:connect-client
 1.1.0-alpha07`; new `health-connect` feature SPEC 0.1.0). New `health/` module: `HealthConnectManager`

@@ -6,8 +6,8 @@ Code (with Vercel / Render / Supabase MCPs) is the operator. Read **`PROGRESS.md
 **`ICM.md`** (L1 map) first.
 
 Methodology (the "why" + decision log + feature-spec contract) lives in-repo at `METHODOLOGY.md`; all
-operational how-to lives in `.claude/skills/`. Current state + open follow-ups: `ICM.md` ("How to operate
-here").
+operational how-to lives in `.claude/skills/`. Current state + open items: `PROGRESS.md`; how to operate
+here: `ICM.md`.
 
 ## The mission (faithful rebuild — complete, now standalone)
 

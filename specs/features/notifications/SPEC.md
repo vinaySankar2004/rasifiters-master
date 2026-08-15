@@ -1,6 +1,6 @@
 # Feature: `notifications` — in-app alerts, real-time SSE delivery & APNs push
 
-> **Status:** 🏗️ built (`apps/backend/` + the `apps/web`, `apps/ios`, `apps/android` clients) · **Version:** 0.3.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (`apps/backend/` + the `apps/web`, `apps/ios`, `apps/android` clients) · **Version:** 0.3.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/notifications.js`, `utils/notifications.js`,
 > `utils/notificationStreams.js` (SSE registry), `utils/pushNotifications.js` (APNs),
 > `models/{Notification,NotificationRecipient,MemberPushToken}.js`, `services/authService.js`

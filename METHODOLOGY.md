@@ -138,13 +138,13 @@ Two classes of doc carry dated/strikethrough entries; the discipline differs:
 
 | Class | Docs | Rule |
 |-------|------|------|
-| **Durable / append-only** (the audit trail) | METHODOLOGY decision log (R-entries), feature SPEC §12 Changelogs, `<skill>/LESSONS_ARCHIVE.md`, `PROGRESS_ARCHIVE.md` (the condensed run history), `ENV_RUNBOOK.md` strikethrough rows | **Append, never prune.** History is the value; mark superseded entries, don't delete them. |
-| **Volatile / prune-on-resolve** (current state only) | `ICM.md` "How to operate here" (Open follow-ups) + any "current state / next steps" list | **Don't accumulate.** On resolve: strike `~~item~~` + `DONE <date>` for one session of visibility, then **delete it on the next pass that touches the doc.** `CONTEXT.md` holds no logs at all — reference data only. |
+| **Durable / append-only** (the audit trail) | METHODOLOGY decision log (R-entries), feature SPEC §11 Changelogs, `<skill>/LESSONS_ARCHIVE.md`, `PROGRESS_ARCHIVE.md` (the condensed run history), `ENV_RUNBOOK.md` strikethrough rows | **Append, never prune.** History is the value; mark superseded entries, don't delete them. |
+| **Volatile / prune-on-resolve** (current state only) | `PROGRESS.md` "Open items (carry until resolved)" + its "Next action" block, and any other "current state / next steps" list | **Don't accumulate.** On resolve: strike `~~item~~` + `DONE <date>` for one session of visibility, then **delete it on the next pass that touches the doc.** `CONTEXT.md` holds no logs at all — reference data only. |
 
 **Doc blast-radius check** (required before deleting any volatile-doc log entry — the doc-side
 sibling of git-version's blast-radius report): before pruning a resolved item, confirm its durable
 outcome already lives in a canonical home (per the SoT table), else the fact is lost —
-1. **Feature/contract change?** → it must be in that feature's SPEC §12 Changelog (+ registry).
+1. **Feature/contract change?** → it must be in that feature's SPEC §11 Changelog (+ registry).
 2. **Methodology/decision?** → it must be an R-entry in this file's decision log.
 3. **Pure verification / transient task, no durable artifact?** → nothing to capture; safe to delete (say so in the prune commit).
 Only delete once the home is verified. A still-relevant fact with no home is a *homeless fact* — give

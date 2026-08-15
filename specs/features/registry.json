@@ -28,7 +28,7 @@
     "members": {
       "version": "0.3.0",
       "spec": "specs/features/members/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -52,7 +52,7 @@
     "programs": {
       "version": "0.2.0",
       "spec": "specs/features/programs/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -79,7 +79,7 @@
     "program-memberships": {
       "version": "0.2.0",
       "spec": "specs/features/program-memberships/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -106,7 +106,7 @@
     "notifications": {
       "version": "0.3.1",
       "spec": "specs/features/notifications/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -134,7 +134,7 @@
     "invites": {
       "version": "0.1.0",
       "spec": "specs/features/invites/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios"
@@ -160,7 +160,7 @@
     "workouts": {
       "version": "0.1.1",
       "spec": "specs/features/workouts/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "ios"
       ],
@@ -180,7 +180,7 @@
     "program-workouts": {
       "version": "0.1.0",
       "spec": "specs/features/program-workouts/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -205,7 +205,7 @@
     "workout-logs": {
       "version": "0.5.1",
       "spec": "specs/features/workout-logs/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -232,7 +232,7 @@
     "daily-health-logs": {
       "version": "0.2.1",
       "spec": "specs/features/daily-health-logs/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -258,7 +258,7 @@
     "analytics": {
       "version": "0.3.2",
       "spec": "specs/features/analytics/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -287,7 +287,7 @@
     "analytics-v2": {
       "version": "0.1.0",
       "spec": "specs/features/analytics-v2/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -312,7 +312,7 @@
     "member-analytics": {
       "version": "0.4.0",
       "spec": "specs/features/member-analytics/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "web",
         "ios",
@@ -341,7 +341,7 @@
     "app-config": {
       "version": "0.1.0",
       "spec": "specs/features/app-config/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "ios"
       ],
@@ -356,7 +356,7 @@
     "apple-health": {
       "version": "0.7.0",
       "spec": "specs/features/apple-health/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "ios"
       ],
@@ -391,7 +391,7 @@
     "health-connect": {
       "version": "0.2.0",
       "spec": "specs/features/health-connect/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [
         "android"
       ],

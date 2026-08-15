@@ -44,7 +44,9 @@ per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 
 ## Status
 🚀 **Feature-complete + LIVE on Render.** All ~11 route groups (see §Endpoints) are mounted and serving
-all three clients + the store binaries; backend feature coverage is complete (14 features — `COVERAGE.md`).
+all three clients + the public store binaries; backend feature coverage is complete — every feature except
+the two client-only health integrations (`apple-health`, `health-connect`) has a backend half; the canonical
+list is `specs/features/registry.json` (don't restate the count here).
 The 2026-06-28 auth-first port (data-layer foundation + `/api/auth`, deployed + verified live same day) was
 the seed; every remaining route group landed feature-by-feature — the per-feature record is
 `specs/features/registry.json` + each SPEC's changelog. `DELETE /api/auth/account` runs the full

@@ -7,7 +7,18 @@
 
 ## Current phase
 
-**LATEST (2026-07-16): iOS large-screen (iPad / Mac "Designed for iPad") adaptive-column pass — 100%
+**LATEST (2026-08-06): 🚀 ANDROID IS PUBLIC — the first Play Store production release is LIVE, and with it
+all four surfaces are shipped to the public.** Build 1.0.0 (4) was promoted from closed testing, approved,
+and rolled out at **100%** to 176 countries + rest of world (managed publishing off → live on approval;
+user-announced 2026-08-15). No code change was involved — the same closed-testing binary was promoted from
+the library. Console at announcement: 6 installs, 100% install base, 13 monthly active devices, no crash/ANR
+data yet. **The rebuild is now complete AND public on every surface**: `backend` live on Render, `web` live
+on `rasifiters.com`, `ios` on the App Store, `android` on the Play Store. Repo pre-bumped to **versionCode
+5** the same day (the live 4 is consumed; Play rejects re-uploads at 4) — the Android analog of the iOS
+one-train-ahead convention. Channel/build specifics: `RELEASES.md` (the SoT). **No open work — the app is
+feature-complete and public on all four surfaces.**
+
+**PRIOR (2026-07-16): iOS large-screen (iPad / Mac "Designed for iPad") adaptive-column pass — 100%
 screen coverage, compile-green, user live-verified phase-by-phase on his MacBook.** Presentation-only,
 iOS-surface-only (no behavior/API/backend change → live binaries unaffected). New shared
 `AdaptiveLayout` enum + `.adaptiveColumn(max:)` helper (`apps/ios/RaSi-Fiters-App/Shared/Extensions/
@@ -103,16 +114,15 @@ all 8 detail screens) + Phase F (Lifestyle tab + timeline drill-down + workout-t
 (Program tab + all 6 settings/admin sub-routes) + Phase I (notifications) + Phase H (Health Connect) +
 Phase J (de-scaffold) COMPLETE — all build green; all 4 bottom tabs are real screens and the scaffold is
 fully removed (`StubScreen.kt` deleted 2026-07-08, Run 15; zero placeholders remain).**
-Next = **the user generates a signed AAB in Android Studio → Play Console internal testing** (the port is
-code-complete). Full plan
-+ decisions are in `apps/android/CONTEXT.md`
+Since shipped: signed AAB → Play closed testing (2026-07-10) → **public on the Play Store (2026-08-06)**.
+Full plan + decisions are in `apps/android/CONTEXT.md`
 and the approved plan (`~/.claude/plans/immutable-jingling-hamming.md`). v1 scope = all screens + SSE
 notifications + auth + Health Connect + FCM push; widgets deferred. Specs = thin port-notes per screen
 (`specs/pages/android/`).
 
-_(Prior milestone — still true:) Rebuild COMPLETE + SHIPPED across the first 3 surfaces: iOS on TestFlight
-(approved, in beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Remaining tail: go-public on
-GitHub + pre-cutover smoke tests (below)._
+_(Prior milestone:) Rebuild COMPLETE + SHIPPED across the first 3 surfaces: iOS on TestFlight (approved, in
+beta use — user-announced 2026-07-05); web LIVE; backend LIVE. Its tail is now closed too — the GitHub repo
+went public 2026-07-06; only the batched backend smoke-tests remain (below)._
 
 - **`android`** — 🟢 **Phase H (Health Connect) DONE + green (2026-07-08, Run 14): workout + sleep auto-sync.**
   The Android analog of the iOS `apple-health` feature, re-expressed on **Health Connect**
@@ -298,11 +308,13 @@ GitHub + pre-cutover smoke tests (below)._
 
 ## Next action
 
-> ### ⏭️ NO OPEN WORK — the remaining gates are user-driven waits. App is feature-complete on all 4 surfaces; backend + web live. Channel/build specifics live in `RELEASES.md` (the SoT — don't restate build numbers here).
+> ### ⏭️ NO OPEN WORK — the app is feature-complete and **public on all four surfaces**. Channel/build specifics live in `RELEASES.md` (the SoT — don't restate build numbers here).
 >
 > **iOS** — **live on the public App Store**, with the ahead-train build on external TestFlight (Beta App Review cleared, so later builds of that train distribute near-instantly). One-train-ahead convention satisfied; no code/doc work pending.
 >
-> **Android** — live on Play closed testing. The **12-tester × 14-day production gate is CLEARED** and **production access was applied for on 2026-07-28** (Play reviews in ≤7 days, emails the account owner). A user-driven wait, no code/doc work. On approval: create the first Play **production** release, then flip `RELEASES.md`.
+> **Android** — **live on the public Play Store** (first production release, 2026-08-06, 100% rollout). Every gate is cleared; the repo is pre-bumped one train ahead (`versionCode` 5) so the next AAB is upload-ready. No code/doc work pending.
+>
+> **Backend + web** — live on Render / `rasifiters.com`. Any future backend change must degrade gracefully for **both** public binaries (iOS App Store + Android Play production), not just the beta trains.
 
 **Phase J is DONE** (2026-07-08, Run 15): the last scaffold placeholder `ui/StubScreen.kt` is **deleted**
 (unused since Phase G drove call-sites to 0); the `apps/android/CONTEXT.md` scaffold-removal tracker is
@@ -314,10 +326,8 @@ the iOS `apple-health` feature to Health Connect 1:1 (all of D-S5/D-CONF/D-LOCK/
 the anchor; rolling 14-day sleep window). No backend change, no migration. **User live-tested workout + sleep
 sync on the Pixel_8 and signed off (2026-07-08)** — the port is verified end-to-end, not just compiling.
 
-**Phase I** is DONE, deployed, and user-verified end-to-end (Runs 10–12). Resume at **Phase J** —
-de-scaffold: confirm zero stub screens remain (already true), delete the now-unused `ui/StubScreen.kt`, fold
-the scaffold-removal tracker into `CONTEXT.md`, final `android-build` green; then the user generates a signed
-AAB in Android Studio and pushes to Play Console internal testing.
+**Phase I** is DONE, deployed, and user-verified end-to-end (Runs 10–12). **Phase J** (de-scaffold) followed
+and is also DONE — see the Phase J note above.
 
 **✅ Phase I FULLY VERIFIED end-to-end (2026-07-08).** Backend deployed live on Render (dep
 `dep-d97hd3e7r5hc73c9fj6g`, `bb2bbc2`; degrade-safe for the LIVE iOS binary). FCM push confirmed reaching the
@@ -377,7 +387,7 @@ nav icon parity landed — memory [[android-neutral-m3-surface-roles]].)_
 
 ---
 
-> ### ⏭️ (Parallel tail, first 3 surfaces) TestFlight SHIPPED (2026-07-05) — remaining: go-public + pre-cutover smoke tests
+> ### ⏭️ (Parallel tail, first 3 surfaces) SHIPPED — the only step still open is the batched backend smoke-tests (7)
 
 Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one open step):
 
@@ -413,12 +423,14 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 5. [x] `web` — all pages ported + deployed + LIVE on `rasifiters.com`
 6. [x] `ios` — all screens/widgets/Apple-Health ported; native build green (user does visual + TestFlight)
 7. [x] Cutover — web domain LIVE; iOS on TestFlight (approved, in beta) — 2026-07-05
-8. [~] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
+8. [x] `android` — 4th surface (Compose port). Phase A foundation + Phase B auth path + Phase C
    program-picker + Phase D-landing (Summary dashboard) + Phase D-details (5 Summary forward targets) +
    Phase E (Members tab + 8 details) + Phase F (Lifestyle tab + timeline + workout-types manager) +
    Phase G (Program tab + 6 settings/admin sub-routes) + Phase I (notifications) + Phase H (Health Connect)
-   + Phase J (de-scaffold) green (2026-07-08); all 4 tabs real, scaffold removed. Port is CODE-COMPLETE
-   (all phases A→J). Remaining: user generates a signed AAB → Play Console internal testing.
+   + Phase J (de-scaffold) green (2026-07-08); all 4 tabs real, scaffold removed. Port CODE-COMPLETE (all
+   phases A→J), then shipped: signed AAB → Play closed testing (2026-07-10) → **public on the Play Store
+   (production, 2026-08-06)**. See `RELEASES.md`.
+9. [x] Public on all four surfaces — Android production release closes the ship sequence (2026-08-06).
 
 ## Coverage
 
@@ -429,27 +441,14 @@ Repo is standalone at `~/Desktop/rasifiters-master`. Ship checklist (7 = the one
 
 ## Open items (carry until resolved)
 
-- **Member identity self-heal (2026-07-07)** — fixed a web bug where a member with an empty `session.user.id`
-  (never re-derived after login; no `id` claim in the Supabase JWT) was blocked from logging workouts
-  ("You can only log workouts for yourself.") and saw a **blank Members tab** (own cards gated on that id).
-  Fix: net-new **`GET /api/auth/me`** (`auth` SPEC D-C7, additive/safe for the LIVE iOS binary) + the web
-  `AuthProvider` calls it on load to make the id authoritative/self-healing + a log-form guard. Backend =
-  correct throughout; both symptoms were web-only. **Immediate user workaround: sign out + back in.**
-  Also hardened the **iOS** `StandardMembersTab` to render its member cards unconditionally (each has its own
-  empty state) so a member never sees a fully blank tab — **ships in the next TestFlight build** (build-number
-  bump only). Deploy order: backend (`/me`) first, then web; iOS on the next archive.
-
-
-- **Re-auth the Render + Vercel MCPs** — both OAuth sessions are stale (400/403 in this session); re-connect
+- ~~**Member identity self-heal (2026-07-07)**~~ **DONE** — the `GET /api/auth/me` fix (`auth` SPEC D-C7) +
+  the web `AuthProvider` self-heal are deployed, and the iOS `StandardMembersTab` hardening shipped with the
+  1.3.1 train (long since superseded by the public 1.4.2). Outcome lives in `specs/features/auth/SPEC.md`.
+- ~~**Make the GitHub repo public**~~ **DONE 2026-07-06** — repo is PUBLIC (memory: `repo-is-public`); the
+  pre-public health check (2026-07-01) found no tracked secrets.
+- **Re-auth the Render + Vercel MCPs** — both OAuth sessions have gone stale before (400/403); re-connect
   via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + local `vercel` CLI work meanwhile.
-- **Make the GitHub repo public** — pre-public health check done 2026-07-01 (no tracked secrets; contact emails
-  kept as-is per user; cosmetic infra-identifier anonymization applied). Flip visibility when ready.
-- ~~**iOS runtime + TestFlight**~~ **DONE 2026-07-05** — uploaded, approved, in beta use (user-announced).
-  Second push **1.3.1 (46)** shipped 2026-07-05 (auto-approved, live to beta testers). **LIVE binary =
-  1.3.1 (46).** Beta convention going forward: bump build number only, marketing version reserved for
-  App Store submissions (memory: testflight-versioning-convention).
-- ~~**`APNS_PRODUCTION`**~~ **DONE 2026-07-05** — confirmed `true` on Render + redeploy triggered to apply
-  (was also already the effective mode via the `NODE_ENV === "production"` fallback).
-- **Backend runtime smoke-tests** are batched to a pre-cutover pass needing a live admin JWT (user supplies).
+- **Backend runtime smoke-tests** are batched to a pass needing a live admin JWT (user supplies) — the last
+  open item from the original ship checklist.
 - **`notifications` cross-feature emits** are intentionally deferred in backend services (documented in-code
   TODOs) — wire when that work is scheduled; not blocking ship.

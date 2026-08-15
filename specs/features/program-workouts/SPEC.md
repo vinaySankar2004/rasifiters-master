@@ -1,6 +1,6 @@
 # Feature: `program-workouts` — a program's workout list (visibility toggles + custom CRUD)
 
-> **Status:** 🏗️ built (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/programWorkouts.js`, `services/workoutService.js`
 > (the **program-scoped** functions only — the file is shared with `workouts`, §7/D-C1),
 > `models/ProgramWorkout.js`, `server.js` (`/api/program-workouts` mount).
