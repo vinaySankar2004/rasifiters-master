@@ -85,6 +85,19 @@ Verify: every feature's **current** `version` in `registry.json` has a matching
   changeset can map to several features (or none → a plain chore). A purely cosmetic `apps/**`
   refinement that doesn't change behavior is **not** a feature delta → no bump; the bump comes only from a
   `specs/features/**` SPEC or registered `reference_impl` path.
+- **Page SPECs are a third detection path (step 2 names only two).** A change can match no feature SPEC and
+  no `reference_impl` path yet still owe a bump, because `specs/pages/<surface>/<page>/SPEC.md` owns that
+  surface's contract. Before calling something a plain chore, ask *which page SPEC documents this file*
+  (e.g. `apps/web/src/app/layout.tsx` → landing SPEC §6). Page bumps update the SPEC header version, its
+  `## 9. Changelog`, and `specs/pages/REGISTRY.md` — and get **no tag** (`feature/*` is features-only).
+- **Doc blast-radius runs on ADDED facts too, not just pruned ones (R12 mirror).** Before writing a new
+  infra fact, ask which doc OWNS it: the contract + rationale belong in the owning feature/page SPEC (a
+  §-section + a D-rule), and every other doc gets a one-line pointer. Restating it in a `CONTEXT.md` is a
+  single-source-of-truth violation `health-check` will flag. Supersede a stale D-rule **in place** with a
+  "superseded at vX.Y.Z by D-…" marker; changelog rows stay append-only.
+- **Sweep the touched env vars, not just the touched files.** When a change makes an existing var
+  load-bearing in a new way, grep it repo-wide — a missing `ENV_RUNBOOK.md` row is invisible to any
+  diff-scoped review (caught `NEXT_PUBLIC_APP_URL` this way).
 - **Uniform owned-interface change; backward-compat → no propagation:** an owned-interface change
   documented in the feature's `specs/features/**` SPEC **is** a real bump (the SPEC edit maps to the feature, and
   the owned interface genuinely moved). If it's

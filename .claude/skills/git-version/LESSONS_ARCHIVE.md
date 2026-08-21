@@ -518,3 +518,28 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   have destroyed the accurate anchor for when each version actually landed. **Read the invariant as
   "current version HAS a matching tag", not "the tag points at the newest commit that mentions it."**
   Re-tag only when the invariant is actually broken (missing/malformed/version-mismatched tag).
+
+## Run 2026-08-20 — web SEO canonical-host + brand entity (page-SPEC bump, no feature tag)
+- **Blast radius: zero feature impact, one PAGE bump.** `apps/web/src/app/layout.tsx` matched no feature's
+  `reference_impl.paths` (verified by script over `registry.json`, not by eye — the only near-hit was
+  `health-connect`, matching on the substring `app/`). The change instead maps to a **page** SPEC,
+  `specs/pages/web/landing/SPEC.md` 0.1.3→0.1.4, + its `specs/pages/REGISTRY.md` version cell.
+  Metadata-only: no API/contract delta, live iOS + Android binaries unaffected.
+- **Durable pattern — page SPECs are a detection path step 2 doesn't name.** Step 2 maps staged paths to
+  `specs/features/**` or a feature's `reference_impl`; a web-only change can legitimately hit **neither**
+  and still owe a version bump, because `specs/pages/<surface>/<page>/SPEC.md` owns that surface's
+  contract. Before concluding "plain docs/tooling chore, no bump", also ask *which page SPEC documents
+  this file*. Precedent: d414587 (landing 0.1.2→0.1.3) took exactly this shape — page bump, no feature tag.
+  Page bumps get **no `feature/<f>@<v>` tag**; the tag namespace is features-only.
+- **Durable pattern — doc blast-radius applies to ADDING facts, not just pruning them.** R12 covers
+  deleting a volatile entry; the mirror case is writing a new one. First draft put a ~20-line SEO section in
+  `apps/web/CONTEXT.md` that restated the whole contract — a single-source-of-truth violation the
+  `health-check` skill would flag. Fix: the owning **page SPEC** gets the contract + rationale (§6 + a new
+  D-rule), and `CONTEXT.md` keeps a 4-line pointer. Ask "which doc OWNS this?" before writing, not after.
+- **Supersede in place, append-only below.** D-LAND-10 described the old bare-`SoftwareApplication` JSON-LD;
+  rather than rewrite history it got an inline "superseded at 0.1.4 by D-LAND-11" marker, while the 0.1.2 /
+  0.1.3 changelog rows were left untouched (§9 is append-only). Matches the D-LAND-3 rewrite convention.
+- **Cross-doc gap found by sweeping the touched var, not the touched file.** `NEXT_PUBLIC_APP_URL` is read
+  by three files and now determines the canonical host, but had **no `ENV_RUNBOOK.md` row** — invisible to
+  a diff-scoped review. Grepping each env var the change depends on surfaced it. Worth doing whenever a
+  change makes an existing var load-bearing in a new way.
