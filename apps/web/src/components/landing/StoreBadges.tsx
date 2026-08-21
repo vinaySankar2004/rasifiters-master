@@ -1,13 +1,15 @@
 import { IconApple, IconGooglePlay } from "./icons";
-import { APP_STORE_URL } from "./content";
+import { APP_STORE_URL, PLAY_STORE_URL } from "./content";
 
 // Store badges rebuilt as in-theme pills (not raster badge art) so they stay crisp
-// and adapt to light/dark. The App Store pill uses the app's dark↔white inversion
-// (`button-primary--dark-white`) and links live. Google Play is a non-interactive
-// "Coming soon" pill; Android is not released; kept out of the tab order.
+// and adapt to light/dark. Both platforms are public, so both pills are live links
+// with identical dark<->white inversion styling (`button-primary--dark-white`) and
+// equal prominence.
 
 const shell =
   "inline-flex h-[54px] items-center gap-3 rounded-2xl px-4 text-left";
+
+const pill = `button-primary button-primary--dark-white ${shell} transition-transform hover:-translate-y-0.5`;
 
 function BadgeText({ top, bottom }: { top: string; bottom: string }) {
   return (
@@ -26,20 +28,22 @@ export function StoreBadges({ className }: { className?: string }) {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Download RaSi Fiters on the App Store"
-        className={`button-primary button-primary--dark-white ${shell} transition-transform hover:-translate-y-0.5`}
+        className={pill}
       >
         <IconApple className="h-7 w-7 shrink-0" />
         <BadgeText top="Download on the" bottom="App Store" />
       </a>
 
-      <span
-        role="img"
-        aria-label="Coming soon on Google Play"
-        className={`${shell} cursor-default select-none border border-rf-border bg-rf-surface-muted text-rf-text-muted`}
+      <a
+        href={PLAY_STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Get RaSi Fiters on Google Play"
+        className={pill}
       >
-        <IconGooglePlay className="h-6 w-6 shrink-0 opacity-70" />
-        <BadgeText top="Coming soon on" bottom="Google Play" />
-      </span>
+        <IconGooglePlay className="h-6 w-6 shrink-0" />
+        <BadgeText top="Get it on" bottom="Google Play" />
+      </a>
     </div>
   );
 }

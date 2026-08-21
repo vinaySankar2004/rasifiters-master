@@ -5,6 +5,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { AppProviders } from "@/app/providers";
 import { AppShell } from "@/app/shell";
+import { APP_STORE_URL, PLAY_STORE_URL } from "@/components/landing/content";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -37,9 +38,9 @@ const DESCRIPTION =
   "Join a fitness program, log workouts and daily health, and track your whole group's progress with leaderboards, streaks and analytics. On iPhone, Android and the web.";
 
 // SoftwareApplication structured data (schema.org). Helps Google associate the
-// site with the existing RaSi Fiters app entity (sameAs → App Store). The exact
-// brand spelling is repeated here so "Fiters" reads as intentional, not a typo.
-const APP_STORE_URL = "https://apps.apple.com/ca/app/rasi-fiters/id6758078961";
+// site with the existing RaSi Fiters app entity (sameAs → both store listings).
+// The exact brand spelling is repeated here so "Fiters" reads as intentional,
+// not a typo. Store URLs come from the landing content module (one source).
 const STRUCTURED_DATA = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -48,7 +49,7 @@ const STRUCTURED_DATA = {
   operatingSystem: "iOS, Android, Web",
   url: appUrl,
   description: DESCRIPTION,
-  sameAs: [APP_STORE_URL],
+  sameAs: [APP_STORE_URL, PLAY_STORE_URL],
   offers: {
     "@type": "Offer",
     price: "0",

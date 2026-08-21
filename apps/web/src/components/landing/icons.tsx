@@ -110,7 +110,7 @@ export function IconApple({ className }: Props) {
 }
 
 export function IconGooglePlay({ className }: Props) {
-  // Simple play-triangle mark for the grayscale "coming soon" Google Play badge.
+  // Simple play-triangle mark for the Google Play badge (monochrome, in-theme).
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className ?? base} aria-hidden="true">
       <path d="M4 3.2a1 1 0 0 1 1.51-.86l13.2 7.8a1 1 0 0 1 0 1.72l-13.2 7.8A1 1 0 0 1 4 18.8V3.2Z" />

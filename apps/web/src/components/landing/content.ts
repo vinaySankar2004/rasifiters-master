@@ -1,8 +1,12 @@
 // Marketing copy + constants for the public landing page (`/`).
 // Single source of truth so the section components stay presentational.
 
+// Public store listings. Single source of truth — `layout.tsx` imports these for the
+// SoftwareApplication JSON-LD `sameAs` so the site/app entity links can't drift apart.
 export const APP_STORE_URL =
   "https://apps.apple.com/ca/app/rasi-fiters/id6758078961";
+export const PLAY_STORE_URL =
+  "https://play.google.com/store/apps/details?id=com.app.rasifiters";
 export const SUPPORT_EMAIL = "vinay.sankara@gmail.com";
 export const PRIVACY_PATH = "/privacy-policy";
 export const SUPPORT_PATH = "/support";

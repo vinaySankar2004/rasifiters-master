@@ -1,6 +1,6 @@
 # Page: `landing` (web) — the public marketing landing page (root `/`)
 
-> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/` (the root). **Public** — not in the `middleware.ts` matcher.
 > **Provenance:** **NET-NEW** — not ported from the legacy app. The legacy root `/` only `redirect()`ed to
 > `/splash`; this is the ICM's **first net-new web page** (no legacy reference to be faithful to). Replaces
@@ -35,7 +35,7 @@ To give the app a real, professional marketing front door (replacing the placeho
 - **Renders via:** `src/app/page.tsx` → `<Landing />` (`src/components/landing/Landing.tsx`).
 - **Chrome:** bypasses the app shell. `src/app/shell.tsx` early-returns bare children when `pathname === "/"`,
   so the landing owns its own full-bleed background and there is no bottom nav / `NotificationsGate`.
-- **Leaves to:** the App Store listing (badge), `/login` (logged-out CTA) / `/programs` (logged-in CTA),
+- **Leaves to:** the App Store + Google Play listings (badges), `/login` (logged-out CTA) / `/programs` (logged-in CTA),
   `#download` (in-page anchor), `/privacy-policy`, `/support`.
 
 ## 4. Contents / sections
@@ -92,9 +92,9 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 - `src/app/sitemap.ts` → `/sitemap.xml`: the 6 public entry pages only (`/`, `/login`, `/create-account`,
   `/forgot-password`, `/privacy-policy`, `/support`); `/` weekly/priority 1, the rest monthly/0.6.
 - `SoftwareApplication` JSON-LD (schema.org) inlined in `layout.tsx` `<head>`: `name: "RaSi Fiters"`,
-  `applicationCategory: HealthApplication`, `operatingSystem: "iOS, Android, Web"`, `sameAs` → the App
-  Store listing, free `Offer`. Ties the site to the existing app entity and asserts the "Fiters" spelling
-  as intentional. (Marketing URL on the App Store listing points back at `rasifiters.com` for the reverse
+  `applicationCategory: HealthApplication`, `operatingSystem: "iOS, Android, Web"`, `sameAs` → **both**
+  store listings (App Store + Google Play, imported from `content.ts`), free `Offer`. Ties the site to the
+  app entity on both stores and asserts the "Fiters" spelling as intentional. (Marketing URL on the App Store listing points back at `rasifiters.com` for the reverse
   link — user-confirmed 2026-07-11.)
 
 ## 7. Decisions (D-rules)
@@ -103,14 +103,14 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 |---|----------|-------|
 | **D-LAND-1** | **Net-new page; `/` serves the landing, splash retained but unlinked.** `page.tsx` renders `<Landing/>` instead of `redirect("/splash")`; `shell.tsx` bare-passthrough for `/`. Splash kept (direct-URL only), not deleted. | `page.tsx`; `shell.tsx`; splash SPEC v0.2.1 |
 | **D-LAND-2** | **~90% generated in-theme UI panels, not screenshots** — theme-aware + crisp. Only raster asset is the OG image. | `panels.tsx`; `screens.tsx`; `devices.tsx` |
-| **D-LAND-3** | **Store badges:** App Store links live (`.../app/rasi-fiters/id6758078961`); Google Play is a non-interactive "Coming soon" pill (Android unreleased). Only the badge signals "coming"; Android is otherwise presented as a full platform. | `StoreBadges.tsx`; user (2026-07-09) |
+| **D-LAND-3** | **Store badges: both live, equal prominence.** Both platforms are public, so both pills are real links in identical `button-primary--dark-white` styling — App Store (`.../app/rasi-fiters/id6758078961`) and Google Play (`...details?id=com.app.rasifiters`). URLs live once in `content.ts` and are reused by `layout.tsx`'s JSON-LD. | `StoreBadges.tsx`; `content.ts`; user (2026-08-20) |
 | **D-LAND-4** | **Auth-aware CTA, no auto-redirect.** Logged-out → Log in (`/login`); logged-in → Open app (`/programs`). Mounted guard prevents hydration mismatch. | `AuthCta.tsx` |
 | **D-LAND-5** | **Theme-aware, dark-first.** Inherits `rf-*` / `data-theme`; follows the visitor's system/theme preference like the app. | all landing components |
 | **D-LAND-6** | **Realistic device frames.** iPhone = Dynamic Island + side buttons; Pixel = center punch-hole + right buttons; the two cross-platform phones are held to **equal height** via a flex-stretch chain; labelled with the Apple + Android glyphs. | `devices.tsx`; `CrossPlatform.tsx`; user (2026-07-09) |
 | **D-LAND-7** | **Program status colors mirror the app's `StatusBadge`:** active → accent (orange), completed → success (green), planned → info (blue); progress bars color-matched. | `screens.tsx`; `components/ui/StatusBadge.tsx` |
 | **D-LAND-8** | **Copy hygiene.** No em dashes; plain, specific, benefit-led wording (AI-slop patterns avoided). Platform mentions kept to the cross-platform section + store badges, not repeated across every section. | `content.ts`; user (2026-07-09) |
 | **D-LAND-9** | **Desktop-only scroll cue.** A bouncing down-chevron ("SCROLL") pinned to the hero bottom nudges visitors past the fold on wide viewports (where the hero can fill the screen and look complete); fades out on first scroll, is `hidden md:flex` (mobile already overflows), and renders static under reduced-motion. | `ScrollCue.tsx`; user (2026-07-10) |
-| **D-LAND-10** | **Indexing infra for brand discovery.** Add `robots.ts` (`/robots.txt`, allow-all + sitemap ref, disallow auth-gated routes), `sitemap.ts` (`/sitemap.xml`, 6 public pages), and `SoftwareApplication` JSON-LD in `layout.tsx` (`sameAs` → App Store). Additive metadata only — no visible/behavior change. Paired with the site's Search Console setup + the App Store Marketing URL (`rasifiters.com`) so Google links site ↔ app entity for the near-uncontested "RaSi Fiters" query. | `robots.ts`; `sitemap.ts`; `layout.tsx`; user (2026-07-11) |
+| **D-LAND-10** | **Indexing infra for brand discovery.** Add `robots.ts` (`/robots.txt`, allow-all + sitemap ref, disallow auth-gated routes), `sitemap.ts` (`/sitemap.xml`, 6 public pages), and `SoftwareApplication` JSON-LD in `layout.tsx` (`sameAs` → the store listings; both stores since 0.1.3). Additive metadata only — no visible/behavior change. Paired with the site's Search Console setup + the App Store Marketing URL (`rasifiters.com`) so Google links site ↔ app entity for the near-uncontested "RaSi Fiters" query. | `robots.ts`; `sitemap.ts`; `layout.tsx`; user (2026-07-11) |
 
 ## 8. Open items / flags
 
@@ -119,13 +119,14 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 - **F-LAND-2** — `Reveal` sets `opacity:0` via Framer on hydration; content is present in the SSR HTML so
   crawlers (which execute JS) see it, and `prefers-reduced-motion` renders it statically. Standard pattern,
   noted for awareness.
-- **F-LAND-3** — When Android ships to Google Play, flip the Play badge from "Coming soon" to a live link
-  (`StoreBadges.tsx`, `playStoreComingSoon`).
+- ~~**F-LAND-3**~~ **CLOSED 2026-08-20** — the Play badge is a live link (D-LAND-3); Android went public
+  on the Play Store 2026-08-06 (`RELEASES.md`).
 
 ## 9. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.3 | 2026-08-20 | **Google Play badge goes live** (D-LAND-3 rewritten; **F-LAND-3 closed**) — Android has been public on the Play Store since 2026-08-06, but the landing still showed a dead "Coming soon" pill, so the page was the last surface still claiming Android was unreleased. The Play pill is now a real link in the *same* `button-primary--dark-white` styling as the App Store pill (equal prominence, still in-theme markup per D-LAND-2; text "Get it on / Google Play"). New `PLAY_STORE_URL` in `content.ts` alongside `APP_STORE_URL`; `layout.tsx` now **imports both** instead of re-declaring the App Store URL, and the `SoftwareApplication` JSON-LD `sameAs` carries both listings so Google links the site to the app entity on both stores. `tsc --noEmit` + `next build` green. `StoreBadges.tsx`, `content.ts`, `layout.tsx`, `icons.tsx` (comment). §3/§6 updated. |
 | 0.1.2 | 2026-07-11 | Add **indexing infra** for brand discovery (D-LAND-10): net-new `src/app/robots.ts` (`/robots.txt` — `Allow: /`, `Sitemap:` ref, `host`, disallow auth-gated routes + `/splash`) and `src/app/sitemap.ts` (`/sitemap.xml` — 6 public entry pages), plus `SoftwareApplication` JSON-LD in `layout.tsx` (`name: RaSi Fiters`, `sameAs` → App Store listing). Purely additive metadata (typecheck + `next build` green; both routes register as static). Pairs with the owner-side Search Console verify + App Store Marketing URL (`rasifiters.com`) to establish the site↔app entity link for the uncontested "RaSi Fiters" query. §6 updated. |
 | 0.1.1 | 2026-07-10 | Add **desktop-only scroll cue** to the hero (`ScrollCue.tsx`, third client island): a bouncing "SCROLL ⌄" chevron pinned to the section bottom that fades out on first scroll (`scrollY > 24`), so visitors on wide viewports (where the hero can fill the screen and read as complete) are nudged past the fold. `hidden md:flex` (absent on mobile), static under reduced-motion. Decision D-LAND-9. User-verified live. |
 | 0.1.0 | 2026-07-09 | Initial SPEC + build + deploy — **first net-new web page** (no legacy reference). Public marketing landing at `/` replacing the splash redirect (splash retained, unlinked). Sections: sticky header, hero (Summary dashboard in an iPhone frame), 3 feature rows, analytics highlight (browser frame), feature grid, cross-platform (equal-height iPhone + Pixel), final CTA, footer. ~90% generated in-theme UI (no screenshots) that adapts to light/dark; realistic iPhone (Dynamic Island) + Pixel (punch-hole) device frames; App Store badge live + Google Play "Coming soon"; auth-aware CTA (Log in / Open app, no forced redirect); upgraded SEO metadata + 1200×630 OG image. Decisions D-LAND-1…8. Consumes only `auth` foundation (`useAuth`); no API. `src/app/page.tsx`, `src/app/shell.tsx`, `src/app/layout.tsx`, `src/components/landing/**`, `public/marketing/og-image.png`. |
