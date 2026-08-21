@@ -33,7 +33,8 @@ and standalone (the original app it was ported from is archived, not tracked her
   `https://rasifiters-api.onrender.com` via Blueprint (`apps/backend/render.yaml`, GitHub auto-deploy).
   A **new** service; the legacy backend also ran on Render. `/api/auth` deployed + verified end-to-end
   2026-06-28. (Service ID + deploy detail: canonical home `apps/backend/CONTEXT.md`.)
-- **Web → Vercel** — project `rasifiters`, **LIVE** at `https://rasifiters.com` (apex 308→`www`), git
+- **Web → Vercel** — project `rasifiters`, **LIVE** at `https://rasifiters.com` (canonical host = apex;
+  `www`→apex 308 — see `apps/web/CONTEXT.md` §SEO), git
   auto-deploy on `main`. Deployed + domain cutover 2026-06-29 (the old legacy project was retired off the
   domain). (Project/team IDs + deploy detail: canonical home `apps/web/CONTEXT.md`.)
 - **iOS** — **LIVE on the App Store** (+ TestFlight); bundle id `com.app.rasifiters` (build target + APNs topic).

@@ -9,7 +9,8 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
 - Next.js 14 (App Router) · React 18 · TypeScript · Tailwind (theme via `rf-*` CSS vars)
 - TanStack React Query (server state) · Recharts (charts) · Framer Motion (animation)
 - Host: **Vercel** (project `rasifiters` = `prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`, team `personal-vinayak`);
-  **LIVE on the custom domain `https://rasifiters.com`** (apex 308→`www.rasifiters.com`); also at
+  **LIVE on the custom domain `https://rasifiters.com`** (canonical host = apex; `www.rasifiters.com`
+  308→apex); also at
   `https://rasifiters.vercel.app`. Domain cutover done 2026-06-29.
 
 ## Surface (~33 routes, from the legacy app)
@@ -32,7 +33,7 @@ analytics, notifications) are `specs/features/` it consumes.
 ## Deploy (PROVISIONED + LIVE 2026-06-29)
 Vercel project **`rasifiters`** (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team **`personal-vinayak`**
 (`team_VWBSWxM5pHvWjCraHUWB73v5`), `--scope personal-vinayak`. **LIVE on the custom domain
-`https://rasifiters.com`** (apex 308→`www.rasifiters.com`; cutover done 2026-06-29 by moving the domain
+`https://rasifiters.com`** (canonical host = apex; `www.rasifiters.com` 308→apex; cutover done 2026-06-29 by moving the domain
 off the OLD legacy Vercel project `rasi-fiters` → this `rasifiters` project); also reachable at
 `https://rasifiters.vercel.app`. **Git auto-deploy is WIRED**: repo `vinaySankar2004/rasifiters-master`,
 production branch `main`, Root Directory `apps/web`, monorepo ignore-step `git diff --quiet HEAD^ HEAD -- .`
@@ -53,10 +54,18 @@ calls work from the domain. `JWT_SECRET` is **no longer used** — `src/middlewa
 
 Smoke test on the live domain (2026-06-29): `/splash`·`/login`·`/privacy-policy`·`/support`·`/forgot-password`·
 `/reset-password` → 200; `/summary`·`/members` unauth → 307 → `/login?from=…` (edge guard armed); apex
-`rasifiters.com` 308→`www`; `og:url` baked to `https://rasifiters.com`; `/favicon.ico` → 200 (the
+`www.rasifiters.com` 308→apex `rasifiters.com`; `og:url` + `rel=canonical` baked to
+`https://rasifiters.com`; `/favicon.ico` → 200 (the
 rasifiters logo — App Router icon files ported, see Foundation port); Render backend `/` → 200. NOT
 exercised: the signed-in web→backend proxy round-trip (no test credentials) — the backend auth round-trip
 itself was verified live in Phase 2.
+
+## SEO
+
+Canonical host = the apex `rasifiters.com` (Vercel serves it; `www` 308→apex). The declared URLs
+(`metadataBase`, `sitemap.ts`, `robots.ts`, `og:url`, JSON-LD) and the Vercel redirect direction
+**must agree** — flipping either alone re-breaks indexing. Contract + rationale:
+[landing SPEC §6 + D-LAND-11](../../specs/pages/web/landing/SPEC.md).
 
 ## Foundation port (Phase 3 kickoff, 2026-06-29)
 

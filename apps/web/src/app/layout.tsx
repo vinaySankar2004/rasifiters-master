@@ -37,25 +37,68 @@ const TITLE = "RaSi Fiters: Fitness programs, tracked together";
 const DESCRIPTION =
   "Join a fitness program, log workouts and daily health, and track your whole group's progress with leaderboards, streaks and analytics. On iPhone, Android and the web.";
 
-// SoftwareApplication structured data (schema.org). Helps Google associate the
-// site with the existing RaSi Fiters app entity (sameAs → both store listings).
-// The exact brand spelling is repeated here so "Fiters" reads as intentional,
-// not a typo. Store URLs come from the landing content module (one source).
-const STRUCTURED_DATA = {
-  "@context": "https://schema.org",
-  "@type": "SoftwareApplication",
-  name: "RaSi Fiters",
-  applicationCategory: "HealthApplication",
-  operatingSystem: "iOS, Android, Web",
-  url: appUrl,
-  description: DESCRIPTION,
-  sameAs: [APP_STORE_URL, PLAY_STORE_URL],
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD"
+const BRAND = "RaSi Fiters";
+
+// Brand-name variants Google should resolve to this ONE entity. The spaced form
+// ("rasi fiters") is the query that failed to rank while the single token
+// "rasifiters" matched exactly — Google autocorrects the spaced form toward
+// "fitters" and there was nothing telling it otherwise. Declaring both spacings
+// AND the autocorrection as alternateName is the schema-level fix.
+const BRAND_ALIASES = [
+  "Rasi Fiters",
+  "RasiFiters",
+  "rasifiters",
+  "RaSi Fitters",
+  "Rasi Fitters"
+];
+
+const ORGANIZATION_ID = `${appUrl}/#organization`;
+const WEBSITE_ID = `${appUrl}/#website`;
+
+// schema.org graph (Organization + WebSite + SoftwareApplication). Organization and
+// WebSite are what Google uses to build a brand entity — without them a bare
+// SoftwareApplication gives the brand query nothing to latch onto. All three carry the
+// alias list; `sameAs` ties the site to both store listings so the web and app entities
+// consolidate. Store URLs come from the landing content module (one source).
+const STRUCTURED_DATA = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": ORGANIZATION_ID,
+    name: BRAND,
+    alternateName: BRAND_ALIASES,
+    url: appUrl,
+    logo: `${appUrl}/brand/app-icon.png`,
+    description: DESCRIPTION,
+    sameAs: [APP_STORE_URL, PLAY_STORE_URL]
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": WEBSITE_ID,
+    name: BRAND,
+    alternateName: BRAND_ALIASES,
+    url: appUrl,
+    publisher: { "@id": ORGANIZATION_ID }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: BRAND,
+    alternateName: BRAND_ALIASES,
+    applicationCategory: "HealthApplication",
+    operatingSystem: "iOS, Android, Web",
+    url: appUrl,
+    description: DESCRIPTION,
+    publisher: { "@id": ORGANIZATION_ID },
+    sameAs: [APP_STORE_URL, PLAY_STORE_URL],
+    offers: {
+      "@type": "Offer",
+      price: "0",
+      priceCurrency: "USD"
+    }
   }
-} as const;
+] as const;
 
 export const metadata: Metadata = {
   metadataBase,
@@ -64,7 +107,14 @@ export const metadata: Metadata = {
     template: "%s · RaSi Fiters"
   },
   description: DESCRIPTION,
-  applicationName: "RaSi Fiters",
+  applicationName: BRAND,
+  // Self-referencing canonical on EVERY route. "./" is resolved by Next against
+  // metadataBase + the current pathname, so each page canonicalises to its own apex
+  // URL. Without this the site had no canonical at all, which is why Google indexed
+  // BOTH https://rasifiters.com/ and https://www.rasifiters.com/ as separate pages.
+  alternates: {
+    canonical: "./"
+  },
   icons: {
     icon: [
       { url: "/brand/app-icon.png" }

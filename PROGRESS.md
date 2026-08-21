@@ -71,6 +71,11 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 
 ## Open items (carry until resolved)
 
+- **Search Console re-validation (web indexing)** — the canonical-host fix landed 2026-08-20 (landing SPEC
+  **D-LAND-11**): apex serves, `www` 308→apex, `rel=canonical` on every route. **Pending, user-side:** in GSC
+  hit *Validate Fix* on the "Page with redirect" row and Request-Indexing `https://rasifiters.com/`; the
+  duplicate `www` entry should drop out over ~1–2 weeks. Brand-query pickup for the spaced `"rasi fiters"`
+  is slower (schema is a hint, not a switch) — recheck in a few weeks before doing anything more.
 - **Re-auth the Render + Vercel MCPs** — both OAuth sessions have gone stale before (400/403); re-connect
   via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + the local `vercel` CLI work
   meanwhile.

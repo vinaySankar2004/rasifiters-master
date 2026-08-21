@@ -1,6 +1,6 @@
 # Page: `landing` (web) — the public marketing landing page (root `/`)
 
-> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.3 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.4 · **App:** `web` (Next.js App Router)
 > **Route:** `/` (the root). **Public** — not in the `middleware.ts` matcher.
 > **Provenance:** **NET-NEW** — not ported from the legacy app. The legacy root `/` only `redirect()`ed to
 > `/splash`; this is the ICM's **first net-new web page** (no legacy reference to be faithful to). Replaces
@@ -83,7 +83,8 @@ apply — it renders outside any program context. The only state gate is **auth 
 Set in `src/app/layout.tsx` (the landing is the site default since `/` is home): title
 `"RaSi Fiters: Fitness programs, tracked together"` (with `%s · RaSi Fiters` template), a real marketing
 `description`, and OpenGraph + Twitter cards pointing at `/marketing/og-image.png` (1200×630). `metadataBase`
-= `NEXT_PUBLIC_APP_URL ?? https://rasifiters.com`; `robots: index, follow`.
+= `NEXT_PUBLIC_APP_URL ?? https://rasifiters.com`; `robots: index, follow`; `alternates.canonical = "./"`
+(self-canonicalises every route — D-LAND-11).
 
 **Indexing infra (D-LAND-10).** Three additive metadata routes back the same `NEXT_PUBLIC_APP_URL`:
 - `src/app/robots.ts` → `/robots.txt`: `Allow: /`, a `Sitemap:` line, and `host`; disallows the auth-gated
@@ -91,11 +92,14 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
   `/delete-account`) and the unlinked `/splash` to keep crawl budget on marketing pages.
 - `src/app/sitemap.ts` → `/sitemap.xml`: the 6 public entry pages only (`/`, `/login`, `/create-account`,
   `/forgot-password`, `/privacy-policy`, `/support`); `/` weekly/priority 1, the rest monthly/0.6.
-- `SoftwareApplication` JSON-LD (schema.org) inlined in `layout.tsx` `<head>`: `name: "RaSi Fiters"`,
-  `applicationCategory: HealthApplication`, `operatingSystem: "iOS, Android, Web"`, `sameAs` → **both**
-  store listings (App Store + Google Play, imported from `content.ts`), free `Offer`. Ties the site to the
-  app entity on both stores and asserts the "Fiters" spelling as intentional. (Marketing URL on the App Store listing points back at `rasifiters.com` for the reverse
-  link — user-confirmed 2026-07-11.)
+- **JSON-LD graph** (schema.org) inlined in `layout.tsx` `<head>`: `Organization` + `WebSite` +
+  `SoftwareApplication`. `Organization`/`WebSite` are what Google builds a *brand* from — a bare
+  `SoftwareApplication` (through 0.1.3) gave a brand query nothing to match. All three carry
+  `name: "RaSi Fiters"` + the `alternateName` aliases (D-LAND-11) and `sameAs` → **both** store listings
+  (imported from `content.ts`); the app node keeps `applicationCategory: HealthApplication`,
+  `operatingSystem: "iOS, Android, Web"`, free `Offer`. Ties the site to the app entity on both stores.
+  (Marketing URL on the App Store listing points back at `rasifiters.com` for the reverse link —
+  user-confirmed 2026-07-11.)
 
 ## 7. Decisions (D-rules)
 
@@ -110,7 +114,8 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 | **D-LAND-7** | **Program status colors mirror the app's `StatusBadge`:** active → accent (orange), completed → success (green), planned → info (blue); progress bars color-matched. | `screens.tsx`; `components/ui/StatusBadge.tsx` |
 | **D-LAND-8** | **Copy hygiene.** No em dashes; plain, specific, benefit-led wording (AI-slop patterns avoided). Platform mentions kept to the cross-platform section + store badges, not repeated across every section. | `content.ts`; user (2026-07-09) |
 | **D-LAND-9** | **Desktop-only scroll cue.** A bouncing down-chevron ("SCROLL") pinned to the hero bottom nudges visitors past the fold on wide viewports (where the hero can fill the screen and look complete); fades out on first scroll, is `hidden md:flex` (mobile already overflows), and renders static under reduced-motion. | `ScrollCue.tsx`; user (2026-07-10) |
-| **D-LAND-10** | **Indexing infra for brand discovery.** Add `robots.ts` (`/robots.txt`, allow-all + sitemap ref, disallow auth-gated routes), `sitemap.ts` (`/sitemap.xml`, 6 public pages), and `SoftwareApplication` JSON-LD in `layout.tsx` (`sameAs` → the store listings; both stores since 0.1.3). Additive metadata only — no visible/behavior change. Paired with the site's Search Console setup + the App Store Marketing URL (`rasifiters.com`) so Google links site ↔ app entity for the near-uncontested "RaSi Fiters" query. | `robots.ts`; `sitemap.ts`; `layout.tsx`; user (2026-07-11) |
+| **D-LAND-10** | **Indexing infra for brand discovery.** Add `robots.ts` (`/robots.txt`, allow-all + sitemap ref, disallow auth-gated routes), `sitemap.ts` (`/sitemap.xml`, 6 public pages), and `SoftwareApplication` JSON-LD in `layout.tsx` (`sameAs` → the store listings; both stores since 0.1.3 — **superseded at 0.1.4 by the 3-node graph in D-LAND-11**). Additive metadata only — no visible/behavior change. Paired with the site's Search Console setup + the App Store Marketing URL (`rasifiters.com`) so Google links site ↔ app entity for the near-uncontested "RaSi Fiters" query. | `robots.ts`; `sitemap.ts`; `layout.tsx`; user (2026-07-11) |
+| **D-LAND-11** | **One canonical host (apex) + brand aliases.** The canonical host is the apex `rasifiters.com`: Vercel serves it directly and `www` **308**→apex. Everything the app declares — `metadataBase`, sitemap locs, robots `Host:`/`Sitemap:`, `og:url`, JSON-LD `url`/`@id` — is apex, and `alternates.canonical = "./"` in the root layout self-canonicalises every route (Next resolves `"./"` against `metadataBase` + the current pathname; the public pages are all `"use client"` and cannot export `metadata`). JSON-LD `alternateName` carries the spaced spelling, the closed one, and the **autocorrection** `Rasi Fitters`. **Why:** apex was **307**→`www` with *no* `rel=canonical` anywhere, so Google indexed both hosts as duplicates and filed the sitemap's 6 apex URLs under "Page with redirect" (2 indexed + 2 not-indexed in GSC); a 307 is temporary and never consolidates signal. Separately the spaced query `"rasi fiters"` did not rank while `"rasifiters"` ranked #1 — Google autocorrects `Fiters`→`Fitters` and nothing declared otherwise. **Both halves must agree**: flipping Vercel back so apex redirects re-breaks every sitemap URL. | `layout.tsx`; Vercel Domains; user (2026-08-20) |
 
 ## 8. Open items / flags
 
@@ -126,6 +131,7 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.4 | 2026-08-20 | **Canonical host + brand entity** (new **D-LAND-11**) — Search Console showed 2 indexed + 2 not-indexed ("Page with redirect"). Cause: apex **307**→`www` while every declared URL said apex, and **no `rel=canonical` anywhere** — so Google indexed both hosts as duplicates and every sitemap URL was a redirect. Fixed on both sides: Vercel now serves apex with `www` **308**→apex (verified: all 6 sitemap paths → 200), and `layout.tsx` gains `alternates.canonical = "./"` (per-route self-canonical, verified in the build output). The `SoftwareApplication` JSON-LD becomes an `Organization` + `WebSite` + `SoftwareApplication` graph, all carrying `alternateName` aliases (`Rasi Fiters`, `RasiFiters`, `rasifiters`, `RaSi Fitters`, `Rasi Fitters`) so the spaced query `"rasi fiters"` — which did not rank, vs `"rasifiters"` at #1 — resolves to this entity. Metadata-only: no visible/behavior change, no API or contract delta, live iOS/Android binaries unaffected. `next build` green. `layout.tsx`; §6 + §7 updated. |
 | 0.1.3 | 2026-08-20 | **Google Play badge goes live** (D-LAND-3 rewritten; **F-LAND-3 closed**) — Android has been public on the Play Store since 2026-08-06, but the landing still showed a dead "Coming soon" pill, so the page was the last surface still claiming Android was unreleased. The Play pill is now a real link in the *same* `button-primary--dark-white` styling as the App Store pill (equal prominence, still in-theme markup per D-LAND-2; text "Get it on / Google Play"). New `PLAY_STORE_URL` in `content.ts` alongside `APP_STORE_URL`; `layout.tsx` now **imports both** instead of re-declaring the App Store URL, and the `SoftwareApplication` JSON-LD `sameAs` carries both listings so Google links the site to the app entity on both stores. `tsc --noEmit` + `next build` green. `StoreBadges.tsx`, `content.ts`, `layout.tsx`, `icons.tsx` (comment). §3/§6 updated. |
 | 0.1.2 | 2026-07-11 | Add **indexing infra** for brand discovery (D-LAND-10): net-new `src/app/robots.ts` (`/robots.txt` — `Allow: /`, `Sitemap:` ref, `host`, disallow auth-gated routes + `/splash`) and `src/app/sitemap.ts` (`/sitemap.xml` — 6 public entry pages), plus `SoftwareApplication` JSON-LD in `layout.tsx` (`name: RaSi Fiters`, `sameAs` → App Store listing). Purely additive metadata (typecheck + `next build` green; both routes register as static). Pairs with the owner-side Search Console verify + App Store Marketing URL (`rasifiters.com`) to establish the site↔app entity link for the uncontested "RaSi Fiters" query. §6 updated. |
 | 0.1.1 | 2026-07-10 | Add **desktop-only scroll cue** to the hero (`ScrollCue.tsx`, third client island): a bouncing "SCROLL ⌄" chevron pinned to the section bottom that fades out on first scroll (`scrollY > 24`), so visitors on wide viewports (where the hero can fill the screen and read as complete) are nudged past the fold. `hidden md:flex` (absent on mobile), static under reduced-motion. Decision D-LAND-9. User-verified live. |
