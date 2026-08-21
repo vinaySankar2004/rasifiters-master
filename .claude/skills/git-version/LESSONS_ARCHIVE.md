@@ -9,6 +9,37 @@
 Before ending a run, capture what you learned: a detect/bump call that was non-obvious, a
 blast-radius reverse-scan subtlety, a dangling-edge case, anything awkward in staging/tagging.
 
+### 2026-08-20 — Run: Play Store truth pass + repo-wide doc freshness/condense (NO bump, NO tag)
+Two commits, **zero feature impact** both times. Reusable judgments:
+
+1. **Page-spec versions are outside this skill's registry.** The landing SPEC bumped 0.1.2→0.1.3, but
+   `specs/pages/**` versions live in `specs/pages/REGISTRY.md`, **not** `specs/features/registry.json` —
+   so there is no semver step, no `feature/*` tag, and no blast-radius gate. The detect step is literal:
+   run the staged paths against every feature's `reference_impl.paths`; `apps/web/src/components/landing/**`
+   and `src/app/layout.tsx` match none, so the correct call was a plain `feat(web)` + `docs` pair.
+   *Don't let a visible version number in a page SPEC pull you into the feature pipeline.*
+2. **A live marketing surface can outlive the fact it asserts.** `RELEASES.md`, `ICM.md`, `PROGRESS.md`
+   and `apps/android/CONTEXT.md` all correctly said Android went public 2026-08-06, yet the public
+   landing page still rendered a dead "Coming soon" Google Play pill for two weeks. Internal docs being
+   right is not evidence the *user-visible* surface is. When a release-status fact changes, grep the
+   **rendered copy** (`apps/web/src/**`), not just the docs — and check the SPEC's open-items list, which
+   had carried the exact fix as **F-LAND-3** ("when Android ships, flip the badge") the whole time. A
+   forward-looking F-flag is a scheduled task, not a note; sweep them when the triggering event lands.
+3. **Duplicated constants drift silently.** `layout.tsx` re-declared `APP_STORE_URL` instead of importing
+   the one in `content.ts`, so the JSON-LD `sameAs` was a second place a store URL had to be remembered.
+   Collapsing to one import was the fix that keeps the next store change single-edit.
+4. **Condensing a volatile doc is where R12 earns its keep.** `PROGRESS.md` went 472→87 lines. Its
+   "Next action" still read *"Resume at Phase H"* / *"just say continue"* while its own header said all
+   four surfaces were public — a doc contradicting itself within one file. Before deleting each block the
+   canonical home was confirmed (Android phases → `apps/android/CONTEXT.md` + `specs/pages/android/`;
+   iOS trains → `RELEASES.md`; resolved items → `auth` SPEC §11 / archive), then the narrative was moved
+   to `PROGRESS_ARCHIVE.md` as dated one-liners. **Condense = relocate + confirm, never just delete.**
+5. **A freshness pass finds false claims, not just stale tone.** The sweep turned up docs asserting things
+   the code contradicted: `NotificationsGate` documented as a stub "returning `null`" (it is a 216-line SSE
+   port), six web SPECs claiming built sub-routes "404 until those specs land", FCM listed as pending
+   Phase I work. Cheap detector: grep the docs for *not yet built · deferred stub · coming soon · pending*,
+   then verify each against the filesystem — every hit is either history (fine, date it) or a live lie.
+
 ### 2026-07-09 — Run: doc-health Android-parity pass + new `multiplex` agent infra (NO bump)
 Touched 4 `specs/features/<f>/SPEC.md` files (analytics, program-memberships, programs, workouts) **and**
 `registry.json` — yet the correct call was **zero feature bumps, zero `feature/*` tags**. Two reusable
