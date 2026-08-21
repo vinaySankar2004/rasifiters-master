@@ -48,10 +48,10 @@ edit/profile/password/appearance/privacy/roles editors and re-uses the cross-tab
   the **Program** tab, once a program is active.
 - **Chrome:** the bottom nav renders the 4 workspace tabs (Summary / Members / Lifestyle / Program); this is
   the last of them, so all four tabs now resolve to a real page.
-- **Leaves to** (all `router.push`): cross-tab routes already built — `/programs` (switch/select program); and
-  **not-yet-built routes** (F2): the 6 settings sub-routes `/program/{edit,roles,profile,password,appearance,
-  privacy}`, plus `/members/list` · `/members/invite` · `/lifestyle/workouts`. **Six `/program/*` sub-routes,
-  deferred** as their own page-spec rows.
+- **Leaves to** (all `router.push`): `/programs` (switch/select program), the 6 settings sub-routes
+  `/program/{edit,roles,profile,password,appearance,privacy}`, plus `/members/list` · `/members/invite` ·
+  `/lifestyle/workouts`. The 6 `/program/*` sub-routes were **deferred** at port time as their own page-spec
+  rows and have **all since been built** (F2).
 
 ## 4. Contents / sections
 
@@ -133,9 +133,8 @@ and is not gated by the lock.)
   posture as the other workspace tabs.
 - **Appearance label:** rendered client-side after mount via `getStoredTheme()` (D-C1) — defaults to "System"
   on first paint to avoid a hydration mismatch (the raw legacy read had the same SSR guard).
-- **Forward nav:** the menu rows and My Account rows point at routes that are partly **not-yet-built** (the 6
-  `/program/*` sub-routes + `/members/{list,invite}` + `/lifestyle/workouts`, F2) — they 404 until those specs
-  land; `/programs` is live.
+- **Forward nav:** the menu rows and My Account rows point at the 6 `/program/*` sub-routes +
+  `/members/{list,invite}` + `/lifestyle/workouts` — deferred at port time, **all since built** (F2).
 
 ## 9. Decisions made
 
@@ -153,7 +152,7 @@ and is not gated by the lock.)
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) + the active program's `my_role` drive `isProgramAdmin` / `canInvite` / `canManageRoles` / `canLeaveProgram` — display/gating only; the backend re-verifies + re-authorizes every call (e.g. `leaveProgram` runs the membership-exit authz server-side). Same posture as the other workspace tabs' F1. | `program/page.tsx:37-41` | Kept (faithful) — not a security boundary. |
-| **F2** | **Forward navigation to not-yet-built routes** — the 6 `/program/*` sub-routes (edit/roles/profile/password/appearance/privacy) + `/members/list` + `/members/invite` + `/lifestyle/workouts`. These 404 until their specs land (`/programs` is live). | `program/page.tsx:123`, 144, 162, 203, 223, 469, 484, 499, 514 | Kept (faithful) — targets ported in later runs. |
+| ~~**F2**~~ **RESOLVED** | Forward navigation to then-unbuilt routes — the 6 `/program/*` sub-routes (edit/roles/profile/password/appearance/privacy) + `/members/list` + `/members/invite` + `/lifestyle/workouts`. **All since ported; nothing 404s.** | `program/page.tsx:123`, 144, 162, 203, 223, 469, 484, 499, 514 | Closed — targets ported in later runs. |
 | **F3** | **`global_admin` cannot Leave Program** (`canLeaveProgram = !isGlobalAdmin`) yet is treated as a program admin everywhere else — a deliberate asymmetry (a global admin isn't an enrolled member to exit). | `program/page.tsx:41`, 244 | Kept (faithful) — intentional product rule. |
 | **F4** | **Client-computed progress bar** — the non-admin Program Info card derives % / elapsed / remaining days locally via `computeProgramProgress(start_date, end_date)` (D-C3), distinct from summary's server-derived progress. A second, divergent progress source. | `program/page.tsx:434-453`, 292-307 | Candidate — could read the same server `analytics` progress as summary, but the legacy card intentionally avoids the analytics call here; left faithful. |
 | **F5** | **Raw `rf:appearance` write contract** — the appearance label is now read via `getStoredTheme()` (D-C1), but the **value is still written** by the deferred `/program/appearance` sub-route directly to `localStorage` (the legacy contract); this page only reads it. | `program/page.tsx:455-463` | Kept (faithful) — the appearance sub-route owns the write; both ends share `lib/theme.ts`'s `THEME_KEY`. |

@@ -1,13 +1,95 @@
 # PROGRESS_ARCHIVE.md — condensed run history (historical)
 
-> A concise, one-entry-per-run chronological record of the RaSi Fiters rebuild (2026-06-28 → 2026-06-30):
+> A concise, one-entry-per-run chronological record of the RaSi Fiters rebuild (2026-06-28 → present):
 > each run's date, headline, and gist. **Append-only history — not auto-loaded.** For current phase +
-> next action, read `PROGRESS.md`; for full per-run detail, see the git history of `PROGRESS.md`
-> (this file was condensed from the verbose 2,545-line session log on 2026-06-30). Some entries reference
-> the legacy app + the removed one-time migrator as they were written — kept as the audit trail.
+> next action, read `PROGRESS.md`; for release-channel state, `RELEASES.md`; for the load-bearing decisions,
+> the SPECs. Full per-run detail lives in the git history of `PROGRESS.md` (condensed from a 2,545-line
+> session log on 2026-06-30, and again on 2026-08-20 when the finished-phase narrative moved here). Some
+> entries reference the legacy app + the removed one-time migrator as they were written — kept as the audit
+> trail.
 
 ## Run history (newest first)
 
+- **2026-08-20** — **Play Store truth pass — the landing page finally says Android is out.** Android had been
+  public since 2026-08-06 but `rasifiters.com` still showed a dead "Coming soon" Google Play pill. Flipped it
+  to a live link with styling identical to the App Store pill (landing SPEC **0.1.3**, D-LAND-3 rewritten,
+  **F-LAND-3 closed**); added `PLAY_STORE_URL` to `content.ts` and made `layout.tsx` import both store URLs
+  instead of re-declaring one, so the `SoftwareApplication` JSON-LD `sameAs` now carries both listings. Same
+  pass: added the missing Android/Play + FCM infra lines to `CONTEXT.md`, de-duplicated `RELEASES.md`'s
+  current-binaries notes, and condensed `PROGRESS.md` (the finished Android Phase A→J / iOS-train narrative
+  moved here; its stale "Resume at Phase H" next-action was deleted).
+- **2026-08-15** — **Android production release recorded + versionCode pre-bumped to 5.** User announced the
+  2026-08-06 Play production go-live; `RELEASES.md` + `PROGRESS.md` flipped to "public on all four surfaces".
+  Pre-bumped `versionCode` 4→5 (`apps/android/app/build.gradle.kts:41`) since Play rejects re-uploads at a
+  consumed build. Also closed the pre-cutover backend smoke-test item as obsolete (superseded by ~7 weeks of
+  production traffic), carrying out its one residual as a standing risk note (`DELETE /api/auth/account`).
+- **2026-08-06** — **🚀 ANDROID IS PUBLIC — first Play Store production release LIVE; all four surfaces are
+  now shipped to the public.** Closed-testing build 1.0.0 (4) promoted from the library (no new upload),
+  approved, 100% rollout to 176 countries + rest of world (managed publishing off → live on approval). No
+  code change. Console at announcement: 6 installs, 13 monthly active devices.
+- **2026-08-03** — **Play production access granted, then the first production release submitted.** The
+  2026-07-28 application cleared review; build (4) was promoted to production (release name "4 (1.0.0)"),
+  full rollout, and entered app review.
+- **2026-07-28** — **Applied for Play production access.** The 14-day / 12-tester closed-test gate cleared, so
+  the three-step access form was submitted (closed-test recruitment + audience + readiness answers).
+- **2026-07-20** — **iOS 1.4.2 (56) approved → current public App Store release; 1.4.3 (57) cleared Beta App
+  Review** on external TestFlight, so later builds of that train distribute near-instantly. 1.4.2 train closed.
+- **2026-07-17** — **iOS 1.4.2 (56) submitted for App Store review** (carrying the iPad/Mac pass + new 13"
+  iPad screenshots) and **1.4.3 (57) uploaded as the ahead-train** external-TestFlight build; the 1.4.2
+  TestFlight builds (55/56) were removed from testing.
+- **2026-07-16** — **iOS large-screen (iPad / Mac "Designed for iPad") adaptive-column pass — 100% screen
+  coverage, compile-green, user live-verified phase-by-phase.** Presentation-only, iOS-only (no behavior/API
+  change → live binaries unaffected). New `AdaptiveLayout` enum + `.adaptiveColumn(max:)`
+  (`apps/ios/RaSi-Fiters-App/Shared/Extensions/View+AdaptiveLayout.swift`): `formMaxWidth` 520,
+  `contentMaxWidth` 700 — both wider than any iPhone, so compact rendering stays pixel-identical. 37 files
+  touched + 1 new. **Load-bearing rule (memory `ios-large-screen-column-rules`): cap the CONTAINER
+  (List/ScrollView), never per-row content** — row caps leave swipe reveals/slide animations at the window
+  edge; grouped Lists capped narrower than the window need a matching `systemGroupedBackground` backdrop;
+  sheets are exempt, fullScreenCovers are not.
+- **2026-07-15** — **Active Days became the PRIMARY member-metrics stat — `member-analytics` v0.4.0 (D-C7),
+  shipped + user-verified on all three clients.** First user-feedback-driven (deliberate, not faithful-as-is)
+  change post-rebuild: Active Days and Workouts traded places in every primary slot; Member Performance
+  Metrics default sort → `active_days`; backend default `sort` flipped (semantic only — every shipped binary
+  passes `sort` explicitly). Built via the **multiplex pipeline** (Run 2); two-push backend-first deploy,
+  tagged `feature/member-analytics@v0.4.0`.
+- **2026-07-11** — **Android Continue-with-Google fixed for ALL Play testers — an ops fix, no code/binary
+  change.** Closed-testing users hit "No credentials available" on Continue with Google. Root cause was
+  neither SHA-1 nor code: the **Google Auth Platform → Audience** consent screen sat in *Testing* with 0 test
+  users, so only project owners could obtain a credential. Fix = publish the consent screen to **Production**
+  (instant; only basic `email`/`profile`/`openid` scopes, so no Google verification review). Durable capture:
+  **`ENV_RUNBOOK.md` §7** + memory `google-signin-consent-screen-gotcha`.
+- **2026-07-10** — **Account-settings link/unlink Google (+ Apple on iOS) + add-password shipped — `auth`
+  v0.9.0.** Net-new "Sign-in methods" section on each account screen; four additive authenticated routes
+  (D-C10). **R1 preserved:** link = session-bound GoTrue `linkIdentity` binding an ephemeral client to the
+  caller's OWN Supabase user → no OAuth redirect, no second `auth.users` row, `/oauth`'s D-C8 409 untouched.
+  Requires Supabase **Manual linking** (user-enabled). Apple link/unlink is iOS-only. Built via the multiplex
+  pipeline; user live-tested on all three platforms. Tagged `feature/auth@v0.9.0`; memory
+  `link-unlink-account-settings-shipped`.
+- **2026-07-10** — **Signup wizard + Google/Apple federated sign-in shipped — `auth` v0.8.0.** Create Account
+  became a 3-step no-scroll wizard on all three clients, with Continue-with-Google (all) + Sign-in-with-Apple
+  (iOS) and custom dark-pill buttons. R1 preserved (native `id_token` / web auth-`code` → `/api/auth/oauth` →
+  Supabase `signInWithIdToken`; new `/oauth/complete` for new social users; **409** on same-email collision).
+  Load-bearing detail incl. the iOS GoogleSignIn-9.2.0 nonce quirk: `auth` SPEC §9 D-C8/D-C9 + memory
+  `federated-signin-shipped`.
+- **2026-07-08** — **Android port COMPLETE — the 4th surface (`apps/android`), phases A→J, all build-green.**
+  A faithful 1:1 Compose port against the same backend contract: **A** foundation (Gradle/DI/state hub,
+  Keystore-backed session, Retrofit + 401 authenticator, M3 theme) · **B** auth path · **C** program-picker
+  (+ net-new D-N1 drag-to-reorder + floating search) · **D-landing** Summary dashboard · **D-details** 5
+  Summary forward targets (log-workout/log-health forms + activity/distribution/workout-types drill-downs) ·
+  **E** Members tab + all 8 detail screens · **F** Lifestyle tab + timeline + workout-types manager · **G**
+  Program tab + 6 settings/admin sub-routes · **I** notifications (okhttp-sse in-app stream + FCM push;
+  backend gained a `firebase-admin` sender + a `platform` param defaulting to `"ios"` so the live iOS binary
+  was unaffected) · **H** Health Connect (the iOS `apple-health` feature re-expressed on Health Connect —
+  Changes API as the anchor analog, rolling 14-day sleep window, D-S5/D-CONF/D-LOCK/D-SUM/D-SIL ported 1:1;
+  deviation **H-1**: no HealthKit-style background delivery, sync on app triggers) · **J** de-scaffold
+  (`StubScreen.kt` deleted; zero placeholders remain). User live-tested each phase on the Pixel_8 and signed
+  off. One device-test bug worth remembering: kotlinx.serialization omits **default-valued** properties, so
+  `platform = "android"` was dropped and the token stored as `'ios'` — fixed by making it a required field.
+  Thin per-screen SPECs under `specs/pages/android/`; phase list + decisions in `apps/android/CONTEXT.md`.
+- **2026-07-06** — **The GitHub repo went public** (memory `repo-is-public`); the pre-public health check
+  found no tracked secrets.
+- **2026-07-05** — **First-3-surface ship tail closed:** iOS on TestFlight (approved, in beta use), web LIVE
+  on `rasifiters.com`, backend LIVE on Render. `APNS_PRODUCTION=true` verified on Render.
 - **2026-07-01** — **Merged the two Summary workout-add entry points into one multi-row "Add workouts" form (web + iOS).** Removed the single "Add workout" + admin-only "Bulk add" cards/forms; the unified multi-row form now posts to `POST /workout-logs/batch` for everyone — **`workout-logs` D-C8** relaxes batch auth so a plain member may batch-log **their own** rows (member column hidden, each row seeded to self); admin/logger keep the per-row member picker. All-or-nothing duplicate rejection unchanged; widgets untouched. Deleted `LogWorkoutForm`/`BulkLogWorkoutForm` → `LogWorkoutsForm` (web); `AddWorkoutDetailView`/`BulkAddWorkoutDetailView` → `AddWorkoutsDetailView` (iOS). `tsc` ✓, iOS `BuildProject` ✓ (0 errors). SPECs: `workout-logs`→0.3.0 (D-C8), web `summary`→0.2.0, iOS `log-workout`→0.2.0.
 - **2026-06-30 (run 65)** — **Ported the 2 iOS widget entry views → the iOS DEFERRED LAYER IS CLOSED.** `question-asker` on the last 2 deferred stubs (`QuickAddWorkout`/`QuickAddHealthWidgetEntryView`, the Home-Screen widget deep-link targets).
 - **2026-06-30** — **Web polish + live-test fixes (post-launch side-quests; web surface stays CLOSED → next is `ios`).** Three user-reported fixes against the LIVE site, all committed + deployed + manually verified by the user: **(1) Profile page (`/program/profile`) gender fix + net-new email change** (commit `e4712d5`; **members→0.3.0**, **auth→0.5.0**,…

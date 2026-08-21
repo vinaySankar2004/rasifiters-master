@@ -43,8 +43,8 @@ fans out to the roster (`/members/list`), the invite form (`/members/invite`), t
 - **Reached via:** the app-wide bottom nav (`apps/web/src/app/shell.tsx` — `showNav` includes `/members`),
   the **Members** tab, once a program is active.
 - **Chrome:** the bottom nav renders the 4 workspace tabs (Summary / Members / Lifestyle / Program). The
-  Lifestyle / Program tabs are **forward dependencies** (F2).
-- **Leaves to** (all `router.push`, all **not yet built** — F2): `/members/list` (roster) · `/members/invite`
+  Lifestyle / Program tabs were **forward dependencies** at port time (F2, since built).
+- **Leaves to** (all `router.push`; all deferred at port time, **all now built** — F2): `/members/list` (roster) · `/members/invite`
   (send invite) · `/members/metrics` (full metrics table) · `/members/history` · `/members/streaks` ·
   `/members/workouts` · `/members/health` (per-member detail, `?memberId&name`), and `/members/detail`
   (reached from `/members/list`). **Eight sub-routes, deferred** as their own page-spec rows.
@@ -135,8 +135,8 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
   posture as the other workspace tabs.
 - **View-as persistence:** the picked member survives a reload via `sessionStorage` (per program + per user);
   global_admin's "None" persists as the literal `"none"` (F3).
-- **Forward nav:** the header pills, the metrics preview, and every card click point at **not-yet-built**
-  routes (F2) — they 404 until those specs land.
+- **Forward nav:** the header pills, the metrics preview, and every card click point at routes that were
+  deferred at port time and have **all since been built** (F2).
 
 ## 9. Decisions made
 
@@ -155,7 +155,7 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 |----|----------------|-------|----------------------------|
 | **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) + the active program's `my_role` drive `isProgramAdmin` / `canViewAs` / `canInvite` / `canViewAsLogger` — display/gating only; the backend re-verifies + re-authorizes (`ensureProgramAccess` on the member-analytics reads) on every call. Same posture as the summary tab's F1. | `members/page.tsx:45-51` | Kept (faithful) — not a security boundary. |
 | **F1a** | **Member-branch cards hang on `overviewMemberId = session.user.id`** — if that id is missing the whole member card block (`page.tsx:411`) is skipped and the tab shows only the "View Members" pill (an all-blank body). The id is now **server-authoritative + self-healing**: `AuthProvider` fetches `GET /auth/me` on load and repopulates `session.user.id` (the member's `members.id`) independent of the login path / a stale stored session (see `auth` SPEC D-C7). | `members/page.tsx:140-198, 411`; `apps/web/src/lib/auth/auth-provider.tsx` (`healIdentity`) | Fixed (2026-07-07) — was a silent blank-tab failure for any session with an empty id. |
-| **F2** | **Forward navigation to not-yet-built routes** — the header pills (`/members/list`, `/members/invite`), the metrics preview (`/members/metrics`), every card click (`/members/{history,streaks,workouts,health}`), and the sibling bottom-nav tabs (`/lifestyle`, `/program`). These 404 until their specs land. | `members/page.tsx:234`, 243, 256, 314-329 | Kept (faithful) — targets ported in later runs. |
+| ~~**F2**~~ **RESOLVED** | Forward navigation to then-unbuilt routes — the header pills (`/members/list`, `/members/invite`), the metrics preview (`/members/metrics`), every card click (`/members/{history,streaks,workouts,health}`), and the sibling bottom-nav tabs (`/lifestyle`, `/program`). **All since ported; nothing 404s.** | `members/page.tsx:234`, 243, 256, 314-329 | Closed — targets ported in later runs. |
 | **F3** | **`sessionStorage` view-as persistence** — admin + logger selections are keyed `rf:members:view-as[-logger]:${programId}:${loggedInUserId}`, with the admin path storing the literal `"none"` for a cleared global-admin selection; restored + auto-selected via four parallel `useEffect`s. | `members/page.tsx:58-129`, 426-446 | Kept (faithful) — the 4 effects are structurally parallel but not consolidated (a structural rewrite; out of scope for a read-only page). |
 | **F4** | **Vestigial-here api fns** — the whole `lib/api/members.ts` is ported (D-C1) but the landing uses only `fetchMember{Metrics,History,Streaks,RecentWorkouts,HealthLogs}`; `fetchMemberProfile` / `updateMemberProfile` (the `/members/detail` editor) and `sendProgramInvite` (the `/members/invite` form) light up on the deferred sub-routes. | `lib/api/members.ts:86-100`, 204-210 | Kept (faithful) — extra fns belong to later pages. |
 | **F5** | **Over-fetched metrics preview** — the admin preview calls `fetchMemberMetrics` (the full program leaderboard) but renders only `.total` (a count) + `.members[0]` (the top member). The full table is the deferred `/members/metrics` page. | `members/page.tsx:147-155`, 274-275 | Kept (faithful) — the endpoint has no single-row count variant; cheap read. |

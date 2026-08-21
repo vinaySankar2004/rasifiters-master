@@ -24,23 +24,27 @@ live below (oldest included). See the `ios-live-binary-compatibility` lesson.
 ## Current live binaries (authoritative snapshot)
 
 Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_VERSION`; Android build =
-`versionCode`.
+`versionCode`. Notes here cover only what is true **now** — the how-we-got-here detail lives in the log below.
+
+**Public listings:** [App Store](https://apps.apple.com/ca/app/rasi-fiters/id6758078961) ·
+[Google Play](https://play.google.com/store/apps/details?id=com.app.rasifiters) (both linked from the
+`rasifiters.com` landing badges).
 
 ### iOS
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 (announced; per ASC console) | **current public release** — approved (replaces 1.4.1 (54)); **1.4.2 train closed**. Carries the large-screen iPad/Mac adaptive-column pass + the new 13" iPad screenshot set and refreshed iPhone member shot. Repo already pre-bumped to 1.4.3 (57) on 2026-07-17 — one-train-ahead satisfied, no bump needed. Un-updated older installs (1.4.0/1.4.1) may linger; backend keeps degrading gracefully |
-| TestFlight — external ("Beta Testers") | 1.4.3 (57) | Testing | 2026-07-20 (announced; per ASC console) | **Beta App Review cleared** — first-of-train review done, so later 1.4.3 builds distribute near-instantly. Group shows 1 build: 1.4.3 (57), 8 testers, expires in 87 days. Same code as the now-live 1.4.2 (56) store release — the ahead-train is staged for future beta iteration |
-| TestFlight — internal ("Internal") | 1.4.1 (54) | Uploaded | 2026-07-16 (announced) | 1.4.1 (54) was the then-candidate (internal-only by convention; since superseded publicly by 1.4.2 (56)). Prior builds (≤53) removed/expired |
+| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** Train closed. Repo pre-bumped to 1.4.3 (57) — one-train-ahead satisfied. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
+| TestFlight — external ("Beta Testers") | 1.4.3 (57) | Testing | 2026-07-20 | Ahead-train, staged for future beta iteration (same code as the live 1.4.2 (56)). Beta App Review cleared, so later 1.4.3 builds distribute near-instantly. 8 testers |
+| TestFlight — internal ("Internal") | 1.4.1 (54) | Uploaded | 2026-07-16 | Stale internal build, superseded publicly by 1.4.2 (56). Prior builds (≤53) removed/expired |
 
 ### Android
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| Play Store (production) | 1.0.0 (4) | **LIVE — public on Google Play** | 2026-08-06 (release date per Play Console; user-announced 2026-08-15) | **current public release** — the first Android production release, approved and rolled out at **100%**, 176 countries + rest of world. Promoted from the closed-testing library (no new upload). Console dashboard 2026-08-15: 6 installs, 100% install base, 13 monthly active devices, no crash/ANR data yet. **Repo pre-bumped to versionCode 5 on 2026-08-15** — the live (4) is consumed, so the next upload must be ≥5 (one-train-ahead, the Android analog of the iOS convention) |
-| Play Console — closed testing ("Alpha") | 1.0.0 (4) | Available (approved; same build now public) | 2026-07-16 | **member-analytics 0.4.0 D-C7 build** — reviewed & released to the track 2026-07-16 10:40 (replaces 1.0.0 (3)); testers update automatically. **14-day production clock completed 2026-07-27** → production access applied for 2026-07-28 (row above). Backend must stay compatible with testers still on (3) until they update |
-| Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | **FIRST Android release** — approved & live on the closed track. Signed AAB (upload key + Play App Signing); all app-content + store listing complete. Play App Signing SHA-1 registered in Firebase for Continue-with-Google. **2026-07-11: Continue-with-Google fixed for all testers** — the OAuth consent screen (Google Auth Platform → Audience) was published from *Testing* to **Production**; while in Testing only owners/test-users got a credential and non-owner testers saw "No credentials available" (see `ENV_RUNBOOK.md` §7). Started the production gate: 12/12 testers opted in from ~2026-07-13 (14-day clock; **completed 2026-07-27** — current gate status in the Play Store production row above) |
+| Play Store (production) | 1.0.0 (4) | **LIVE — public on Google Play** | 2026-08-06 | **Current public release** — 100% rollout, 176 countries + rest of world. Repo pre-bumped to versionCode 5, so the next upload must be ≥5 (the Android analog of one-train-ahead). Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
+| Play Console — closed testing ("Alpha") | 1.0.0 (4) | Available (same build as production) | 2026-07-16 | Testers auto-update. Some may still be on (3) — the backend must stay compatible with it |
+| Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
 | Play Console — internal testing | (skipped) | not used | — | went straight to closed testing (no personal Android device to run internal builds) |
 
 ## Release log (append-only, newest first)

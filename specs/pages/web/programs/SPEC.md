@@ -44,7 +44,7 @@ chosen.
   `useAuthGuard({ requireProgram: true })` bounce from a workspace page with no active program.
 - **Leaves to:** `/summary` (selecting an openable program — sets the active program first) · `/program/profile`
   · `/program/password` · `/program/appearance` · `/program/privacy` (Account modal rows) · `/login` (Sign Out).
-  All `/summary` + `/program/*` targets are **forward dependencies** (ported in later runs — F2).
+  All `/summary` + `/program/*` targets were **forward dependencies** at port time (since ported — F2).
 
 ## 4. Contents / sections
 
@@ -125,8 +125,8 @@ non-admins (`isDataEntryLocked`). The hub shows/creates/edits programs regardles
   stale-but-refreshable session self-heals on the first `fetchPrograms` call.
 - **Last-admin guard:** removing the last active admin is blocked server-side (400) — the membership/leave
   mechanics live in the `program-memberships` feature, surfaced here only via the mutation error.
-- **Forward nav:** selecting a program → `/summary`, and the Account rows → `/program/*`, all **route to
-  pages not yet built** (F2) — they 404 until those page specs land.
+- **Forward nav:** selecting a program → `/summary`, and the Account rows → `/program/*` — all deferred at
+  port time and **since built** (F2).
 
 ## 9. Decisions made
 
@@ -144,7 +144,7 @@ non-admins (`isDataEntryLocked`). The hub shows/creates/edits programs regardles
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) drives `canOpen`/`canManage`/the invites-tab variant — display/gating only; the backend re-verifies + re-authorizes every call. Same posture as the auth pages' F1. | `programs/page.tsx:39`, 224-227 | Kept (faithful) — not a security boundary. |
-| **F2** | **Forward navigation to not-yet-built routes** — selecting a program → `/summary`; Account rows → `/program/{profile,password,appearance,privacy}`. These 404 until their page specs land. | `programs/page.tsx:164`, 349-376 | Kept (faithful) — targets ported in later runs. |
+| ~~**F2**~~ **RESOLVED** | Forward navigation to then-unbuilt routes — selecting a program → `/summary`; Account rows → `/program/{profile,password,appearance,privacy}`. **All since ported; nothing 404s.** | `programs/page.tsx:164`, 349-376 | Closed — targets ported in later runs. |
 | **F3** | **Two distinct invite mechanisms** — the **card** Accept/Decline uses `PUT /program-memberships` (for programs whose `my_status` is `invited`/`requested`, surfaced in the programs list), while the **modal** uses `PUT /invite-response` on `ProgramInvite` records. Faithful legacy duality. | `programs/page.tsx:239-243` vs 284-301 | Kept (faithful) — two server-side invite representations. |
 | **F4** | **Edge middleware does not verify the token signature** (D-C1, decode + expiry only). A forged/garbage token reaches the page, but every API call it makes 401s. | `apps/web/src/middleware.ts` (`verifyJwt`) | Kept (deliberate, D-C1) — the backend is the security boundary. |
 | **F5** | **Vestigial-here api fns + an unused `Program` field.** The whole `programs.ts`/`invites.ts` modules are ported (D-C2) but this page uses only a subset; `Program.enrollments_closed` is in the type yet not returned by `GET /api/programs`. | `lib/api/programs.ts:12`, 45-154 | Kept — `enrollments_closed` is a legacy vestige; the extra fns light up on later pages. |

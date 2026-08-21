@@ -49,8 +49,8 @@ the tab. It is the landing/hub for the lifestyle cluster — the entry point tha
 - **Reached via:** the app-wide bottom nav (`apps/web/src/app/shell.tsx` — `showNav` includes `/lifestyle`,
   the **Lifestyle** tab already wired), once a program is active.
 - **Chrome:** the bottom nav renders the 4 workspace tabs (Summary / Members / Lifestyle / Program). The
-  **Program** tab is a forward dependency (F2).
-- **Leaves to** (both `router.push`, both **not yet built** — F2): `/lifestyle/workouts` (the workout-type
+  **Program** tab was a forward dependency at port time (F2, since built).
+- **Leaves to** (both `router.push`; both were deferred at port time, **both now built** — F2): `/lifestyle/workouts` (the workout-type
   CRUD / management write path — where `admin_only_data_entry` actually bites) and `/lifestyle/timeline`
   (`?memberId=` — the full sleep/diet timeline with a period selector). **Two sub-routes, deferred** as their
   own page-spec rows.
@@ -141,8 +141,8 @@ read or a forward-nav link). The lock has no effect here; it governs the workout
 - **View-as persistence:** the picked member survives a reload via `sessionStorage` (key
   `rf:lifestyle:view-as:${programId}:${loggedInUserId}`); a cleared global-admin selection persists as the
   literal `"none"` (F3).
-- **Forward nav:** the header pill and the timeline card point at **not-yet-built** routes
-  (`/lifestyle/workouts`, `/lifestyle/timeline`) — they 404 until those specs land (F2).
+- **Forward nav:** the header pill and the timeline card point at `/lifestyle/workouts` and
+  `/lifestyle/timeline` — deferred at port time, **both since built** (F2).
 
 ## 9. Decisions made
 
@@ -160,7 +160,7 @@ read or a forward-nav link). The lock has no effect here; it governs the workout
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) + the active program's `my_role` drive `isProgramAdmin` / `canViewAs` / `canAddWorkouts` — display/gating only; the backend re-verifies + re-authorizes on every analytics call. Same posture as the Summary/Members tabs' F1. | `lifestyle/page.tsx:51-56` | Kept (faithful) — not a security boundary. |
-| **F2** | **Forward navigation to not-yet-built routes** — the header pill (`/lifestyle/workouts`), the timeline card (`/lifestyle/timeline?memberId`), and the sibling bottom-nav `/program` tab. These 404 until their specs land. | `lifestyle/page.tsx:177`, 282 | Kept (faithful) — targets ported in later runs. |
+| ~~**F2**~~ **RESOLVED** | Forward navigation to then-unbuilt routes — the header pill (`/lifestyle/workouts`), the timeline card (`/lifestyle/timeline?memberId`), and the sibling bottom-nav `/program` tab. **All since ported; nothing 404s.** | `lifestyle/page.tsx:177`, 282 | Closed — targets ported in later runs. |
 | **F3** | **`sessionStorage` view-as persistence** — admin selections are keyed `rf:lifestyle:view-as:${programId}:${loggedInUserId}`, storing the literal `"none"` for a cleared global-admin selection; restored + auto-selected (program-admin → self) via two parallel `useEffect`s. | `lifestyle/page.tsx:58-116`, 300-306 | Kept (faithful) — same pattern as the Members tab (members F3). |
 | **F4** | **Highest-participation always program-wide** — `fetchWorkoutTypeHighestParticipation` never receives `memberId` even under view-as, so that one card ignores the selected member (matches legacy + the `analytics-v2` F4 dead member-branch). | `lifestyle/page.tsx:139-143`; `lib/api/lifestyle.ts:72-79` | Kept (faithful) — intentional program-level metric. |
 | **F5** | **Over-fetched + client-sorted popularity** — `fetchWorkoutTypePopularity` pulls `limit:120` rows then sorts/slices client-side (top-10 or show-all) across 3 metrics; no server-side sort/paging. | `lifestyle/page.tsx:145-149`, 426-433 | Kept (faithful) — small payload; sorting is interactive. |

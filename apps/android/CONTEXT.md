@@ -64,8 +64,8 @@ Android Studio → signed AAB → Google Play Console **closed testing** (went s
 internal — no personal Android device) → **production, now LIVE** (the ≥12-testers / 14-days gate and the
 production-access application are both cleared; current channel state + build numbers per `RELEASES.md`, the
 SoT). Bump `versionCode` before every upload — the live production build's code is consumed. Health Connect
-access needs a permissions declaration. Push (FCM) needs the net-new backend `platform:"android"` + FCM
-sender (Phase I).
+access needs a Play Console permissions declaration at submission. FCM push is wired end-to-end (backend
+sender + `platform:"android"` registration, live since 2026-07-08).
 
 ## Status
 🚀 **LIVE on the public Google Play Store (production, 2026-08-06).** The first Android production release
@@ -102,8 +102,7 @@ no migration** — reuses the already-live `workout-logs` D-C9 (`on_duplicate:"s
 POST-then-PUT-on-409 upsert. **Deviation H-1:** Health Connect has no HealthKit-style immediate background
 delivery, so sync runs on app triggers (no OS-push background sync; a future `WorkManager` job could
 approximate it). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. Thin SPEC
-`specs/pages/android/health-connect/`. **Phase J (de-scaffold) DONE 2026-07-08 — `ui/StubScreen.kt`
-deleted. Signed AAB (versionCode 3) shipped → **Play Console closed testing, approved & available 2026-07-10** (see `RELEASES.md`).**
+`specs/pages/android/health-connect/`. **Phase J (de-scaffold) DONE 2026-07-08 — `ui/StubScreen.kt` deleted.**
 
 🟢 **Phase I (2026-07-08, Runs 10–11): notifications — in-app SSE + FCM push.** I-b (FCM) built on top of I-a:
 Firebase project `rasi-fiters` (user-provisioned; `google-services.json` gitignored — public repo, sole

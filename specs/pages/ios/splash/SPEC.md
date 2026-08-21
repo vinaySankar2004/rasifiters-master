@@ -87,7 +87,7 @@ program is selected).
   sentences to full, and reveals the CTA in one `withAnimation`. Taps after the CTA is visible are no-ops
   (`skip()` guards on `isCTAVisible`) — the Sign-in `NavigationLink` handles its own tap (child gesture wins).
 - **Forward dependency:** the CTA pushes `LoginView` (built this run); `ProgramPickerView` (the authed
-  root) remains a deferred stub.
+  root) was a deferred stub at the time and has since been ported (the iOS deferred layer closed 2026-06-30).
 
 ## 9. Decisions made
 

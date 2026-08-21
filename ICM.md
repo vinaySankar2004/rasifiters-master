@@ -27,20 +27,17 @@ from, as history.
 
 | App | Stack | Host | Role |
 |-----|-------|------|------|
-| `backend` | Node/Express + Sequelize | Render (Blueprint) | The single API + data source for both clients. Talks to Supabase Postgres + proxies Supabase Auth. |
-| `web` | Next.js 14 (App Router) + TS | Vercel | The web client. |
-| `ios` | SwiftUI (iOS 18.6) | App Store | The iOS client. |
-| `android` | Jetpack Compose (Kotlin) | Play Store | The Android client — 4th surface, a faithful 1:1 Compose port; code-complete (all 4 tabs, build green, de-scaffolded 2026-07-08) and **LIVE on the public Play Store** (production, 2026-08-06; current build per `RELEASES.md`). Consumes `backend` like web/iOS. |
+| App | Stack | Live at | Since |
+|-----|-------|---------|-------|
+| `backend` | Node/Express + Sequelize | Render `rasifiters-api` — `https://rasifiters-api.onrender.com` | 2026-06-28 |
+| `web` | Next.js 14 (App Router) + TS | Vercel `rasifiters` — `https://rasifiters.com` | 2026-06-29 |
+| `ios` | SwiftUI (iOS 18.6) | **App Store** (public) + TestFlight | 2026-07-15 |
+| `android` | Jetpack Compose (Kotlin) | **Google Play** (production) | 2026-08-06 |
 
-`web`, `ios`, and `android` all consume `backend`. Supabase project ref: **`kpadxjekpiwfkqcxtrio`** (org `RaSi Fiters`
-/ `lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`, repointed). **All four
-surfaces are built:** `web` → Vercel project `rasifiters`, LIVE at
-**`https://rasifiters.com`**; `backend` → Render `rasifiters-api`, LIVE at `https://rasifiters-api.onrender.com`;
-`ios` → SwiftUI (iOS 18.6 target), code-complete (native build green), **LIVE on the App Store + TestFlight**; `android` →
-Compose, code-complete (Gradle build green), **LIVE on the public Play Store (production, 2026-08-06)**.
-**All four surfaces are now public.** Current per-channel binary
-versions live in **`RELEASES.md`** (the SoT for what's on which channel); page/screen counts live in
-`specs/pages/REGISTRY.md`.
+**All four surfaces are built and public.** `backend` is the single API + data source; `web`, `ios`, and
+`android` all consume it. Supabase project ref: **`kpadxjekpiwfkqcxtrio`** (org `RaSi Fiters` /
+`lxehyprifvuozciizlem`, region `us-east-1`; read-only MCP `supabase-rasifiters`). Per-channel binary
+versions live in **`RELEASES.md`** (the SoT); page/screen counts in `specs/pages/REGISTRY.md`.
 
 ## Layer map
 
@@ -83,8 +80,9 @@ skill). Coverage of the legacy app is tracked in `COVERAGE.md`; progress + next 
 
 - **Document a NEW / undocumented surface (write its spec)** → the `question-asker` skill (handles both
   feature and page/screen specs).
-- **Implement a documented feature/page** → port the code directly + faithfully from the legacy reference
-  app; commit via `git-version`.
+- **Implement a documented feature/page** → the code under `apps/` is the reference (the legacy app is
+  archived and not tracked here); stay faithful to existing behavior, call out deliberate changes in the
+  SPEC §9/§10, commit via `git-version`.
 - **Make a nontrivial / multi-surface change** → the `multiplex` skill (the role-agent pipeline: scout →
   plan → plan-adversary → USER approves → per-surface implementer(s) → impl-adversary → compile-check →
   git-version → you test on prod). Small changes use PARTS of it (e.g. just `impl-adversary` on a hand-written

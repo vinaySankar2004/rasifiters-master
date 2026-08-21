@@ -70,10 +70,9 @@ the legacy app (`rasifiters-webapp`), all justified by the migration:
   renamed `rasifiters-webapp` → `rasifiters-web`.
 - **Prod API default** — `src/lib/config.ts` `prodBase` fallback → `https://rasifiters-api.onrender.com/api`
   (our Render service; legacy pointed at the old `rasi-fiters-api` host). Env-overridable.
-- **`NotificationsGate` = DEFERRED STUB** (`src/components/NotificationsGate.tsx` returns `null`). The
-  legacy gate opens the SSE stream + hydrates the active program + renders the notification modal — it
-  depends on the web `notifications`/`programs` features (not yet ported). Mirrors the backend's
-  deferred-stub pattern; REPLACED with the faithful port when the web notifications feature lands.
+- **`NotificationsGate` was a deferred stub at foundation time; it is now the full port**
+  (`src/components/NotificationsGate.tsx`) — opens the SSE stream, hydrates the active program, and renders
+  the notification modal, exactly like the legacy gate. No stub remains.
 - **`src/middleware.ts` = decode + expiry only (RESOLVED 2026-06-29, option b)** — the faithful HS256 port
   couldn't validate Supabase **ES256** (asymmetric) tokens (would redirect-loop every real session). Resolved
   with the `programs` page port (its D-C1): the edge middleware is a **UX redirect gate**, not the security
@@ -97,10 +96,8 @@ git auto-deploy on `main` wired; domain cutover done (moved off the old `rasi-fi
 green on the domain (public pages 200, protected routes guard-bounce, apex→www, `/favicon.ico` 200 logo,
 backend healthy). The web surface is feature-complete — every page ported plus the notifications client
 (count per `specs/pages/REGISTRY.md`, the canonical index; don't restate it here). The signed-in
-web→backend round-trip has since been live-verified by the user many times over. History:
+web→backend round-trip has since been live-verified by the user many times over.
 
-🏗️ foundation scaffolded + builds green (2026-06-29). **7 pages ported** via the `question-asker` page loop:
-the public/auth path (`splash` → `login` → `forgot-password` → `reset-password` → `create-account`), the
-`programs` hub (first protected route), and `summary` (first workspace tab — program-overview dashboard + the
-3 desktop log-form modals; the 6 `/summary` sub-routes deferred). Next: the deferred sub-routes and/or the
-sibling workspace tabs (`/members`, `/lifestyle`, `/program` settings). See `PROGRESS.md` for the live pointer.
+Beyond the legacy parity set, the surface also carries the **net-new public pages**: the marketing `landing`
+at `/` (which links both store listings), the `forgot-password`/`reset-password` recovery pair, and the
+`privacy-policy`/`support`/`delete-account` legal pages the store listings point at.

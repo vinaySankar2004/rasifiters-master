@@ -47,12 +47,11 @@ real screen — the first web surface to consume the analytics + logging backend
   `router.push("/summary")` ([programs hub page.tsx:151-163](../../../../apps/web/src/app/programs/page.tsx#L151)).
 - **Chrome:** the app-wide bottom nav (`apps/web/src/app/shell.tsx` — `showNav` includes `/summary`) renders
   the 4 workspace tabs (Summary / Members / Lifestyle / Program). The Members / Lifestyle / Program tabs +
-  the 6 summary sub-routes are **forward dependencies** (F2).
+  the 6 summary sub-routes were **forward dependencies** at port time (F2, since built).
 - **Leaves to:** `/summary/activity` · `/summary/distribution` · `/summary/workout-types` (detail cards), and
   on **mobile** `/summary/log-workout` (the unified "Add workouts" form) · `/summary/log-health` (the action
-  cards route to pages instead of opening modals). The 3 detail cards are **not yet built** (F2);
-  `/summary/log-workout` + `/summary/log-health` are built. (`/summary/bulk-log-workout` was removed in the
-  2026-07-01 merge.)
+  cards route to pages instead of opening modals). The 3 detail cards were deferred at port time and are
+  **since built** (F2). (`/summary/bulk-log-workout` was removed in the 2026-07-01 merge.)
 
 ## 4. Contents / sections
 
@@ -138,9 +137,9 @@ disabled UI + messaging.
 - **Unauthenticated / expired:** edge `middleware.ts` → `/login` (or pass-through for client refresh), same
   posture as the hub.
 - **Mobile vs desktop:** `useIsMobile()` switches the action cards between opening a modal (desktop) and
-  routing to a sub-page (mobile, F2 — those pages aren't built yet).
-- **Forward nav:** the activity / distribution / workout-types cards + the mobile log routes all point at
-  **not-yet-built** pages (F2) — they 404 until those specs land.
+  routing to a sub-page (mobile).
+- **Forward nav:** the activity / distribution / workout-types cards + the mobile log routes point at pages
+  that were deferred at port time and have **all since been built** (F2).
 
 ## 9. Decisions made
 
@@ -156,7 +155,7 @@ disabled UI + messaging.
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) drives `canLogForAny` (→ the per-row member picker / `canSelectAnyMember`) — display/gating only; the backend re-verifies + re-authorizes (and `requireDataEntryAllowed` enforces the lock, `addWorkoutLogsBatch` enforces own-rows-only per D-C8) on every call. Same posture as the hub's F1. | `summary/page.tsx:51-54` | Kept (faithful) — not a security boundary. |
-| **F2** | **Forward navigation to not-yet-built routes** — the detail cards → `/summary/{activity,distribution,workout-types}` and the sibling bottom-nav tabs (`/members`, `/lifestyle`, `/program`). These 404 until their specs land. (The mobile `/summary/log-workout` + `/summary/log-health` action routes ARE built.) | `summary/page.tsx` (detail cards + `shell.tsx`) | Kept (faithful) — targets ported in later runs. |
+| ~~**F2**~~ **RESOLVED** | Forward navigation to then-unbuilt routes — the detail cards → `/summary/{activity,distribution,workout-types}` and the sibling bottom-nav tabs (`/members`, `/lifestyle`, `/program`). **All since ported; nothing 404s.** | `summary/page.tsx` (detail cards + `shell.tsx`) | Closed — targets ported in later runs. |
 | **F3** | **Vestigial-here api fns** — the whole `logs.ts` (single `addWorkoutLog` + `update/delete` workout + health log fns) and `program-workouts.ts` (toggle/add/edit/delete management fns) modules are ported (D-S1) but `/summary` now uses only `addWorkoutLogsBatch` / `addDailyHealthLog` / `fetchProgramWorkouts` (the single `addWorkoutLog` is no longer wired into any web UI — the widget-less web app leaves it dead). The rest light up on the deferred member-detail / workout-types pages. | `lib/api/logs.ts`, `lib/api/program-workouts.ts` | Kept (faithful) — extra fns belong to later pages / the retired single-add path. |
 | **F4** | **No period selector on the landing** — `summaryPeriod` is a fixed `"week"` const; the activity timeline always shows the week view. The week/month/year/program selector lives on the deferred `/summary/activity` detail page. | `summary/page.tsx:47` | Kept (faithful) — by design; the selector is on the detail page. |
 | **F5** | **Over-fetched-but-unused summary fields** — `fetchAnalyticsSummary` returns the full `AnalyticsSummary` (timeline, distribution, members, totals, top_performers, top_workout_types) but the landing reads only `program_progress`; the other top-line numbers come from the dedicated endpoints. | `summary/page.tsx:186`, `lib/api/summary.ts:104-107` | Kept (faithful) — the extra fields feed the deferred detail pages. |

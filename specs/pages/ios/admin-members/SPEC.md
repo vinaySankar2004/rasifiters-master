@@ -32,15 +32,15 @@ adapted to native idioms (a view-as **sheet** + `NavigationLink` push detail vie
 ### `AdminMembersTab` (program admin + global_admin) — legacy `AdminOtherTabs.swift:5-153`
 | Block | Reference `file:line` | Notes |
 |---|---|---|
-| Header (title "Members" · program name · **Invite** `GlassButton`) | `AdminOtherTabs.swift:25-40` | Invite → `InviteMemberView` (deferred stub) |
+| Header (title "Members" · program name · **Invite** `GlassButton`) | `AdminOtherTabs.swift:25-40` | Invite → `InviteMemberView` (a deferred stub at port time; since ported) |
 | **Member Metrics preview** card (`NavigationLink` → `MemberMetricsDetailView`) | `:43-48` | `MemberMetricsPreviewCard` — fetches the leaderboard, shows top member (web F5) |
 | **View as** selector (`canViewAs = isProgramAdmin`) → `MemberPickerView` sheet | `:50-51, 87-118` | global_admin gets the "None" option; program admin defaults to self |
-| `MemberOverviewCard` · `MemberHistoryCard` · `MemberStreakCard` · `MemberRecentCard` · `MemberHealthCard` (when a member is selected) | `:52-58` | each card is a `NavigationLink` to a deferred detail view |
+| `MemberOverviewCard` · `MemberHistoryCard` · `MemberStreakCard` · `MemberRecentCard` · `MemberHealthCard` (when a member is selected) | `:52-58` | each card is a `NavigationLink` to a detail view (deferred at port time; all since ported) |
 
 ### `StandardMembersTab` (logger + member) — legacy `StandardMembersTab.swift:5-199`
 | Block | Reference `file:line` | Notes |
 |---|---|---|
-| Header (title · program name · **View Members** `GlassButton`) | `StandardMembersTab.swift:31-47` | View Members → `ProgramMembersListView` (deferred stub) |
+| Header (title · program name · **View Members** `GlassButton`) | `StandardMembersTab.swift:31-47` | View Members → `ProgramMembersListView` (a deferred stub at port time; since ported) |
 | `MemberOverviewCard` (self) | `:55-57` | |
 | `MemberMetricsCard(metric:, hero: .active_days)` (self — D-C7 primary-stat swap) | `:60-62` | the member-self metrics card |
 | `MemberHistoryCard` · `MemberStreakCard` (self) | `:65-68` | |
