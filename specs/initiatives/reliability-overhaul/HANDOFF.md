@@ -9,7 +9,13 @@
 
 - **Phase:** not started — scoping complete (2026-10-10).
 - **In flight:** nothing.
-- **Blocked on the user:** paste the Supabase token (below). Render + Vercel are verified.
+- **Blocked on the user:** nothing — all four tokens are present and verified (2026-10-10). Optional prep: Pixel
+  USB debugging (below).
+- **Step 0 leftovers (do first in Session 1):** (1) build the ask-guardrail hook for `SUPABASE_ADMIN_TOKEN` —
+  **until it exists, don't use the admin token at all**; (2) wire MCP header auth / CLI fallbacks + docs;
+  (3) Supabase moved its logs API: `…/analytics/endpoints/logs.all` now returns **410**; the replacement
+  `GET /v1/projects/{ref}/analytics/endpoints/logs` answers, but `auth_logs` "does not exist" there — find the
+  new source/table names (Supabase changelog #48235) before auth-log queries work.
 
 ## Next action
 
@@ -23,8 +29,8 @@ chat, never committed):
 |---|---|---|
 | `RENDER_API_KEY` | dashboard.render.com → Account Settings → API Keys | ✅ present, worked 2026-10-10 |
 | `VERCEL_TOKEN` | vercel.com/account/settings/tokens → Create | ✅ present, verified 2026-10-10 — scoped to the `rasifiters` project only (reads project `prj_Eqd5…` via team `personal-vinayak`; sees no teams) |
-| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token — **Project** scope `rasifiters`, **read-only** permissions. The default for all reads (metrics, logs, settings, advisors), no prompts | ⬜ key present but empty |
-| `SUPABASE_ADMIN_TOKEN` | same page — **Project** scope `rasifiters`, **Full access**. Deliberate changes only; every use prompts the user (hook built in Step 0) | ⬜ |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token — **Project** scope `rasifiters`, **read-only** preset. The default for all reads (metrics, logs, settings, advisors), no prompts | ✅ present, verified 2026-10-10 — reads the project + Auth config |
+| `SUPABASE_ADMIN_TOKEN` | same page — **Project** scope `rasifiters`, **Full access**. Deliberate changes only; every use prompts the user (hook built in Step 0) | ✅ present, valid (one read-only GET 2026-10-10); unused until the guardrail hook exists |
 
 **Also before Session 1 (user):** on the Pixel, enable Developer options → **USB debugging**, and keep it
 plugged into the Mac during the session, so W5 can read the real Google sign-in error with `adb logcat`
@@ -50,7 +56,9 @@ Verify any token without printing it: read it from the file inside the command a
 - **2026-10-10** — Scoping. Evaluated an AWS move → shelved, stack stays (R8). Reviewed 30 days of Render
   metrics + Supabase usage (healthy core; 401 ≈ 22%, 409 noise, no request logs). Found first suspects S1–S9
   in code. User decisions: Supabase Pro, staging via the same project (staging tables), Step 0 = token-based
-  access for all three services. Created `BRIEF.md` + this file.
+  access for all three services. Created `BRIEF.md` + this file. Same day: user created all tokens (Vercel
+  project-scoped; Supabase read-only default + full-access admin) — all verified; read Supabase Auth session
+  settings (BRIEF S8); Android Google sign-in failure confirmed on the Play build.
 
 ## Kickoff prompt — Session 1
 
