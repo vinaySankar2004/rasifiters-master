@@ -92,6 +92,13 @@ log is empty; no client crash/error reporting on any surface. (Infra facts: `app
   on the design board; candidate: a separate Postgres schema with identical table names (honors R5 — no
   prefixes). Open: `auth.users` is per-project, so staging test accounts would share prod Auth; whether the
   staging API is a second Render service. A staging path supersedes the "test against live" convention.
+- **Supabase access = two project-scoped (`rasifiters`) tokens** (user decision 2026-10-10):
+  `SUPABASE_ACCESS_TOKEN` = **read-only**, the default for every metric / log / setting / advisor read, no
+  prompts; `SUPABASE_ADMIN_TOKEN` = **full access**, used only for deliberate changes (auth settings, staging
+  infra) and **every use must prompt the user** (a PreToolUse hook — built in Step 0). Data/schema writes still
+  go only through user-run migrations in `apps/backend/sql/`. Tokens can't separate prod from staging inside one
+  project, so **prod-vs-staging separation lives at the Postgres-role level**: a staging role granted writes on
+  the staging tables only, created by a user-run migration (designed with the staging mechanism).
 - **API host is hard-coded in live binaries** (`rasifiters-api.onrender.com`, iOS `APIConfig.swift`, Android
   `build.gradle.kts`) — any host/domain change needs an app release + adoption window first.
 - **Worldwide = one region + fewer round trips + on-device caching.** Revisit region only with real
@@ -101,7 +108,7 @@ log is empty; no client crash/error reporting on any surface. (Infra facts: `app
 
 | Phase | What | Output |
 |---|---|---|
-| **Step 0** | **Credentials, no OAuth.** Token-based access to all three services so no session needs a browser login: Render (`RENDER_API_KEY`, already works), Vercel (`VERCEL_TOKEN`), Supabase (`SUPABASE_ACCESS_TOKEN` PAT) — values in gitignored `.claude/settings.local.json` `env`. Verify whether each hosted MCP accepts a Bearer header; otherwise use the CLI/REST with the token. Prove each with a read-only call (Render logs, Vercel logs, Supabase Management API auth settings + logs). Update `CLAUDE.md` MCP section, `.mcp.json`, `.env.mcp.example`, scope-guard hook | Working, documented, no-OAuth access |
+| **Step 0** | **Credentials, no OAuth.** Token-based access to all three services so no session needs a browser login: Render (`RENDER_API_KEY`, works), Vercel (`VERCEL_TOKEN`, verified), Supabase (`SUPABASE_ACCESS_TOKEN` read-only + `SUPABASE_ADMIN_TOKEN` full — §6) — values in gitignored `.claude/settings.local.json` `env`. Verify whether each hosted MCP accepts a Bearer header (Supabase MCP → the read-only token, `read_only=true`); otherwise use the CLI/REST with the token. Prove each with a read-only call (Render logs, Vercel logs, Supabase Management API auth settings + logs). **Guardrail:** a PreToolUse hook that returns *ask* for any command referencing `SUPABASE_ADMIN_TOKEN` (and keeps the `db-readonly-guard` + `deploy-scope-guard` behaviour). Update `CLAUDE.md` (MCP section + Database Write Policy), `.mcp.json`, `.env.mcp.example`, hooks | Working, documented, no-OAuth access with an approval gate on every write-capable call |
 | **0 — Discovery** | Read-only, parallel agents, one per workstream: **W1** sessions/auth (all surfaces + Supabase settings) · **W2** push + invites · **W3** iOS health sync · **W4** Android health sync · **W5** Android Google sign-in · **W6** observability + perf baseline · **W7** frontend loading/error/design consistency | One evidence brief per workstream: current behavior with file:line, failure modes, S1–S9 confirmed/refuted, what industry-standard looks like |
 | **1 — Design board** | Artifact: per workstream current vs target, the shared contract, decisions for the user; staging mechanism; notification redesign + social layer at concept level | User-approved board → SPEC §9 D-rules |
 | **2 — Foundations** | Observability (request logging, client error reporting), staging, shared loading/error primitives per surface | |

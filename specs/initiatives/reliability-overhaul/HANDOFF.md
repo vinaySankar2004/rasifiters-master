@@ -23,7 +23,8 @@ chat, never committed):
 |---|---|---|
 | `RENDER_API_KEY` | dashboard.render.com → Account Settings → API Keys | ✅ present, worked 2026-10-10 |
 | `VERCEL_TOKEN` | vercel.com/account/settings/tokens → Create | ✅ present, verified 2026-10-10 — scoped to the `rasifiters` project only (reads project `prj_Eqd5…` via team `personal-vinayak`; sees no teams) |
-| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token — **Project** scope `rasifiters`, **read-only** permissions recommended (writes stay in the dashboard / user-run migrations) | ⬜ key present but empty |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token — **Project** scope `rasifiters`, **read-only** permissions. The default for all reads (metrics, logs, settings, advisors), no prompts | ⬜ key present but empty |
+| `SUPABASE_ADMIN_TOKEN` | same page — **Project** scope `rasifiters`, **Full access**. Deliberate changes only; every use prompts the user (hook built in Step 0) | ⬜ |
 
 **Also before Session 1 (user):** on the Pixel, enable Developer options → **USB debugging**, and keep it
 plugged into the Mac during the session, so W5 can read the real Google sign-in error with `adb logcat`
@@ -63,10 +64,12 @@ keep your own context lean, and verify agent claims against the code before they
 No app code changes this session until I approve the design board.
 
 1. Step 0 — credentials, no OAuth. My tokens are in .claude/settings.local.json (RENDER_API_KEY,
-   VERCEL_TOKEN, SUPABASE_ACCESS_TOKEN). Wire token-based access for Render, Vercel and Supabase: test
-   whether each hosted MCP accepts a Bearer header, otherwise use the CLI/REST with the token. Prove each
-   with a read-only call (Render logs, Vercel logs, Supabase Auth settings + logs via the Management API).
-   Update CLAUDE.md, .mcp.json, .env.mcp.example and the scope-guard hook. Commit + push.
+   VERCEL_TOKEN, SUPABASE_ACCESS_TOKEN = read-only, SUPABASE_ADMIN_TOKEN = full access). Wire
+   token-based access for Render, Vercel and Supabase: test whether each hosted MCP accepts a Bearer
+   header, otherwise use the CLI/REST with the token. Prove each with a read-only call (Render logs,
+   Vercel logs, Supabase Auth settings + logs via the Management API). Build the guardrail: any command
+   using SUPABASE_ADMIN_TOKEN must ask me first (BRIEF §6). Update CLAUDE.md, .mcp.json,
+   .env.mcp.example and the hooks. Commit + push.
 2. Phase 0 — discovery. Launch parallel read-only agents for W1–W7 (BRIEF §7). Each returns an evidence
    brief: how it works today (file:line), failure modes, which suspects S1–S9 are confirmed or refuted,
    and what the industry-standard version looks like. Pull production evidence now that we have access.
