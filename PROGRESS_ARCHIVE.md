@@ -10,6 +10,12 @@
 
 ## Run history (newest first)
 
+- **2026-10-10** — **AWS evaluated + shelved; reliability overhaul scoped.** Walked the user through the current
+  architecture, an AWS service map, and costs. Reviewed 30 days of Render metrics + Supabase usage: healthy core
+  (2 × 500s), but ~22% of requests are expired-token 401s, 409 health-sync noise, no request logs. Decision R8:
+  keep Supabase (Pro) + Render + Vercel. Opened `specs/initiatives/reliability-overhaul/` (BRIEF + HANDOFF) with
+  first suspects in code: iOS dual refresh paths, no Android background health sync, Android Google sign-in
+  "No credentials available" on a real Pixel. Doc freshness pass (ICM table, METHODOLOGY SoT rows, CONTEXT drift).
 - **2026-08-20** — **Play Store truth pass — the landing page finally says Android is out.** Android had been
   public since 2026-08-06 but `rasifiters.com` still showed a dead "Coming soon" Google Play pill. Flipped it
   to a live link with styling identical to the App Store pill (landing SPEC **0.1.3**, D-LAND-3 rewritten,

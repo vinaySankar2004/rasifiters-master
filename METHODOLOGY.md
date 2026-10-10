@@ -113,7 +113,7 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 | Cross-surface feature diff / drift catch (Vision §E) | `audit` skill (web↔iOS↔android parity per feature) |
 | iOS compile-check loop (build `apps/ios`, read diagnostics, fix) | `ios-build` skill (native `xcode` MCP; compile-only) |
 | Android compile-check loop (build `apps/android`, read diagnostics, fix) | `android-build` skill (Gradle CLI `./gradlew`; compile-only) |
-| Inspect/query the Supabase DB read-only | `supabase` skill (Supabase MCP-first) |
+| Inspect/query the Supabase DB read-only | `supabase` skill (psql-first in a read-only transaction; MCP secondary) |
 | Periodic doc-health cross-review (drift / redundancy / structure) | `health-check` skill (read-only, report-only via plan mode) |
 
 ## Where each fact lives (single source of truth — don't duplicate)
@@ -122,8 +122,9 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 |------|----------------|
 | The "why" / decision log | **this file** |
 | How to do X (operational) | the relevant `.claude/skills/<skill>` |
-| Cross-session state (read first each session) | `PROGRESS.md` (replaces the old `manifest.md` milestone log) |
-| Current state / what's next | `ICM.md` ("How to operate here") |
+| Cross-session state + what's next (read first each session) | `PROGRESS.md` (replaces the old `manifest.md` milestone log) |
+| How to operate / where to route a task | `ICM.md` ("How to operate here") |
+| Active multi-session initiative (scope + rolling, compaction-safe state) | `specs/initiatives/<name>/BRIEF.md` + `HANDOFF.md` (outcomes graduate to SPEC §9 / R-entries; folder retired when done) |
 | Feature inventory + graph | `specs/features/registry.json` + `specs/features/REGISTRY.md` |
 | Per-feature truth | `specs/features/<feature>/SPEC.md` |
 | Per-page/screen truth | `specs/pages/{web,ios,android}/<page>/SPEC.md` |
@@ -152,7 +153,7 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
 
 ---
 
-## Decisions log (R1 → R7) — the audit trail
+## Decisions log (R1 → R8) — the audit trail
 
 > RaSi's decision log starts fresh at the locked scaffolding decisions. Append new R-entries here as
 > the rebuild proceeds; never prune. The Higgins ICM's own R-history (its gen-4→gen-5 cutover) is not
@@ -222,3 +223,16 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   `ENV_RUNBOOK.md` rewritten for Render; `server.js` binds `0.0.0.0` (Render injects `PORT`, default
   `10000`); secrets are `sync: false` Blueprint vars entered in the dashboard at first sync. DB
   (Supabase) and web (Vercel) hosts are unaffected. (R1–R6 stand unchanged; R4 amended in place.)
+- **2026-10-10 R8 — Keep the hosting stack (AWS evaluated and shelved); open a reliability-first
+  initiative; staging stays inside the one Supabase project.** The user evaluated moving every surface to
+  AWS (Mumbai region) for learning, India latency and a "more serious" posture. A 30-day production review
+  showed the stack is not the bottleneck: 2 × HTTP 500, no crashes, ~0.1% CPU. User-facing pain comes from
+  (a) work that runs while the app is closed (session refresh, push, background health sync, federated
+  sign-in) failing silently and differently per surface, and (b) distance × chatty round trips (all infra in
+  us-east; ~22% of requests are expired-token 401s). AWS would cost about the same and fix only (b); (b) is
+  also fixable in-stack (fewer round trips, proactive refresh, on-device caching). **Decision:** Supabase
+  (Pro) + Render + Vercel stay; R4/R7 unchanged. Work moves to `specs/initiatives/reliability-overhaul/`,
+  reliability before new features. **Staging** uses the same Supabase project ("staging tables" — mechanism
+  set on that initiative's design board; a separate schema with identical names would honor R5), not a
+  second project. Once staging exists it supersedes the multiplex "no staging — user tests on prod" gate
+  for experiments. (R1–R7 stand unchanged.)

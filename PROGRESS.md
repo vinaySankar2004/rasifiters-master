@@ -22,10 +22,15 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 
 ## Next action
 
-> ### ⏭️ NO OPEN WORK — the app is feature-complete and public on all four surfaces.
+> ### ⏭️ ACTIVE INITIATIVE — Reliability overhaul (scoped 2026-10-10)
 >
-> There is no pending port, phase, or ship step. Work from here is user-driven change requests, which run
-> through the `multiplex` pipeline for anything nontrivial.
+> Make the non-CRUD features (sessions/auth, push + invites, iOS + Android health sync, Android Google
+> sign-in, realtime) industry-standard, consistent across all three frontends, and observable; then the
+> notification redesign + a light social layer. **Start here:**
+> [`specs/initiatives/reliability-overhaul/HANDOFF.md`](specs/initiatives/reliability-overhaul/HANDOFF.md)
+> (rolling state + the Session 1 kickoff prompt) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
+> (scope, evidence, suspects, phase plan). **Session 1 = Step 0** (token-based access to Render / Vercel /
+> Supabase, no OAuth) → Phase 0 discovery → Phase 1 design board. No app code before the board is approved.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
@@ -76,9 +81,10 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
   hit *Validate Fix* on the "Page with redirect" row and Request-Indexing `https://rasifiters.com/`; the
   duplicate `www` entry should drop out over ~1–2 weeks. Brand-query pickup for the spaced `"rasi fiters"`
   is slower (schema is a hint, not a switch) — recheck in a few weeks before doing anything more.
-- **Re-auth the Render + Vercel MCPs** — both OAuth sessions have gone stale before (400/403); re-connect
-  via `/mcp` interactively when next needed. REST (`tools/render-env.sh`) + the local `vercel` CLI work
-  meanwhile.
+- **Token-based access for Vercel + Supabase (no OAuth)** — folded into the reliability initiative as
+  **Step 0** (see its `HANDOFF.md`). As of 2026-10-10: Render works via `RENDER_API_KEY` header auth; the
+  Vercel MCP returns 403 (stale OAuth) — the local `vercel` CLI works meanwhile; the Supabase MCP is
+  unauthenticated — read-only `psql` via `apps/backend/.env` works meanwhile.
 - **Self-serve account deletion (`DELETE /api/auth/account`) is effectively unexercised.** Live traffic
   proves the common paths, not the destructive rare ones. Nuance: the cascade itself
   (`cascadeMemberDeletion`, `apps/backend/utils/programMemberships.js:167`) is **shared** with the admin path
@@ -88,5 +94,6 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
   *caller's own* account. Irreversible, touches every table. **Not scheduled** — verifying it means seeding a
   throwaway account via `tools/testbed/`, deleting through the app, then checking for orphaned rows. Low
   likelihood, high blast radius; flagged so the risk stays explicit rather than forgotten. NOT a blocker.
-- **`notifications` cross-feature emits** are intentionally deferred in backend services (documented in-code
-  TODOs) — wire when that work is scheduled; not blocking.
+- **`notifications` cross-feature emits** — invites + membership changes already emit; the one remaining
+  deferred emit is `program.updated` / `program.deleted` (`apps/backend/services/programService.js:21`
+  TODO). Folds into the reliability initiative's notification redesign (Phase 4); not blocking.

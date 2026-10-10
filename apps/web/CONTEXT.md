@@ -43,6 +43,11 @@ gitignored), so a manual deploy = `vercel deploy --prod --scope personal-vinayak
 (rootDirectory is `apps/web`, so a CLI deploy from `apps/web` cwd — or from an unlinked dir — would
 double-nest / create a stray project).
 
+Plan: **Vercel Hobby** — request/runtime logs are retained only ~1 hour (history is effectively
+unavailable), and Hobby is licensed for personal / non-commercial use (a commercial RaSi needs Pro). Pages
+are served mostly from the edge cache; the browser calls the Render API directly, so API-side evidence lives
+in Render + Supabase, not here.
+
 Env (Production, from `src/lib/config.ts`): `NEXT_PUBLIC_API_ENV=prod` + `NEXT_PUBLIC_API_BASE_URL_PROD`
 → the Render API (`https://rasifiters-api.onrender.com/api`); `NEXT_PUBLIC_APP_URL=https://rasifiters.com`
 (metadata base — updated from the `.vercel.app` URL at the domain cutover). The other `NEXT_PUBLIC_*`
@@ -102,7 +107,7 @@ shell chrome, the icon library, and the API client + auth API module.
 ## Status
 🚀 **LIVE on the custom domain `https://rasifiters.com` (2026-06-29)** — project `rasifiters` on Vercel,
 git auto-deploy on `main` wired; domain cutover done (moved off the old `rasi-fiters` project). Smoke test
-green on the domain (public pages 200, protected routes guard-bounce, apex→www, `/favicon.ico` 200 logo,
+green on the domain (public pages 200, protected routes guard-bounce, `www`→apex, `/favicon.ico` 200 logo,
 backend healthy). The web surface is feature-complete — every page ported plus the notifications client
 (count per `specs/pages/REGISTRY.md`, the canonical index; don't restate it here). The signed-in
 web→backend round-trip has since been live-verified by the user many times over.

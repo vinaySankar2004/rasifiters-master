@@ -25,8 +25,6 @@ from, as history.
 
 ## The apps
 
-| App | Stack | Host | Role |
-|-----|-------|------|------|
 | App | Stack | Live at | Since |
 |-----|-------|---------|-------|
 | `backend` | Node/Express + Sequelize | Render `rasifiters-api` — `https://rasifiters-api.onrender.com` | 2026-06-28 |
@@ -46,7 +44,7 @@ versions live in **`RELEASES.md`** (the SoT); page/screen counts in `specs/pages
 | L1 Map | `ICM.md` (this file) + `PROGRESS.md` (current state) |
 | L2 Rooms | `CONTEXT.md` (project: brand + infra + migration source), `apps/{web,ios,android,backend}/CONTEXT.md` |
 | L3 Tools | `.claude/skills/` (question-asker, git-version, deploy, audit, supabase, health-check, ios-build, android-build, multiplex) + `.claude/agents/` (multiplex role-agents) + `.claude/workflows/` (plan-pipeline), `.mcp.json` |
-| L4 Specs | `specs/features/` (shared capabilities) + `specs/pages/{web,ios,android}/` (per page/screen) + `specs/features/registry.json` |
+| L4 Specs | `specs/features/` (shared capabilities) + `specs/pages/{web,ios,android}/` (per page/screen) + `specs/features/registry.json` + `specs/initiatives/<name>/` (multi-session cross-cutting work: `BRIEF.md` scope + `HANDOFF.md` rolling state) |
 | L5 Pipelines | `git-version` skill + Vercel / Render / Supabase MCP flows |
 
 ## Specs: features vs pages
@@ -78,6 +76,10 @@ skill). Coverage of the legacy app is tracked in `COVERAGE.md`; progress + next 
 > doc blast-radius check that the outcome lives in its canonical home). See `METHODOLOGY.md` → "Log
 > retention & pruning".
 
+- **Continue an active initiative** (multi-session, cross-cutting — currently
+  `specs/initiatives/reliability-overhaul/`) → read its `HANDOFF.md` (rolling state, safe to resume from
+  after a compaction) then `BRIEF.md`; update `HANDOFF.md` at every milestone. Durable outcomes graduate
+  into feature SPEC §9 D-rules / `METHODOLOGY.md` R-entries; the initiative folder is retired when done.
 - **Document a NEW / undocumented surface (write its spec)** → the `question-asker` skill (handles both
   feature and page/screen specs).
 - **Implement a documented feature/page** → the code under `apps/` is the reference (the legacy app is

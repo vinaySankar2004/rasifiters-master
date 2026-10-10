@@ -1,6 +1,6 @@
 # Product: rasifiters / backend (L2)
 
-The shared API for RaSi Fiters. Both `web` and `ios` consume it. Node/Express + Sequelize.
+The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) consume it. Node/Express + Sequelize.
 
 **Provenance (legacy, archived):** ported 1:1 from the original Express API, except the DB target
 (→ Supabase) and the auth layer (→ Supabase Auth, proxied + JWT-verified). Legacy source archived, not tracked here.
@@ -21,7 +21,7 @@ The shared API for RaSi Fiters. Both `web` and `ios` consume it. Node/Express + 
 - **Added at migration:** `members.auth_user_id` (UUID, unique) → maps to `auth.users.id`.
 - **Added post-parity:** `member_program_order` (per-member program-card order for the picker surfaces;
   migration `sql/005`, `programs` feature 0.2.0 D-N1).
-- Migrations: `sql/` (numbered, idempotent, user-reviewed/run). _Created during the backend build._
+- Migrations: `sql/` (numbered, idempotent, user-reviewed/run).
 
 ## Auth (see CLAUDE.md + METHODOLOGY.md R1)
 - Express **proxies** Supabase Auth for `/auth/login`, `/auth/refresh`, `/auth/logout` so clients change
@@ -41,6 +41,17 @@ feature-by-feature in `specs/features/` as they're rebuilt; cross-checked agains
 auto-deploy on push to `main` touching `apps/backend/**`. The 3 secrets (`DATABASE_URL`,
 `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are dashboard-entered `sync: false` Blueprint vars. Env
 per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
+
+## Runtime + observability (as of 2026-10-10)
+- Render plan **Starter**: 1 instance, 0.5 vCPU / 512 MB, region `virginia` (next to Supabase `us-east-1`
+  on purpose — one screen issues many queries). Fronted by Cloudflare (TLS terminates at the nearest edge).
+  Typical load: ~0.1% CPU, ~120 MB RAM, ~4.5–6k requests/day.
+- **Logs:** Render keeps **app logs only** on this plan — no per-request logs and no `http_latency` metric
+  (status-code counts via `http_request_count` do work). Sequelize logs **every SQL query** to stdout, which
+  drowns request-level signal. Fixing this is workstream W6 of
+  [`specs/initiatives/reliability-overhaul/`](../../specs/initiatives/reliability-overhaul/BRIEF.md).
+- Live binaries hard-code `https://rasifiters-api.onrender.com/api` (iOS `Config/APIConfig.swift`, Android
+  `app/build.gradle.kts`) — a host/domain change needs an app release + adoption window first.
 
 ## Status
 🚀 **Feature-complete + LIVE on Render.** All ~11 route groups (see §Endpoints) are mounted and serving

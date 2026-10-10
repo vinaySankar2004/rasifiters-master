@@ -37,7 +37,7 @@ hooks load).
 
 | Project | Supabase project ref | MCP server (`read_only=true`) | Table prefixes |
 |---|---|---|---|
-| **supabase-rasifiters** | `TODO(provision: supabase-project-ref)` | `supabase-rasifiters` | **none** (faithful legacy schema) |
+| **supabase-rasifiters** | `kpadxjekpiwfkqcxtrio` (`us-east-1`, **Pro** plan) | `supabase-rasifiters` | **none** (faithful legacy schema) |
 
 One Supabase Postgres backs all three clients (web + iOS + the Express backend). **No table prefixes
 and no dev/prod prefix split** — the faithful legacy schema uses bare table names (`members`,
