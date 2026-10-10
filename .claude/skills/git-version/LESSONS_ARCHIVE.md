@@ -543,3 +543,18 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   by three files and now determines the canonical host, but had **no `ENV_RUNBOOK.md` row** — invisible to
   a diff-scoped review. Grepping each env var the change depends on surfaced it. Worth doing whenever a
   change makes an existing var load-bearing in a new way.
+
+## Run 2026-10-10 — docs: reliability-overhaul initiative + R8 (no bump, no tag)
+- **A new doc class needs a registered home before its first file lands.** Multi-session cross-cutting work
+  (here: the reliability overhaul) fit neither `specs/features/` nor `specs/pages/`, and `PROGRESS.md` is
+  volatile current-state only. Created `specs/initiatives/<name>/{BRIEF,HANDOFF}.md` and registered it in the
+  same commit in all three routing docs — ICM layer map + "How to operate", METHODOLOGY SoT table — so
+  `health-check` won't flag an orphan. BRIEF = scope + evidence (durable for the initiative's life); HANDOFF =
+  rolling compaction-safe state (volatile). Outcomes graduate to SPEC §9 / R-entries; folder retires at the end.
+- **Freshness pass = fix contradictions found while reading, in their canonical home, same commit.** Caught:
+  METHODOLOGY SoT listing two different homes for "current state" (PROGRESS vs ICM), a skill described as
+  "MCP-first" when the skill says psql-first, a garbled duplicate table header in ICM, `apex→www` contradicting
+  the canonical `www→apex`, and a `TODO(provision)` placeholder months after provisioning.
+- **Docs under `apps/web/` still trigger a Vercel production build** (the monorepo ignore-step diffs the whole
+  `apps/web` subtree, `.md` included) — harmless (identical code) but expected; Render's buildFilter ignores
+  `apps/backend/**/*.md`, so backend docs never deploy.
