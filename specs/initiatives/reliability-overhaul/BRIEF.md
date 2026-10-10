@@ -36,7 +36,7 @@ fast to iterate on — before any new features land on top. The stack stays (R8)
 | Random logouts | unconfirmed (happens to the user too) | Users can't say when; don't rely on user reports — instrument instead |
 | Health sync "disconnects" when the app isn't opened for a while | iOS + Android | Resumes oddly after reopening |
 | Invitee got **neither** a push **nor** the in-app invitation → couldn't accept | Android | So it's not only push — check invite creation + the invitee's pending-invites fetch |
-| Google sign-in → **"No credentials available"** dialog | Android, real Pixel | Screenshot 2026-10-10. Install source (Play vs Android Studio) not yet recorded |
+| Google sign-in → **"No credentials available"** dialog | Android, real Pixel | Screenshot 2026-10-10. **Play Store (production) build**, signed in with the user's own Google account |
 | Slow, sometimes "doesn't load" | all, worst far from us-east | |
 
 **Production metrics** (Render 30 days + Supabase read-only, to 2026-10-10)
@@ -63,7 +63,7 @@ log is empty; no client crash/error reporting on any surface. (Infra facts: `app
 | S2 | Logouts / sync (iOS) | Keychain items use default accessibility (WhenUnlocked) → unreadable during locked background wakes; HealthKit data is also protected while locked; failed observer handlers make HealthKit back off |
 | S3 | Sync (Android) | **No background sync exists**: no WorkManager worker, no `READ_HEALTH_DATA_IN_BACKGROUND` — Health Connect syncs only while the app is open |
 | S4 | Invites (Android) | Backend emits on invite (`apps/backend/services/inviteService.js` ~L75 → `createNotification` → `sendPushToMembers`), so suspect the device side (FCM token registration, Android 13+ permission, channels, payload type) **and** the invite create/list path, since the in-app invite was also missing |
-| S5 | Google sign-in (Android) | Credential Manager `GetGoogleIdOption` + web client ID (`apps/android/app/src/main/java/com/app/rasifiters/ui/auth/GoogleCredential.kt` ~L73). `NoCredentialException` causes: signing-cert SHA-1 of the installed build not registered (debug vs upload vs Play App Signing), OAuth consent screen still in Testing (`ENV_RUNBOOK.md` §7), no Google account on device |
+| S5 | Google sign-in (Android) | Credential Manager `GetGoogleIdOption` + web client ID (`apps/android/app/src/main/java/com/app/rasifiters/ui/auth/GoogleCredential.kt` ~L73). Failing build is the **Play** build (Play App Signing key). `ENV_RUNBOOK.md` §7 records **both** known `NoCredentialException` causes as fixed — Play App Signing SHA-1 registered, consent screen published to Production 2026-07-11 — and the failing account is the user's own (an owner bypasses Testing anyway; confirm it is a `rasi-fiters` GCP owner). So: a regression (publishing status reverted, Android OAuth client changed/deleted) or a third cause. **First move:** `adb logcat` on the Pixel for the underlying Credential Manager / Play services error code, then check GCP → Google Auth Platform → Audience status + Credentials → Android client SHA-1s |
 | S6 | Latency (web + Android) | Refresh is 401-reactive only → a burst of 401s + extra round trips on every app open |
 | S7 | Realtime (mobile) | The SSE notification stream dies when the app backgrounds; industry pattern = push in background, live connection only in foreground (Supabase Realtime is an in-stack option) |
 | S8 | Session policy | Supabase Auth refresh-token reuse interval / revoke-on-reuse settings interact with S1 — read them in the dashboard / Management API |

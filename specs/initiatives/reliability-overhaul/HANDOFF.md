@@ -9,7 +9,7 @@
 
 - **Phase:** not started — scoping complete (2026-10-10).
 - **In flight:** nothing.
-- **Blocked on the user:** create the two tokens below before Session 1 (Render's key already works).
+- **Blocked on the user:** paste the Supabase token (below). Render + Vercel are verified.
 
 ## Next action
 
@@ -22,8 +22,15 @@ chat, never committed):
 | Key | Where to create it | Status |
 |---|---|---|
 | `RENDER_API_KEY` | dashboard.render.com → Account Settings → API Keys | ✅ present, worked 2026-10-10 |
-| `VERCEL_TOKEN` | vercel.com/account/settings/tokens → Create (scope: the `personal-vinayak` account) | ⬜ |
-| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token | ⬜ |
+| `VERCEL_TOKEN` | vercel.com/account/settings/tokens → Create | ✅ present, verified 2026-10-10 — scoped to the `rasifiters` project only (reads project `prj_Eqd5…` via team `personal-vinayak`; sees no teams) |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token — **Project** scope `rasifiters`, **read-only** permissions recommended (writes stay in the dashboard / user-run migrations) | ⬜ key present but empty |
+
+**Also before Session 1 (user):** on the Pixel, enable Developer options → **USB debugging**, and keep it
+plugged into the Mac during the session, so W5 can read the real Google sign-in error with `adb logcat`
+(and W2/W4 can watch FCM + Health Connect behaviour) instead of guessing.
+
+Verify any token without printing it: read it from the file inside the command and pipe the header to curl
+(`printf 'Authorization: Bearer %s' "$T" | curl -s -H @- <url>`), and print only non-secret fields.
 
 ## Workstream status
 
