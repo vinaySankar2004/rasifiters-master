@@ -9,8 +9,8 @@
 
 - **Phase:** not started — scoping complete (2026-10-10).
 - **In flight:** nothing.
-- **Blocked on the user:** nothing — all four tokens are present and verified (2026-10-10). Optional prep: Pixel
-  USB debugging (below).
+- **Blocked on the user:** nothing — all four tokens verified (2026-10-10); the Pixel is connected and
+  authorized for USB debugging (2026-10-11).
 - **Step 0 leftovers (do first in Session 1):** (1) build the ask-guardrail hook for `SUPABASE_ADMIN_TOKEN` —
   **until it exists, don't use the admin token at all**; (2) wire MCP header auth / CLI fallbacks + docs;
   (3) Supabase moved its logs API: `…/analytics/endpoints/logs.all` now returns **410**; the replacement
@@ -32,9 +32,12 @@ chat, never committed):
 | `SUPABASE_ACCESS_TOKEN` | supabase.com/dashboard/account/tokens → Generate new token — **Project** scope `rasifiters`, **read-only** preset. The default for all reads (metrics, logs, settings, advisors), no prompts | ✅ present, verified 2026-10-10 — reads the project + Auth config |
 | `SUPABASE_ADMIN_TOKEN` | same page — **Project** scope `rasifiters`, **Full access**. Deliberate changes only; every use prompts the user (hook built in Step 0) | ✅ present, valid (one read-only GET 2026-10-10); unused until the guardrail hook exists |
 
-**Also before Session 1 (user):** on the Pixel, enable Developer options → **USB debugging**, and keep it
-plugged into the Mac during the session, so W5 can read the real Google sign-in error with `adb logcat`
-(and W2/W4 can watch FCM + Health Connect behaviour) instead of guessing.
+**Real Android device — ✅ ready (2026-10-11):** Pixel 7, Android 17, serial `2C151FDH20037A`, USB debugging
+authorized for this Mac ("always allow"). Installed: RaSi Fiters **1.0.0 (4)** from the Play Store (installer
+`com.android.vending`) — the production build. `adb` is **not on PATH**: use
+`~/Library/Android/sdk/platform-tools/adb`. Read-only diagnostics (`logcat`, `dumpsys`) let W5 read the real
+Google sign-in error and W2/W4 watch FCM + Health Connect behaviour instead of guessing; visual checks stay the
+user's.
 
 Verify any token without printing it: read it from the file inside the command and pipe the header to curl
 (`printf 'Authorization: Bearer %s' "$T" | curl -s -H @- <url>`), and print only non-secret fields.
@@ -58,7 +61,8 @@ Verify any token without printing it: read it from the file inside the command a
   in code. User decisions: Supabase Pro, staging via the same project (staging tables), Step 0 = token-based
   access for all three services. Created `BRIEF.md` + this file. Same day: user created all tokens (Vercel
   project-scoped; Supabase read-only default + full-access admin) — all verified; read Supabase Auth session
-  settings (BRIEF S8); Android Google sign-in failure confirmed on the Play build.
+  settings (BRIEF S8); Android Google sign-in failure confirmed on the Play build; Pixel 7 authorized for adb
+  (2026-10-11).
 
 ## Kickoff prompt — Session 1
 
@@ -88,6 +92,9 @@ No app code changes this session until I approve the design board.
    Supabase project, staging tables), and the decisions I need to make. Add the notification redesign
    and the social layer at concept level.
 5. Once I approve, split the build into parallel phases and record them in BRIEF.md and HANDOFF.md.
+
+My Pixel 7 is plugged in with USB debugging authorized (adb at ~/Library/Android/sdk/platform-tools/adb,
+running the Play build 1.0.0 (4)) — use logcat/dumpsys for evidence, read-only.
 
 Rules: update HANDOFF.md after every milestone so I can /compact at any time; commit + push docs via
 git-version at milestones; backend changes stay compatible with every live binary in RELEASES.md;

@@ -36,7 +36,7 @@ fast to iterate on — before any new features land on top. The stack stays (R8)
 | Random logouts | unconfirmed (happens to the user too) | Users can't say when; don't rely on user reports — instrument instead |
 | Health sync "disconnects" when the app isn't opened for a while | iOS + Android | Resumes oddly after reopening |
 | Invitee got **neither** a push **nor** the in-app invitation → couldn't accept | Android | So it's not only push — check invite creation + the invitee's pending-invites fetch |
-| Google sign-in → **"No credentials available"** dialog | Android, real Pixel | Screenshot 2026-10-10. **Play Store (production) build**, signed in with the user's own Google account |
+| Google sign-in → **"No credentials available"** dialog | Android, Pixel 7 (Android 17) | Screenshot 2026-10-10. **Play Store production build 1.0.0 (4)**, signed in with the user's own Google account |
 | Slow, sometimes "doesn't load" | all, worst far from us-east | |
 
 **Production metrics** (Render 30 days + Supabase read-only, to 2026-10-10)
@@ -82,8 +82,9 @@ log is empty; no client crash/error reporting on any surface. (Infra facts: `app
 - **Live-binary compatibility** — backend changes degrade gracefully for every binary in `RELEASES.md`;
   backend deploys first.
 - **No direct DB writes** — schema/data changes only as numbered migrations in `apps/backend/sql/`.
-- **Testing:** the user now owns a real **Pixel** (Android) plus an iPhone, and tests live behavior;
-  compile-checks stay the automated gate (`ios-build`, `android-build`, web `npm run build`).
+- **Testing:** the user now owns a real **Pixel 7** (Android 17, USB-debug authorized for this Mac — read-only
+  `adb logcat` / `dumpsys` diagnostics are fair game) plus an iPhone, and tests live behavior; compile-checks
+  stay the automated gate (`ios-build`, `android-build`, web `npm run build`).
 
 ## 6. Decisions already made
 
