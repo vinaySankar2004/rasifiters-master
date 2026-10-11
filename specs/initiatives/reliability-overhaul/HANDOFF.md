@@ -7,10 +7,39 @@
 
 ## Now
 
-- **Phase:** Session 1 (2026-10-11). **Step 0 ✅ done** → **Phase 0 discovery in flight** (7 background
-  agents, one per workstream, each writing `discovery/W<n>-*.md`).
-- **In flight:** W1, W2, W3, W5, W6, W7 discovery agents. W4 brief is in (`discovery/W4-android-health-sync.md`)
-  — orchestrator spot-check pending.
+- **Phase:** Session 1 (2026-10-11). **Step 0 ✅** → **Phase 0 discovery ✅** (all 7 briefs in + verified;
+  index + corrections: [`discovery/README.md`](discovery/README.md)) → **walkthrough with the user, one
+  workstream at a time** (W1 → W7; W5 includes the live logcat capture). Then Phase 1 board.
+- **In flight:** nothing. **Walkthrough position:** not started (begin at W1).
+- **Two out-of-scope security fixes offered as task chips (user decides; not part of the board):**
+  (1) cross-user refresh-token leak — backend refreshes on the shared Supabase client, auth-js 2.108.2
+  dedups concurrent refreshes across callers (`authService.js:158`); fix = per-request client.
+  (2) `/api/analytics*` lacks program-membership checks.
+- **Briefs in + orchestrator-verified (key claims re-read in code):** W1–W7 (`discovery/`). W1 headline:
+  logouts = iOS refresh-token reuse kills (138 reuse events / 90 d; one user 21 killed sessions) driven by
+  iOS refresh storms (~90 % of 8.8k refresh tokens in 30 d issued < 60 s after the previous) + backend maps
+  every refresh error (incl. Supabase 429s on Render's single IP) to 401 + Android signs out on any refresh
+  failure; logout is `global` scope (kills all the user's devices).
+  W6: refresh proxy maps **every** Supabase refresh error to 401 (`authService.js:159`) — incl. the
+  `refresh_token_already_used` (S1) + 429 rate-limit errors seen in auth logs 10-06; 401 = 20.0% of requests
+  10-04→10-10; SQL-only logs carry PII (`config/database.js:13`), 7-day retention.
+  **Out-of-scope security finding (verified):** `/api/analytics*` routes check sign-in only, not program
+  membership, and return member names (`routes/analytics.js:13`, `analyticsService.js:151`) — flagged to
+  the user as a separate task chip; not part of this initiative.
+  W5: "No credentials available" is Android's own Credential Manager text (Play services returned zero
+  accounts) — shipped client ID + signing SHA-1 are correct; button uses `GetGoogleIdOption` with no
+  `GetSignInWithGoogleOption` fallback (`GoogleCredential.kt:73`). **Root cause unproven** — the failing tap
+  rotated out of logcat; the live-capture recipe is in the brief §9 (run it WITH the user: they tap, we read).
+  W3 correction from the re-run query: member `d57dad74` had **111** (not 69) old `workout_logs` rows
+  rewritten in one minute on 2026-09-23 — the only bulk workout-update path is the `on_duplicate:"sum"`
+  branch (`logService.js:196`), so **workout double-counting in prod is confirmed** (iOS).
+  Headline so far: **Android cannot see or accept invites at all** — `POST /invite` writes only
+  `program_invites` (`inviteService.js:64`); web/iOS read `/my-invites`; Android filters `GET /programs` for
+  `myStatus == "invited"` (`ProgramActionsSheet.kt:83`, `ProgramPickerScreen.kt:115`) and accepts via
+  `PUT /program-memberships` (`ProgramContext.kt:385`) → 404 "Membership not found"
+  (`membershipService.js:201`). W4: no Android background sync (S3 ✅); 14-day look-back loses data after
+  2 weeks unopened; 409s are by-design POST→409→PUT for sleep/steps. W7: errors render as empty data on all
+  surfaces; no retry/offline/cache anywhere.
 - **Blocked on the user:** nothing. **Restart the session once** so `.mcp.json`'s new Supabase header takes
   effect (the MCP showed "needs auth" in Session 1).
 - **Step 0 outcome (proven with read-only calls 2026-10-11):**
@@ -57,13 +86,13 @@ Verify any token without printing it: read it from the file inside the command a
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ⬜ | ⬜ | ⬜ | ⬜ |
-| W2 | Push + invites | ⬜ | ⬜ | ⬜ | ⬜ |
-| W3 | iOS health sync | ⬜ | ⬜ | ⬜ | ⬜ |
-| W4 | Android health sync | ⬜ | ⬜ | ⬜ | ⬜ |
-| W5 | Android Google sign-in | ⬜ | ⬜ | ⬜ | ⬜ |
-| W6 | Observability + perf | ⬜ | ⬜ | ⬜ | ⬜ |
-| W7 | Frontend state / error / design consistency | ⬜ | ⬜ | ⬜ | ⬜ |
+| W1 | Sessions / auth | ✅ | ⬜ | ⬜ | ⬜ |
+| W2 | Push + invites | ✅ | ⬜ | ⬜ | ⬜ |
+| W3 | iOS health sync | ✅ | ⬜ | ⬜ | ⬜ |
+| W4 | Android health sync | ✅ | ⬜ | ⬜ | ⬜ |
+| W5 | Android Google sign-in | ✅ | ⬜ | ⬜ | ⬜ |
+| W6 | Observability + perf | ✅ | ⬜ | ⬜ | ⬜ |
+| W7 | Frontend state / error / design consistency | ✅ | ⬜ | ⬜ | ⬜ |
 
 ## Session log
 
@@ -74,6 +103,10 @@ Verify any token without printing it: read it from the file inside the command a
   project-scoped; Supabase read-only default + full-access admin) — all verified; read Supabase Auth session
   settings (BRIEF S8); Android Google sign-in failure confirmed on the Play build; Pixel 7 authorized for adb
   (2026-10-11).
+- **2026-10-11** — Session 1. Step 0: token-only access to Render/Vercel/Supabase + `token-guard` hook +
+  `tools/ops-get.sh` / `tools/supabase-logs.sh` (commit 5758965). Phase 0: 7 parallel discovery agents →
+  `discovery/` briefs, all key claims verified by the orchestrator; two out-of-scope security findings
+  offered as task chips.
 
 ## Kickoff prompt — Session 1
 

@@ -43,7 +43,7 @@ fast to iterate on — before any new features land on top. The stack stays (R8)
 - Healthy core: 2 × HTTP 500 in 30 days, no crashes/restarts/failed deploys; CPU ~0.1% of 0.5 vCPU, RAM
   ~120/512 MB. ~4.5–6k requests/day; 59 accounts, 14–17 members logging weekly; DB 25 MB; **Supabase Pro**.
 - **401 ≈ 22% of all requests** — expired tokens: web + Android refresh only *after* a 401 (iOS also
-  refreshes proactively near expiry). Each app open after >1 h costs 3 sequential round trips first.
+  refreshes on every foreground — corrected by Phase 0 W1). Each app open after >1 h costs 3 sequential round trips first.
 - **409: 500–1,200/day** — most likely health-sync re-sending rows the backend already has (rejected as
   duplicates by design, `apps/backend/services/logService.js`).
 - **499 (client gave up): 2–12/day** — the closest log signal to "it didn't load".
@@ -51,8 +51,9 @@ fast to iterate on — before any new features land on top. The stack stays (R8)
   from India (more on mobile data). Screens issue 10–15 calls, some chained.
 
 **Observability gaps:** Render's plan keeps no request logs / latency metric (app logs only); the backend
-logs every SQL query (Sequelize) instead of requests; Vercel Hobby keeps ~1 h of logs; Supabase auth audit
-log is empty; no client crash/error reporting on any surface. (Infra facts: `apps/backend/CONTEXT.md`,
+logs every SQL query (Sequelize) instead of requests; Vercel Hobby keeps ~1 h of logs; Supabase auth logs
++ auth audit log are populated and readable (`tools/supabase-logs.sh`; the "empty" reading was the retired
+logs API); no client crash/error reporting on any surface. (Infra facts: `apps/backend/CONTEXT.md`,
 `apps/web/CONTEXT.md`.)
 
 ## 4. First suspects (unverified — Phase 0 must confirm or refute each with evidence)

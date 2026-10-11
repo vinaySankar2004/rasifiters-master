@@ -558,3 +558,15 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
 - **Docs under `apps/web/` still trigger a Vercel production build** (the monorepo ignore-step diffs the whole
   `apps/web` subtree, `.md` included) — harmless (identical code) but expected; Render's buildFilter ignores
   `apps/backend/**/*.md`, so backend docs never deploy.
+
+## Run 2026-10-11 — reliability overhaul Step 0 + Phase 0 briefs (2 chores, no bump, no tag)
+- Step 0 (`5758965`): token-only service access — hook, two GET-only `tools/` scripts, `.mcp.json` header,
+  `.env.mcp.example`, CLAUDE.md MCP section, ENV_RUNBOOK pointer. Zero feature impact → plain `chore(ops)`.
+- **Env-var sweep caught a stale home:** `ENV_RUNBOOK.md` said `RENDER_API_KEY` lives only in `~/.zshenv`;
+  sessions now load it (and three new tokens) from `settings.local.json` `env` — one-line pointer added there,
+  names + purpose kept single-sourced in `.env.mcp.example`.
+- **Don't name the guarded token in a commit message.** The `token-guard` hook asks on any Bash command
+  containing the full-access token's env-var name, and `git commit -m/-F` carries the message text — describe
+  it ("the full-access Supabase token") instead.
+- Phase 0 commit: agent-written discovery briefs + an orchestrator `discovery/README.md` recording
+  verification + corrections (briefs left as written) — initiative docs, no bump.
