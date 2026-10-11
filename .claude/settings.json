@@ -23,6 +23,11 @@
       "mcp__supabase-rasifiters__execute_sql",
       "mcp__supabase-rasifiters__get_logs",
       "mcp__supabase-rasifiters__get_advisors",
+      "mcp__supabase-rasifiters__query_logs",
+      "mcp__supabase-rasifiters__list_extensions",
+      "mcp__supabase-rasifiters__list_migrations",
+      "Bash(tools/ops-get.sh:*)",
+      "Bash(tools/supabase-logs.sh:*)",
       "mcp__render__list_workspaces",
       "mcp__render__get_selected_workspace",
       "mcp__render__list_services",
@@ -56,6 +61,15 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/db-readonly-guard.sh\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Read|Grep|Glob|Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/token-guard.sh\""
           }
         ]
       }

@@ -29,8 +29,9 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > notification redesign + a light social layer. **Start here:**
 > [`specs/initiatives/reliability-overhaul/HANDOFF.md`](specs/initiatives/reliability-overhaul/HANDOFF.md)
 > (rolling state + the Session 1 kickoff prompt) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
-> (scope, evidence, suspects, phase plan). **Session 1 = Step 0** (token-based access to Render / Vercel /
-> Supabase, no OAuth) → Phase 0 discovery → Phase 1 design board. No app code before the board is approved.
+> (scope, evidence, suspects, phase plan). **Step 0 done 2026-10-11** (token-based access to Render /
+> Vercel / Supabase, no OAuth — see `CLAUDE.md` §MCP Servers) → Phase 0 discovery → Phase 1 design board.
+> No app code before the board is approved.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
@@ -81,10 +82,6 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
   hit *Validate Fix* on the "Page with redirect" row and Request-Indexing `https://rasifiters.com/`; the
   duplicate `www` entry should drop out over ~1–2 weeks. Brand-query pickup for the spaced `"rasi fiters"`
   is slower (schema is a hint, not a switch) — recheck in a few weeks before doing anything more.
-- **Token-based access for Vercel + Supabase (no OAuth)** — folded into the reliability initiative as
-  **Step 0** (see its `HANDOFF.md`). As of 2026-10-10: Render works via `RENDER_API_KEY` header auth; the
-  Vercel MCP returns 403 (stale OAuth) — the local `vercel` CLI works meanwhile; the Supabase MCP is
-  unauthenticated — read-only `psql` via `apps/backend/.env` works meanwhile.
 - **Self-serve account deletion (`DELETE /api/auth/account`) is effectively unexercised.** Live traffic
   proves the common paths, not the destructive rare ones. Nuance: the cascade itself
   (`cascadeMemberDeletion`, `apps/backend/utils/programMemberships.js:167`) is **shared** with the admin path

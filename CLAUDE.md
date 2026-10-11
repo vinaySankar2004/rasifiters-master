@@ -22,7 +22,10 @@ deliberate changes are called out explicitly in the SPEC (§9/§10). Don't "impr
 **Never write, suggest, or generate SQL that modifies data or schema directly** — no `INSERT`,
 `UPDATE`, `DELETE`, `DROP`, `ALTER`, `TRUNCATE`, or `CREATE TABLE` against the live database.
 The `supabase-rasifiters` MCP is **read-only** by URL, and a PreToolUse hook blocks inline `psql`
-writes. If asked to modify data/schema:
+writes. Supabase Management API reads use the read-only `SUPABASE_ACCESS_TOKEN`; the full-access
+`SUPABASE_ADMIN_TOKEN` is for deliberate auth/infra *settings* changes only, and every command that
+names it **asks the user first** (`token-guard` hook) — it never touches data or schema. If asked to
+modify data/schema:
 1. Say no clearly.
 2. Redirect: create a numbered SQL migration file in `apps/backend/sql/`
    (idempotent — `IF NOT EXISTS` / `ON CONFLICT`).
@@ -56,20 +59,28 @@ copy-paste-ready code, no "as needed"/TBD/figure-it-out.
 
 ## MCP Servers (see `.mcp.json`)
 
-- **vercel** — `https://mcp.vercel.com` (account-level OAuth; all projects in the team).
-- **render** — `https://mcp.render.com/mcp` (account/workspace-level; all services). **API-key header
-  auth, not OAuth** — Render's auth server rejects dynamic client registration, so the browser flow fails
-  ("Incompatible auth server"). Instead `.mcp.json` sends `Authorization: Bearer ${RENDER_API_KEY}`; the
-  key value lives in gitignored `.claude/settings.local.json` under `env.RENDER_API_KEY` (create it at
-  dashboard.render.com → Account Settings → API Keys). No browser login — but on first use you must
-  **select a workspace** before any call: `list_workspaces` → **ask the user which** → `select_workspace`
-  (never auto-pick; wrong workspace = wrong account resources). The backend deploys as a Blueprint
-  (`apps/backend/render.yaml`); this MCP is the create/inspect/**deploy** path **and** the env-var /
-  service-management path (`update_environment_variables`, `update_web_service`). Read tools
-  (list/get/logs/metrics) are allow-listed and run freely; **prod-mutating calls confirm each time** —
-  the `deploy-scope-guard` hook guards only Bash, not MCP tools.
-- **supabase-rasifiters** — read-only, scoped to the rasifiters project (`project_ref` in
-  `CONTEXT.md` §Infrastructure).
+**Token access, no OAuth (2026-10-11).** Four tokens live in gitignored `.claude/settings.local.json`
+under `env` (names + purpose: `.env.mcp.example`; never print or commit a value). Claude Code loads them
+into every session, `.mcp.json` sends them as `Authorization: Bearer ${…}` headers, and two read-only
+scripts cover the REST side: `tools/ops-get.sh <render|vercel|supabase> '<path>'` (GET only) and
+`tools/supabase-logs.sh "<sql>"` (Supabase's unified `logs` table — auth/edge/postgres logs).
+
+- **render** — `https://mcp.render.com/mcp`, header `Bearer ${RENDER_API_KEY}` (account-wide). Render's
+  OAuth rejects dynamic client registration, so header auth is the only path. One workspace
+  (`tea-cv3u7a3tq21c73ald2ig`, owns `rasifiters-api`) — **pass `workspaceId` on every call**
+  (`select_workspace` is deprecated; if a second workspace ever appears, ask the user which). The backend
+  deploys as a Blueprint (`apps/backend/render.yaml`); this MCP is the create/inspect/**deploy** path
+  **and** the env-var / service-management path (`update_environment_variables`, `update_web_service`).
+  Read tools (list/get/logs/metrics) are allow-listed; **prod-mutating calls confirm each time**.
+- **supabase-rasifiters** — `https://mcp.supabase.com/mcp?read_only=true&project_ref=…`, header
+  `Bearer ${SUPABASE_ACCESS_TOKEN}` (read-only, project-scoped token). Tools incl. `execute_sql`,
+  `query_logs`, `get_advisors`. The admin token is never wired into an MCP server.
+- **vercel** — `https://mcp.vercel.com` is **OAuth-only**: it rejects the project-scoped
+  `VERCEL_TOKEN` (503 "token validation"), and its OAuth session is stale (403). Optional — nothing
+  depends on it. **Use REST:** `tools/ops-get.sh vercel '<path>'` (deployments, build events, project,
+  env metadata). The Vercel CLI also refuses a project-scoped token (404 loading the user), so prod
+  deploys keep the CLI's own login (see the `deploy` skill). Historical request logs aren't reachable
+  with this token (Hobby keeps ~1 h anyway).
 - **xcode** — local **stdio** bridge (`xcrun mcpbridge`, Apple-native, Xcode 26.3+). The iOS build-check
   path: builds the **open** `apps/ios` project + returns structured compiler diagnostics. Requires Xcode
   running with the project open and **Settings → Intelligence → "Allow external agents to use Xcode tools"**
@@ -77,11 +88,9 @@ copy-paste-ready code, no "as needed"/TBD/figure-it-out.
   we don't want, heavy token cost). The user runs the simulator/visual checks; the MCP is for compile only.
   See the `ios-build` skill.
 
-**vercel** and **supabase-rasifiters** are OAuth remote MCPs — **no secrets in `.mcp.json`**; first use
-triggers a one-time browser login per server. **render** uses API-key header auth via `${RENDER_API_KEY}`
-(see above) — no browser login; never click "Authenticate" on render, that re-triggers the failing OAuth
-flow. `xcode` is local (no auth, no network). No real secret is ever committed — `.mcp.json` carries only
-the `${RENDER_API_KEY}` variable name; the value stays in gitignored `.claude/settings.local.json`.
+**No secrets in `.mcp.json`** — it carries only `${VAR}` names; values stay in gitignored
+`.claude/settings.local.json`. Never click "Authenticate" on render or supabase-rasifiters (that starts
+an OAuth flow we don't use). `xcode` is local (no auth, no network).
 
 **Use ONLY these project MCP servers in this workspace** (the four in this repo's `.mcp.json` + the local
 `xcode` bridge). That project-scoped `.mcp.json` is the canonical config; a redundant user-scope `vercel`
@@ -90,12 +99,15 @@ aren't disturbed. The claude.ai-managed connectors (`claude.ai Supabase`, `claud
 Google Drive`) and `n8n` are **denied** in `.claude/settings.json` — they grant broad account-level access
 and bypass our scoping.
 
-**Scope guardrail.** Vercel + Render creds grant access to *all* account projects/services. The
-`deploy-scope-guard.sh` PreToolUse hook restricts `vercel`/`render` **Bash CLI** commands to the rasifiters
+**Scope guardrail.** The Render key grants access to *all* workspace services. The
+`deploy-scope-guard.sh` PreToolUse hook restricts `vercel`/`render` **Bash** commands to the rasifiters
 allow-list — but it does **not** cover MCP tool calls. The render MCP's write tools are therefore gated by
-**per-call confirmation** instead (reads are allow-listed and free). When the `deploy` skill provisions the
-Vercel project + Render service, record their IDs in the product `CONTEXT.md` and fill the
-allow-list/scope in the hook.
+**per-call confirmation** instead (reads are allow-listed and free). **`token-guard.sh`** (PreToolUse on
+Bash + file tools) returns *ask* for: any use of `SUPABASE_ADMIN_TOKEN`, any read/edit of
+`settings.local.json`, any environment dump, any write-shaped `curl` to the Render/Vercel/Supabase
+management APIs, and `tools/render-env.sh set|deploy`. It matches text — a guard against accidents, not a
+sandbox. The allow-listed IDs (Vercel project/team, Render service) live in the `deploy-scope-guard.sh`
+header and `CONTEXT.md`.
 
 ## Skills (`.claude/skills/`)
 

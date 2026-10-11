@@ -32,8 +32,11 @@ tools/render-env.sh list                 # keys only — no values leaked
 tools/render-env.sh set APNS_KEY -        # upsert, reading the (secret) value from stdin
 ```
 The helper (and any raw REST call) authenticates via **`$RENDER_API_KEY`** — a personal Render API key
-(`rnd_…` from Render → Account Settings → API Keys), stored in **`~/.zshenv`** (`export RENDER_API_KEY=…`),
-so it's picked up by every shell and **never committed**. Raw REST equivalent:
+(`rnd_…` from Render → Account Settings → API Keys), stored in **`~/.zshenv`** (`export RENDER_API_KEY=…`)
+for your own shells and in gitignored `.claude/settings.local.json` `env` for Claude Code sessions (with
+`VERCEL_TOKEN`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_ADMIN_TOKEN` — names + purpose in `.env.mcp.example`;
+read-only REST helpers `tools/ops-get.sh` / `tools/supabase-logs.sh`) — **never committed**. Raw REST
+equivalent:
 ```
 curl -s https://api.render.com/v1/services/srv-d90tgmv7f7vs73cudptg/env-vars \
   -H "Authorization: Bearer $RENDER_API_KEY" | jq -r '.[].envVar.key'   # keys only — no values leaked

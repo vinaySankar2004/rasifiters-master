@@ -7,20 +7,31 @@
 
 ## Now
 
-- **Phase:** not started — scoping complete (2026-10-10).
-- **In flight:** nothing.
-- **Blocked on the user:** nothing — all four tokens verified (2026-10-10); the Pixel is connected and
-  authorized for USB debugging (2026-10-11).
-- **Step 0 leftovers (do first in Session 1):** (1) build the ask-guardrail hook for `SUPABASE_ADMIN_TOKEN` —
-  **until it exists, don't use the admin token at all**; (2) wire MCP header auth / CLI fallbacks + docs;
-  (3) Supabase moved its logs API: `…/analytics/endpoints/logs.all` now returns **410**; the replacement
-  `GET /v1/projects/{ref}/analytics/endpoints/logs` answers, but `auth_logs` "does not exist" there — find the
-  new source/table names (Supabase changelog #48235) before auth-log queries work.
+- **Phase:** Session 1 (2026-10-11). **Step 0 ✅ done** → **Phase 0 discovery in flight** (7 background
+  agents, one per workstream, each writing `discovery/W<n>-*.md`).
+- **In flight:** W1, W2, W3, W5, W6, W7 discovery agents. W4 brief is in (`discovery/W4-android-health-sync.md`)
+  — orchestrator spot-check pending.
+- **Blocked on the user:** nothing. **Restart the session once** so `.mcp.json`'s new Supabase header takes
+  effect (the MCP showed "needs auth" in Session 1).
+- **Step 0 outcome (proven with read-only calls 2026-10-11):**
+  - **Render** — MCP header auth works; single workspace `tea-cv3u7a3tq21c73ald2ig` (pass `workspaceId`).
+    `list_logs` returns app logs (Sequelize SQL only) — **zero request logs in 7 days** (plan limit).
+  - **Supabase** — the hosted MCP **accepts the read-only PAT as a Bearer header** (13 tools incl. new
+    `query_logs`); `.mcp.json` now sends it. Management API: auth config ✅; logs ✅ via the new model — one
+    ClickHouse table `logs`, `where source = 'auth_logs'` (also `auth_audit_logs`, `edge_logs`,
+    `postgres_logs`, `supavisor_logs`, `postgrest_logs`); explicit ≤24 h window required. → `tools/supabase-logs.sh`.
+  - **Vercel** — MCP is OAuth-only (503 on the PAT; OAuth stale → 403); CLI refuses a project-scoped token.
+    REST works → `tools/ops-get.sh vercel`. Historical request logs: forbidden for this token. Latest
+    production deployment object shows `CANCELED` (known auto-deploy flake).
+  - **Guardrail** — `.claude/hooks/token-guard.sh` (ask on admin token / `settings.local.json` / env dumps /
+    write-shaped management-API curls / `render-env.sh set|deploy`); verified live in-session.
 
 ## Next action
 
-Session 1 → **Step 0** (credentials) → **Phase 0** (parallel discovery W1–W7) → walk the user through the
-findings one workstream at a time → **Phase 1** design board. Use the kickoff prompt below.
+Collect the 7 discovery briefs → orchestrator spot-checks each brief's key claims against code/prod →
+walk the user through the findings **one workstream at a time** (no solutions until they understand the
+current state) → **Phase 1** design board artifact. If resuming in a new session, the briefs in
+`discovery/` are the input; re-launch only the ones that are missing.
 
 **Before Session 1 (user):** put these in `.claude/settings.local.json` under `env` (gitignored — never in
 chat, never committed):
