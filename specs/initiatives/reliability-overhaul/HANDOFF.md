@@ -15,7 +15,10 @@
   the wider refresh rule D-C11.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/). An `implementer`
   agent was launched in the background (edits ONLY the 7 backend files; NO commit, NO push; offline harness in
   the session scratchpad; also folds verdict #6 (log reset errors server-side) + #8 (TLS JWKS errors → 503)).
-  **On its return:** (1) spot-check its report; (2) run `impl-adversary` on the diff; (3) `git-version` the
+  **Implementer DONE** (7 files uncommitted in the working tree; harness 100+31+55+29 pass; `middleware/auth.js`
+  line refs shifted +5 from L59 — classifier 35-63, authenticateToken 65-88, requireProgramMember 192-220;
+  docs notes: D-C11(c) say "network/TLS errors", add `[auth] password reset request failed` to the E8 watch
+  list). Orchestrator spot-checked `services/supabaseTokenRefresh.js` ✅. **`impl-adversary` running.** Then: (3) `git-version` the
   docs steps D1–D9 from the plan + the docs advisories (#1 the 16 page SPECs + member-analytics F1 + D-S1 rows,
   #2 stale line refs, #3 add an F15 timeout row, #5 CORS `exposedHeaders` for Retry-After as a Phase 3
   prerequisite, #7 §4 middleware table incl. `canModifyLog`) — three MINOR bumps (auth 0.10.0, analytics
