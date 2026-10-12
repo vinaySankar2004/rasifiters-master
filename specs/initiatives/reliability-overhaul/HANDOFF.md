@@ -43,6 +43,11 @@
   agents in the MAIN tree, directory-disjoint, no commits: **C** (backend, 5-file fence) · **D-web** · **D-iOS**
   (iOS compile needs Xcode open → else UNVERIFIED) · **D-Android**. Next: impl-adversary per track → A after C
   → B after A (its client files after D) → git-version per track → **ask before each push**.
+  **Progress:** ✅ D-web (6 files + temporary `/kit-preview` page — NEVER commit it; `npm run build` ✅) ·
+  ✅ D-Android (7 new + manifest line; `assembleDebug` ✅) · D-iOS running · ✅ **C committed LOCALLY
+  `a6bff90`** (tag `feature/app-config@v0.2.0`; boot smoke 16/16; registry/REGISTRY/COVERAGE updated) —
+  **⚠️ main now has UNPUSHED backend code: do NOT push docs until the user OKs the backend push.**
+  C `impl-adversary` running on `a6bff90`; **A implementer running** (main tree; no DB writes; 007 not run).
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
