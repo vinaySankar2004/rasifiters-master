@@ -36,8 +36,13 @@
   fix the doc (render.yaml untouched); placeholder thresholds; D-C5 exempts `/api/client-events`. (8) **D:** no
   line clamp on iOS/Android banners + phone-width visual check; credential-endpoint 401s keep server text;
   iOS uses `ObservableObject`; Android maps coroutine timeouts to TIMEOUT.
-  **Asked the user:** approve all 4 · `X-App-Build` header · `pg_cron` for app_events 90-day retention ·
-  copy the workout catalog (`workouts_library`) into staging.
+  ✅ **User APPROVED all 4 plans (2026-10-12)** + `X-App-Build` header ✅ + `pg_cron` 90-day retention ✅ + copy
+  `workouts_library` into staging ✅. **BUILD in flight:** orchestrator wrote `specs/features/frontend-kit/SPEC.md`
+  (from D's plan + amendments: credential-endpoint 401 scope rule, Android `TimeoutCancellationException`,
+  depends_on workout-logs + daily-health-logs; uncommitted — goes in D's git-version commit). 4 `implementer`
+  agents in the MAIN tree, directory-disjoint, no commits: **C** (backend, 5-file fence) · **D-web** · **D-iOS**
+  (iOS compile needs Xcode open → else UNVERIFIED) · **D-Android**. Next: impl-adversary per track → A after C
+  → B after A (its client files after D) → git-version per track → **ask before each push**.
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
