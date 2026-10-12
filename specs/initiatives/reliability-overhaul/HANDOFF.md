@@ -10,8 +10,12 @@
 - **Phase:** Session 1 (2026-10-11). **Step 0 ✅** → **Phase 0 discovery ✅** (all 7 briefs in + verified;
   index + corrections: [`discovery/README.md`](discovery/README.md)) → **walkthrough with the user, one
   workstream at a time** (W1 → W7; W5 includes the live logcat capture). Then Phase 1 board.
-- **In flight:** nothing. **Walkthrough position:** W1–W4 ✅ discussed → **W5 presented (root cause proven live)**;
-  W6 next. Session restarted once: the Supabase MCP now connects via its header token (verified).
+- **In flight:** nothing. **Walkthrough: COMPLETE (W1–W7).** **Phase 1 design board PUBLISHED, awaiting the user's
+  answers** — canonical text [`DESIGN_BOARD.md`](DESIGN_BOARD.md) (revised after a plan-adversary review: 12
+  findings verified + folded in), rendered at https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private;
+  HTML lives only in the session scratchpad — re-read it with Artifact `read` to republish to the same URL).
+  14 decisions D-1…D-14; the page has Accept/Change + "Copy my answers". On approval: decisions → BRIEF §6 +
+  SPEC D-rules as each lands; phases (1b hotfixes → 2 foundations → 3 reliability → 4 features) → BRIEF §7. Session restarted once: the Supabase MCP now connects via its header token (verified).
 - **User decisions captured in the walkthrough (→ design board, then SPEC §9 D-rules):**
   - W1-D1 logout scope: "whatever is industry-appropriate" → **per-device sign-out by default; "sign out
     everywhere" only as an explicit action** (Supabase `signOut({scope:'local'})`; global stays for
@@ -61,7 +65,15 @@
     client exists in Google Cloud for `com.app.rasifiters` + the Play App Signing SHA-1 (SHA-1s were only in
     Firebase). **Fix = console-only, no app release** (ENV_RUNBOOK §7 "Second cause"); user-side, user's call
     on timing. Code-side issues remain for the board: `GetGoogleIdOption` with no `GetSignInWithGoogleOption`
-    fallback, raw Android error text shown.
+    fallback, raw Android error text shown. **User will do the console fix later** (pending, user-side).
+  - W6-D1 observability budget: **free** — backend structured request logs + **SQL logging off**; no paid
+    tools (no Render Pro, no Supabase drain). Client error / event reporting + >7-day trails must therefore
+    be free too (board decides: own endpoint + DB tables vs a free tier).
+  - W7-D1 **one brand palette = web's** (`#ff8b1f` accent + web's danger red) on all three surfaces.
+  - W7-D2 **on refresh failure with prior data: keep the last good data + a slim floating "Couldn't
+    refresh — Retry" banner** (stale-while-revalidate); never fake zeros, never blank the page.
+  - Board-delegated (decide with a one-line why): on-device cache between launches, Android ViewModel
+    migration scope, toasts cross-surface, invite-error feedback (keep privacy for 4xx, show 5xx/timeouts).
 - Extra W1 fact verified by the orchestrator: on every refresh the shared backend client
   first loads its *last stored* session (another user's) and, if near expiry, rotates THAT user's token
   server-side (`GoTrueClient.js` `__loadSession` ~L2456-2486) — prod shows 59 such cross-user pairs in 30 d
@@ -141,13 +153,13 @@ Verify any token without printing it: read it from the file inside the command a
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ⬜ | ⬜ | ⬜ |
-| W2 | Push + invites | ✅ | ⬜ | ⬜ | ⬜ |
-| W3 | iOS health sync | ✅ | ⬜ | ⬜ | ⬜ |
-| W4 | Android health sync | ✅ | ⬜ | ⬜ | ⬜ |
-| W5 | Android Google sign-in | ✅ | ⬜ | ⬜ | ⬜ |
-| W6 | Observability + perf | ✅ | ⬜ | ⬜ | ⬜ |
-| W7 | Frontend state / error / design consistency | ✅ | ⬜ | ⬜ | ⬜ |
+| W1 | Sessions / auth | ✅ | 🟨 board | ⬜ | ⬜ |
+| W2 | Push + invites | ✅ | 🟨 board | ⬜ | ⬜ |
+| W3 | iOS health sync | ✅ | 🟨 board | ⬜ | ⬜ |
+| W4 | Android health sync | ✅ | 🟨 board | ⬜ | ⬜ |
+| W5 | Android Google sign-in | ✅ | 🟨 board | ⬜ | ⬜ |
+| W6 | Observability + perf | ✅ | 🟨 board | ⬜ | ⬜ |
+| W7 | Frontend state / error / design consistency | ✅ | 🟨 board | ⬜ | ⬜ |
 
 ## Session log
 
