@@ -81,12 +81,12 @@ scripts cover the REST side: `tools/ops-get.sh <render|vercel|supabase> '<path>'
   env metadata). The Vercel CLI also refuses a project-scoped token (404 loading the user), so prod
   deploys keep the CLI's own login (see the `deploy` skill). Historical request logs aren't reachable
   with this token (Hobby keeps ~1 h anyway).
-- **xcode** — local **stdio** bridge (`xcrun mcpbridge`, Apple-native, Xcode 26.3+). The iOS build-check
-  path: builds the **open** `apps/ios` project + returns structured compiler diagnostics. Requires Xcode
+- **xcode** — local **stdio** bridge (`xcrun mcpbridge`, Apple-native, Xcode 26.3+). **Never call
+  `BuildProject` / `XcodeOpenWorkspace`** — each pops an approval on the user's screen; iOS builds = the user
+  presses ⌘B and reports the result (2026-10-12). Requires Xcode
   running with the project open and **Settings → Intelligence → "Allow external agents to use Xcode tools"**
   enabled. Native-only by choice — we do NOT add the community XcodeBuildMCP (~80 tools, simulator control
-  we don't want, heavy token cost). The user runs the simulator/visual checks; the MCP is for compile only.
-  See the `ios-build` skill.
+  we don't want, heavy token cost). The user runs the builds + simulator/visual checks. See the `ios-build` skill.
 
 **Consoles in the built-in browser (2026-10-11).** The Claude desktop app's browser pane is signed into Google
 Cloud (`rasi-fiters`), Play Console, Firebase, App Store Connect / Apple Developer, Render, Vercel, GitHub and
@@ -123,12 +123,13 @@ loop — writes both feature specs and page/screen specs incl. role-based view r
 deploy to Vercel/Render, create Supabase schema/buckets) · `audit` (web↔iOS parity check for shared
 features) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
 read-only doc-health cross-review; strict, report-only via plan mode) · `ios-build` (the iOS compile-check
-loop via the native `xcode` MCP — build `apps/ios`, read structured diagnostics, fix, repeat; NO
+loop — the user presses ⌘B in Xcode, Claude fixes the reported errors, repeat; NO
 screenshots/simulator, the user runs those) · `android-build` (the Android compile-check loop via the
 Gradle CLI — `cd apps/android && ./gradlew :app:assembleDebug`, read Kotlin/AGP diagnostics, fix, repeat;
 pure-CLI, compile-only — NO emulator/screenshots, the user runs those) · `multiplex` (the role-agent
 pipeline for nontrivial / multi-surface changes: scout → plan → plan-adversary → USER approves →
-per-surface implementer(s) → impl-adversary → compile-check → git-version → user tests on prod; 5 agents in
+per-surface implementer(s) → impl-adversary → compile-check → git-version → user tests on prod (staging
+opt-in for risky changes only); 5 agents in
 `.claude/agents/` + the `plan-pipeline` workflow; small changes use PARTS of it). Each living skill keeps a
 slim "Converged lessons" section; full run history is in its `LESSONS_ARCHIVE.md`. See `METHODOLOGY.md` for
 the "concern → skill" map. (There is no `stitch` skill — code was ported directly from the legacy app, not

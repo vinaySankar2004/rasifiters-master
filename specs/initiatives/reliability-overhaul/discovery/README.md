@@ -16,3 +16,19 @@ the user; corrections are recorded here (the briefs themselves are left as writt
 
 BRIEF.md corrections surfaced by W1: the Supabase auth **audit** log is populated (not empty), and iOS
 refreshes on **every foreground**, not only near expiry.
+
+## Walkthrough answers (user, 2026-10-11)
+
+The user's answers to the briefs' open questions (moved here from `HANDOFF.md`; the design decisions they led to
+are on the board, marked ✅):
+
+- **W2** — the reported invitee was member `77cb0e59` (Android): invited 09-21, never saw it on Android, accepted
+  09-22 18:37 inside the 59-second batch — that batch was the user acting as global admin *because of* the bug.
+- **W3** — member `d57dad74`'s second-app testing happens on a **different** RaSi account, so it does not explain
+  this account's double-sums; the cause stays among F7's others (anchor held past the 45-day ledger, re-saved
+  workouts). Server-side dedup by Health sample id (board §4) covers every cause — no further digging. "Resumes
+  oddly" is a mix; the review screen sometimes comes back (W3 F4 logout reset / W4 F5 dismissed review).
+- **W4** (re-queried) — `255532ac`: no rows 09-17 → 09-20, next written 09-23 (inside the 14-day reach → most likely
+  no source data those days); no sync since 10-06. `81230fec`: 09-25 → 09-29 have sleep but **no steps** (steps
+  source/permission absent then). Neither is a proven sync bug; without provenance + sync-run logs they can't be
+  told apart.

@@ -32,8 +32,9 @@ files. Your final message IS the plan (consumed by the adversary/implementer age
    LIVE iOS/Android binary (additive/back-compatible; no required new field the live client omits).
 8. Include as final numbered steps: (a) the **compile-check per touched surface** — backend
    `node -c` / boot check, web `npm run build` + lint, android `cd apps/android && ./gradlew
-   :app:assembleDebug`, ios via the `xcode` MCP (flag that iOS compile + all visual/live testing
-   is the USER's — this repo has NO staging and NO test suites; the user verifies on prod); and
+   :app:assembleDebug`, ios = the user's ⌘B in Xcode (flag that iOS compile + all visual/live
+   testing is the USER's — no test suites; the user verifies on prod, on staging first only when the
+   change is risky: migrations, auth/session); and
    (b) the predicted **git-version** outcome (feature(s) + semver bump + why, per the `git-version`
    skill's rules).
 

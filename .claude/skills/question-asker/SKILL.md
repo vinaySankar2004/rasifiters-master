@@ -1204,7 +1204,7 @@ where one applies (the archived original a port came from). After the SPEC is si
   run the native `BuildProject` MCP for a REAL green-check** (`XcodeListWindows` → `BuildProject(tabIdentifier)`, 0 errors)
   instead of settling for grep-only — memory `ios-user-verifies-builds-visually` is about the local *CLI* CoreSimulator
   quirk (`actool`/simulator), which the MCP compile path sidesteps; grep-verification stays the fallback when Xcode isn't
-  open. Reconfirmed: cluster-IS-the-run (run 58/60/63); no-new-foundation-dep even for a stateful multi-program form
+  open. *(Superseded 2026-10-12: the user presses ⌘B — never call `BuildProject`; see `ios-build`.)* Reconfirmed: cluster-IS-the-run (run 58/60/63); no-new-foundation-dep even for a stateful multi-program form
   (run-31, all API/DTO/`ProgramContext`/chrome pre-ported run 50/60); shared-scaffold extraction as a user-picked D-C
   (run-54 "de-dup is a user pick") mirroring run-60 `LogFormComponents`; the CTA-color unification an accepted F-row;
   `admin_only_data_entry` LIVE per-program on a WRITE path (read-vs-write axis, run 31/60); `consumed_by=[ios]`, no feature

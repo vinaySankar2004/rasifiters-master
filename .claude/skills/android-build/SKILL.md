@@ -12,7 +12,7 @@ user's job (memory `ios-user-verifies-builds-visually` applies here too). Loop: 
 → fix → rebuild → report clean.**
 
 ## Why pure CLI (no MCP)
-Unlike iOS (which needs the `xcode` MCP bridge to dodge a CoreSimulator/`actool` quirk), Android builds are
+Unlike iOS (built by the user's ⌘B in Xcode — the CLI hits a CoreSimulator/`actool` quirk), Android builds are
 plain Gradle — the wrapper is committed and runs headless through Bash. No MCP, no open IDE required.
 Kotlin/AGP emit `file:line: error:`-style diagnostics that grep cleanly. This is the *simpler* of the two
 native loops.
@@ -44,9 +44,10 @@ need a compile gate.
 Backend is already proven (live; web + iOS use it). For Android we verify the port is **wired + adapted**,
 not re-validating business logic:
 - **Compiles** (this skill's core).
-- **Wired to our stack** — `BuildConfig.API_BASE_URL`: **debug → staging** `https://rasifiters-api-staging.onrender.com/api`, **release →
-  prod** `https://rasifiters-api.onrender.com/api` (auth D-C13; local loopback `http://10.0.2.2:5001/api` is the
-  temporary exception); Supabase-token auth via `POST /auth/login/app` +
+- **Wired to our stack** — `BuildConfig.API_BASE_URL`: **debug + release → prod** `https://rasifiters-api.onrender.com/api`;
+  the opt-in `staging` build type (`./gradlew :app:assembleStaging`, risky changes only) →
+  `https://rasifiters-api-staging.onrender.com/api` (auth D-C13); local loopback `http://10.0.2.2:5001/api` is the
+  temporary exception; Supabase-token auth via `POST /auth/login/app` +
   the OkHttp 401 authenticator.
 - **Parity with web + iOS** — the ported screen matches the web/iOS SPEC 1:1 (`specs/pages/{web,ios}/**`).
   Flag divergences; don't "improve" silently. Android-idiom deviations (Material 3, Health Connect, FCM)

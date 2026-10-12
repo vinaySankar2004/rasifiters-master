@@ -10,6 +10,9 @@ verify it **compiles cleanly** through the Apple-native Xcode MCP — then hand 
 visual/simulator run. We do **not** take screenshots or boot simulators; that's the user's job and it's
 slow + token-heavy. Our loop is: **build → read structured diagnostics → fix → rebuild → report clean.**
 
+> **Since 2026-10-12 the user builds: ask them to press ⌘B in Xcode and report the result — never call
+> `BuildProject` / `XcodeOpenWorkspace`** (each pops an approval on their screen; memory `ios-user-verifies-builds-visually`).
+
 ## Why the MCP (not raw `xcodebuild`)
 On this Mac the raw CLI build is blocked by an Xcode-install quirk (stale CoreSimulator service can't
 expose the iOS 26.5 simulator runtime → `actool` asset-catalog failure; see `apps/ios/CONTEXT.md`

@@ -14,7 +14,9 @@ description: Provision + deploy a RaSi Fiters app — the web app to its Vercel 
 reference directories are needed.
 
 ## Prereqs (confirm first — STOP if any fail)
-- **Vercel CLI** installed (`vercel --version` → 54.x) + authed (`vercel whoami`). The web app deploys via CLI. **Pin the team with `--scope personal-vinayak` on EVERY vercel command** — the CLI's default active team is often a personal account; never rely on it.
+- **Vercel CLI** installed (`vercel --version` → 54.x) + authed (`vercel whoami`). The web app deploys via CLI.
+  Every session's env carries the project-scoped `VERCEL_TOKEN`, which the CLI picks up and rejects — run it as
+  `env -u VERCEL_TOKEN vercel …`. **Pin the team with `--scope personal-vinayak` on EVERY vercel command** — the CLI's default active team is often a personal account; never rely on it.
 - **Render**: the backend deploys as a **Blueprint** (`apps/backend/render.yaml`, IaC) — NOT a CLI push. The primary path is GitHub-connected auto-deploy (Dashboard → New → Blueprint → pick the repo → Blueprint path `apps/backend/render.yaml`); on the first sync Render prompts for every `sync: false` secret. Alternatives/inspection: the hosted `render` MCP (`https://mcp.render.com/mcp`, OAuth, sees all workspace services), the REST API (`Authorization: Bearer $RENDER_API_KEY`, base `https://api.render.com/v1`), and the optional local `render` CLI. Render injects `PORT` (default `10000`); the app must bind `0.0.0.0` (server.js does).
 - **Supabase**: the rasifiters Supabase project `supabase-rasifiters` (ref `kpadxjekpiwfkqcxtrio`). `DATABASE_URL` + the `SUPABASE_*` keys come from the user. Repoint the `supabase-rasifiters` MCP `project_ref` once provisioned.
 - The app's `.env.example` is the **env-var contract** — read it first.

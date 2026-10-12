@@ -24,13 +24,13 @@ implementation report (consumed by the impl-adversary).
    migration files in `apps/backend/sql/` per the plan (the USER runs them).
 5. **No git, no deploys**: you do not commit, tag, push, or deploy — the orchestrator owns
    git-version + Vercel/Render deploys. (Local compile-checks are yours.)
-6. **Compile-check your surface** (this repo has NO staging and NO test suites — compile-check
-   is the automated gate; the user does all visual/live testing on prod):
+6. **Compile-check your surface** (this repo has NO test suites and staging is opt-in for risky
+   changes only — compile-check is the automated gate; the user does visual/live testing on prod):
    - **backend** → `node -c` on changed files + the boot/route-stack check the plan names.
    - **web** → `cd apps/web && npm run build` (+ lint if the plan says).
    - **android** → `cd apps/android && ./gradlew :app:assembleDebug` (see the `android-build` skill).
-   - **ios** → the `xcode` MCP compile-check needs Xcode open with the project (user-side); if you
-     cannot drive it, report `IOS COMPILE DEFERRED TO ORCHESTRATOR/USER` — do NOT guess-green it.
+   - **ios** → the user presses ⌘B in Xcode (never call the `xcode` MCP build); report
+     `IOS COMPILE DEFERRED TO ORCHESTRATOR/USER` — do NOT guess-green it.
    Report the actual command output tail. A red build you can't fix within the plan = report
    honestly, don't paper over.
 

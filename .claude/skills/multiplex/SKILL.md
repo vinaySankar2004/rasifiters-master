@@ -19,9 +19,11 @@ the manifests, planner obeys the SPEC D-rules, git-version writes the changelog 
 - **One app, four surfaces** (`web`, `ios`, `android`, `backend`) — parity is the default.
   Cross-surface changes fan out as **parallel per-surface implementers** on disjoint file sets;
   the `audit` skill checks web↔ios↔android parity after. There is **no cross-company porter**.
-- **No staging, no test suites.** The automated gate is **compile-check** (backend boot check ·
-  web `npm run build` · android `./gradlew :app:assembleDebug` · ios via the `xcode` MCP). The
-  **user does all visual/live testing on prod** — you push, they test. That's fine and expected.
+- **No test suites; staging is opt-in.** The automated gate is **compile-check** (backend boot check ·
+  web `npm run build` · android `./gradlew :app:assembleDebug` · ios = the user's ⌘B in Xcode). The
+  **user does visual/live testing on prod** by default — you push, they test. Staging
+  (`rasifiters-api-staging`, auth D-C13) is only for risky changes (migrations, auth/session): offer it
+  when the risk justifies it, never as a default step.
 - **Backend deploys first** and must degrade gracefully for the LIVE iOS/Android binary.
 
 ## The standard pipeline
@@ -41,10 +43,11 @@ the manifests, planner obeys the SPEC D-rules, git-version writes the changelog 
    - Then `impl-adversary` with plan + brief + report(s) + the tree path. It re-runs the
      compile-checks and sweeps parity. BLOCKING findings → implementer fix round (same tree) →
      re-review. Max 2 rounds, then escalate to the user.
-4. **Compile-check gate** (replaces staging): confirm every touched surface builds — backend
-   boot check, web `npm run build`, android `./gradlew :app:assembleDebug`. iOS compile runs via
-   the `xcode` MCP (Xcode open, user-side) or is flagged user-run. **No further verify step** —
-   the user tests the live behavior on prod after the push.
+4. **Compile-check gate**: confirm every touched surface builds — backend boot check, web
+   `npm run build`, android `./gradlew :app:assembleDebug`. iOS compile = the user's ⌘B in Xcode
+   (never call the `xcode` MCP build) — flagged user-run until they report it green. **No further
+   verify step** — the user tests the live behavior on prod after the push (staging first only for a
+   risky change).
 5. **Close** — orchestrator merges worktrees, runs `git-version` (feature bump + registry +
    REGISTRY.md + SPEC §11 changelog + tag), pushes, deploys (backend → Render FIRST, then web
    → Vercel; the user ships the iOS/Android binaries), updates page specs if routes/screens moved.
@@ -79,10 +82,10 @@ anything you'd want adversarially checked before the user tests it on prod.
   cross-surface = parallel per-surface implementers on disjoint file sets + the `audit` skill,
   not a cross-company port. The BUILD half stays orchestrator-driven because worktree lifecycle +
   user gates + fix loops don't fit a deterministic script.
-- (seeded 2026-07-09) The gate is compile-check, not staging: no staging env + no test suites
-  here. Confirm each surface builds, then the USER tests on prod. Never guess-green the iOS
-  compile — it needs the `xcode` MCP with Xcode open (user-side); flag it UNVERIFIED if you can't
-  drive it. Backend deploys first + degrades gracefully for the live binary.
+- (seeded 2026-07-09; staging added 2026-10-12, opt-in for risky changes only) The gate is
+  compile-check: no test suites here. Confirm each surface builds, then the USER tests on prod.
+  Never guess-green the iOS compile — the user presses ⌘B (don't call the `xcode` MCP build); flag
+  it UNVERIFIED until they report. Backend deploys first + degrades gracefully for the live binary.
 - (Run 1, 2026-07-10) Directory-disjoint surfaces don't need worktrees: web/ios/android/backend
   live in separate `apps/**` trees, so parallel implementers editing disjoint directories in the
   SAME main working tree can't collide — skip the expensive worktree isolation (reserve it for

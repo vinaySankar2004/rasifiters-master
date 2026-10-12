@@ -89,12 +89,13 @@ components) and/or **reboot** (clears the stale CoreSimulator launchd job). Gree
 Xcode → TestFlight → App Store (the user handles signing/upload). Bump the version one higher at push time.
 App config (`min_ios_version`) served by the backend `/app-config`.
 
-## Staging (debug builds — reliability-overhaul Phase 2 B, auth D-C13)
+## Staging (opt-in scheme — reliability-overhaul Phase 2 B, auth D-C13)
 - `Config/APIConfig.swift`: `#if DEBUG` → `stagingBaseURL` (`https://rasifiters-api-staging.onrender.com/api`);
   Release → `renderBaseURL` (prod). The loopback constants stay for ad-hoc local-backend runs.
 - **Shared schemes:** `RaSi-Fiters-App` — Run = **Release** → **prod** (unchanged); `RaSi-Fiters-App-Staging` —
   Run = **Debug** → **staging**. Archive = Release (prod) in both. Pick the scheme in Xcode's scheme menu; the
-  project file is unchanged (Debug/Release differ only by the `DEBUG` flag + `-Onone`).
+  project file is unchanged (Debug/Release differ only by the `DEBUG` flag + `-Onone`). Use the Staging scheme only
+  for risky changes (migrations, auth/session); Android mirrors it with an opt-in `staging` build type.
 - Wake the staging API first (open `https://rasifiters-api-staging.onrender.com/`, wait for the reply), then sign in
   with a `+stg` staging account (testbed: `ava.rivera` + the shared test password). Sign out before switching
   schemes — tokens are valid on both (one Supabase project) but map to different members.
@@ -127,6 +128,7 @@ was already ported in the foundation (run 50).
 
 ## Status
 🟢 **Code-complete + LIVE (App Store + TestFlight).** All screens + widgets + Apple Health auto-sync
-(workouts + sleep) ported; the deferred-stub layer is closed (no stubs remain). Native build GREEN via the
-`xcode` MCP. Screen-SPEC count lives in `specs/pages/REGISTRY.md` (the canonical index). What's live on
-each channel is tracked in `RELEASES.md`. Visual/runtime verification is the user's, in Xcode.
+(workouts + sleep) ported; the deferred-stub layer is closed (no stubs remain). Builds green in Xcode (the user
+presses ⌘B; Claude doesn't call the `xcode` MCP build). Screen-SPEC count lives in `specs/pages/REGISTRY.md`
+(the canonical index). What's live on each channel is tracked in `RELEASES.md`. Visual/runtime verification is
+the user's, in Xcode.

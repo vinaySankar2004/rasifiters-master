@@ -75,7 +75,7 @@ per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 - **Logs:** Render keeps **app logs only** (7 days; no `http_latency` metric — `http_request_count` by status
   works). The app writes **one JSON line per request** (`"type":"request"`) and **SQL logging is off**
   (`DB_LOG_SQL=true` re-enables it locally); every response except the Render health check (`GET`/`HEAD /`,
-  not logged) carries `X-Request-Id`. `trust proxy` = 1 hop. The global `errorHandler` never prints a request
+  not logged) carries `X-Request-Id`. `trust proxy` = 2 hops (Cloudflare edge + Render LB; observability 0.1.1). The global `errorHandler` never prints a request
   body. Event trail: `app_events` via `POST /api/client-events`. Contract + fields:
   [`observability`](../../specs/features/observability/SPEC.md).
 - Live binaries hard-code `https://rasifiters-api.onrender.com/api` (iOS `Config/APIConfig.swift`, Android

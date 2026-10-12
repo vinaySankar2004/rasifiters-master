@@ -108,10 +108,10 @@ can do on a page is a load-bearing part of the contract, not an afterthought. Se
 | Bootstrap the monorepo/app + deploy (Scaffold §5) | `deploy` skill |
 | Per-page documentation question loop (Playbook §2–3) | `question-asker` skill (writes the SPEC) |
 | Implement a documented feature/page → port directly from the reference app | hand-written code (faithful 1:1 port; no stitch step), committed via `git-version` |
-| Orchestrate a nontrivial / multi-surface change (plan → adversary → build → review) | `multiplex` skill (5 role-agents in `.claude/agents/` + `plan-pipeline` workflow; parallel per-surface implementers; compile-check gate, no staging — user tests on prod) |
+| Orchestrate a nontrivial / multi-surface change (plan → adversary → build → review) | `multiplex` skill (5 role-agents in `.claude/agents/` + `plan-pipeline` workflow; parallel per-surface implementers; compile-check gate; user tests on prod, staging opt-in for risky changes) |
 | Commit + version + registry + blast-radius (Vision §C/§F) | `git-version` skill |
 | Cross-surface feature diff / drift catch (Vision §E) | `audit` skill (web↔iOS↔android parity per feature) |
-| iOS compile-check loop (build `apps/ios`, read diagnostics, fix) | `ios-build` skill (native `xcode` MCP; compile-only) |
+| iOS compile-check loop (build `apps/ios`, read diagnostics, fix) | `ios-build` skill (the user's ⌘B in Xcode; compile-only) |
 | Android compile-check loop (build `apps/android`, read diagnostics, fix) | `android-build` skill (Gradle CLI `./gradlew`; compile-only) |
 | Inspect/query the Supabase DB read-only | `supabase` skill (psql-first in a read-only transaction; MCP secondary) |
 | Periodic doc-health cross-review (drift / redundancy / structure) | `health-check` skill (read-only, report-only via plan mode) |

@@ -156,7 +156,7 @@ talks to the **same backend API**. The relevant runbook facts:
 
 | Setting | Where | Notes |
 |---|---|---|
-| API base URL | iOS build config (Xcode) | `Config/APIConfig.swift`: Release → prod (mirrors web's `NEXT_PUBLIC_API_BASE_URL_PROD`); DEBUG → staging (§Staging). |
+| API base URL | iOS build config (Xcode) | `Config/APIConfig.swift`: Release → prod (mirrors web's `NEXT_PUBLIC_API_BASE_URL_PROD`) — the main scheme runs Release; DEBUG → staging, used only by the opt-in `RaSi-Fiters-App-Staging` scheme (§Staging). |
 | Bundle id | Xcode target / `APNS_BUNDLE_ID` | `com.app.rasifiters` — must match the backend's APNs topic. |
 | Min-version gate | `GET /api/app-config` → `MIN_IOS_VERSION` (backend) | The backend, not the app, owns the force-upgrade threshold. |
 | Push | APNs (Apple) | Backend sends via `APNS_KEY`/`APNS_KEY_ID`/`APNS_TEAM_ID`; the app registers its token (legacy `member_push_tokens`). |
@@ -302,8 +302,9 @@ Same Supabase project (schema `staging` + role `rasifiters_staging` — `apps/ba
 `NEXT_PUBLIC_API_BASE_URL_PROD=https://rasifiters-api-staging.onrender.com/api`, `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`
 = the Production value. Production env untouched.
 
-**Clients** — iOS: scheme `RaSi-Fiters-App-Staging` (Run = Debug → `APIConfig.stagingBaseURL`); Android: the
-`debug` build type's `API_BASE_URL`; web: the alias above. Release builds stay on prod.
+**Clients (opt-in — staging is for risky changes only; every default build stays on prod)** — iOS: scheme
+`RaSi-Fiters-App-Staging` (Run = Debug → `APIConfig.stagingBaseURL`); Android: the `staging` build type
+(`initWith(debug)`; `debug` itself → prod); web: the alias above. Release builds stay on prod.
 
 **Outside the app** — Google Cloud Web OAuth client: the alias is an Authorized JavaScript origin. Supabase Auth
 `uri_allow_list` holds the staging reset URL. Staging accounts use `name+stg@…` / `name+stg-tag@…` emails

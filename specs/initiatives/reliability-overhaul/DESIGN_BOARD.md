@@ -3,9 +3,9 @@
 > **Status:** ✅ **APPROVED by the user 2026-10-11** (answers recorded in the board's store: D-1…D-9 and D-11…D-14
 > accepted as recommended; **D-10 changed → free staging instance**). Revised before approval after a
 > plan-adversary review (12 findings, all verified and folded in). Canonical text; the Artifact renders it. Inputs: the 7 verified discovery briefs
-> (`discovery/`) + the user's walkthrough decisions (`HANDOFF.md`). On approval: decisions → `BRIEF.md` §6 +
+> (`discovery/`) + the user's walkthrough decisions (folded in below as ✅; factual answers in `discovery/README.md`). On approval: decisions → `BRIEF.md` §6 +
 > per-feature SPEC §9 D-rules as each workstream lands; build phases → `BRIEF.md` §7 + `HANDOFF.md`.
-> Nothing here is code. **Legend:** ✅ decided by the user · ◆ proposed — needs your OK.
+> Nothing here is code. **Legend:** ✅ decided by the user · ◆ proposed — needs your OK (all ◆ accepted 2026-10-11).
 
 ## 0. Principles (apply to every row below)
 
@@ -147,7 +147,7 @@ no background sync, so >14 days unopened loses sleep/steps days for good; permis
 **Today:** Google rejects the Play build — no Android OAuth client in Google Cloud for the Play signing key
 (proven live 2026-10-11). The button also uses the passive account sheet and shows Android's raw text.
 
-**Contract:** (a) **console fix — user, pending ✅** (ENV_RUNBOOK §7). (b) Next build: the button uses Google's
+**Contract:** (a) **console fix — ✅ done 2026-10-11** (ENV_RUNBOOK §7). (b) Next build: the button uses Google's
 button flow (`GetSignInWithGoogleOption`) with a nonce, errors map to human messages, failures report a
 reason (§7). (c) Release checklist gains "an Android OAuth client exists for every signing key that ships".
 
@@ -203,7 +203,7 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 | Data | A `staging` Postgres schema with **identical table names** (R5 — no prefixes). **Schema only, no copy of prod data** |
 | Isolation | A `rasifiters_staging` role that can only touch `staging` (`ALTER ROLE … SET search_path = staging, extensions`); the staging API connects as it and cannot read or write prod tables. The role's password is set by the user in the SQL editor — never in a migration file. (Backend JS never names a schema; checked.) |
 | API | A second Render web service `rasifiters-api-staging`, same repo, deploys on demand, on the **free** instance (D-10 ✅). It sleeps after 15 min idle: **wake it before a test session** (open its health URL and wait for the reply) so the first refresh doesn't hit a cold start |
-| Clients | Debug iOS/Android builds + **one fixed staging web address** (a Vercel branch alias) point at the staging API; release builds + `rasifiters.com` stay on prod. The staging address is added to the API's CORS list and to Google sign-in origins. Supersedes "dev tests against live backend" |
+| Clients | Debug iOS/Android builds + **one fixed staging web address** (a Vercel branch alias) point at the staging API; release builds + `rasifiters.com` stay on prod. The staging address is added to the API's CORS list and to Google sign-in origins. Supersedes "dev tests against live backend". *As built (auth D-C13, user 2026-10-12): staging is opt-in for risky changes — iOS `RaSi-Fiters-App-Staging` scheme, Android `staging` build type; default debug builds stay on prod* |
 | Auth (shared!) | One Supabase project = **one shared login table**. Staging accounts use **staging-only emails** (e.g. `name+stg@…`), seeded by a staging run of the testbed seeder. **Guard:** the staging API refuses every login-level change — delete user, change email/password, link/unlink identity, global sign-out, the Google sign-up clean-up — unless the account's email is staging-only. A real prod login can never be altered from staging |
 | Config | `APNS_PRODUCTION=false` (debug builds get sandbox push tokens); password-reset links point at the staging web address; push only reaches test devices |
 | Migrations | Today's files hard-code `public.`. New migrations are written **schema-neutral** (no schema names) and run once per schema: `psql -c "SET search_path TO staging" -f NNN.sql`, then the same for `public`. The base schema is created in `staging` once. Phase 2 Track A's migrations go straight to prod (staging doesn't exist yet) |
@@ -258,7 +258,7 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 | — | TestFlight 1.4.3 (57) expires ~2026-10-15 | ✅ Let it lapse; next TestFlight build = the reliability release |
 | — | Android Google sign-in (W5) | ✅ **Fixed 2026-10-11** in the console (Play-key OAuth client) and verified on the Pixel |
 
-## 12. Build phases (proposed — parallel where independent)
+## 12. Build phases (approved 2026-10-11 — parallel where independent; live status: `BRIEF.md` §7)
 
 | Phase | Tracks (run in parallel) | Gate to next |
 |---|---|---|

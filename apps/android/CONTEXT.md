@@ -28,13 +28,16 @@ HealthKit, FCM vs APNs) and are recorded per-screen in `specs/pages/android/<scr
 - Toolchain already present on this Mac (2026-07-08): Android Studio, SDK (platform **android-36**,
   build-tools, adb, emulator), Temurin **JDK 21**. Gradle wrapper pinned to **8.11.1** (committed);
   `gradle` was brew-installed once only to generate the wrapper.
-- `local.properties` (gitignored) carries `sdk.dir`. Base URL (`BuildConfig.API_BASE_URL`): **debug → staging**
-  `https://rasifiters-api-staging.onrender.com/api` (reliability-overhaul Phase 2 B, auth D-C13 — supersedes
-  "debug tests against the live backend"); **release → prod** `https://rasifiters-api.onrender.com/api`. Wake the
-  staging API before a session (open its `/`, wait ~1 min) and sign in with a `+stg` staging account. The debug
-  build shares `com.app.rasifiters` with the Play build — uninstall the Play build first (signature mismatch).
-  Local-backend testing is the exception: temporarily swap debug to `http://10.0.2.2:5001/api` (the emulator's
-  alias for the host Mac's localhost).
+- `local.properties` (gitignored) carries `sdk.dir`. Base URL (`BuildConfig.API_BASE_URL`): **debug + release →
+  prod** `https://rasifiters-api.onrender.com/api` (debug mirrors iOS's main scheme). **Staging is opt-in:** the
+  `staging` build type (`initWith(debug)`; pick it in Android Studio's Build Variants panel, or
+  `./gradlew :app:assembleStaging`) → `https://rasifiters-api-staging.onrender.com/api` (auth D-C13) — use it only
+  for risky changes (migrations, auth/session); wake the staging API first (open its `/`, wait ~1 min) and sign in
+  with a `+stg` staging account. Debug and staging builds share `com.app.rasifiters` with the Play build — uninstall
+  the Play build first (signature mismatch). Local-backend testing is the exception: temporarily swap debug to
+  `http://10.0.2.2:5001/api` (the emulator's alias for the host Mac's localhost).
+- `adb` is not on PATH: `~/Library/Android/sdk/platform-tools/adb`. The user's Pixel 7 (Play build) is USB-debug
+  authorized for this Mac — read-only `logcat` / `dumpsys` diagnostics only.
 - **User-run (like iOS):** create an AVD (Device Manager → Pixel, **API 34+** system image — API 34+ ships
   Health Connect built-in) and run the visual/live checks. Claude compiles; the user verifies on device.
 

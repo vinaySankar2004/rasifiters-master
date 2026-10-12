@@ -87,7 +87,7 @@ skill). Coverage of the legacy app is tracked in `COVERAGE.md`; progress + next 
   SPEC §9/§10, commit via `git-version`.
 - **Make a nontrivial / multi-surface change** → the `multiplex` skill (the role-agent pipeline: scout →
   plan → plan-adversary → USER approves → per-surface implementer(s) → impl-adversary → compile-check →
-  git-version → you test on prod). Small changes use PARTS of it (e.g. just `impl-adversary` on a hand-written
+  git-version → you test on prod; staging only for risky changes). Small changes use PARTS of it (e.g. just `impl-adversary` on a hand-written
   diff, or just `scout` for a file fence). Compile-check `apps/ios`/`apps/android` via the `ios-build`/`android-build` skills.
 - **Provision + deploy** → the `deploy` skill (Vercel / Render / Supabase).
 - **Check web↔iOS↔android parity** for a shared feature → the `audit` skill.

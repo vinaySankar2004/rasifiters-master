@@ -1,7 +1,8 @@
 # Reliability overhaul — initiative brief
 
-> **Status:** scoped 2026-10-10 · Step 0 + Phase 0 + **design board approved 2026-10-11** · **Next:** Phase 1b
-> hotfixes, then Phase 2 foundations (§7). The approved board is the decision record: [`DESIGN_BOARD.md`](DESIGN_BOARD.md).
+> **Status:** scoped 2026-10-10 · Step 0 + Phase 0 + **design board approved 2026-10-11** · **Phase 1b + Phase 2
+> done 2026-10-12** (all live) · **Next:** Phase 3 reliability (§7), once the Phase 1b log watch ends clean
+> (2026-10-19). The approved board is the decision record: [`DESIGN_BOARD.md`](DESIGN_BOARD.md).
 > Rolling state lives in [`HANDOFF.md`](HANDOFF.md) (read it first when resuming). Decision record: R8 in
 > `METHODOLOGY.md`. Durable outcomes graduate into feature SPEC §9 D-rules as each workstream lands.
 
@@ -93,8 +94,8 @@ logs API); no client crash/error reporting on any surface. (Infra facts: `apps/b
 - **Staging = the same Supabase project, "staging tables"** — no second Supabase project. **Mechanism
   (board §8, approved):** a `staging` Postgres schema with identical table names (R5), a staging-only Postgres
   role, a second Render service `rasifiters-api-staging` on the **free** instance (D-10), staging-only emails +
-  a login-change guard (shared `auth.users`), schema-neutral migrations run per schema. Supersedes the "test
-  against live" convention once live.
+  a login-change guard (shared `auth.users`), schema-neutral migrations run per schema. Live 2026-10-12 and
+  **opt-in** (user): only for risky changes; day-to-day testing stays on live prod.
 - **Design board approved 2026-10-11** ([`DESIGN_BOARD.md`](DESIGN_BOARD.md)) — the per-workstream contracts
   (§1–§7), staging (§8), notification + People concepts (§9–§10) and decisions **D-1…D-14** (all as recommended
   except D-10 → free staging). Standing rules from the walkthrough: **don't over-engineer**; **no shims for old
@@ -121,9 +122,9 @@ tests). Tracks inside a phase run **in parallel** (separate worktrees per surfac
 
 | Phase | Parallel tracks | Surfaces | Depends on | Exit gate |
 |---|---|---|---|---|
-| **1b — Hotfixes** | **H1** auth hotfix (D-1): stateless proxy for every shared-client call, refresh = one direct `/token` call (5 s timeout, no replay), 503 for transient refresh + JWT-verify failures · **H2** raise `rate_limit_token_refresh` 150 → 1,500 (D-2; one admin-token call) · **H3** analytics membership check (D-3) | backend (+ Supabase setting) | — | Supabase auth logs: reuse + 429 errors drop; no cross-user refresh possible |
-| **2 — Foundations** | **A** observability: structured request log, SQL logging off, `app_events` + `POST /api/client-events` (works signed-out), version headers accepted, CORS preflight cache (migrations straight to prod) · **B** staging: schema + role migration, `rasifiters-api-staging` (free), staging web alias, client env switches, login-change guard, `APNS_PRODUCTION=false` · **C** version gate backend: `app-config` additive fields + `BLOCK_UNVERSIONED_ANDROID` switch (off) · **D** frontend kits: web / iOS / Android in parallel (async state, error vocabulary, banners, offline, palette tokens) | A–C backend · D web+iOS+Android | 1b | Request logs + events live; staging answers; kits compile on all three |
-| **3 — Reliability** | **Backend first (parallel):** R1 per-user rate limits (secret key, D-4) + logout `local` / password `others` scopes · R2 sync v2 endpoint + permanent sample ledger + per-sample/per-field provenance migration + bounds (D-7) · R3 invite transaction + `push_deliveries` + device registry (`last_seen`, unauthenticated unregister) + APNs/FCM settings + SSE fixes. **Then one bundled release per surface (parallel implementers):** sessions contract → sync contract (catch-up 30 d, resume, review once) → invites/push (Android inbox) → Google button (Android) → kit adoption on touched screens → version gate UI + soft nudge | backend, then web + iOS + Android | 2 (staging + kits) | User tests on iPhone + Pixel + web **against staging**, then prod; gate raised once adoption allows |
+| **1b — Hotfixes** ✅ done 2026-10-12 | **H1** auth hotfix (D-1): stateless proxy for every shared-client call, refresh = one direct `/token` call (5 s timeout, no replay), 503 for transient refresh + JWT-verify failures · **H2** raise `rate_limit_token_refresh` 150 → 1,500 (D-2; one admin-token call) · **H3** analytics membership check (D-3) | backend (+ Supabase setting) | — | Supabase auth logs: reuse + 429 errors drop; no cross-user refresh possible |
+| **2 — Foundations** ✅ done 2026-10-12 | **A** observability: structured request log, SQL logging off, `app_events` + `POST /api/client-events` (works signed-out), version headers accepted, CORS preflight cache (migrations straight to prod) · **B** staging: schema + role migration, `rasifiters-api-staging` (free), staging web alias, client env switches, login-change guard, `APNS_PRODUCTION=false` · **C** version gate backend: `app-config` additive fields + `BLOCK_UNVERSIONED_ANDROID` switch (off) · **D** frontend kits: web / iOS / Android in parallel (async state, error vocabulary, banners, offline, palette tokens) | A–C backend · D web+iOS+Android | 1b | Request logs + events live; staging answers; kits compile on all three |
+| **3 — Reliability** | **Backend first (parallel):** R1 per-user rate limits (secret key, D-4) + logout `local` / password `others` scopes · R2 sync v2 endpoint + permanent sample ledger + per-sample/per-field provenance migration + bounds (D-7) · R3 invite transaction + `push_deliveries` + device registry (`last_seen`, unauthenticated unregister) + APNs/FCM settings + SSE fixes. **Then one bundled release per surface (parallel implementers):** sessions contract → sync contract (catch-up 30 d, resume, review once) → invites/push (Android inbox) → Google button (Android) → kit adoption on touched screens → version gate UI + soft nudge | backend, then web + iOS + Android | 2 (staging + kits) | User tests on iPhone + Pixel + web — on staging first only for the risky parts (migrations, auth/session; staging is opt-in), otherwise on prod; gate raised once adoption allows |
 | **4 — Features** | Notification redesign (categories, preferences, inbox, local-time scheduler; engagement opt-in) → People layer (program People list, privacy defaults, page redesigns) | all | 3 | — |
 
 Every phase closes with a `HANDOFF.md` update + `git-version` commit + push.

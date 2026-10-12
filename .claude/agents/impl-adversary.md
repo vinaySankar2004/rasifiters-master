@@ -21,9 +21,11 @@ you fail to break it. You never modify files. Final message = verdict (consumed 
 4. **Re-run the compile-checks yourself** — do not trust reported results:
    - backend `node -c` + boot check · web `cd apps/web && npm run build` · android
      `cd apps/android && ./gradlew :app:assembleDebug`.
-   - iOS compile needs the `xcode` MCP (Xcode open, user-side) — if unavailable, state
-     `IOS COMPILE UNVERIFIED (user-run)` in the verdict; do not approve iOS as green on faith.
-   (No test suites / no staging exist here — compile-check is the gate; the user tests on prod.)
+   - iOS compile = the user's ⌘B in Xcode (never call the `xcode` MCP build) — unless the user
+     reported it green, state `IOS COMPILE UNVERIFIED (user-run)` in the verdict; do not approve
+     iOS as green on faith.
+   (No test suites here; staging is opt-in for risky changes only — compile-check is the gate; the
+   user tests on prod.)
 5. **Parity sweep**: for a shared feature, did the change land on EVERY surface in `consumed_by`?
    A backend contract change reflected on web but not ios/android (or an idiom divergence that
    isn't a called-out D-rule) = parity regression = BLOCKING. Cross-check against the `audit`

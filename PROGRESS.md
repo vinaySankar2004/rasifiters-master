@@ -22,23 +22,19 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 
 ## Next action
 
-> ### ⏭️ ACTIVE INITIATIVE — Reliability overhaul (scoped 2026-10-10)
+> ### ⏭️ ACTIVE INITIATIVE — Reliability overhaul (since 2026-10-10)
 >
-> Make the non-CRUD features (sessions/auth, push + invites, iOS + Android health sync, Android Google
-> sign-in, realtime) industry-standard, consistent across all three frontends, and observable; then the
-> notification redesign + a light social layer. **Start here:**
+> Make sessions/auth, push + invites, iOS + Android health sync, Android Google sign-in and realtime
+> industry-standard, consistent across all three frontends, and observable; then the notification redesign + a
+> light social layer. **Start here:**
 > [`specs/initiatives/reliability-overhaul/HANDOFF.md`](specs/initiatives/reliability-overhaul/HANDOFF.md)
-> (rolling state + the Session 1 kickoff prompt) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
-> (scope, evidence, suspects, phase plan). **2026-10-11:** Step 0 (token access, no OAuth — `CLAUDE.md`
-> §MCP Servers) ✅ · Phase 0 discovery ✅ · **design board approved** ([`DESIGN_BOARD.md`](specs/initiatives/reliability-overhaul/DESIGN_BOARD.md)).
-> **Phase 1b (2026-10-12):** H1 auth hotfix (auth 0.10.0 / D-C11) + H3 analytics membership gate (analytics
-> 0.4.0 / D-C8, analytics-v2 0.2.0 / D-C3) **deployed + verified** (prod smoke 27/27, all 3 surfaces);
-> password-reset email via Resend **live**; H2 refresh rate limit raised 150 → 1,500. 7-day Supabase-log
-> watch running to 2026-10-19 (initiative `HANDOFF.md`).
-> **Phase 2 (2026-10-12) — COMPLETE:** C version gate (app-config 0.2.0) · A observability (0.1.1: request log,
-> `app_events` + `POST /api/client-events`, SQL logging off, password-in-logs fix) · D frontend kits (0.1.0, unadopted)
-> · B staging (auth 0.12.0: `staging` schema + `rasifiters-api-staging` + Vercel `staging` preview). **Next:** Phase 3
-> (reliability — BRIEF §7) once the Phase 1b watch ends.
+> (current state, what's live with versions, next action) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
+> (scope + phase plan §7).
+>
+> **Status 2026-10-12:** design board approved · **Phase 1b ✅** (auth hotfix, analytics membership gate, refresh
+> rate limit, Resend reset email) · **Phase 2 ✅** (version gate, observability, frontend kits — unadopted, opt-in
+> staging) — all live. **Next:** the Phase 1b Supabase-log watch runs to **2026-10-19**; a clean watch opens
+> **Phase 3** (reliability) planning. Meanwhile the user creates the Supabase secret API key (board D-4).
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
@@ -53,7 +49,7 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
   `delete-account` legal (the last three are linked from both store listings). Page SPECs indexed in
   `specs/pages/REGISTRY.md`.
 - **`ios`** — Code-complete; all screens, widgets, and Apple Health auto-sync (workouts + sleep) ported, no
-  stubs left. Native build green via the `xcode` MCP. `apple-health` is at 0.6.0 (per-program date-window
+  stubs left. Builds green in Xcode (the user's ⌘B). `apple-health` is at 0.6.0 (per-program date-window
   scoping, gated first-sync confirmation, admin-lock-aware sync, sum-on-conflict via `on_duplicate:"sum"`,
   silent auto-retry). Visual/runtime verification is the user's, in Xcode — memory
   [[ios-user-verifies-builds-visually]].
