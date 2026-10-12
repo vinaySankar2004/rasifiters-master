@@ -149,7 +149,8 @@
    `over_request_rate_limit`/day (≈ 1.3/day), Render `[refresh] auth_unavailable|session_invalid` +
    `[auth] token verification unavailable` + `[auth] password reset request failed` counts, cross-user token
    pairs < 200 ms (baseline 59/30 d → expect ≈ 0). Gate to Phase 2 (board §12): reuse kills + 429s drop; no
-   cross-user refresh.
+   cross-user refresh. **Day 0 (2026-10-12 06:25–19:10Z):** refresh 296×200 · 1×400 `validation_failed`
+   (smoke) · **0** `refresh_token_already_used` · **0** 429 · **0** cross-user pairs / 300 tokens issued.
 2. ~~Finish **D-15**~~ **DONE 2026-10-12.**
 3. Start **Phase 2** tracks A–D in parallel (BRIEF §7): observability, staging, version-gate backend, frontend
    kits — each via `multiplex` (plan-pipeline → user approves → implementers in parallel worktrees).
