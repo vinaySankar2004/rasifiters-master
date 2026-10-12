@@ -228,6 +228,13 @@ clients in Google Cloud — the local `google-services.json` listing no `client_
   package `com.app.rasifiters`, SHA-1 = the Play App Signing key; add one per signing key that ships (upload
   key for direct installs, each machine's debug key for emulators). Must be in the **same project** as the
   web client. Takes effect in minutes (occasionally longer).
+- **What the console actually held (read 2026-10-11 in the built-in browser):** the only Android client,
+  `RaSi Android App` (`…-9env…`, created 2026-07-10), was registered with **this Mac's debug-keystore SHA-1**
+  `B7:3A:A3:…:28:CC` — so emulator/debug builds signed in and every Play install failed. No deleted clients.
+  **Fixed 2026-10-11:** created `RaSi Android App (Play)` (`…-ulok…`) = `com.app.rasifiters` + Play App Signing
+  SHA-1 `E8:3A:…:49:01` (Play Console app-signing SHA-256 starts `0B:B3:AE:DE`, matching the shipped APK).
+  Clients now: Web `…-9vhk…` · iOS `…-if8t…` · Android debug `…-9env…` · Android Play `…-ulok…`. The upload
+  key (`C3:9B:…`) has no client on purpose — nothing users install is signed with it.
 
 **`google-services.json` note:** `apps/android/app/google-services.json` is **gitignored**
 (`apps/android/.gitignore:16`) — deliberately kept out of this **public** repo because it carries the

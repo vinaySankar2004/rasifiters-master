@@ -20,7 +20,37 @@
   ENV_RUNBOOK / CONTEXT), changes only with the user's explicit yes per action; the W5 console fix fits here.
 - **Task chips dismissed** (folded into Phase 1b): the shared-client refresh hotfix (→ H1) and the analytics
   membership check (→ H3).
-- **Pending, user-side:** W5 Google Cloud console fix (ENV_RUNBOOK §7) — can be done during the console tour.
+- **W5 console fix DONE 2026-10-11 (console tour, user said yes) — and verified (below):** the only Android OAuth client was registered
+  with the Mac's DEBUG keystore SHA-1; created `RaSi Android App (Play)` for the Play App Signing SHA-1
+  (ENV_RUNBOOK §7). **Pending: re-test** Continue-with-Google on the Pixel (Play 1.0.0 (4)) after ~5–60 min,
+  with a live logcat capture.
+- **Console tour progress (built-in browser, 2026-10-11):** Google Cloud ✅ · Play Console ✅ (Production, 16
+  installs) · Firebase ✅ (Android SHA-1s = Play + upload; FCM v1 on, legacy off; no APNs key there — iOS push
+  goes backend→APNs) · App Store Connect + Apple Developer ✅ (iOS 1.4.2 live; **TestFlight 1.4.3 (57) EXPIRES
+  ~2026-10-15** — 6 installs; APNs key `RA353TA52W` team-scoped Sandbox+Production = Render `APNS_KEY_ID`;
+  entitlements: push, Sign in with Apple, HealthKit + background delivery; background mode `fetch`) · DNS ✅
+  (Vercel DNS, registrar Name.com, renews by 2027-02-28, **no MX**) · Search Console ✅ (2 indexed / 7 not; 13
+  clicks) · GitHub ✅ signed in · Render ✅ (`rasifiters-api` Starter/virginia, auto-deploy on commit to `main`,
+  build filter `apps/backend/**`, health check `/` (no DB), PR previews off; **the legacy `RaSi_Fiters_API`
+  service is still running on Starter**) · Vercel ✅ (root `apps/web`, Node 24, apex + `www`→308, protection
+  all-except-custom-domains; live = `774894d` CLI deploy 2026-08-20 = current web code; every git deploy since
+  is CANCELED by the ignore step `git diff --quiet HEAD^ HEAD -- .` — correct for docs-only pushes, but it only
+  looks at a push's LAST commit, so a web change followed by a docs commit is silently skipped → the real cause
+  behind memory `web-deploy-manual-fallback`) · **Supabase dashboard blocked in the pane** (API covers it).
+  **Tour COMPLETE.** All consoles signed in inside the built-in browser (persists for later sessions).
+- **W5 VERIFIED FIXED 2026-10-11:** the user tapped Continue with Google on the Pixel (Play 1.0.0 (4)) → works.
+  (The confirming logcat capture missed — adb lost the device; the user's on-device result stands.)
+- **Follow-up decisions surfaced by the tour (ask the user; add to board as D-15…):** D-15 custom SMTP for
+  password reset (free tier) · D-16 shut down the legacy `RaSi_Fiters_API` service (~$7/mo) or keep ·
+  D-17 fix Vercel's ignore step to compare against the last deployed commit · TestFlight 1.4.3 (57) expiry
+  (~2026-10-15): upload a new build or let testers fall back to App Store 1.4.2.
+- **NEW FINDING — password reset is silently broken (verified):** Supabase has **no custom SMTP**
+  (`smtp_host` null, `rate_limit_email_sent` 2/h); Supabase's built-in sender refuses non-team addresses
+  ("Email address not authorized"). `requestPasswordReset` (`authService.js:655`) ignores the result and
+  always says "link sent". Sign-up/email-change auto-confirm, so reset is the only email flow. 0 `/recover`
+  calls in 30 d (nobody hit it yet). Proposed fix (free, config-only): a transactional email provider's free
+  tier (e.g. Resend) on an `auth.rasifiters.com` sending domain (SPF/DKIM in Vercel DNS) + Supabase SMTP
+  settings via the admin token — user creates the provider account; needs a board add-on decision (D-15).
 - **User decisions captured in the walkthrough (→ design board, then SPEC §9 D-rules):**
   - W1-D1 logout scope: "whatever is industry-appropriate" → **per-device sign-out by default; "sign out
     everywhere" only as an explicit action** (Supabase `signOut({scope:'local'})`; global stays for
