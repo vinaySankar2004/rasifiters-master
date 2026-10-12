@@ -10,7 +10,7 @@ the user; corrections are recorded here (the briefs themselves are left as writt
 | W2 | [Push + invites](W2-push-invites.md) | ✅ | Android invite root cause re-read end to end (`inviteService.js:64` → `ProgramActionsSheet.kt:83` / `ProgramPickerScreen.kt:115` → `ProgramContext.kt:385` → `membershipService.js:201` 404). |
 | W3 | [iOS health sync](W3-ios-health-sync.md) | ✅ | Double-count re-run: member `d57dad74` had **111** (brief says 69) old `workout_logs` rows rewritten in one minute on 2026-09-23; the only bulk workout-update path is the `on_duplicate:"sum"` branch (`logService.js:196`; `:707` is daily-health). |
 | W4 | [Android health sync](W4-android-health-sync.md) | ✅ | Double-count mechanism (changes-token expiry → re-read since connect date, 45-day ledger, `on_duplicate:"sum"`) proven in code, not yet observed in prod. |
-| W5 | [Android Google sign-in](W5-android-google-signin.md) | ✅ code · ⏳ root cause | Root cause needs the live logcat capture with the user (§9 recipe). |
+| W5 | [Android Google sign-in](W5-android-google-signin.md) | ✅ + **root cause proven live** | Live capture with the user 2026-10-11 19:02 (Pixel 7, Play 1.0.0 (4)): Google's token server → `This android application is not registered to use OAuth2.0 … package name and SHA-1`. = the brief's **H2**: no Android OAuth client in Google Cloud for `com.app.rasifiters` + Play App Signing SHA-1 (Firebase fingerprints ≠ OAuth clients). Fix is console-only (ENV_RUNBOOK §7). |
 | W6 | [Observability + perf](W6-observability-perf.md) | ✅ | Out-of-scope security finding confirmed: `/api/analytics*` checks sign-in only, returns member names (`routes/analytics.js`, `analyticsService.js:151`) — separate task. |
 | W7 | [Frontend consistency](W7-frontend-consistency.md) | ✅ | — |
 

@@ -214,6 +214,21 @@ picker, so it masquerades as a device / SHA-1 / login bug but is none of those. 
 - **Keep it in Production** — don't click "Back to testing." Any future rebuild / new GCP project must publish
   the consent screen **before** shipping Continue-with-Google to real users (same rule for iOS).
 
+**⚠️ Second cause — no Android OAuth client for the signing key (found 2026-10-11, Play production
+1.0.0 (4)).** Same **"Login / No credentials available"** dialog, but the consent screen is fine. Tell: a live
+`adb logcat` during the tap shows `W Auth: [GetTokenResponseHandler] Server returned error: This android
+application is not registered to use OAuth2.0, please confirm the package name and SHA-1 …`. Cause: Google
+Cloud has **no Android-type OAuth client** for `com.app.rasifiters` + the APK's signing SHA-1 (Play App
+Signing `E8:3A:…:49:01`). **SHA-1s in Firebase project settings are not the same thing** as Android OAuth
+clients in Google Cloud — the local `google-services.json` listing no `client_type: 1` entry is the hint.
+- **Diagnose:** `adb logcat -T "<device time>"` while tapping the button (recipe:
+  `specs/initiatives/reliability-overhaul/discovery/W5-android-google-signin.md` §9); grep `Auth`.
+- **Fix (console, no app release):** Google Cloud Console (project `rasi-fiters`) → **Google Auth Platform →
+  Clients** → check **Deleted clients** first (restore if it's there) → else **Create client → Android**,
+  package `com.app.rasifiters`, SHA-1 = the Play App Signing key; add one per signing key that ships (upload
+  key for direct installs, each machine's debug key for emulators). Must be in the **same project** as the
+  web client. Takes effect in minutes (occasionally longer).
+
 **`google-services.json` note:** `apps/android/app/google-services.json` is **gitignored**
 (`apps/android/.gitignore:16`) — deliberately kept out of this **public** repo because it carries the
 Firebase `api_key`. It's a **local-only** build input, so it never appears in git. Runtime doesn't depend on

@@ -10,7 +10,62 @@
 - **Phase:** Session 1 (2026-10-11). **Step 0 ✅** → **Phase 0 discovery ✅** (all 7 briefs in + verified;
   index + corrections: [`discovery/README.md`](discovery/README.md)) → **walkthrough with the user, one
   workstream at a time** (W1 → W7; W5 includes the live logcat capture). Then Phase 1 board.
-- **In flight:** nothing. **Walkthrough position:** not started (begin at W1).
+- **In flight:** nothing. **Walkthrough position:** W1–W4 ✅ discussed → **W5 presented (root cause proven live)**;
+  W6 next. Session restarted once: the Supabase MCP now connects via its header token (verified).
+- **User decisions captured in the walkthrough (→ design board, then SPEC §9 D-rules):**
+  - W1-D1 logout scope: "whatever is industry-appropriate" → **per-device sign-out by default; "sign out
+    everywhere" only as an explicit action** (Supabase `signOut({scope:'local'})`; global stays for
+    password change / account deletion).
+  - W1-D2 inactivity limit: **yes** — value to propose on the board (Supabase `sessions_inactivity_timeout`,
+    Pro; set via the admin token with the user's per-call approval).
+  - W1-D3 multi-tab web use: **rare** → F8 (stale refresh token across tabs) is low priority.
+  - W1-D4 auth-setting changes via the full-access token (e.g. forwarded-for, refresh rate limit,
+    inactivity timeout): **approved in principle** once on the board — each call still prompts (token-guard).
+  - W2 facts confirmed by the user: the reported invitee was member `77cb0e59` (Android) — Phase 3 invite
+    09-21, never visible on Android, accepted 09-22 18:37 inside the admin batch; that batch was the user
+    acting as global admin *because of* the bug.
+  - **POLICY (user, 2026-10-11): no shims for broken behaviour in shipped binaries.** "The app is broken
+    now — we expect everyone to update to get a better app." Fixes ship in new builds; old builds are not
+    patched server-side (e.g. no `invited`-membership shim for Android 1.0.0). The live-binary rule still
+    means *don't make old builds worse by accident*; when a backend change must break them, use the gate.
+  - **NEW REQUIREMENT — version gate on iOS + Android** (extends `app-config`, today iOS-only:
+    `GET /api/app-config` → `{"min_ios_version":"1.2.0"}`, env `MIN_IOS_VERSION`, non-dismissable modal):
+    two levels per platform — **hard minimum** (blocking "Update required" screen) + **soft "latest"**
+    (dismissable "Update available" nudge). Android 1.0.0 has no gate and sends no version (default
+    `okhttp/4.12.0` UA): new builds send an app-version header; the backend can recognise header-less
+    Android and refuse it with an "update from the Play Store" message — **switched on only when a backend
+    change needs it** (user choice; not by default).
+  - **PRINCIPLE (user, standing): don't over-engineer** — simplest industry-standard option everywhere; when
+    the user says "u decide", the board decides with a one-line why (memory `dont-over-engineer`).
+  - W3-D1 freshness: **"up to date when I open the app" is the requirement**; background delivery is
+    best-effort only.
+  - W3-D2 health connection across logout: **delegated → board decides** (simplest correct option).
+  - W3-D3 duplicate workouts: **delegated → board decides**; storage is not a constraint (server-side dedup OK).
+  - W3-D4 force-quit / Low Power Mode: handle "industry style" (best-effort background, catch up on open).
+  - W3-D5 **cap workout duration per day: yes** (two ~58 h rows exist).
+  - W3 facts: member `d57dad74` is the user's mother. Her second-app (Strava-like) testing is on a
+    **different** RaSi account, so it does NOT explain this account's double-sums → cause stays open among
+    F7's others (anchor held past the 45-day ledger, re-saved workouts); server-side dedup by Health sample
+    id (W3-D3) covers every cause, so no further digging. "Resumes oddly" = a mix; the user sees the
+    **review screen** come back sometimes (→ W3 F4 logout-reset / W4 F5 dismissed review).
+  - W4-D1 **provenance flag: yes** — record each log row's source (manual / Apple Health / Health
+    Connect) so "who actually syncs" and synced-vs-manual are answerable (old builds → unknown).
+  - W4-D2 Android test device: the user has only an Apple Watch → will **enter test data manually** on the
+    Pixel (Fitbit app manual logging or Google's Health Connect Toolbox) when Phase 3 testing starts.
+  - W4 facts (re-queried): Srividya `255532ac` — no rows 09-17→09-20, next written 09-23 (inside the
+    14-day reach → most likely no source data those days); no sync since 10-06. Sanjay `81230fec` — 09-25→
+    09-29 have sleep but **no steps** (steps source/permission absent then). Neither is a proven sync bug;
+    without provenance + sync-run logs (W6) they can't be told apart.
+  - **W5 ROOT CAUSE PROVEN (live logcat, 2026-10-11 19:02):** Google's token server rejects the Play build —
+    "This android application is not registered to use OAuth2.0 … package name and SHA-1". No Android OAuth
+    client exists in Google Cloud for `com.app.rasifiters` + the Play App Signing SHA-1 (SHA-1s were only in
+    Firebase). **Fix = console-only, no app release** (ENV_RUNBOOK §7 "Second cause"); user-side, user's call
+    on timing. Code-side issues remain for the board: `GetGoogleIdOption` with no `GetSignInWithGoogleOption`
+    fallback, raw Android error text shown.
+- Extra W1 fact verified by the orchestrator: on every refresh the shared backend client
+  first loads its *last stored* session (another user's) and, if near expiry, rotates THAT user's token
+  server-side (`GoTrueClient.js` `__loadSession` ~L2456-2486) — prod shows 59 such cross-user pairs in 30 d
+  (W1 E6), a silent token-drift source for every platform.
 - **Two out-of-scope security fixes offered as task chips (user decides; not part of the board):**
   (1) cross-user refresh-token leak — backend refreshes on the shared Supabase client, auth-js 2.108.2
   dedups concurrent refreshes across callers (`authService.js:158`); fix = per-request client.
