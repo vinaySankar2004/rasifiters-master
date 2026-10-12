@@ -64,8 +64,7 @@
   post-deploy measurement `xff_n`=2 → **fix `ac52491` observability 0.1.1** (`trust proxy` 1 → 2; pushed with the
   user's OK; live) → prod smoke **28/28** (user ran it) → 6 expected `app_events` rows ✓ → two-network limiter
   probe ✓ (hotspot burst 30×400 + 1×429, home Wi-Fi 38 s later → 400). Vercel built `34828cc` (kits unused).
-  observability flipped to 🚀 deployed. **Still open:** the user's quick iPhone / Pixel / web check (Summary +
-  Lifestyle load, nobody signed out); the stray Xcode `project.pbxproj` / `Info.plist` diff (user's call).
+  observability flipped to 🚀 deployed. ✅ **User checked iPhone + Pixel + web — all good.** **Still open:** the stray Xcode `project.pbxproj` / `Info.plist` diff (user's call).
   **Next: track B** — its plan predates C/A: re-read `server.js` (C's gate + A's requestLog/CORS/client-events
   mounts), auth goes **0.11.0 → 0.12.0**, migration **008**, rule **D-C13**, `CORS_EXTRA_ORIGINS` appended to
   A's CORS block; B's client files (iOS `APIConfig.swift` + Staging scheme, Android `build.gradle.kts`) + the
