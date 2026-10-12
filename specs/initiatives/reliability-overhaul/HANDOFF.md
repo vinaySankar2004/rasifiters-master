@@ -40,10 +40,12 @@
   **Tour COMPLETE.** All consoles signed in inside the built-in browser (persists for later sessions).
 - **W5 VERIFIED FIXED 2026-10-11:** the user tapped Continue with Google on the Pixel (Play 1.0.0 (4)) → works.
   (The confirming logcat capture missed — adb lost the device; the user's on-device result stands.)
-- **Follow-up decisions surfaced by the tour (ask the user; add to board as D-15…):** D-15 custom SMTP for
-  password reset (free tier) · D-16 shut down the legacy `RaSi_Fiters_API` service (~$7/mo) or keep ·
-  D-17 fix Vercel's ignore step to compare against the last deployed commit · TestFlight 1.4.3 (57) expiry
-  (~2026-10-15): upload a new build or let testers fall back to App Store 1.4.2.
+- **Tour add-on decisions (user, 2026-10-11 — board §11 add-on table):** D-15 custom SMTP for password reset
+  = **yes, in progress** (user creates a Resend account → domain `auth.rasifiters.com`; Claude adds DNS
+  records in Vercel DNS with per-action OK; user pastes the SMTP key into Supabase Auth → SMTP; then test a
+  reset to a non-team address) · D-16 legacy `RaSi_Fiters_API` **suspended** (live API verified 200) · D-17
+  Vercel ignore step **fixed** (compares `VERCEL_GIT_PREVIOUS_SHA`; first push after it builds once) ·
+  TestFlight 1.4.3 (57) **let lapse** (RELEASES.md).
 - **NEW FINDING — password reset is silently broken (verified):** Supabase has **no custom SMTP**
   (`smtp_host` null, `rate_limit_email_sent` 2/h); Supabase's built-in sender refuses non-team addresses
   ("Email address not authorized"). `requestPasswordReset` (`authService.js:655`) ignores the result and

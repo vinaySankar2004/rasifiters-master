@@ -248,6 +248,16 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 | D-13 | Client releases: one bundled "reliability release" per mobile platform | **Bundled** (one adoption push; the gate enforces it) |
 | D-14 | Social model: program People list first | **Yes** |
 
+### Add-on decisions from the console tour (✅ user, 2026-10-11)
+
+| # | Decision | Outcome |
+|---|---|---|
+| D-15 | Password-reset email never reaches real users (no custom SMTP; Supabase's built-in sender only emails the team) | ✅ **Fix now:** free transactional-email tier (Resend) on `auth.rasifiters.com` — user creates the account + pastes the SMTP key into Supabase; Claude adds the DNS records (per-action OK). Config-only |
+| D-16 | Legacy `RaSi_Fiters_API` Render service (1 request in 30 days, still billing) | ✅ **Suspended 2026-10-11** (reversible); delete after a quiet month |
+| D-17 | Vercel ignore step only compared a push's last commit (`HEAD^`), silently skipping web changes in multi-commit pushes | ✅ **Fixed 2026-10-11:** compares against `VERCEL_GIT_PREVIOUS_SHA` (last successful deploy), falls back to building |
+| — | TestFlight 1.4.3 (57) expires ~2026-10-15 | ✅ Let it lapse; next TestFlight build = the reliability release |
+| — | Android Google sign-in (W5) | ✅ **Fixed 2026-10-11** in the console (Play-key OAuth client) and verified on the Pixel |
+
 ## 12. Build phases (proposed — parallel where independent)
 
 | Phase | Tracks (run in parallel) | Gate to next |
