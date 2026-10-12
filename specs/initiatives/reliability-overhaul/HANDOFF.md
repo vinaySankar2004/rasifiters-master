@@ -48,6 +48,17 @@
   `a6bff90`** (tag `feature/app-config@v0.2.0`; boot smoke 16/16; registry/REGISTRY/COVERAGE updated) —
   **⚠️ main now has UNPUSHED backend code: do NOT push docs until the user OKs the backend push.**
   C `impl-adversary` running on `a6bff90`; **A implementer running** (main tree; no DB writes; 007 not run).
+  **2026-10-12 later — C, A, D all reviewed + committed LOCALLY (NOT pushed):** C `a6bff90` + fixes `7dba385`
+  (`feature/app-config@v0.2.0`) · A `051c073` (`feature/observability@v0.1.0`, `feature/auth@v0.11.0`;
+  harnesses 107/0 + 30/0; review: 0 code blockers) · D `f831279` (`feature/frontend-kit@v0.1.0`; web +
+  Android builds ✅, **iOS ⌘B ✅ by the user** after fixes; web fit checked by Claude at 375 + 1280 px;
+  `/kit-preview` deleted) · chores `0224627` (lessons) + `afff2ca` (`.claude/launch.json`). **Stray, NOT ours:**
+  Xcode rewrote `apps/ios/…/project.pbxproj` + `Info.plist` (HealthKit usage strings moved into build
+  settings) — left uncommitted for the user. **Next:** (1) USER runs `apps/backend/sql/007_app_events.sql` in the
+  Supabase SQL editor → Claude verifies read-only (11 columns, RLS on, FK cascade, cron job row); (2) **user OK
+  to push** (deploys C + A to Render; web builds the unused kits) → `list_deploys` live → prod smoke (plan E5–E7
+  incl. the new two-network limiter probe, ≥ 60 s after the smoke) → `curl /api/app-config` shows the 4 keys;
+  (3) then **track B** (staging).
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
