@@ -36,7 +36,7 @@
   **0** cross-user pairs / 300 tokens. **Through ~23:00Z:** 323 × 200 · same single smoke 400 · **0** reuse · **0** × 429 ·
   **0** cross-user pairs / 365 tokens.
 - **Pending:**
-  - **D-4** — the user creates a Supabase **secret API key** (dashboard); Phase 3 R1 (per-user rate limits) needs it.
+  - ✅ **D-4 done 2026-10-12** — `SUPABASE_SECRET_KEY` (`sb_secret_…`) on prod + staging Render (ENV_RUNBOOK); unused until Phase 3 R1.
   - Follow-ups → Phase 3: auth F12–F15 · observability F2 + F8 · kit adoption on the screens Phase 3 touches.
   - Phase 3 Android sync testing: the user enters Health Connect test data by hand on the Pixel (no Android
     wearable — walkthrough W4-D2).
@@ -52,7 +52,7 @@
 
 1. **Until 2026-10-19:** run the E8 watch queries once a day and add that day's counts to the watch line above.
    Any reuse kill, 429 burst or cross-user pair → investigate before Phase 3.
-2. **Meanwhile (user):** D-4 — create the Supabase secret API key; Claude wires it as a Render env var (per-call OK).
+2. ~~D-4~~ done (secret key on both Render services).
 3. **On a clean watch:** mark Phase 1b closed (BRIEF §7 + here) → **Phase 3 planning** via `multiplex`
    (`plan-pipeline` per backend track R1 / R2 / R3 in parallel, BRIEF §7) → user approves → backend first, then one
    bundled client release per surface. Staging only for the risky parts (R1 sessions/auth, R2 migrations).
