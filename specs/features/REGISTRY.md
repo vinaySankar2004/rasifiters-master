@@ -10,7 +10,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 
 | Feature | Version | Status | Apps | Reference impl | Spec |
 |---------|---------|--------|------|----------------|------|
-| `auth` | 0.12.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/auth.js`, `services/authService.js`, `services/supabaseTokenRefresh.js`, `middleware/auth.js`, `config/supabase.js`, `utils/stagingGuard.js`, `sql/008_staging_schema.sql`) | [auth/SPEC.md](auth/SPEC.md) |
+| `auth` | 0.12.1 | 🚀 | `web` `ios` `android` | `backend` (`routes/auth.js`, `services/authService.js`, `services/supabaseTokenRefresh.js`, `middleware/auth.js`, `config/supabase.js`, `utils/stagingGuard.js`, `sql/008_staging_schema.sql`) | [auth/SPEC.md](auth/SPEC.md) |
 | `members` | 0.3.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
 | `programs` | 0.2.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/programs.js`, `services/programService.js`, `models/{Program,ProgramMembership,MemberProgramOrder}.js`, `sql/005`) | [programs/SPEC.md](programs/SPEC.md) |
 | `program-memberships` | 0.2.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
