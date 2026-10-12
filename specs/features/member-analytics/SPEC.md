@@ -53,8 +53,8 @@ The 4 endpoints:
 The program dashboards ([`analytics`](../analytics/SPEC.md)) answer *"how is the program doing?"*;
 `member-analytics` answers *"how is **this member** doing?"* — the leaderboard that ranks/filters members and
 the per-member detail cards (timeline, streaks, recent workouts). Both clients render the same four surfaces
-(members tab + member detail), so `consumed_by = [web, ios]`, all 4 routes 1:1. Unlike the program analytics
-(v1/v2), **this feature enforces per-program read authz** (`ensureProgramAccess`: global-admin OR an active
+(members tab + member detail), so `consumed_by = [web, ios]`, all 4 routes 1:1. Like the program analytics
+(v1/v2, since analytics D-C8 0.4.0 / analytics-v2 D-C3 0.2.0), **this feature enforces per-program read authz** (`ensureProgramAccess`: global-admin OR an active
 membership in the program) on every route (§10 F1) — it's the gated read surface. Numbers must match legacy
 1:1 → the port is verbatim apart from the two pinned cleanups.
 
@@ -230,7 +230,7 @@ are already UTC-correct (`T00:00:00Z` parsing + `getUTC*`), unlike analytics v1.
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **Per-program read authz IS enforced here** (`ensureProgramAccess`: global-admin OR active membership) — unlike analytics v1/v2, which are `authenticateToken`-only (their F2). Noted as the *secure* characteristic; kept as-is. | `memberAnalyticsService.js:6-13` (called by all 4 fns) | Kept (faithful) — already the stricter behavior; no change needed. |
+| **F1** | **Per-program read authz IS enforced here** (`ensureProgramAccess`: global-admin OR active membership) — analytics v1/v2 were `authenticateToken`-only (their F2) and now also require an ACTIVE membership or global admin (analytics D-C8 0.4.0 / analytics-v2 D-C3 0.2.0). Noted as the *secure* characteristic; kept as-is. | `memberAnalyticsService.js:6-13` (called by all 4 fns) | Kept (faithful) — already the stricter behavior; no change needed. |
 | **F2** | **`computeStreaks` `current` is not anchored to today** — it counts the most recent consecutive run from the latest *logged* day, so a member with a gap to today still reports their last run as "current" (it doesn't reset to 0 for the gap). | `memberAnalyticsService.js:29-33` | Kept (faithful) — changing it would alter every member's current-streak number. |
 | **F3** | **`getMemberMetrics` aggregates + filters/sorts/searches ALL active members in-memory (JS), not SQL**, with no pagination (returns every matching member). Faithful; fine for program-sized rosters. | `memberAnalyticsService.js:198-258` | Kept (faithful) — a rebuild could push filter/sort/paginate into SQL. |
 | **F4** | **The metrics rollup computes rich fields some clients may not render** (`mtd_workouts`, `total_hours`, `favorite_workout`) — ported verbatim regardless of consumption. | `memberAnalyticsService.js:123-124,190` | Kept (faithful) — trim only if a parity audit confirms both clients ignore them. |

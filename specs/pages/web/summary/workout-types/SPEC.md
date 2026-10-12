@@ -8,7 +8,8 @@
 > (no period selector, no view-as picker, no `memberId`, no state).
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/workout-types/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/workouts/types`
-> — `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:100`) via the
+> — since analytics 0.4.0 (D-C8) requires an ACTIVE program membership or global admin, 403 otherwise; already
+> mounted `routes/analytics.js:140`) via the
 > already-ported `lib/api/summary.ts` `fetchWorkoutTypes` (landed verbatim with the [`summary`](../SPEC.md)
 > landing, run 21) and [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard`).
 > **Cross-app:** the iOS Home/summary surface renders the same workout-types breakdown natively; parity audited at
@@ -67,8 +68,9 @@ up to 100 and lists them all).
 
 - **`GET /api/analytics/workouts/types?programId=&limit=100`** → `WorkoutType[]`
   (`{ workout_name, sessions, total_duration, avg_duration_minutes }[]`, ordered by `sessions` DESC, capped at
-  `limit`). **Variable-length array** — `[]` when no workouts logged. `authenticateToken`-only — **no per-program
-  read authz** (analytics F2, inherited here as F1). The route also accepts a `memberId` (member-scoped branch),
+  `limit`). **Variable-length array** — `[]` when no workouts logged. Since analytics 0.4.0 (D-C8) the route
+  requires an ACTIVE program membership or global admin (403 otherwise; was `authenticateToken`-only — analytics
+  F2, inherited here as F1). The route also accepts a `memberId` (member-scoped branch),
   but this client never sends it — **program-wide only** (F4).
 - **Query key:** `["summary", "workoutTypes", programId]` — **shared with the landing's preview query**, which
   passes `limit=50` while this page passes `limit=100`. React Query dedupes by key (not by `queryFn` args), so the
@@ -121,9 +123,10 @@ logging on the `/summary` forms, not reads here).
 
 ## 10. Flagged characteristics kept as-is
 
-- **F1** — `GET /analytics/workouts/types` is `authenticateToken`-only with **no per-program read authz**
+- **F1** — `GET /analytics/workouts/types` **was** `authenticateToken`-only with no per-program read authz
   (inherited analytics F2): any authenticated user could fetch another program's workout types by crafting
-  `programId`. Kept faithful; a backend authz hardening is a cross-feature rebuild candidate.
+  `programId`. **Changed backend-side:** since analytics 0.4.0 (D-C8) the route requires an ACTIVE program
+  membership or global admin (403 otherwise). No page change.
 - **F2** — **No view-as picker, no `memberId`, no period, no role logic at all** — every role sees the same
   program-wide, program-to-date view. The ABSENCE of role-conditional UI (and of a period selector, unlike the
   `activity` sibling) is the finding; faithful and deliberate (this is the program-overview drill-down).

@@ -97,7 +97,7 @@ differs. **`admin_only_data_entry` = N/A** — read-only analytics, no logging.
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **No per-program read authz** on `GET /analytics/health/timeline` (`authenticateToken`-only) — any authed user could fetch another program's timeline by crafting `programId`/`memberId`. | backend route | Kept (faithful); backend concern. |
+| **F1** | **Per-program read authz added backend-side** on `GET /analytics/health/timeline` — was `authenticateToken`-only, so any authed user could fetch another program's timeline by crafting `programId`/`memberId`; since analytics 0.4.0 (D-C8) it requires an ACTIVE program membership or global admin (403 otherwise). `memberId` within the caller's own program is still not restricted server-side. | backend route | Changed backend-side (analytics D-C8); no iOS change. |
 | **F2** | **No view-as picker in-view** — scope comes purely from the `memberId` the card passes; member selection is gated upstream at the Lifestyle tab. | call sites | Kept (faithful; same as the twin F3). |
 | **F3** | **Group buckets are a per-member-day average**, not a per-calendar-day total (analytics D-C5 / amendment A-4) — deliberate, mirroring Avg Sleep. | `loadHealthTimeline` | Kept (deliberate). |
 

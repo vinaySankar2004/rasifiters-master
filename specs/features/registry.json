@@ -258,7 +258,7 @@
       }
     },
     "analytics": {
-      "version": "0.3.2",
+      "version": "0.4.0",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -287,7 +287,7 @@
       }
     },
     "analytics-v2": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/analytics-v2/SPEC.md",
       "status": "deployed",
       "consumed_by": [

@@ -84,7 +84,7 @@ Read-only analytics — no logging, no lock.
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **No per-program read authz** on `GET /analytics/distribution/day` (`authenticateToken`-only, web F1). | backend route | Kept (faithful); backend concern. |
+| **F1** | **Per-program read authz added backend-side** on `GET /analytics/distribution/day` — was `authenticateToken`-only (web F1); since analytics 0.4.0 (D-C8) it requires an ACTIVE program membership or global admin (403 otherwise). | backend route | Changed backend-side (analytics D-C8); no iOS change. |
 | **F2** | **Hardcoded weekday labels** (Sun…Sat) mapping the server's full-name keys; server already buckets in UTC (web F5). | `SummaryChartCards.swift` `distributionPoints` | Kept (faithful). |
 | **F3** | **All-time window** (no date filter) — accumulates since program start (web F4). | backend service | Kept (faithful). |
 

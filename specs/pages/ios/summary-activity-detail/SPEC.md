@@ -98,7 +98,7 @@ It re-fetches the timeline on each period change. It is **read-only** analytics 
 |----|----------------|-------|----------------------------|
 | **F1** | **Vestigial `errorMessage`** — set on a failed load but never rendered (both web + legacy iOS swallow → parity → no banner, run-55 verdict). | `ActivityTimelineDetailView.swift` `load()` | Kept (faithful) — a dead `@State`; drop on a rebuild sweep. |
 | **F2** | **`onDisappear` reloads to `week`** — a legacy lifecycle quirk (resets the shared context timeline when leaving). | `ActivityTimelineDetailView.swift` `onDisappear` | Kept (faithful). |
-| **F3** | **No per-program read authz** on `GET /analytics/timeline` (`authenticateToken`-only, web F1) — cross-feature backend hardening. | backend route | Kept (faithful); backend concern. |
+| **F3** | **Per-program read authz added backend-side** on `GET /analytics/timeline` — was `authenticateToken`-only (web F1); since analytics 0.4.0 (D-C8) it requires an ACTIVE program membership or global admin (403 otherwise). | backend route | Changed backend-side (analytics D-C8); no iOS change. |
 | **F4** | **Client role gate is entry-only** — the member-scoped entry is gated at `MemberHistoryCard`; this view has no internal gate (the `memberId` param sets scope). | call sites | Kept (faithful). |
 
 ## 11. Changelog

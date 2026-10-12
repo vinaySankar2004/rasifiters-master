@@ -143,8 +143,9 @@ layer, the (looser) backend is the real boundary (the run-40 `members/detail` mi
   target-enrolled — any active member could fetch any enrolled member's history via the API directly. Faithful; the
   run-40 `members/detail` mirror (client stricter than backend). Rebuild-cleanup candidate only if the per-member
   read restriction should be enforced server-side.
-- **F3 — per-program read authz IS enforced (the secure characteristic).** Unlike the `/summary` analytics routes
-  (their F2 — `authenticateToken`-only), `getMemberHistory` calls `ensureProgramAccess` (403 non-member) **and**
+- **F3 — per-program read authz IS enforced (the secure characteristic).** Like the `/summary` analytics routes
+  since analytics 0.4.0 (D-C8 — ACTIVE program membership or global admin, 403 otherwise; was
+  `authenticateToken`-only, their F2), `getMemberHistory` calls `ensureProgramAccess` (403 non-member) **and**
   verifies the target `memberId` is an active member of the program (404 otherwise) — two distinct lookups gating two
   distinct members (run-13: requester vs target). Kept faithful.
 - **F4 — `name` is display-only, defaults to "Member".** The subtitle is whatever `name` the landing passed

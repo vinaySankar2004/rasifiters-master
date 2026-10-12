@@ -7,7 +7,8 @@
 > (Sun → Sat). **Read-only, program-wide** (no period selector, no view-as picker, no `memberId`, no state).
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/distribution/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/distribution/day`
-> — `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:89`) via the
+> — since analytics 0.4.0 (D-C8) requires an ACTIVE program membership or global admin, 403 otherwise; already
+> mounted `routes/analytics.js:129`) via the
 > already-ported `lib/api/summary.ts` `fetchDistributionByDay` (landed verbatim with the [`summary`](../SPEC.md)
 > landing, run 21) and [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard`).
 > **Cross-app:** the iOS Home/summary surface renders the same distribution chart natively; parity audited at the
@@ -61,8 +62,9 @@ landing's small preview card affords. A single, dedicated bar chart over the sev
 
 - **`GET /api/analytics/distribution/day?programId=`** → `DistributionByDay`
   (`{ Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday }` — each a count; **all 7 keys always
-  present**, 0 when none). `authenticateToken`-only — **no per-program read authz** (analytics F2, inherited here
-  as F1). **No `memberId`, no period** — program-wide, all-time only.
+  present**, 0 when none). Since analytics 0.4.0 (D-C8) the route requires an ACTIVE program membership or
+  global admin (403 otherwise; was `authenticateToken`-only — analytics F2, inherited here as F1). **No
+  `memberId`, no period** — program-wide, all-time only.
 - **Query key:** `["summary", "distribution", programId]` (shared with the landing's distribution preview query —
   same cache entry); `enabled` gated on `token` + `programId`.
 - **Zero backend work, NO feature bump** — the route + service + the `fetchDistributionByDay` client fn all already
@@ -112,9 +114,10 @@ logging on the `/summary` forms, not reads here).
 
 ## 10. Flagged characteristics kept as-is
 
-- **F1** — `GET /analytics/distribution/day` is `authenticateToken`-only with **no per-program read authz**
+- **F1** — `GET /analytics/distribution/day` **was** `authenticateToken`-only with no per-program read authz
   (inherited analytics F2): any authenticated user could fetch another program's distribution by crafting
-  `programId`. Kept faithful; a backend authz hardening is a cross-feature rebuild candidate.
+  `programId`. **Changed backend-side:** since analytics 0.4.0 (D-C8) the route requires an ACTIVE program
+  membership or global admin (403 otherwise). No page change.
 - **F2** — **No view-as picker, no `memberId`, no period, no role logic at all** — every role sees the same
   program-wide, all-time view. The ABSENCE of role-conditional UI (and even of a period selector, unlike the
   `activity` sibling) is the finding; faithful and deliberate (this is the program-overview drill-down).

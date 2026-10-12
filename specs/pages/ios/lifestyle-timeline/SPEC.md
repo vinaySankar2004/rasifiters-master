@@ -105,7 +105,7 @@ logging, no lock.
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **No per-program read authz** on `GET /analytics/health/timeline` (`authenticateToken`-only, web F1) — any authed user could fetch another program's timeline by crafting `programId`/`memberId`. Cross-feature backend hardening. | backend route | Kept (faithful); backend concern. |
+| **F1** | **Per-program read authz added backend-side** on `GET /analytics/health/timeline` — was `authenticateToken`-only (web F1), so any authed user could fetch another program's timeline by crafting `programId`/`memberId`; since analytics 0.4.0 (D-C8) it requires an ACTIVE program membership or global admin (403 otherwise). `memberId` within the caller's own program is still not restricted server-side. | backend route | Changed backend-side (analytics D-C8); no iOS change. |
 | **F2** | **`onDisappear` reloads to `week`** — a legacy lifecycle quirk (resets the shared context timeline when leaving). | `LifestyleTimelineDetailView.swift` `onDisappear` | Kept (faithful). |
 | **F3** | **No view-as picker in-view** — scope comes purely from the `memberId` the card passes; member selection is gated upstream at the Lifestyle tab (run 56, matches web F2). | call sites | Kept (faithful). |
 | **F4** | **Diet axis hard-pinned to 0–5** — if the API ever returned `food_quality > 5` the diet line would clip (faithful to the 1–5 daily-health diet scale, web F5). | `LifestyleTimelineDetailView.swift` chart | Kept (faithful). |

@@ -66,8 +66,9 @@ period-selectable bar chart with a daily-average-steps summary stat. The steps t
 
 - **`GET /api/analytics/health/timeline?period=&programId=&memberId=`** → `HealthTimelineResponse`
   (`{ label, daily_average_sleep, daily_average_food, daily_average_steps, buckets: [{ label, sleep_hours,
-  food_quality, steps }] }`). `authenticateToken`-only — **no per-program read authz** (analytics F2,
-  inherited here as F1). Only the `steps` + `daily_average_steps` fields are read here.
+  food_quality, steps }] }`). Since analytics 0.4.0 (D-C8) the route requires an ACTIVE program membership
+  or global admin (403 otherwise; was `authenticateToken`-only — analytics F2, inherited here as F1). Only the
+  `steps` + `daily_average_steps` fields are read here.
 - **Group-view semantics (analytics D-C5 / amendment A-4):** with no `memberId`, the group buckets average
   over steps-bearing **member-day rows** (per-member-day average, mirroring Avg Sleep) — NOT total steps per
   calendar day summed across the group.
@@ -112,9 +113,11 @@ program bounces to `/programs`.
 
 ## 10. Flagged characteristics kept as-is
 
-- **F1** — `GET /analytics/health/timeline` is `authenticateToken`-only with **no per-program read authz**
+- **F1** — `GET /analytics/health/timeline` **was** `authenticateToken`-only with no per-program read authz
   (inherited analytics F2); any authenticated user could fetch another program's timeline by crafting
-  `programId`/`memberId`. Kept faithful; a backend authz hardening is a cross-feature rebuild candidate.
+  `programId`/`memberId`. **Changed backend-side:** since analytics 0.4.0 (D-C8) the route requires an ACTIVE
+  program membership or global admin (403 otherwise); `memberId` within the caller's own program is still not
+  restricted server-side. No page change.
 - **F2** — **No view-as picker on this page** — scope comes purely from the URL `memberId` the landing passes
   (the landing owns member selection). Faithful; deliberate (same as the sleep/diet twin F2).
 - **F3** — Client JWT-decode role gate (`session.user.globalRole` / `program.my_role` drive `canViewAs`);

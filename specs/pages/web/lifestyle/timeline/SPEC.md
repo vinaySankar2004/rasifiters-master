@@ -8,7 +8,8 @@
 > group (2 of 2).**
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/lifestyle/timeline/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/health/timeline`
-> — `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:74`) via the
+> — since analytics 0.4.0 (D-C8) requires an ACTIVE program membership or global admin, 403 otherwise; already
+> mounted `routes/analytics.js:103`) via the
 > already-ported `lib/api/lifestyle.ts` `fetchHealthTimeline` (landed verbatim with the
 > [`lifestyle`](../SPEC.md) landing, run 23) and [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard` + the
 > client role for `canViewAs`).
@@ -69,7 +70,8 @@ sleep and diet trends can be read together over time.
 
 - **`GET /api/analytics/health/timeline?period=&programId=&memberId=`** → `HealthTimelineResponse`
   (`{ label, daily_average_sleep, daily_average_food, buckets: [{ label, sleep_hours, food_quality }] }`).
-  `authenticateToken`-only — **no per-program read authz** (analytics F2, inherited here as F1).
+  Since analytics 0.4.0 (D-C8) the route requires an ACTIVE program membership or global admin (403 otherwise;
+  was `authenticateToken`-only — analytics F2, inherited here as F1).
 - **Query key:** `["lifestyle", "timeline", programId, resolvedMemberId ?? "program", period]`; `enabled` gated
   on `token`, `programId`, and `(resolvedMemberId || canViewAs)`.
 - **Zero backend work, NO feature bump** — the route + service + the `fetchHealthTimeline` client fn all already
@@ -114,9 +116,11 @@ logging on `/summary`, not reads here).
 
 ## 10. Flagged characteristics kept as-is
 
-- **F1** — `GET /analytics/health/timeline` is `authenticateToken`-only with **no per-program read authz**
+- **F1** — `GET /analytics/health/timeline` **was** `authenticateToken`-only with no per-program read authz
   (inherited analytics F2): any authenticated user could fetch another program's timeline by crafting
-  `programId`/`memberId`. Kept faithful; a backend authz hardening is a cross-feature rebuild candidate.
+  `programId`/`memberId`. **Changed backend-side:** since analytics 0.4.0 (D-C8) the route requires an ACTIVE
+  program membership or global admin (403 otherwise); `memberId` within the caller's own program is still not
+  restricted server-side. No page change.
 - **F2** — **No view-as picker on this page** — data scope comes purely from the URL `memberId` the landing
   passes (vs the `/lifestyle` landing's own picker). An admin who lands here directly (no `memberId`) sees the
   program-wide timeline. Faithful; deliberate (the landing owns member selection).

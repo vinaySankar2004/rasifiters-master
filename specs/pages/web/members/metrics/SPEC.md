@@ -154,8 +154,9 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
   allows any **active member** — so a non-admin who navigates directly sees the full program-wide leaderboard.
   Faithful; the inverse of run-39's pill-laxer-than-action asymmetry. Rebuild-cleanup candidate only if metrics
   should be formally admin-gated.
-- **F3 — per-program read authz IS enforced (the secure characteristic).** Unlike the `/summary` analytics routes
-  (their F2 — `authenticateToken`-only, no per-program gate), `getMemberMetrics` calls `ensureProgramAccess` and
+- **F3 — per-program read authz IS enforced (the secure characteristic).** Like the `/summary` analytics routes
+  since analytics 0.4.0 (D-C8 — ACTIVE program membership or global admin, 403 otherwise; was
+  `authenticateToken`-only, their F2), `getMemberMetrics` calls `ensureProgramAccess` and
   403s a non-member (`memberAnalyticsService.js:74-75`). The route carries only `authenticateToken`; the gate lives
   in the service. Kept faithful.
 - **F4 — client-side CSV export.** `handleExport` builds the CSV from the loaded rows (no server endpoint);

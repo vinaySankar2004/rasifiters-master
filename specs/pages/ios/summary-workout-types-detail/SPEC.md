@@ -83,7 +83,7 @@ Read-only analytics — no logging, no lock.
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **No per-program read authz** on `GET /analytics/workouts/types` (`authenticateToken`-only, web F1). | backend route | Kept (faithful); backend concern. |
+| **F1** | **Per-program read authz added backend-side** on `GET /analytics/workouts/types` — was `authenticateToken`-only (web F1); since analytics 0.4.0 (D-C8) it requires an ACTIVE program membership or global admin (403 otherwise). | backend route | Changed backend-side (analytics D-C8); no iOS change. |
 | **F2** | **Chart folds 6th+ into "Others"** while the breakdown list shows all types — an intentional summarization (matches the card + web's ranked list). | `WorkoutTypesDetailView.swift` `chartTypes` | Kept (faithful). |
 | **F3** | **Program-to-date window** (no date filter) — accumulates since program start (web F7). | backend service | Kept (faithful). |
 | **F4** | **`memberId` member-scoped route branch is dead from this client** — always program-wide (web F4). | backend route | Kept (faithful). |

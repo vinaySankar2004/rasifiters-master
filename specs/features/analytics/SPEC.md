@@ -1,6 +1,6 @@
 # Feature: `analytics` (v1) — program-level read aggregations
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.2 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v1Router`** half only — the
 > file is shared with `analytics-v2`, §7/D-C1), `services/analyticsService.js` (the **v1** functions + the
 > shared date/bucket helpers), `utils/dateRange.js` + `utils/queryHelpers.js` (analytics-only helpers),
@@ -11,11 +11,13 @@
 > (the `activeMembershipInclude` inner-join gate) · [`programs`](../programs/SPEC.md) (program window +
 > progress) · [`program-workouts`](../program-workouts/SPEC.md) (`ProgramWorkout.workout_name` for type
 > rollups) · [`members`](../members/SPEC.md) (name join for top performers).
-> **Deliberate changes (4, the rest faithful 1:1):** **D-C2** drop the dead `participation/mtd` v1 route
+> **Deliberate changes (7, the rest faithful 1:1):** **D-C2** drop the dead `participation/mtd` v1 route
 > (both clients use the v2 variant) · **D-C3** UTC-fix the distribution weekday bucketing · **D-C4** UTC-fix
 > the timeline chart labels (`bucketLabel`) · **D-C5** (0.2.0) steps analytics — the health timeline gains
 > per-bucket `steps` + `daily_average_steps`, and a new `GET /health/steps` totals endpoint (net-new; no
-> legacy provenance). Read-only aggregation — every query + response shape is ported verbatim otherwise.
+> legacy provenance) · **D-C6** (0.3.0) Top Workout Types ranked by total time (client-side) · **D-C7**
+> (0.3.1) web workout-type color-coding (client-side) · **D-C8** (0.4.0) every route requires an ACTIVE
+> membership in `programId` or global admin (reliability-overhaul D-3). Read-only aggregation — every query + response shape is ported verbatim otherwise.
 
 ---
 
@@ -56,14 +58,15 @@ windowing schemes coexist (faithful, §10 F1): the **stat cards** + participatio
 ranges (`buildMTDDateRanges` / `getParticipationMTDV2`), while **`getSummary`** and the **timelines** use a
 rolling **`period`** (`week`/`month`/`year`/`program`) via `getPeriodRange` / `resolveTimelineWindow`. Every
 aggregation inner-joins `activeMembershipInclude` so only **active** members' logs count. Numbers must match
-legacy 1:1 — so the port is verbatim except the three explicit changes in §7. Authorization is just
-`authenticateToken` (any authenticated member may read a program's analytics — no per-program gate, §10 F2).
+legacy 1:1 — so the port is verbatim except the three explicit changes in §7. Authorization (0.4.0,
+D-C8): `authenticateToken` + `requireProgramAccess` — only an ACTIVE member of `programId` (any role) or a
+global admin may read a program's analytics (was: any signed-in member, §10 F2).
 
 ## 3. Functionality (the routes)
 
 All mounted at **`/api/analytics`** (legacy `routes/analytics.js` `v1Router`). Handlers are thin
 try/catch wrappers (`routes/analytics.js`); logic in the v1 half of `services/analyticsService.js`. Every
-route is `authenticateToken`-only.
+route is `authenticateToken` → `requireProgramAccess` (D-C8).
 
 | # | Route | Legacy handler | Purpose |
 |---|-------|----------------|---------|
@@ -84,7 +87,12 @@ route is `authenticateToken`-only.
 ### Error contract (faithful — `routes/analytics.js` + `utils/response.AppError`)
 
 `AppError(statusCode, message)` → `{ error: message }`; any other throw → `500` with a route-specific
-generic. `400` (missing `programId`), `404` (program not found, `getSummary` only). `resolveTimelineWindow`
+generic. `400` (missing `programId` — the D-C8 gate passes a missing id through), `403 { error: "Access
+denied. Program membership required." }` (D-C8: not an ACTIVE member of `programId` and not a global admin,
+or `programId` is not a single string), `404` (program not found, `getSummary` only — reached only by
+members/global admins, so a non-member asking for a nonexistent program gets `403`). A DB error inside the
+gate (e.g. a non-UUID `programId` from a non-admin) → the shared `errorHandler`'s `500 { error: "Internal
+server error." }`. `resolveTimelineWindow`
 throws plain `Error` (not `AppError`) on a bad `period` or a `program`-period program lacking start/end dates
 → surfaces as the route's `500` (§10 F5). Status codes preserved 1:1.
 
@@ -112,7 +120,7 @@ throws plain `Error` (not `AppError`) on a bad `period` or a `program`-period pr
 - **`getHealthSteps(programId, memberId)`** (net-new, D-C5) — 400 if no `programId`; `where = { program_id,
   steps: { [Op.ne]: null } }` (+ `member_id` when passed), active-membership inner join;
   `Promise.all([SUM(steps), COUNT(*)])` → `{ total_steps, days, avg_steps_per_day: round(total/days) | 0 }`.
-  Same `authenticateToken`-only posture as the rest of v1 (F2).
+  Same D-C8 gate as the rest of v1.
 - **`getDistributionByDay`** (`:419-438`) — all-time per-`log_date` counts (active-join) bucketed into the 7
   weekday names (D-C3 UTC fix). Returns `{ Sunday..Saturday: count }`.
 - **`getWorkoutTypes`** (`:440-469`) — group `workout_logs` by `ProgramWorkout.workout_name` (active-join),
@@ -219,15 +227,16 @@ contract, and the error contract (incl. the plain-`Error`→500 paths). The numb
 | **D-C5** | **Deliberate change (0.2.0) — steps analytics.** (a) `getHealthTimeline` additively gains a per-bucket `steps` field (rounded average over the bucket's steps-bearing rows, `0` when none) + a top-level `daily_average_steps` (rounded average of the per-bucket averages over buckets with data), cloning the sleep accumulation. (b) Net-new `getHealthSteps(programId, memberId)` + `GET /health/steps` → `{ total_steps, avg_steps_per_day, days }`, role-scoped via the existing optional-`memberId` idiom. **Pinned group-view semantics (deliberate — do NOT "fix" later):** with no `memberId`, `days` counts steps-bearing **MEMBER-DAY rows** across the whole program, so `avg_steps_per_day` (and the group timeline buckets) are **per-member-day averages** — mirroring how Avg Sleep behaves — NOT the total steps per calendar day summed across the group. A calendar day where 3 members logged steps contributes 3 rows, and the group average answers "how many steps does a member take per logged day", not "how many steps does the group take per day". | User approval 2026-07-09 (steps-tracking plan, DC-1/DC-7 + orchestrator amendment A-4); `analyticsService.js getHealthTimeline`/`getHealthSteps`; `routes/analytics.js`; daily-health-logs 0.2.0 D-C4. |
 | **D-C6** | **Deliberate change (0.3.0) — "Top Workout Types" ranked by total time spent, not session count (client-side, all 3 clients).** User-driven UX fix: a member who does many short walks was out-ranking longer sessions of other workouts, misrepresenting effort. The backend `getWorkoutTypes` is **unchanged** (still `COUNT`+`SUM(duration)`, `ORDER BY sessions DESC LIMIT 50/100`, same `{ workout_name, sessions, total_duration, avg_duration_minutes }` shape) — every client already receives `total_duration`, so the change is **presentation-only**: the summary card + its drill-down (list + bar/%-share chart) re-sort by `total_duration` and display total time (days-aware `Xh Ym`/`Xd Yh`), keeping the session count as a secondary line in the drill-down. Backend order left as-is on purpose (programs have far fewer than the 50-type fetch limit, so client re-rank sees every type; keeps this off the live-iOS-binary contract). No schema/DTO/route delta. | User approval 2026-07-09; web `summary/page.tsx` + `summary/workout-types/page.tsx` + `lib/format.ts` (`formatTotalDuration`); iOS `SummaryChartCards.swift` + `WorkoutTypesDetailView.swift` + `WorkoutPopularityLogic.swift` (`formatWorkoutMinutes`); Android `SummaryCharts.kt` + `WorkoutTypesDetailScreen.kt` (`formatWorkoutDuration`). |
 | **D-C7** | **Deliberate change (0.3.1) — "Workout Types" color-coding on web (parity catch-up, web-only, presentation).** iOS + Android already color each workout type with a djb2-hash → 12-color palette (`"Others"` → grey); the web card + drill-down rendered plain text with one uniform bar color. Web now derives the same per-type color client-side and shows a colored bullet dot beside each type (summary card + detail list) + per-bar colors in the detail chart (Recharts `<Cell>`). **iOS is the source of truth** (the reference screenshots): iOS hashes in 64-bit `Int`, Android in 32-bit — they disagree on most names, so web reproduces the **64-bit** result via `BigInt` to match iOS, not Android (the 32-bit divergence is a pre-existing cross-platform inconsistency, left as-is). Backend + data model **unchanged** (no color field; color is derived from `workout_name`, exactly as the clients do). No schema/DTO/route delta → live binaries unaffected. | User approval 2026-07-09 (iOS chosen as color source); web new helper `lib/workout-colors.ts` (`workoutTypeColor`) + `summary/page.tsx` + `summary/workout-types/page.tsx`; iOS palette/rule `AppTheme.swift` (`chartPalette`) + `WorkoutPopularityLogic.swift` (`workoutTypePaletteColor`). |
+| **D-C8** | **Deliberate change (0.4.0) — program-membership read gate (reliability-overhaul D-3; closes §10 F2).** Every v1 route (and every v2 route — analytics-v2 D-C3) runs `requireProgramAccess` after `authenticateToken` (local to `routes/analytics.js`, mirroring `routes/programWorkouts.js`' guard and member-analytics' `ensureProgramAccess` rule): `global_admin` passes; otherwise an `active` `program_memberships` row (any role — admin / logger / member) for `req.query.programId`, else `403 { error: "Access denied. Program membership required." }`. One indexed lookup per request. Missing `programId` passes through (native `400` kept); a non-string `programId` (repeated param → array) → the same 403 (the services would aggregate every listed program); DB errors → `next(err)`. `services/analyticsService.js` untouched. **Why:** these routes return member first/last names; any signed-in account could read any program by id. **Live-binary safe:** every client opens a program only when `my_status` is `active` or the caller is a global admin (web `programs/page.tsx`, iOS `ProgramPickerView.swift`, Android `ProgramPickerScreen.kt` `canOpen`), and standard users' program lists contain only active/invited/requested programs. | reliability-overhaul DESIGN_BOARD D-3; `routes/analytics.js` `requireProgramAccess`; `services/memberAnalyticsService.js` `ensureProgramAccess`; `routes/programWorkouts.js`. |
 | **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios, android]`** — the live routes used 1:1 by all clients, no divergence (`limit` value + optional `memberId` vary per call site, but the route is identical). `/health/steps` (D-C5) is consumed by the Lifestyle Steps card on all three clients. | Web sweep (`summary/lifestyle` pages + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`ProgramContext+Analytics.swift` + tabs) + Android port; Explore agents. |
-| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2–D-C4 + the 0.2.0 additive steps work (D-C5).** Every ported aggregation query, the bucketing/windowing, all response shapes, the MTD-vs-`period` split, and the error contract are exact; D-C5 only ADDS a timeline field + one net-new endpoint (no existing shape changes). Remaining oddities flagged (§10). | Whole v1-half review; §7. |
+| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2–D-C4, the 0.2.0 additive steps work (D-C5), the client-side presentation changes (D-C6/D-C7), and the 0.4.0 program-membership read gate (D-C8).** Every ported aggregation query, the bucketing/windowing, all response shapes, the MTD-vs-`period` split, and the error contract are exact, except that D-C8 adds `403 { error: "Access denied. Program membership required." }` ahead of every handler; D-C5 only ADDS a timeline field + one net-new endpoint (no existing shape changes); D-C6/D-C7 change no backend contract. Remaining oddities flagged (§10). | Whole v1-half review; §7; D-C8 (0.4.0). |
 
 ## 10. Flagged characteristics kept as-is
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **Two coexisting window schemes** — stat cards + participation use **month-to-date** (`buildMTDDateRanges`); `getSummary` + timelines use a rolling **`period`** (`getPeriodRange`/`resolveTimelineWindow`). A summary card and the matching stat card can therefore cover different ranges. Intentional. | `queryHelpers.js:20`; `dateRange.js:9`; `analyticsService.js:57` | Kept (faithful). |
-| **F2** | **No per-program authorization on reads** — every route is `authenticateToken`-only; any authenticated member can read any program's analytics by `programId` (no membership/admin gate). | `analytics.js:11-122` | Kept (faithful) — a stricter rebuild could scope reads to program members. |
+| **F2** | **No per-program authorization on reads (legacy)** — every route was `authenticateToken`-only; any authenticated member could read any program's analytics by `programId`. | legacy `analytics.js:11-122` | **Changed (D-C8, 0.4.0)** — active membership or global admin required. |
 | **F3** | **`participation/mtd` v1 was dead** — superseded by the v2 variant on both clients. Dropped (D-C2); distinct (not a byte-dup); recorded for the parity audit. Its v2 successor ships with `analytics-v2`. | `analytics.js:25-34`; `analyticsService.js:255-282` | Changed (dropped). |
 | **F4** | **`buildMTDDateRanges` + `getPeriodRange` compute boundaries in server-LOCAL time** (`new Date(y, m, 1)` / `new Date()`), unlike the explicit-UTC bucketing. NOT in the pinned D-C3/D-C4 cleanup scope, so kept as-is — on Render (UTC) it's correct; on a non-UTC server the month/period boundaries could shift. | `queryHelpers.js:20-25`; `dateRange.js:10` | Kept (faithful, out of cleanup scope) — a full TZ audit would normalize these too. |
 | **F5** | **`resolveTimelineWindow` throws plain `Error`, not `AppError`** — a bad `period`, or a `program`-period program lacking start/end dates, surfaces as the route's generic `500` (not a `400`/`404`). | `analyticsService.js:87-97` | Kept (faithful) — clients only send valid periods. |
@@ -238,6 +247,7 @@ contract, and the error contract (incl. the plain-`Error`→500 paths). The numb
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-11 | **D-C8 — program-membership read gate (reliability-overhaul Phase 1b, H3 / board D-3).** `routes/analytics.js` gains a local `requireProgramAccess` (global admin, or an ACTIVE `program_memberships` row for `?programId`; missing id → native 400; non-string id → 403; try/catch → `next(err)`) after `authenticateToken` on all 9 v1 routes (+ the 5 v2 routes — analytics-v2 0.2.0). New `403 { error: "Access denied. Program membership required." }`; a non-member asking for a nonexistent program now gets 403 instead of `/summary`'s 404. `services/analyticsService.js` unchanged. Closes F2. No legitimate client call gets a 403 (clients open only active-membership programs; global admins bypass). **MINOR**; dependents analytics-v2 (bumped) + member-analytics (unaffected). Backend-only. |
 | 0.3.2 | 2026-07-09 | **Dark-mode fix for the "Workout Types" chart tooltip (follow-up to D-C7).** The per-`<Cell>` colored bars leave the Recharts `<Bar>` with no `fill`, so the tooltip's value line ("Total time : …") defaulted to near-black — readable on the light card but invisible on the dark surface. Pinned the tooltip `itemStyle` color to `var(--rf-text)` so it reads in both light + dark. Web-only, presentation-only; no contract/behavior/schema delta. File: web `summary/workout-types/page.tsx`. |
 | 0.3.1 | 2026-07-09 | **D-C7 — "Workout Types" color-coding on web (parity catch-up, web-only, presentation-only).** iOS/Android already color each type via a djb2-hash → 12-color palette (`"Others"` → grey); web rendered plain text + one uniform bar color. Web now shows a colored bullet dot beside each type (summary card + detail list) and per-bar colors in the detail chart (Recharts `<Cell>`), deriving the color from `workout_name` client-side. **iOS is the color source of truth** (the reference screenshots) — iOS hashes in 64-bit, Android in 32-bit and they disagree, so web reproduces the 64-bit result via `BigInt` (`lib/workout-colors.ts` `workoutTypeColor`) to match iOS; the Android 32-bit divergence is a pre-existing inconsistency left as-is. Backend + data model unchanged (no color field). Files: web new `lib/workout-colors.ts` + `summary/page.tsx` + `summary/workout-types/page.tsx`. No schema/DTO/route delta → live binaries unaffected. Web build clean. Added D-C7 (§9). |
 | 0.3.0 | 2026-07-09 | **D-C6 — "Top Workout Types" ranked by total time spent, not session count (client-side, all 3 clients).** User-driven UX fix (short frequent workouts were out-ranking longer sessions). Backend **unchanged** — `getWorkoutTypes` still returns `{ workout_name, sessions, total_duration, avg_duration_minutes }` ordered by sessions desc; the change is presentation-only: the summary card + drill-down (list + bar/%-share chart) re-sort by `total_duration` and display total time via a days-aware formatter (`Xh Ym` → `Xd Yh`), keeping the session count as a secondary drill-down line. New helpers `formatTotalDuration` (web `lib/format.ts`), `formatWorkoutMinutes` (iOS `WorkoutPopularityLogic.swift`), `formatWorkoutDuration` (Android `SummaryCharts.kt`). Files: web `summary/page.tsx` + `summary/workout-types/page.tsx`; iOS `SummaryChartCards.swift` + `WorkoutTypesDetailView.swift`; Android `SummaryCharts.kt` + `WorkoutTypesDetailScreen.kt`. No schema/DTO/route delta → live binaries unaffected (backend order deliberately left as-is). All 3 surfaces compile clean. Added D-C6 (§9). |

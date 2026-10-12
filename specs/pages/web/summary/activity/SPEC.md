@@ -7,7 +7,8 @@
 > and active members per bucket. **Read-only, program-wide** (no view-as picker, no `memberId`).
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/summary/activity/page.tsx`.
 > **Consumes (features):** [`analytics`](../../../../features/analytics/SPEC.md) (`GET /analytics/timeline` —
-> `authenticateToken`-only, **no per-program read authz**; already mounted `routes/analytics.js:60`) via the
+> since analytics 0.4.0 (D-C8) requires an ACTIVE program membership or global admin, 403 otherwise; already
+> mounted `routes/analytics.js:89`) via the
 > already-ported `lib/api/summary.ts` `fetchActivityTimeline` (landed verbatim with the [`summary`](../SPEC.md)
 > landing, run 21) and [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard`).
 > **Cross-app:** the iOS Home/summary surface renders the same activity timeline natively; parity audited at the
@@ -63,8 +64,9 @@ chart so volume and breadth of participation can be read together.
 ## 6. Data / API
 
 - **`GET /api/analytics/timeline?period=&programId=`** → `ActivityTimelineResponse`
-  (`{ mode, label, daily_average, buckets: [{ date, label, workouts, active_members }] }`). `authenticateToken`-only
-  — **no per-program read authz** (analytics F2, inherited here as F1). **No `memberId`** — program-wide only.
+  (`{ mode, label, daily_average, buckets: [{ date, label, workouts, active_members }] }`). Since analytics 0.4.0
+  (D-C8) the route requires an ACTIVE program membership or global admin (403 otherwise; was
+  `authenticateToken`-only — analytics F2, inherited here as F1). **No `memberId`** — program-wide only.
 - **Query key:** `["summary", "timeline", programId, period]`; `enabled` gated on `token` + `programId`.
 - **Zero backend work, NO feature bump** — the route + service + the `fetchActivityTimeline` client fn all already
   shipped (`analytics` + the `summary` landing).
@@ -108,9 +110,10 @@ logging on the `/summary` forms, not reads here).
 
 ## 10. Flagged characteristics kept as-is
 
-- **F1** — `GET /analytics/timeline` is `authenticateToken`-only with **no per-program read authz** (inherited
+- **F1** — `GET /analytics/timeline` **was** `authenticateToken`-only with no per-program read authz (inherited
   analytics F2): any authenticated user could fetch another program's activity timeline by crafting `programId`.
-  Kept faithful; a backend authz hardening is a cross-feature rebuild candidate.
+  **Changed backend-side:** since analytics 0.4.0 (D-C8) the route requires an ACTIVE program membership or
+  global admin (403 otherwise). No page change.
 - **F2** — **No view-as picker, no `memberId`, no role logic at all** — every role sees the same program-wide
   view (unlike the `/lifestyle`/`/members` landings). The ABSENCE of role-conditional UI is the finding; faithful
   and deliberate (this is the program-overview drill-down).

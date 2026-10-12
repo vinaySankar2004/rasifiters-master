@@ -1,6 +1,6 @@
 # Feature: `analytics-v2` — the v2 analytics aggregates (participation + workout-type stats)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.1.0 · **Apps (`consumed_by`):** `web`, `ios`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v2Router`** half only — the
 > file is shared with [`analytics`](../analytics/SPEC.md) v1, §7/D-C1), `services/analyticsService.js` (the
 > **v2** functions; the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` already
@@ -11,8 +11,9 @@
 > [`program-memberships`](../program-memberships/SPEC.md) (the `activeMembershipInclude` inner-join gate +
 > the active-member count) · [`program-workouts`](../program-workouts/SPEC.md) (`ProgramWorkout.workout_name`
 > for the type rollups).
-> **Deliberate changes (1, the rest faithful 1:1):** **D-C2** drop the dead `GET /summary` (v2) route +
-> `getSummaryV2` (both clients use the v1 summary — the mirror of v1's D-C2). The 5 live routes' aggregations
+> **Deliberate changes (2, the rest faithful 1:1):** **D-C2** drop the dead `GET /summary` (v2) route +
+> `getSummaryV2` (both clients use the v1 summary — the mirror of v1's D-C2) · **D-C3** (0.2.0) every route
+> requires an ACTIVE membership in `programId` or global admin (reliability-overhaul D-3). The 5 live routes' aggregations
 > + response shapes are ported verbatim.
 
 ---
@@ -55,14 +56,14 @@ types "superlative" tiles** on the Lifestyle / Workout-Types screens. Everything
 the timelines, the base workout-types list, the MTD stat cards) stays on v1. So v1 and v2 **coexist**, split
 by card, not by version cutover — and the one v2 endpoint that *did* duplicate a v1 surface (`/summary`)
 ended up dead because the clients kept the v1 summary. Numbers must match legacy 1:1 → the port is verbatim.
-Authorization is just `authenticateToken` (any authenticated member may read a program's analytics — no
-per-program gate, §10 F2, inherited from v1).
+Authorization (0.2.0, D-C3): `authenticateToken` + the shared `requireProgramAccess` gate — only an ACTIVE
+member of `programId` or a global admin (was: any signed-in member, §10 F2).
 
 ## 3. Functionality (the routes)
 
 All mounted at **`/api/analytics-v2`** (legacy `routes/analytics.js` `v2Router`). Handlers are thin
 try/catch wrappers (`routes/analytics.js`); logic in the v2 functions of `services/analyticsService.js`.
-Every route is `authenticateToken`-only.
+Every route is `authenticateToken` → `requireProgramAccess` (D-C3).
 
 | # | Route | Legacy handler | Purpose |
 |---|-------|----------------|---------|
@@ -80,7 +81,11 @@ Every route is `authenticateToken`-only.
 
 `AppError(statusCode, message)` → `{ error: message }`; any other throw → `500` with a route-specific
 generic. The only `AppError` thrown by the 5 live fns is `400` (missing `programId`) — every v2 fn requires
-`programId`. There is no `404` path (no program lookup in the v2 half). Status codes preserved 1:1.
+`programId`. There is no `404` path (no program lookup in the v2 half). **D-C3 (0.2.0):** the gate adds `403 { error:
+"Access denied. Program membership required." }` (not an ACTIVE member of `programId` and not a global admin,
+or a non-string `programId`); a missing `programId` still reaches the fn's `400`; a DB error in the gate (e.g. a
+non-UUID `programId` from a non-admin) → `500 { error: "Internal server error." }`. Other status codes preserved
+1:1.
 
 ## 4. Feature list (behaviors to port — verbatim aggregation)
 
@@ -177,7 +182,7 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
   [`program-workouts`](../program-workouts/SPEC.md) (type names).
 - **Downstream / referenced (not owned here):** v1 shares the file pair; the summary + lifestyle/workout-types
   dashboards (web pages / iOS tabs) render this data.
-- **Consumers:** **`web` + `ios`** — the 5 live routes used 1:1 by both clients, **no divergence**.
+- **Consumers:** **`web` + `ios` + `android`** — the 5 live routes used 1:1 by all three clients, **no divergence**.
   - **web:** `summary/page.tsx:63-67` calls `participation/mtd` (MTD card) via `lib/api/summary.ts:109-112`;
     `lifestyle/page.tsx:121-143` calls the 4 workout-type aggregates (total :123, most-popular :129,
     longest-duration :135, highest-participation :141) via `lib/api/lifestyle.ts:48-79` — `total`/
@@ -188,6 +193,8 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
     `ProgramContext+Analytics.swift:189-234` — `total`/`most-popular`/`longest-duration` pass an optional
     `memberId`; `highest-participation` always passes `memberId: nil`. (`/summary` v2 → unused; iOS uses v1
     `/api/analytics/summary` from `AdminSummaryTab.swift:80`.)
+  - **android:** `net/ApiService.kt:80` (`participation/mtd`) + `:122-144` (the 4 workout-type aggregates;
+    `memberId` optional), called through `core/ProgramContext.kt` from the Summary + Lifestyle screens.
 
 ## 9. Decisions made
 
@@ -195,15 +202,16 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 |----|----------|----------|
 | **D-C1** | **Scope = the v2 half** — `v2Router` (5 routes after D-C2) + the 5 v2 functions, **appended** to the shared `routes/analytics.js` + `services/analyticsService.js` (reusing the date/bucket helpers + the two utils, both landed with v1). Change the route export to `{ v1Router, v2Router }`; mount `/api/analytics-v2`. `member-analytics` is separate. | `analytics.js:6-7,124-195` (v2Router); `analyticsService.js:473-692` (v2 fns) / `:5` (shared util imports); v1 SPEC D-C1; COVERAGE L24/L25. |
 | **D-C2** | **Drop the dead `GET /summary` (v2) route + `getSummaryV2`** — called by neither client (both use the v1 summary). The mirror of v1's D-C2; distinct (not a byte-dup) but superseded-and-unused. Removes the only UTC-bucketing site in the v2 half. | `analytics.js:126-138`, `analyticsService.js:473-561`; web sweep (`summary.ts:104-107` → v1) + iOS sweep (`AdminSummaryTab.swift:80` → v1). |
-| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — the 5 live routes used 1:1 by both clients, no divergence (optional `memberId` varies per call site, but the route is identical; `highest-participation` is program-wide on both). | Web sweep (`summary/page.tsx` + `lifestyle/page.tsx` + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`AdminSummaryTab` + `StandardWorkoutTypesTab` + `ProgramContext+Analytics.swift`); Explore agents. |
-| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2.** Every aggregation query, the MTD window scheme, all response shapes, and the error contract are ported exactly for the 5 live fns; remaining oddities flagged (§10). | Whole v2-half review; §7. |
+| **D-C3** | **Deliberate change (0.2.0) — program-membership read gate (reliability-overhaul D-3; closes §10 F2).** The 5 v2 routes run the same local `requireProgramAccess` as v1 (analytics D-C8; one guard in the shared `routes/analytics.js`): global admin passes; otherwise an ACTIVE `program_memberships` row for `?programId` (any role) or `403 { error: "Access denied. Program membership required." }`; missing `programId` → the fn's `400`; non-string `programId` → 403; DB errors → `next(err)`. One authorization contract for the whole analytics surface. Live-binary safe (clients open only active-membership programs; global admins bypass). | analytics D-C8; `routes/analytics.js` `requireProgramAccess`; DESIGN_BOARD D-3. |
+| **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios, android]`** (android added 0.2.0 — doc↔code lag fix; registry.json already listed it) — the 5 live routes used 1:1 by all three clients, no divergence (optional `memberId` varies per call site, but the route is identical; `highest-participation` is program-wide on both). | Web sweep (`summary/page.tsx` + `lifestyle/page.tsx` + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`AdminSummaryTab` + `StandardWorkoutTypesTab` + `ProgramContext+Analytics.swift`); Explore agents. |
+| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2 and D-C3.** Every aggregation query, the MTD window scheme, all response shapes, and the error contract are ported exactly for the 5 live fns; remaining oddities flagged (§10). | Whole v2-half review; §7. |
 
 ## 10. Flagged characteristics kept as-is
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **`getParticipationMTDV2` is byte-identical to the v1 `getParticipationMTD` that v1 dropped** (D-C2 there) — the same function existed under two routes; the clients standardized on the v2 one, so v1's copy was dropped and this copy is the live participation card. Two names, one body. | `analyticsService.js:563-590` ≡ legacy `:255-282` | Kept (faithful) — a rebuild could collapse the participation card to a single canonical endpoint. |
-| **F2** | **No per-program authorization on reads** — every route is `authenticateToken`-only; any authenticated member can read any program's v2 analytics by `programId` (no membership/admin gate). Inherited from v1 (its F2). | `analytics.js:140-193` | Kept (faithful) — a stricter rebuild could scope reads to program members. |
+| **F2** | **No per-program authorization on reads (legacy)** — every route was `authenticateToken`-only; any authenticated member could read any program's v2 analytics by `programId`. Inherited from v1 (its F2). | legacy `analytics.js:140-193` | **Changed (D-C3, 0.2.0)** — active membership or global admin required. |
 | **F3** | **`getSummaryV2` / `GET /summary` (v2) was dead** — superseded by the v1 summary on both clients. Dropped (D-C2); distinct (optional `programId`/global agg, `member_name`, no `program_progress`), not a byte-dup. Recorded for the parity audit. | `analytics.js:126-138`; `analyticsService.js:473-561` | Changed (dropped). |
 | **F4** | **`getHighestParticipationWorkoutType`'s member-scoped branch is dead via the route** — both clients always call `highest-participation` program-wide (web omits `memberId`; iOS passes `memberId: nil`), so the `if (memberId)` branch is never exercised. Ported faithfully. | `analyticsService.js:644-666`; web `lifestyle/page.tsx:141` / iOS `StandardWorkoutTypesTab.swift:114,244` | Kept (faithful) — a rebuild could drop the unreachable branch. |
 | **F5** | **`buildMTDDateRanges` computes MTD boundaries in server-LOCAL time** (`new Date(y, m, 1)` / `new Date()`). On Render (UTC) correct; on a non-UTC server the month boundary could shift. Same class as v1's F4 (out of any pinned cleanup scope; v2 has no UTC-bucketing site left after D-C2). | `queryHelpers.js:20-25` | Kept (faithful, out of scope) — a full TZ audit would normalize it. |
@@ -213,4 +221,5 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-11 | **D-C3 — program-membership read gate (reliability-overhaul Phase 1b, H3 / board D-3).** The 5 v2 routes mount the shared local `requireProgramAccess` after `authenticateToken` (analytics 0.4.0 / D-C8): new `403 { error: "Access denied. Program membership required." }`; missing `programId` still 400s; closes F2. Fixed the header / §8 / D-REF `consumed_by` lag → `[web, ios, android]`. `services/analyticsService.js` unchanged. **MINOR**; no dependents. Backend-only. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker`. Documents the v2 analytics read API (`/api/analytics-v2`) — the `v2Router` half of the shared `routes/analytics.js` + the v2 functions of `services/analyticsService.js` (the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` landed with v1). Decisions: **D-C1** (scope = v2 half appended to the shared file pair; reuse helpers/utils; `member-analytics` separate) · **D-C2** (drop the dead `GET /summary` v2 route + `getSummaryV2` — both clients use the v1 summary; the mirror of v1's D-C2) · **D-REF** (`consumed_by = [web, ios]`, 5 routes 1:1, no divergence) · **D-S1** (faithful verbatim otherwise — every aggregation + shape ported exactly). Flagged F1–F6 (the participation-fn byte-dup; no per-program authz; the dead summary; the dead member-scoped highest-participation branch; the MTD server-local boundary; the COUNT idioms). No auth/stack migration delta (read-only; models + schema + helpers + utils pre-ported). |
