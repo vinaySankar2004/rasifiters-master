@@ -59,6 +59,17 @@
   to push** (deploys C + A to Render; web builds the unused kits) → `list_deploys` live → prod smoke (plan E5–E7
   incl. the new two-network limiter probe, ≥ 60 s after the smoke) → `curl /api/app-config` shows the 4 keys;
   (3) then **track B** (staging).
+  ✅ **C + A + D DEPLOYED 2026-10-12** (user OK'd both pushes): migration 007 run by the user + verified read-only
+  (11 cols, RLS on, FK cascade, 3 indexes, pg_cron 1.6.4, retention job `17 4 * * *`) → push `34828cc` live →
+  post-deploy measurement `xff_n`=2 → **fix `ac52491` observability 0.1.1** (`trust proxy` 1 → 2; pushed with the
+  user's OK; live) → prod smoke **28/28** (user ran it) → 6 expected `app_events` rows ✓ → two-network limiter
+  probe ✓ (hotspot burst 30×400 + 1×429, home Wi-Fi 38 s later → 400). Vercel built `34828cc` (kits unused).
+  observability flipped to 🚀 deployed. **Still open:** the user's quick iPhone / Pixel / web check (Summary +
+  Lifestyle load, nobody signed out); the stray Xcode `project.pbxproj` / `Info.plist` diff (user's call).
+  **Next: track B** — its plan predates C/A: re-read `server.js` (C's gate + A's requestLog/CORS/client-events
+  mounts), auth goes **0.11.0 → 0.12.0**, migration **008**, rule **D-C13**, `CORS_EXTRA_ORIGINS` appended to
+  A's CORS block; B's client files (iOS `APIConfig.swift` + Staging scheme, Android `build.gradle.kts`) + the
+  `apps/*/CONTEXT.md` pointers (B's, then D's) — D is committed so they no longer collide.
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`

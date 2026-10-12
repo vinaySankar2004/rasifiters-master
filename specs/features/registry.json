@@ -359,7 +359,7 @@
     "observability": {
       "version": "0.1.1",
       "spec": "specs/features/observability/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [],
       "depends_on": [
         "auth"
