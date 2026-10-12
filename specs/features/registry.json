@@ -444,6 +444,31 @@
           "app/src/main/java/com/app/rasifiters/ui/health/HealthSyncConfirmationScreen.kt"
         ]
       }
+    },
+    "frontend-kit": {
+      "version": "0.1.0",
+      "spec": "specs/features/frontend-kit/SPEC.md",
+      "status": "built",
+      "consumed_by": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "depends_on": [
+        "workout-logs",
+        "daily-health-logs"
+      ],
+      "reference_impl": {
+        "app": "web",
+        "paths": [
+          "src/lib/kit/copy.ts",
+          "src/lib/kit/app-error.ts",
+          "src/lib/kit/async-state.ts",
+          "src/lib/kit/use-online-status.ts",
+          "src/components/kit/FloatingBanner.tsx",
+          "src/components/kit/ErrorView.tsx"
+        ]
+      }
     }
   }
 }
