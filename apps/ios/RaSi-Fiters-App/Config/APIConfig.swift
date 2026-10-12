@@ -11,6 +11,11 @@ enum APIConfig {
     // not the legacy `rasi-fiters-api`. Matches the web app's prod API base. (Migration deviation.)
     static let renderBaseURL = URL(string: "https://rasifiters-api.onrender.com/api")!
 
+    // STAGING — the free Render service `rasifiters-api-staging` (the `staging` Postgres schema; shared Supabase
+    // Auth). DEBUG builds (the "RaSi-Fiters-App-Staging" scheme's Run) talk to it; Release stays on renderBaseURL.
+    // Wake it before a test session (it sleeps after 15 min idle) — reliability-overhaul board §8, auth D-C13.
+    static let stagingBaseURL = URL(string: "https://rasifiters-api-staging.onrender.com/api")!
+
     static let appStoreURL = URL(string: "https://apps.apple.com/ca/app/rasi-fiters/id6758078961")!
 
     // Web app base URL for public pages (privacy, support). Used by iOS to open in browser.
@@ -27,14 +32,11 @@ enum APIConfig {
         return URL(string: "mailto:\(supportEmail)?subject=\(subject)")!
     }
 
-    // Active base URL; debug uses local endpoints, release uses Render.
+    // Active base URL: DEBUG → staging, Release → Render prod. (simulatorBaseURL / deviceBaseURL stay for ad-hoc
+    // local-backend runs — swap one in here temporarily.)
     static var activeBaseURL: URL {
         #if DEBUG
-        #if targetEnvironment(simulator)
-        return simulatorBaseURL
-        #else
-        return deviceBaseURL
-        #endif
+        return stagingBaseURL
         #else
         return renderBaseURL
         #endif

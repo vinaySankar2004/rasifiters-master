@@ -10,6 +10,8 @@
 //   • changePass   → Supabase admin updateUserById.
 //   • deleteAccount→ runs the cross-feature member-exit cascade (owned by program-memberships,
 //                    SPEC D-C1) then deletes the Supabase auth user.
+//   • staging      → utils/stagingGuard (APP_ENV=staging only): login-level changes only for +stg accounts,
+//                    no reset mail to other addresses, local-scope logout (SPEC D-C13). No-ops in prod.
 // Response shapes are preserved 1:1 so the web + iOS clients are unchanged (D-C3).
 const { sequelize } = require("../config/database");
 const { Member, MemberEmail, MemberPushToken } = require("../models");
@@ -22,6 +24,7 @@ const {
 const { exchangeRefreshToken } = require("./supabaseTokenRefresh");
 const { cascadeMemberDeletion } = require("../utils/programMemberships");
 const { AppError } = require("../utils/response");
+const { isStaging, assertStagingAccount, mayEmailFromHere } = require("../utils/stagingGuard");
 
 const formatMemberName = (member) => member?.member_name || "";
 
@@ -186,7 +189,9 @@ async function logout(refreshTokenRaw) {
         const client = makeEphemeralAuthClient();
         const { data, error } = await client.auth.refreshSession({ refresh_token: refreshTokenRaw });
         if (!error && data?.session) {
-            await client.auth.signOut();
+            // Staging (SPEC D-C13): this device only — a global sign-out could end a real login's prod sessions
+            // (auth.users is shared). Prod keeps the default global scope (Phase 3 changes it).
+            await client.auth.signOut(isStaging() ? { scope: "local" } : undefined);
         }
     } catch (_) {
         // no-op
@@ -346,7 +351,8 @@ async function linkProvider(memberId, { provider, id_token, nonce, code, accessT
     }
     if (!id_token) throw new AppError(400, "Missing provider token.");
 
-    const { member } = await getAuthUser(memberId);
+    const { member, user } = await getAuthUser(memberId);
+    assertStagingAccount(user.email); // staging only (SPEC D-C13) — never re-bind a real login's identities
 
     // Bind an EPHEMERAL client to the caller's OWN session, then link the id_token identity onto that user.
     const client = makeEphemeralAuthClient();
@@ -379,6 +385,7 @@ async function unlinkProvider(memberId, { provider, accessToken, refreshToken })
     if (!accessToken || !refreshToken) throw new AppError(400, "Session required to unlink.");
 
     const { member, user } = await getAuthUser(memberId);
+    assertStagingAccount(user.email); // staging only (SPEC D-C13)
     const identities = user.identities || [];
     const target = identities.find((i) => i.provider === provider);
     if (!target) throw new AppError(400, `No ${providerLabel(provider)} account is linked.`);
@@ -664,7 +671,8 @@ async function changeEmail(memberId, newEmailRaw, password) {
 // itself runs through a separate POST /auth/reset-password (next run) — clients never embed Supabase (R1).
 async function requestPasswordReset(emailRaw) {
     const email = normalizeEmail(emailRaw);
-    if (email && EMAIL_RE.test(email)) {
+    // Staging (SPEC D-C13): reset mail only to +stg addresses, never @rasifiters.com; the response stays the same 200.
+    if (email && EMAIL_RE.test(email) && mayEmailFromHere(email)) {
         const redirectTo = passwordResetRedirectUrl();
         let failure = null;
         try {

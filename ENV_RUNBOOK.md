@@ -113,6 +113,8 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | `BLOCK_UNVERSIONED_ANDROID` | switch: `426 {error, code:"update_required"}` on every `/api/*` request (except `GET`/`HEAD /api/app-config` and `POST /api/client-events`) from header-less Android — no `X-App-Version` + `User-Agent: okhttp/…` = the 1.0.0 builds | no | **NEW (D-C5)** — on only when exactly `true` (trimmed, case-insensitive); **default OFF**. Turn on only after the Phase 3 Android build (sends `X-App-Version` on every OkHttp client) is adopted AND a backend change needs it. Operator-managed, not in `render.yaml`; set, then redeploy (on or off takes effect only on the next deploy). |
 | `DB_LOG_SQL` | Sequelize SQL query logging | no | **NEW (observability D-C2, 2026-10-12)** — unset / anything but `"true"` = **off** (prod: leave unset). `"true"` prints every query to stdout — local debugging only (queries carry usernames, emails and push tokens as literals). Not keyed on `NODE_ENV` (unset on Render); not in `render.yaml`. |
 | `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | **Not read by the code** (doc fix 2026-10-12): the origins are hard-coded in `apps/backend/server.js`'s `cors()` block (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`); a new web origin is a backend code change + deploy. The same block sets `maxAge: 7200` + `exposedHeaders: ["Retry-After","X-Request-Id"]` (observability D-C8). iOS/Android are native (no CORS). |
+| `CORS_EXTRA_ORIGINS` | comma-separated browser origins appended to the CORS origin list hard-coded in `server.js` | no | **NEW (auth D-C13, 2026-10)** — staging service only (= the Vercel staging alias, §Staging). Unset on prod → the CORS list is exactly the hard-coded one. |
+| `APP_ENV` | `staging` marks the staging service | no | **NEW (auth D-C13, 2026-10)** — turns on `utils/stagingGuard.js` (login-change guard, staging-only reset mail, local-scope logout, boot check: schema `staging` + user `rasifiters_staging` or no start). **Never set on prod.** A prod process whose `DATABASE_URL` is the staging role still boots but logs `[staging-guard] DATABASE_URL logs in as the staging role…`. §Staging. |
 | `APNS_KEY_ID` | APNs auth-key id | no | **provisioned `RA353TA52W`** (fresh token-based Auth Key for this rebuild; legacy was `F9C876PZ9K`). Push for iOS (the `apn` lib). |
 | `APNS_TEAM_ID` | Apple team id | no | `VSTTF2AM22` (unchanged — same Apple account). |
 | `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | `com.app.rasifiters` — must match the app's `aps-environment` entitlement / build target. |
@@ -134,11 +136,12 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 
 | Var | Purpose | Secret? | Notes / migration change |
 |---|---|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | the Render backend base URL the web client calls | no | **NEW/explicit (R4)** — the web app talks to the shared backend; point at the deployed Render URL (`https://rasifiters-api.onrender.com`). The legacy app selected its API by `NEXT_PUBLIC_API_ENV`; the rebuild uses an explicit base URL. Set on the platform (live). |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase URL for client-side Auth (if the web uses the Supabase JS SDK directly) | no | **NEW (R1)** — only if the web signs in via the Supabase client; if all auth flows route through the backend proxy, this may be unneeded. Confirm at rebuild. Set on the platform (live). |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client anon key for Supabase Auth | **secret-ish** | **NEW (R1)** — anon key only, **never** the service-role key in a `NEXT_PUBLIC_*` var. Set on the platform (live). |
+| `NEXT_PUBLIC_API_ENV` | `prod` → use `NEXT_PUBLIC_API_BASE_URL_PROD`; anything else/unset → `NEXT_PUBLIC_API_BASE_URL_LOCAL` | no | Read by `apps/web/src/lib/config.ts` (live — earlier drafts here wrongly called it retired). Production = `prod`; Preview for branch `staging` = `prod` (§Staging). |
+| `NEXT_PUBLIC_API_BASE_URL_PROD` | API base the web calls when `NEXT_PUBLIC_API_ENV=prod` | no | Production = `https://rasifiters-api.onrender.com/api` (also the code default); Preview `staging` = `https://rasifiters-api-staging.onrender.com/api`. |
+| `NEXT_PUBLIC_API_BASE_URL_LOCAL` | local backend base | no | Unset on Vercel → `http://127.0.0.1:5001/api` (so other preview branches call loopback). |
+| `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` | Google Web OAuth client id (web "Continue with Google") | no | Production + Preview `staging`, same value. |
+| ~~`NEXT_PUBLIC_SUPABASE_URL`~~ / ~~`NEXT_PUBLIC_SUPABASE_ANON_KEY`~~ | — | — | **Not used / not set** — the web has no Supabase dependency; all auth goes through the backend proxy (`apps/web/CONTEXT.md`). |
 | `NEXT_PUBLIC_APP_URL` | the site's own **canonical** origin | no | Drives `metadataBase` + `rel=canonical` (`layout.tsx`), the `sitemap.ts` locs, and `robots.ts` `Host:`/`Sitemap:`. Set to the apex `https://rasifiters.com` (same as the code fallback). **Must match the Vercel redirect direction** — Vercel serves apex, `www` 308→apex; changing one without the other re-breaks indexing (landing SPEC D-LAND-11). |
-| ~~`NEXT_PUBLIC_API_ENV`~~ | (was: `dev`/`prod` switch selecting the API host) | no | **RETIRED at R4** — replaced by the explicit `NEXT_PUBLIC_API_BASE_URL`. Legacy value `prod`. |
 | ~~`JWT_SECRET`~~ | (was: present in the legacy web `.env.local`) | secret | **RETIRED at R1** — the web client holds no JWT signing secret; auth is Supabase via the backend proxy. Legacy value `mysecretkey` (dev placeholder). |
 
 > **Host migration (R4):** the legacy web shipped with `netlify.toml` + `@netlify/plugin-nextjs`
@@ -153,7 +156,7 @@ talks to the **same backend API**. The relevant runbook facts:
 
 | Setting | Where | Notes |
 |---|---|---|
-| API base URL | iOS build config (Xcode) | Point at the deployed Render backend. Mirrors web's `NEXT_PUBLIC_API_BASE_URL`. |
+| API base URL | iOS build config (Xcode) | `Config/APIConfig.swift`: Release → prod (mirrors web's `NEXT_PUBLIC_API_BASE_URL_PROD`); DEBUG → staging (§Staging). |
 | Bundle id | Xcode target / `APNS_BUNDLE_ID` | `com.app.rasifiters` — must match the backend's APNs topic. |
 | Min-version gate | `GET /api/app-config` → `MIN_IOS_VERSION` (backend) | The backend, not the app, owns the force-upgrade threshold. |
 | Push | APNs (Apple) | Backend sends via `APNS_KEY`/`APNS_KEY_ID`/`APNS_TEAM_ID`; the app registers its token (legacy `member_push_tokens`). |
@@ -164,7 +167,7 @@ talks to the **same backend API**. The relevant runbook facts:
 - `DB_URL` (Render) → **`DATABASE_URL`** (Supabase pooled connstring) — R4.
 - **NEW** `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` /
   `SUPABASE_JWT_SECRET` (or `SUPABASE_JWKS_URL`) on the backend — R1.
-- **NEW** `NEXT_PUBLIC_API_BASE_URL` (+ optional `NEXT_PUBLIC_SUPABASE_*`) on the web — R1/R4.
+- Web API selection: `NEXT_PUBLIC_API_ENV=prod` + `NEXT_PUBLIC_API_BASE_URL_PROD` (the legacy switch was kept, not retired — §4); no `NEXT_PUBLIC_SUPABASE_*`.
 - `APNS_KEY_PATH` (local file) → **`APNS_KEY`** (base64) on Render.
 - Hosts: backend **Render (legacy) → Render (new service via Blueprint, fresh account)**, web
   **Netlify → Vercel**, DB/auth **Render Postgres → Supabase**. (The API platform is unchanged — Render —
@@ -174,7 +177,7 @@ talks to the **same backend API**. The relevant runbook facts:
 same domains), and — critically — the **plain legacy table names** (R5: no prefixes) and the
 **preserved `members.id` UUIDs**.
 
-**RETIRED:** `JWT_SECRET` (backend + web), `REFRESH_TOKEN_TTL_DAYS`, `NEXT_PUBLIC_API_ENV`, the
+**RETIRED:** `JWT_SECRET` (backend + web), `REFRESH_TOKEN_TTL_DAYS`, the
 self-issued JWT machinery + the `refresh_tokens` table (R1).
 
 > When adding a NEW env var anywhere: update the app's `.env.example` + this inventory + (if it
@@ -276,3 +279,35 @@ Supabase reloads auth config ~1 min after Save ("reloading api with new configur
 - **Verify (read-only):** `tools/ops-get.sh supabase '/v1/projects/kpadxjekpiwfkqcxtrio/config/auth'` →
   `smtp_host = smtp.resend.com`; then trigger a reset for a non-team address and check
   `tools/supabase-logs.sh` (`/recover` → 200) + the Resend dashboard (Delivered).
+
+## Staging (reliability-overhaul Phase 2 B — DESIGN_BOARD §8, auth SPEC D-C13)
+
+Same Supabase project (schema `staging` + role `rasifiters_staging` — `apps/backend/sql/008` + `sql/README.md`
+§Staging schema); **`auth.users` is shared with prod**. Release builds and `rasifiters.com` never touch staging.
+
+**Render `rasifiters-api-staging`** (free) — every var the prod service has, with these differences:
+
+| Var | Staging value | Secret? |
+|---|---|---|
+| `APP_ENV` | `staging` (never set on prod) | no |
+| `DATABASE_URL` | prod's URL with user `rasifiters_staging.kpadxjekpiwfkqcxtrio` (pooler) + the staging role's password — **user pastes** | **secret** |
+| `CORS_EXTRA_ORIGINS` | `https://rasifiters-git-staging-personal-vinayak.vercel.app` | no |
+| `PASSWORD_RESET_REDIRECT_URL` | `https://rasifiters-git-staging-personal-vinayak.vercel.app/reset-password` (also in Supabase Auth Redirect URLs) | no |
+| `APNS_PRODUCTION` | `false` (Xcode debug builds hold sandbox tokens) | no |
+| same as prod (non-secret) | `SUPABASE_URL`, `MIN_IOS_VERSION`, `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID`, `APPLE_SERVICES_ID`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_BUNDLE_ID` | no |
+| same as prod (secret — **user pastes**) | `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_WEB_CLIENT_SECRET`, `APNS_KEY`, `FIREBASE_SERVICE_ACCOUNT` | **secret** |
+| left unset | the version-gate vars (`LATEST_IOS_VERSION`, `MIN_ANDROID_VERSION_CODE`, `LATEST_ANDROID_VERSION_CODE`, `BLOCK_UNVERSIONED_ANDROID`) → nobody blocked/nudged; set one only for a test that needs it | no |
+
+**Vercel** — Preview env scoped to git branch `staging`: `NEXT_PUBLIC_API_ENV=prod`,
+`NEXT_PUBLIC_API_BASE_URL_PROD=https://rasifiters-api-staging.onrender.com/api`, `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+= the Production value. Production env untouched.
+
+**Clients** — iOS: scheme `RaSi-Fiters-App-Staging` (Run = Debug → `APIConfig.stagingBaseURL`); Android: the
+`debug` build type's `API_BASE_URL`; web: the alias above. Release builds stay on prod.
+
+**Outside the app** — Google Cloud Web OAuth client: the alias is an Authorized JavaScript origin. Supabase Auth
+`uri_allow_list` holds the staging reset URL. Staging accounts use `name+stg@…` / `name+stg-tag@…` emails
+(testbed: `<inbox-local>+stg-<username>@<inbox-domain>` from `TESTBED_STAGING_MAILBOX`); the staging API refuses
+or skips every login-level change for any other account and mails resets only to `+stg` addresses outside
+`@rasifiters.com`. Supabase Auth settings, the 30 emails/hour SMTP limit and the refresh rate limits are shared
+with prod.

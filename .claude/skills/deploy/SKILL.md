@@ -167,6 +167,24 @@ Blueprint / Vercel App), done once per repo in the dashboard; everything else is
    - `npm ci` requires the committed `package-lock.json` in sync; the server binds `process.env.PORT` on
      `0.0.0.0` (Render injects `PORT`, default `10000`).
 
+### C. Staging → Render free service + Vercel branch alias (reliability-overhaul Phase 2 B)
+- **What:** Render `rasifiters-api-staging` (free, `virginia`, branch `staging`, `apps/backend`, `npm ci` /
+  `npm start`, auto-deploy on commit) + the Vercel Preview for git branch `staging` (alias
+  `https://rasifiters-git-staging-personal-vinayak.vercel.app`). Created via the render MCP — NOT in `render.yaml`.
+  Env: `ENV_RUNBOOK.md` §Staging. Its service id is allow-listed in `deploy-scope-guard.sh` and recorded in
+  `apps/backend/CONTEXT.md` §Staging.
+- **Deploy on demand:** `git push origin main:staging` (or `git push --force-with-lease origin <branch>:staging` for
+  unmerged work) — every push with the user's OK. Render rebuilds on every push; Vercel only when `apps/web/**`
+  changed since the branch's last deployment (the project's ignore step).
+- **Wake before every test session:** `curl -s -m 120 https://rasifiters-api-staging.onrender.com/` until it prints
+  "Rasi Fiters API is running!" (~1 min cold start).
+- **Verify a deploy:** the staging service's `GET …/deploys?limit=1` shows a NEW id with `status: live`; its logs
+  show `[staging] APP_ENV=staging — login-change guard active` and `[staging] database schema = staging`.
+- **Seed:** `tools/testbed/README.md` §Staging.
+- **Never** give the prod service the staging role's URL or `APP_ENV`. Prod on the staging schema does NOT refuse
+  to boot (auth D-C13 keeps prod's boot path unchanged) — it only logs `[staging-guard] DATABASE_URL logs in as the
+  staging role…`, so grep the prod logs for `[staging` after any `DATABASE_URL` change.
+
 ### Result
 Push to `main` touching `apps/web/**` → Vercel rebuilds + deploys; touching `apps/backend/**` →
 Render rebuilds + deploys; unrelated commits skip both. Manual deploys still work (`vercel deploy --prod

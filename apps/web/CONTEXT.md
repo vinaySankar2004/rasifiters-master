@@ -57,6 +57,17 @@ the web side** — the web app talks ONLY to the Express backend `/auth/*` proxy
 calls work from the domain. `JWT_SECRET` is **no longer used** — `src/middleware.ts` was changed to decode
 + expiry only (see Foundation port, resolved 2026-06-29), so no edge secret is needed.
 
+**Staging (reliability-overhaul Phase 2 B — auth SPEC D-C13):** git branch **`staging`** builds a Vercel Preview whose
+fixed branch alias is the staging web address — `https://rasifiters-git-staging-personal-vinayak.vercel.app`.
+No app code: three **Preview** env vars scoped to git branch `staging` feed the same `config.ts` —
+`NEXT_PUBLIC_API_ENV=prod`, `NEXT_PUBLIC_API_BASE_URL_PROD=https://rasifiters-api-staging.onrender.com/api`,
+`NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` (same value as Production). Other preview branches get none of these (→ the
+`127.0.0.1` local default); Production env is unchanged. Vercel Authentication stays on for previews
+(`ssoProtection: all_except_custom_domains`): sign in to Vercel once in each browser that opens the alias — do it
+**before** clicking a staging password-reset link, or the login detour drops the link's `#access_token` fragment.
+The alias is in the staging API's `CORS_EXTRA_ORIGINS`, the Google Web OAuth client's JavaScript origins, and
+Supabase Auth's Redirect URLs (`…/reset-password`).
+
 Smoke test on the live domain (2026-06-29): `/splash`·`/login`·`/privacy-policy`·`/support`·`/forgot-password`·
 `/reset-password` → 200; `/summary`·`/members` unauth → 307 → `/login?from=…` (edge guard armed); apex
 `www.rasifiters.com` 308→apex `rasifiters.com`; `og:url` + `rel=canonical` baked to

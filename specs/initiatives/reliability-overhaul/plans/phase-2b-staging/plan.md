@@ -964,13 +964,18 @@ Every action needs the user's explicit yes. The user pastes all secrets; Claude 
   ```
   Pass: 0 rows, or only objects defined in `apps/backend/sql/007_*.sql` (track A) if that file has already run. Any other row: STOP and do not run 008; send the rows back to the planner.
 
+  > **AMENDED P0 (impl review A2, 2026-10-12) — run THIS version, not the query above.** The repo copy is
+  > `apps/backend/sql/README.md` §Staging schema step 0: the query above with
+  > `AND NOT EXISTS (SELECT 1 FROM pg_depend d WHERE d.objid = p.oid AND d.deptype = 'e')` appended to the function
+  > branch (skips extension-owned functions). Expect `app_events` as the only extra table (007 is on prod).
+
 - **C1. Supabase SQL editor (USER):**
   1. Run `008_staging_schema.sql`.
   2. If `007_*.sql` already ran on `public`, run it again with `SET search_path TO staging;` as its first line.
   3. Run `openssl rand -hex 24` locally, then `ALTER ROLE rasifiters_staging WITH PASSWORD '<value>';`.
 
   Then Claude, read-only via the MCP:
-  - **C1-V1 to V4:** the `sql/README.md` §Staging step-5 queries. Expected: 14 (+ A's tables); `t | {"search_path=staging, extensions"}`; `f | t`; equal library counts.
+  - **C1-V1 to V4:** the `sql/README.md` §Staging step-5 queries. Expected: 14 (+ A's tables); `t | 10 | {"search_path=staging, extensions",statement_timeout=30s}` (amended, review A3); `f | t`; equal library counts; plus step 5's isolation block (review A2): `f | f | f`, 0 rows, 0 rows.
   - **C1-V5:** the definition-level diff below. Pass: 0 rows. Any row: STOP before C3; the planner writes a staging-only follow-up migration.
     ```sql
     WITH t(name) AS (VALUES ('members'),('workouts_library'),('programs'),('program_memberships'),('program_workouts'),

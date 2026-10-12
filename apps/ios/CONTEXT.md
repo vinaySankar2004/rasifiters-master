@@ -89,6 +89,17 @@ components) and/or **reboot** (clears the stale CoreSimulator launchd job). Gree
 Xcode → TestFlight → App Store (the user handles signing/upload). Bump the version one higher at push time.
 App config (`min_ios_version`) served by the backend `/app-config`.
 
+## Staging (debug builds — reliability-overhaul Phase 2 B, auth D-C13)
+- `Config/APIConfig.swift`: `#if DEBUG` → `stagingBaseURL` (`https://rasifiters-api-staging.onrender.com/api`);
+  Release → `renderBaseURL` (prod). The loopback constants stay for ad-hoc local-backend runs.
+- **Shared schemes:** `RaSi-Fiters-App` — Run = **Release** → **prod** (unchanged); `RaSi-Fiters-App-Staging` —
+  Run = **Debug** → **staging**. Archive = Release (prod) in both. Pick the scheme in Xcode's scheme menu; the
+  project file is unchanged (Debug/Release differ only by the `DEBUG` flag + `-Onone`).
+- Wake the staging API first (open `https://rasifiters-api-staging.onrender.com/`, wait for the reply), then sign in
+  with a `+stg` staging account (testbed: `ava.rivera` + the shared test password). Sign out before switching
+  schemes — tokens are valid on both (one Supabase project) but map to different members.
+- Push: Xcode builds hold sandbox APNs tokens; staging runs `APNS_PRODUCTION=false`, so staging pushes reach them.
+
 ## Auth screens port (run 51, 2026-06-30)
 
 The iOS public/auth path — **`SplashView` · `LoginView` · `CreateAccountView`** — ported into

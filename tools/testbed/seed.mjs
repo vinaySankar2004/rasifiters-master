@@ -7,7 +7,7 @@
 //
 // POLICY: this NEVER touches the DB directly. Everything goes through the live backend API (the same
 // endpoints the apps use) — so all validation/authorization/business-logic is respected. See
-// apps/backend/CLAUDE.md DB-write policy.
+// the repo-root CLAUDE.md DB-write policy.
 //
 // MODES:
 //   node seed.mjs --reset     Destructive clean slate: delete every program the test members admin,
@@ -20,9 +20,23 @@
 // SECRETS: the password is read from env TESTBED_PASSWORD (repo is public — never hardcode it).
 //   TESTBED_PASSWORD='...' node tools/testbed/seed.mjs --reset
 //
+// STAGING: TESTBED_API_BASE=https://rasifiters-api-staging.onrender.com/api TESTBED_PASSWORD='...' \
+//          TESTBED_STAGING_MAILBOX='you@gmail.com' node tools/testbed/seed.mjs --reset
+//   Only against that exact base: wakes the free instance, and registers a missing test account (401 on login)
+//   with the staging-only email you+stg-<username>@gmail.com (auth SPEC D-C13). Never against prod or a local API:
+//   with TESTBED_STAGING_MAILBOX set and any other base, the script refuses to run.
+//
 // See ./README.md.
 
 const BASE = process.env.TESTBED_API_BASE || "https://rasifiters-api.onrender.com/api";
+// STAGING (auth SPEC D-C13) — matched POSITIVELY: wake + register run only against this exact base, never against
+// prod or a local backend (whose DATABASE_URL may be the live prod DB).
+const STAGING_BASE = "https://rasifiters-api-staging.onrender.com/api";
+const IS_STAGING = BASE.replace(/\/+$/, "") === STAGING_BASE;
+// A real inbox you own (no "+"), e.g. name@gmail.com. A missing staging account is registered as
+// name+stg-<username>@gmail.com — the staging-only email shape the staging API accepts, delivered to that inbox so
+// a staging password-reset test never bounces. Read only when an account has to be registered.
+const STAGING_MAILBOX = (process.env.TESTBED_STAGING_MAILBOX || "").trim().toLowerCase();
 const PASSWORD = process.env.TESTBED_PASSWORD;
 const SEED_DAYS = Number(process.env.TESTBED_SEED_DAYS || 14);
 const END_DATE_DAYS = Number(process.env.TESTBED_END_DAYS || 90);
@@ -91,11 +105,55 @@ async function login(username) {
   return { username, ok: true, token: r.data.access_token || r.data.token, memberId: r.data.member_id || r.data.user?.id };
 }
 
+// Staging only: register a missing test account through the public register endpoint (the path the apps use).
+function namesFor(username) {
+  const parts = username.split(/[._]/).filter(Boolean);
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  return { first_name: cap(parts[0] || username), last_name: cap(parts.slice(1).join(" ") || "Tester") };
+}
+
+async function bootstrap(username) {
+  if (!/^[^\s@+]+@[^\s@]+\.[^\s@]+$/.test(STAGING_MAILBOX)) {
+    log(`  ✗ ${username} — missing on staging; set TESTBED_STAGING_MAILBOX (a real inbox you own, no "+") to register it`);
+    return false;
+  }
+  const [local, domain] = STAGING_MAILBOX.split("@");
+  const { first_name, last_name } = namesFor(username);
+  const r = await api("POST", "/auth/register", null, {
+    username, password: PASSWORD, first_name, last_name, email: `${local}+stg-${username}@${domain}`,
+  });
+  if (r.ok) { log(`  ＋ ${username} registered on staging (+stg-${username} address)`); return true; }
+  // api() retries a cold-start 5xx, but register isn't idempotent: if the first attempt landed, the retry answers
+  // "taken". A working login means the account exists — count it as registered.
+  if ((await login(username)).ok) { log(`  ＋ ${username} registered on staging (register said ${r.status}; login works)`); return true; }
+  log(`  ✗ ${username} — REGISTER FAILED (${r.status} ${r.data?.error || ""})`);
+  return false;
+}
+
+// Free Render instances sleep after 15 min idle and take ~1 min to wake: poll GET / (the health route) for up to
+// 180 s until it answers with the API's own banner (not a platform placeholder page).
+async function wake() {
+  const root = BASE.replace(/\/api\/?$/, "/");
+  const deadline = Date.now() + 180_000;
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(root, { signal: AbortSignal.timeout(60_000) });
+      const text = await res.text();
+      if (res.ok && text.includes("Rasi Fiters API is running!")) { log(`  ✓ ${root} awake`); return true; }
+    } catch { /* still waking */ }
+    await sleep(5000);
+  }
+  log(`  ✗ ${root} did not answer within 180 s`);
+  return false;
+}
+
 // ── phases ──
 async function loginAll() {
   const sessions = {};
   for (const u of MEMBERS) {
-    const s = await login(u);
+    let s = await login(u);
+    // Staging only (D-C13): a missing test account is registered with a +stg email, then logged in again.
+    if (!s.ok && s.status === 401 && IS_STAGING && (await bootstrap(u))) s = await login(u);
     sessions[u] = s;
     log(s.ok ? `  ✓ ${u} (id=${s.memberId})` : `  ✗ ${u} — LOGIN FAILED (${s.status} ${s.error || ""}) — will skip`);
   }
@@ -217,7 +275,13 @@ async function verify(sessions) {
 
 async function main() {
   if (!PASSWORD) { console.error("ERROR: set TESTBED_PASSWORD env var."); process.exit(1); }
+  if (STAGING_MAILBOX && !IS_STAGING) { console.error("TESTBED_STAGING_MAILBOX is set but TESTBED_API_BASE is not the staging URL — refusing (would seed PROD)"); process.exit(1); }
   log(`RaSi test-bed — mode=${MODE} · seedDays=${SEED_DAYS} · endDate=today+${END_DATE_DAYS} · base=${BASE}\n`);
+  if (IS_STAGING) {
+    log("── WAKE (staging API) ──");
+    if (!(await wake())) process.exit(1);
+    log("");
+  }
 
   log("── LOGIN ──");
   const sessions = await loginAll();

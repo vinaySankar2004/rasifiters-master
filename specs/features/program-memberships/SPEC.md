@@ -186,7 +186,9 @@ nulling), and the outcome-message composition. Error contract preserved.
 
 ## 8. Dependencies
 
-- **Upstream:** [`auth`](../auth/SPEC.md) (`authenticateToken`, the program-admin authz pattern);
+- **Upstream:** [`auth`](../auth/SPEC.md) (`authenticateToken`, the program-admin authz pattern; on the staging API
+  `createMemberAndEnroll`'s Supabase admin calls pass through auth's staging guard — [auth D-C13](../auth/SPEC.md),
+  no-op in prod);
   [`members`](../members/SPEC.md) (`Member` + the `createMember` Supabase flow reused by D-C2);
   [`programs`](../programs/SPEC.md) (`Program` + the bootstrap membership it creates).
 - **Referenced / deferred:** `notifications` (the membership-event emits — D-C4); `invites`

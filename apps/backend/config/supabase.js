@@ -11,9 +11,12 @@
 //   • supabaseAdmin             — service-role key; admin ops (createUser / updateUserById / deleteUser /
 //                                 getUserById). Holds no user session, so it stays shared.
 //   • POST /auth/refresh uses no client: services/supabaseTokenRefresh.js calls the token endpoint directly.
+//   • On staging (APP_ENV=staging) supabaseAdmin's createUser / updateUserById / deleteUser are wrapped once by
+//     utils/stagingGuard.guardAdminAuth (SPEC D-C13) — only +stg accounts may be touched. A no-op in prod.
 // Plus verifySupabaseJwt(): verify a Supabase-issued access token via the project's JWKS (D-C2 —
 // asymmetric ES256 keys), returning the decoded payload (its `sub` = auth.users.id).
 const { createClient } = require("@supabase/supabase-js");
+const { guardAdminAuth } = require("../utils/stagingGuard");
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -36,6 +39,7 @@ const serverClientOptions = {
 };
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, serverClientOptions);
+guardAdminAuth(supabaseAdmin.auth.admin); // staging only (D-C13); returns immediately in prod
 
 // A throwaway anon client bound to a single user session — used by logout to revoke one session
 // (set the session from the supplied refresh token, then sign out).

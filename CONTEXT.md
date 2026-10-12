@@ -34,6 +34,12 @@ and standalone (the original app it was ported from is archived, not tracked her
   A **new** service; the legacy backend also ran on Render (its service `RaSi_Fiters_API` was **suspended
   2026-10-11** — 1 request in 30 days; reversible, delete after a quiet month). `/api/auth` deployed + verified
   end-to-end 2026-06-28. (Service ID + deploy detail: canonical home `apps/backend/CONTEXT.md`.)
+- **Staging** (reliability-overhaul Phase 2 B, DESIGN_BOARD §8) — Render **free** service `rasifiters-api-staging`
+  (`https://rasifiters-api-staging.onrender.com`, branch `staging`; wake before use) → the `staging` Postgres schema in
+  the same Supabase project (role `rasifiters_staging`; **shared `auth.users`**, guarded — auth SPEC D-C13) + the
+  Vercel branch alias `https://rasifiters-git-staging-personal-vinayak.vercel.app`. Debug iOS/Android builds point at
+  it; release builds + `rasifiters.com` stay on prod. Detail: `apps/backend/CONTEXT.md` §Staging, `ENV_RUNBOOK.md`
+  §Staging.
 - **Auth email → Resend** (LIVE 2026-10-12; domain `auth.rasifiters.com` verified, DNS in Vercel; sender
   `RaSi Fiters <no-reply@auth.rasifiters.com>`) — Supabase Auth sends password-reset mail through custom SMTP.
   Setup, values + status: `ENV_RUNBOOK.md` §7b.

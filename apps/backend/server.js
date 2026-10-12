@@ -5,6 +5,7 @@ require("dotenv").config();
 require("dotenv").config({ path: ".env.local", override: true });
 const { connectDB } = require("./config/database");
 require("./models/index");
+const { assertDatabaseSchema } = require("./utils/stagingGuard");
 const { requestLog } = require("./middleware/requestLog");
 const { errorHandler } = require("./middleware/errorHandler");
 const { getAppConfig, blockUnversionedAndroid } = require("./middleware/versionGate");
@@ -41,12 +42,21 @@ app.set("trust proxy", 2);
 // middleware's responses, incl. app-config's version-gate 426s) are logged too.
 app.use(requestLog);
 
+// Staging (auth SPEC D-C13): CORS_EXTRA_ORIGINS (comma-separated — the Vercel staging branch alias) is appended
+// to the fixed list below. Unset (prod) → the list is exactly the hard-coded origins. A trailing "/" is dropped:
+// a browser's Origin header never has one.
+const extraCorsOrigins = (process.env.CORS_EXTRA_ORIGINS || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
+
 app.use(cors({
     origin: [
         "http://localhost:3000",
         "https://rasi-fiters.vercel.app",
         "https://rasifiters.com",
-        "https://www.rasifiters.com"
+        "https://www.rasifiters.com",
+        ...extraCorsOrigins
     ],
     credentials: true,
     // observability D-C8: browsers cache the preflight for 2 h (Chrome's cap) — repeat web opens skip it.
@@ -114,6 +124,7 @@ const PORT = process.env.PORT || 5001;
 const startServer = async () => {
     try {
         await connectDB();
+        await assertDatabaseSchema(); // auth D-C13: staging must be on `staging`; prod only logs if it is
         console.log("Database connected successfully");
         // Bind 0.0.0.0 explicitly — Render (and most PaaS) require it to route external traffic.
         app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));

@@ -20,7 +20,7 @@ password: <the shared test password>   (see TESTBED_PASSWORD below)
 ## Safety / policy
 
 - **API-only.** The script talks exclusively to the live backend API (the same endpoints the apps use).
-  It never runs SQL against the DB — this respects `apps/backend/CLAUDE.md`'s DB-write policy and keeps
+  It never runs SQL against the DB — this respects the repo-root `CLAUDE.md` DB-write policy and keeps
   all validation/authorization intact.
 - **No secrets in the repo** (this repo is public). The password comes from the `TESTBED_PASSWORD` env
   var; usernames / role matrix / program names are non-secret and live in `seed.mjs`.
@@ -38,7 +38,24 @@ TESTBED_PASSWORD='<pw>' node tools/testbed/seed.mjs --reset
 ```
 
 Optional env: `TESTBED_SEED_DAYS` (default 14), `TESTBED_END_DAYS` (default 90),
-`TESTBED_API_BASE` (default the prod Render API).
+`TESTBED_API_BASE` (default the prod Render API), `TESTBED_STAGING_MAILBOX` (staging only — see below).
+
+## Staging (reliability-overhaul Phase 2 B)
+
+The same script seeds the **staging** API (schema `staging`, shared Supabase Auth) — still API-only:
+
+```bash
+TESTBED_API_BASE=https://rasifiters-api-staging.onrender.com/api TESTBED_PASSWORD='<pw>' \
+  TESTBED_STAGING_MAILBOX='<a real inbox you own, no "+">' node tools/testbed/seed.mjs --reset
+```
+
+Only when `TESTBED_API_BASE` is exactly that URL, it first **wakes** the API (polls `GET /` for up to 180 s
+until it answers "Rasi Fiters API is running!" — the free instance sleeps after 15 min idle). When a test account
+can't log in (401) it **registers** it via `POST /auth/register` with the staging-only email
+`<inbox-local>+stg-<username>@<inbox-domain>` (names derived from the username) and logs in again — the staging
+API accepts only `+stg` emails (auth SPEC D-C13). Registering sends no email; a staging forgot-password for these
+accounts arrives in that inbox. Use `--reset` the first time, then the default refresh. Against prod or any other
+base, neither step runs.
 
 ## The role matrix (edit `PROGRAMS` in `seed.mjs` to change)
 

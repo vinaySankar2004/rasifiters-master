@@ -45,11 +45,12 @@ android {
 
     buildTypes {
         debug {
-            // We ALWAYS develop/test against the main live backend (Render → live Supabase Auth/DB),
-            // even in dev — so debug points at the same prod API as release, not a local loopback.
-            // (Local-backend testing is the exception: temporarily swap to "http://10.0.2.2:5001/api",
-            // the emulator's alias for the host Mac's localhost.)
-            buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api.onrender.com/api\"")
+            // Debug builds talk to STAGING (reliability-overhaul board §8 / auth D-C13): the free Render service
+            // rasifiters-api-staging → the `staging` Postgres schema (shared Supabase Auth). Release stays on prod.
+            // Wake it first (open https://rasifiters-api-staging.onrender.com/ and wait for the reply — it sleeps after
+            // 15 min idle). Local-backend testing is the exception: temporarily swap to "http://10.0.2.2:5001/api",
+            // the emulator's alias for the host Mac's localhost.
+            buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api-staging.onrender.com/api\"")
             // Credential Manager's serverClientId — the Google Cloud OAuth WEB client id (non-secret; it's the
             // audience the backend verifies the Google id_token against). USER must fill this in.
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"938606130476-9vhk5o43c2g0ib4a167l1o4mmnt52f9b.apps.googleusercontent.com\"")

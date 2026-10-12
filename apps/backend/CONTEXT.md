@@ -43,6 +43,31 @@ auto-deploy on push to `main` touching `apps/backend/**`. The 3 secrets (`DATABA
 `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are dashboard-entered `sync: false` Blueprint vars. Env
 per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 
+## Staging (reliability-overhaul Phase 2 B — DESIGN_BOARD §8, auth SPEC D-C13)
+- **Service:** Render web service `rasifiters-api-staging` (**free**, region `virginia`, branch `staging`,
+  auto-deploy on commit, `apps/backend`, `npm ci` / `npm start`) → `https://rasifiters-api-staging.onrender.com`.
+  Created via the render MCP — not in `render.yaml`. Sleeps after 15 min idle: **wake it before a test session**
+  (open `https://rasifiters-api-staging.onrender.com/`, wait for "Rasi Fiters API is running!", ~1 min cold).
+- **Deploy on demand:** push the commit to test to the `staging` branch (`git push origin main:staging`, or
+  `git push --force-with-lease origin <branch>:staging` for unmerged work). The Vercel staging alias
+  (`https://rasifiters-git-staging-personal-vinayak.vercel.app`) builds from the same branch.
+- **Data:** the `staging` Postgres schema (`sql/008`, plus `sql/007` re-applied there), reached by `DATABASE_URL`
+  logging in as role `rasifiters_staging` (`search_path = staging, extensions`; no privilege on `public`). Backend
+  JS never names a schema. Boot check: staging refuses to start unless `current_schema()` = `staging` and
+  `current_user` = `rasifiters_staging`; prod never refuses — it only logs
+  `[staging-guard] DATABASE_URL logs in as the staging role…` if it finds itself on `staging`.
+- **Env (staging only):** `APP_ENV=staging` (turns on `utils/stagingGuard.js`), `CORS_EXTRA_ORIGINS`,
+  `APNS_PRODUCTION=false`, `PASSWORD_RESET_REDIRECT_URL` → the staging alias; the rest equals prod
+  (`ENV_RUNBOOK.md` §Staging). **Never set `APP_ENV` on prod.**
+- **Shared auth:** one `auth.users` for both. Staging accounts use `name+stg@…` / `name+stg-tag@…` emails; the guard
+  refuses (create / update → 403) or skips (delete) every login-level change for any other account, and sends reset
+  mail only to `+stg` addresses outside `@rasifiters.com` (auth SPEC D-C13).
+- **Seed:** `tools/testbed/seed.mjs` with `TESTBED_API_BASE=https://rasifiters-api-staging.onrender.com/api` and
+  `TESTBED_STAGING_MAILBOX` (wakes the service, registers missing `+stg-<username>` accounts, seeds) —
+  `tools/testbed/README.md` §Staging. No `global_admin` exists on staging (none can be created through the API),
+  so `POST /members`, member delete and workout-library CRUD are untestable there until a staging-only migration
+  adds one.
+
 ## Runtime + observability (as of 2026-10-12)
 - Render plan **Starter**: 1 instance, 0.5 vCPU / 512 MB, region `virginia` (next to Supabase `us-east-1`
   on purpose — one screen issues many queries). Fronted by Cloudflare (TLS terminates at the nearest edge).

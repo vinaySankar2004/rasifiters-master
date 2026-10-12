@@ -146,7 +146,8 @@ update whitelist, and the `global_admin` delete block.
 
 - **Upstream:** [`auth`](../auth/SPEC.md) — `authenticateToken` (establishes `req.user`) + `isAdmin` gate
   the routes; Supabase admin API + `members.auth_user_id` (created by the migrator) power the `createMember`
-  change.
+  change. On the staging API (`APP_ENV=staging`) those admin calls pass through auth's staging guard — see
+  [auth D-C13](../auth/SPEC.md) (no-op in prod).
 - **Downstream / referenced:** `program-memberships`, `invites`, `notifications` — own the `deleteMember`
   cascade tables + utils (deferred). No feature depends on `members`' write routes today (clients use
   `/auth/register` + `/program-memberships`).
