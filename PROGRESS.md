@@ -31,8 +31,11 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (rolling state + the Session 1 kickoff prompt) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
 > (scope, evidence, suspects, phase plan). **2026-10-11:** Step 0 (token access, no OAuth — `CLAUDE.md`
 > §MCP Servers) ✅ · Phase 0 discovery ✅ · **design board approved** ([`DESIGN_BOARD.md`](specs/initiatives/reliability-overhaul/DESIGN_BOARD.md)).
-> **Now:** Phase 1b backend hotfixes in progress + password-reset email (Resend) being switched on — exact
-> state in the initiative `HANDOFF.md`. Then Phase 2 foundations (parallel tracks — BRIEF §7).
+> **Phase 1b (2026-10-12):** H1 auth hotfix (auth 0.10.0 / D-C11) + H3 analytics membership gate (analytics
+> 0.4.0 / D-C8, analytics-v2 0.2.0 / D-C3) **deployed + verified** (prod smoke 27/27, all 3 surfaces);
+> password-reset email via Resend **live**. H2 (refresh rate limit) = one admin-token call awaiting the user's
+> OK; 7-day Supabase-log watch running (initiative `HANDOFF.md`). **Next:** Phase 2 foundations (parallel
+> tracks — BRIEF §7).
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

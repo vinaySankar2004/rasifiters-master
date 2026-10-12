@@ -9,29 +9,22 @@
 
 - **Phase:** Session 1 (2026-10-11). Step 0 ✅ → Phase 0 ✅ → walkthrough ✅ → **design board ✅ APPROVED**
   ([`DESIGN_BOARD.md`](DESIGN_BOARD.md) — D-1…D-14 as recommended except D-10 → free staging; add-ons
-  D-15…D-17 in its §11) → console tour ✅ → **Phase 1b hotfixes IN PROGRESS.** Phases + parallel tracks:
-  [`BRIEF.md`](BRIEF.md) §7.
-- **IN FLIGHT 1 — Phase 1b (H1 auth hotfix + H3 analytics membership check), plan APPROVED by the user incl.
-  the wider refresh rule D-C11.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/). An `implementer`
-  agent was launched in the background (edits ONLY the 7 backend files; NO commit, NO push; offline harness in
-  the session scratchpad; also folds verdict #6 (log reset errors server-side) + #8 (TLS JWKS errors → 503)).
-  ✅ Implementer done (harness 100+31+55+29) · ✅ `impl-adversary` PASS-WITH-FIXES, no blockers (fixed the one
-  code nit — Google-exchange comment; #3 → F15 + measure `/recover` latency in D-15) · ✅ local smoke WITHOUT
-  credentials 28/28 (garbage refresh → 401 via real Supabase `400 validation_failed`; dead/black-hole Supabase →
-  503 + `Retry-After: 5` in ≤ 7 s; no tokens in logs) · ✅ **committed LOCALLY, NOT pushed:** `6524a59`
-  (H1, tag `feature/auth@v0.10.0`) + `502164f` (H3, tags `feature/analytics@v0.4.0`,
-  `feature/analytics-v2@v0.2.0`; SPEC docs incl. all verdict advisories, F12–F16, 14 page SPECs) · ✅ **user OK'd
-  the push → DEPLOYED 2026-10-12** (`9f05973` live on Render, health 200; tags pushed). **Next:**
-  (5) the USER runs the credentialed prod smoke (`phase1b-smoke.sh` in Session 1's scratchpad — plan E2 script,
-  prod default, prompts for the password; PASS/FAIL only — Claude never sends passwords to prod) + checks
-  iPhone / Pixel / web (Summary + Lifestyle load, nobody signed out); (6) D9 docs commit (PROGRESS + this
-  file, plan lines are stale — match on text); (7) H2 admin-token call (user OK); (8) 7-day watch (plan E8 +
-  `[auth] password reset request failed`; note: a garbage-token smoke adds `validation_failed`, not
-  `refresh_token_not_found`).
-- ~~**IN FLIGHT 2 — D-15 password-reset email (Resend).**~~ **DONE 2026-10-12** — Supabase SMTP → Resend
-  live; a real reset was Delivered, `/recover` 200 in 324 ms (verdict #3 / auth F15: far under the 5 s cap),
-  new password worked. First two keys were mis-pasted (535 in auth logs) — gotcha in ENV_RUNBOOK §7b.
-  Leftover: the user deletes the two unused Resend keys (`supabase-auth-smtp`, `-2`).
+  D-15…D-17 in its §11) → console tour ✅ → **Phase 1b: H1 + H3 DEPLOYED + verified 2026-10-12** (auth 0.10.0
+  / D-C11; analytics 0.4.0 / D-C8 + analytics-v2 0.2.0 / D-C3) — **H2 pending** (admin-token call) + 7-day log
+  watch running. Phases + parallel tracks: [`BRIEF.md`](BRIEF.md) §7.
+- ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
+  Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
+  F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
+  (H3, `feature/analytics@v0.4.0`, `feature/analytics-v2@v0.2.0`) → **user OK'd push → live on Render**
+  (`9f05973`, health 200) → **prod smoke 27/27 PASS** (user ran it; Render logs confirm) → **user verified
+  iPhone + Pixel + web** (Summary/Lifestyle load, nobody signed out). Smoke script: Session 1 scratchpad
+  `phase1b-smoke.sh` (= plan E2 script; prod default; prompts for the shared testbed password — the same one
+  given to App Review). Note for E8: a garbage-token smoke adds `validation_failed`, not
+  `refresh_token_not_found`.
+- ✅ **D-15 password-reset email (Resend) — DONE 2026-10-12.** Supabase SMTP → Resend live; a real reset was
+  Delivered, `/recover` 200 in 324 ms (auth F15: far under the 5 s cap), new password worked. First two keys
+  were mis-pasted (535 in auth logs) — gotcha in ENV_RUNBOOK §7b; the user deleted the two unused keys
+  (`-3` in use).
 - **Done today (verified):** W5 Android Google sign-in fixed in the console (Play-key OAuth client) and
   verified on the Pixel by the user · legacy `RaSi_Fiters_API` suspended (D-16) · Vercel ignore step fixed
   (D-17; first push built READY) · TestFlight 1.4.3 (57) left to lapse (RELEASES.md) · console tour complete —
@@ -102,7 +95,8 @@
   first loads its *last stored* session (another user's) and, if near expiry, rotates THAT user's token
   server-side (`GoTrueClient.js` `__loadSession` ~L2456-2486) — prod shows 59 such cross-user pairs in 30 d
   (W1 E6), a silent token-drift source for every platform.
-- **Two out-of-scope security fixes offered as task chips (user decides; not part of the board):**
+- ~~**Two out-of-scope security fixes offered as task chips (user decides; not part of the board):**~~
+  **DONE 2026-10-12** (H1 → auth D-C11; H3 → analytics D-C8):
   (1) cross-user refresh-token leak — backend refreshes on the shared Supabase client, auth-js 2.108.2
   dedups concurrent refreshes across callers (`authService.js:158`); fix = per-request client.
   (2) `/api/analytics*` lacks program-membership checks.
@@ -148,7 +142,13 @@
 
 ## Next action
 
-1. Finish **Phase 1b** (steps in "IN FLIGHT 1"): user prod smoke → D9 docs → H2 rate-limit call → log watch.
+1. **Phase 1b — finish:** (a) **H2** — one admin-token Management API call, `rate_limit_token_refresh`
+   150 → 1,500 (user approves; record its timestamp — it confounds the 429 trend). (b) **7-day watch from
+   2026-10-12** (plan E8 queries): `refresh_token_already_used`/day (baseline ≈ 1.6/day), 429
+   `over_request_rate_limit`/day (≈ 1.3/day), Render `[refresh] auth_unavailable|session_invalid` +
+   `[auth] token verification unavailable` + `[auth] password reset request failed` counts, cross-user token
+   pairs < 200 ms (baseline 59/30 d → expect ≈ 0). Gate to Phase 2 (board §12): reuse kills + 429s drop; no
+   cross-user refresh.
 2. ~~Finish **D-15**~~ **DONE 2026-10-12.**
 3. Start **Phase 2** tracks A–D in parallel (BRIEF §7): observability, staging, version-gate backend, frontend
    kits — each via `multiplex` (plan-pipeline → user approves → implementers in parallel worktrees).
@@ -177,7 +177,7 @@ Verify any token without printing it: read it from the file inside the command a
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | ⬜ | ⬜ |
+| W1 | Sessions / auth | ✅ | ✅ | 1b hotfix (H1) done | partial — H1 live 2026-10-12 |
 | W2 | Push + invites | ✅ | ✅ | ⬜ | ⬜ |
 | W3 | iOS health sync | ✅ | ✅ | ⬜ | ⬜ |
 | W4 | Android health sync | ✅ | ✅ | ⬜ | ⬜ |
@@ -200,6 +200,9 @@ Verify any token without printing it: read it from the file inside the command a
   **approved**. Console tour in the built-in browser: W5 Google sign-in fixed + verified, legacy API suspended,
   Vercel ignore step fixed, password-reset email gap found → Resend set up (SMTP save pending). Phase 1b plan
   approved; implementer running.
+- **2026-10-12** — Phase 1b: H1 (stateless auth proxy + classified refresh/JWT errors, auth 0.10.0) + H3
+  (analytics membership gate, analytics 0.4.0 / analytics-v2 0.2.0) adversary-reviewed → deployed → prod smoke
+  27/27 + user device check on all 3 surfaces. D-15 Resend SMTP live (real reset delivered). H2 pending.
 
 ## Kickoff prompt — Session 1
 
