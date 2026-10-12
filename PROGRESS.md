@@ -34,8 +34,11 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > **Phase 1b (2026-10-12):** H1 auth hotfix (auth 0.10.0 / D-C11) + H3 analytics membership gate (analytics
 > 0.4.0 / D-C8, analytics-v2 0.2.0 / D-C3) **deployed + verified** (prod smoke 27/27, all 3 surfaces);
 > password-reset email via Resend **live**; H2 refresh rate limit raised 150 → 1,500. 7-day Supabase-log
-> watch running to 2026-10-19 (initiative `HANDOFF.md`). **Next:** Phase 2 foundations (parallel
-> tracks — BRIEF §7).
+> watch running to 2026-10-19 (initiative `HANDOFF.md`).
+> **Phase 2 (2026-10-12) — COMPLETE:** C version gate (app-config 0.2.0) · A observability (0.1.1: request log,
+> `app_events` + `POST /api/client-events`, SQL logging off, password-in-logs fix) · D frontend kits (0.1.0, unadopted)
+> · B staging (auth 0.12.0: `staging` schema + `rasifiters-api-staging` + Vercel `staging` preview). **Next:** Phase 3
+> (reliability — BRIEF §7) once the Phase 1b watch ends.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

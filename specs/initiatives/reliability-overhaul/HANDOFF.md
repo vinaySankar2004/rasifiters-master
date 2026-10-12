@@ -87,6 +87,14 @@
   **staging LIVE**: boot logs `[staging] … guard active` + `schema = staging, user = rasifiters_staging`; non-`+stg`
   register → 403 (nothing created). **Next:** C8 (admin token: `uri_allow_list` = `https://rasifiters.com/**` +
   `,https://<alias>/reset-password`) → C9 Google Web client JS origin → C10 seed (user: password + inbox) → C11.
+  ✅ **C8** `uri_allow_list` += staging reset URL (admin token, user OK; read back) · ✅ **C9** Google Web client JS
+  origin 4 = the staging alias (browser pane, user OK; verified on reload) · ✅ **C10** user seeded staging (7 `+stg`
+  accounts, 3 programs, ava admin/logger/member; 119 workout + 182 health logs; no placeholder accounts) · ✅ **C11**
+  guard 403 on non-`+stg` register; **user verified staging on web + iPhone simulator** (Android not run — the user's
+  call; the switch is one `BuildConfig` URL, verified in review). **PHASE 2 COMPLETE (2026-10-12)** — exit gate met:
+  request logs + events live, staging answers, kits compile on all three.
+  **User preferences recorded (memory):** use staging only for risky changes (migrations/auth), not as a default
+  step — esp. mobile; keep local disk lean (cleaned ~1.4 GB of build/scratch output; 104 GB free).
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
