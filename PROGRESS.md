@@ -29,9 +29,9 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > notification redesign + a light social layer. **Start here:**
 > [`specs/initiatives/reliability-overhaul/HANDOFF.md`](specs/initiatives/reliability-overhaul/HANDOFF.md)
 > (rolling state + the Session 1 kickoff prompt) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
-> (scope, evidence, suspects, phase plan). **Step 0 done 2026-10-11** (token-based access to Render /
-> Vercel / Supabase, no OAuth — see `CLAUDE.md` §MCP Servers) → Phase 0 discovery → Phase 1 design board.
-> No app code before the board is approved.
+> (scope, evidence, suspects, phase plan). **2026-10-11:** Step 0 (token access, no OAuth — `CLAUDE.md`
+> §MCP Servers) ✅ · Phase 0 discovery ✅ · **design board approved** ([`DESIGN_BOARD.md`](specs/initiatives/reliability-overhaul/DESIGN_BOARD.md)).
+> **Next:** Phase 1b backend hotfixes, then Phase 2 foundations (parallel tracks — BRIEF §7).
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

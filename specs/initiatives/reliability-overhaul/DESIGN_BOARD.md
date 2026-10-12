@@ -1,7 +1,8 @@
 # Reliability overhaul — Phase 1 design board
 
-> **Status:** DRAFT for user approval (2026-10-11), revised after a plan-adversary review (12 findings, all
-> verified and folded in). Canonical text; the Artifact renders it. Inputs: the 7 verified discovery briefs
+> **Status:** ✅ **APPROVED by the user 2026-10-11** (answers recorded in the board's store: D-1…D-9 and D-11…D-14
+> accepted as recommended; **D-10 changed → free staging instance**). Revised before approval after a
+> plan-adversary review (12 findings, all verified and folded in). Canonical text; the Artifact renders it. Inputs: the 7 verified discovery briefs
 > (`discovery/`) + the user's walkthrough decisions (`HANDOFF.md`). On approval: decisions → `BRIEF.md` §6 +
 > per-feature SPEC §9 D-rules as each workstream lands; build phases → `BRIEF.md` §7 + `HANDOFF.md`.
 > Nothing here is code. **Legend:** ✅ decided by the user · ◆ proposed — needs your OK.
@@ -201,7 +202,7 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 |---|---|
 | Data | A `staging` Postgres schema with **identical table names** (R5 — no prefixes). **Schema only, no copy of prod data** |
 | Isolation | A `rasifiters_staging` role that can only touch `staging` (`ALTER ROLE … SET search_path = staging, extensions`); the staging API connects as it and cannot read or write prod tables. The role's password is set by the user in the SQL editor — never in a migration file. (Backend JS never names a schema; checked.) |
-| API | A second Render web service `rasifiters-api-staging`, same repo, deploys on demand — instance size is D-10 |
+| API | A second Render web service `rasifiters-api-staging`, same repo, deploys on demand, on the **free** instance (D-10 ✅). It sleeps after 15 min idle: **wake it before a test session** (open its health URL and wait for the reply) so the first refresh doesn't hit a cold start |
 | Clients | Debug iOS/Android builds + **one fixed staging web address** (a Vercel branch alias) point at the staging API; release builds + `rasifiters.com` stay on prod. The staging address is added to the API's CORS list and to Google sign-in origins. Supersedes "dev tests against live backend" |
 | Auth (shared!) | One Supabase project = **one shared login table**. Staging accounts use **staging-only emails** (e.g. `name+stg@…`), seeded by a staging run of the testbed seeder. **Guard:** the staging API refuses every login-level change — delete user, change email/password, link/unlink identity, global sign-out, the Google sign-up clean-up — unless the account's email is staging-only. A real prod login can never be altered from staging |
 | Config | `APNS_PRODUCTION=false` (debug builds get sandbox push tokens); password-reset links point at the staging web address; push only reaches test devices |
@@ -228,7 +229,7 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 - **Layout:** the Members tab grows into People on all three surfaces — a page redesign, done after the W7 kit
   exists so it's built once.
 
-## 11. Decisions for you
+## 11. Decisions (✅ all answered 2026-10-11 — accepted as recommended unless noted)
 
 | # | Decision | Recommendation |
 |---|---|---|
@@ -241,7 +242,7 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 | D-7 | Synced workout bounds | Skip single workouts > 12 h; day total ≤ 24 h |
 | D-8 | Same member re-signs in → resume sync, no review screen | **Yes** |
 | D-9 | On-device cache for the launch screens (picker + Summary) | **Yes** — biggest win for far-away users |
-| D-10 | Staging API instance: free (sleeps after 15 min idle; first request ~1 min, which also trips auth timeouts while testing) or Starter ($7/month, always on) | **Starter** — reliable testing of the very flows we're fixing; free only if cost matters more |
+| D-10 | Staging API instance | ✅ **Free** (user: "it's only me in staging; we test at a go") — wake it before each test session |
 | D-11 | Realtime: fix SSE vs move to Supabase Realtime; web push | **Fix SSE**; web push not now |
 | D-12 | Invite feedback: privacy for 4xx, real errors for 5xx/timeouts | **Yes** |
 | D-13 | Client releases: one bundled "reliability release" per mobile platform | **Bundled** (one adoption push; the gate enforces it) |

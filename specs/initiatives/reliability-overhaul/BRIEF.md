@@ -1,7 +1,7 @@
 # Reliability overhaul — initiative brief
 
-> **Status:** scoped 2026-10-10 · **Next:** Session 1 = Step 0 (credentials) → Phase 0 (discovery) →
-> Phase 1 (design board). **No app code changes before the user approves the design board.**
+> **Status:** scoped 2026-10-10 · Step 0 + Phase 0 + **design board approved 2026-10-11** · **Next:** Phase 1b
+> hotfixes, then Phase 2 foundations (§7). The approved board is the decision record: [`DESIGN_BOARD.md`](DESIGN_BOARD.md).
 > Rolling state lives in [`HANDOFF.md`](HANDOFF.md) (read it first when resuming). Decision record: R8 in
 > `METHODOLOGY.md`. Durable outcomes graduate into feature SPEC §9 D-rules as each workstream lands.
 
@@ -90,10 +90,16 @@ logs API); no client crash/error reporting on any surface. (Infra facts: `apps/b
 ## 6. Decisions already made
 
 - **Stack stays** — Supabase (Pro) + Render + Vercel. AWS evaluated and shelved (R8).
-- **Staging = the same Supabase project, "staging tables"** — no second Supabase project. Mechanism decided
-  on the design board; candidate: a separate Postgres schema with identical table names (honors R5 — no
-  prefixes). Open: `auth.users` is per-project, so staging test accounts would share prod Auth; whether the
-  staging API is a second Render service. A staging path supersedes the "test against live" convention.
+- **Staging = the same Supabase project, "staging tables"** — no second Supabase project. **Mechanism
+  (board §8, approved):** a `staging` Postgres schema with identical table names (R5), a staging-only Postgres
+  role, a second Render service `rasifiters-api-staging` on the **free** instance (D-10), staging-only emails +
+  a login-change guard (shared `auth.users`), schema-neutral migrations run per schema. Supersedes the "test
+  against live" convention once live.
+- **Design board approved 2026-10-11** ([`DESIGN_BOARD.md`](DESIGN_BOARD.md)) — the per-workstream contracts
+  (§1–§7), staging (§8), notification + People concepts (§9–§10) and decisions **D-1…D-14** (all as recommended
+  except D-10 → free staging). Standing rules from the walkthrough: **don't over-engineer**; **no shims for old
+  binaries** (everyone updates; a version gate on iOS + Android blocks old builds only when needed); **free
+  observability**; one brand palette = web's.
 - **Supabase access = two project-scoped (`rasifiters`) tokens** (user decision 2026-10-10):
   `SUPABASE_ACCESS_TOKEN` = **read-only**, the default for every metric / log / setting / advisor read, no
   prompts; `SUPABASE_ADMIN_TOKEN` = **full access**, used only for deliberate changes (auth settings, staging
@@ -106,28 +112,28 @@ logs API); no client crash/error reporting on any surface. (Infra facts: `apps/b
 - **Worldwide = one region + fewer round trips + on-device caching.** Revisit region only with real
   per-country latency data.
 
-## 7. Phase plan (proposed — the user approves it on the design board)
+## 7. Phase plan (approved 2026-10-11 — board §12)
 
-| Phase | What | Output |
-|---|---|---|
-| **Step 0** | **Credentials, no OAuth.** Token-based access to all three services so no session needs a browser login: Render (`RENDER_API_KEY`, works), Vercel (`VERCEL_TOKEN`, verified), Supabase (`SUPABASE_ACCESS_TOKEN` read-only + `SUPABASE_ADMIN_TOKEN` full — §6) — values in gitignored `.claude/settings.local.json` `env`. Verify whether each hosted MCP accepts a Bearer header (Supabase MCP → the read-only token, `read_only=true`); otherwise use the CLI/REST with the token. Prove each with a read-only call (Render logs, Vercel logs, Supabase Management API auth settings + logs). **Guardrail:** a PreToolUse hook that returns *ask* for any command referencing `SUPABASE_ADMIN_TOKEN` (and keeps the `db-readonly-guard` + `deploy-scope-guard` behaviour). Update `CLAUDE.md` (MCP section + Database Write Policy), `.mcp.json`, `.env.mcp.example`, hooks | Working, documented, no-OAuth access with an approval gate on every write-capable call |
-| **0 — Discovery** | Read-only, parallel agents, one per workstream: **W1** sessions/auth (all surfaces + Supabase settings) · **W2** push + invites · **W3** iOS health sync · **W4** Android health sync · **W5** Android Google sign-in · **W6** observability + perf baseline · **W7** frontend loading/error/design consistency | One evidence brief per workstream: current behavior with file:line, failure modes, S1–S9 confirmed/refuted, what industry-standard looks like |
-| **1 — Design board** | Artifact: per workstream current vs target, the shared contract, decisions for the user; staging mechanism; notification redesign + social layer at concept level | User-approved board → SPEC §9 D-rules |
-| **2 — Foundations** | Observability (request logging, client error reporting), staging, shared loading/error primitives per surface | |
-| **3 — Reliability fixes** | W1 sessions → W3/W4 sync → W2 push/invites → W5 Google sign-in; `multiplex` per item, per-surface implementers in parallel, backend first | User tests on iPhone + Pixel + web |
-| **4 — Features** | Notification redesign (taxonomy, preferences, inbox, scheduled/engagement pushes — App Store rule: promotional pushes need explicit opt-in), then the social layer (privacy model first, then page redesigns) | |
+Done: **Step 0** (token access, `token-guard` hook — 2026-10-11) · **Phase 0** discovery (7 verified briefs in
+`discovery/`) · **Phase 1** design board (approved). Each track runs through `multiplex` (scout → plan →
+plan-adversary → **user approves** → implementer(s) → impl-adversary → compile-check → `git-version` → user
+tests). Tracks inside a phase run **in parallel** (separate worktrees per surface); backend before clients.
+
+| Phase | Parallel tracks | Surfaces | Depends on | Exit gate |
+|---|---|---|---|---|
+| **1b — Hotfixes** | **H1** auth hotfix (D-1): stateless proxy for every shared-client call, refresh = one direct `/token` call (5 s timeout, no replay), 503 for transient refresh + JWT-verify failures · **H2** raise `rate_limit_token_refresh` 150 → 1,500 (D-2; one admin-token call) · **H3** analytics membership check (D-3) | backend (+ Supabase setting) | — | Supabase auth logs: reuse + 429 errors drop; no cross-user refresh possible |
+| **2 — Foundations** | **A** observability: structured request log, SQL logging off, `app_events` + `POST /api/client-events` (works signed-out), version headers accepted, CORS preflight cache (migrations straight to prod) · **B** staging: schema + role migration, `rasifiters-api-staging` (free), staging web alias, client env switches, login-change guard, `APNS_PRODUCTION=false` · **C** version gate backend: `app-config` additive fields + `BLOCK_UNVERSIONED_ANDROID` switch (off) · **D** frontend kits: web / iOS / Android in parallel (async state, error vocabulary, banners, offline, palette tokens) | A–C backend · D web+iOS+Android | 1b | Request logs + events live; staging answers; kits compile on all three |
+| **3 — Reliability** | **Backend first (parallel):** R1 per-user rate limits (secret key, D-4) + logout `local` / password `others` scopes · R2 sync v2 endpoint + permanent sample ledger + per-sample/per-field provenance migration + bounds (D-7) · R3 invite transaction + `push_deliveries` + device registry (`last_seen`, unauthenticated unregister) + APNs/FCM settings + SSE fixes. **Then one bundled release per surface (parallel implementers):** sessions contract → sync contract (catch-up 30 d, resume, review once) → invites/push (Android inbox) → Google button (Android) → kit adoption on touched screens → version gate UI + soft nudge | backend, then web + iOS + Android | 2 (staging + kits) | User tests on iPhone + Pixel + web **against staging**, then prod; gate raised once adoption allows |
+| **4 — Features** | Notification redesign (categories, preferences, inbox, local-time scheduler; engagement opt-in) → People layer (program People list, privacy defaults, page redesigns) | all | 3 | — |
 
 Every phase closes with a `HANDOFF.md` update + `git-version` commit + push.
 
-## 8. Open questions (for the design board)
+## 8. Open questions
 
-- Staging mechanism (schema vs. other) and whether a staging Render service is needed.
-- Client error reporting tool (Firebase Crashlytics is natural on Android — Firebase already wired for FCM —
-  vs. one tool across all three surfaces).
-- Render log retention: a log stream/drain vs. in-app request logging only.
-- Notification taxonomy, preferences model, and engagement-push policy.
-- Social model: followers vs. friends vs. per-program people list; privacy defaults.
-- Long-term region (only once per-country latency is measured).
+Resolved by the approved board (2026-10-11): staging mechanism (§6), error reporting (free: own event tables
++ Xcode Organizer / Play vitals), log retention (event tables, 90 days), notification taxonomy (concept §9),
+social model (program People list first). Still open: long-term region (only once per-country latency is
+measured from the new request logs).
 
 ## 9. Operating model
 

@@ -7,15 +7,20 @@
 
 ## Now
 
-- **Phase:** Session 1 (2026-10-11). **Step 0 ✅** → **Phase 0 discovery ✅** (all 7 briefs in + verified;
-  index + corrections: [`discovery/README.md`](discovery/README.md)) → **walkthrough with the user, one
-  workstream at a time** (W1 → W7; W5 includes the live logcat capture). Then Phase 1 board.
-- **In flight:** nothing. **Walkthrough: COMPLETE (W1–W7).** **Phase 1 design board PUBLISHED, awaiting the user's
-  answers** — canonical text [`DESIGN_BOARD.md`](DESIGN_BOARD.md) (revised after a plan-adversary review: 12
-  findings verified + folded in), rendered at https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private;
-  HTML lives only in the session scratchpad — re-read it with Artifact `read` to republish to the same URL).
-  14 decisions D-1…D-14; the page has Accept/Change + "Copy my answers". On approval: decisions → BRIEF §6 +
-  SPEC D-rules as each lands; phases (1b hotfixes → 2 foundations → 3 reliability → 4 features) → BRIEF §7. Session restarted once: the Supabase MCP now connects via its header token (verified).
+- **Phase:** Session 1 (2026-10-11). Step 0 ✅ → Phase 0 ✅ → walkthrough ✅ → **Phase 1 design board ✅
+  APPROVED** ([`DESIGN_BOARD.md`](DESIGN_BOARD.md); D-1…D-14 as recommended except **D-10 → free staging**).
+  Approved phases + parallel tracks are in [`BRIEF.md`](BRIEF.md) §7. **Next: Phase 1b hotfixes (H1 auth,
+  H2 refresh rate limit, H3 analytics check)** via `multiplex` — plan needs the user's approval before code.
+- **Board artifact:** https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private; `db` capability — the user's
+  answers live in its store, collection `board`, doc `answers`; read with `ArtifactData`). The HTML source is
+  only in Session 1's scratchpad — re-read it with Artifact `read` before republishing to the same URL.
+- **In flight / next with the user:** a **console tour in the built-in browser** (user request 2026-10-11):
+  walk every console (Google Cloud, Firebase, Play Console, App Store Connect + Apple Developer, Supabase,
+  Render, Vercel, GitHub, DNS, Search Console) read-only, inventory the setup (non-secret facts only →
+  ENV_RUNBOOK / CONTEXT), changes only with the user's explicit yes per action; the W5 console fix fits here.
+- **Task chips dismissed** (folded into Phase 1b): the shared-client refresh hotfix (→ H1) and the analytics
+  membership check (→ H3).
+- **Pending, user-side:** W5 Google Cloud console fix (ENV_RUNBOOK §7) — can be done during the console tour.
 - **User decisions captured in the walkthrough (→ design board, then SPEC §9 D-rules):**
   - W1-D1 logout scope: "whatever is industry-appropriate" → **per-device sign-out by default; "sign out
     everywhere" only as an explicit action** (Supabase `signOut({scope:'local'})`; global stays for
@@ -124,10 +129,11 @@
 
 ## Next action
 
-Collect the 7 discovery briefs → orchestrator spot-checks each brief's key claims against code/prod →
-walk the user through the findings **one workstream at a time** (no solutions until they understand the
-current state) → **Phase 1** design board artifact. If resuming in a new session, the briefs in
-`discovery/` are the input; re-launch only the ones that are missing.
+1. **Phase 1b hotfixes** (BRIEF §7): run `plan-pipeline` / `multiplex` for H1 + H3 (backend), present the plan
+   for approval, implement, impl-adversary, deploy backend (user confirms the deploy); H2 is one Supabase
+   Management API call with the admin token (user approves the call). Verify in `tools/supabase-logs.sh`.
+2. **Console tour** with the user in the built-in browser (see "In flight").
+3. Then **Phase 2** tracks A–D in parallel (BRIEF §7).
 
 **Before Session 1 (user):** put these in `.claude/settings.local.json` under `env` (gitignored — never in
 chat, never committed):
@@ -153,13 +159,13 @@ Verify any token without printing it: read it from the file inside the command a
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | 🟨 board | ⬜ | ⬜ |
-| W2 | Push + invites | ✅ | 🟨 board | ⬜ | ⬜ |
-| W3 | iOS health sync | ✅ | 🟨 board | ⬜ | ⬜ |
-| W4 | Android health sync | ✅ | 🟨 board | ⬜ | ⬜ |
-| W5 | Android Google sign-in | ✅ | 🟨 board | ⬜ | ⬜ |
-| W6 | Observability + perf | ✅ | 🟨 board | ⬜ | ⬜ |
-| W7 | Frontend state / error / design consistency | ✅ | 🟨 board | ⬜ | ⬜ |
+| W1 | Sessions / auth | ✅ | ✅ | ⬜ | ⬜ |
+| W2 | Push + invites | ✅ | ✅ | ⬜ | ⬜ |
+| W3 | iOS health sync | ✅ | ✅ | ⬜ | ⬜ |
+| W4 | Android health sync | ✅ | ✅ | ⬜ | ⬜ |
+| W5 | Android Google sign-in | ✅ | ✅ | ⬜ | ⬜ |
+| W6 | Observability + perf | ✅ | ✅ | ⬜ | ⬜ |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | ⬜ | ⬜ |
 
 ## Session log
 
