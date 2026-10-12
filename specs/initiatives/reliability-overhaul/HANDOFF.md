@@ -69,6 +69,14 @@
   mounts), auth goes **0.11.0 → 0.12.0**, migration **008**, rule **D-C13**, `CORS_EXTRA_ORIGINS` appended to
   A's CORS block; B's client files (iOS `APIConfig.swift` + Staging scheme, Android `build.gradle.kts`) + the
   `apps/*/CONTEXT.md` pointers (B's, then D's) — D is committed so they no longer collide.
+  **B implementer DONE (uncommitted, main tree):** 008 + `utils/stagingGuard.js` + iOS Staging scheme + Android
+  debug → staging (+ docs); harness 24/24 staging + 24/24 prod, boot runs 16/16, local-Postgres dry run of 008 ×2.
+  ⚠️ Android **debug** builds now point at the not-yet-existing staging API (Play/release unaffected).
+  `impl-adversary` running (008 live-safety first). Then: console steps in order — P0 (read-only drift) → C1 USER
+  (run 008; `SET search_path TO staging;` + 007; set `rasifiters_staging` password) → C1-V1..V6 read-only (15
+  tables) → git-version (auth 0.12.0, `feature/auth@v0.12.0`; reference_impl += stagingGuard.js + 008) → C3b-1
+  `staging` branch → C4/C2 Vercel → C3a push main → C3b-2 → C5 Render service → C7 hook allow-list → C6 env (user
+  pastes secrets) → C8 uri_allow_list (admin token) → C9 Google origin → C10 seed → C11 smoke. Each = user's yes.
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
