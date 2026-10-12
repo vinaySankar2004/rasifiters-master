@@ -45,15 +45,22 @@ android {
 
     buildTypes {
         debug {
-            // Debug builds talk to STAGING (reliability-overhaul board §8 / auth D-C13): the free Render service
-            // rasifiters-api-staging → the `staging` Postgres schema (shared Supabase Auth). Release stays on prod.
-            // Wake it first (open https://rasifiters-api-staging.onrender.com/ and wait for the reply — it sleeps after
-            // 15 min idle). Local-backend testing is the exception: temporarily swap to "http://10.0.2.2:5001/api",
-            // the emulator's alias for the host Mac's localhost.
-            buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api-staging.onrender.com/api\"")
+            // Debug builds talk to PROD, like iOS's main scheme. Staging is opt-in: the `staging` build type below.
+            // Local-backend testing is the exception: temporarily swap to "http://10.0.2.2:5001/api", the emulator's
+            // alias for the host Mac's localhost.
+            buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api.onrender.com/api\"")
             // Credential Manager's serverClientId — the Google Cloud OAuth WEB client id (non-secret; it's the
-            // audience the backend verifies the Google id_token against). USER must fill this in.
+            // audience the backend verifies the Google id_token against).
             buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"938606130476-9vhk5o43c2g0ib4a167l1o4mmnt52f9b.apps.googleusercontent.com\"")
+        }
+        // Opt-in STAGING build (auth D-C13; pick "staging" in Android Studio's Build Variants panel, or
+        // ./gradlew :app:assembleStaging): debug in every way except the API — the free Render service
+        // rasifiters-api-staging → the `staging` Postgres schema (shared Supabase Auth). It sleeps after 15 min idle,
+        // so the first request can take ~50 s. Mirrors iOS's RaSi-Fiters-App-Staging scheme.
+        create("staging") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+            buildConfigField("String", "API_BASE_URL", "\"https://rasifiters-api-staging.onrender.com/api\"")
         }
         release {
             // Sign with the upload key when keystore.properties is present (this machine); otherwise leave
