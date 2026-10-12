@@ -357,7 +357,7 @@
       }
     },
     "observability": {
-      "version": "0.1.0",
+      "version": "0.1.1",
       "spec": "specs/features/observability/SPEC.md",
       "status": "built",
       "consumed_by": [],

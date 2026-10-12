@@ -31,10 +31,11 @@ const clientEventRoutes = require("./routes/clientEvents");
 
 const app = express();
 
-// observability D-C7: trust exactly ONE proxy hop (Render's edge), so req.ip is the client address from
-// X-Forwarded-For. Only the client-events per-client limiters read it today. Re-verify the hop count after any
-// infra change with the request log's `xff_n` (observability SPEC §6).
-app.set("trust proxy", 1);
+// observability D-C7: trust exactly TWO proxy hops (Cloudflare edge → Render load balancer; measured on prod
+// 2026-10-12: a request with no X-Forwarded-For logs xff_n=2, a spoofed one xff_n=3), so req.ip is the address
+// Cloudflare saw and client-supplied entries stay ignored. Only the client-events per-client limiters read it
+// today. Re-verify the hop count after any infra change with the request log's `xff_n` (observability SPEC §6).
+app.set("trust proxy", 2);
 
 // observability D-C1: structured request log + X-Request-Id. FIRST, so CORS preflights (and every later
 // middleware's responses, incl. app-config's version-gate 426s) are logged too.
