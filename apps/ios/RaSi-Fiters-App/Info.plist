@@ -2,16 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSHealthShareUsageDescription</key>
-	<string>RaSi Fit'ers reads your workout and sleep data from Apple Health to automatically log workouts and nightly sleep to your fitness programs.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>RaSi Fit'ers does not write data to Apple Health, but this permission is required by the system.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-	</array>
-	<key>GIDClientID</key>
-	<string>938606130476-if8tb58822r2d75l7fq90v2jiqek6bkh.apps.googleusercontent.com</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -30,6 +20,12 @@
 				<string>com.googleusercontent.apps.938606130476-if8tb58822r2d75l7fq90v2jiqek6bkh</string>
 			</array>
 		</dict>
+	</array>
+	<key>GIDClientID</key>
+	<string>938606130476-if8tb58822r2d75l7fq90v2jiqek6bkh.apps.googleusercontent.com</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
 	</array>
 </dict>
 </plist>
