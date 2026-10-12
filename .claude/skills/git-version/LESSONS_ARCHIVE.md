@@ -590,3 +590,18 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   commit with **no bump** (propagating another feature's change ≠ a change to their own behavior).
 - Backend commits sit LOCAL until the user OKs the push — any later docs commit must also wait (a push of `main`
   carries everything and deploys Render).
+
+## Run 2026-10-12 — Phase 2 tracks C, A, D (three MINOR/new bumps, local until the user OKs the push)
+- `a6bff90` + `7dba385` C → `feature/app-config@v0.2.0`; `051c073` A → `feature/observability@v0.1.0` +
+  `feature/auth@v0.11.0`; `f831279` D → `feature/frontend-kit@v0.1.0` (new node, depends_on workout-logs +
+  daily-health-logs). Each track = its own commit so it reverts alone.
+- **Parallel tracks sharing files (server.js, ENV_RUNBOOK, registry):** commit each backend track LOCALLY as
+  soon as it's reviewed so the next track's implementer starts on a clean base; registry edits happen inside each
+  track's commit, gated by `git diff --quiet -- registry.json REGISTRY.md` (no other track's hunks pending).
+- **An unpushed tag may move** (`git tag -f`) when a review fix lands inside the same unreleased version;
+  never after a push (public repo).
+- **Xcode rewrites project files when the user opens/builds** (here: Info.plist usage strings migrated into
+  pbxproj build settings). Never sweep `project.pbxproj` / `Info.plist` into a commit you didn't intend —
+  stage by path and surface the stray diff to the user.
+- A workflow scribe's file write was blocked by a safety classifier; the full agent output was recoverable
+  from the run's `journal.jsonl` (one `result` line per agent).
