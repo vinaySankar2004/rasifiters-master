@@ -34,8 +34,8 @@ and standalone (the original app it was ported from is archived, not tracked her
   A **new** service; the legacy backend also ran on Render (its service `RaSi_Fiters_API` was **suspended
   2026-10-11** — 1 request in 30 days; reversible, delete after a quiet month). `/api/auth` deployed + verified
   end-to-end 2026-06-28. (Service ID + deploy detail: canonical home `apps/backend/CONTEXT.md`.)
-- **Auth email → Resend** (set up 2026-10-11; domain `auth.rasifiters.com` verified, DNS in Vercel — the
-  Supabase SMTP switch-over is the last step) — Supabase Auth sends password-reset mail through custom SMTP.
+- **Auth email → Resend** (LIVE 2026-10-12; domain `auth.rasifiters.com` verified, DNS in Vercel; sender
+  `RaSi Fiters <no-reply@auth.rasifiters.com>`) — Supabase Auth sends password-reset mail through custom SMTP.
   Setup, values + status: `ENV_RUNBOOK.md` §7b.
 - **Web → Vercel** — project `rasifiters`, **LIVE** at `https://rasifiters.com` (canonical host = apex;
   `www`→apex 308 — see `apps/web/CONTEXT.md` §SEO), git

@@ -250,8 +250,13 @@ carries the Web client `client_type: 3`, plus the iOS client in `other_platform_
 ("Email address not authorized") at ~2/hour — so `POST /api/auth/forgot-password` silently sent nothing to
 real users (found 2026-10-11; sign-up + email change auto-confirm, so password reset is the only email flow).
 
-**Status:** domain verified + DNS live (2026-10-11); **Supabase SMTP fields pending the user** — flip this line
-when `smtp_host` reads back as `smtp.resend.com`.
+**Status: LIVE (2026-10-12).** Supabase SMTP saved + read back (`smtp.resend.com`); a reset to a real
+Gmail address was **Delivered** (Resend), `/recover` 200 in 324 ms, link → `/verify` 303 → new password worked.
+Key in use: `supabase-auth-smtp-3`. **Gotcha:** a `535 "Authentication credentials invalid"` on `/recover`
+(Supabase auth logs) = the SMTP password isn't a valid Resend key (two mis-pasted keys showed "No activity" in
+Resend). Check a key before pasting: it must start `re_`, and `curl -s https://api.resend.com/api-keys -H
+"Authorization: Bearer <key>"` must answer `restricted_api_key` (valid, send-only), not `API key is invalid`.
+Supabase reloads auth config ~1 min after Save ("reloading api with new configuration" in the auth logs).
 
 **Setup (2026-10-11, board D-15 — config only, no code):**
 - **Provider:** Resend (free tier), account owned by the user. Domain **`auth.rasifiters.com`**, region

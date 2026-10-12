@@ -20,21 +20,18 @@
   credentials 28/28 (garbage refresh → 401 via real Supabase `400 validation_failed`; dead/black-hole Supabase →
   503 + `Retry-After: 5` in ≤ 7 s; no tokens in logs) · ✅ **committed LOCALLY, NOT pushed:** `6524a59`
   (H1, tag `feature/auth@v0.10.0`) + `502164f` (H3, tags `feature/analytics@v0.4.0`,
-  `feature/analytics-v2@v0.2.0`; SPEC docs incl. all verdict advisories, F12–F16, 14 page SPECs). **Next:**
-  (4) **ASK the user before pushing — a push to `main` auto-deploys Render** (`git push origin main && git push
-  origin feature/auth@v0.10.0 feature/analytics@v0.4.0 feature/analytics-v2@v0.2.0`; then render `list_deploys`
-  live on `502164f`); (5) the USER runs the credentialed prod smoke (`phase1b-smoke.sh`, plan E2 script with
-  `SMOKE_BASE`, PASS/FAIL only — Claude never sends passwords to prod); (6) D9 docs commit (PROGRESS + this
+  `feature/analytics-v2@v0.2.0`; SPEC docs incl. all verdict advisories, F12–F16, 14 page SPECs) · ✅ **user OK'd
+  the push → DEPLOYED 2026-10-12** (`9f05973` live on Render, health 200; tags pushed). **Next:**
+  (5) the USER runs the credentialed prod smoke (`phase1b-smoke.sh` in Session 1's scratchpad — plan E2 script,
+  prod default, prompts for the password; PASS/FAIL only — Claude never sends passwords to prod) + checks
+  iPhone / Pixel / web (Summary + Lifestyle load, nobody signed out); (6) D9 docs commit (PROGRESS + this
   file, plan lines are stale — match on text); (7) H2 admin-token call (user OK); (8) 7-day watch (plan E8 +
   `[auth] password reset request failed`; note: a garbage-token smoke adds `validation_failed`, not
   `refresh_token_not_found`).
-- **IN FLIGHT 2 — D-15 password-reset email (Resend).** Done: Resend account (user), domain
-  `auth.rasifiters.com` added (us-east-1) + **Verified**; 4 DNS records live in Vercel DNS (ENV_RUNBOOK §7b).
-  ✅ User saved Supabase SMTP (Claude checked the form in the browser pane first); ✅ API read-back matches
-  (`smtp.resend.com:465`, user `resend`, sender `RaSi Fiters <no-reply@auth.rasifiters.com>`, password set,
-  `rate_limit_email_sent` 30/h). **Now:** the user triggers a reset for a non-team address;
-  confirm `/recover` 200 in `tools/supabase-logs.sh` + Delivered in Resend; flip the status lines in
-  ENV_RUNBOOK §7b + CONTEXT.md.
+- ~~**IN FLIGHT 2 — D-15 password-reset email (Resend).**~~ **DONE 2026-10-12** — Supabase SMTP → Resend
+  live; a real reset was Delivered, `/recover` 200 in 324 ms (verdict #3 / auth F15: far under the 5 s cap),
+  new password worked. First two keys were mis-pasted (535 in auth logs) — gotcha in ENV_RUNBOOK §7b.
+  Leftover: the user deletes the two unused Resend keys (`supabase-auth-smtp`, `-2`).
 - **Done today (verified):** W5 Android Google sign-in fixed in the console (Play-key OAuth client) and
   verified on the Pixel by the user · legacy `RaSi_Fiters_API` suspended (D-16) · Vercel ignore step fixed
   (D-17; first push built READY) · TestFlight 1.4.3 (57) left to lapse (RELEASES.md) · console tour complete —
@@ -151,8 +148,8 @@
 
 ## Next action
 
-1. Finish **Phase 1b** (steps in "IN FLIGHT 1") + H2 rate-limit call → deploy (user OK) → user smoke → log watch.
-2. Finish **D-15** (steps in "IN FLIGHT 2").
+1. Finish **Phase 1b** (steps in "IN FLIGHT 1"): user prod smoke → D9 docs → H2 rate-limit call → log watch.
+2. ~~Finish **D-15**~~ **DONE 2026-10-12.**
 3. Start **Phase 2** tracks A–D in parallel (BRIEF §7): observability, staging, version-gate backend, frontend
    kits — each via `multiplex` (plan-pipeline → user approves → implementers in parallel worktrees).
 
