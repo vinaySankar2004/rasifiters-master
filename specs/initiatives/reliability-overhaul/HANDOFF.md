@@ -21,6 +21,23 @@
   present all four plans to the user → **user approves each** → implementers (backend tracks sequenced where
   files overlap; D's three surfaces in parallel) → impl-adversary → compile-check → git-version → user OK to push.
   If the summaries were lost in a compaction: read the `plans/phase-2*/` files (written once each run ends).
+  ✅ **All 4 plans done + committed (`42c08aa`)** — A/B/D revised once; no BLOCKING left except D's banner
+  line-clamp (fix below). A's `plan.md` was recovered from the workflow journal (scribe write was blocked).
+  **Orchestrator cross-track decisions (2026-10-12):** (1) **Build order:** backend **C → A → B** in the main
+  tree, one commit per track (all three edit `server.js`; `.env.example` / ENV_RUNBOOK / registry shared);
+  **D**'s 3 surfaces in parallel worktrees alongside C/A; B's client files (iOS `APIConfig.swift` + Staging
+  scheme, Android `build.gradle.kts`) after D compiles; D's `apps/*/CONTEXT.md` pointers after B.
+  (2) **Header contract:** `X-App-Platform` / `X-App-Version` (+ `X-App-Build` if the user approves) +
+  `X-Request-Id` — owned by the observability SPEC (A); app-config links to it. (3) **CORS:** one block — A adds
+  `maxAge` + `exposedHeaders: [Retry-After, X-Request-Id]` (closes auth F16); B adds `CORS_EXTRA_ORIGINS`
+  (unset in prod → unchanged). (4) **Numbering:** migrations A=007, B=008; auth A=0.11.0, B=0.12.0; D-rules
+  A=D-C12, B=D-C13. (5) **B:** prod boot check logs (`console.error`), never throws. (6) **A:** add a per-client
+  daily event cap; fix `errorHandler` logging `err.body` (can contain passwords — log-only fix). (7) **C:** F4 →
+  fix the doc (render.yaml untouched); placeholder thresholds; D-C5 exempts `/api/client-events`. (8) **D:** no
+  line clamp on iOS/Android banners + phone-width visual check; credential-endpoint 401s keep server text;
+  iOS uses `ObservableObject`; Android maps coroutine timeouts to TIMEOUT.
+  **Asked the user:** approve all 4 · `X-App-Build` header · `pg_cron` for app_events 90-day retention ·
+  copy the workout catalog (`workouts_library`) into staging.
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
