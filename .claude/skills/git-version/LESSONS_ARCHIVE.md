@@ -578,3 +578,15 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   Render service id next to the word "render" is BLOCKED. Refer to such services by name, not id.
 - **Background implementer + docs commits in parallel:** stage docs by explicit path only — never
   `git add -A` while an implementer is editing `apps/**` in the same tree.
+
+## Run 2026-10-11 (Phase 1b) — two revertable fix commits + 3 MINOR bumps
+- `6524a59` H1 → `feature/auth@v0.10.0`; `502164f` H3 → `feature/analytics@v0.4.0` + `feature/analytics-v2@v0.2.0`.
+  Owned-interface changes, backward-compatible (errors only ADD `code`; 200 shapes identical) → MINOR, zero
+  dependent re-version; blast-radius list was in the user-approved plan.
+- **Shared registry files across split commits:** `registry.json` / `REGISTRY.md` carry rows for both features.
+  Edit only commit 1's rows before commit 1, then commit 2's rows — so each commit (and its tag) reverts alone.
+  (`git add -p` is unavailable here.)
+- Cross-ref prose fixes in a dependent feature SPEC (member-analytics F1) and 14 page SPECs rode in the H3
+  commit with **no bump** (propagating another feature's change ≠ a change to their own behavior).
+- Backend commits sit LOCAL until the user OKs the push — any later docs commit must also wait (a push of `main`
+  carries everything and deploys Render).
