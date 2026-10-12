@@ -51,7 +51,7 @@ re-sends a refresh token for up to 30 s, which can itself trigger the reuse kill
    only honors IP forwarding with secret keys — not anon or legacy service-role), sends the user's IP
    (from Render's `X-Forwarded-For`, with Express `trust proxy`) as `Sb-Forwarded-For`, and IP forwarding is
    enabled in Auth settings. **Immediate mitigation:** raise `rate_limit_token_refresh` (150 → 1,500 per
-   5 min ◆) — one admin-token call, approved per call ✅.
+   5 min ◆) — one admin-token call, approved per call ✅. **Done 2026-10-12T19:08:19Z** (Phase 1b H2).
 4. **Logout = this device only ✅** (`scope:'local'`). **Password change signs out your *other* devices**
    (`scope:'others'` — today it revokes nothing). "Sign out everywhere" is an explicit action in account
    settings (`scope:'others'` + this device).

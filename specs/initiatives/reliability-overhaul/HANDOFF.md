@@ -10,7 +10,7 @@
 - **Phase:** Session 1 (2026-10-11). Step 0 ✅ → Phase 0 ✅ → walkthrough ✅ → **design board ✅ APPROVED**
   ([`DESIGN_BOARD.md`](DESIGN_BOARD.md) — D-1…D-14 as recommended except D-10 → free staging; add-ons
   D-15…D-17 in its §11) → console tour ✅ → **Phase 1b: H1 + H3 DEPLOYED + verified 2026-10-12** (auth 0.10.0
-  / D-C11; analytics 0.4.0 / D-C8 + analytics-v2 0.2.0 / D-C3) — **H2 pending** (admin-token call) + 7-day log
+  / D-C11; analytics 0.4.0 / D-C8 + analytics-v2 0.2.0 / D-C3) + **H2 done 2026-10-12T19:08:19Z** — 7-day log
   watch running. Phases + parallel tracks: [`BRIEF.md`](BRIEF.md) §7.
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
@@ -31,8 +31,9 @@
   findings in ENV_RUNBOOK §7/§7b, CONTEXT.md, CLAUDE.md §MCP Servers (consoles in the built-in browser).
 - **Board artifact:** https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private; `db` store collection `board`,
   doc `answers`). HTML source only in Session 1's scratchpad — `Artifact read` before republishing.
-- **Not yet scheduled (from the board):** H2 raise `rate_limit_token_refresh` 150 → 1,500 (one admin-token
-  call, user approves the call) and D-4 Supabase secret API key (user creates) — do H2 alongside the 1b deploy.
+- ✅ **H2 — DONE 2026-10-12T19:08:19Z** (user said "go"): one admin-token `PATCH /v1/projects/…/config/auth`
+  `{"rate_limit_token_refresh":1500}` → HTTP 200; read-back 1,500 (was 150), SMTP untouched. Revert = same call
+  with 150. **Not yet scheduled (from the board):** D-4 Supabase secret API key (user creates; Phase 3).
 - **User decisions captured in the walkthrough (→ design board, then SPEC §9 D-rules):**
   - W1-D1 logout scope: "whatever is industry-appropriate" → **per-device sign-out by default; "sign out
     everywhere" only as an explicit action** (Supabase `signOut({scope:'local'})`; global stays for
@@ -142,9 +143,9 @@
 
 ## Next action
 
-1. **Phase 1b — finish:** (a) **H2** — one admin-token Management API call, `rate_limit_token_refresh`
-   150 → 1,500 (user approves; record its timestamp — it confounds the 429 trend). (b) **7-day watch from
-   2026-10-12** (plan E8 queries): `refresh_token_already_used`/day (baseline ≈ 1.6/day), 429
+1. **Phase 1b — finish:** (a) ~~**H2**~~ **DONE 2026-10-12T19:08:19Z** (429s after this time reflect the new
+   1,500 limit — compare against H1's deploy at ~06:25Z separately). (b) **7-day watch from 2026-10-12 →
+   ends 2026-10-19** (plan E8 queries): `refresh_token_already_used`/day (baseline ≈ 1.6/day), 429
    `over_request_rate_limit`/day (≈ 1.3/day), Render `[refresh] auth_unavailable|session_invalid` +
    `[auth] token verification unavailable` + `[auth] password reset request failed` counts, cross-user token
    pairs < 200 ms (baseline 59/30 d → expect ≈ 0). Gate to Phase 2 (board §12): reuse kills + 429s drop; no
@@ -202,7 +203,8 @@ Verify any token without printing it: read it from the file inside the command a
   approved; implementer running.
 - **2026-10-12** — Phase 1b: H1 (stateless auth proxy + classified refresh/JWT errors, auth 0.10.0) + H3
   (analytics membership gate, analytics 0.4.0 / analytics-v2 0.2.0) adversary-reviewed → deployed → prod smoke
-  27/27 + user device check on all 3 surfaces. D-15 Resend SMTP live (real reset delivered). H2 pending.
+  27/27 + user device check on all 3 surfaces. D-15 Resend SMTP live (real reset delivered). H2 done
+  (refresh rate limit 150 → 1,500 at 19:08:19Z). 7-day watch running.
 
 ## Kickoff prompt — Session 1
 

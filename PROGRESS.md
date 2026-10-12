@@ -33,8 +33,8 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > §MCP Servers) ✅ · Phase 0 discovery ✅ · **design board approved** ([`DESIGN_BOARD.md`](specs/initiatives/reliability-overhaul/DESIGN_BOARD.md)).
 > **Phase 1b (2026-10-12):** H1 auth hotfix (auth 0.10.0 / D-C11) + H3 analytics membership gate (analytics
 > 0.4.0 / D-C8, analytics-v2 0.2.0 / D-C3) **deployed + verified** (prod smoke 27/27, all 3 surfaces);
-> password-reset email via Resend **live**. H2 (refresh rate limit) = one admin-token call awaiting the user's
-> OK; 7-day Supabase-log watch running (initiative `HANDOFF.md`). **Next:** Phase 2 foundations (parallel
+> password-reset email via Resend **live**; H2 refresh rate limit raised 150 → 1,500. 7-day Supabase-log
+> watch running to 2026-10-19 (initiative `HANDOFF.md`). **Next:** Phase 2 foundations (parallel
 > tracks — BRIEF §7).
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
