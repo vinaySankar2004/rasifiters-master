@@ -67,7 +67,7 @@ scripts cover the REST side: `tools/ops-get.sh <render|vercel|supabase> '<path>'
 
 - **render** — `https://mcp.render.com/mcp`, header `Bearer ${RENDER_API_KEY}` (account-wide). Render's
   OAuth rejects dynamic client registration, so header auth is the only path. One workspace
-  (`tea-cv3u7a3tq21c73ald2ig`, owns `rasifiters-api`) — **pass `workspaceId` on every call**
+  (`tea-cv3u7a3tq21c73ald2ig`, owns `rasifiters-api` + the free `rasifiters-api-staging`) — **pass `workspaceId` on every call**
   (`select_workspace` is deprecated; if a second workspace ever appears, ask the user which). The backend
   deploys as a Blueprint (`apps/backend/render.yaml`); this MCP is the create/inspect/**deploy** path
   **and** the env-var / service-management path (`update_environment_variables`, `update_web_service`).

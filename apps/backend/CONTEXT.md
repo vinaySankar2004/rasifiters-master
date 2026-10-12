@@ -44,7 +44,7 @@ auto-deploy on push to `main` touching `apps/backend/**`. The 3 secrets (`DATABA
 per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 
 ## Staging (reliability-overhaul Phase 2 B — DESIGN_BOARD §8, auth SPEC D-C13)
-- **Service:** Render web service `rasifiters-api-staging` (**free**, region `virginia`, branch `staging`,
+- **Service:** Render web service `rasifiters-api-staging` (`srv-db6m3u2vcj2c738he7b0`) (**free**, region `virginia`, branch `staging`,
   auto-deploy on commit, `apps/backend`, `npm ci` / `npm start`) → `https://rasifiters-api-staging.onrender.com`.
   Created via the render MCP — not in `render.yaml`. Sleeps after 15 min idle: **wake it before a test session**
   (open `https://rasifiters-api-staging.onrender.com/`, wait for "Rasi Fiters API is running!", ~1 min cold).

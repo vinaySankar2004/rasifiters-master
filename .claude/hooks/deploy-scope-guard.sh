@@ -9,6 +9,7 @@
 #   web:     Vercel project `rasifiters` = prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u
 #            (team/scope `personal-vinayak` = team_VWBSWxM5pHvWjCraHUWB73v5; PROVISIONED 2026-06-29)
 #   backend: Render web service `rasifiters-api` = srv-d90tgmv7f7vs73cudptg (PROVISIONED 2026-06-28)
+#            + `rasifiters-api-staging` = srv-db6m3u2vcj2c738he7b0 (free staging, PROVISIONED 2026-10-12)
 #
 # This hook BLOCKS any vercel/render command that names a non-rasifiters target: a `render` command
 # referencing a `srv-…`/`dpl-…` id that is NOT ours, and (for vercel) any `--scope` that isn't the
@@ -20,13 +21,14 @@ cmd=$(printf '%s' "$input" | python3 -c "import json,sys; print(json.load(sys.st
 # Only police vercel/render commands.
 printf '%s' "$cmd" | grep -qiE '(^|[^[:alnum:]])(vercel|render)([^[:alnum:]]|$)' || exit 0
 
-RENDER_SERVICE="srv-d90tgmv7f7vs73cudptg"   # rasifiters-api (the only Render service we own)
+RENDER_SERVICE="srv-d90tgmv7f7vs73cudptg"   # rasifiters-api (prod)
+RENDER_STAGING_SERVICE="srv-db6m3u2vcj2c738he7b0"   # rasifiters-api-staging (free; reliability-overhaul Phase 2 B)
 
 # Block a render command that names a Render service id which is NOT ours.
 if printf '%s' "$cmd" | grep -qiE '(^|[^[:alnum:]])render([^[:alnum:]]|$)'; then
-  bad=$(printf '%s' "$cmd" | grep -oE 'srv-[a-z0-9]+' | grep -vx "$RENDER_SERVICE" || true)
+  bad=$(printf '%s' "$cmd" | grep -oE 'srv-[a-z0-9]+' | grep -vx -e "$RENDER_SERVICE" -e "$RENDER_STAGING_SERVICE" || true)
   if [ -n "$bad" ]; then
-    echo "scope-guard: BLOCKED — render command references a non-rasifiters service id ($bad). Only $RENDER_SERVICE is allowed." >&2
+    echo "scope-guard: BLOCKED — render command references a non-rasifiters service id ($bad). Only $RENDER_SERVICE and $RENDER_STAGING_SERVICE are allowed." >&2
     exit 2
   fi
 fi

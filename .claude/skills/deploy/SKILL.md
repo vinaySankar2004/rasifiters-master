@@ -168,7 +168,7 @@ Blueprint / Vercel App), done once per repo in the dashboard; everything else is
      `0.0.0.0` (Render injects `PORT`, default `10000`).
 
 ### C. Staging → Render free service + Vercel branch alias (reliability-overhaul Phase 2 B)
-- **What:** Render `rasifiters-api-staging` (free, `virginia`, branch `staging`, `apps/backend`, `npm ci` /
+- **What:** Render `rasifiters-api-staging` (`srv-db6m3u2vcj2c738he7b0`) (free, `virginia`, branch `staging`, `apps/backend`, `npm ci` /
   `npm start`, auto-deploy on commit) + the Vercel Preview for git branch `staging` (alias
   `https://rasifiters-git-staging-personal-vinayak.vercel.app`). Created via the render MCP — NOT in `render.yaml`.
   Env: `ENV_RUNBOOK.md` §Staging. Its service id is allow-listed in `deploy-scope-guard.sh` and recorded in
