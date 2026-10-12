@@ -6,6 +6,7 @@ require("dotenv").config({ path: ".env.local", override: true });
 const { connectDB } = require("./config/database");
 require("./models/index");
 const { errorHandler } = require("./middleware/errorHandler");
+const { getAppConfig, blockUnversionedAndroid } = require("./middleware/versionGate");
 
 const authRoutes = require("./routes/auth");
 const memberRoutes = require("./routes/members");
@@ -44,23 +45,20 @@ app.get("/", (req, res) => {
 
 app.use(express.json());
 
-// app-config — the iOS version gate (consumed_by = [ios]; web ignores it). `min_ios_version` drives
-// iOS's force-update modal, polled on every launch/foreground/widget-open. Two deliberate changes vs
-// legacy (see specs/features/app-config/SPEC.md): D-C2 Cache-Control so the gate is cached between
-// polls; D-C3 trim + semver-validate the env so a malformed MIN_IOS_VERSION yields null (no gate)
-// rather than a broken comparison on the client. Push (APNs) is owned by `notifications` + `auth`.
-function normalizeMinIosVersion(raw) {
-    if (typeof raw !== "string") return null;
-    const trimmed = raw.trim();
-    return /^\d+(\.\d+)*$/.test(trimmed) ? trimmed : null;
-}
-
+// app-config — the version gate (specs/features/app-config/SPEC.md v0.2.0). Public, always 200, cached
+// 5 min (D-C2). Body = per-platform hard minimum + soft nudge from env; `min_ios_version` keeps its exact
+// name/shape for the live iOS binary, the other 3 keys are additive (D-C4); unset/malformed env → null =
+// nobody blocked (D-C3). Route kept inline (D-C1); the normalizers live in middleware/versionGate.js.
+// Push (APNs/FCM) is owned by `notifications` + `auth`.
 app.get("/api/app-config", (req, res) => {
     res.set("Cache-Control", "public, max-age=300");
-    res.json({
-        min_ios_version: normalizeMinIosVersion(process.env.MIN_IOS_VERSION)
-    });
+    res.json(getAppConfig());
 });
+
+// D-C5: header-less Android (the 1.0.0 builds) → 426 "Please update…" — a no-op unless
+// BLOCK_UNVERSIONED_ANDROID=true (default off). Mounted AFTER app-config (never gated) and BEFORE every
+// router. Request-id / request-log middleware must mount above app-config so these 426s are logged.
+app.use("/api", blockUnversionedAndroid);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/members", memberRoutes);

@@ -341,7 +341,7 @@
       }
     },
     "app-config": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/app-config/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -351,7 +351,8 @@
       "reference_impl": {
         "app": "backend",
         "paths": [
-          "server.js"
+          "server.js",
+          "middleware/versionGate.js"
         ]
       }
     },
