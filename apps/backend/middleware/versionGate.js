@@ -12,7 +12,8 @@
 const UPDATE_REQUIRED_MESSAGE = "Please update RaSi Fiters from the Play Store";
 
 // Never gated, even with the switch on: client telemetry ingest (observability, Phase 2 track A) must
-// always land. Matched on method + full path; harmless until that route exists.
+// always land. Matched on method + full path, trailing slashes stripped + lower-cased (Express routing is
+// non-strict + case-insensitive); entries stay lower-case. Harmless until that route exists.
 const UNGATED_ROUTES = new Set(["POST /api/client-events"]);
 
 // iOS marketing version ("1.4.2"): trimmed, dot-separated integers only — the format the iOS
@@ -23,13 +24,13 @@ function normalizeVersion(raw) {
     return /^\d+(\.\d+)*$/.test(trimmed) ? trimmed : null;
 }
 
-// Android versionCode ("4"): trimmed, positive integer only, else null (D-C4).
+// Android versionCode ("4"): trimmed, positive integer ≤ 2100000000 (Play's max versionCode), else null (D-C4).
 function normalizeVersionCode(raw) {
     if (typeof raw !== "string") return null;
     const trimmed = raw.trim();
     if (!/^\d+$/.test(trimmed)) return null;
     const code = Number.parseInt(trimmed, 10);
-    return Number.isSafeInteger(code) && code > 0 ? code : null;
+    return Number.isSafeInteger(code) && code > 0 && code <= 2100000000 ? code : null;
 }
 
 function getAppConfig(env = process.env) {
@@ -48,7 +49,8 @@ function isBlockingUnversionedAndroid(env = process.env) {
 
 function blockUnversionedAndroid(req, res, next) {
     if (!isBlockingUnversionedAndroid()) return next();
-    if (UNGATED_ROUTES.has(`${req.method} ${req.baseUrl}${req.path}`)) return next();
+    const routeKey = `${req.method} ${(req.baseUrl + req.path).replace(/\/+$/, "").toLowerCase()}`;
+    if (UNGATED_ROUTES.has(routeKey)) return next();
     const unversioned = !req.get("X-App-Version");
     const okhttp = /^okhttp\//i.test(req.get("User-Agent") || "");
     if (unversioned && okhttp) {
