@@ -77,6 +77,16 @@
   tables) → git-version (auth 0.12.0, `feature/auth@v0.12.0`; reference_impl += stagingGuard.js + 008) → C3b-1
   `staging` branch → C4/C2 Vercel → C3a push main → C3b-2 → C5 Render service → C7 hook allow-list → C6 env (user
   pastes secrets) → C8 uri_allow_list (admin token) → C9 Google origin → C10 seed → C11 smoke. Each = user's yes.
+  **2026-10-12 progress:** review 0 blockers (+ fixes) → B committed `e5b0b98` + RLS fix `96ee073` (`feature/auth@v0.12.0`)
+  → P0 ✅ → C1 ✅ (user ran 008 + 007-on-staging + role password; the SQL editor's "Run and enable RLS" had switched
+  RLS on for all 15 staging tables → 008 gained a final RLS-off block → user re-ran → 0 on) → C3b-1 `staging` branch ✅
+  → C2 3 Preview env vars ✅ (Vercel CLI needs `env -u VERCEL_TOKEN`) → C3a prod deploy `96ee073` ✅ (no `[staging]`
+  lines; CORS unchanged; staging origin refused on prod) → C3b-2 ✅ → C4 alias = `rasifiters-git-staging-personal-
+  vinayak.vercel.app` (as planned) → C5 service `rasifiters-api-staging` = `srv-db6m3u2vcj2c738he7b0` (free,
+  virginia, branch `staging`, non-secret env at create) → C7 allow-list `7b6364e` → C6 user pasted the 6 secrets →
+  **staging LIVE**: boot logs `[staging] … guard active` + `schema = staging, user = rasifiters_staging`; non-`+stg`
+  register → 403 (nothing created). **Next:** C8 (admin token: `uri_allow_list` = `https://rasifiters.com/**` +
+  `,https://<alias>/reset-password`) → C9 Google Web client JS origin → C10 seed (user: password + inbox) → C11.
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
