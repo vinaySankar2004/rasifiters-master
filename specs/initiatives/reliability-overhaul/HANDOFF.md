@@ -15,23 +15,24 @@
   the wider refresh rule D-C11.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/). An `implementer`
   agent was launched in the background (edits ONLY the 7 backend files; NO commit, NO push; offline harness in
   the session scratchpad; also folds verdict #6 (log reset errors server-side) + #8 (TLS JWKS errors → 503)).
-  **Implementer DONE** (7 files uncommitted in the working tree; harness 100+31+55+29 pass; `middleware/auth.js`
-  line refs shifted +5 from L59 — classifier 35-63, authenticateToken 65-88, requireProgramMember 192-220;
-  docs notes: D-C11(c) say "network/TLS errors", add `[auth] password reset request failed` to the E8 watch
-  list). Orchestrator spot-checked `services/supabaseTokenRefresh.js` ✅. **`impl-adversary` running.** Then: (3) `git-version` the
-  docs steps D1–D9 from the plan + the docs advisories (#1 the 16 page SPECs + member-analytics F1 + D-S1 rows,
-  #2 stale line refs, #3 add an F15 timeout row, #5 CORS `exposedHeaders` for Retry-After as a Phase 3
-  prerequisite, #7 §4 middleware table incl. `canModifyLog`) — three MINOR bumps (auth 0.10.0, analytics
-  0.4.0, analytics-v2 0.2.0); (4) **ASK the user before pushing — a push to `main` auto-deploys Render**;
-  (5) the USER runs the credentialed prod smoke (`phase1b-smoke.sh`, PASS/FAIL only — Claude never sends
-  passwords to prod); (6) watch `tools/supabase-logs.sh` for `refresh_token_already_used` + 429 for 7 days.
-  If the implementer result was lost in a compaction: check `git status` / `git diff --stat apps/backend` and
-  re-run `impl-adversary` against the plan.
+  ✅ Implementer done (harness 100+31+55+29) · ✅ `impl-adversary` PASS-WITH-FIXES, no blockers (fixed the one
+  code nit — Google-exchange comment; #3 → F15 + measure `/recover` latency in D-15) · ✅ local smoke WITHOUT
+  credentials 28/28 (garbage refresh → 401 via real Supabase `400 validation_failed`; dead/black-hole Supabase →
+  503 + `Retry-After: 5` in ≤ 7 s; no tokens in logs) · ✅ **committed LOCALLY, NOT pushed:** `6524a59`
+  (H1, tag `feature/auth@v0.10.0`) + `502164f` (H3, tags `feature/analytics@v0.4.0`,
+  `feature/analytics-v2@v0.2.0`; SPEC docs incl. all verdict advisories, F12–F16, 14 page SPECs). **Next:**
+  (4) **ASK the user before pushing — a push to `main` auto-deploys Render** (`git push origin main && git push
+  origin feature/auth@v0.10.0 feature/analytics@v0.4.0 feature/analytics-v2@v0.2.0`; then render `list_deploys`
+  live on `502164f`); (5) the USER runs the credentialed prod smoke (`phase1b-smoke.sh`, plan E2 script with
+  `SMOKE_BASE`, PASS/FAIL only — Claude never sends passwords to prod); (6) D9 docs commit (PROGRESS + this
+  file, plan lines are stale — match on text); (7) H2 admin-token call (user OK); (8) 7-day watch (plan E8 +
+  `[auth] password reset request failed`; note: a garbage-token smoke adds `validation_failed`, not
+  `refresh_token_not_found`).
 - **IN FLIGHT 2 — D-15 password-reset email (Resend).** Done: Resend account (user), domain
   `auth.rasifiters.com` added (us-east-1) + **Verified**; 4 DNS records live in Vercel DNS (ENV_RUNBOOK §7b).
-  **Waiting on the user:** create a Resend API key (`supabase-auth-smtp`, Sending access, that domain) and save
-  Supabase → Authentication → Emails → SMTP (values in ENV_RUNBOOK §7b). **Then Claude:** read back
-  `smtp_host` via `tools/ops-get.sh supabase …/config/auth`; the user triggers a reset for a non-team address;
+  ✅ User saved Supabase SMTP (Claude checked the form in the browser pane first); ✅ API read-back matches
+  (`smtp.resend.com:465`, user `resend`, sender `RaSi Fiters <no-reply@auth.rasifiters.com>`, password set,
+  `rate_limit_email_sent` 30/h). **Now:** the user triggers a reset for a non-team address;
   confirm `/recover` 200 in `tools/supabase-logs.sh` + Delivered in Resend; flip the status lines in
   ENV_RUNBOOK §7b + CONTEXT.md.
 - **Done today (verified):** W5 Android Google sign-in fixed in the console (Play-key OAuth client) and
