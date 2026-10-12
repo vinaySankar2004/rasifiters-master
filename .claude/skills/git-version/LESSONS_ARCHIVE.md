@@ -570,3 +570,11 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   it ("the full-access Supabase token") instead.
 - Phase 0 commit: agent-written discovery briefs + an orchestrator `discovery/README.md` recording
   verification + corrections (briefs left as written) — initiative docs, no bump.
+
+## Run 2026-10-11 (later) — board, console tour, add-ons, Phase 1b plan (6 docs chores, no bump, no tag)
+- Commits d812782 → 01dd6b5 + this pass: initiative docs, ENV_RUNBOOK §7/§7b, CONTEXT, CLAUDE.md, RELEASES,
+  deploy skill. Zero feature impact (no SPEC / reference_impl touched) → plain `docs`/`chore` commits.
+- **`deploy-scope-guard` text-matches every Bash command:** a commit message or heredoc that names another
+  Render service id next to the word "render" is BLOCKED. Refer to such services by name, not id.
+- **Background implementer + docs commits in parallel:** stage docs by explicit path only — never
+  `git add -A` while an implementer is editing `apps/**` in the same tree.

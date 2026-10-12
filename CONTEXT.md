@@ -31,8 +31,12 @@ and standalone (the original app it was ported from is archived, not tracked her
   - **Object storage** = Supabase Storage (only if/when needed; the legacy app has no blobs today).
 - **API (`backend`) → Render** — web service `rasifiters-api`, **LIVE** at
   `https://rasifiters-api.onrender.com` via Blueprint (`apps/backend/render.yaml`, GitHub auto-deploy).
-  A **new** service; the legacy backend also ran on Render. `/api/auth` deployed + verified end-to-end
-  2026-06-28. (Service ID + deploy detail: canonical home `apps/backend/CONTEXT.md`.)
+  A **new** service; the legacy backend also ran on Render (its service `RaSi_Fiters_API` was **suspended
+  2026-10-11** — 1 request in 30 days; reversible, delete after a quiet month). `/api/auth` deployed + verified
+  end-to-end 2026-06-28. (Service ID + deploy detail: canonical home `apps/backend/CONTEXT.md`.)
+- **Auth email → Resend** (set up 2026-10-11; domain `auth.rasifiters.com` verified, DNS in Vercel — the
+  Supabase SMTP switch-over is the last step) — Supabase Auth sends password-reset mail through custom SMTP.
+  Setup, values + status: `ENV_RUNBOOK.md` §7b.
 - **Web → Vercel** — project `rasifiters`, **LIVE** at `https://rasifiters.com` (canonical host = apex;
   `www`→apex 308 — see `apps/web/CONTEXT.md` §SEO), git
   auto-deploy on `main`. Deployed + domain cutover 2026-06-29 (the old legacy project was retired off the

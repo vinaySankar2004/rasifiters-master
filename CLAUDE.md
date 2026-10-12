@@ -88,6 +88,13 @@ scripts cover the REST side: `tools/ops-get.sh <render|vercel|supabase> '<path>'
   we don't want, heavy token cost). The user runs the simulator/visual checks; the MCP is for compile only.
   See the `ios-build` skill.
 
+**Consoles in the built-in browser (2026-10-11).** The Claude desktop app's browser pane is signed into Google
+Cloud (`rasi-fiters`), Play Console, Firebase, App Store Connect / Apple Developer, Render, Vercel, GitHub and
+Resend (sign-ins persist across sessions). Reading consoles is free; **every change needs the user's explicit
+yes for that specific action**; never type keys/passwords (the user pastes secrets). `supabase.com` won't open
+in the pane — use the Supabase token APIs. The `deploy-scope-guard` hook text-matches Bash: don't put another
+Render service id next to the word "render" in any command (incl. commit messages / doc heredocs).
+
 **No secrets in `.mcp.json`** — it carries only `${VAR}` names; values stay in gitignored
 `.claude/settings.local.json`. Never click "Authenticate" on render or supabase-rasifiters (that starts
 an OAuth flow we don't use). `xcode` is local (no auth, no network).

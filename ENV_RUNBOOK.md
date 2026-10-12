@@ -243,3 +243,26 @@ it anyway — the Android app reads the Web client ID from `BuildConfig.GOOGLE_W
 Keep the **local** copy fresh: re-download (Firebase → Project Settings → Android app →
 *google-services.json*) whenever fingerprints/clients change. Last refreshed 2026-07-11 — `oauth_client` now
 carries the Web client `client_type: 3`, plus the iOS client in `other_platform_oauth_client`.
+
+## 7b. Auth email (password reset) — Resend custom SMTP
+
+**Why:** without custom SMTP, Supabase's built-in sender only delivers to the project's *team* addresses
+("Email address not authorized") at ~2/hour — so `POST /api/auth/forgot-password` silently sent nothing to
+real users (found 2026-10-11; sign-up + email change auto-confirm, so password reset is the only email flow).
+
+**Status:** domain verified + DNS live (2026-10-11); **Supabase SMTP fields pending the user** — flip this line
+when `smtp_host` reads back as `smtp.resend.com`.
+
+**Setup (2026-10-11, board D-15 — config only, no code):**
+- **Provider:** Resend (free tier), account owned by the user. Domain **`auth.rasifiters.com`**, region
+  us-east-1, click/open tracking **off** (link rewriting breaks reset links).
+- **DNS** (Vercel DNS for `rasifiters.com`, added via the dashboard): TXT `resend._domainkey.auth` (DKIM public
+  key) · CNAME `send.auth` → `send.forge.rmta.net` · CNAME `rsend.auth` → `rsend.forge.rmta.net` · TXT `_dmarc`
+  = `v=DMARC1; p=none;`. These records disable Vercel's `*` wildcard for `auth.rasifiters.com` only (unused).
+- **Supabase → Authentication → Emails → SMTP Settings** (entered by the user — the key never passes through
+  Claude): sender `no-reply@auth.rasifiters.com`, name `RaSi Fiters`, host `smtp.resend.com`, port `465`,
+  username `resend`, password = a Resend API key with **Sending access** scoped to `auth.rasifiters.com`
+  (name `supabase-auth-smtp`). After saving, Supabase applies a 30 emails/hour default (`rate_limit_email_sent`).
+- **Verify (read-only):** `tools/ops-get.sh supabase '/v1/projects/kpadxjekpiwfkqcxtrio/config/auth'` →
+  `smtp_host = smtp.resend.com`; then trigger a reset for a non-team address and check
+  `tools/supabase-logs.sh` (`/recover` → 200) + the Resend dashboard (Delivered).

@@ -214,3 +214,11 @@
 - New durable patterns promoted: verify which project serves a domain after a transfer; manual deploy from
   the repo-root link (unlinked root forks a stray project); App Router `/favicon.ico` needs the file under
   `app/` (metadata.icons ≠ favicon.ico).
+
+## Run 2026-10-11 — reliability console tour (no deploy)
+- Vercel ignore step changed from `git diff --quiet HEAD^ HEAD -- .` to a `VERCEL_GIT_PREVIOUS_SHA` diff with a
+  build-on-doubt fallback (board D-17) — the push-tip trap is fixed at the root; first push after it built READY.
+- Legacy Render service `RaSi_Fiters_API` suspended via the dashboard (typed-confirmation dialog); live
+  `rasifiters-api` verified 200 after.
+- Resend auth domain DNS (DKIM TXT, two CNAMEs, `_dmarc`) added via the Vercel dashboard — the project-scoped
+  `VERCEL_TOKEN` is forbidden on domain records; a record under `auth.` disables the `*` wildcard there (fine).

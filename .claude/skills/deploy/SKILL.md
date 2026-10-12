@@ -135,8 +135,12 @@ Blueprint / Vercel App), done once per repo in the dashboard; everything else is
    TK=$(python3 -c "import json,os;print(json.load(open(os.path.expanduser('~/Library/Application Support/com.vercel.cli/auth.json')))['token'])")
    curl -sS -X PATCH "https://api.vercel.com/v9/projects/<project>?teamId=<teamId>" \
      -H "Authorization: Bearer $TK" -H "Content-Type: application/json" \
-     -d '{"rootDirectory":"apps/web","commandForIgnoringBuildStep":"git diff --quiet HEAD^ HEAD -- ."}'
+     -d @body.json   # {"rootDirectory":"apps/web","commandForIgnoringBuildStep":"<the command below>"}
    ```
+   Current ignore command (since 2026-10-11 — compares against the last SUCCESSFUL deploy, falls back to
+   building when that commit isn't in Vercel's shallow clone):
+   `if [ -n "$VERCEL_GIT_PREVIOUS_SHA" ] && git cat-file -e "$VERCEL_GIT_PREVIOUS_SHA^{commit}" 2>/dev/null; then git diff --quiet "$VERCEL_GIT_PREVIOUS_SHA" HEAD -- .; else exit 1; fi`
+   (Today the project token in `.claude/settings.local.json` `env.VERCEL_TOKEN` can PATCH the project too.)
    - **ORDER MATTERS:** set `rootDirectory` before/with the connect, or the first git build runs from the repo
      root and fails (it's the project's *Root Directory* for git deploys — different from the cwd the CLI uploads).
    - The ignore step exits 0 (skip) when nothing under the web subtree changed → only web commits build.
@@ -204,7 +208,9 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
   `value:` vars sync from the YAML.
 - **rootDirectory before git-connect (Vercel):** set it via the REST API first, or the first git build runs
   from repo root and fails. The CLI cannot set rootDirectory.
-- **Ignored-build-step skips by the PUSH-TIP commit's diff,** not the whole pushed range — the ignore command
+- **FIXED 2026-10-11 (board D-17):** the ignore step now diffs against `VERCEL_GIT_PREVIOUS_SHA` (last
+  successful deploy), so the push-tip trap below no longer applies; kept for history + the recovery recipe.
+- **(Historical) Ignored-build-step skips by the PUSH-TIP commit's diff,** not the whole pushed range — the ignore command
   is `git diff --quiet HEAD^ HEAD -- .` (only `HEAD^..HEAD`, scoped to `rootDirectory=apps/web`). So if the
   push TIP is a docs/lessons `chore` with no web diff, Vercel SKIPS the web build even when an earlier commit
   in the same push changed `apps/web` — production silently stays on the prior deployment (confirmed

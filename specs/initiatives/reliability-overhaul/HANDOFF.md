@@ -7,57 +7,38 @@
 
 ## Now
 
-- **Phase:** Session 1 (2026-10-11). Step 0 ✅ → Phase 0 ✅ → walkthrough ✅ → **Phase 1 design board ✅
-  APPROVED** ([`DESIGN_BOARD.md`](DESIGN_BOARD.md); D-1…D-14 as recommended except **D-10 → free staging**).
-  Approved phases + parallel tracks are in [`BRIEF.md`](BRIEF.md) §7. **Next: Phase 1b hotfixes (H1 auth,
-  H2 refresh rate limit, H3 analytics check)** via `multiplex` — plan needs the user's approval before code.
-- **Board artifact:** https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private; `db` capability — the user's
-  answers live in its store, collection `board`, doc `answers`; read with `ArtifactData`). The HTML source is
-  only in Session 1's scratchpad — re-read it with Artifact `read` before republishing to the same URL.
-- **In flight / next with the user:** a **console tour in the built-in browser** (user request 2026-10-11):
-  walk every console (Google Cloud, Firebase, Play Console, App Store Connect + Apple Developer, Supabase,
-  Render, Vercel, GitHub, DNS, Search Console) read-only, inventory the setup (non-secret facts only →
-  ENV_RUNBOOK / CONTEXT), changes only with the user's explicit yes per action; the W5 console fix fits here.
-- **Task chips dismissed** (folded into Phase 1b): the shared-client refresh hotfix (→ H1) and the analytics
-  membership check (→ H3).
-- **W5 console fix DONE 2026-10-11 (console tour, user said yes) — and verified (below):** the only Android OAuth client was registered
-  with the Mac's DEBUG keystore SHA-1; created `RaSi Android App (Play)` for the Play App Signing SHA-1
-  (ENV_RUNBOOK §7). **Pending: re-test** Continue-with-Google on the Pixel (Play 1.0.0 (4)) after ~5–60 min,
-  with a live logcat capture.
-- **Console tour progress (built-in browser, 2026-10-11):** Google Cloud ✅ · Play Console ✅ (Production, 16
-  installs) · Firebase ✅ (Android SHA-1s = Play + upload; FCM v1 on, legacy off; no APNs key there — iOS push
-  goes backend→APNs) · App Store Connect + Apple Developer ✅ (iOS 1.4.2 live; **TestFlight 1.4.3 (57) EXPIRES
-  ~2026-10-15** — 6 installs; APNs key `RA353TA52W` team-scoped Sandbox+Production = Render `APNS_KEY_ID`;
-  entitlements: push, Sign in with Apple, HealthKit + background delivery; background mode `fetch`) · DNS ✅
-  (Vercel DNS, registrar Name.com, renews by 2027-02-28, **no MX**) · Search Console ✅ (2 indexed / 7 not; 13
-  clicks) · GitHub ✅ signed in · Render ✅ (`rasifiters-api` Starter/virginia, auto-deploy on commit to `main`,
-  build filter `apps/backend/**`, health check `/` (no DB), PR previews off; **the legacy `RaSi_Fiters_API`
-  service is still running on Starter**) · Vercel ✅ (root `apps/web`, Node 24, apex + `www`→308, protection
-  all-except-custom-domains; live = `774894d` CLI deploy 2026-08-20 = current web code; every git deploy since
-  is CANCELED by the ignore step `git diff --quiet HEAD^ HEAD -- .` — correct for docs-only pushes, but it only
-  looks at a push's LAST commit, so a web change followed by a docs commit is silently skipped → the real cause
-  behind memory `web-deploy-manual-fallback`) · **Supabase dashboard blocked in the pane** (API covers it).
-  **Tour COMPLETE.** All consoles signed in inside the built-in browser (persists for later sessions).
-- **W5 VERIFIED FIXED 2026-10-11:** the user tapped Continue with Google on the Pixel (Play 1.0.0 (4)) → works.
-  (The confirming logcat capture missed — adb lost the device; the user's on-device result stands.)
-- **Phase 1b plan READY, awaiting user approval:** [`plans/phase-1b/`](plans/phase-1b/) (brief · plan · verdict =
-  8 advisory objections, none blocking). Open approval point: refresh classification D-C11 is broader than the
-  board's wording (any coded 4xx → 401; 408/409/429/5xx/network → 503 + Retry-After). Orchestrator folds in
-  advisories 1–3, 5–8. Credentialed smoke tests (password logins against prod) are run BY THE USER, not Claude.
-- **Tour add-on decisions (user, 2026-10-11 — board §11 add-on table):** D-15 custom SMTP for password reset
-  = **yes, in progress** (Resend domain `auth.rasifiters.com` added; 4 DNS records live in Vercel DNS —
-  DKIM TXT, `send.auth` + `rsend.auth` CNAMEs, `_dmarc` TXT; verification pending) (user creates a Resend account → domain `auth.rasifiters.com`; Claude adds DNS
-  records in Vercel DNS with per-action OK; user pastes the SMTP key into Supabase Auth → SMTP; then test a
-  reset to a non-team address) · D-16 legacy `RaSi_Fiters_API` **suspended** (live API verified 200) · D-17
-  Vercel ignore step **fixed** (compares `VERCEL_GIT_PREVIOUS_SHA`; first push after it builds once) ·
-  TestFlight 1.4.3 (57) **let lapse** (RELEASES.md).
-- **NEW FINDING — password reset is silently broken (verified):** Supabase has **no custom SMTP**
-  (`smtp_host` null, `rate_limit_email_sent` 2/h); Supabase's built-in sender refuses non-team addresses
-  ("Email address not authorized"). `requestPasswordReset` (`authService.js:655`) ignores the result and
-  always says "link sent". Sign-up/email-change auto-confirm, so reset is the only email flow. 0 `/recover`
-  calls in 30 d (nobody hit it yet). Proposed fix (free, config-only): a transactional email provider's free
-  tier (e.g. Resend) on an `auth.rasifiters.com` sending domain (SPF/DKIM in Vercel DNS) + Supabase SMTP
-  settings via the admin token — user creates the provider account; needs a board add-on decision (D-15).
+- **Phase:** Session 1 (2026-10-11). Step 0 ✅ → Phase 0 ✅ → walkthrough ✅ → **design board ✅ APPROVED**
+  ([`DESIGN_BOARD.md`](DESIGN_BOARD.md) — D-1…D-14 as recommended except D-10 → free staging; add-ons
+  D-15…D-17 in its §11) → console tour ✅ → **Phase 1b hotfixes IN PROGRESS.** Phases + parallel tracks:
+  [`BRIEF.md`](BRIEF.md) §7.
+- **IN FLIGHT 1 — Phase 1b (H1 auth hotfix + H3 analytics membership check), plan APPROVED by the user incl.
+  the wider refresh rule D-C11.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/). An `implementer`
+  agent was launched in the background (edits ONLY the 7 backend files; NO commit, NO push; offline harness in
+  the session scratchpad; also folds verdict #6 (log reset errors server-side) + #8 (TLS JWKS errors → 503)).
+  **On its return:** (1) spot-check its report; (2) run `impl-adversary` on the diff; (3) `git-version` the
+  docs steps D1–D9 from the plan + the docs advisories (#1 the 16 page SPECs + member-analytics F1 + D-S1 rows,
+  #2 stale line refs, #3 add an F15 timeout row, #5 CORS `exposedHeaders` for Retry-After as a Phase 3
+  prerequisite, #7 §4 middleware table incl. `canModifyLog`) — three MINOR bumps (auth 0.10.0, analytics
+  0.4.0, analytics-v2 0.2.0); (4) **ASK the user before pushing — a push to `main` auto-deploys Render**;
+  (5) the USER runs the credentialed prod smoke (`phase1b-smoke.sh`, PASS/FAIL only — Claude never sends
+  passwords to prod); (6) watch `tools/supabase-logs.sh` for `refresh_token_already_used` + 429 for 7 days.
+  If the implementer result was lost in a compaction: check `git status` / `git diff --stat apps/backend` and
+  re-run `impl-adversary` against the plan.
+- **IN FLIGHT 2 — D-15 password-reset email (Resend).** Done: Resend account (user), domain
+  `auth.rasifiters.com` added (us-east-1) + **Verified**; 4 DNS records live in Vercel DNS (ENV_RUNBOOK §7b).
+  **Waiting on the user:** create a Resend API key (`supabase-auth-smtp`, Sending access, that domain) and save
+  Supabase → Authentication → Emails → SMTP (values in ENV_RUNBOOK §7b). **Then Claude:** read back
+  `smtp_host` via `tools/ops-get.sh supabase …/config/auth`; the user triggers a reset for a non-team address;
+  confirm `/recover` 200 in `tools/supabase-logs.sh` + Delivered in Resend; flip the status lines in
+  ENV_RUNBOOK §7b + CONTEXT.md.
+- **Done today (verified):** W5 Android Google sign-in fixed in the console (Play-key OAuth client) and
+  verified on the Pixel by the user · legacy `RaSi_Fiters_API` suspended (D-16) · Vercel ignore step fixed
+  (D-17; first push built READY) · TestFlight 1.4.3 (57) left to lapse (RELEASES.md) · console tour complete —
+  findings in ENV_RUNBOOK §7/§7b, CONTEXT.md, CLAUDE.md §MCP Servers (consoles in the built-in browser).
+- **Board artifact:** https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private; `db` store collection `board`,
+  doc `answers`). HTML source only in Session 1's scratchpad — `Artifact read` before republishing.
+- **Not yet scheduled (from the board):** H2 raise `rate_limit_token_refresh` 150 → 1,500 (one admin-token
+  call, user approves the call) and D-4 Supabase secret API key (user creates) — do H2 alongside the 1b deploy.
 - **User decisions captured in the walkthrough (→ design board, then SPEC §9 D-rules):**
   - W1-D1 logout scope: "whatever is industry-appropriate" → **per-device sign-out by default; "sign out
     everywhere" only as an explicit action** (Supabase `signOut({scope:'local'})`; global stays for
@@ -166,11 +147,10 @@
 
 ## Next action
 
-1. **Phase 1b hotfixes** (BRIEF §7): run `plan-pipeline` / `multiplex` for H1 + H3 (backend), present the plan
-   for approval, implement, impl-adversary, deploy backend (user confirms the deploy); H2 is one Supabase
-   Management API call with the admin token (user approves the call). Verify in `tools/supabase-logs.sh`.
-2. **Console tour** with the user in the built-in browser (see "In flight").
-3. Then **Phase 2** tracks A–D in parallel (BRIEF §7).
+1. Finish **Phase 1b** (steps in "IN FLIGHT 1") + H2 rate-limit call → deploy (user OK) → user smoke → log watch.
+2. Finish **D-15** (steps in "IN FLIGHT 2").
+3. Start **Phase 2** tracks A–D in parallel (BRIEF §7): observability, staging, version-gate backend, frontend
+   kits — each via `multiplex` (plan-pipeline → user approves → implementers in parallel worktrees).
 
 **Before Session 1 (user):** put these in `.claude/settings.local.json` under `env` (gitignored — never in
 chat, never committed):
@@ -200,7 +180,7 @@ Verify any token without printing it: read it from the file inside the command a
 | W2 | Push + invites | ✅ | ✅ | ⬜ | ⬜ |
 | W3 | iOS health sync | ✅ | ✅ | ⬜ | ⬜ |
 | W4 | Android health sync | ✅ | ✅ | ⬜ | ⬜ |
-| W5 | Android Google sign-in | ✅ | ✅ | ⬜ | ⬜ |
+| W5 | Android Google sign-in | ✅ | ✅ | 🟨 console fix ✅; button code → Phase 3 | 🟨 sign-in works on Play build |
 | W6 | Observability + perf | ✅ | ✅ | ⬜ | ⬜ |
 | W7 | Frontend state / error / design consistency | ✅ | ✅ | ⬜ | ⬜ |
 
@@ -213,10 +193,12 @@ Verify any token without printing it: read it from the file inside the command a
   project-scoped; Supabase read-only default + full-access admin) — all verified; read Supabase Auth session
   settings (BRIEF S8); Android Google sign-in failure confirmed on the Play build; Pixel 7 authorized for adb
   (2026-10-11).
-- **2026-10-11** — Session 1. Step 0: token-only access to Render/Vercel/Supabase + `token-guard` hook +
-  `tools/ops-get.sh` / `tools/supabase-logs.sh` (commit 5758965). Phase 0: 7 parallel discovery agents →
-  `discovery/` briefs, all key claims verified by the orchestrator; two out-of-scope security findings
-  offered as task chips.
+- **2026-10-11** — Session 1. Step 0: token-only access + `token-guard` hook + `tools/ops-get.sh` /
+  `tools/supabase-logs.sh`. Phase 0: 7 parallel discovery agents → verified briefs. Walkthrough W1–W7 with the
+  user (decisions in "Now"). Design board published (artifact with a `db` answer store), adversary-reviewed,
+  **approved**. Console tour in the built-in browser: W5 Google sign-in fixed + verified, legacy API suspended,
+  Vercel ignore step fixed, password-reset email gap found → Resend set up (SMTP save pending). Phase 1b plan
+  approved; implementer running.
 
 ## Kickoff prompt — Session 1
 
