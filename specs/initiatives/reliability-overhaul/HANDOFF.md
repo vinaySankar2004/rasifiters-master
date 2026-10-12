@@ -40,8 +40,13 @@
   **Tour COMPLETE.** All consoles signed in inside the built-in browser (persists for later sessions).
 - **W5 VERIFIED FIXED 2026-10-11:** the user tapped Continue with Google on the Pixel (Play 1.0.0 (4)) → works.
   (The confirming logcat capture missed — adb lost the device; the user's on-device result stands.)
+- **Phase 1b plan READY, awaiting user approval:** [`plans/phase-1b/`](plans/phase-1b/) (brief · plan · verdict =
+  8 advisory objections, none blocking). Open approval point: refresh classification D-C11 is broader than the
+  board's wording (any coded 4xx → 401; 408/409/429/5xx/network → 503 + Retry-After). Orchestrator folds in
+  advisories 1–3, 5–8. Credentialed smoke tests (password logins against prod) are run BY THE USER, not Claude.
 - **Tour add-on decisions (user, 2026-10-11 — board §11 add-on table):** D-15 custom SMTP for password reset
-  = **yes, in progress** (user creates a Resend account → domain `auth.rasifiters.com`; Claude adds DNS
+  = **yes, in progress** (Resend domain `auth.rasifiters.com` added; 4 DNS records live in Vercel DNS —
+  DKIM TXT, `send.auth` + `rsend.auth` CNAMEs, `_dmarc` TXT; verification pending) (user creates a Resend account → domain `auth.rasifiters.com`; Claude adds DNS
   records in Vercel DNS with per-action OK; user pastes the SMTP key into Supabase Auth → SMTP; then test a
   reset to a non-team address) · D-16 legacy `RaSi_Fiters_API` **suspended** (live API verified 200) · D-17
   Vercel ignore step **fixed** (compares `VERCEL_GIT_PREVIOUS_SHA`; first push after it builds once) ·
