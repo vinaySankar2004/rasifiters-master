@@ -56,7 +56,14 @@ router.post("/refresh", async (req, res) => {
         const result = await authService.refreshAccessToken(req.body.refresh_token);
         res.json(result);
     } catch (err) {
-        if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
+        if (err instanceof AppError) {
+            // auth SPEC D-C11: classified failures add a machine `code` (session_invalid / auth_unavailable) and,
+            // on 503, a Retry-After header. The 400 "Refresh token required" stays `{ error }` only.
+            if (err.retryAfter) res.set("Retry-After", String(err.retryAfter));
+            const body = { error: err.message };
+            if (err.code) body.code = err.code;
+            return res.status(err.statusCode).json(body);
+        }
         console.error("[refresh] error:", err);
         res.status(500).json({ error: "Server error during refresh" });
     }

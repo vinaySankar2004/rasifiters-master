@@ -1,7 +1,10 @@
 // Auth service — the /api/auth/* business logic.
 // MIGRATION DELTA (R1 / SPEC §7): credentials + tokens move to Supabase Auth; Express PROXIES it.
 //   • login        → resolve identifier→member→primary email, then Supabase signInWithPassword.
-//   • refresh      → Supabase refreshSession (Supabase owns refresh-token rotation; refresh_tokens retires).
+//   • refresh      → ONE direct, 5 s-timed, never-retried POST to Supabase's /token endpoint
+//                    (services/supabaseTokenRefresh.js — SPEC D-C11; Supabase owns rotation; refresh_tokens retires).
+//   • sign-in/oauth/re-auth/recovery → a FRESH per-request anon client (makeRequestAuthClient — D-C11);
+//                    no module-level client ever holds a user session.
 //   • logout       → revoke the session via Supabase.
 //   • register     → Supabase admin createUser + members + member_emails (+ backfill auth_user_id).
 //   • changePass   → Supabase admin updateUserById.
@@ -10,7 +13,13 @@
 // Response shapes are preserved 1:1 so the web + iOS clients are unchanged (D-C3).
 const { sequelize } = require("../config/database");
 const { Member, MemberEmail, MemberPushToken } = require("../models");
-const { supabaseAuth, supabaseAdmin, makeEphemeralAuthClient } = require("../config/supabase");
+const {
+    supabaseAdmin,
+    makeEphemeralAuthClient,
+    makeRequestAuthClient,
+    AUTH_HTTP_TIMEOUT_MS
+} = require("../config/supabase");
+const { exchangeRefreshToken } = require("./supabaseTokenRefresh");
 const { cascadeMemberDeletion } = require("../utils/programMemberships");
 const { AppError } = require("../utils/response");
 
@@ -71,7 +80,7 @@ const validatePassword = (password) => {
 const supabaseSignIn = async (member, password) => {
     const email = await resolvePrimaryEmail(member.id);
     if (!email) throw new AppError(401, "Invalid credentials");
-    const { data, error } = await supabaseAuth.auth.signInWithPassword({ email, password });
+    const { data, error } = await makeRequestAuthClient().auth.signInWithPassword({ email, password });
     if (error || !data?.session) throw new AppError(401, "Invalid credentials");
     return data.session;
 };
@@ -155,14 +164,14 @@ async function loginGlobal(identifier, password, options = {}) {
 async function refreshAccessToken(refreshTokenRaw) {
     if (!refreshTokenRaw) throw new AppError(400, "Refresh token required");
 
-    const { data, error } = await supabaseAuth.auth.refreshSession({ refresh_token: refreshTokenRaw });
-    if (error || !data?.session) {
-        throw new AppError(401, "Invalid refresh token");
-    }
+    // D-C11: one direct, timed, never-retried token-endpoint call — no shared SDK session machinery. Throws
+    // AppError 401 {code:"session_invalid"} or 503 {code:"auth_unavailable", retryAfter} (see routes/auth.js).
+    const session = await exchangeRefreshToken(refreshTokenRaw);
 
+    // Shape is contract (live iOS/Android/web): exactly { token, refresh_token, message }, in this order.
     return {
-        token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
+        token: session.access_token,
+        refresh_token: session.refresh_token,
         message: "Token refreshed"
     };
 }
@@ -276,7 +285,8 @@ async function exchangeGoogleAuthCode(code) {
                 client_secret: clientSecret,
                 redirect_uri: "postmessage",
                 grant_type: "authorization_code"
-            })
+            }),
+            signal: AbortSignal.timeout(AUTH_HTTP_TIMEOUT_MS) // D-C11 — hung connect → 502; stalled body → 401
         });
     } catch (_) {
         throw new AppError(502, "Could not reach Google.");
@@ -414,7 +424,7 @@ async function socialSignIn({ provider, id_token, nonce, first_name, last_name, 
     }
     if (!id_token) throw new AppError(400, "Missing provider token.");
 
-    const { data, error } = await supabaseAuth.auth.signInWithIdToken({
+    const { data, error } = await makeRequestAuthClient().auth.signInWithIdToken({
         provider,
         token: id_token,
         ...(nonce ? { nonce } : {})
@@ -596,7 +606,7 @@ async function changeEmail(memberId, newEmailRaw, password) {
     const currentEmail = await resolvePrimaryEmail(member.id);
     if (!currentEmail) throw new AppError(404, "Account email not found.");
     const { data: signInData, error: signInError } =
-        await supabaseAuth.auth.signInWithPassword({ email: currentEmail, password });
+        await makeRequestAuthClient().auth.signInWithPassword({ email: currentEmail, password });
     if (signInError || !signInData?.session) {
         throw new AppError(401, "Current password is incorrect.");
     }
@@ -656,13 +666,25 @@ async function requestPasswordReset(emailRaw) {
     const email = normalizeEmail(emailRaw);
     if (email && EMAIL_RE.test(email)) {
         const redirectTo = passwordResetRedirectUrl();
+        let failure = null;
         try {
-            await supabaseAuth.auth.resetPasswordForEmail(
+            const { error } = await makeRequestAuthClient().auth.resetPasswordForEmail(
                 email,
                 redirectTo ? { redirectTo } : undefined
             );
-        } catch (_) {
+            failure = error || null;
+        } catch (err) {
             // Swallow — never surface delivery/existence status to the caller.
+            failure = err;
+        }
+        // Server-side only, non-identifying (never the email or a token): a timed-out / rejected recover call
+        // was otherwise invisible. The caller still gets the same generic 200 below.
+        if (failure) {
+            console.warn("[auth] password reset request failed", {
+                name: failure?.name,
+                status: failure?.status,
+                code: failure?.code
+            });
         }
     }
     return { message: "If an account with that email exists, a password reset link has been sent." };

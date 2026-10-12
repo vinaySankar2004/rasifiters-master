@@ -3,7 +3,7 @@
 // (jwt.verify(token, JWT_SECRET)). It now verifies a SUPABASE-issued JWT via JWKS, reads `sub`
 // (= auth.users.id), looks the member up by members.auth_user_id, and rebuilds the SAME req.user
 // shape the rest of the app expects — so the authorization gates below are UNCHANGED from legacy.
-const { verifySupabaseJwt } = require("../config/supabase");
+const { verifySupabaseJwt, AUTH_RETRY_AFTER_SECONDS } = require("../config/supabase");
 const { Member, ProgramMembership } = require("../models");
 
 // Verify a Supabase-issued JWT and rebuild the legacy `req.user` contract (carries BOTH `role` and
@@ -32,6 +32,36 @@ const resolveReqUser = async (token) => {
     };
 };
 
+// D-C11 (auth 0.10.0 — reliability-overhaul D-1): tell an INFRASTRUCTURE failure apart from a bad token.
+// JWKS timeout / non-200 / bad JSON (jose ERR_JWKS_TIMEOUT / ERR_JOSE_GENERIC / ERR_JWKS_INVALID), a network/TLS
+// error, or a DB (Sequelize) error in the member lookup → 503 + Retry-After, so the client keeps its session
+// and retries instead of refreshing and then signing out on a second 401. Every token fault (expired, forged,
+// malformed, wrong iss/aud, unknown kid) and anything unclassified stays 401 exactly as before.
+const INFRA_JOSE_CODES = new Set(["ERR_JWKS_TIMEOUT", "ERR_JOSE_GENERIC", "ERR_JWKS_INVALID"]);
+const NETWORK_ERROR_CODES = new Set([
+    "ECONNREFUSED", "ECONNRESET", "ECONNABORTED", "ENOTFOUND", "EAI_AGAIN",
+    "ETIMEDOUT", "EPIPE", "EHOSTUNREACH", "ENETUNREACH",
+    // TLS handshake / certificate failures on the JWKS fetch (jose uses node:https) — never the token's fault.
+    "EPROTO", "CERT_HAS_EXPIRED", "CERT_NOT_YET_VALID", "ERR_TLS_CERT_ALTNAME_INVALID",
+    "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
+    "DEPTH_ZERO_SELF_SIGNED_CERT", "SELF_SIGNED_CERT_IN_CHAIN"
+]);
+
+const isVerifyInfraFailure = (err) => {
+    if (!err) return false;
+    if (INFRA_JOSE_CODES.has(err.code) || NETWORK_ERROR_CODES.has(err.code)) return true;
+    if (typeof err.code === "string" && err.code.startsWith("ERR_SSL_")) return true;
+    return typeof err.name === "string" && err.name.startsWith("Sequelize");
+};
+
+const sendAuthUnavailable = (res) => {
+    res.set("Retry-After", String(AUTH_RETRY_AFTER_SECONDS));
+    return res.status(503).json({
+        error: "Authentication service temporarily unavailable",
+        code: "auth_unavailable"
+    });
+};
+
 const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
@@ -49,6 +79,10 @@ const authenticateToken = async (req, res, next) => {
         req.authUserId = resolved.authUserId;
         next();
     } catch (error) {
+        if (isVerifyInfraFailure(error)) {
+            console.error("[auth] token verification unavailable: %s", error.code || error.name);
+            return sendAuthUnavailable(res);
+        }
         return res.status(401).json({ error: "Invalid token." });
     }
 };
