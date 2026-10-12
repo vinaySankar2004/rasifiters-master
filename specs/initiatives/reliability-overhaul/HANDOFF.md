@@ -12,6 +12,15 @@
   D-15…D-17 in its §11) → console tour ✅ → **Phase 1b: H1 + H3 DEPLOYED + verified 2026-10-12** (auth 0.10.0
   / D-C11; analytics 0.4.0 / D-C8 + analytics-v2 0.2.0 / D-C3) + **H2 done 2026-10-12T19:08:19Z** — 7-day log
   watch running. Phases + parallel tracks: [`BRIEF.md`](BRIEF.md) §7.
+- **IN FLIGHT — Phase 2 PLANNING (started 2026-10-12, user: "start phase 2 in parallel").** Four background
+  workflow runs (`phase2-track-plan` = saved `plan-pipeline` + a scribe), one per track; each writes
+  `brief.md` / `plan.md` / `verdict.md` to `plans/phase-2a-observability/`, `phase-2b-staging/`,
+  `phase-2c-version-gate/`, `phase-2d-frontend-kits/` and returns a short summary (fence per surface,
+  migrations, console actions, user decisions, open BLOCKING items). **Next:** check the four fences for overlaps
+  (A/B/C all touch the backend — likely `server.js`, `config/database.js`), resolve shared-file sequencing,
+  present all four plans to the user → **user approves each** → implementers (backend tracks sequenced where
+  files overlap; D's three surfaces in parallel) → impl-adversary → compile-check → git-version → user OK to push.
+  If the summaries were lost in a compaction: read the `plans/phase-2*/` files (written once each run ends).
 - ✅ **Phase 1b H1 + H3 — DONE 2026-10-12.** Plan/brief/verdict: [`plans/phase-1b/`](plans/phase-1b/).
   Implementer (harness 100+31+55+29) → `impl-adversary` PASS-WITH-FIXES (no blockers; code nit fixed; #3 → auth
   F15) → local smoke without credentials 28/28 → commits `6524a59` (H1, `feature/auth@v0.10.0`) + `502164f`
