@@ -5,6 +5,7 @@ require("dotenv").config();
 require("dotenv").config({ path: ".env.local", override: true });
 const { connectDB } = require("./config/database");
 require("./models/index");
+const { requestLog } = require("./middleware/requestLog");
 const { errorHandler } = require("./middleware/errorHandler");
 const { getAppConfig, blockUnversionedAndroid } = require("./middleware/versionGate");
 
@@ -24,10 +25,20 @@ const {
     streaksRouter: memberStreaksRoutes,
     recentRouter: memberRecentRoutes
 } = require("./routes/memberAnalytics");
+const clientEventRoutes = require("./routes/clientEvents");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
 // documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/.
 
 const app = express();
+
+// observability D-C7: trust exactly ONE proxy hop (Render's edge), so req.ip is the client address from
+// X-Forwarded-For. Only the client-events per-client limiters read it today. Re-verify the hop count after any
+// infra change with the request log's `xff_n` (observability SPEC §6).
+app.set("trust proxy", 1);
+
+// observability D-C1: structured request log + X-Request-Id. FIRST, so CORS preflights (and every later
+// middleware's responses, incl. app-config's version-gate 426s) are logged too.
+app.use(requestLog);
 
 app.use(cors({
     origin: [
@@ -36,12 +47,22 @@ app.use(cors({
         "https://rasifiters.com",
         "https://www.rasifiters.com"
     ],
-    credentials: true
+    credentials: true,
+    // observability D-C8: browsers cache the preflight for 2 h (Chrome's cap) — repeat web opens skip it.
+    maxAge: 7200,
+    // observability D-C8 (resolves auth F16): the web app may read Retry-After (auth D-C11 503s, client-events
+    // 429s) and the X-Request-Id it should quote in error reports.
+    exposedHeaders: ["Retry-After", "X-Request-Id"]
 }));
 
 app.get("/", (req, res) => {
     res.send("Rasi Fiters API is running!");
 });
+
+// observability D-C4: BEFORE the global express.json() — this router carries its own 64 kb parser (a body the
+// global 100 kb parser read first would skip it). Also ahead of app-config's version gate on purpose: telemetry
+// must arrive even from a build the gate blocks.
+app.use("/api/client-events", clientEventRoutes);
 
 app.use(express.json());
 

@@ -10,7 +10,9 @@ const sequelize = new Sequelize(process.env.DATABASE_URL, {
             rejectUnauthorized: false, // Allow self-signed certificates
         },
     },
-    logging: true,
+    // observability D-C2: SQL logging OFF unless DB_LOG_SQL=true (local debugging only — queries carry usernames,
+    // emails and push tokens as literals). Deliberately not keyed on NODE_ENV (unset on Render).
+    logging: process.env.DB_LOG_SQL === "true" ? console.log : false,
 });
 
 const connectDB = async () => {

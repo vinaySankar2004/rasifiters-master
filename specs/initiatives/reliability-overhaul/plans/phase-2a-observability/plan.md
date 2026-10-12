@@ -1159,6 +1159,25 @@ ENV_RUNBOOK.md
   - Note `country` on the `xff0` line. `null` means Render doesn't forward it; record as F5 status.
 - Confirm there are no `Executing (default)` lines after the deploy time.
 - Then the USER checks rasifiters.com, the live iOS app and the live Android app: Summary and Lifestyle load, and nobody is signed out.
+- **Limiter-key probe (added after the track A review).** This proves `clientKey(req.ip)` tells real clients apart and does not collapse them onto one shared proxy address.
+  - Run it at least 60 s after the prod smoke, because the smoke's last section uses up this machine's per-minute window.
+  - Body `{"events":[]}` writes no row. The per-minute limiter counts the request first, then the service answers `400 invalid_batch` before any insert or daily-budget charge.
+  - From network A (this machine), send 31 requests back to back:
+```
+for i in $(seq 1 31); do curl -s -m 20 -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{"events":[]}' https://rasifiters-api.onrender.com/api/client-events; done | uniq -c
+```
+  - Expected: `30 400`, then `1 429`.
+  - Straight away (within 60 s of the first request), send ONE request from network B. Use a phone on cellular, for example this laptop tethered to the phone's cellular hotspot with Wi-Fi off. Never use the same Wi-Fi.
+```
+curl -s -m 20 -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{"events":[]}' https://rasifiters-api.onrender.com/api/client-events
+```
+  - Expected: `400`. It must NOT be `429`.
+  - **If network B gets `429`**, the limiter key is collapsing onto a shared proxy IP and every client shares one bucket. STOP and bring it to the user. The fix is a follow-up commit (observability **0.1.1 PATCH**):
+    - switch `clientKey` to prefer `CF-Connecting-IP`, i.e. key on `clientKey(req.get("cf-connecting-ip") || req.ip)` in both the route's per-minute limiter `keyFn` and the `clientKey` the route passes to the service (`clientKey` still maps a non-IP value to `"unknown"`);
+    - update SPEC D-C7 and §4;
+    - re-run this probe.
+  - Record the result in E7's SPEC §11 row (`limiter key per-client ✓`, or the fix applied).
+  - Numbering: SPEC §10 F8 now holds the route-level-catch finding. If the `X-Request-Id echoed` check above fails, record the edge rewrite as **F9**, not F8.
 
 **E7. Docs commit 2 (no bump, no tag).**
 - Flip observability to deployed: `registry.json` `"status": "deployed"`; `REGISTRY.md` 🏗️ → 🚀; SPEC header `🚀 deployed`.

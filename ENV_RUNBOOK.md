@@ -110,8 +110,9 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | `LATEST_IOS_VERSION` | iOS soft "Update available" threshold, served as `latest_ios_version` | no | **NEW (app-config 0.2.0, D-C4)** — dot-separated ints (`<x.y.z>`); unset/malformed → `null` (no nudge). Operator-managed: **not** in `render.yaml`; set via the Render MCP `update_environment_variables` (per-call confirm) when a release ships, **then redeploy** — `process.env` is fixed at process start, so the change applies only on the next deploy. |
 | `MIN_ANDROID_VERSION_CODE` | Android hard minimum `versionCode`, served as `min_android_version_code` | no | **NEW (D-C4)** — positive integer (`<versionCode>`); unset/malformed → `null` (nobody blocked). Read by the Phase 3 Android build (blocking update screen). Operator-managed, not in `render.yaml`; set, then redeploy. |
 | `LATEST_ANDROID_VERSION_CODE` | Android soft-nudge `versionCode`, served as `latest_android_version_code` | no | **NEW (D-C4)** — positive integer (`<versionCode>`); unset/malformed → `null`. Operator-managed, not in `render.yaml`; set, then redeploy. |
-| `BLOCK_UNVERSIONED_ANDROID` | switch: `426 {error, code:"update_required"}` on every `/api/*` request (except `/api/app-config` and `POST /api/client-events`) from header-less Android — no `X-App-Version` + `User-Agent: okhttp/…` = the 1.0.0 builds | no | **NEW (D-C5)** — on only when exactly `true` (trimmed, case-insensitive); **default OFF**. Turn on only after the Phase 3 Android build (sends `X-App-Version` on every OkHttp client) is adopted AND a backend change needs it. Operator-managed, not in `render.yaml`; set, then redeploy (on or off takes effect only on the next deploy). |
-| `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | legacy hardcoded in `server.js` (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`). **Externalized to env**; the iOS client is native (no CORS). Set on Render (live). |
+| `BLOCK_UNVERSIONED_ANDROID` | switch: `426 {error, code:"update_required"}` on every `/api/*` request (except `GET`/`HEAD /api/app-config` and `POST /api/client-events`) from header-less Android — no `X-App-Version` + `User-Agent: okhttp/…` = the 1.0.0 builds | no | **NEW (D-C5)** — on only when exactly `true` (trimmed, case-insensitive); **default OFF**. Turn on only after the Phase 3 Android build (sends `X-App-Version` on every OkHttp client) is adopted AND a backend change needs it. Operator-managed, not in `render.yaml`; set, then redeploy (on or off takes effect only on the next deploy). |
+| `DB_LOG_SQL` | Sequelize SQL query logging | no | **NEW (observability D-C2, 2026-10-12)** — unset / anything but `"true"` = **off** (prod: leave unset). `"true"` prints every query to stdout — local debugging only (queries carry usernames, emails and push tokens as literals). Not keyed on `NODE_ENV` (unset on Render); not in `render.yaml`. |
+| `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | **Not read by the code** (doc fix 2026-10-12): the origins are hard-coded in `apps/backend/server.js`'s `cors()` block (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`); a new web origin is a backend code change + deploy. The same block sets `maxAge: 7200` + `exposedHeaders: ["Retry-After","X-Request-Id"]` (observability D-C8). iOS/Android are native (no CORS). |
 | `APNS_KEY_ID` | APNs auth-key id | no | **provisioned `RA353TA52W`** (fresh token-based Auth Key for this rebuild; legacy was `F9C876PZ9K`). Push for iOS (the `apn` lib). |
 | `APNS_TEAM_ID` | Apple team id | no | `VSTTF2AM22` (unchanged — same Apple account). |
 | `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | `com.app.rasifiters` — must match the app's `aps-environment` entitlement / build target. |
@@ -142,8 +143,8 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 
 > **Host migration (R4):** the legacy web shipped with `netlify.toml` + `@netlify/plugin-nextjs`
 > (Netlify). The rebuild deploys to **Vercel**; drop the Netlify config + plugin from
-> `package.json`. CORS for the web origin is enforced **server-side by the backend**
-> (`CORS_ALLOWED_ORIGINS`), so add the new Vercel domain(s) there.
+> `package.json`. CORS for the web origin is enforced **server-side by the backend** — the origin list
+> is hard-coded in `apps/backend/server.js`'s `cors()` block, so a new web domain is a backend code change + deploy.
 
 ## 5. Inventory — iOS (App Store, SwiftUI)
 
@@ -169,7 +170,7 @@ talks to the **same backend API**. The relevant runbook facts:
   **Netlify → Vercel**, DB/auth **Render Postgres → Supabase**. (The API platform is unchanged — Render —
   but it's a brand-new service; the DB and web platforms do move.)
 
-**STAYS:** `PORT`, `MIN_IOS_VERSION`, the `APNS_*` ids, `CORS_ALLOWED_ORIGINS` (externalized but
+**STAYS:** `PORT`, `MIN_IOS_VERSION`, the `APNS_*` ids, the CORS origin list (hard-coded in `server.js`,
 same domains), and — critically — the **plain legacy table names** (R5: no prefixes) and the
 **preserved `members.id` UUIDs**.
 

@@ -77,7 +77,7 @@ Each app is a subfolder, so set the **Root Directory** per project/service:
    - Record service name (`rasifiters-api`) + the `onrender.com` URL + the Render service ID in `CONTEXT.md`.
 
 ## Env discipline
-- **Non-secret / known** (base URLs, ports, flags, `CORS_ALLOWED_ORIGINS`, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_STORAGE_BUCKET`) → set directly.
+- **Non-secret / known** (base URLs, ports, flags, `SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_STORAGE_BUCKET`) → set directly. **CORS is not an env var:** the allowed web origins are a hard-coded list in `apps/backend/server.js`'s `cors()` block (with `maxAge: 7200` + `exposedHeaders: ["Retry-After", "X-Request-Id"]`), so a new web origin is a backend code change + deploy. Any `CORS_ALLOWED_ORIGINS` value on Render is inert. (Reliability-overhaul Phase 2 track B plans an optional `CORS_EXTRA_ORIGINS` env for extra origins; not read by the code yet.)
 - **Real secrets** (`DATABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, the APNs push key/credentials for iOS notifications, any JWT signing secret) → **ask the user; never invent values.**
 - **Rotatable shared secrets** (any FE↔BE HMAC/proxy secret, a cron secret) → generate with `openssl rand -hex 32` and set the **same value on both sides** where shared.
 

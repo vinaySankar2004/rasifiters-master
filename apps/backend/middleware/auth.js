@@ -219,4 +219,25 @@ const requireProgramMember = async (req, res, next) => {
     next();
 };
 
-module.exports = { authenticateToken, authenticateStream, isAdmin, canModifyLog, requireProgramAdmin, requireProgramMember };
+// observability D-C4 / auth D-C12 (0.11.0): authenticate IF a bearer token is present; NEVER reject. No token, a
+// bad/expired token, an unknown member or a JWKS/DB outage all continue signed-out (req.user stays unset). For
+// routes that must work without a login — POST /api/client-events, whose sign-in-failure and forced-sign-out
+// reports arrive precisely when the session is gone. Header only (never ?token=).
+const optionalAuthenticate = async (req, res, next) => {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+    if (token) {
+        try {
+            const resolved = await resolveReqUser(token);
+            if (resolved) {
+                req.user = resolved.user;
+                req.authUserId = resolved.authUserId;
+            }
+        } catch (_error) {
+            // Signed-out by design: neither a token fault nor an infrastructure failure rejects here.
+        }
+    }
+    next();
+};
+
+module.exports = { authenticateToken, authenticateStream, optionalAuthenticate, isAdmin, canModifyLog, requireProgramAdmin, requireProgramMember };

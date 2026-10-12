@@ -10,7 +10,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 
 | Feature | Version | Status | Apps | Reference impl | Spec |
 |---------|---------|--------|------|----------------|------|
-| `auth` | 0.10.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/auth.js`, `services/authService.js`, `services/supabaseTokenRefresh.js`, `middleware/auth.js`, `config/supabase.js`) | [auth/SPEC.md](auth/SPEC.md) |
+| `auth` | 0.11.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/auth.js`, `services/authService.js`, `services/supabaseTokenRefresh.js`, `middleware/auth.js`, `config/supabase.js`) | [auth/SPEC.md](auth/SPEC.md) |
 | `members` | 0.3.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/members.js`, `services/memberService.js`, `models/{Member,MemberEmail}.js`) | [members/SPEC.md](members/SPEC.md) |
 | `programs` | 0.2.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/programs.js`, `services/programService.js`, `models/{Program,ProgramMembership,MemberProgramOrder}.js`, `sql/005`) | [programs/SPEC.md](programs/SPEC.md) |
 | `program-memberships` | 0.2.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/memberships.js`, `services/membershipService.js`, `utils/programMemberships.js`, `models/ProgramMembership.js`) | [program-memberships/SPEC.md](program-memberships/SPEC.md) |
@@ -24,6 +24,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | `analytics-v2` | 0.2.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/analytics.js` [v2 half], `services/analyticsService.js` [v2 fns]) | [analytics-v2/SPEC.md](analytics-v2/SPEC.md) |
 | `member-analytics` | 0.4.0 | 🚀 | `web` `ios` `android` | `backend` (`routes/memberAnalytics.js`, `services/memberAnalyticsService.js`, `services/analyticsService.js` [3 re-exported helpers]) | [member-analytics/SPEC.md](member-analytics/SPEC.md) |
 | `app-config` | 0.2.0 | 🚀 | `ios` | `backend` (`server.js` [inline `GET /api/app-config`] + `middleware/versionGate.js` [version env vars + `BLOCK_UNVERSIONED_ANDROID`]) | [app-config/SPEC.md](app-config/SPEC.md) |
+| `observability` | 0.1.0 | 🏗️ | — (none yet; `web` `ios` `android` senders in Phase 3) | `backend` (`middleware/requestLog.js`, `utils/{clientInfo,rateLimit}.js`, `routes/clientEvents.js`, `services/clientEventService.js`, `models/AppEvent.js`, `sql/007`, `config/database.js`, `middleware/errorHandler.js` [no request bodies in logs], `server.js` [trust proxy · mount order · CORS]) | [observability/SPEC.md](observability/SPEC.md) |
 | `apple-health` | 0.7.0 | 🚀 | `ios` | `ios` (`HealthKitService(+Sleep/+Steps).swift`, `HealthKitWorkoutTypeMap.swift`, `HealthKitAppliedLedger.swift`, `APIClient+DailyHealth.swift`, `ProgramContext+HealthKit(Sleep/Steps/Windows).swift`, `ProgramContext+HealthSyncGating.swift`, `PendingSyncConfirmation.swift`, `HealthSyncConfirmationView.swift`, `AppleHealthSettingsView.swift`; provenance: PR #4 workouts + net-new sleep + steps) | [apple-health/SPEC.md](apple-health/SPEC.md) |
 | `health-connect` | 0.2.0 | 🚀 | `android` | `android` (`health/{HealthConnectManager,HealthConnectWorkoutTypeMap,HealthStore,HealthModels,HealthDates,HealthSyncNotifier,HealthSyncController}.kt`, `ui/health/{HealthConnectSettingsScreen,HealthSyncConfirmationScreen}.kt`; the Android analog of `apple-health`, on Health Connect — workout + sleep + steps; no backend change) | [health-connect/SPEC.md](health-connect/SPEC.md) |
 
@@ -97,4 +98,4 @@ iOS polls on every launch/foreground/widget-open) + D-C3 (trim + semver-validate
 malformed env yields `null` rather than a broken client comparison). The **push (APNs)** half of the same
 COVERAGE row is owned by `notifications` + `auth` (already ported); this SPEC §6 is its cross-reference index
 (no duplication). F1–F5. **Backend feature coverage is now complete (14 features).**
-Next features are authored as the backend rebuild proceeds — see `PROGRESS.md`._
+`observability` (reliability-overhaul Phase 2 track A) is the first **net-new** infrastructure feature — the structured request log, client identity parsing and the `app_events` trail behind `POST /api/client-events`; backend-only (`consumed_by = []`) until Phase 3's client senders. Next features are authored as the backend rebuild proceeds — see `PROGRESS.md`._

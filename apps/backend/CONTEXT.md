@@ -21,6 +21,7 @@ The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) cons
 - **Added at migration:** `members.auth_user_id` (UUID, unique) → maps to `auth.users.id`.
 - **Added post-parity:** `member_program_order` (per-member program-card order for the picker surfaces;
   migration `sql/005`, `programs` feature 0.2.0 D-N1).
+- **Added (reliability overhaul Phase 2):** `app_events` (observability event trail — `POST /api/client-events`, 90-day `pg_cron` retention; migration `sql/007`, [`observability`](../../specs/features/observability/SPEC.md)).
 - Migrations: `sql/` (numbered, idempotent, user-reviewed/run).
 
 ## Auth (see CLAUDE.md + METHODOLOGY.md R1)
@@ -42,14 +43,16 @@ auto-deploy on push to `main` touching `apps/backend/**`. The 3 secrets (`DATABA
 `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are dashboard-entered `sync: false` Blueprint vars. Env
 per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 
-## Runtime + observability (as of 2026-10-10)
+## Runtime + observability (as of 2026-10-12)
 - Render plan **Starter**: 1 instance, 0.5 vCPU / 512 MB, region `virginia` (next to Supabase `us-east-1`
   on purpose — one screen issues many queries). Fronted by Cloudflare (TLS terminates at the nearest edge).
   Typical load: ~0.1% CPU, ~120 MB RAM, ~4.5–6k requests/day.
-- **Logs:** Render keeps **app logs only** on this plan — no per-request logs and no `http_latency` metric
-  (status-code counts via `http_request_count` do work). Sequelize logs **every SQL query** to stdout, which
-  drowns request-level signal. Fixing this is workstream W6 of
-  [`specs/initiatives/reliability-overhaul/`](../../specs/initiatives/reliability-overhaul/BRIEF.md).
+- **Logs:** Render keeps **app logs only** (7 days; no `http_latency` metric — `http_request_count` by status
+  works). The app writes **one JSON line per request** (`"type":"request"`) and **SQL logging is off**
+  (`DB_LOG_SQL=true` re-enables it locally); every response except the Render health check (`GET`/`HEAD /`,
+  not logged) carries `X-Request-Id`. `trust proxy` = 1 hop. The global `errorHandler` never prints a request
+  body. Event trail: `app_events` via `POST /api/client-events`. Contract + fields:
+  [`observability`](../../specs/features/observability/SPEC.md).
 - Live binaries hard-code `https://rasifiters-api.onrender.com/api` (iOS `Config/APIConfig.swift`, Android
   `app/build.gradle.kts`) — a host/domain change needs an app release + adoption window first.
 
