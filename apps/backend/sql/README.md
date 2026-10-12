@@ -60,6 +60,9 @@ Same table names (R5). **`auth.users` is shared.**
    already ran on `public` before `staging` existed: SQL editor → `SET search_path TO staging;` as the first line +
    the whole of `007_app_events.sql` → Run (or the psql form in step 4). It creates `staging.app_events` and the
    `app_events_retention_staging` cron job; RLS stays off on the staging copy by design.
+   **If the SQL editor offers "Run and enable RLS", choose to run WITHOUT it** for anything that targets `staging`
+   (it blocks the non-owner staging role). If RLS got switched on anyway, re-run 008 — its last block turns it
+   off for every staging table (`staging_rls_on` in step 5 must be 0).
 2. **Once, by hand (never in a file — the repo is public):** generate a password locally with
    `openssl rand -hex 24` (hex needs no URL-encoding) and run in the SQL editor
    `ALTER ROLE rasifiters_staging WITH PASSWORD '<that value>';`
@@ -86,6 +89,8 @@ Same table names (R5). **`auth.users` is shared.**
           has_table_privilege('rasifiters_staging', 'staging.members', 'INSERT') AS writes_staging; -- t
    SELECT (SELECT count(*) FROM staging.workouts_library) AS staging_lib,
           (SELECT count(*) FROM public.workouts_library)  AS prod_lib;                             -- equal
+   SELECT count(*) AS staging_rls_on FROM pg_class                                                 -- 0
+    WHERE relnamespace = 'staging'::regnamespace AND relkind = 'r' AND relrowsecurity;
    ```
    **Isolation (read-only)** — the staging role must reach nothing outside `staging`:
    ```sql

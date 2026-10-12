@@ -289,3 +289,19 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA staging
 INSERT INTO staging.workouts_library (id, name, created_at, updated_at)
 SELECT id, name, created_at, updated_at FROM public.workouts_library
 ON CONFLICT DO NOTHING;
+
+-- ---------------------------------------------------------------------------
+-- 5. Staging tables never use RLS (D-C13; found on the first live run 2026-10-12)
+-- ---------------------------------------------------------------------------
+-- The Supabase SQL editor offers "Run and enable RLS" when a script creates tables. Accepting it switched RLS
+-- ON (no policies) for every staging table, which blocks every query from the non-owner `rasifiters_staging`
+-- role. Staging is not exposed through the Supabase API (`db_schema` = public, graphql_public) and the anon /
+-- authenticated roles have no grants here, so RLS adds nothing. Re-running this file (or running 007 / later
+-- migrations into staging) is always safe: this block switches it back off for every staging table.
+DO $$
+DECLARE t text;
+BEGIN
+    FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'staging' LOOP
+        EXECUTE format('ALTER TABLE staging.%I DISABLE ROW LEVEL SECURITY', t);
+    END LOOP;
+END $$;
