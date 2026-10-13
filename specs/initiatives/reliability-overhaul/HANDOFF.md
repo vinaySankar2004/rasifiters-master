@@ -9,7 +9,8 @@
 
 - **Phase:** Step 0 → Phase 0 → design board ([`DESIGN_BOARD.md`](DESIGN_BOARD.md), approved 2026-10-11) →
   **Phase 1b ✅** → **Phase 2 ✅ COMPLETE** (both 2026-10-12, all live) → **Phase 3 planning** (backend R1–R3, started
-  2026-10-12). The Phase 3 **build** is gated on the Phase 1b log watch ending clean on **2026-10-19** (board §12).
+  2026-10-12). **The user waived the 10-19 build gate (2026-10-12).** The watch keeps running daily as monitoring;
+  counts after R1's deploy reflect R1.
   Phase table: [`BRIEF.md`](BRIEF.md) §7.
 - **Live — Phase 1b** ([`plans/phase-1b/`](plans/phase-1b/)):
   - H1 stateless auth proxy + classified refresh 401 / 503 — auth 0.10.0 / D-C11.
@@ -55,7 +56,12 @@
 
 1. **Until 2026-10-19:** run the E8 watch queries once a day and add that day's counts to the watch line above.
    Any reuse kill, 429 burst or cross-user pair → investigate before Phase 3.
-2. **Phase 3 backend plans — written, awaiting user approval (2026-10-12).** `plans/phase-3-r1-sessions/` (no
+2. **Phase 3 backend — plans APPROVED + gate WAIVED by the user (2026-10-12, "get this out asap"); BUILD RUNNING.**
+   Three `implementer` agents in parallel, each in its own worktree from `c6c8b67`, one commit each, no push. Next:
+   `impl-adversary` per track → merge + land **R1 → R2 → R3**, one at a time (staging → user-run migration / smoke →
+   prod with the user's OK). The fixes are the "Approval amendments" at the end of each `plan.md`. Pre-flight done:
+   prod and staging have the same `SUPABASE_SECRET_KEY` (sha256 match); `member_push_tokens.id` defaults to
+   `gen_random_uuid()` on both schemas; 0 `device_id`s set, so 010's unique index is safe. Plans as approved: `plans/phase-3-r1-sessions/` (no
    migration; auth 0.13.0, observability 0.2.0) · `phase-3-r2-sync/` (migration 009; new health-sync 0.1.0,
    daily-health-logs 0.3.0, workout-logs 0.6.0, observability 0.2.1) · `phase-3-r3-push/` (migration 010; notifications
    0.4.0, invites 0.2.0). Each has `brief.md` / `plan.md` / `verdict.md`, revised once. **One blocking objection per plan
