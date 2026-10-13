@@ -45,13 +45,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.AppErrorKind
 import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.PendingInviteDTO
 import com.app.rasifiters.net.ProgramDTO
+import com.app.rasifiters.ui.OFFLINE_BANNER_RESERVE
 import com.app.rasifiters.ui.components.kit.ErrorView
+import com.app.rasifiters.ui.components.kit.FloatingBanner
+import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
 import com.app.rasifiters.ui.auth.AppDropdownField
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.summary.DatePillField
@@ -94,28 +99,41 @@ fun ProgramActionsSheet(
         mutableIntStateOf(if (openOnInvites || invitesState.dataOrNull.orEmpty().isNotEmpty() || requested.isNotEmpty()) 0 else 1)
     }
     LaunchedEffect(openOnInvites) { if (openOnInvites) selectedTab = 0 }
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 16.dp),
-        ) {
-            SegmentedToggle(
-                left = if (isGlobalAdmin) "All Invites" else "My Invites",
-                right = "Create",
-                selectedIndex = selectedTab,
-                onSelect = { selectedTab = it },
-            )
-            Spacer(Modifier.height(16.dp))
+        // Polish #2 (D-KIT-17): the sheet is its own window, so the root offline banner can't show over it — it carries
+        // its own, and the tab area gives up the banner's band (the sheet keeps its height) so nothing sits under it.
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 16.dp),
+            ) {
+                SegmentedToggle(
+                    left = if (isGlobalAdmin) "All Invites" else "My Invites",
+                    right = "Create",
+                    selectedIndex = selectedTab,
+                    onSelect = { selectedTab = it },
+                )
+                Spacer(Modifier.height(16.dp))
 
-            Box(modifier = Modifier.fillMaxWidth().height(TAB_CONTENT_HEIGHT)) {
-                when (selectedTab) {
-                    0 -> InvitesTab(programContext, invitesState, requested, isGlobalAdmin, onAccepted = onDismiss)
-                    else -> CreateProgramTab(programContext, onCreated = onDismiss)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(TAB_CONTENT_HEIGHT)
+                        .padding(bottom = if (online) 0.dp else OFFLINE_BANNER_RESERVE),
+                ) {
+                    when (selectedTab) {
+                        0 -> InvitesTab(programContext, invitesState, requested, isGlobalAdmin, onAccepted = onDismiss)
+                        else -> CreateProgramTab(programContext, onCreated = onDismiss)
+                    }
                 }
+            }
+            if (!online) {
+                FloatingBanner(FloatingBannerVariant.Offline, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
             }
         }
     }
@@ -164,6 +182,7 @@ private fun InvitesTab(
     onAccepted: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var busyId by remember { mutableStateOf<String?>(null) }
     var declineTarget by remember { mutableStateOf<PendingInviteDTO?>(null) }
@@ -174,7 +193,7 @@ private fun InvitesTab(
         scope.launch {
             programContext.respondToInvite(invite.inviteId, action, block)
                 .onSuccess { if (action == "accept") onAccepted() }
-                .onFailure { errorMessage = it.message }
+                .onFailure { errorMessage = it.toAppError().message }
             busyId = null
         }
     }
@@ -200,7 +219,11 @@ private fun InvitesTab(
 
         val empty = invites.isEmpty() && requested.isEmpty()
         when {
-            empty && state is UiState.Failed -> ErrorView(state.error, onRetry = { scope.launch { programContext.loadInvites() } })
+            // polish-1 rule 6 (QA4): a failed inbox while offline reads as offline (a dead link times out), as the picker.
+            empty && state is UiState.Failed -> ErrorView(
+                if (!online) AppError(AppErrorKind.OFFLINE) else state.error,
+                onRetry = { scope.launch { programContext.loadInvites() } },
+            )
             empty && (state is UiState.Loading || state is UiState.Idle) ->
                 Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             empty -> InvitesEmptyState(isGlobalAdmin)
@@ -336,7 +359,7 @@ private fun CreateProgramTab(programContext: ProgramContext, onCreated: () -> Un
                 scope.launch {
                     programContext.createProgram(name.trim(), status, startDate.format(ISO), endDate.format(ISO))
                         .onSuccess { onCreated() }
-                        .onFailure { errorMessage = it.message ?: "Couldn't create the program." }
+                        .onFailure { errorMessage = it.toAppError().message }
                     isSaving = false
                 }
             },

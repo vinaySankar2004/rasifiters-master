@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppPurple
@@ -91,7 +92,7 @@ fun WorkoutTypesListScreen(programContext: ProgramContext, onBack: () -> Unit) {
 
     fun perform(block: suspend () -> Result<Unit>) {
         error = null
-        scope.launch { block().onFailure { error = it.message ?: "Something went wrong." } }
+        scope.launch { block().onFailure { error = it.toAppError().message } }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {

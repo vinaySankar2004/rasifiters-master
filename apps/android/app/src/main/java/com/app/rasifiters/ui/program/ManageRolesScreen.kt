@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.MembershipDetailDTO
@@ -88,7 +89,7 @@ fun ManageRolesScreen(programContext: ProgramContext, onBack: () -> Unit) {
                             updatingId = member.memberId; errorMessage = null
                             scope.launch {
                                 programContext.updateMemberRole(member.memberId, role)
-                                    .onFailure { errorMessage = it.message ?: "Couldn't update the role." }
+                                    .onFailure { errorMessage = it.toAppError().message }
                                 updatingId = null
                             }
                         },

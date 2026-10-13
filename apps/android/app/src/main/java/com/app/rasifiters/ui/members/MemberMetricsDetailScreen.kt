@@ -353,29 +353,34 @@ private fun RangeRow(label: String, minV: String, maxV: String, onMin: (String) 
     }
 }
 
-// ---- CSV export ----
+// ---- CSV export — member-analytics D-C8 (polish #47): ONE column contract on web, iOS and Android ----
+// Rows = the list on screen, in its order; units live in the headers so cells stay plain numbers; a missing average is
+// an empty cell; sleep has one decimal ('.' always).
+private const val METRICS_CSV_HEADER =
+    "Name,Active Days,Workouts,Total Duration (min),Workout Types,Avg Duration (min),Longest Streak (days)," +
+        "Avg Sleep (hrs),Avg Diet Quality (out of 5),Avg Steps,Current Streak (days)"
 
 private fun metricsCsv(rows: List<com.app.rasifiters.net.MemberMetricsDTO>): String {
-    val sb = StringBuilder("Name,Workouts,Total Duration,Avg Duration,Avg Sleep,Avg Diet Quality,Avg Steps,Active Days,Workout Types,Current Streak,Longest Streak\n")
+    val sb = StringBuilder(METRICS_CSV_HEADER).append('\n')
     rows.forEach { m ->
         sb.append(csvField(m.memberName)).append(',')
+            .append(m.activeDays).append(',')
             .append(m.workouts).append(',')
             .append(m.totalDuration).append(',')
-            .append(m.avgDuration).append(',')
-            .append(m.avgSleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "").append(',')
-            .append(m.avgFoodQuality ?: "").append(',')
-            .append(m.avgSteps ?: "").append(',')
-            .append(m.activeDays).append(',')
             .append(m.workoutTypes).append(',')
-            .append(m.currentStreak).append(',')
-            .append(m.longestStreak).append('\n')
+            .append(m.avgDuration).append(',')
+            .append(m.longestStreak).append(',')
+            .append(m.avgSleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "").append(',')
+            .append(m.avgFoodQuality?.toString() ?: "").append(',')
+            .append(m.avgSteps?.toString() ?: "").append(',')
+            .append(m.currentStreak).append('\n')
     }
     return sb.toString()
 }
 
 private fun metricsCsvName(program: String?, range: Pair<String?, String?>): String {
-    val p = (program ?: "program").replace(Regex("[^A-Za-z0-9]+"), "_")
-    val start = range.first ?: "start"
-    val end = range.second ?: "end"
-    return "MemberPerformanceMetrics_${p}_${start}_to_$end.csv"
+    val name = program.orEmpty().filter { it in 'A'..'Z' || it in 'a'..'z' || it in '0'..'9' }.ifEmpty { "Program" }
+    val start = range.first?.takeIf { it.isNotEmpty() } ?: "all"
+    val end = range.second?.takeIf { it.isNotEmpty() } ?: "today"
+    return "MemberPerformanceMetrics_${name}_${start}_to_$end.csv"
 }

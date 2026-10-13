@@ -545,6 +545,13 @@ class ProgramContext(
 
     /** Pick a program → hydrate the active-program state the shell reads. */
     fun selectProgram(program: ProgramDTO) {
+        // Polish #5/#10: a switch re-spins the Members tab and re-defaults View-as — the shared member flows and the
+        // View-as pick may belong to the previous program (the admin body writes the same flows).
+        if (program.id != _activeProgram.value?.id) {
+            membersSelfLoadedFor = null
+            membersLoadedFor = null          // the roster + View-as default re-initialize for the new program
+            _membersViewAsId.value = null    // no leftover key → the logs effect starts on self, never a stale member
+        }
         _activeProgram.value = program
     }
 
@@ -973,6 +980,9 @@ class ProgramContext(
     private val _members = MutableStateFlow<List<ProgramMemberDTO>>(emptyList())
     val members: StateFlow<List<ProgramMemberDTO>> = _members.asStateFlow()
     private var membersLoadedFor: String? = null
+    /** The program whose Members-tab self data last finished loading (polish #5): the tab spins only when nothing for the
+     *  active program is on screen; a re-entry keeps the cards and refreshes underneath. Reset by the teardown. */
+    var membersSelfLoadedFor: String? = null
 
     private val _membersViewAsId = MutableStateFlow<String?>(null)
     val membersViewAsId: StateFlow<String?> = _membersViewAsId.asStateFlow()
@@ -1269,15 +1279,25 @@ class ProgramContext(
             ?: return Result.failure(IllegalStateException("No active program."))
         _lifestyleLoading.value = true
         return runCatching {
-            _lifestyle.value = LifestyleData(
-                totalTypes = api.getWorkoutTypesTotal(pid, memberId).totalTypes,
-                mostPopular = api.getWorkoutTypeMostPopular(pid, memberId),
-                longestDuration = api.getWorkoutTypeLongestDuration(pid, memberId),
-                highestParticipation = api.getWorkoutTypeHighestParticipation(pid, null),
-                workoutTypes = api.getWorkoutTypes(pid, 100, memberId),
-                timeline = api.getHealthTimeline("week", pid, memberId),
-                steps = api.getHealthSteps(pid, memberId),
-            )
+            // Polish #5: the seven reads in parallel; any failure fails the whole load as before.
+            coroutineScope {
+                val totalTypes = async { api.getWorkoutTypesTotal(pid, memberId).totalTypes }
+                val mostPopular = async { api.getWorkoutTypeMostPopular(pid, memberId) }
+                val longestDuration = async { api.getWorkoutTypeLongestDuration(pid, memberId) }
+                val highestParticipation = async { api.getWorkoutTypeHighestParticipation(pid, null) }
+                val workoutTypes = async { api.getWorkoutTypes(pid, 100, memberId) }
+                val timeline = async { api.getHealthTimeline("week", pid, memberId) }
+                val steps = async { api.getHealthSteps(pid, memberId) }
+                _lifestyle.value = LifestyleData(
+                    totalTypes = totalTypes.await(),
+                    mostPopular = mostPopular.await(),
+                    longestDuration = longestDuration.await(),
+                    highestParticipation = highestParticipation.await(),
+                    workoutTypes = workoutTypes.await(),
+                    timeline = timeline.await(),
+                    steps = steps.await(),
+                )
+            }
         }.recoverCatching { throw it.asApiError() }.also { _lifestyleLoading.value = false }
     }
 
@@ -1448,6 +1468,7 @@ class ProgramContext(
         _members.value = emptyList()
         _membersViewAsId.value = null
         membersLoadedFor = null
+        membersSelfLoadedFor = null
         _lifestyle.value = LifestyleData()
         _lifestyleViewAsId.value = null
         _lifestyleViewAsChosen.value = false

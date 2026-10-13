@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppRed
@@ -188,7 +189,7 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                         memberName = if (other) memberName else null,
                         workoutName = item.workoutType, date = item.workoutDate, durationMinutes = minutes,
                     ).onSuccess { editItem = null; reload() }
-                        .onFailure { actionError = it.message ?: "Couldn't update the workout." }
+                        .onFailure { actionError = it.toAppError().message }
                 }
             },
         )
@@ -204,7 +205,7 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                     scope.launch {
                         programContext.deleteWorkoutLog(memberId, null, item.workoutType, item.workoutDate)
                             .onSuccess { deleteItem = null; reload() }
-                            .onFailure { deleteItem = null; actionError = it.message ?: "Couldn't delete the workout." }
+                            .onFailure { deleteItem = null; actionError = it.toAppError().message }
                     }
                 }) { Text("Delete", color = AppRed) }
             },

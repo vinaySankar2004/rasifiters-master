@@ -49,6 +49,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
@@ -122,7 +123,7 @@ fun InviteMemberScreen(programContext: ProgramContext, onBack: () -> Unit) {
                             scope.launch {
                                 programContext.sendProgramInvite(username)
                                     .onSuccess { sending = false; username = ""; showToast = true }
-                                    .onFailure { e -> sending = false; errorMessage = e.message ?: "Network error. Please try again." }
+                                    .onFailure { e -> sending = false; errorMessage = e.toAppError().message }
                             }
                         }
                     },
@@ -287,7 +288,7 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
                         scope.launch {
                             programContext.editMembership(membership.memberId, isActive = isActive, joinedAt = joinedAt.toString())
                                 .onSuccess { saving = false; onBack() }
-                                .onFailure { e -> saving = false; errorMessage = e.message ?: "Couldn't save changes." }
+                                .onFailure { e -> saving = false; errorMessage = e.toAppError().message }
                         }
                     },
                     enabled = !saving,
@@ -315,7 +316,7 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     scope.launch {
                         programContext.removeMember(membership.memberId)
                             .onSuccess { saving = false; onBack() }
-                            .onFailure { e -> saving = false; errorMessage = e.message ?: "Couldn't remove member." }
+                            .onFailure { e -> saving = false; errorMessage = e.toAppError().message }
                     }
                 }) { Text("Remove", color = AppRed) }
             },

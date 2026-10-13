@@ -419,7 +419,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 TextButton(onClick = {
                     showSignOutAll = false; signingOutAll = true
                     scope.launch {
-                        programContext.logoutAll().onFailure { signOutAllError = it.message; signingOutAll = false }
+                        programContext.logoutAll().onFailure { signOutAllError = it.toAppError().message; signingOutAll = false }
                         // Success: the teardown flips the gate to the auth graph.
                     }
                 }) { Text("Sign out everywhere", color = MaterialTheme.colorScheme.error) }
@@ -438,7 +438,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     showDelete = false; isDeleting = true; errorMessage = null
                     scope.launch {
                         programContext.deleteAccount().onFailure {
-                            errorMessage = it.message ?: "Couldn't delete your account."
+                            errorMessage = it.toAppError().message
                             isDeleting = false
                         }
                         // On success the session clears → the root swaps to the auth graph.

@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.AppearanceStore
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppOrangeGradientEnd
 import com.app.rasifiters.ui.Routes
@@ -140,7 +141,7 @@ fun ProgramScreen(
                     scope.launch {
                         programContext.leaveProgram()
                             .onSuccess { onSwitchProgram() }
-                            .onFailure { errorMessage = it.message ?: "Couldn't leave the program." }
+                            .onFailure { errorMessage = it.toAppError().message }
                         isLeaving = false
                     }
                 }) { Text("Leave", color = MaterialTheme.colorScheme.error) }

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.ApiException
 import com.app.rasifiters.net.BulkRowError
@@ -197,12 +198,9 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 .onSuccess { saving = false; onBack() }
                 .onFailure { e ->
                     saving = false
-                    if (e is ApiException && !e.rowErrors.isNullOrEmpty()) {
-                        rowErrors = e.rowErrors
-                        errorMessage = e.message
-                    } else {
-                        errorMessage = e.message ?: "Couldn't save workouts."
-                    }
+                    // Polish #8: the kit message — the server's text survives for 400/422 and any rowErrors batch (D-KIT-3).
+                    rowErrors = (e as? ApiException)?.rowErrors?.takeIf { it.isNotEmpty() }
+                    errorMessage = e.toAppError().message
                 }
         }
     }

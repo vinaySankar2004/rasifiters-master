@@ -45,6 +45,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppBlueLight
 import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.net.MemberHealthItem
@@ -188,7 +189,7 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                         id, item.logDate, sleepHours, foodQuality, steps, stepsProvided = true,
                     )
                         .onSuccess { editItem = null; reload() }
-                        .onFailure { actionError = it.message ?: "Couldn't update the daily log." }
+                        .onFailure { actionError = it.toAppError().message }
                 }
             },
         )
@@ -205,7 +206,7 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                     if (id != null) scope.launch {
                         programContext.deleteDailyHealthLog(id, item.logDate)
                             .onSuccess { deleteItem = null; reload() }
-                            .onFailure { deleteItem = null; actionError = it.message ?: "Couldn't delete the daily log." }
+                            .onFailure { deleteItem = null; actionError = it.toAppError().message }
                     }
                 }) { Text("Delete", color = AppRed) }
             },

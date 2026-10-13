@@ -34,6 +34,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.ui.auth.AppDropdownField
 import com.app.rasifiters.ui.auth.AppTextField
@@ -155,7 +156,7 @@ fun EditProgramScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     scope.launch {
                         programContext.updateProgram(name.trim(), status, startDate.format(ISO), endDate.format(ISO), adminOnly)
                             .onSuccess { onBack() }
-                            .onFailure { errorMessage = it.message ?: "Couldn't update the program." }
+                            .onFailure { errorMessage = it.toAppError().message }
                         isSaving = false
                     }
                 },

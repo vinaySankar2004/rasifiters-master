@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -138,14 +140,21 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore,
             }
         }
 
-        // First-time Health Connect sync confirmation — a full-screen overlay above everything (iOS
-        // AppRootView fullScreenCover). Dismiss (system back) defers; the tick commits + advances.
+        // First-time Health Connect sync confirmation — a full-screen overlay above everything (iOS AppRootView
+        // fullScreenCover). Dismiss (system back) defers; the tick commits + advances. Polish #2 (D-KIT-17): drawn above
+        // SignedInGraph's offline banner, so it carries the banner itself and lifts its list clear of it.
         pendingHealthConfirmation?.let { confirmation ->
-            HealthSyncConfirmationScreen(
-                programContext = programContext,
-                confirmation = confirmation,
-                onFinished = { committed -> programContext.health.finishConfirmation(confirmation.flow, committed) },
-            )
+            // pointerInput: the reserved band still swallows taps, so nothing under the overlay is reachable through it.
+            Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).pointerInput(Unit) {}) {
+                Box(modifier = Modifier.fillMaxSize().offlineReserve(!online)) {
+                    HealthSyncConfirmationScreen(
+                        programContext = programContext,
+                        confirmation = confirmation,
+                        onFinished = { committed -> programContext.health.finishConfirmation(confirmation.flow, committed) },
+                    )
+                }
+                OfflineBanner(!online)
+            }
         }
 
         // app-config §3: blocking "Update required" (min version / any 426) — the last child, above everything.

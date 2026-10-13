@@ -140,11 +140,15 @@ fun ProgramPickerScreen(
         launch { programContext.loadInvites() }
     }
     LaunchedEffect(Unit) { reloadAll() }
-    // D-KIT-13: back online → a failed / stale list reloads by itself.
+    // D-KIT-13: back online → a failed / stale list reloads by itself; polish #2: so does a failed / stale invite inbox.
     LaunchedEffect(Unit) {
         programContext.isOnline.drop(1).filter { it }.collect {
-            val st = programContext.programsState.value
-            if (st is UiState.Failed || st is UiState.Stale) reloadAll()
+            val programsSt = programContext.programsState.value
+            val invitesSt = programContext.invites.value
+            coroutineScope {
+                if (programsSt is UiState.Failed || programsSt is UiState.Stale) launch { programContext.loadPrograms() }
+                if (invitesSt is UiState.Failed || invitesSt is UiState.Stale) launch { programContext.loadInvites() }
+            }
         }
     }
     // Invite push tap (U2): open the actions sheet on its invites tab, then refresh.
@@ -244,7 +248,7 @@ fun ProgramPickerScreen(
                                         if (before.map { it.id } != after.map { it.id }) {
                                             scope.launch {
                                                 programContext.persistProgramOrder(before).onFailure {
-                                                    errorMessage = "Couldn't save program order: ${it.toAppError().message}"
+                                                    errorMessage = "Couldn't save program order. ${it.toAppError().message}"
                                                 }
                                             }
                                         }

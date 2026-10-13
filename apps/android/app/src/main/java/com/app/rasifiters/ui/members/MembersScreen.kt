@@ -54,6 +54,9 @@ import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppOrangeGradientEnd
 import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.ui.Routes
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * The Members tab (Tab 2) — the per-member performance dashboard, bifurcated by role (iOS
@@ -99,16 +102,18 @@ private fun AdminMembersBody(programContext: ProgramContext, programName: String
 
     LaunchedEffect(program?.id) { programContext.ensureMembersLoaded() }
 
-    // Load the selected member's 5 reads whenever the persisted selection changes (or on tab re-entry).
+    // The selected member's 5 reads whenever the persisted selection changes (or on tab re-entry) — in parallel (#5).
     LaunchedEffect(selectedId) {
         val id = selectedId ?: return@LaunchedEffect
         val name = roster.firstOrNull { it.id == id }?.memberName
         programContext.focusMember(id, name)
-        programContext.loadMemberOverview(id)
-        programContext.loadMemberHistory(id, "week")
-        programContext.loadMemberStreaks(id)
-        programContext.loadMemberRecent(id, limit = 10)
-        programContext.loadMemberHealthLogs(id, limit = 10)
+        coroutineScope {
+            launch { programContext.loadMemberOverview(id) }
+            launch { programContext.loadMemberHistory(id, "week") }
+            launch { programContext.loadMemberStreaks(id) }
+            launch { programContext.loadMemberRecent(id, limit = 10) }
+            launch { programContext.loadMemberHealthLogs(id, limit = 10) }
+        }
     }
 
     val selected = roster.firstOrNull { it.id == selectedId }
@@ -152,33 +157,42 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
 
     val roster by programContext.members.collectAsStateWithLifecycle()
     val loggerViewAsId by programContext.membersViewAsId.collectAsStateWithLifecycle()
-    var loading by remember { mutableStateOf(true) }
-    var selfMetrics by remember { mutableStateOf<com.app.rasifiters.net.MemberMetricsDTO?>(null) }
+    val overview by programContext.selectedMemberOverview.collectAsStateWithLifecycle()
+    // Polish #5: a spinner only while nothing for this program is on screen; a tab re-entry keeps the cards.
+    var loading by remember { mutableStateOf(programContext.membersSelfLoadedFor != program?.id) }
+    // The program whose Recent + Health rows are loaded — a first load waits on them too (never another program's rows).
+    var logsProgramId by remember { mutableStateOf(if (loading) null else program?.id) }
     var showPicker by remember { mutableStateOf(false) }
 
-    // Self data (overview / metrics / history / streaks) — loaded once per program.
+    // Self data — every read in parallel. The self metric row IS the overview row (no all-member download, D-C9).
     LaunchedEffect(program?.id) {
-        loading = true
+        loading = programContext.membersSelfLoadedFor != program?.id
         programContext.ensureMembersLoaded()
         if (selfId != null) {
-            programContext.loadMemberMetrics(sort = "active_days", direction = "desc")
-            selfMetrics = programContext.memberMetrics.value.firstOrNull { it.memberId == selfId }
             programContext.focusMember(selfId, selfName)
-            programContext.loadMemberOverview(selfId)
-            programContext.loadMemberHistory(selfId, "week")
-            programContext.loadMemberStreaks(selfId)
-            programContext.loadMemberRecent(selfId, limit = 10)
-            programContext.loadMemberHealthLogs(selfId, limit = 10)
+            val overviewLoaded = coroutineScope {
+                val overviewOk = async { programContext.loadMemberOverview(selfId).isSuccess }
+                launch { programContext.loadMemberHistory(selfId, "week") }
+                launch { programContext.loadMemberStreaks(selfId) }
+                overviewOk.await()
+            }
+            // Only a loaded overview counts as "on screen" — after a failed first load the next visit spins again.
+            if (overviewLoaded) programContext.membersSelfLoadedFor = program?.id
         }
         loading = false
     }
 
-    // Logger view-as re-scopes Recent + Health only (the persisted selection survives detail pushes).
-    LaunchedEffect(loggerViewAsId) {
-        if (!isLogger) return@LaunchedEffect
-        val id = loggerViewAsId ?: selfId ?: return@LaunchedEffect
-        programContext.loadMemberRecent(id, limit = 10)
-        programContext.loadMemberHealthLogs(id, limit = 10)
+    // Recent + Health follow the member they show (a logger's View-as pick, else self). A new pick restarts this
+    // effect, which cancels a slower stale load so it can never overwrite the picked member's rows.
+    val logsKey = if (isLogger) (loggerViewAsId ?: selfId) else selfId
+    LaunchedEffect(program?.id, logsKey) {
+        if (logsKey != null) {
+            coroutineScope {
+                launch { programContext.loadMemberRecent(logsKey, limit = 10) }
+                launch { programContext.loadMemberHealthLogs(logsKey, limit = 10) }
+            }
+        }
+        logsProgramId = program?.id
     }
 
     MembersHeader(
@@ -188,7 +202,7 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
         onAction = { onNavigate(Routes.MEMBER_ROSTER) },
     )
 
-    if (loading) {
+    if (loading || logsProgramId != program?.id) {
         Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = AppOrange)
         }
@@ -196,7 +210,7 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
     }
 
     MemberOverviewCard(programContext)
-    selfMetrics?.let { MemberMetricsCard(it, MetricSortField.ACTIVE_DAYS) }
+    overview?.takeIf { it.memberId == selfId }?.let { MemberMetricsCard(it, MetricSortField.ACTIVE_DAYS) }
     MemberHistoryCard(programContext, onClick = {
         programContext.focusMember(selfId, selfName); onNavigate(Routes.MEMBER_HISTORY)
     })
