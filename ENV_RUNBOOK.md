@@ -299,7 +299,7 @@ only by a user-approved admin-token call.
 | Setting | Value | Status | Why | Revert body |
 |---|---|---|---|---|
 | `jwt_exp` | `3600` (1 h access tokens) | default | — | — |
-| `refresh_token_rotation_enabled` / `security_refresh_token_reuse_interval` | `true` / `10` (s) | default | a refresh token re-sent > 10 s after its rotation revokes the whole session (W1) | — |
+| `refresh_token_rotation_enabled` / `security_refresh_token_reuse_interval` | `true` / `60` s (was `10`) | ✅ applied 2026-10-13T06:16:03Z (Phase 3 client release; the user's yes) | a refresh token re-sent after its rotation revokes the whole session (W1); 60 s covers the clients' quick retry + first 30 s backoff retry when a rotated reply is lost on a bad network | `{"security_refresh_token_reuse_interval":10}` |
 | `rate_limit_token_refresh` | `1500` per 5 min per IP (was 150) | applied 2026-10-12T19:08:19Z (Phase 1b H2 / D-2) | one user's refresh storm no longer drains everyone's bucket | `{"rate_limit_token_refresh":150}` |
 | `rate_limit_otp` | `30` per 5 min per IP | default | also limits GoTrue `PUT /user` — `/change-password` + `/set-password` since auth 0.13.0 (a 429 answers 503) | — |
 | `security_sb_forwarded_for_enabled` | `true` (was `false`) | ✅ applied 2026-10-13T02:32:21Z (G3; prod smoke 25/25 after; revert = the same PATCH with `false`) | auth D-C14: Auth rate-limits by the `Sb-Forwarded-For` IP the backend sends with `SUPABASE_SECRET_KEY` → one bucket per user instead of one per Render IP | `{"security_sb_forwarded_for_enabled":false}` |

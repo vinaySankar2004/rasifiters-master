@@ -55,7 +55,8 @@
    launch screens; no other restyle. The user ships the iOS / Android binaries; Android health tests = Health Connect
    data entered by hand on the Pixel (W4-D2). **Plans in (2026-10-13)** → `plans/phase-3-c{1-web,2-ios,3-android}/`
    + parity check + [`plans/phase-3-client-amendments.md`](plans/phase-3-client-amendments.md) — **approved
-   2026-10-13** (U1 iOS 1.5.0 (58) / Android 1.1.0 (5) · U2 invite tap opens the inbox · U3 My Profile). **Building:** three implementers in
+   2026-10-13** (U1 iOS 1.5.0 (58) / Android 1.1.0 (5) · U2 invite tap opens the inbox · U3 My Profile). **Status:** web C1 ✅ LIVE 2026-10-13 (`211d0a9`, reviewed + 7 fixes) · Android C3 built,
+   in review · iOS C2 built, in review + awaiting the user's ⌘B. **Flow:** three implementers in
    the main tree (directory-disjoint) → impl-adversary each → compile checks + the user's ⌘B → one docs commit (§5)
    → web deploy → the user ships the binaries.
 2. Daily watch (follow-up 1).
