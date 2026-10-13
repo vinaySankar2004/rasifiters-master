@@ -13,6 +13,7 @@ import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MonitorHeart
@@ -38,6 +39,7 @@ import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.ui.Routes
+import com.app.rasifiters.ui.programs.inboxRowSubtitle
 import com.app.rasifiters.ui.programs.initialsOf
 
 /**
@@ -56,6 +58,7 @@ fun ProgramAccountSection(
     val name by programContext.memberName.collectAsStateWithLifecycle()
     val username by programContext.memberUsername.collectAsStateWithLifecycle()
     val appearance by appearanceStore.mode.collectAsStateWithLifecycle()
+    val inboxCounts by programContext.inbox.counts.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
 
     ProgramSectionCard(Icons.Filled.Person, "My Account", MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)) {
@@ -64,6 +67,13 @@ fun ProgramAccountSection(
             username = username,
             initials = initialsOf(name),
             onClick = { onNavigate(Routes.PROGRAM_PROFILE) },
+        )
+        ProgramSettingsRow(
+            icon = Icons.Filled.Inbox,
+            tint = AppOrange,
+            title = "Inbox",
+            subtitle = inboxRowSubtitle(inboxCounts?.badge ?: 0),
+            onClick = { onNavigate(Routes.INBOX) },
         )
         ProgramSettingsRow(
             icon = Icons.Filled.Lock,

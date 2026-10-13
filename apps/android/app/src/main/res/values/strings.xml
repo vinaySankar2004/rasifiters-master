@@ -7,6 +7,15 @@
     <!-- High-importance FCM channel for invites + membership changes (notifications §3.2). -->
     <string name="invites_notification_channel_id" translatable="false">rasi_invites</string>
     <string name="invites_notification_channel_name">Invites &amp; membership</string>
+    <!-- One channel per new notification category; the server names them only for inbox-capable installs. -->
+    <string name="activity_notification_channel_id" translatable="false">rasi_activity</string>
+    <string name="activity_notification_channel_name">Activity</string>
+    <string name="reminders_notification_channel_id" translatable="false">rasi_reminders</string>
+    <string name="reminders_notification_channel_name">Reminders</string>
+    <string name="digest_notification_channel_id" translatable="false">rasi_digest</string>
+    <string name="digest_notification_channel_name">Weekly digest</string>
+    <string name="announcements_notification_channel_id" translatable="false">rasi_announcements</string>
+    <string name="announcements_notification_channel_name">Announcements</string>
     <!-- Quick-add home-screen widget picker descriptions (Jetpack Glance; iOS WidgetKit parity). -->
     <string name="widget_workout_description">Quick add a workout session</string>
     <string name="widget_health_description">Quick add a daily health log</string>

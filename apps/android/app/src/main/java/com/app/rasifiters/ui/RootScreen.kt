@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.app.rasifiters.core.AppearanceStore
+import com.app.rasifiters.core.InboxTarget
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.VersionGate
 import com.app.rasifiters.core.WidgetRoute
@@ -43,12 +44,13 @@ import com.app.rasifiters.ui.auth.CreateAccountScreen
 import com.app.rasifiters.ui.auth.ForgotPasswordScreen
 import com.app.rasifiters.ui.auth.LoginScreen
 import com.app.rasifiters.ui.auth.SplashScreen
-import com.app.rasifiters.ui.components.NotificationModal
 import com.app.rasifiters.ui.components.UpdateRequiredScreen
 import com.app.rasifiters.ui.components.kit.FloatingBanner
 import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
 import com.app.rasifiters.ui.health.HealthConnectSettingsScreen
 import com.app.rasifiters.ui.health.HealthSyncConfirmationScreen
+import com.app.rasifiters.ui.inbox.InboxScreen
+import com.app.rasifiters.ui.inbox.NotificationToast
 import com.app.rasifiters.ui.program.AppearanceScreen
 import com.app.rasifiters.ui.program.ChangePasswordScreen
 import com.app.rasifiters.ui.program.MyProfileScreen
@@ -64,7 +66,8 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Root auth gate — the analog of iOS AppRootView / web middleware+useAuthGuard.
  * Signed in (the ONE token store) → the per-program app shell; else → the auth (logged-out) graph.
  * A successful login/register flips `isSignedIn`, so the root swaps to the shell (no explicit nav). Also hosts the
- * foreground lifecycle (stream, push registration, health triggers, version gate) and the app-wide overlays.
+ * foreground lifecycle (stream, push registration, health triggers, version gate) and the app-wide overlays (the
+ * notification toast, the Health Connect review, the update screen).
  */
 @Composable
 fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore, versionGate: VersionGate) {
@@ -72,7 +75,6 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore,
     // The ONE connectivity monitor's combined state (link up && not proven offline, polish-1) — the root offline banners.
     val online by programContext.isOnline.collectAsStateWithLifecycle()
     val updateRequired by versionGate.required.collectAsStateWithLifecycle()
-    val notificationQueue by programContext.notificationQueue.collectAsStateWithLifecycle()
     val pendingHealthConfirmation by programContext.health.pendingConfirmation.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -81,6 +83,7 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore,
     // notifications §3.1 + board §3.5: POST_NOTIFICATIONS asked ONCE (flag in no-backup rasi.push), right after the first
     // sign-in (Android 13+); the answer re-runs the registration. Settings fallback = NotificationsScreen.
     val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        programContext.endNotificationPrompt()
         programContext.registerPushTokenIfNeeded()
     }
     LaunchedEffect(signedIn) {
@@ -88,7 +91,7 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore,
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED &&
             programContext.shouldAskNotificationPermission()
         ) {
-            programContext.markNotificationPermissionAsked()
+            programContext.beginNotificationPrompt()   // asked once; the activity notice waits for the answer
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
@@ -128,22 +131,15 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore,
             else -> SignedInGraph(programContext, appearanceStore, versionGate, online)
         }
 
-        // The single-notification modal queue, shown above the whole app (iOS AppRootView ZStack overlay). A Dialog is
-        // its own window, so it is withheld while the blocking update screen shows (A7).
-        if (!updateRequired) {
-            notificationQueue.firstOrNull()?.let { notification ->
-                NotificationModal(
-                    title = notification.title,
-                    message = notification.body,
-                    onAcknowledge = { scope.launch { programContext.acknowledgeNotification(notification) } },
-                )
-            }
-        }
-
         // First-time Health Connect sync confirmation — a full-screen overlay above everything (iOS AppRootView
         // fullScreenCover). Dismiss (system back) defers; the tick commits + advances. Polish #2 (D-KIT-17): drawn above
         // SignedInGraph's offline banner, so it carries the banner itself and lifts its list clear of it.
         pendingHealthConfirmation?.let { confirmation ->
+            // A cover: the notification toast is cleared and withheld while it shows (the toast rule).
+            DisposableEffect(Unit) {
+                programContext.inbox.coverShown()
+                onDispose { programContext.inbox.coverHidden() }
+            }
             // pointerInput: the reserved band still swallows taps, so nothing under the overlay is reachable through it.
             Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).pointerInput(Unit) {}) {
                 Box(modifier = Modifier.fillMaxSize().offlineReserve(!online)) {
@@ -156,6 +152,10 @@ fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore,
                 OfflineBanner(!online)
             }
         }
+
+        // A new notification floats in as a small toast ("<title> · View") at the top — never a blocking pop-up; withheld
+        // while the blocking update screen (A7) or the Health Connect review cover shows (the toast rule: never over a modal).
+        if (signedIn && !updateRequired && pendingHealthConfirmation == null) NotificationToast(programContext)
 
         // app-config §3: blocking "Update required" (min version / any 426) — the last child, above everything.
         if (updateRequired) UpdateRequiredScreen(onUpdate = { versionGate.openStore(context) })
@@ -199,10 +199,49 @@ private fun SignedInGraph(
         programContext.clearWidgetRoute()
     }
 
-    // Invite push tap (notifications §3.2, U2): pop back to the picker, which opens the actions sheet on its invites tab.
-    val inviteInboxRequest by programContext.inviteInboxRequest.collectAsStateWithLifecycle()
-    LaunchedEffect(inviteInboxRequest) {
-        if (inviteInboxRequest) nav.popBackStack(Routes.PROGRAM_PICKER, inclusive = false)
+    // The routing rule's form guard: a form on screen (root, inside the shell, or the "+" sheet's Create tab with typed
+    // input) is never navigated away from — a notification only marks read there, and no toast shows over it.
+    val inbox = programContext.inbox
+    val shellRoute by inbox.shellRoute.collectAsStateWithLifecycle()
+    val draftOpen by inbox.draftOpen.collectAsStateWithLifecycle()
+    val formOpen = isFormOpen(route, shellRoute) || draftOpen
+    LaunchedEffect(formOpen) { inbox.setFormOpen(formOpen) }
+
+    // A push tap / the toast's View / an inbox row → open its place (the routing rule). Consumed once.
+    val pendingOpen by inbox.pendingOpen.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingOpen) {
+        val open = pendingOpen ?: return@LaunchedEffect
+        when {
+            // Never discard an open form: the item is only marked read (open() already did).
+            isFormOpen(nav.currentDestination?.route, inbox.shellRoute.value) || inbox.draftOpen.value -> Unit
+            open.target == InboxTarget.INVITES -> {
+                programContext.inbox.requestInvitesSheet()   // the picker opens the "+" sheet on its Inbox tab
+                nav.popBackStack(Routes.PROGRAM_PICKER, inclusive = false)
+            }
+            open.target == InboxTarget.PROGRAMS -> {
+                nav.popBackStack(Routes.PROGRAM_PICKER, inclusive = false)
+                // A gone open program is cleared once routed, so the next catch-up can't bounce back here (iOS parity).
+                if (open.programId != null && open.programId == programContext.activeProgram.value?.id) {
+                    programContext.clearActiveProgram()
+                }
+            }
+            open.target == InboxTarget.INBOX -> nav.navigate(Routes.INBOX) { launchSingleTop = true }
+            // The quick-add form over where the member is; closing returns there (their program stays open).
+            open.target == InboxTarget.LOG_WORKOUT -> nav.navigate(Routes.INBOX_LOG_WORKOUT) { launchSingleTop = true }
+            else -> {
+                val program = programContext.programForOpen(open.programId)
+                when {
+                    program == null -> nav.popBackStack(Routes.PROGRAM_PICKER, inclusive = false)
+                    // Already inside it: stay where the member is (the item already refreshed the program's data).
+                    program.id == programContext.activeProgram.value?.id && nav.currentDestination?.route == Routes.SHELL -> Unit
+                    else -> {
+                        programContext.selectProgram(program)
+                        nav.navigate(Routes.SHELL) { popUpTo(Routes.PROGRAM_PICKER) }
+                    }
+                }
+            }
+        }
+        programContext.inbox.consumePendingOpen()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -243,10 +282,16 @@ private fun SignedInGraph(
                 SettingsInset { AppearanceScreen(appearanceStore = appearanceStore, onBack = { nav.popBackStack() }) }
             }
             composable(Routes.PROGRAM_NOTIFICATIONS) {
-                SettingsInset { NotificationsScreen(onBack = { nav.popBackStack() }) }
+                SettingsInset { NotificationsScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
             }
             composable(Routes.HEALTH_CONNECT) {
                 SettingsInset { HealthConnectSettingsScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
+            }
+            composable(Routes.INBOX) {
+                SettingsInset { InboxScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
+            }
+            composable(Routes.INBOX_LOG_WORKOUT) {
+                SettingsInset { QuickAddWorkoutWidgetScreen(programContext = programContext, onExit = { nav.popBackStack() }) }
             }
 
             // Home-screen widget deep-link targets (Glance quick-add). Root-level (no active program); the
@@ -305,6 +350,20 @@ private fun AuthGraph(programContext: ProgramContext, online: Boolean) {
 }
 
 private const val WIDGET_GATE_TIMEOUT_MS = 3_000L
+
+/** The forms a notification never navigates away from (the routing rule: only mark read there) — root-level ones… */
+private val ROOT_FORMS = setOf(
+    Routes.WIDGET_LOG_WORKOUT, Routes.WIDGET_LOG_HEALTH, Routes.INBOX_LOG_WORKOUT, Routes.PROGRAM_PROFILE, Routes.PROGRAM_PASSWORD,
+)
+
+/** …and the ones inside the program shell (AppScaffold publishes its inner route as NotificationInbox.shellRoute). */
+private val SHELL_FORMS = setOf(
+    Routes.SUMMARY_LOG_WORKOUT, Routes.SUMMARY_LOG_HEALTH, Routes.PROGRAM_EDIT, Routes.PROGRAM_PROFILE,
+    Routes.PROGRAM_PASSWORD, Routes.MEMBER_INVITE, Routes.MEMBER_EDIT,
+)
+
+private fun isFormOpen(rootRoute: String?, shellRoute: String?): Boolean =
+    (rootRoute != null && rootRoute in ROOT_FORMS) || (rootRoute == Routes.SHELL && shellRoute != null && shellRoute in SHELL_FORMS)
 
 /** frontend-kit §6 banner block height (12 + 52 + 12 dp) — the content reserve while the offline banner shows (A6). */
 internal val OFFLINE_BANNER_RESERVE: Dp = 76.dp

@@ -86,6 +86,10 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="@string/default_notification_channel_id" />
+        <!-- Small icon for background FCM "notification" messages: the monochrome brand mark. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_notification" />
 
         <!-- CSV export share target — the Members detail screens write a temp .csv to cache and share it
              (parity with the iOS ShareSheet export on metrics / workouts / health). -->

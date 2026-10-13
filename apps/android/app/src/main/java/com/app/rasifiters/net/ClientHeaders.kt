@@ -3,6 +3,7 @@ package com.app.rasifiters.net
 import com.app.rasifiters.BuildConfig
 import okhttp3.Interceptor
 import okhttp3.Response
+import java.time.ZoneId
 import java.util.UUID
 
 /** observability §4.1 identity headers + a fresh X-Request-Id, on EVERY OkHttp client (main, refresh, SSE).
@@ -14,9 +15,11 @@ class ClientHeadersInterceptor : Interceptor {
             .header("X-App-Platform", "android")
             .header("X-App-Version", BuildConfig.VERSION_NAME)
             .header("X-App-Build", BuildConfig.VERSION_CODE.toString())
+            // The device's IANA zone on every request (main, refresh, SSE) — the notifications time-zone header rule.
+            .header(TIME_ZONE, ZoneId.systemDefault().id)
         if (request.header(REQUEST_ID) == null) builder.header(REQUEST_ID, UUID.randomUUID().toString())
         return chain.proceed(builder.build())
     }
 
-    companion object { const val REQUEST_ID = "X-Request-Id" }
+    companion object { const val REQUEST_ID = "X-Request-Id"; const val TIME_ZONE = "X-Time-Zone" }
 }

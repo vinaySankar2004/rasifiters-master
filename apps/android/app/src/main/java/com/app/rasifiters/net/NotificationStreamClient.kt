@@ -14,11 +14,11 @@ import okhttp3.sse.EventSources
 import kotlin.random.Random
 
 /**
- * notifications §3.3 stream client (`GET /notifications/stream`, Bearer header): foreground only (start on ON_START,
- * stop on ON_STOP); every close or error is a reconnect with exponential backoff + full jitter (1 s base, ×2, 30 s cap),
- * paused while offline; a fresh token before each connect (a 401 forces a refresh); `ready` resets the backoff and
- * triggers the /unacknowledged re-fetch. The client's 60 s read timeout (pings every 25 s) detects a dead stream.
- * State is mutated on [scope] (Main) only.
+ * notifications §3.3 stream client (`GET /notifications/stream?inbox=1`, Bearer header): foreground only (start on
+ * ON_START, stop on ON_STOP); every close or error is a reconnect with exponential backoff + full jitter (1 s base, ×2,
+ * 30 s cap), paused while offline; a fresh token before each connect (a 401 forces a refresh); `ready` resets the backoff
+ * and triggers the catch-up refresh. `?inbox=1`: every type arrives as an inbox item (the inbox contract).
+ * The client's 60 s read timeout (pings every 25 s) detects a dead stream. State is mutated on [scope] (Main) only.
  */
 class NotificationStreamClient(
     private val baseUrl: String,
@@ -29,7 +29,7 @@ class NotificationStreamClient(
     /** Blocking, run on Dispatchers.IO. true = force a refresh (the server rejected the last token). */
     private val tokenProvider: (forceRefresh: Boolean) -> String?,
 ) {
-    var onNotification: ((NotificationDTO) -> Unit)? = null
+    var onNotification: ((InboxItemDTO) -> Unit)? = null
     var onReady: (() -> Unit)? = null
 
     @Volatile var isConnected: Boolean = false
@@ -84,8 +84,8 @@ class NotificationStreamClient(
                 }
                 "notification" -> {
                     if (data.isBlank() || data == "{}") return
-                    runCatching { Network.json.decodeFromString(NotificationDTO.serializer(), data) }.getOrNull()
-                        ?.let { dto -> scope.launch { onNotification?.invoke(dto) } }
+                    runCatching { Network.json.decodeFromString(InboxItemDTO.serializer(), data) }.getOrNull()
+                        ?.let { item -> scope.launch { onNotification?.invoke(item) } }
                 }
             }
         }
@@ -100,7 +100,8 @@ class NotificationStreamClient(
         }
     }
 
-    private fun streamUrl(): String = (if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/") + "notifications/stream"
+    /** `?inbox=1` — every type as an inbox item (a plain stream gets the legacy types only). */
+    private fun streamUrl(): String = (if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/") + "notifications/stream?inbox=1"
 
     private companion object {
         const val BASE_DELAY_MS = 1_000L

@@ -47,10 +47,16 @@ class MainActivity : ComponentActivity() {
         handlePushTap(intent)
     }
 
-    /** FCM tap (tray or our foreground post): extras carry notification_id / type → acknowledge + route (notifications §3.2). */
+    /** FCM tap (tray or our foreground post): extras carry notification_id / type / target / program_id → mark read + open
+     *  (the push-tap routing rule). A background push's data keys arrive as the same extras. */
     private fun handlePushTap(intent: Intent?) {
         val id = intent?.getStringExtra("notification_id")?.takeIf { it.isNotEmpty() } ?: return
-        (application as App).container.programContext.onPushTap(id, intent.getStringExtra("type"))
+        (application as App).container.programContext.onPushTap(
+            notificationId = id,
+            type = intent.getStringExtra("type"),
+            target = intent.getStringExtra("target"),
+            programId = intent.getStringExtra("program_id"),
+        )
         intent.removeExtra("notification_id")
     }
 

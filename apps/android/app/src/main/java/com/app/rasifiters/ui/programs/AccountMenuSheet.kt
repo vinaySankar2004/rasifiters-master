@@ -22,6 +22,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
@@ -33,6 +34,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,6 +72,12 @@ fun AccountMenuSheet(
     val uriHandler = LocalUriHandler.current
     val name by programContext.memberName.collectAsStateWithLifecycle()
     val username by programContext.memberUsername.collectAsStateWithLifecycle()
+    val inboxCounts by programContext.inbox.counts.collectAsStateWithLifecycle()
+    // The sheet is its own window above the toast: the toast is cleared and withheld while it is up.
+    DisposableEffect(Unit) {
+        programContext.inbox.coverShown()
+        onDispose { programContext.inbox.coverHidden() }
+    }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -101,6 +109,9 @@ fun AccountMenuSheet(
                 username = username,
                 onClick = { onNavigate(Routes.PROGRAM_PROFILE) },
             )
+
+            // The Inbox row (invites + notifications).
+            AccountRow(Icons.Filled.Inbox, AppOrange, "Inbox", inboxRowSubtitle(inboxCounts?.badge ?: 0)) { onNavigate(Routes.INBOX) }
 
             AccountRow(Icons.Filled.Lock, AppOrange, "Change Password", "Update your account password") { onNavigate(Routes.PROGRAM_PASSWORD) }
             AccountRow(Icons.Filled.Palette, AppearancePurple, "Appearance", "Choose light or dark mode") { onNavigate(Routes.PROGRAM_APPEARANCE) }
@@ -224,3 +235,6 @@ fun initialsOf(name: String?): String {
         else -> (parts.first().take(1) + parts.last().take(1)).uppercase()
     }
 }
+
+/** The account menus' Inbox row subtitle (picker sheet + Program tab — one copy). */
+fun inboxRowSubtitle(badge: Int): String = if (badge > 0) "$badge new" else "Invites and notifications"

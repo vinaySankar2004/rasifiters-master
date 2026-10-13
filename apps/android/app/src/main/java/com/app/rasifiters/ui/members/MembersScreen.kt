@@ -22,7 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,12 +32,15 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,42 +51,77 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.app.rasifiters.core.MemberCardKey
+import com.app.rasifiters.core.MemberCardPart
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.AppErrorKind
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppOrangeGradientEnd
 import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.ui.Routes
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
+import com.app.rasifiters.ui.components.kit.ErrorView
+import com.app.rasifiters.ui.components.kit.FloatingBanner
+import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 
 /**
- * The Members tab (Tab 2) — the per-member performance dashboard, bifurcated by role (iOS
- * `AdminMembersTab` / `StandardMembersTab`, selected by `isProgramAdmin`). Admins get an Invite button,
- * a metrics preview, a "View as" picker (global-admin gets "None"; program-admin auto-selects self), and
- * the 5 member cards for the picked member. Loggers/members see their own cards; loggers get a logs-only
- * view-as scoping Recent + Health. Faithful 1:1 to admin-members §4/§7 (read-only tab; load errors
- * swallowed — iOS F1). All 8 detail targets are real screens this phase (Android does the full cluster).
+ * The Members tab (Tab 2) — the per-member performance dashboard, bifurcated by role (iOS `AdminMembersTab` /
+ * `StandardMembersTab`, selected by `isProgramAdmin`). Every role's one header action opens People (the roster grew into
+ * People; admins invite from People or the Program tab). Admins get the metrics preview, a "View as" picker (global-admin
+ * "None"; program-admin self) and the 5 member cards; loggers / members their own cards (loggers a logs-only View-as).
+ * S5 (polish #32) — the Summary recipe on the kit: the reads run together ([ProgramContext.loadMemberCards]) on every
+ * entry, pick, pull, Retry and reconnect; a card shows its data only when it is THIS program's / member's
+ * ([ProgramContext.memberCardsHeld]) — else a placeholder while it loads, "—" when its read failed; nothing yet → a
+ * spinner, or the ErrorView when everything failed / offline; a failed refresh keeps the previous values + "Couldn't
+ * refresh · Retry".
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MembersScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) {
     val program by programContext.activeProgram.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    val viewAsId by programContext.membersViewAsId.collectAsStateWithLifecycle()
+    val held by programContext.memberCardsHeld.collectAsStateWithLifecycle()
+    val load by programContext.memberCardsLoad.collectAsStateWithLifecycle()
     val programName = program?.name ?: ""
+    val view = MemberCardsView(membersWant(programContext, program?.id, viewAsId), held, load)
+    var reloadTick by remember { mutableIntStateOf(0) }
+    var pulling by remember { mutableStateOf(false) }
+    val reload = CardsReload(tick = reloadTick, onSettled = { pulling = false }, onRetry = { reloadTick++ })
+
+    // D-KIT-13: back online → anything missing or failed reloads by itself.
+    val currentView by rememberUpdatedState(view)
+    LaunchedEffect(Unit) {
+        programContext.isOnline.drop(1).filter { it }.collect { if (currentView.needsReload) reloadTick++ }
+    }
+    // Offline is the app-wide banner (AppScaffold, A6); this screen adds only its own "Couldn't refresh".
+    val staleBanner = online && view.stale
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        PullToRefreshBox(
+            isRefreshing = pulling,
+            onRefresh = { pulling = true; reloadTick++ },
+            modifier = Modifier.fillMaxSize(),
         ) {
-            if (programContext.isProgramAdmin) {
-                AdminMembersBody(programContext, programName, onNavigate)
-            } else {
-                StandardMembersBody(programContext, programName, onNavigate)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                if (programContext.isProgramAdmin) {
+                    AdminMembersBody(programContext, programName, view, reload, online, onNavigate)
+                } else {
+                    StandardMembersBody(programContext, programName, view, reload, online, onNavigate)
+                }
+                Spacer(Modifier.height(if (staleBanner) 84.dp else 8.dp))
             }
-            Spacer(Modifier.height(8.dp))
+        }
+        if (staleBanner) {
+            FloatingBanner(FloatingBannerVariant.Stale, Modifier.align(Alignment.BottomCenter), onRetry = reload.onRetry)
         }
     }
 }
@@ -92,7 +129,14 @@ fun MembersScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) 
 // ---- Admin / global-admin variant ----
 
 @Composable
-private fun AdminMembersBody(programContext: ProgramContext, programName: String, onNavigate: (String) -> Unit) {
+private fun AdminMembersBody(
+    programContext: ProgramContext,
+    programName: String,
+    view: MemberCardsView,
+    reload: CardsReload,
+    online: Boolean,
+    onNavigate: (String) -> Unit,
+) {
     val isGlobalAdmin = programContext.isGlobalAdmin
     val program by programContext.activeProgram.collectAsStateWithLifecycle()
     // Roster + selection live in ProgramContext so the "View as" pick survives a detail push + return.
@@ -100,19 +144,17 @@ private fun AdminMembersBody(programContext: ProgramContext, programName: String
     val selectedId by programContext.membersViewAsId.collectAsStateWithLifecycle()
     var showPicker by remember { mutableStateOf(false) }
 
-    LaunchedEffect(program?.id) { programContext.ensureMembersLoaded() }
-
-    // The selected member's 5 reads whenever the persisted selection changes (or on tab re-entry) — in parallel (#5).
-    LaunchedEffect(selectedId) {
-        val id = selectedId ?: return@LaunchedEffect
-        val name = roster.firstOrNull { it.id == id }?.memberName
-        programContext.focusMember(id, name)
-        coroutineScope {
-            launch { programContext.loadMemberOverview(id) }
-            launch { programContext.loadMemberHistory(id, "week") }
-            launch { programContext.loadMemberStreaks(id) }
-            launch { programContext.loadMemberRecent(id, limit = 10) }
-            launch { programContext.loadMemberHealthLogs(id, limit = 10) }
+    // The roster (once per program — a failed one retries with every reload), then the preview + the selected member's
+    // five reads, together (#5) — on a new pick, every tab entry, pull, Retry and reconnect (S5). A newer run cancels a
+    // slower one (it records nothing).
+    LaunchedEffect(program?.id, selectedId, reload.tick) {
+        try {
+            programContext.ensureMembersLoaded()
+            val id = selectedId
+            if (id != null) programContext.focusMember(id, roster.firstOrNull { it.id == id }?.memberName)
+            programContext.loadMemberCards(statsId = id, parts = if (id == null) METRICS_PART else ADMIN_PARTS)
+        } finally {
+            reload.onSettled()
         }
     }
 
@@ -120,19 +162,19 @@ private fun AdminMembersBody(programContext: ProgramContext, programName: String
     val viewAsLabel = selected?.memberName
         ?: if (isGlobalAdmin) "None" else (programContext.loggedInMemberName ?: "Member")
 
-    MembersHeader(
-        subtitle = programName,
-        actionIcon = Icons.Filled.MailOutline,
-        actionDescription = "Invite member",
-        onAction = { onNavigate(Routes.MEMBER_INVITE) },
-    )
+    MembersHeader(subtitle = programName, onPeople = { onNavigate(Routes.MEMBER_ROSTER) })
 
-    MemberMetricsPreviewCard(programContext, onClick = { onNavigate(Routes.MEMBER_METRICS) })
+    if (!view.anyData) {
+        MemberCardsEmpty(view, online, reload.onRetry)
+        return
+    }
+
+    MemberMetricsPreviewCard(programContext, state = view.stateOf(MemberCardPart.METRICS), onClick = { onNavigate(Routes.MEMBER_METRICS) })
 
     ViewAsSelector(label = viewAsLabel, onClick = { showPicker = true })
 
     if (selected != null) {
-        MemberSectionCards(programContext, focusId = selected.id, focusName = selected.memberName, onNavigate = onNavigate)
+        MemberSectionCards(programContext, selected.id, selected.memberName, view, onNavigate)
     }
 
     if (showPicker) {
@@ -149,7 +191,14 @@ private fun AdminMembersBody(programContext: ProgramContext, programName: String
 // ---- Logger / member variant ----
 
 @Composable
-private fun StandardMembersBody(programContext: ProgramContext, programName: String, onNavigate: (String) -> Unit) {
+private fun StandardMembersBody(
+    programContext: ProgramContext,
+    programName: String,
+    view: MemberCardsView,
+    reload: CardsReload,
+    online: Boolean,
+    onNavigate: (String) -> Unit,
+) {
     val isLogger = programContext.loggedInUserProgramRole == "logger"
     val program by programContext.activeProgram.collectAsStateWithLifecycle()
     val selfId = programContext.loggedInMemberId
@@ -158,63 +207,41 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
     val roster by programContext.members.collectAsStateWithLifecycle()
     val loggerViewAsId by programContext.membersViewAsId.collectAsStateWithLifecycle()
     val overview by programContext.selectedMemberOverview.collectAsStateWithLifecycle()
-    // Polish #5: a spinner only while nothing for this program is on screen; a tab re-entry keeps the cards.
-    var loading by remember { mutableStateOf(programContext.membersSelfLoadedFor != program?.id) }
-    // The program whose Recent + Health rows are loaded — a first load waits on them too (never another program's rows).
-    var logsProgramId by remember { mutableStateOf(if (loading) null else program?.id) }
     var showPicker by remember { mutableStateOf(false) }
-
-    // Self data — every read in parallel. The self metric row IS the overview row (no all-member download, member-analytics D-C10).
-    LaunchedEffect(program?.id) {
-        loading = programContext.membersSelfLoadedFor != program?.id
-        programContext.ensureMembersLoaded()
-        if (selfId != null) {
-            programContext.focusMember(selfId, selfName)
-            val overviewLoaded = coroutineScope {
-                val overviewOk = async { programContext.loadMemberOverview(selfId).isSuccess }
-                launch { programContext.loadMemberHistory(selfId, "week") }
-                launch { programContext.loadMemberStreaks(selfId) }
-                overviewOk.await()
-            }
-            // Only a loaded overview counts as "on screen" — after a failed first load the next visit spins again.
-            if (overviewLoaded) programContext.membersSelfLoadedFor = program?.id
-        }
-        loading = false
-    }
-
-    // Recent + Health follow the member they show (a logger's View-as pick, else self). A new pick restarts this
-    // effect, which cancels a slower stale load so it can never overwrite the picked member's rows.
+    // Recent + Health follow the member they show (a logger's View-as pick, else self).
     val logsKey = if (isLogger) (loggerViewAsId ?: selfId) else selfId
-    LaunchedEffect(program?.id, logsKey) {
-        if (logsKey != null) {
-            coroutineScope {
-                launch { programContext.loadMemberRecent(logsKey, limit = 10) }
-                launch { programContext.loadMemberHealthLogs(logsKey, limit = 10) }
+
+    // Self data — the five reads together (#5); again on a logger's View-as pick, every tab entry, pull, Retry and
+    // reconnect (S5). The self metric row IS the overview row (no all-member download, member-analytics D-C10). A newer
+    // run cancels a slower one (it records nothing — ProgramContext.loadMemberCards).
+    LaunchedEffect(program?.id, logsKey, reload.tick) {
+        try {
+            programContext.ensureMembersLoaded()
+            if (selfId != null) {
+                programContext.focusMember(selfId, selfName)
+                programContext.loadMemberCards(statsId = selfId, logsId = logsKey ?: selfId, parts = MEMBER_PARTS)
             }
+        } finally {
+            reload.onSettled()
         }
-        logsProgramId = program?.id
     }
 
-    MembersHeader(
-        subtitle = programName,
-        actionIcon = Icons.Filled.Group,
-        actionDescription = "View members",
-        onAction = { onNavigate(Routes.MEMBER_ROSTER) },
-    )
+    MembersHeader(subtitle = programName, onPeople = { onNavigate(Routes.MEMBER_ROSTER) })
 
-    if (loading || logsProgramId != program?.id) {
-        Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = AppOrange)
-        }
+    if (!view.anyData) {
+        MemberCardsEmpty(view, online, reload.onRetry)
         return
     }
 
-    MemberOverviewCard(programContext)
-    overview?.takeIf { it.memberId == selfId }?.let { MemberMetricsCard(it, MetricSortField.ACTIVE_DAYS) }
-    MemberHistoryCard(programContext, onClick = {
+    val overviewState = view.stateOf(MemberCardPart.OVERVIEW)
+    MemberOverviewCard(programContext, state = overviewState)
+    if (overviewState == CardState.DATA) {
+        overview?.takeIf { it.memberId == selfId }?.let { MemberMetricsCard(it, MetricSortField.ACTIVE_DAYS) }
+    }
+    MemberHistoryCard(programContext, state = view.stateOf(MemberCardPart.HISTORY), onClick = {
         programContext.focusMember(selfId, selfName); onNavigate(Routes.MEMBER_HISTORY)
     })
-    MemberStreakCard(programContext, onClick = {
+    MemberStreakCard(programContext, state = view.stateOf(MemberCardPart.STREAKS), onClick = {
         programContext.focusMember(selfId, selfName); onNavigate(Routes.MEMBER_STREAKS)
     })
 
@@ -223,14 +250,13 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
     val logsName = logsTarget?.memberName ?: selfName
 
     if (isLogger) {
-        val label = logsTarget?.memberName ?: selfName
-        ViewAsSelector(label = label, onClick = { showPicker = true })
+        ViewAsSelector(label = logsTarget?.memberName ?: selfName, onClick = { showPicker = true })
     }
 
-    MemberRecentCard(programContext, onClick = {
+    MemberRecentCard(programContext, state = view.stateOf(MemberCardPart.RECENT), onClick = {
         programContext.focusMember(logsId, logsName); onNavigate(Routes.MEMBER_WORKOUTS)
     })
-    MemberHealthCard(programContext, onClick = {
+    MemberHealthCard(programContext, state = view.stateOf(MemberCardPart.HEALTH), onClick = {
         programContext.focusMember(logsId, logsName); onNavigate(Routes.MEMBER_HEALTH)
     })
 
@@ -245,38 +271,35 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
     }
 }
 
-/** The 5 member cards shown once a member is picked (admin body). */
+/** The 5 member cards for [focusId] (the admin body + People "Open full stats"), each in its S5 state. */
 @Composable
-private fun MemberSectionCards(
+internal fun MemberSectionCards(
     programContext: ProgramContext,
     focusId: String,
     focusName: String,
+    view: MemberCardsView,
     onNavigate: (String) -> Unit,
 ) {
-    MemberOverviewCard(programContext)
-    MemberHistoryCard(programContext, onClick = {
+    MemberOverviewCard(programContext, state = view.stateOf(MemberCardPart.OVERVIEW))
+    MemberHistoryCard(programContext, state = view.stateOf(MemberCardPart.HISTORY), onClick = {
         programContext.focusMember(focusId, focusName); onNavigate(Routes.MEMBER_HISTORY)
     })
-    MemberStreakCard(programContext, onClick = {
+    MemberStreakCard(programContext, state = view.stateOf(MemberCardPart.STREAKS), onClick = {
         programContext.focusMember(focusId, focusName); onNavigate(Routes.MEMBER_STREAKS)
     })
-    MemberRecentCard(programContext, onClick = {
+    MemberRecentCard(programContext, state = view.stateOf(MemberCardPart.RECENT), onClick = {
         programContext.focusMember(focusId, focusName); onNavigate(Routes.MEMBER_WORKOUTS)
     })
-    MemberHealthCard(programContext, onClick = {
+    MemberHealthCard(programContext, state = view.stateOf(MemberCardPart.HEALTH), onClick = {
         programContext.focusMember(focusId, focusName); onNavigate(Routes.MEMBER_HEALTH)
     })
 }
 
 // ---- Header + glass action button ----
 
+/** The tab header — every role's one action opens People. */
 @Composable
-private fun MembersHeader(
-    subtitle: String,
-    actionIcon: ImageVector,
-    actionDescription: String,
-    onAction: () -> Unit,
-) {
+private fun MembersHeader(subtitle: String, onPeople: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text("Members", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
@@ -287,7 +310,7 @@ private fun MembersHeader(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
         }
-        GlassIconButton(icon = actionIcon, contentDescription = actionDescription, onClick = onAction)
+        GlassIconButton(icon = Icons.Filled.Group, contentDescription = "People", onClick = onPeople)
     }
 }
 
@@ -399,5 +422,44 @@ private fun PickerRow(name: String, selected: Boolean, onClick: () -> Unit) {
             modifier = Modifier.weight(1f),
         )
         if (selected) Icon(Icons.Filled.Check, contentDescription = null, tint = AppOrange, modifier = Modifier.size(18.dp))
+    }
+}
+
+// ---- S5 helpers (shared with MemberFullStatsScreen) ----
+
+private val METRICS_PART: Set<MemberCardPart> = setOf(MemberCardPart.METRICS)
+private val ADMIN_PARTS: Set<MemberCardPart> = METRICS_PART + MEMBER_PARTS
+
+/** The program + member each card of the Members tab is for (S5): admins — the preview + the View-as member's five;
+ *  loggers / members — their own three + Recent / Health for the logger's View-as (else self). */
+private fun membersWant(programContext: ProgramContext, programId: String?, viewAsId: String?): Map<MemberCardPart, MemberCardKey> {
+    val pid = programId ?: return emptyMap()
+    if (programContext.isProgramAdmin) {
+        val metrics = mapOf(MemberCardPart.METRICS to MemberCardKey(pid, null))
+        return if (viewAsId == null) metrics else metrics + MEMBER_PARTS.associateWith { MemberCardKey(pid, viewAsId) }
+    }
+    val self = programContext.loggedInMemberId ?: return emptyMap()
+    val logs = (if (programContext.loggedInUserProgramRole == "logger") viewAsId else null) ?: self
+    return MEMBER_PARTS.associateWith { MemberCardKey(pid, if (it in LOGS_PARTS) logs else self) }
+}
+
+/** The tab's reload trigger (pull / Retry / reconnect) handed to the bodies' load effects. */
+private class CardsReload(val tick: Int, val onSettled: () -> Unit, val onRetry: () -> Unit)
+
+/** S5: nothing of this program / member to show yet — everything failed or offline → the kit ErrorView + Retry (the
+ *  offline copy while offline: never an endless spinner, D-KIT-18), else a spinner. */
+@Composable
+internal fun MemberCardsEmpty(view: MemberCardsView, online: Boolean, onRetry: () -> Unit) {
+    if (view.allFailed || !online) {
+        ErrorView(if (!online) AppError(AppErrorKind.OFFLINE) else view.error ?: AppError(AppErrorKind.UNKNOWN), onRetry = onRetry)
+    } else {
+        MembersSpinner()
+    }
+}
+
+@Composable
+internal fun MembersSpinner() {
+    Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+        CircularProgressIndicator(color = AppOrange)
     }
 }

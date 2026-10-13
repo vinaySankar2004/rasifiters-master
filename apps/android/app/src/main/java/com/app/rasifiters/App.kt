@@ -12,27 +12,25 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        createNotificationChannels()   // first: a PUT /device {inbox:true} lets the server name these channels
         container = AppContainer(this)
-        createNotificationChannels()
     }
 
-    /** The channels FCM pushes post into (Android 8+ requires one; minSdk 26 = always present): `rasi_default` (the
-     *  manifest default) + the high-importance `rasi_invites` for invites + membership changes (notifications §3.2). */
+    /** The channels FCM pushes post into (minSdk 26 = always required): `rasi_default` (the manifest default),
+     *  high-importance `rasi_invites` (invites + membership changes) and one per new notification category.
+     *  Created before the container, so before any `PUT /device {inbox:true}` can make the server name them (a post to a
+     *  missing channel is dropped). */
     private fun createNotificationChannels() {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(
-            NotificationChannel(
-                getString(R.string.default_notification_channel_id),
-                getString(R.string.default_notification_channel_name),
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ),
-        )
-        manager.createNotificationChannel(
-            NotificationChannel(
-                getString(R.string.invites_notification_channel_id),
-                getString(R.string.invites_notification_channel_name),
-                NotificationManager.IMPORTANCE_HIGH,
-            ),
-        )
+        listOf(
+            Triple(R.string.default_notification_channel_id, R.string.default_notification_channel_name, NotificationManager.IMPORTANCE_DEFAULT),
+            Triple(R.string.invites_notification_channel_id, R.string.invites_notification_channel_name, NotificationManager.IMPORTANCE_HIGH),
+            Triple(R.string.activity_notification_channel_id, R.string.activity_notification_channel_name, NotificationManager.IMPORTANCE_DEFAULT),
+            Triple(R.string.reminders_notification_channel_id, R.string.reminders_notification_channel_name, NotificationManager.IMPORTANCE_DEFAULT),
+            Triple(R.string.digest_notification_channel_id, R.string.digest_notification_channel_name, NotificationManager.IMPORTANCE_LOW),
+            Triple(R.string.announcements_notification_channel_id, R.string.announcements_notification_channel_name, NotificationManager.IMPORTANCE_DEFAULT),
+        ).forEach { (id, name, importance) ->
+            manager.createNotificationChannel(NotificationChannel(getString(id), getString(name), importance))
+        }
     }
 }

@@ -19,6 +19,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -50,7 +51,10 @@ import com.app.rasifiters.ui.lifestyle.LifestyleTimelineDetailScreen
 import com.app.rasifiters.ui.lifestyle.StepsTimelineDetailScreen
 import com.app.rasifiters.ui.lifestyle.WorkoutTypesListScreen
 import com.app.rasifiters.ui.members.MembersScreen
-import com.app.rasifiters.ui.members.ProgramMembersListScreen
+import com.app.rasifiters.ui.inbox.InboxScreen
+import com.app.rasifiters.ui.members.MemberFullStatsScreen
+import com.app.rasifiters.ui.people.PeopleListScreen
+import com.app.rasifiters.ui.people.PersonProfileScreen
 import com.app.rasifiters.ui.summary.ActivityDetailScreen
 import com.app.rasifiters.ui.summary.DistributionDetailScreen
 import com.app.rasifiters.ui.summary.LogHealthScreen
@@ -88,6 +92,13 @@ fun AppScaffold(
     // disabled, so back there pops the detail as usual.
     val onMainTab = MainTab.entries.any { it.route == backStackEntry?.destination?.route }
     BackHandler(enabled = onMainTab) { onSwitchProgram() }
+
+    // The inner route, for the routing rule's form guard (RootScreen): a notification never navigates away from a form.
+    val innerRoute = backStackEntry?.destination?.route
+    DisposableEffect(innerRoute) {
+        programContext.inbox.shellRoute.value = innerRoute
+        onDispose { programContext.inbox.shellRoute.value = null }
+    }
 
     // App-wide success confirmations (e.g. "3 workouts saved") — the Android-idiom acknowledgement of a
     // successful write, shown as a Snackbar after the form pops back (ProgramContext.messages).
@@ -169,7 +180,7 @@ fun AppScaffold(
                     AppearanceScreen(appearanceStore = appearanceStore, onBack = { nav.popBackStack() })
                 }
                 composable(Routes.PROGRAM_NOTIFICATIONS) {
-                    NotificationsScreen(onBack = { nav.popBackStack() })
+                    NotificationsScreen(programContext = programContext, onBack = { nav.popBackStack() })
                 }
                 composable(Routes.PROGRAM_EDIT) {
                     EditProgramScreen(programContext = programContext, onBack = { nav.popBackStack() })
@@ -179,6 +190,9 @@ fun AppScaffold(
                 }
                 composable(Routes.HEALTH_CONNECT) {
                     HealthConnectSettingsScreen(programContext = programContext, onBack = { nav.popBackStack() })
+                }
+                composable(Routes.INBOX) {
+                    InboxScreen(programContext = programContext, onBack = { nav.popBackStack() }, inShell = true)
                 }
 
                 // Lifestyle forward targets (Phase F) — the workout-types manager + the timeline drill-down.
@@ -193,7 +207,7 @@ fun AppScaffold(
                 }
 
                 // Members forward targets (Phase E) — the metrics/history/streak/workouts/health drill-downs
-                // + the invite/roster/editor cluster (double-duty with the Program tab).
+                // + the invite/People/editor cluster (double-duty with the Program tab) + a person's profile / full stats.
                 composable(Routes.MEMBER_METRICS) {
                     MemberMetricsDetailScreen(programContext = programContext, onBack = { nav.popBackStack() })
                 }
@@ -213,7 +227,13 @@ fun AppScaffold(
                     InviteMemberScreen(programContext = programContext, onBack = { nav.popBackStack() })
                 }
                 composable(Routes.MEMBER_ROSTER) {
-                    ProgramMembersListScreen(programContext = programContext, onNavigate = { nav.navigate(it) }, onBack = { nav.popBackStack() })
+                    PeopleListScreen(programContext = programContext, onNavigate = { nav.navigate(it) }, onBack = { nav.popBackStack() })
+                }
+                composable(Routes.PERSON_PROFILE) {
+                    PersonProfileScreen(programContext = programContext, onNavigate = { nav.navigate(it) }, onBack = { nav.popBackStack() })
+                }
+                composable(Routes.MEMBER_FULL_STATS) {
+                    MemberFullStatsScreen(programContext = programContext, onNavigate = { nav.navigate(it) }, onBack = { nav.popBackStack() })
                 }
                 composable(Routes.MEMBER_EDIT) {
                     MemberDetailEditScreen(programContext = programContext, onBack = { nav.popBackStack() })

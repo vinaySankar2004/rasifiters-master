@@ -166,11 +166,11 @@ fun AdminProgramInfoSection(
     }
 }
 
-/** Members section: View Members (everyone) + Invite Member (admins only). */
+/** Members section: People (everyone — the roster grew into the People list) + Invite Member (admins only). */
 @Composable
 fun MembersSection(memberCount: Int, canInvite: Boolean, onNavigate: (String) -> Unit) {
     ProgramSectionCard(Icons.Filled.Groups, "Members", AppGreen) {
-        ProgramSettingsRow(Icons.Filled.Groups, AppGreen, "View Members", "$memberCount enrolled") {
+        ProgramSettingsRow(Icons.Filled.Groups, AppGreen, "People", "$memberCount enrolled") {
             onNavigate(Routes.MEMBER_ROSTER)
         }
         if (canInvite) {

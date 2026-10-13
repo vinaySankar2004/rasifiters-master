@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar (small) notification icon: the three-bar brand mark of ic_launcher_monochrome.xml, cropped to a
+     40-unit window so it fills the 24dp canvas. White on transparent — Android tints it. Used by background FCM
+     pushes (manifest default_notification_icon), RaSiFirebaseMessagingService and HealthSyncNotifier. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="40"
+    android:viewportHeight="40">
+    <group
+        android:translateX="-32.15"
+        android:translateY="-31.63">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M37.54,46.51 h4.12 a2.0,2.0 0 0 1 2.0,2.0 v14.25 a2.0,2.0 0 0 1 -2.0,2.0 h-4.12 a2.0,2.0 0 0 1 -2.0,-2.0 v-14.25 a2.0,2.0 0 0 1 2.0,-2.0 z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M49.99,42.61 h4.23 a2.0,2.0 0 0 1 2.0,2.0 v18.15 a2.0,2.0 0 0 1 -2.0,2.0 h-4.23 a2.0,2.0 0 0 1 -2.0,-2.0 v-18.15 a2.0,2.0 0 0 1 2.0,-2.0 z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M62.43,38.50 h4.33 a2.0,2.0 0 0 1 2.0,2.0 v22.26 a2.0,2.0 0 0 1 -2.0,2.0 h-4.33 a2.0,2.0 0 0 1 -2.0,-2.0 v-22.26 a2.0,2.0 0 0 1 2.0,-2.0 z" />
+    </group>
+</vector>

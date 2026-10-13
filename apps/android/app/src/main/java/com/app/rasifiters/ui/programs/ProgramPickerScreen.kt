@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -82,6 +83,7 @@ import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.components.kit.ErrorView
 import com.app.rasifiters.ui.components.kit.FloatingBanner
 import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
+import com.app.rasifiters.ui.people.ActivityVisibilityNoticeHost
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
@@ -95,8 +97,8 @@ import java.util.Locale
  * Lists the member's programs as cards; opens a program (→ the shell), deletes managed programs (Android-idiom
  * overflow menu vs the iOS swipe), reaches the account sheet, and carries the net-new drag-to-reorder + floating
  * search (iOS D-N1). Invites come from the ONE inbox (`/my-invites`, invites §3.1) in the [ProgramActionsSheet]
- * (My Invites / Create) — cards no longer accept inline; a "requested" card keeps Cancel Request. The account
- * sheet reaches the settings screens via [onNavigate].
+ * (Inbox / Create; the "+" badge = the server inbox badge) — cards no longer accept inline; a "requested" card keeps
+ * Cancel Request. The account sheet reaches the settings screens via [onNavigate].
  *
  * Kit (frontend-kit §5–6): the cached list shows first, then refreshes; programs + invites load in parallel; a
  * failed first load → ErrorView; offline / stale / update-available → ONE floating banner above the FABs; pull to
@@ -120,7 +122,9 @@ fun ProgramPickerScreen(
     val updateAvailable by versionGate.updateAvailable.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val invitesState by programContext.invites.collectAsStateWithLifecycle()
-    val inviteInboxRequest by programContext.inviteInboxRequest.collectAsStateWithLifecycle()
+    val invitesSheetRequest by programContext.inbox.invitesSheetRequest.collectAsStateWithLifecycle()
+    val inboxCounts by programContext.inbox.counts.collectAsStateWithLifecycle()
+    val workoutSync by programContext.health.workoutEnabled.collectAsStateWithLifecycle()
     val isGlobalAdmin = programContext.isGlobalAdmin
     val scope = rememberCoroutineScope()
 
@@ -129,7 +133,7 @@ fun ProgramPickerScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showAccount by remember { mutableStateOf(false) }
     var showActions by remember { mutableStateOf(false) }
-    var actionsOnInvites by remember { mutableStateOf(false) }
+    var actionsOnInbox by remember { mutableStateOf(false) }
     var showSignOut by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ProgramDTO?>(null) }
     var pulling by remember { mutableStateOf(false) }
@@ -138,6 +142,7 @@ fun ProgramPickerScreen(
     suspend fun reloadAll() = coroutineScope {
         launch { programContext.loadPrograms() }
         launch { programContext.loadInvites() }
+        launch { programContext.inbox.refreshCounts() }
     }
     LaunchedEffect(Unit) { reloadAll() }
     // D-KIT-13: back online → a failed / stale list reloads by itself; polish #2: so does a failed / stale invite inbox.
@@ -151,11 +156,11 @@ fun ProgramPickerScreen(
             }
         }
     }
-    // Invite push tap (U2): open the actions sheet on its invites tab, then refresh.
-    LaunchedEffect(inviteInboxRequest) {
-        if (!inviteInboxRequest) return@LaunchedEffect
-        programContext.consumeInviteInboxRequest()
-        actionsOnInvites = true; showActions = true
+    // An `invites` push / toast target opens the actions sheet on its Inbox tab, then refreshes.
+    LaunchedEffect(invitesSheetRequest) {
+        if (!invitesSheetRequest) return@LaunchedEffect
+        programContext.inbox.consumeInvitesSheetRequest()
+        actionsOnInbox = true; showActions = true
         reloadAll()
     }
 
@@ -164,7 +169,9 @@ fun ProgramPickerScreen(
         if (q.isEmpty()) programs else programs.filter { it.name.contains(q, ignoreCase = true) }
     }
     val reorderEnabled = query.isBlank()
-    val pendingInvites = (invitesState.dataOrNull?.size ?: 0) + programs.count { it.myStatus == "requested" }
+    // The server badge (unread except invite items + pending invites — each invite once); join requests no longer count
+    // (polish #40 badge half). Until the first count arrives: the member's own invites (0 for global admins).
+    val inboxBadge = inboxCounts?.badge ?: if (isGlobalAdmin) 0 else invitesState.dataOrNull?.size ?: 0
 
     // One floating banner slot (A6/A7): offline (the global monitor) › stale › update available.
     val banner: FloatingBannerVariant? = when {
@@ -307,8 +314,8 @@ fun ProgramPickerScreen(
             )
             CircleButton(
                 icon = Icons.Filled.Add,
-                contentDescription = "Create program or view invites",
-                badgeCount = pendingInvites,
+                contentDescription = "Create program or open inbox",
+                badgeCount = inboxBadge,
                 onClick = { showActions = true },
             )
         }
@@ -326,8 +333,8 @@ fun ProgramPickerScreen(
     if (showActions) {
         ProgramActionsSheet(
             programContext = programContext,
-            onDismiss = { showActions = false; actionsOnInvites = false },
-            openOnInvites = actionsOnInvites,
+            onDismiss = { showActions = false; actionsOnInbox = false },
+            openOnInbox = actionsOnInbox,
         )
     }
 
@@ -339,6 +346,9 @@ fun ProgramPickerScreen(
             onSignOut = { showAccount = false; showSignOut = true },
         )
     }
+
+    // People: members already syncing Health Connect workouts see the activity notice once after the update.
+    ActivityVisibilityNoticeHost(programContext, enabled = workoutSync)
 
     deleteTarget?.let { target ->
         AlertDialog(
@@ -513,13 +523,15 @@ private fun CircleButton(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .size(22.dp)
+                    .height(22.dp)
+                    .widthIn(min = 22.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.error),
+                    .background(MaterialTheme.colorScheme.error)
+                    .padding(horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    badgeCount.coerceAtMost(99).toString(),
+                    if (badgeCount > 99) "99+" else badgeCount.toString(),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,

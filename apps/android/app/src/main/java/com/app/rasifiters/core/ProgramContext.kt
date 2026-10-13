@@ -5,6 +5,7 @@ import com.app.rasifiters.core.events.ClientEventQueue
 import com.app.rasifiters.core.events.forcedSignOut
 import com.app.rasifiters.core.events.signInFailed
 import com.app.rasifiters.core.events.signInProviderFailed
+import com.app.rasifiters.core.kit.AppError
 import com.app.rasifiters.core.kit.AppErrorException
 import com.app.rasifiters.core.kit.AppErrorKind
 import com.app.rasifiters.core.kit.ConnectivityObserver
@@ -23,6 +24,7 @@ import com.app.rasifiters.net.Network
 import com.app.rasifiters.net.PendingInviteDTO
 import com.app.rasifiters.net.TokenRefresher
 import com.app.rasifiters.push.DeviceRegistry
+import com.app.rasifiters.push.clearPostedPushes
 import com.app.rasifiters.net.ApiService
 import com.app.rasifiters.net.AvgDurationMtdDTO
 import com.app.rasifiters.net.BulkHealthEntry
@@ -55,7 +57,6 @@ import com.app.rasifiters.net.MembershipUpdateRequest
 import com.app.rasifiters.net.MtdParticipationDTO
 import com.app.rasifiters.net.OAuthCompleteRequest
 import com.app.rasifiters.net.OAuthRequest
-import com.app.rasifiters.net.NotificationDTO
 import com.app.rasifiters.net.NotificationStreamClient
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.net.ProgramMemberDTO
@@ -88,7 +89,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,6 +99,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -106,9 +110,8 @@ import retrofit2.HttpException
 import kotlin.coroutines.cancellation.CancellationException
 
 private const val PLATFORM = "android"
-private const val INVITE_TYPE = "program.invite_received"
-/** A4: acknowledged ids are remembered this long so a racing /unacknowledged re-fetch can't resurrect them. */
-private const val ACK_MEMORY_MS = 120_000L
+/** The catch-up rule: a stream `ready` / foreground start re-reads the counts, invites and programs at most this often. */
+private const val CATCH_UP_MIN_MS = 5_000L
 
 /**
  * App-scoped state hub — the analog of the iOS `ProgramContext` ObservableObject and the web
@@ -529,10 +532,19 @@ class ProgramContext(
     }
 
     /** PUT /invite-response (`accept` / `decline` [+ block_future] / `revoke` for global admins), then inbox + programs
-     *  reload in parallel. The 200 message is not shown (invites §3.1 as amended — all three surfaces). */
-    suspend fun respondToInvite(inviteId: String, action: String, blockFuture: Boolean = false): Result<Unit> = runCatching {
+     *  reload in parallel; the answered program's unread invite items are marked read. The 200 message is not shown. */
+    suspend fun respondToInvite(
+        inviteId: String,
+        action: String,
+        blockFuture: Boolean = false,
+        programId: String? = null,
+    ): Result<Unit> = runCatching {
         api.respondToInvite(InviteResponseRequest(inviteId, action, blockFuture.takeIf { it && action == "decline" }))
-        coroutineScope { launch { loadInvites() }; launch { loadPrograms() } }
+        coroutineScope {
+            launch { loadInvites() }
+            launch { loadPrograms() }
+            if (programId != null && action != "revoke") launch { inbox.markInviteItemsRead(programId) }
+        }
         Unit
     }.recoverCatching { throw AppErrorException(it.toAppError()) }
 
@@ -545,14 +557,21 @@ class ProgramContext(
 
     /** Pick a program → hydrate the active-program state the shell reads. */
     fun selectProgram(program: ProgramDTO) {
-        // Polish #5/#10: a switch re-spins the Members tab and re-defaults View-as — the shared member flows and the
-        // View-as pick may belong to the previous program (the admin body writes the same flows).
+        // Polish #5/#10: a switch re-defaults View-as — the pick may belong to the previous program. The Members cards
+        // re-spin by themselves: every card's data is keyed to its program + member (S5 — memberCardsHeld).
         if (program.id != _activeProgram.value?.id) {
-            membersSelfLoadedFor = null
             membersLoadedFor = null          // the roster + View-as default re-initialize for the new program
             _membersViewAsId.value = null    // no leftover key → the logs effect starts on self, never a stale member
         }
         _activeProgram.value = program
+    }
+
+    /** The `program` target: the program to open when the member can (active, or a global admin); loads the list once
+     *  when it isn't known yet (a cold start from a push tap). null → the picker. */
+    suspend fun programForOpen(programId: String?): ProgramDTO? {
+        val id = programId ?: return null
+        fun find() = _programs.value.firstOrNull { it.id == id && (isGlobalAdmin || it.myStatus == "active") }
+        return find() ?: run { loadPrograms(); find() }
     }
 
     // ---- Widget quick-add deep-link route (iOS `widgetRoute` + `returnToMyPrograms` analog) ----
@@ -568,16 +587,22 @@ class ProgramContext(
     /** Drop the active program (iOS `returnToMyPrograms`) — used by the widget forms' exit-to-My-Programs. */
     fun clearActiveProgram() { _activeProgram.value = null }
 
-    // ---- Notifications (notifications §3.3) — real-time SSE + the modal queue ----
-    // An SSE stream pushes new alerts live; every `ready` re-fetches `GET /notifications/unacknowledged` (the stream
-    // never replays). Alerts render as a single-notification modal QUEUE (oldest-first), acknowledged optimistically.
+    // ---- Notifications (notifications §3.3–§3.5) — the inbox stream, the unread badge, the toast, push routing ----
+    // The SSE stream opens with ?inbox=1 (every type, as an inbox item). [inbox] keeps the unread counts, the paged list,
+    // the preference cache that gates the toast, the toast and the pending "open this" — no blocking pop-up.
 
-    private val notificationIds = mutableSetOf<String>()
-    private val recentlyAcked = LinkedHashMap<String, Long>()
+    /** The notification inbox hub (core/NotificationInbox.kt). */
+    val inbox = NotificationInbox(
+        api = api,
+        scope = scope,
+        owner = { sessionOwner() },
+        onInviteActivity = { loadInvites() },
+        onItemActivity = { type -> refreshDataForType(type) },
+        onAllRead = { clearPostedPushes(appContext) },
+    )
 
-    /** The pending-alert queue; the shell shows `first` in a modal and pops it on acknowledge (web F7 parity). */
-    private val _notificationQueue = MutableStateFlow<List<NotificationDTO>>(emptyList())
-    val notificationQueue: StateFlow<List<NotificationDTO>> = _notificationQueue.asStateFlow()
+    /** People (core/PeopleStore.kt) — the program's People list, profiles, kudos and "Hide my activity". */
+    val people = PeopleStore(appContext, api, owner = { sessionOwner() })
 
     private val streamClient = NotificationStreamClient(
         baseUrl, Network.streamClient(), scope,
@@ -588,21 +613,22 @@ class ProgramContext(
             else refresher.tokenForRequest()
         } catch (_: AuthUnavailableException) { null }
     }.also { c ->
-        c.onNotification = { dto -> scope.launch { enqueueNotification(dto) } }
-        c.onReady = { scope.launch { loadUnacknowledgedNotifications() } }
+        c.onNotification = { item -> inbox.onStreamItem(item) }
+        // The stream never replays: every `ready` runs the catch-up (the badge + lists catch up on anything missed).
+        c.onReady = { catchUp() }
     }
 
-    /** FCM foreground suppression (A5): the in-app modal already shows what arrives while the stream is connected. */
+    /** FCM foreground suppression (A5): the in-app toast already shows what arrives while the stream is connected. */
     val isStreamConnected: Boolean get() = streamClient.isConnected
 
     fun startNotificationStream() { if (session.signedIn.value) streamClient.start() }
     fun pauseNotificationStream() = streamClient.stop()
 
-    /** Tear down the stream + clear the queue (sign-out). */
+    /** Tear down the stream + the inbox state (sign-out). */
     fun stopNotificationStream() {
         streamClient.stop()
-        _notificationQueue.value = emptyList()
-        notificationIds.clear()
+        inbox.reset()
+        lastCatchUpAt = 0L
     }
 
     /** RootScreen ON_START — `launch` (first start of this signed-in state) or `foreground`. */
@@ -613,6 +639,9 @@ class ProgramContext(
         startNotificationStream()
         registerPushTokenIfNeeded()
         health.onTrigger(trigger)
+        catchUp()
+        // The preference cache that gates the toast.
+        scope.launch { inbox.loadPreferences() }
     }
 
     /** RootScreen ON_STOP — the stream and the offline probe are foreground-only. */
@@ -621,61 +650,51 @@ class ProgramContext(
         pauseNotificationStream()
     }
 
-    /** notifications §3.3: after every `ready`, re-fetch — drops items acknowledged elsewhere, keeps our own recent acks
-     *  out (A4), and refreshes the invite inbox when an invite is among them. */
-    suspend fun loadUnacknowledgedNotifications() {
+    private var lastCatchUpAt = 0L
+
+    /** The catch-up rule (every stream `ready` and foreground start, at most once per 5 s): the unread counts, the inbox
+     *  when it is on screen, the invites, the programs and — with a program open — its role-dependent membership rows. */
+    private fun catchUp() {
         if (!session.signedIn.value) return
-        runCatching { api.getUnacknowledgedNotifications() }.onSuccess { items ->
-            pruneAcked()
-            val fresh = items.filterNot { it.id in recentlyAcked }
-            val newTypes = fresh.filter { it.id !in notificationIds }.map { it.type }.toSet()
-            notificationIds.clear()
-            notificationIds.addAll(fresh.map { it.id })
-            _notificationQueue.value = sortNotifications(fresh)
-            if (fresh.any { it.type == INVITE_TYPE }) runCatching { loadInvites() }
-            newTypes.filter { it != INVITE_TYPE }.forEach { refreshDataForType(it) }
-        }
+        val now = SystemClock.elapsedRealtime()
+        if (lastCatchUpAt != 0L && now - lastCatchUpAt < CATCH_UP_MIN_MS) return
+        lastCatchUpAt = now
+        scope.launch { inbox.refreshCounts() }
+        if (inbox.inboxVisible.value) scope.launch { inbox.loadAndMarkRead() }
+        scope.launch { runCatching { loadInvites() } }
+        scope.launch { loadPrograms().onSuccess { reconcileActiveProgram() } }
+        if (_activeProgram.value != null) scope.launch { runCatching { loadMembershipDetails() } }
     }
 
-    /** Optimistic acknowledge: pop the alert immediately, then `POST /:id/acknowledge`; on failure re-backfill
-     *  so it reappears (iOS/web F8 parity). */
-    suspend fun acknowledgeNotification(notification: NotificationDTO) {
-        if (!session.signedIn.value) return
-        rememberAcked(notification.id)
-        _notificationQueue.value = _notificationQueue.value.filterNot { it.id == notification.id }
-        notificationIds.remove(notification.id)
-        runCatching { api.acknowledgeNotification(notification.id) }
-            .onFailure { recentlyAcked.remove(notification.id); loadUnacknowledgedNotifications() }
-    }
-
-    private suspend fun enqueueNotification(notification: NotificationDTO) {
-        if (notification.id in recentlyAcked || !notificationIds.add(notification.id)) return
-        _notificationQueue.value = sortNotifications(_notificationQueue.value + notification)
-        refreshDataForType(notification.type)
-    }
-
-    /** Invalidate the caches an event touches so the open screen reflects it (iOS `refreshDataForNotification`
-     *  / web per-notification query invalidation). Best-effort; the inbox is always GET /my-invites. */
-    private suspend fun refreshDataForType(type: String) {
-        when (type) {
-            INVITE_TYPE -> runCatching { loadInvites() }
-            "program.role_changed", "program.member_removed", "program.member_left",
-            "program.member_joined", "program.admin_transferred", "program.updated", "program.deleted" -> {
-                runCatching { loadPrograms() }
-                if (_activeProgram.value != null) runCatching { loadMembershipDetails() }
+    /** The catch-up's role re-read for the OPEN program, from the fresh list: gone (or, for a member, no longer active) →
+     *  the picker through the routing rule's `programs` target (the form guard applies); changed → the open program is
+     *  replaced, and a role change re-defaults the Members roster + View-as (the role-dependent data). */
+    private fun reconcileActiveProgram() {
+        val active = _activeProgram.value ?: return
+        val fresh = _programs.value.firstOrNull { it.id == active.id && (isGlobalAdmin || it.myStatus == "active") }
+        when {
+            fresh == null -> inbox.requestOpen(PendingOpen(InboxTarget.PROGRAMS, active.id))
+            fresh != active -> {
+                if (fresh.myRole != active.myRole) {
+                    membersLoadedFor = null
+                    _membersViewAsId.value = null
+                }
+                _activeProgram.value = fresh
             }
         }
     }
 
-    private fun rememberAcked(id: String) { pruneAcked(); recentlyAcked[id] = SystemClock.elapsedRealtime() }
-    private fun pruneAcked() {
-        val cutoff = SystemClock.elapsedRealtime() - ACK_MEMORY_MS
-        recentlyAcked.entries.removeAll { it.value < cutoff }
+    /** Invalidate the caches a program event touches so the open screen reflects it (iOS `refreshDataForNotification`
+     *  / web per-notification query invalidation). Best-effort; invites are the inbox's (the invite list reload). */
+    private suspend fun refreshDataForType(type: String) {
+        when (type) {
+            "program.role_changed", "program.member_removed", "program.member_left",
+            "program.member_joined", "program.admin_transferred", "program.updated", "program.deleted" -> {
+                loadPrograms().onSuccess { reconcileActiveProgram() }
+                if (_activeProgram.value != null) runCatching { loadMembershipDetails() }
+            }
+        }
     }
-
-    /** Oldest-first (ISO `created_at` string sort; missing dates sink to the front — distant past). */
-    private fun sortNotifications(items: List<NotificationDTO>): List<NotificationDTO> =
-        items.sortedBy { it.createdAt ?: "" }
 
     // ---- Push (FCM, notifications §3.1–3.2) — registration lives in DeviceRegistry ----
 
@@ -683,27 +702,20 @@ class ProgramContext(
     fun shouldAskNotificationPermission() = deviceRegistry.shouldAskNotificationPermission()
     fun markNotificationPermissionAsked() = deviceRegistry.markNotificationPermissionAsked()
 
-    /** A foreground FCM message (tray path) — keep the inbox fresh (invites §3.1). Any thread. */
-    fun onPushReceived(type: String?) {
-        if (type == INVITE_TYPE) scope.launch { if (session.signedIn.value) loadInvites() }
-    }
+    private val _notificationPromptOpen = MutableStateFlow(false)
+    /** The first-start POST_NOTIFICATIONS prompt is on screen — the activity notice waits for its answer. */
+    val notificationPromptOpen: StateFlow<Boolean> = _notificationPromptOpen.asStateFlow()
 
-    private val _inviteInboxRequest = MutableStateFlow(false)
-    /** U2: an invite push tap asks the picker to open the actions sheet on its invites tab. */
-    val inviteInboxRequest: StateFlow<Boolean> = _inviteInboxRequest.asStateFlow()
-    fun consumeInviteInboxRequest() { _inviteInboxRequest.value = false }
+    /** RootScreen's once-per-install ask: remembered as asked, and open until [endNotificationPrompt]. */
+    fun beginNotificationPrompt() { markNotificationPermissionAsked(); _notificationPromptOpen.value = true }
+    fun endNotificationPrompt() { _notificationPromptOpen.value = false }
 
-    /** notifications §3.2 (U2): a push tap acknowledges; an invite opens the inbox, any other type re-fetches its data. */
-    fun onPushTap(notificationId: String, type: String?) {
-        if (!session.signedIn.value) return
-        rememberAcked(notificationId)
-        _notificationQueue.value = _notificationQueue.value.filterNot { it.id == notificationId }
-        notificationIds.remove(notificationId)
-        scope.launch {
-            runCatching { api.acknowledgeNotification(notificationId) }
-            type?.let { refreshDataForType(it) }
-        }
-        if (type == INVITE_TYPE) _inviteInboxRequest.value = true
+    /** A foreground FCM message the tray showed (the stream was down) — the badge + an invite's list stay fresh. Any thread. */
+    fun onPushReceived(type: String?) { if (session.signedIn.value) inbox.onPushReceived(type) }
+
+    /** A push tap marks it read and opens its target (RootScreen consumes [NotificationInbox.pendingOpen]). */
+    fun onPushTap(notificationId: String, type: String?, target: String?, programId: String?) {
+        if (session.signedIn.value) inbox.open(notificationId, type, target, programId)
     }
 
     // ---- Summary dashboard (Phase D) ----
@@ -980,9 +992,20 @@ class ProgramContext(
     private val _members = MutableStateFlow<List<ProgramMemberDTO>>(emptyList())
     val members: StateFlow<List<ProgramMemberDTO>> = _members.asStateFlow()
     private var membersLoadedFor: String? = null
-    /** The program whose Members-tab self data last finished loading (polish #5): the tab spins only when nothing for the
-     *  active program is on screen; a re-entry keeps the cards and refreshes underneath. Reset by the teardown. */
-    var membersSelfLoadedFor: String? = null
+    /** S5 (polish #32): whose data each Members card's shared flow holds — the program + member of its last SUCCESSFUL
+     *  read (any caller: the tab, People "Open full stats", the drill-downs). A screen shows a card's flow only when this
+     *  matches the member the card is for, so it never shows another program's / member's values (A13). Kept here, not in
+     *  the screen, so a tab switch or a detail push can't lose it. Reset by the teardown. */
+    private val _memberCardsHeld = MutableStateFlow<Map<MemberCardPart, MemberCardKey>>(emptyMap())
+    val memberCardsHeld: StateFlow<Map<MemberCardPart, MemberCardKey>> = _memberCardsHeld.asStateFlow()
+
+    /** S5: per part, what the latest [loadMemberCards] asked for and whether it failed (ErrorView / "—" / stale banner). */
+    private val _memberCardsLoad = MutableStateFlow(MemberCardsLoad())
+    val memberCardsLoad: StateFlow<MemberCardsLoad> = _memberCardsLoad.asStateFlow()
+
+    private fun markCardHeld(part: MemberCardPart, programId: String, memberId: String?) {
+        _memberCardsHeld.update { it + (part to MemberCardKey(programId, memberId)) }
+    }
 
     private val _membersViewAsId = MutableStateFlow<String?>(null)
     val membersViewAsId: StateFlow<String?> = _membersViewAsId.asStateFlow()
@@ -1027,6 +1050,7 @@ class ProgramContext(
             _memberMetrics.value = resp.members
             _memberMetricsTotal.value = resp.total
             _memberMetricsRange.value = (resp.dateRange?.start to resp.dateRange?.end)
+            markCardHeld(MemberCardPart.METRICS, pid, null)
         }.recoverCatching { throw it.asApiError() }
     }
 
@@ -1037,6 +1061,7 @@ class ProgramContext(
         return runCatching {
             val resp = api.getMemberMetrics(mapOf("programId" to pid, "memberId" to memberId))
             _selectedMemberOverview.value = resp.members.firstOrNull()
+            markCardHeld(MemberCardPart.OVERVIEW, pid, memberId)
         }.recoverCatching { throw it.asApiError() }
     }
 
@@ -1047,6 +1072,7 @@ class ProgramContext(
         return runCatching {
             val resp = api.getMemberHistory(pid, memberId, period)
             _memberHistory.value = resp
+            markCardHeld(MemberCardPart.HISTORY, pid, memberId)
             resp
         }.recoverCatching { throw it.asApiError() }
     }
@@ -1062,7 +1088,10 @@ class ProgramContext(
     suspend fun loadMemberStreaks(memberId: String): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
-        return runCatching { _memberStreaks.value = api.getMemberStreaks(pid, memberId) }
+        return runCatching {
+            _memberStreaks.value = api.getMemberStreaks(pid, memberId)
+            markCardHeld(MemberCardPart.STREAKS, pid, memberId)
+        }
             .recoverCatching { throw it.asApiError() }
     }
 
@@ -1084,6 +1113,7 @@ class ProgramContext(
             _memberRecent.value = api.getMemberRecent(
                 pid, memberId, limit, startDate, endDate, sortBy, sortDir, workoutType, minDuration, maxDuration,
             ).items
+            markCardHeld(MemberCardPart.RECENT, pid, memberId)
         }.recoverCatching { throw it.asApiError() }
     }
 
@@ -1110,7 +1140,50 @@ class ProgramContext(
                 minSleepHours, maxSleepHours, minFoodQuality, maxFoodQuality,
                 minSteps, maxSteps,
             ).items
+            markCardHeld(MemberCardPart.HEALTH, pid, memberId)
         }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** S5 (polish #32): the Members cards' reads in parallel — METRICS (the admin preview), OVERVIEW / HISTORY / STREAKS
+     *  for [statsId], RECENT / HEALTH for [logsId] (a logger's View-as). Each success marks its card held (the loaders
+     *  above); the outcome per part goes to [memberCardsLoad]. A part whose member id is missing is skipped; a run
+     *  cancelled by a newer one (a new pick, a reload) records nothing. */
+    suspend fun loadMemberCards(statsId: String?, logsId: String? = statsId, parts: Set<MemberCardPart>) {
+        val pid = _activeProgram.value?.id ?: return
+        val keys = parts.mapNotNull { part ->
+            val memberId = when (part) {
+                MemberCardPart.METRICS -> null
+                MemberCardPart.RECENT, MemberCardPart.HEALTH -> logsId ?: return@mapNotNull null
+                else -> statsId ?: return@mapNotNull null
+            }
+            part to MemberCardKey(pid, memberId)
+        }.toMap()
+        if (keys.isEmpty()) return
+        val results = coroutineScope {
+            keys.map { (part, key) ->
+                val id = key.memberId.orEmpty()
+                async {
+                    part to when (part) {
+                        MemberCardPart.METRICS -> loadMemberMetrics(sort = "active_days", direction = "desc")
+                        MemberCardPart.OVERVIEW -> loadMemberOverview(id)
+                        MemberCardPart.HISTORY -> loadMemberHistory(id, "week").map { }
+                        MemberCardPart.STREAKS -> loadMemberStreaks(id)
+                        MemberCardPart.RECENT -> loadMemberRecent(id, limit = 10)
+                        MemberCardPart.HEALTH -> loadMemberHealthLogs(id, limit = 10)
+                    }
+                }
+            }.awaitAll().also { ensureActive() }
+        }
+        val failures = results.filter { it.second.isFailure }
+        val firstError = failures.firstOrNull()?.second?.exceptionOrNull()?.toAppError()
+        _memberCardsLoad.update { prev ->
+            val failed = prev.failed - keys.keys + failures.map { it.first }
+            MemberCardsLoad(
+                keys = prev.keys + keys,
+                failed = failed,
+                error = firstError ?: prev.error.takeIf { failed.isNotEmpty() },
+            )
+        }
     }
 
     /** GET /program-memberships/details — the roster editor's rich rows (active memberships). Also seeds
@@ -1440,11 +1513,11 @@ class ProgramContext(
         editMembership(memberId = memberId, role = role)
 
     private fun clearSession() {
-        stopNotificationStream()
+        stopNotificationStream()   // also resets the inbox (counts, list, preferences, toast, pending open)
+        people.reset()
         session.clear()
         _invites.value = UiState.Idle
-        _inviteInboxRequest.value = false
-        recentlyAcked.clear()
+        _notificationPromptOpen.value = false
         _pendingSocial.value = null
         _loggedInGender.value = null
         _globalRole.value = null
@@ -1468,7 +1541,8 @@ class ProgramContext(
         _members.value = emptyList()
         _membersViewAsId.value = null
         membersLoadedFor = null
-        membersSelfLoadedFor = null
+        _memberCardsHeld.value = emptyMap()
+        _memberCardsLoad.value = MemberCardsLoad()
         _lifestyle.value = LifestyleData()
         _lifestyleViewAsId.value = null
         _lifestyleViewAsChosen.value = false
@@ -1496,6 +1570,20 @@ data class SummaryData(
 )
 
 enum class SummaryPart { TIMELINE, TYPES }
+
+/** The Members cards (S5 / polish #32), each its own read. METRICS = the admin tab's program leaderboard preview. */
+enum class MemberCardPart { METRICS, OVERVIEW, HISTORY, STREAKS, RECENT, HEALTH }
+
+/** The program + member a Members card's data belongs to ([memberId] null for the program-wide METRICS preview). */
+data class MemberCardKey(val programId: String, val memberId: String?)
+
+/** Per part: what the latest [ProgramContext.loadMemberCards] asked for ([keys]), which of those parts failed, and the
+ *  first error (the ErrorView's). */
+data class MemberCardsLoad(
+    val keys: Map<MemberCardPart, MemberCardKey> = emptyMap(),
+    val failed: Set<MemberCardPart> = emptySet(),
+    val error: AppError? = null,
+)
 
 /** The active program's Lifestyle-tab analytics for the selected member, refreshed by [ProgramContext.loadLifestyle]. */
 data class LifestyleData(

@@ -139,32 +139,18 @@ data class UnlinkRequest(
 @Serializable
 data class SetPasswordRequest(@SerialName("new_password") val newPassword: String)
 
-// ---- Notifications (Phase I) ----
+// ---- Notifications (Phase I; the inbox DTOs live in InboxDtos.kt) ----
 
-/**
- * A single alert — the shape of `GET /notifications/unacknowledged` rows AND the SSE
- * `event: notification` payload (both `buildNotificationPayload`, notifications SPEC §3). `type` drives
- * the post-event data refresh (invite vs membership/program change).
- */
-@Serializable
-data class NotificationDTO(
-    val id: String,
-    val type: String,
-    val title: String,
-    val body: String,
-    @SerialName("program_id") val programId: String? = null,
-    @SerialName("actor_member_id") val actorMemberId: String? = null,
-    @SerialName("created_at") val createdAt: String? = null,
-)
-
-/** PUT /notifications/device — register this device's FCM token. `platform` MUST be passed explicitly
- *  ("android"): kotlinx.serialization omits a property equal to its DEFAULT (encodeDefaults=false), so a
- *  `= "android"` default would be dropped from the body and the backend would fall back to "ios". */
+/** PUT /notifications/device — register this device's FCM token. `platform` AND `inbox` MUST be passed explicitly:
+ *  kotlinx.serialization omits a property equal to its DEFAULT (encodeDefaults=false), so a default would be dropped from
+ *  the body (the backend would fall back to "ios" / record no inbox capability). */
 @Serializable
 data class DeviceRegisterRequest(
     @SerialName("push_token") val pushToken: String,
     val platform: String,
     @SerialName("device_id") val deviceId: String? = null,
+    /** This installation shows the inbox → the server uses the category channels; always passed as true. */
+    val inbox: Boolean? = null,
 )
 
 /** POST /notifications/device/unregister — no login (notifications §3.1); the token and/or the install id. */
@@ -669,6 +655,8 @@ data class MemberDTO(
     @SerialName("date_of_birth") val dateOfBirth: String? = null,
     @SerialName("date_joined") val dateJoined: String? = null,
     val email: String? = null,
+    /** People: "Hide my activity" — present only for self / a global admin. */
+    @SerialName("hide_activity") val hideActivity: Boolean? = null,
 )
 
 /** PUT /members/:id — edit own profile (first/last/gender). Omitted (null) fields are left unchanged. */

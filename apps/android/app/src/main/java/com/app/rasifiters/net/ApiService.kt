@@ -278,13 +278,22 @@ interface ApiService {
     @PUT("program-memberships/leave")
     suspend fun leaveProgram(@Body body: LeaveProgramRequest): MessageResponse
 
-    // ---- Notifications (Phase I) — in-app SSE backfill + acknowledge (the /stream route is opened by
-    // NotificationStreamClient, not Retrofit). ----
-    @GET("notifications/unacknowledged")
-    suspend fun getUnacknowledgedNotifications(): List<NotificationDTO>
+    // ---- Notifications — the inbox, unread counts, read marks, preferences (the /stream route is opened by
+    // NotificationStreamClient with ?inbox=1; /unacknowledged + /:id/acknowledge are no longer used). ----
+    @GET("notifications/inbox")
+    suspend fun getInbox(@Query("limit") limit: Int? = null, @Query("before") before: String? = null): InboxPageDTO
 
-    @POST("notifications/{id}/acknowledge")
-    suspend fun acknowledgeNotification(@Path("id") id: String): MessageResponse
+    @GET("notifications/inbox/unread-count")
+    suspend fun getUnreadCounts(): UnreadCountsDTO
+
+    @POST("notifications/inbox/read")
+    suspend fun markInboxRead(@Body body: InboxReadRequest): UnreadCountsDTO
+
+    @GET("notifications/preferences")
+    suspend fun getNotificationPreferences(): NotificationPreferencesDTO
+
+    @PUT("notifications/preferences")
+    suspend fun putNotificationPreferences(@Body body: NotificationPreferencesUpdate): NotificationPreferencesDTO
 
     // FCM device-token lifecycle (notifications §3.1).
     @PUT("notifications/device")
@@ -321,4 +330,21 @@ interface ApiService {
 
     @PUT("health-sync/state")
     suspend fun putHealthSyncState(@Body body: HealthSyncStatePut): HealthSyncStateResponse
+
+    // ---- People (list, profile, kudos give / undo, "Hide my activity") ----
+    @GET("people")
+    suspend fun getPeople(@Query("programId") programId: String): PeopleListDTO
+
+    @GET("people/{memberId}")
+    suspend fun getPerson(@Path("memberId") memberId: String, @Query("programId") programId: String): PersonProfileDTO
+
+    @POST("people/{memberId}/kudos")
+    suspend fun giveKudos(@Path("memberId") memberId: String, @Body body: KudosGiveRequest): KudosResponse
+
+    @DELETE("people/{memberId}/kudos")
+    suspend fun undoKudos(@Path("memberId") memberId: String): KudosResponse
+
+    /** The "Hide my activity" switch only (own profile). */
+    @PUT("members/{id}")
+    suspend fun setHideActivity(@Path("id") id: String, @Body body: HideActivityRequest): HideActivityResponse
 }

@@ -32,7 +32,9 @@ import kotlin.coroutines.resume
  * PUT /device and POST /device/unregister (no login; one retry, then drop). PUT at most once per 12 h unless the token
  * or the permission changed; unregister once per denial (the cleared registration is the memo — A12). A sign-in waits
  * for an in-flight unregister and drops a pending retry (generation check); after an unregister the cached token +
- * memo are forgotten.
+ * memo are forgotten. The inbox capability rule: every PUT sends `inbox: true`; the inbox memo [inboxToken] (the token
+ * last registered WITH inbox) forces one PUT on the first launch of this build and after a login ride-along (which can't
+ * send it) — never keyed on versionCode.
  */
 class DeviceRegistry(context: Context, private val api: ApiService, private val session: Session, private val scope: CoroutineScope) {
     /** [generation] = the sign-in it belongs to — a later sign-in / sign-out voids [markRegistered]. */
@@ -51,6 +53,9 @@ class DeviceRegistry(context: Context, private val api: ApiService, private val 
     private var registeredAtMs: Long
         get() = prefs.getLong(KEY_AT, 0L)
         set(v) = prefs.edit { putLong(KEY_AT, v) }
+    private var inboxToken: String?
+        get() = prefs.getString(KEY_INBOX_TOKEN, null)
+        set(v) = prefs.edit { if (v == null) remove(KEY_INBOX_TOKEN) else putString(KEY_INBOX_TOKEN, v) }
 
     val installId: String by lazy { readOrCreateInstallId() }
 
@@ -82,10 +87,13 @@ class DeviceRegistry(context: Context, private val api: ApiService, private val 
             val deviceId = withContext(Dispatchers.IO) { installId }
             mutex.withLock {
                 if (!session.signedIn.value) return@withLock
-                if (token == registeredToken && System.currentTimeMillis() - registeredAtMs < REREGISTER_AFTER_MS) return@withLock
+                if (token == registeredToken && token == inboxToken &&
+                    System.currentTimeMillis() - registeredAtMs < REREGISTER_AFTER_MS
+                ) return@withLock
                 try {
-                    api.registerDevice(DeviceRegisterRequest(pushToken = token, platform = "android", deviceId = deviceId))
+                    api.registerDevice(DeviceRegisterRequest(pushToken = token, platform = "android", deviceId = deviceId, inbox = true))
                     markRegistered(token)
+                    inboxToken = token
                 } catch (e: CancellationException) { throw e } catch (e: Exception) { Log.w(TAG, "PUT /device failed", e) }
             }
         }
@@ -105,7 +113,7 @@ class DeviceRegistry(context: Context, private val api: ApiService, private val 
         // unregister still matches by token.
         val token = cachedPushToken ?: registeredToken ?: currentPushToken()
         val generation = signInGeneration
-        cachedPushToken = null; registeredToken = null; registeredAtMs = 0L
+        cachedPushToken = null; registeredToken = null; registeredAtMs = 0L; inboxToken = null
         val deviceId = withContext(Dispatchers.IO) { installId }
         val ok = mutex.withLock { attempt(token, deviceId) }
         if (!ok) pendingRetry = scope.launch {
@@ -143,6 +151,7 @@ class DeviceRegistry(context: Context, private val api: ApiService, private val 
         const val KEY_TOKEN = "registered_token"
         const val KEY_AT = "registered_at"
         const val KEY_ASKED = "permission_asked"
+        const val KEY_INBOX_TOKEN = "inbox_registered_token"
         const val REREGISTER_AFTER_MS = 12 * 60 * 60 * 1000L
         const val RETRY_DELAY_MS = 5_000L
         const val TOKEN_TIMEOUT_MS = 2_000L

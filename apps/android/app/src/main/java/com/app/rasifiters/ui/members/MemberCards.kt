@@ -32,11 +32,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,9 +40,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.app.rasifiters.core.MemberCardKey
+import com.app.rasifiters.core.MemberCardPart
+import com.app.rasifiters.core.MemberCardsLoad
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
 import com.app.rasifiters.core.theme.AppBlueLight
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
@@ -70,6 +71,7 @@ import kotlin.math.roundToInt
 // rendered in the Material idiom (flat SummaryCard in place of iOS's glassy CardShell — the established
 // Android deviation). Same content, ordering, labels, empty copy. Every card reads ProgramContext state
 // loaded upstream by the tab; each is a chevron-header drill-down (a NavigationLink push on iOS).
+// S5 (polish #32): each card takes a [CardState] — its data, a placeholder, or "—" (never a fake empty / 0-day streak).
 
 // ---- Metrics sort model (iOS SortField / SortDirection — MemberOverviewPicker.swift:200) ----
 
@@ -215,10 +217,68 @@ private fun EmptyLine(text: String) {
     Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
 }
 
+// ---- S5 (polish #32): the cards' load state ----
+
+private const val UNAVAILABLE_TEXT = "—"
+
+/** What a Members card shows: its data, a loading placeholder (its read for THIS member is still running), or "—" (that
+ *  read failed and nothing of this member's is held). Never a fake empty / 0-day streak, never another member's values. */
+enum class CardState { DATA, PENDING, UNAVAILABLE }
+
+/** A card body that isn't [CardState.DATA]: the placeholder block or "—". */
+@Composable
+private fun CardStateBody(state: CardState, height: Dp = 90.dp) {
+    if (state == CardState.UNAVAILABLE) {
+        EmptyLine(UNAVAILABLE_TEXT)
+    } else {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+        )
+    }
+}
+
+/** The five per-member cards (the admin body, a logger / member's own, People "Open full stats"). */
+internal val MEMBER_PARTS: Set<MemberCardPart> = setOf(
+    MemberCardPart.OVERVIEW, MemberCardPart.HISTORY, MemberCardPart.STREAKS, MemberCardPart.RECENT, MemberCardPart.HEALTH,
+)
+/** Recent + Health — a logger's View-as re-scopes only these. */
+internal val LOGS_PARTS: Set<MemberCardPart> = setOf(MemberCardPart.RECENT, MemberCardPart.HEALTH)
+
+/**
+ * One screen's view of its cards (the S5 data rule): [want] = the program + member each card is for; [held] = whose data
+ * each shared flow holds (ProgramContext.memberCardsHeld); [load] = the latest read per part (ProgramContext.memberCardsLoad).
+ */
+internal class MemberCardsView(
+    private val want: Map<MemberCardPart, MemberCardKey>,
+    private val held: Map<MemberCardPart, MemberCardKey>,
+    private val load: MemberCardsLoad,
+) {
+    private fun hasData(part: MemberCardPart): Boolean = want[part] != null && held[part] == want[part]
+    private fun lastFailed(part: MemberCardPart): Boolean =
+        want[part] != null && load.keys[part] == want[part] && part in load.failed
+
+    fun stateOf(part: MemberCardPart): CardState = when {
+        hasData(part) -> CardState.DATA
+        lastFailed(part) -> CardState.UNAVAILABLE
+        else -> CardState.PENDING
+    }
+
+    /** Something of this program / member is on screen. */
+    val anyData: Boolean get() = want.keys.any { hasData(it) }
+    /** Every card's read failed and none holds this member's data → the ErrorView. */
+    val allFailed: Boolean get() = want.isNotEmpty() && want.keys.all { !hasData(it) && lastFailed(it) }
+    /** A refresh failed while data shows → "Couldn't refresh · Retry" (the previous values stay — A13). */
+    val stale: Boolean get() = anyData && want.keys.any { lastFailed(it) }
+    /** Back online: anything missing or failed reloads. */
+    val needsReload: Boolean get() = want.keys.any { !hasData(it) || lastFailed(it) }
+    val error: AppError? get() = load.error
+}
+
 // ---- Member Overview (F2: reads selectedMemberOverview; the passed member is vestigial) ----
 
 @Composable
-fun MemberOverviewCard(programContext: ProgramContext) {
+fun MemberOverviewCard(programContext: ProgramContext, state: CardState = CardState.DATA) {
     val overview by programContext.selectedMemberOverview.collectAsStateWithLifecycle()
     val program by programContext.activeProgram.collectAsStateWithLifecycle()
     SummaryCard {
@@ -226,7 +286,9 @@ fun MemberOverviewCard(programContext: ProgramContext) {
             Text("Member Overview", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(12.dp))
             val o = overview
-            if (o == null) {
+            if (state != CardState.DATA) {
+                CardStateBody(state)
+            } else if (o == null) {
                 EmptyLine("No workouts logged yet.")
             } else {
                 val totalDays = programTotalDays(program)
@@ -351,28 +413,24 @@ private fun StreakChip(current: Int) {
 // ---- Member Metrics PREVIEW card (admin tab) — over-fetches, renders top member + count (F4) ----
 
 @Composable
-fun MemberMetricsPreviewCard(programContext: ProgramContext, onClick: () -> Unit) {
+fun MemberMetricsPreviewCard(programContext: ProgramContext, state: CardState = CardState.DATA, onClick: () -> Unit) {
     val metrics by programContext.memberMetrics.collectAsStateWithLifecycle()
     val total by programContext.memberMetricsTotal.collectAsStateWithLifecycle()
-    var loading by remember { mutableStateOf(true) }
-
-    LaunchedEffect(Unit) {
-        loading = true
-        programContext.loadMemberMetrics(sort = "active_days", direction = "desc")
-        loading = false
-    }
-
+    // S5: loaded by the tab with the member cards (ProgramContext.loadMemberCards, METRICS) — shown only when it is this
+    // program's; else a placeholder, or "—" when the read failed. Never another program's leaderboard.
     val count = if (total > 0) total else metrics.size
+    val subtitle = when (state) {
+        CardState.DATA -> "$count ${if (count == 1) "member" else "members"}"
+        CardState.PENDING -> null
+        CardState.UNAVAILABLE -> UNAVAILABLE_TEXT
+    }
     DrillCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            CardChevronHeader("Member Performance Metrics", "$count ${if (count == 1) "member" else "members"}")
+            CardChevronHeader("Member Performance Metrics", subtitle)
             Spacer(Modifier.height(12.dp))
             val top = metrics.firstOrNull()
             when {
-                loading && metrics.isEmpty() -> Box(
-                    modifier = Modifier.fillMaxWidth().height(90.dp).clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
-                )
+                state != CardState.DATA -> CardStateBody(state)
                 top == null -> EmptyLine("No members to display")
                 else -> {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -407,14 +465,16 @@ fun MemberMetricsPreviewCard(programContext: ProgramContext, onClick: () -> Unit
 // ---- Workout Activity Timeline card (per-member) — chart preview → history detail ----
 
 @Composable
-fun MemberHistoryCard(programContext: ProgramContext, onClick: () -> Unit) {
+fun MemberHistoryCard(programContext: ProgramContext, state: CardState = CardState.DATA, onClick: () -> Unit) {
     val history by programContext.memberHistory.collectAsStateWithLifecycle()
     DrillCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth()) {
             CardChevronHeader("Workout Activity Timeline", "Workouts")
             Spacer(Modifier.height(12.dp))
             val buckets = history?.buckets ?: emptyList()
-            if (buckets.isEmpty()) {
+            if (state != CardState.DATA) {
+                CardStateBody(state, height = 200.dp)
+            } else if (buckets.isEmpty()) {
                 EmptyLine("No workouts logged yet.")
             } else {
                 // No tooltip on the tab-level preview — the card is a drill-down, so a tap must navigate,
@@ -437,15 +497,21 @@ fun MemberHistoryCard(programContext: ProgramContext, onClick: () -> Unit) {
 // ---- Streak Stats card ----
 
 @Composable
-fun MemberStreakCard(programContext: ProgramContext, onClick: () -> Unit) {
+fun MemberStreakCard(programContext: ProgramContext, state: CardState = CardState.DATA, onClick: () -> Unit) {
     val streaks by programContext.memberStreaks.collectAsStateWithLifecycle()
     DrillCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth()) {
             CardChevronHeader("Streak Stats", "Current and longest")
             Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StreakTile(Icons.Filled.LocalFireDepartment, AppOrange, "Current", "${streaks?.currentStreakDays ?: 0} days", Modifier.weight(1f))
-                StreakTile(Icons.Filled.EmojiEvents, AppYellow, "Longest", "${streaks?.longestStreakDays ?: 0} days", Modifier.weight(1f))
+            val s = streaks
+            if (state != CardState.DATA || s == null) {
+                // S5: not loaded / failed → a placeholder or "—", never a fake 0-day streak.
+                CardStateBody(if (state == CardState.DATA) CardState.UNAVAILABLE else state, height = 80.dp)
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StreakTile(Icons.Filled.LocalFireDepartment, AppOrange, "Current", "${s.currentStreakDays} days", Modifier.weight(1f))
+                    StreakTile(Icons.Filled.EmojiEvents, AppYellow, "Longest", "${s.longestStreakDays} days", Modifier.weight(1f))
+                }
             }
         }
     }
@@ -471,13 +537,15 @@ fun StreakTile(icon: ImageVector, tint: Color, label: String, value: String, mod
 // ---- View Workouts card (per-member recent, top 3) ----
 
 @Composable
-fun MemberRecentCard(programContext: ProgramContext, onClick: () -> Unit) {
+fun MemberRecentCard(programContext: ProgramContext, state: CardState = CardState.DATA, onClick: () -> Unit) {
     val recent by programContext.memberRecent.collectAsStateWithLifecycle()
     DrillCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth()) {
             CardChevronHeader("View Workouts", "All workouts")
             Spacer(Modifier.height(12.dp))
-            if (recent.isEmpty()) {
+            if (state != CardState.DATA) {
+                CardStateBody(state)
+            } else if (recent.isEmpty()) {
                 EmptyLine("No workouts logged yet.")
             } else {
                 recent.take(3).forEach { w ->
@@ -491,13 +559,15 @@ fun MemberRecentCard(programContext: ProgramContext, onClick: () -> Unit) {
 // ---- View Health card (per-member health logs, top 3) ----
 
 @Composable
-fun MemberHealthCard(programContext: ProgramContext, onClick: () -> Unit) {
+fun MemberHealthCard(programContext: ProgramContext, state: CardState = CardState.DATA, onClick: () -> Unit) {
     val logs by programContext.memberHealthLogs.collectAsStateWithLifecycle()
     DrillCard(onClick = onClick) {
         Column(modifier = Modifier.fillMaxWidth()) {
             CardChevronHeader("View Health", "Daily health logs")
             Spacer(Modifier.height(12.dp))
-            if (logs.isEmpty()) {
+            if (state != CardState.DATA) {
+                CardStateBody(state)
+            } else if (logs.isEmpty()) {
                 EmptyLine("No daily health logs yet.")
             } else {
                 // DC-10 row: date on top; one muted Sleep · Diet · Steps metrics line below ("—" when unset).

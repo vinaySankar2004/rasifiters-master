@@ -61,7 +61,7 @@ private val GENDER_OPTIONS = listOf("Male", "Female", "Non-binary", "Prefer not 
 
 /**
  * "My Profile" — edit first/last name + gender, change email (web-parity, password-confirmed), sign-in methods,
- * "Sign out everywhere" (auth §3.1, every role, above Delete Account), delete account. Faithful 1:1 to the iOS
+ * "Hide my activity" (People), "Sign out everywhere" (auth §3.1, every role, above Delete Account), delete account. Faithful 1:1 to the iOS
  * MyProfileView. Name is seeded by splitting the cached display name; gender + email come from a GET /members/:id read.
  */
 @Composable
@@ -107,6 +107,9 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var signingOutAll by remember { mutableStateOf(false) }
     var signOutAllError by remember { mutableStateOf<String?>(null) }
 
+    // People: "Hide my activity" (null until GET /members/:id answers with it).
+    var hideActivity by remember { mutableStateOf<Boolean?>(null) }
+
     LaunchedEffect(memberName) {
         val parts = (memberName ?: "").trim().split(Regex("\\s+"), limit = 2)
         firstName = parts.getOrNull(0) ?: ""
@@ -117,6 +120,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
         programContext.fetchMember(id).onSuccess { member ->
             currentEmail = member.email
             member.gender?.let { gender = it }
+            hideActivity = member.hideActivity
         }
         programContext.listIdentities().onSuccess { identities = it.identities; hasPassword = it.hasPassword }
     }
@@ -363,6 +367,10 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
             if (pwSetDone) {
                 Text(PASSWORD_SET, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = com.app.rasifiters.core.theme.AppGreen)
             }
+
+            // People: the member's one "Hide my activity" switch, directly above "Sign out everywhere" (all three).
+            SectionDivider()
+            HideActivitySection(programContext, hidden = hideActivity, onSaved = { hideActivity = it })
 
             // Sign out everywhere (auth §3.1 — POST /auth/logout-all; A1 copy). Every role, above Delete Account.
             Row(

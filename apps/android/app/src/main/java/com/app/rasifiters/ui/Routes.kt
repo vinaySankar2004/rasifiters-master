@@ -42,7 +42,12 @@ object Routes {
     const val MEMBER_WORKOUTS = "members/workouts"
     const val MEMBER_HEALTH = "members/health"
     const val MEMBER_INVITE = "members/invite"
+    // People: the roster grew into the People list (the Members header for every role + the Program tab's "People"
+    // row); a person's profile (stashed via ProgramContext.people.focus) and the staff "Open full stats" (the five
+    // member cards for ProgramContext.focusedMemberId).
     const val MEMBER_ROSTER = "members/roster"
+    const val PERSON_PROFILE = "members/person"
+    const val MEMBER_FULL_STATS = "members/full-stats"
     const val MEMBER_EDIT = "members/edit"
 
     // Lifestyle detail routes (Phase F). Scoped member is stashed in ProgramContext before push (static-route
@@ -62,6 +67,12 @@ object Routes {
 
     // Health Connect settings (Phase H) — reached from the account section (Program tab + picker sheet).
     const val HEALTH_CONNECT = "program/health"
+
+    // The Inbox screen (the account Inbox row; a push / toast `inbox` target). Both graphs.
+    const val INBOX = "inbox"
+    // A `log_workout` target: the quick-add workout form over where the member is (root graph); closing returns there
+    // (the widget route WIDGET_LOG_WORKOUT instead exits to My Programs).
+    const val INBOX_LOG_WORKOUT = "inbox/log-workout"
 }
 
 /** Bottom navigation tabs, in order. */

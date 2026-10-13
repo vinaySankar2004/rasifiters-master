@@ -19,56 +19,61 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.app.rasifiters.core.MemberCardKey
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.AppErrorKind
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppRed
-import com.app.rasifiters.net.MembershipDetailDTO
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.auth.PillButton
+import com.app.rasifiters.ui.components.kit.ErrorView
+import com.app.rasifiters.ui.components.kit.FloatingBanner
+import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
 import com.app.rasifiters.ui.summary.CircleBackButton
 import com.app.rasifiters.ui.summary.DatePillField
 import com.app.rasifiters.ui.summary.DetailTopBar
 import com.app.rasifiters.ui.summary.FormErrorText
 import com.app.rasifiters.ui.summary.FormFieldLabel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 // The member-management cluster (Program-tab targets, lit up early for the Members tab per the user).
-// Invite (privacy-safe) · roster (searchable; global-admin rows tappable) · editor (global-admin only:
-// joined-date + active toggle + remove). Faithful to program-member-management §4/§7.
+// Invite (privacy-safe) · editor (global-admin only: joined-date + active toggle + remove) · "Open full stats" (staff,
+// from a People profile). The roster grew into People (ui/people). Faithful to program-member-management §4/§7.
 
 // ---- Invite Member ----
 
@@ -148,82 +153,6 @@ fun InviteMemberScreen(programContext: ProgramContext, onBack: () -> Unit) {
     }
 }
 
-// ---- Roster (View Members) ----
-
-@Composable
-fun ProgramMembersListScreen(programContext: ProgramContext, onNavigate: (String) -> Unit, onBack: () -> Unit) {
-    val details by programContext.membershipDetails.collectAsStateWithLifecycle()
-    val isGlobalAdmin = programContext.isGlobalAdmin
-    var query by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) { programContext.loadMembershipDetails() }
-
-    val filtered = if (query.isBlank()) details
-    else details.filter { it.memberName.contains(query.trim(), ignoreCase = true) }
-
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp).padding(top = 16.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            DetailTopBar(onBack = onBack, centerTitle = "Members")
-            TextField(
-                value = query,
-                onValueChange = { query = it },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                placeholder = { Text("Search members") },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-            )
-            filtered.forEach { m ->
-                RosterRow(
-                    m = m,
-                    clickable = isGlobalAdmin,
-                    onClick = {
-                        programContext.focusMember(m.memberId, m.memberName)
-                        onNavigate(com.app.rasifiters.ui.Routes.MEMBER_EDIT)
-                    },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RosterRow(m: MembershipDetailDTO, clickable: Boolean, onClick: () -> Unit) {
-    val isAdmin = m.programRole == "admin"
-    var mod = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface)
-    if (clickable) mod = mod.clickable(onClick = onClick)
-    Row(
-        modifier = mod.padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        MemberInitialsAvatar(m.memberName, 44, admin = isAdmin)
-        Spacer(Modifier.size(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(m.memberName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (isAdmin) Icon(Icons.Filled.Star, contentDescription = "Admin", tint = AppOrange, modifier = Modifier.size(15.dp))
-            }
-            m.username?.let { Text("@$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)) }
-        }
-        if (!m.isActive) {
-            Box(modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(AppRed.copy(alpha = 0.15f)).padding(horizontal = 8.dp, vertical = 3.dp)) {
-                Text("Inactive", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.SemiBold, color = AppRed)
-            }
-        }
-        if (clickable) Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f))
-    }
-}
-
 // ---- Member editor (global-admin only) ----
 
 @Composable
@@ -231,10 +160,23 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val details by programContext.membershipDetails.collectAsStateWithLifecycle()
     val focusId by programContext.focusedMemberId.collectAsStateWithLifecycle()
-    val membership = details.firstOrNull { it.memberId == focusId }
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    // Opened from a People profile — the roster no longer preloads the membership rows, so this screen loads its own.
+    // The edit-membership rule: the form shows only once THIS load succeeded (rows left over from another program's
+    // earlier load never seed it), and its state is keyed on (member, loaded).
+    var loaded by remember { mutableStateOf(false) }
+    var loadError by remember { mutableStateOf<AppError?>(null) }
+    suspend fun loadDetails() {
+        loadError = null
+        programContext.loadMembershipDetails()
+            .onSuccess { loaded = true }
+            .onFailure { loadError = it.toAppError() }
+    }
+    LaunchedEffect(Unit) { loadDetails() }
+    val membership = if (loaded) details.firstOrNull { it.memberId == focusId } else null
 
-    var joinedAt by remember(membership?.memberId) { mutableStateOf(parseDate(membership?.joinedAt) ?: LocalDate.now()) }
-    var isActive by remember(membership?.memberId) { mutableStateOf(membership?.isActive ?: true) }
+    var joinedAt by remember(membership?.memberId, loaded) { mutableStateOf(parseDate(membership?.joinedAt) ?: LocalDate.now()) }
+    var isActive by remember(membership?.memberId, loaded) { mutableStateOf(membership?.isActive ?: true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -247,7 +189,15 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
         ) {
             DetailTopBar(onBack = onBack, centerTitle = "Member Details")
             if (membership == null) {
-                Text("Member not found.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                val err = loadError
+                when {
+                    loaded -> Text("Member not found.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    err != null -> ErrorView(
+                        if (!online) AppError(AppErrorKind.OFFLINE) else err,
+                        onRetry = { scope.launch { loadDetails() } },
+                    )
+                    else -> MembersSpinner()
+                }
                 return@Column
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -322,6 +272,69 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
             },
             dismissButton = { TextButton(onClick = { confirmRemove = false }) { Text("Cancel") } },
         )
+    }
+}
+
+// ---- Open full stats (staff; reached from a People profile) ----
+
+/** The five Members cards for [ProgramContext.focusedMemberId] (the profile focused that member before the push), on the
+ *  S5 recipe: the reads together; a card shows only THIS member's data (never the tab's leftovers) — a placeholder while
+ *  it loads, "—" when its read failed; nothing yet → spinner / ErrorView (offline copy offline); a failed refresh keeps
+ *  the values + "Couldn't refresh · Retry"; pull to refresh; back online → reload. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MemberFullStatsScreen(programContext: ProgramContext, onNavigate: (String) -> Unit, onBack: () -> Unit) {
+    val program by programContext.activeProgram.collectAsStateWithLifecycle()
+    val focusId by programContext.focusedMemberId.collectAsStateWithLifecycle()
+    val focusName by programContext.focusedMemberName.collectAsStateWithLifecycle()
+    val held by programContext.memberCardsHeld.collectAsStateWithLifecycle()
+    val load by programContext.memberCardsLoad.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    var reloadTick by remember { mutableIntStateOf(0) }
+    var pulling by remember { mutableStateOf(false) }
+    val pid = program?.id
+    val id = focusId
+    val view = MemberCardsView(
+        if (pid != null && id != null) MEMBER_PARTS.associateWith { MemberCardKey(pid, id) } else emptyMap(),
+        held,
+        load,
+    )
+
+    LaunchedEffect(pid, id, reloadTick) {
+        try {
+            if (id != null) programContext.loadMemberCards(statsId = id, parts = MEMBER_PARTS)
+        } finally {
+            pulling = false
+        }
+    }
+    val currentView by rememberUpdatedState(view)
+    LaunchedEffect(Unit) {
+        programContext.isOnline.drop(1).filter { it }.collect { if (currentView.needsReload) reloadTick++ }
+    }
+    val staleBanner = online && view.stale
+
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        PullToRefreshBox(
+            isRefreshing = pulling,
+            onRefresh = { pulling = true; reloadTick++ },
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp).padding(top = 16.dp, bottom = if (staleBanner) 96.dp else 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                DetailTopBar(onBack = onBack, centerTitle = "Full stats")
+                when {
+                    id == null -> Text("Member not found.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    !view.anyData -> MemberCardsEmpty(view, online) { reloadTick++ }
+                    else -> MemberSectionCards(programContext, id, focusName ?: "Member", view, onNavigate)
+                }
+            }
+        }
+        if (staleBanner) {
+            FloatingBanner(FloatingBannerVariant.Stale, Modifier.align(Alignment.BottomCenter), onRetry = { reloadTick++ })
+        }
     }
 }
 

@@ -16,7 +16,7 @@ import com.app.rasifiters.R
  * Fires ONLY on a sync that added >= 1 item — never when nothing was new, and never on failure (D-SIL):
  * transient failures retry automatically and losslessly. If POST_NOTIFICATIONS is denied every call is a
  * silent no-op (graceful in-app-only fallback). Posts into the existing `rasi_default` channel (created in
- * `App.onCreate`), the same channel FCM pushes use.
+ * `App.onCreate`), the same channel FCM pushes use, with the monochrome status-bar icon.
  */
 object HealthSyncNotifier {
 
@@ -46,7 +46,7 @@ object HealthSyncNotifier {
         }
         val channelId = context.getString(R.string.default_notification_channel_id)
         val notification: Notification = androidx.core.app.NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_stat_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setAutoCancel(true)
@@ -54,5 +54,6 @@ object HealthSyncNotifier {
         NotificationManagerCompat.from(context).notify(HEALTH_NOTIFICATION_ID, notification)
     }
 
-    private const val HEALTH_NOTIFICATION_ID = 4201
+    /** Kept when the inbox clears the tray (push/RaSiFirebaseMessagingService.clearPostedPushes). */
+    internal const val HEALTH_NOTIFICATION_ID = 4201
 }

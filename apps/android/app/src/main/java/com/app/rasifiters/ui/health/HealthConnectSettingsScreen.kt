@@ -156,6 +156,12 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                         workoutPermissionLauncher.launch(health.workoutPermissions)
                     }
                 }
+                // People: synced workouts are program activity — say so where they're connected.
+                Text(
+                    ACTIVITY_VISIBILITY_FOOTNOTE,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
@@ -234,6 +240,8 @@ private const val SYNC_NOW_ERROR = "Couldn't reach the server. Check your connec
 private const val RECONNECT_TITLE = "Reconnect Health Connect"
 private const val RECONNECT_SUBTITLE = "Access was turned off. Tap to allow it again."
 private const val AUTO_RETRY_TEXT = "Last sync couldn't reach the server — will retry automatically."
+private const val ACTIVITY_VISIBILITY_FOOTNOTE =
+    "Synced workouts are visible to members of your programs unless you turn on Hide my activity in My Profile."
 
 /** Steps accent — teal on every surface (DC-8). */
 private val StepsTeal = Color(0xFF14B8A6)
