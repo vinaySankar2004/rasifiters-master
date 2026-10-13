@@ -1,5 +1,6 @@
 package com.app.rasifiters.ui.auth
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -36,9 +39,14 @@ import com.app.rasifiters.core.AppLinks
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.kit.toCredentialMessage
 import com.app.rasifiters.core.theme.AppOrange
+import com.app.rasifiters.net.ApiException
+import com.app.rasifiters.ui.summary.FormErrorText
 import kotlinx.coroutines.launch
 
 private val GENDER_OPTIONS = listOf("Female", "Male", "Non-binary", "Prefer not to say")
+
+/** Polish #17 (the auth retry rule): a sign-in that fails after a successful register says so — the account exists. */
+private const val ACCOUNT_CREATED_SIGN_IN = "Account created. Please sign in."
 
 /**
  * Public sign-up screen (iOS `CreateAccountView` / web `create-account`), now a **`HorizontalPager` wizard**.
@@ -69,6 +77,13 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    var usernameError by remember { mutableStateOf<String?>(null) }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    // Polish #17: once register() succeeded, a retry only signs in, with the credentials that were registered — the
+    // name / details steps lock (they can no longer change what was registered).
+    var registered by remember { mutableStateOf<Pair<String, String>?>(null) }
+    val detailsEditable = registered == null
+    val autofill = LocalAutofillManager.current
 
     val pageCount = if (social) 2 else 3
     val pagerState = rememberPagerState(pageCount = { pageCount })
@@ -84,24 +99,48 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
     }
     val isLastPage = pagerState.currentPage == pageCount - 1
 
+    /** Polish #17: a "taken" answer from register / oauth-complete goes back to the username step with the message there. */
+    fun showTaken(e: Throwable): Boolean {
+        val text = (e as? ApiException)?.takeIf { it.status == 400 }?.message.orEmpty()
+        when {
+            text.contains("Username already exists", ignoreCase = true) -> usernameError = text
+            text.contains("Email already exists", ignoreCase = true) -> emailError = text
+            else -> return false
+        }
+        scope.launch { pagerState.animateScrollToPage(1) }
+        return true
+    }
+
     fun submit() {
         loading = true
         scope.launch {
             if (social) {
                 // POST /auth/oauth/complete — the root gate swaps on success (no explicit navigate, A-3).
                 programContext.completeSocial(username, gender.ifBlank { null }, firstName, lastName)
-                    .onFailure { errorMessage = it.toCredentialMessage() }
+                    .onFailure { if (!showTaken(it)) errorMessage = it.toCredentialMessage() }
             } else {
-                programContext.register(firstName, lastName, username, email, password, gender.ifBlank { null })
+                val registerResult = if (registered != null) Result.success(Unit)
+                else programContext.register(firstName, lastName, username, email, password, gender.ifBlank { null })
+                    .onSuccess { registered = username to password }
+                registerResult
                     .onSuccess {
+                        val (user, pass) = registered ?: (username to password)
                         // No token from register — auto-login for the session (iOS F2 parity).
-                        programContext.login(username, password)
-                            .onFailure { errorMessage = it.toCredentialMessage() }
+                        programContext.login(user, pass)
+                            .onSuccess { autofill?.commit() }
+                            .onFailure { errorMessage = ACCOUNT_CREATED_SIGN_IN }
                     }
-                    .onFailure { errorMessage = it.toCredentialMessage() }
+                    .onFailure { if (!showTaken(it)) errorMessage = it.toCredentialMessage() }
             }
             loading = false
         }
+    }
+
+    // Polish #21: system Back steps back one page (it used to pop the screen and wipe the form). From the first page it
+    // leaves the wizard (onSignIn = pop) and drops an abandoned Google sign-up.
+    BackHandler {
+        if (pagerState.currentPage > 0) scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+        else { programContext.clearPendingSocial(); onSignIn() }
     }
 
     errorMessage?.let { msg ->
@@ -150,8 +189,8 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                 ) {
                     when (page) {
                         0 -> {
-                            AppTextField("First Name", firstName, { firstName = it })
-                            AppTextField("Last Name", lastName, { lastName = it })
+                            AppTextField("First Name", firstName, { firstName = it }, enabled = detailsEditable)
+                            AppTextField("Last Name", lastName, { lastName = it }, enabled = detailsEditable)
                             // Email-mode only: "or" divider + Continue with Google (parity with the login
                             // entry). A needs_profile result sets pendingSocial → this wizard recomposes
                             // IN-PLACE into the 2-page social branch (prefill + locked email, no password);
@@ -176,11 +215,10 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                                         HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                                     }
                                     GoogleSignInButton(
+                                        enabled = !loading && detailsEditable,
                                         onResult = { google ->
-                                            scope.launch {
-                                                programContext.socialSignIn(google.idToken, google.rawNonce)
-                                                    .onFailure { errorMessage = it.toCredentialMessage() }
-                                            }
+                                            programContext.socialSignIn(google.idToken, google.rawNonce)
+                                                .onFailure { errorMessage = it.toCredentialMessage() }
                                         },
                                         onError = { e ->
                                             errorMessage = e.userMessage
@@ -191,19 +229,30 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                             }
                         }
                         1 -> {
-                            AppTextField("Username", username, { username = it })
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                AppTextField(
+                                    "Username", username, { username = it; usernameError = null },
+                                    enabled = detailsEditable,
+                                    contentType = ContentType.NewUsername, autoCorrect = false,
+                                )
+                                usernameError?.let { FormErrorText(it) }
+                            }
                             AppDropdownField(
                                 placeholder = "Gender (optional)",
                                 value = gender,
                                 options = GENDER_OPTIONS,
                                 onSelect = { gender = it },
+                                enabled = detailsEditable,
                             )
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 AppTextField(
-                                    "Email", email, { email = it },
+                                    "Email", email, { email = it; emailError = null },
                                     keyboardType = KeyboardType.Email,
-                                    enabled = !social,
+                                    enabled = !social && detailsEditable,
+                                    contentType = ContentType.EmailAddress,
+                                    autoCorrect = false,
                                 )
+                                emailError?.let { FormErrorText(it) }
                                 if (social) {
                                     MutedHint("Signed in with Google — your email is locked.")
                                 } else if (email.isNotEmpty() && !isEmailValid(email)) {
@@ -215,10 +264,12 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                             AppPasswordField(
                                 "Password", password, { password = it }, passwordVisible,
                                 onToggleVisible = { passwordVisible = !passwordVisible },
+                                newPassword = true,
                             )
                             AppPasswordField(
                                 "Confirm Password", confirm, { confirm = it }, confirmVisible,
                                 onToggleVisible = { confirmVisible = !confirmVisible },
+                                newPassword = true,
                             )
                             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 if (password.isNotEmpty()) {
@@ -266,7 +317,7 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
             ) {
                 Text("Privacy Policy", color = AppOrange, style = MaterialTheme.typography.bodySmall)
             }
-            TextButton(onClick = onSignIn, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
+            TextButton(onClick = { programContext.clearPendingSocial(); onSignIn() }, contentPadding = androidx.compose.foundation.layout.PaddingValues(4.dp)) {
                 Text(
                     "Already have an account? Sign in",
                     style = MaterialTheme.typography.bodySmall,

@@ -116,7 +116,7 @@ fun AccountMenuSheet(
             AccountRow(Icons.Filled.Lock, AppOrange, "Change Password", "Update your account password") { onNavigate(Routes.PROGRAM_PASSWORD) }
             AccountRow(Icons.Filled.Palette, AppearancePurple, "Appearance", "Choose light or dark mode") { onNavigate(Routes.PROGRAM_APPEARANCE) }
             AccountRow(Icons.Filled.Notifications, AppOrange, "Notifications", "Manage push notifications") { onNavigate(Routes.PROGRAM_NOTIFICATIONS) }
-            AccountRow(Icons.Filled.Favorite, HealthRed, "Health Connect", "Sync workouts and sleep") { onNavigate(Routes.HEALTH_CONNECT) }
+            AccountRow(Icons.Filled.Favorite, HealthRed, "Health Connect", "Sync workouts, sleep, and steps") { onNavigate(Routes.HEALTH_CONNECT) }
             AccountRow(Icons.Filled.Description, AppOrange, "Privacy Policy", "Learn how we handle your data") {
                 uriHandler.openUri(AppLinks.privacyPolicyUri.toString())
             }

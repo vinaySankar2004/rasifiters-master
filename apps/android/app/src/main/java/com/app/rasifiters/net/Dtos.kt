@@ -659,14 +659,6 @@ data class MemberDTO(
     @SerialName("hide_activity") val hideActivity: Boolean? = null,
 )
 
-/** PUT /members/:id — edit own profile (first/last/gender). Omitted (null) fields are left unchanged. */
-@Serializable
-data class UpdateMemberProfileRequest(
-    @SerialName("first_name") val firstName: String? = null,
-    @SerialName("last_name") val lastName: String? = null,
-    val gender: String? = null,
-)
-
 /** PUT /auth/change-password — set a new password for the authenticated user. */
 @Serializable
 data class ChangePasswordRequest(@SerialName("new_password") val newPassword: String)

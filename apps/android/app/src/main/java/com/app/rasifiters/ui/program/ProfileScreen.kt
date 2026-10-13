@@ -30,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
 import com.app.rasifiters.core.kit.isSamePasswordRejection
 import com.app.rasifiters.core.kit.isUnconfirmedWrite
 import com.app.rasifiters.core.kit.toAppError
@@ -51,10 +53,13 @@ import com.app.rasifiters.ui.auth.GoogleSignInException
 import com.app.rasifiters.ui.auth.PillButton
 import com.app.rasifiters.ui.auth.fetchGoogleIdToken
 import com.app.rasifiters.ui.auth.isEmailValid
+import com.app.rasifiters.ui.components.kit.InlineLoadError
+import com.app.rasifiters.ui.components.kit.RefetchOnReconnect
 import com.app.rasifiters.ui.programs.initialsOf
 import com.app.rasifiters.ui.summary.DetailTopBar
 import com.app.rasifiters.ui.summary.FormErrorText
 import com.app.rasifiters.ui.summary.FormFieldLabel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 private val GENDER_OPTIONS = listOf("Male", "Female", "Non-binary", "Prefer not to say")
@@ -91,8 +96,15 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
 
     // Sign-in methods (auth phase-2, D-C10). Google + add-password only (Apple is iOS-only, F9).
     val context = LocalContext.current
-    var identities by remember { mutableStateOf<List<IdentityDTO>>(emptyList()) }
-    var hasPassword by remember { mutableStateOf(true) }
+    // Polish #18: unknown until loaded — "—" with Link disabled and Add password hidden, never a false "Not linked".
+    var identities by remember { mutableStateOf<List<IdentityDTO>?>(null) }
+    var hasPassword by remember { mutableStateOf<Boolean?>(null) }
+    var memberLoaded by remember { mutableStateOf(false) }
+    var genderTouched by remember { mutableStateOf(false) }
+    var loadedGender by remember { mutableStateOf("") }
+    var loadError by remember { mutableStateOf<AppError?>(null) }
+    var deleteError by remember { mutableStateOf<String?>(null) }
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
     var linkBusy by remember { mutableStateOf(false) }
     var linkError by remember { mutableStateOf<String?>(null) }
     var showPwForm by remember { mutableStateOf(false) }
@@ -115,15 +127,30 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
         firstName = parts.getOrNull(0) ?: ""
         lastName = parts.getOrNull(1) ?: ""
     }
-    LaunchedEffect(Unit) {
-        val id = programContext.loggedInMemberId ?: return@LaunchedEffect
-        programContext.fetchMember(id).onSuccess { member ->
-            currentEmail = member.email
-            member.gender?.let { gender = it }
-            hideActivity = member.hideActivity
+    suspend fun loadProfile() {
+        val id = programContext.loggedInMemberId ?: return
+        loadError = null
+        coroutineScope {
+            launch {
+                programContext.fetchMember(id)
+                    .onSuccess { member ->
+                        currentEmail = member.email
+                        loadedGender = member.gender.orEmpty()
+                        if (!genderTouched) gender = loadedGender
+                        hideActivity = member.hideActivity
+                        memberLoaded = true
+                    }
+                    .onFailure { loadError = it.toAppError() }
+            }
+            launch {
+                programContext.listIdentities()
+                    .onSuccess { identities = it.identities; hasPassword = it.hasPassword }
+                    .onFailure { loadError = it.toAppError() }
+            }
         }
-        programContext.listIdentities().onSuccess { identities = it.identities; hasPassword = it.hasPassword }
     }
+    LaunchedEffect(Unit) { loadProfile() }
+    RefetchOnReconnect(programContext.isOnline, needsReload = { loadError != null }) { scope.launch { loadProfile() } }
 
     val isProgramAdmin = programContext.isProgramAdmin
     val isGlobalAdmin = programContext.isGlobalAdmin
@@ -168,6 +195,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     Text(roleLabel, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold, color = AppOrange)
                 }
             }
+            loadError?.let { InlineLoadError(it, online, onRetry = { scope.launch { loadProfile() } }) }
 
             SectionDivider()
 
@@ -180,7 +208,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 placeholder = "Select gender",
                 value = gender,
                 options = GENDER_OPTIONS + "Clear",
-                onSelect = { picked -> gender = if (picked == "Clear") "" else picked },
+                onSelect = { picked -> gender = if (picked == "Clear") "" else picked; genderTouched = true },
             )
 
             errorMessage?.let { FormErrorText(it) }
@@ -197,8 +225,11 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     }
                     isSaving = true; errorMessage = null; successMessage = null
                     scope.launch {
-                        programContext.updateMemberProfile(id, f, l, gender.ifEmpty { null })
-                            .onSuccess { successMessage = "Profile updated successfully" }
+                        // Polish #44/#18: gender rides along only when the user changed it ("" = an explicit clear → null); an
+                        // untouched or still-unknown gender is left as it is on the server.
+                        val genderChanged = if (memberLoaded) gender != loadedGender else genderTouched
+                        programContext.updateMemberProfile(id, f, l, gender.ifEmpty { null }, includeGender = genderChanged)
+                            .onSuccess { successMessage = "Profile updated successfully"; if (genderChanged) loadedGender = gender }
                             .onFailure { errorMessage = it.toAppError().message }
                         isSaving = false
                     }
@@ -236,7 +267,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
             }
             if (showEmailForm) {
                 FormFieldLabel("New email")
-                AppTextField("you@example.com", newEmail, { newEmail = it }, keyboardType = KeyboardType.Email)
+                AppTextField("you@example.com", newEmail, { newEmail = it }, keyboardType = KeyboardType.Email, contentType = ContentType.EmailAddress, autoCorrect = false)
                 FormFieldLabel("Current password")
                 AppPasswordField("Current password", emailPassword, { emailPassword = it }, emailVisible, { emailVisible = !emailVisible })
                 emailError?.let { FormErrorText(it) }
@@ -265,7 +296,8 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
             SectionDivider()
             Text("Sign-in methods", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
 
-            val googleLinked = identities.any { it.provider == "google" }
+            val ids = identities
+            val googleLinked = ids?.any { it.provider == "google" } == true
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
@@ -274,7 +306,11 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Google", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text(
-                        if (googleLinked) identities.first { it.provider == "google" }.email ?: "Linked" else "Not linked",
+                        when {
+                            ids == null -> "\u2014"
+                            googleLinked -> ids.first { it.provider == "google" }.email ?: "Linked"
+                            else -> "Not linked"
+                        },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         maxLines = 1,
@@ -282,7 +318,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     )
                 }
                 TextButton(
-                    enabled = !linkBusy && !(googleLinked && identities.size <= 1),
+                    enabled = ids != null && !linkBusy && !(googleLinked && ids.size <= 1),
                     onClick = {
                         linkBusy = true; linkError = null
                         scope.launch {
@@ -314,20 +350,20 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Password", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text(
-                        if (hasPassword) "Enabled" else "Not set",
+                        when (hasPassword) { null -> "\u2014"; true -> "Enabled"; false -> "Not set" },
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )
                 }
-                if (!hasPassword) {
+                if (hasPassword == false) {
                     TextButton(onClick = { showPwForm = !showPwForm; linkError = null; newPassword = ""; pwUnconfirmed = false }) {
                         Text(if (showPwForm) "Cancel" else "Add password", color = AppOrange, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
-            if (showPwForm && !hasPassword) {
+            if (showPwForm && hasPassword == false) {
                 FormFieldLabel("New password")
-                AppPasswordField("New password", newPassword, { newPassword = it }, pwVisible, { pwVisible = !pwVisible })
+                AppPasswordField("New password", newPassword, { newPassword = it }, pwVisible, { pwVisible = !pwVisible }, newPassword = true)
                 Text(
                     "At least 8 characters with an uppercase, a lowercase, and a number.",
                     style = MaterialTheme.typography.bodySmall,
@@ -408,6 +444,8 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     if (isDeleting) CircularProgressIndicator(strokeWidth = 2.dp, color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(20.dp))
                     else Text("Delete Account", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                 }
+                // Polish #15: a delete failure shows right under its button, in plain words (it used to appear far up the page).
+                deleteError?.let { FormErrorText(it) }
                 Text(
                     "This will permanently delete your account and all associated data.",
                     style = MaterialTheme.typography.bodySmall,
@@ -443,10 +481,10 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
             text = { Text("This action cannot be undone. All your data, including workout logs, health logs, and program memberships will be permanently deleted.") },
             confirmButton = {
                 TextButton(onClick = {
-                    showDelete = false; isDeleting = true; errorMessage = null
+                    showDelete = false; isDeleting = true; deleteError = null
                     scope.launch {
                         programContext.deleteAccount().onFailure {
-                            errorMessage = it.toAppError().message
+                            deleteError = it.toAppError().message
                             isDeleting = false
                         }
                         // On success the session clears → the root swaps to the auth graph.

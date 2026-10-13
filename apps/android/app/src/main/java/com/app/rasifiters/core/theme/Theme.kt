@@ -1,11 +1,13 @@
 package com.app.rasifiters.core.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.text.LocalAutofillHighlightColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 
 private val White = Color(0xFFFFFFFF)
@@ -78,6 +80,9 @@ fun RaSiFitersTheme(
         colorScheme = colors,
         typography = AppTypography,
     ) {
-        Surface(color = colors.background, contentColor = colors.onBackground, content = content)
+        // Autofilled fields get a faint neutral wash instead of Compose's default 30% yellow (polish #35).
+        CompositionLocalProvider(LocalAutofillHighlightColor provides colors.primary.copy(alpha = 0.08f)) {
+            Surface(color = colors.background, contentColor = colors.onBackground, content = content)
+        }
     }
 }

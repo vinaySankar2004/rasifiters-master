@@ -21,8 +21,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.platform.LocalAutofillManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.app.rasifiters.core.AppLinks
 import com.app.rasifiters.core.ProgramContext
@@ -49,6 +52,8 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf(programContext.consumeSignOutNotice()) }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    var googleBusy by remember { mutableStateOf(false) }
+    val autofill = LocalAutofillManager.current
 
     errorMessage?.let { msg ->
         AlertDialog(
@@ -73,7 +78,13 @@ fun LoginScreen(
 
         Spacer(Modifier.height(20.dp))
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            AppTextField("Username or Email", identifier, { identifier = it })
+            // Polish #35: one field takes a username OR an email (the doc's multi-type hint); Email keyboard for the @ key.
+            AppTextField(
+                "Username or Email", identifier, { identifier = it },
+                keyboardType = KeyboardType.Email,
+                contentType = ContentType.Username + ContentType.EmailAddress,
+                autoCorrect = false,
+            )
             AppPasswordField(
                 "Password", password, { password = it }, passwordVisible,
                 onToggleVisible = { passwordVisible = !passwordVisible },
@@ -84,11 +95,12 @@ fun LoginScreen(
         PillButton(
             label = "Login",
             loading = loading,
-            enabled = identifier.isNotEmpty() && password.isNotEmpty(),
+            enabled = identifier.isNotEmpty() && password.isNotEmpty() && !googleBusy,
             onClick = {
                 loading = true
                 scope.launch {
                     programContext.login(identifier, password)
+                        .onSuccess { autofill?.commit() }
                         .onFailure { errorMessage = it.toCredentialMessage() }
                     loading = false
                 }
@@ -113,12 +125,13 @@ fun LoginScreen(
         }
         Spacer(Modifier.height(12.dp))
         GoogleSignInButton(
+            enabled = !loading,
             onResult = { google ->
-                scope.launch {
-                    programContext.socialSignIn(google.idToken, google.rawNonce)
-                        .onSuccess { needsProfile -> if (needsProfile) onCreateAccount() }
-                        .onFailure { errorMessage = it.toCredentialMessage() }
-                }
+                googleBusy = true
+                programContext.socialSignIn(google.idToken, google.rawNonce)
+                    .onSuccess { needsProfile -> if (needsProfile) onCreateAccount() }
+                    .onFailure { errorMessage = it.toCredentialMessage() }
+                googleBusy = false
             },
             onError = { e -> errorMessage = e.userMessage; programContext.reportGoogleProviderFailure(e.code) },
         )

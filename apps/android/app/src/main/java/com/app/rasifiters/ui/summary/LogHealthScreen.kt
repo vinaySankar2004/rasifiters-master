@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.ApiException
@@ -47,6 +48,9 @@ import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.auth.AppDropdownField
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.auth.PillButton
+import com.app.rasifiters.ui.components.kit.InlineLoadError
+import com.app.rasifiters.ui.components.kit.RefetchOnReconnect
+import com.app.rasifiters.ui.components.compactTapTarget
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.Locale
@@ -130,6 +134,19 @@ fun LogHealthScreen(programContext: ProgramContext, onBack: () -> Unit) {
 
     var memberOptions by remember { mutableStateOf<List<PickerOption>>(emptyList()) }
     var lookupsLoaded by remember { mutableStateOf(false) }
+    var lookupError by remember { mutableStateOf<AppError?>(null) }
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+
+    // Polish #16: a failed roster lookup says "Couldn't load this · Retry" (never a false "No active members"), reloads on
+    // reconnect.
+    suspend fun loadLookups() {
+        lookupError = null; lookupsLoaded = false
+        programContext.loadProgramMembers()
+            .onSuccess { list -> memberOptions = list.map { PickerOption(it.id, it.memberName) } }
+            .onFailure { lookupError = it.toAppError() }
+        lookupsLoaded = true
+    }
+    RefetchOnReconnect(programContext.isOnline, needsReload = { lookupError != null }) { scope.launch { loadLookups() } }
 
     val rows = remember { mutableStateListOf<HealthRow>() }
     val nextUid = remember { mutableStateOf(0) }
@@ -160,10 +177,7 @@ fun LogHealthScreen(programContext: ProgramContext, onBack: () -> Unit) {
         if (programContext.dataEntryLocked) { onBack(); return@LaunchedEffect }
         addRows(1)
         if (programContext.programs.value.isEmpty()) programContext.loadPrograms()
-        programContext.loadProgramMembers().onSuccess { list ->
-            memberOptions = list.map { PickerOption(it.id, it.memberName) }
-        }
-        lookupsLoaded = true
+        loadLookups()
     }
 
     // Lock transition (DC-3): every row's member resets to self the moment the selection turns non-privileged.
@@ -261,9 +275,12 @@ fun LogHealthScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 },
             )
 
-            if (lookupsLoaded && canSelectAnyMember && memberOptions.isEmpty()) {
+            val failure = lookupError
+            if (failure != null) {
+                InlineLoadError(failure, online, onRetry = { scope.launch { loadLookups() } })
+            } else if (lookupsLoaded && canSelectAnyMember && memberOptions.isEmpty()) {
                 Text(
-                    "No active members in this program yet.",
+                    NO_MEMBERS_HINT,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     modifier = Modifier
@@ -281,6 +298,7 @@ fun LogHealthScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     canSelectAnyMember = canSelectAnyMember,
                     selfName = selfName,
                     memberOptions = memberOptions,
+                    memberEmptyHint = pickerEmptyHint(lookupsLoaded, lookupError != null, NO_MEMBERS_HINT),
                     memberError = backendFieldError(row.uid, "member_id"),
                     dateError = backendFieldError(row.uid, "log_date"),
                     sleepError = backendFieldError(row.uid, "sleep_hours"),
@@ -338,6 +356,7 @@ internal fun HealthRowCard(
     canSelectAnyMember: Boolean,
     selfName: String,
     memberOptions: List<PickerOption>,
+    memberEmptyHint: String?,
     memberError: String?,
     dateError: String?,
     sleepError: String?,
@@ -368,15 +387,15 @@ internal fun HealthRowCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Entry ${index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            // Polish #36: a 48dp touch named for its entry ("Remove entry 2"); the row keeps the ✕'s 28dp height.
             Box(
                 modifier = Modifier
+                    .compactTapTarget(28.dp, "Remove entry ${index + 1}", shape = CircleShape, onClick = onRemove)
                     .size(28.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable(onClick = onRemove),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Remove entry", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
             }
         }
 
@@ -388,6 +407,7 @@ internal fun HealthRowCard(
                 selectedValue = row.memberId,
                 options = memberOptions,
                 onSelect = onMember,
+                emptyHint = memberEmptyHint,
             )
             memberError?.let { FormErrorText(it) }
         } else {

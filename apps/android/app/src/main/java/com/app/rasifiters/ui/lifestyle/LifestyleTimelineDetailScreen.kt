@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,10 +27,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppGreen
-import com.app.rasifiters.net.HealthTimelinePoint
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.rememberLoad
 import com.app.rasifiters.ui.summary.CircleBackButton
 import com.app.rasifiters.ui.summary.EmptyText
 import com.app.rasifiters.ui.summary.PERIODS
@@ -56,30 +59,18 @@ fun LifestyleTimelineDetailScreen(programContext: ProgramContext, onBack: () -> 
     val memberId = if (programContext.isProgramAdmin) programContext.lifestyleViewAsId.value
     else programContext.loggedInMemberId
 
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
     var period by remember { mutableStateOf(PERIODS.first()) }
-    var points by remember { mutableStateOf<List<HealthTimelinePoint>>(emptyList()) }
-    var avgSleep by remember { mutableStateOf(0.0) }
-    var avgFood by remember { mutableStateOf(0.0) }
-    var serverLabel by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(true) }
-
-    LaunchedEffect(period.key) {
-        loading = true
-        programContext.loadHealthTimeline(period.key, memberId).onSuccess {
-            points = it.buckets
-            avgSleep = it.dailyAverageSleep
-            avgFood = it.dailyAverageFood
-            serverLabel = it.label
-        }
-        loading = false
-    }
-
-    val rangeLabel = if (period.key == "week") "This Week" else serverLabel.ifBlank { period.range }
+    // Polish #29/#34: one load per (period, member) — ErrorView + Retry on failure; the old period never sits under the new label.
+    val load = rememberLoad(period.key to memberId, programContext.isOnline) { programContext.loadHealthTimeline(period.key, memberId) }
+    val data = load.state.dataOrNull
+    val rangeLabel = if (period.key == "week") "This Week" else data?.label?.ifBlank { null } ?: period.range
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())   // polish #26
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -87,21 +78,15 @@ fun LifestyleTimelineDetailScreen(programContext: ProgramContext, onBack: () -> 
             CircleBackButton(onBack)
             Column {
                 Text("Lifestyle Timeline", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    "Sleep · Diet quality",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
+                Text("Sleep · Diet quality", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
-
             PeriodSelector(selected = period, onSelect = { period = it })
-
-            DailyAverageHeader(rangeLabel = rangeLabel, avgSleep = avgSleep, avgFood = avgFood)
-
-            when {
-                loading -> ChartCenter { CircularProgressIndicator(color = AppBlue) }
-                points.isEmpty() -> ChartCenter { EmptyText("No data for this range yet.") }
-                else -> {
+            DailyAverageHeader(rangeLabel = rangeLabel, avgSleep = data?.dailyAverageSleep, avgFood = data?.dailyAverageFood)
+            KitLoad(load.state, online, onRetry = load::reload, boxModifier = Modifier.fillMaxWidth().height(320.dp), spinnerColor = AppBlue) { resp ->
+                val points = resp.buckets
+                if (points.isEmpty()) {
+                    ChartCenter { EmptyText("No data for this range yet.") }
+                } else {
                     SleepDietChart(
                         labels = axisLabels(points.map { it.label }, period.key),
                         sleepHours = points.map { it.sleepHours },
@@ -130,7 +115,7 @@ fun LifestyleTimelineDetailScreen(programContext: ProgramContext, onBack: () -> 
 
 /** "DAILY AVERAGE" + range on the right; then Sleep (blue) and Diet (green) stat columns (iOS `HealthHeaderStats`). */
 @Composable
-private fun DailyAverageHeader(rangeLabel: String, avgSleep: Double, avgFood: Double) {
+private fun DailyAverageHeader(rangeLabel: String, avgSleep: Double?, avgFood: Double?) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -143,8 +128,8 @@ private fun DailyAverageHeader(rangeLabel: String, avgSleep: Double, avgFood: Do
             Text(rangeLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-            AverageStat("Sleep", String.format(Locale.US, "%.1f hrs", avgSleep), AppBlue)
-            AverageStat("Diet", String.format(Locale.US, "%.1f / 5", avgFood), AppGreen)
+            AverageStat("Sleep", avgSleep?.let { String.format(Locale.US, "%.1f hrs", it) } ?: "\u2014", AppBlue)
+            AverageStat("Diet", avgFood?.let { String.format(Locale.US, "%.1f / 5", it) } ?: "\u2014", AppGreen)
         }
     }
 }

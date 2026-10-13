@@ -27,7 +27,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -72,7 +71,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 // The member-management cluster (Program-tab targets, lit up early for the Members tab per the user).
-// Invite (privacy-safe) · editor (global-admin only: joined-date + active toggle + remove) · "Open full stats" (staff,
+// Invite (privacy-safe) · editor (global-admin only: joined-date + remove) · "Open full stats" (staff,
 // from a People profile). The roster grew into People (ui/people). Faithful to program-member-management §4/§7.
 
 // ---- Invite Member ----
@@ -106,6 +105,7 @@ fun InviteMemberScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 label = "@username",
                 value = username,
                 onValueChange = { username = it.trim(); errorMessage = null },
+                autoCorrect = false,
             )
             Row(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(AppBlue.copy(alpha = 0.08f)).padding(14.dp),
@@ -176,7 +176,6 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val membership = if (loaded) details.firstOrNull { it.memberId == focusId } else null
 
     var joinedAt by remember(membership?.memberId, loaded) { mutableStateOf(parseDate(membership?.joinedAt) ?: LocalDate.now()) }
-    var isActive by remember(membership?.memberId, loaded) { mutableStateOf(membership?.isActive ?: true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf(false) }
@@ -221,13 +220,8 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
             FormFieldLabel("Joined Program")
             DatePillField(date = joinedAt, onChange = { joinedAt = it; errorMessage = null }, allowFuture = false)
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    FormFieldLabel("Active Membership")
-                    Text("Inactive members keep their history but stop counting toward participation.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-                Switch(checked = isActive, onCheckedChange = { isActive = it; errorMessage = null })
-            }
+            // Polish #11: the Active toggle is retired on all three clients (the server still accepts is_active from live
+            // binaries) — membership ends through "Remove from Program".
             errorMessage?.let { FormErrorText(it) }
 
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -236,7 +230,7 @@ fun MemberDetailEditScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     onClick = {
                         saving = true; errorMessage = null
                         scope.launch {
-                            programContext.editMembership(membership.memberId, isActive = isActive, joinedAt = joinedAt.toString())
+                            programContext.editMembership(membership.memberId, joinedAt = joinedAt.toString())
                                 .onSuccess { saving = false; onBack() }
                                 .onFailure { e -> saving = false; errorMessage = e.toAppError().message }
                         }

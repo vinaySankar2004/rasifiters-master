@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -38,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
@@ -46,6 +49,8 @@ import com.app.rasifiters.net.BulkHealthEntry
 import com.app.rasifiters.net.BulkRowError
 import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.ui.auth.PillButton
+import com.app.rasifiters.ui.components.kit.InlineLoadError
+import com.app.rasifiters.ui.components.kit.RefetchOnReconnect
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -98,6 +103,20 @@ fun QuickAddHealthWidgetScreen(programContext: ProgramContext, onExit: () -> Uni
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     var showSuccessToast by remember { mutableStateOf(false) }
+    val programsState by programContext.programsState.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    // Polish #16: a failed program list / per-program lookup shows "Couldn't load this · Retry" and reloads when back
+    // online (the form used to stay empty until it was reopened).
+    var lookupError by remember { mutableStateOf<AppError?>(null) }
+    var lookupAttempt by remember { mutableIntStateOf(0) }
+    val programsError = (programsState as? UiState.Failed)?.error?.takeIf { programs.isEmpty() }
+    val loadError = programsError ?: lookupError
+    fun retryLoads() {
+        if (programsError != null) scope.launch { programContext.loadPrograms() }
+        lookupError = null
+        lookupAttempt++
+    }
+    RefetchOnReconnect(programContext.isOnline, needsReload = { loadError != null }) { retryLoads() }
 
     fun addRows(count: Int) {
         if (rows.size >= MAX_ROWS) return
@@ -122,12 +141,16 @@ fun QuickAddHealthWidgetScreen(programContext: ProgramContext, onExit: () -> Uni
 
     // Selection changed: fetch missing per-program member lookups, then (once ALL present) drop per-row
     // members no longer shared across the selection. Never wiped on a transient miss (iOS parity).
-    LaunchedEffect(selectedProgramIds) {
+    LaunchedEffect(selectedProgramIds, lookupAttempt) {
+        var failure: AppError? = null
         for (pid in selectedProgramIds) {
             if (membersByProgram[pid] == null) {
-                programContext.fetchProgramMembersFor(pid).onSuccess { membersByProgram[pid] = it }
+                programContext.fetchProgramMembersFor(pid)
+                    .onSuccess { membersByProgram[pid] = it }
+                    .onFailure { failure = it.toAppError() }
             }
         }
+        lookupError = failure
         if (selectedProgramIds.isNotEmpty() && selectedProgramIds.all { membersByProgram[it] != null }) {
             val memberIds = memberIntersection(selectedProgramIds.map { membersByProgram[it]!! }).map { it.id }.toSet()
             for (i in rows.indices) {
@@ -245,6 +268,7 @@ fun QuickAddHealthWidgetScreen(programContext: ProgramContext, onExit: () -> Uni
                 },
                 alwaysShow = true,
             )
+            loadError?.let { InlineLoadError(it, online, onRetry = { retryLoads() }) }
 
             rows.forEachIndexed { index, row ->
                 HealthRowCard(
@@ -253,6 +277,8 @@ fun QuickAddHealthWidgetScreen(programContext: ProgramContext, onExit: () -> Uni
                     canSelectAnyMember = canSelectAnyMember,
                     selfName = selfName,
                     memberOptions = memberOptions,
+                    // The picker-hint rule: an empty sheet explains itself only once EVERY selected program's lookup arrived.
+                    memberEmptyHint = pickerEmptyHint(allLookupsPresent, lookupError != null && !allLookupsPresent, NO_MEMBERS_HINT),
                     memberError = backendFieldError(row.uid, "member_id"),
                     dateError = backendFieldError(row.uid, "log_date"),
                     sleepError = backendFieldError(row.uid, "sleep_hours"),

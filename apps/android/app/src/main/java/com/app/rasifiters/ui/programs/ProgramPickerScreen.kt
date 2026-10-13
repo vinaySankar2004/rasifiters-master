@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -79,6 +80,7 @@ import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.ProgramDTO
+import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.components.kit.ErrorView
 import com.app.rasifiters.ui.components.kit.FloatingBanner
@@ -278,6 +280,11 @@ fun ProgramPickerScreen(
                                 isGlobalAdmin = isGlobalAdmin,
                                 onOpen = { if (program.canOpen(isGlobalAdmin)) onOpenProgram(program) },
                                 onDelete = { deleteTarget = program },
+                                onEdit = {
+                                    // Polish #40: Edit from the card (iOS `programToEdit`) — select the program, then edit it.
+                                    programContext.selectProgram(program)
+                                    onNavigate(Routes.PROGRAM_EDIT)
+                                },
                                 onCancelRequest = {
                                     scope.launch {
                                         programContext.cancelJoinRequest(program.id).onFailure { errorMessage = it.toAppError().message }
@@ -314,7 +321,8 @@ fun ProgramPickerScreen(
             )
             CircleButton(
                 icon = Icons.Filled.Add,
-                contentDescription = "Create program or open inbox",
+                // Polish #36: the spoken label carries the badge ("Program actions, 3 new").
+                contentDescription = if (inboxBadge > 0) "Program actions, ${if (inboxBadge > 99) "99+" else inboxBadge} new" else "Program actions",
                 badgeCount = inboxBadge,
                 onClick = { showActions = true },
             )
@@ -403,6 +411,7 @@ private fun ProgramCard(
     isGlobalAdmin: Boolean,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
+    onEdit: () -> Unit,
     onCancelRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -431,7 +440,8 @@ private fun ProgramCard(
             StatusPill(program.status)
             if (canManage) {
                 Box {
-                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp)) {
+                    // Polish #36: a 48dp IconButton target inside the old 32dp footprint, so the card header and the ⋮ stay put.
+                    IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(32.dp).requiredSize(48.dp)) {
                         Icon(
                             Icons.Filled.MoreVert,
                             contentDescription = "Manage program",
@@ -439,6 +449,7 @@ private fun ProgramCard(
                         )
                     }
                     com.app.rasifiters.ui.components.AppDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                        DropdownMenuItem(text = { Text("Edit") }, onClick = { menuOpen = false; onEdit() })
                         DropdownMenuItem(
                             text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
                             onClick = { menuOpen = false; onDelete() },

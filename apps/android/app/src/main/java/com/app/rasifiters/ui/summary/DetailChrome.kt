@@ -49,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.app.rasifiters.ui.components.selectableTarget
+import com.app.rasifiters.ui.components.tapTarget
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -67,20 +69,19 @@ private fun fieldBorderColor() = MaterialTheme.colorScheme.onSurface.copy(alpha 
 @Composable
 private fun fieldHintColor() = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
 
-/** The circular back button (grey circle + chevron) top-left of every detail/log screen. */
+/** The circular back button (grey circle + chevron) top-left of every detail/log screen. Polish #36: a labelled 48dp target. */
 @Composable
 fun CircleBackButton(onBack: () -> Unit) {
     Box(
         modifier = Modifier
+            .tapTarget("Back", shape = CircleShape, onClick = onBack)
             .size(44.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onBack),
+            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             Icons.AutoMirrored.Filled.ArrowBack,
-            contentDescription = "Back",
+            contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.size(22.dp),
         )
@@ -90,7 +91,7 @@ fun CircleBackButton(onBack: () -> Unit) {
 /** Back button + optional centered title — the log-form top bar (title centered over the button row). */
 @Composable
 fun DetailTopBar(onBack: () -> Unit, centerTitle: String? = null) {
-    Box(modifier = Modifier.fillMaxWidth().height(44.dp)) {
+    Box(modifier = Modifier.fillMaxWidth().height(48.dp)) {
         CircleBackButton(onBack)
         if (centerTitle != null) {
             Text(
@@ -126,6 +127,9 @@ data class PickerOption(val value: String, val label: String)
 /**
  * A select field that opens a searchable bottom-sheet list — the Android analogue of iOS
  * `SearchablePickerSheet` / web's searchable `Select`. Used for the member + workout pickers.
+ * Polish #16 (the picker-hint rule): an empty list shows [emptyHint] — the caller's reason (loaded + empty → the specific
+ * line, lookup failed → "Couldn't load this", still loading / no program → null = no text); a search with no match
+ * shows "No results".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -136,6 +140,7 @@ fun SearchablePickerField(
     options: List<PickerOption>,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    emptyHint: String? = null,
 ) {
     var open by remember { mutableStateOf(false) }
     val selectedLabel = options.firstOrNull { it.value == selectedValue }?.label
@@ -192,24 +197,36 @@ fun SearchablePickerField(
                 Spacer(Modifier.height(8.dp))
                 val filtered = if (query.isBlank()) options
                 else options.filter { it.label.contains(query.trim(), ignoreCase = true) }
-                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
-                    items(filtered, key = { it.value }) { option ->
-                        val selected = option.value == selectedValue
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { onSelect(option.value); open = false }
-                                .padding(vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                option.label,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (selected) {
-                                Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                if (filtered.isEmpty()) {
+                    val hint = if (options.isEmpty()) emptyHint else "No results"
+                    if (hint != null) {
+                        Text(
+                            hint,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = fieldHintColor(),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                        )
+                    }
+                } else {
+                    LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
+                        items(filtered, key = { it.value }) { option ->
+                            val selected = option.value == selectedValue
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSelect(option.value); open = false }
+                                    .padding(vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    option.label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (selected) {
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                }
                             }
                         }
                     }
@@ -248,7 +265,7 @@ fun PeriodSelector(selected: Period, onSelect: (Period) -> Unit) {
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
-                    .clickable { onSelect(p) }
+                    .selectableTarget(selected = active, label = p.spokenLabel()) { onSelect(p) }
                     .padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -261,6 +278,14 @@ fun PeriodSelector(selected: Period, onSelect: (Period) -> Unit) {
             }
         }
     }
+}
+
+/** Polish #36: the segment's spoken name ("Week", not "W"). */
+private fun Period.spokenLabel(): String = when (key) {
+    "week" -> "Week"
+    "month" -> "Month"
+    "year" -> "Year"
+    else -> "Program"
 }
 
 /** A locked, non-editable field showing the self-locked member name (member variant of the picker). */

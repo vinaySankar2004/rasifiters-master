@@ -19,7 +19,10 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         val container = (application as App).container
         container.programContext.healIdentityIfNeeded()
-        handleDeepLink(intent)
+        // Polish #20: the widget link is used once — a recreation (rotation, the nightly dark-mode switch) or a relaunch
+        // from Recents re-delivers the original intent and must not reopen the form.
+        val fromHistory = (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) != 0
+        if (savedInstanceState == null && !fromHistory) handleDeepLink(intent)
         if (savedInstanceState == null) handlePushTap(intent)
         setContent {
             val appearance by container.appearanceStore.mode.collectAsStateWithLifecycle()
@@ -64,5 +67,6 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent?) {
         val route = WidgetRoute.fromUri(intent?.data) ?: return
         (application as App).container.programContext.setWidgetRoute(route)
+        intent?.data = null   // consumed — never replayed (#20)
     }
 }

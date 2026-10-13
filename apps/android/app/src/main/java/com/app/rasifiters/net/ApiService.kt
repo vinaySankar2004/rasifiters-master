@@ -259,8 +259,9 @@ interface ApiService {
     @GET("members/{id}")
     suspend fun getMember(@Path("id") id: String): MemberDTO
 
+    // JsonObject body so an explicit "gender": null survives explicitNulls=false (polish #44, as updateDailyHealthLog).
     @PUT("members/{id}")
-    suspend fun updateMemberProfile(@Path("id") id: String, @Body body: UpdateMemberProfileRequest): MessageResponse
+    suspend fun updateMemberProfile(@Path("id") id: String, @Body body: JsonObject): MessageResponse
 
     @Headers("X-One-Shot: 1")
     @PUT("auth/change-password")

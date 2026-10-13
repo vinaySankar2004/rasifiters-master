@@ -1,7 +1,6 @@
 package com.app.rasifiters.ui.programs
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +52,7 @@ import com.app.rasifiters.ui.inbox.InboxList
 import com.app.rasifiters.ui.summary.DatePillField
 import com.app.rasifiters.ui.summary.FormErrorText
 import com.app.rasifiters.ui.summary.FormFieldLabel
+import com.app.rasifiters.ui.components.selectableTarget
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -173,7 +173,7 @@ private fun SegmentedToggle(left: String, right: String, selectedIndex: Int, onS
                     .weight(1f)
                     .clip(CircleShape)
                     .background(if (selected) MaterialTheme.colorScheme.surface else Color.Transparent)
-                    .clickable { onSelect(index) }
+                    .selectableTarget(selected = selected) { onSelect(index) }
                     .padding(vertical = 10.dp),
                 contentAlignment = Alignment.Center,
             ) {

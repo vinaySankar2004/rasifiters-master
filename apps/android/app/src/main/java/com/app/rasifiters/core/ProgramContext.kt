@@ -46,6 +46,7 @@ import com.app.rasifiters.net.LoginRequest
 import com.app.rasifiters.net.MemberDTO
 import com.app.rasifiters.net.LogoutRequest
 import com.app.rasifiters.net.MemberHistoryResponse
+import com.app.rasifiters.net.MemberMetricsResponse
 import com.app.rasifiters.net.MemberMetricsDTO
 import com.app.rasifiters.net.MemberHealthItem
 import com.app.rasifiters.net.MemberRecentItem
@@ -64,7 +65,6 @@ import com.app.rasifiters.net.ProgramOrderRequest
 import com.app.rasifiters.net.ProgramWorkoutDTO
 import com.app.rasifiters.net.RegisterRequest
 import com.app.rasifiters.net.SetPasswordRequest
-import com.app.rasifiters.net.StepsStatsDTO
 import com.app.rasifiters.net.UnlinkRequest
 import com.app.rasifiters.net.ActivityTimelinePoint
 import com.app.rasifiters.net.ActivityTimelineResponse
@@ -73,15 +73,11 @@ import com.app.rasifiters.net.EditCustomWorkoutRequest
 import com.app.rasifiters.net.HealthTimelineResponse
 import com.app.rasifiters.net.ToggleWorkoutVisibilityRequest
 import com.app.rasifiters.net.TotalDurationMtdDTO
-import com.app.rasifiters.net.UpdateMemberProfileRequest
 import com.app.rasifiters.net.UpdateProgramRequest
 import com.app.rasifiters.net.TotalWorkoutsMtdDTO
 import com.app.rasifiters.net.WorkoutLogDeleteRequest
 import com.app.rasifiters.net.WorkoutLogUpdateRequest
 import com.app.rasifiters.net.WorkoutTypeDTO
-import com.app.rasifiters.net.WorkoutTypeHighestParticipationDTO
-import com.app.rasifiters.net.WorkoutTypeLongestDurationDTO
-import com.app.rasifiters.net.WorkoutTypeMostPopularDTO
 import android.os.SystemClock
 import com.app.rasifiters.net.toApiException
 import kotlinx.coroutines.CoroutineScope
@@ -274,6 +270,10 @@ class ProgramContext(
     private val _pendingSocial = MutableStateFlow<PendingSocial?>(null)
     /** Non-null → CreateAccountScreen renders the 2-step social branch (locked email, no password). */
     val pendingSocial: StateFlow<PendingSocial?> = _pendingSocial.asStateFlow()
+
+    /** Polish #21: leaving the sign-up wizard (Back from its first page, or "Sign in") drops an abandoned Google sign-up,
+     *  so it can't stick until the app restarts. */
+    fun clearPendingSocial() { _pendingSocial.value = null }
 
     /**
      * POST /auth/oauth — exchange a Google id_token. Existing member → apply the session (returns false, the
@@ -479,7 +479,8 @@ class ProgramContext(
             .map { }
     }
 
-    /** POST /programs — create a program (creator becomes its admin); reload the list to include it (iOS parity). */
+    /** POST /programs — create a program (creator becomes its admin). Polish #12: success is the write alone; the list
+     *  refreshes in the background, so a failed refresh can never make a retry create a duplicate. */
     suspend fun createProgram(
         name: String,
         status: String,
@@ -487,8 +488,9 @@ class ProgramContext(
         endDate: String?,
     ): Result<Unit> = runCatching {
         api.createProgram(CreateProgramRequest(name.trim(), status, startDate, endDate))
-        loadPrograms().getOrThrow()
+        Unit
     }.recoverCatching { throw it.asApiError() }
+        .onSuccess { scope.launch { loadPrograms() } }
 
     /** Optimistic local reorder during a drag — the source of the persisted order (see [persistProgramOrder]). */
     fun moveProgram(from: Int, to: Int) {
@@ -548,21 +550,23 @@ class ProgramContext(
         Unit
     }.recoverCatching { throw AppErrorException(it.toAppError()) }
 
-    /** A "requested" card's Cancel Request — unchanged PUT /program-memberships (status removed). */
+    /** A "requested" card's Cancel Request — unchanged PUT /program-memberships (status removed). Polish #12: success is
+     *  the write alone — the card drops at once, then the list refreshes in the background. */
     suspend fun cancelJoinRequest(programId: String): Result<Unit> = runCatching {
         val memberId = session.memberId ?: error("Missing member id.")
         api.updateMembership(MembershipUpdateRequest(programId, memberId, "removed"))
-        loadPrograms().getOrThrow()
+        Unit
     }.recoverCatching { throw AppErrorException(it.toAppError()) }
-
-    /** Pick a program → hydrate the active-program state the shell reads. */
-    fun selectProgram(program: ProgramDTO) {
-        // Polish #5/#10: a switch re-defaults View-as — the pick may belong to the previous program. The Members cards
-        // re-spin by themselves: every card's data is keyed to its program + member (S5 — memberCardsHeld).
-        if (program.id != _activeProgram.value?.id) {
-            membersLoadedFor = null          // the roster + View-as default re-initialize for the new program
-            _membersViewAsId.value = null    // no leftover key → the logs effect starts on self, never a stale member
+        .onSuccess {
+            setPrograms(_programs.value.filterNot { it.id == programId })
+            scope.launch { loadPrograms() }
         }
+
+    /** Pick a program → hydrate the active-program state the shell reads. Polish #5/#10: a different program clears every
+     *  program-scoped flow first ([resetProgramScope] — the roster + View-as re-default; the Members cards re-spin, S5
+     *  keys them to their program + member), so no tab ever shows the previous program's numbers under the new name. */
+    fun selectProgram(program: ProgramDTO) {
+        if (program.id != _activeProgram.value?.id) resetProgramScope()
         _activeProgram.value = program
     }
 
@@ -1014,28 +1018,38 @@ class ProgramContext(
     fun setMembersViewAs(id: String?) { _membersViewAsId.value = id }
 
     /**
-     * Load the roster + set the default View-as ONCE per active program (global-admin → "None"; everyone
-     * else → self). Idempotent: re-entering the tab (e.g. after a detail push) is a no-op, so the prior
-     * selection is preserved. A program switch re-initializes.
+     * Load the roster + set the default View-as ONCE per active program (global-admin → "None"; everyone else → self).
+     * Idempotent unless [force]: re-entering the tab is a no-op, so the prior selection is preserved. [force] (the Program
+     * tab, polish #33) re-reads the roster but never re-defaults the pick. A program switch mid-load drops the result.
      */
-    suspend fun ensureMembersLoaded(): Result<Unit> {
+    suspend fun ensureMembersLoaded(force: Boolean = false): Result<Unit> {
         val pid = _activeProgram.value?.id ?: return Result.success(Unit)
-        if (membersLoadedFor == pid) return Result.success(Unit)
+        if (!force && membersLoadedFor == pid) return Result.success(Unit)
         return runCatching {
             val list = api.getProgramMembers(pid)
+            if (_activeProgram.value?.id != pid) return@runCatching
+            val firstForProgram = membersLoadedFor != pid
             _members.value = list
             membersLoadedFor = pid
-            _membersViewAsId.value = if (isGlobalAdmin) null else list.firstOrNull { it.id == loggedInMemberId }?.id
+            if (firstForProgram) {
+                _membersViewAsId.value = if (isGlobalAdmin) null else list.firstOrNull { it.id == loggedInMemberId }?.id
+            }
         }.recoverCatching { throw it.asApiError() }
     }
 
-    /** GET /member-metrics — the full leaderboard (server search/sort/filter). Sets the table + envelope. */
+    /** The keyed-state rule for the shared member flows: a read publishes only while the program it was made for is still
+     *  the active one (the Members cards also check the member — S5's [memberCardsHeld]). */
+    private fun stillActive(pid: String) = _activeProgram.value?.id == pid
+
+    /** GET /member-metrics — the full leaderboard (server search/sort/filter). [publish] = false for the metrics detail
+     *  (polish #34): it keeps its own page, so the Members-tab preview never re-sorts under it. */
     suspend fun loadMemberMetrics(
         search: String = "",
         sort: String = "workouts",
         direction: String = "desc",
         filterParams: Map<String, String> = emptyMap(),
-    ): Result<Unit> {
+        publish: Boolean = true,
+    ): Result<MemberMetricsResponse> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
         val params = buildMap {
@@ -1047,10 +1061,13 @@ class ProgramContext(
         }
         return runCatching {
             val resp = api.getMemberMetrics(params)
-            _memberMetrics.value = resp.members
-            _memberMetricsTotal.value = resp.total
-            _memberMetricsRange.value = (resp.dateRange?.start to resp.dateRange?.end)
-            markCardHeld(MemberCardPart.METRICS, pid, null)
+            if (publish && stillActive(pid)) {
+                _memberMetrics.value = resp.members
+                _memberMetricsTotal.value = resp.total
+                _memberMetricsRange.value = (resp.dateRange?.start to resp.dateRange?.end)
+                markCardHeld(MemberCardPart.METRICS, pid, null)
+            }
+            resp
         }.recoverCatching { throw it.asApiError() }
     }
 
@@ -1060,39 +1077,40 @@ class ProgramContext(
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching {
             val resp = api.getMemberMetrics(mapOf("programId" to pid, "memberId" to memberId))
-            _selectedMemberOverview.value = resp.members.firstOrNull()
-            markCardHeld(MemberCardPart.OVERVIEW, pid, memberId)
+            if (stillActive(pid)) {
+                _selectedMemberOverview.value = resp.members.firstOrNull()
+                markCardHeld(MemberCardPart.OVERVIEW, pid, memberId)
+            }
         }.recoverCatching { throw it.asApiError() }
     }
 
-    /** GET /member-history — the member's W/M/Y/P timeline. Sets state + returns the response for the detail. */
-    suspend fun loadMemberHistory(memberId: String, period: String): Result<MemberHistoryResponse> {
+    /** GET /member-history — the member's W/M/Y/P timeline. [publish] = false for the history detail (polish #34): it
+     *  keeps its own result, so the Members-tab card always shows its week. */
+    suspend fun loadMemberHistory(memberId: String, period: String, publish: Boolean = true): Result<MemberHistoryResponse> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching {
             val resp = api.getMemberHistory(pid, memberId, period)
-            _memberHistory.value = resp
-            markCardHeld(MemberCardPart.HISTORY, pid, memberId)
+            if (publish && stillActive(pid)) {
+                _memberHistory.value = resp
+                markCardHeld(MemberCardPart.HISTORY, pid, memberId)
+            }
             resp
         }.recoverCatching { throw it.asApiError() }
     }
 
-    /** Reset the shared member-history to the default "week" window when the history detail leaves — the
-     *  Members-tab card reads this shared state, so a detail left on Month/Year/Program would otherwise
-     *  linger there (iOS `ActivityTimelineDetailView.onDisappear` parity). Fire-and-forget on the app scope. */
-    fun resetMemberHistoryToWeek(memberId: String) {
-        scope.launch { runCatching { loadMemberHistory(memberId, "week") } }
-    }
-
-    /** GET /member-streaks — server-computed streaks + milestone ladder. */
-    suspend fun loadMemberStreaks(memberId: String): Result<Unit> {
+    /** GET /member-streaks — server-computed streaks + milestone ladder (the tab card and the streak detail, #29). */
+    suspend fun loadMemberStreaks(memberId: String): Result<MemberStreaksResponse> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching {
-            _memberStreaks.value = api.getMemberStreaks(pid, memberId)
-            markCardHeld(MemberCardPart.STREAKS, pid, memberId)
-        }
-            .recoverCatching { throw it.asApiError() }
+            api.getMemberStreaks(pid, memberId).also {
+                if (stillActive(pid)) {
+                    _memberStreaks.value = it
+                    markCardHeld(MemberCardPart.STREAKS, pid, memberId)
+                }
+            }
+        }.recoverCatching { throw it.asApiError() }
     }
 
     /** GET /member-recent — the member's workout history (server sort/filter; `limit=0` → backend cap). */
@@ -1106,18 +1124,24 @@ class ProgramContext(
         workoutType: String? = null,
         minDuration: Int? = null,
         maxDuration: Int? = null,
-    ): Result<Unit> {
+        publish: Boolean = true,
+    ): Result<List<MemberRecentItem>> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching {
-            _memberRecent.value = api.getMemberRecent(
+            api.getMemberRecent(
                 pid, memberId, limit, startDate, endDate, sortBy, sortDir, workoutType, minDuration, maxDuration,
-            ).items
-            markCardHeld(MemberCardPart.RECENT, pid, memberId)
+            ).items.also {
+                if (publish && stillActive(pid)) {
+                    _memberRecent.value = it
+                    markCardHeld(MemberCardPart.RECENT, pid, memberId)
+                }
+            }
         }.recoverCatching { throw it.asApiError() }
     }
 
-    /** GET /daily-health-logs — the member's daily-health history (server sort/filter). */
+    /** GET /daily-health-logs — the member's daily-health history (server sort/filter). [publish] = false for the health
+     *  detail (polish #34): it keeps its own list. */
     suspend fun loadMemberHealthLogs(
         memberId: String,
         limit: Int = 1000,
@@ -1131,16 +1155,21 @@ class ProgramContext(
         maxFoodQuality: Int? = null,
         minSteps: Int? = null,
         maxSteps: Int? = null,
-    ): Result<Unit> {
+        publish: Boolean = true,
+    ): Result<List<MemberHealthItem>> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching {
-            _memberHealthLogs.value = api.getMemberHealthLogs(
+            api.getMemberHealthLogs(
                 pid, memberId, limit, startDate, endDate, sortBy, sortDir,
                 minSleepHours, maxSleepHours, minFoodQuality, maxFoodQuality,
                 minSteps, maxSteps,
-            ).items
-            markCardHeld(MemberCardPart.HEALTH, pid, memberId)
+            ).items.also {
+                if (publish && stillActive(pid)) {
+                    _memberHealthLogs.value = it
+                    markCardHeld(MemberCardPart.HEALTH, pid, memberId)
+                }
+            }
         }.recoverCatching { throw it.asApiError() }
     }
 
@@ -1164,12 +1193,12 @@ class ProgramContext(
                 val id = key.memberId.orEmpty()
                 async {
                     part to when (part) {
-                        MemberCardPart.METRICS -> loadMemberMetrics(sort = "active_days", direction = "desc")
+                        MemberCardPart.METRICS -> loadMemberMetrics(sort = "active_days", direction = "desc").map { }
                         MemberCardPart.OVERVIEW -> loadMemberOverview(id)
                         MemberCardPart.HISTORY -> loadMemberHistory(id, "week").map { }
-                        MemberCardPart.STREAKS -> loadMemberStreaks(id)
-                        MemberCardPart.RECENT -> loadMemberRecent(id, limit = 10)
-                        MemberCardPart.HEALTH -> loadMemberHealthLogs(id, limit = 10)
+                        MemberCardPart.STREAKS -> loadMemberStreaks(id).map { }
+                        MemberCardPart.RECENT -> loadMemberRecent(id, limit = 10).map { }
+                        MemberCardPart.HEALTH -> loadMemberHealthLogs(id, limit = 10).map { }
                     }
                 }
             }.awaitAll().also { ensureActive() }
@@ -1191,8 +1220,11 @@ class ProgramContext(
     suspend fun loadMembershipDetails(): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
+        val owner = sessionOwner()
         return runCatching {
             val details = api.getMembershipDetails(pid)
+            // Polish #12/#33: never land one program's roster on another (a late reply after a program switch).
+            if (_activeProgram.value?.id != pid || !isCurrentOwner(owner)) return@runCatching
             _membershipDetails.value = details
             details.firstOrNull { it.memberId == loggedInMemberId }?.let { _loggedInGender.value = it.gender }
             Unit
@@ -1306,11 +1338,10 @@ class ProgramContext(
     // set. The "View as" pick is hoisted here (not screen-local) so it survives a detail push + return —
     // memory: persist-tab-selections-across-nav. `null` selection = the program-wide ("Admin") view.
 
-    private val _lifestyle = MutableStateFlow(LifestyleData())
-    val lifestyle: StateFlow<LifestyleData> = _lifestyle.asStateFlow()
-
-    private val _lifestyleLoading = MutableStateFlow(false)
-    val lifestyleLoading: StateFlow<Boolean> = _lifestyleLoading.asStateFlow()
+    private val _lifestyleState = MutableStateFlow<UiState<LifestyleData>>(UiState.Idle)
+    /** The Lifestyle tab's kit state (polish #31), keyed by (program, "View as" member): a key change starts from Loading. */
+    val lifestyleState: StateFlow<UiState<LifestyleData>> = _lifestyleState.asStateFlow()
+    private var lifestyleKey: Pair<String, String?>? = null
 
     /** The Lifestyle-tab "View as" member (null = program-wide "Admin" view). Separate from the Members tab. */
     private val _lifestyleViewAsId = MutableStateFlow<String?>(null)
@@ -1321,57 +1352,84 @@ class ProgramContext(
     private val _lifestyleViewAsChosen = MutableStateFlow(false)
     val lifestyleViewAsChosen: StateFlow<Boolean> = _lifestyleViewAsChosen.asStateFlow()
 
-    private var lifestyleDefaultedFor: String? = null
+    private val _lifestyleDefaultedFor = MutableStateFlow<String?>(null)
+    /** The program whose Lifestyle "View as" default is applied — the tab's first load waits for it (the keyed-state
+     *  rule: the first fetch is already in the right scope, and a pick is never overwritten by the default). */
+    val lifestyleDefaultedFor: StateFlow<String?> = _lifestyleDefaultedFor.asStateFlow()
 
+    /** A "View as" pick. Polish #10 (the keyed-state rule): a different scope resets the cards to loading in the same
+     *  event as the pick — never a frame of the previous scope's numbers under the new name. */
     fun setLifestyleViewAs(id: String?) {
         _lifestyleViewAsChosen.value = true
+        if (id == _lifestyleViewAsId.value) return
         _lifestyleViewAsId.value = id
+        _lifestyleState.value = UiState.Idle
+        lifestyleKey = null
     }
 
     /**
      * Seed the Lifestyle "View as" default ONCE per program: global-admin → null ("Admin", program-wide);
-     * everyone else → self. Reuses the roster loaded by [ensureMembersLoaded]. Idempotent — re-entering the
-     * tab (e.g. after a detail push) preserves the prior pick; a program switch re-initializes.
+     * everyone else → self. Idempotent — re-entering the tab (e.g. after a detail push) preserves the prior pick; a
+     * program switch re-initializes. The default is applied BEFORE the roster read (the picker's list), so a pick made
+     * while the roster loads is never overwritten.
      */
     suspend fun ensureLifestyleViewAsDefault(): Result<Unit> {
         val pid = _activeProgram.value?.id ?: return Result.success(Unit)
+        if (_lifestyleDefaultedFor.value != pid) {
+            _lifestyleViewAsChosen.value = false
+            // Polish #31: self is known without the roster, so a failed roster read can't leave a program admin on
+            // program-wide numbers labelled with their own name (the reconnect refetch would keep it that way).
+            _lifestyleViewAsId.value = if (isGlobalAdmin) null else loggedInMemberId
+            _lifestyleDefaultedFor.value = pid
+        }
         ensureMembersLoaded()
-        if (lifestyleDefaultedFor == pid) return Result.success(Unit)
-        lifestyleDefaultedFor = pid
-        _lifestyleViewAsChosen.value = false
-        _lifestyleViewAsId.value = if (isGlobalAdmin) null else _members.value.firstOrNull { it.id == loggedInMemberId }?.id
         return Result.success(Unit)
     }
 
     /**
-     * Load the Lifestyle tab's cards for `memberId` (null = program-wide). Highest-participation is ALWAYS
-     * program-wide (memberId=null), matching iOS. The health-timeline preview always loads the week window.
+     * Load the Lifestyle tab's cards for `memberId` (null = program-wide). Highest-participation is ALWAYS program-wide
+     * (memberId=null), matching iOS; the health-timeline preview always loads the week window. Polish #31 (the Summary
+     * recipe): the 7 reads run in parallel and each keeps its own result. A (program, member) change resets to Loading —
+     * never the other scope's numbers. A partial failure keeps the parts that loaded (the rest "—") + Stale; all seven
+     * failing → Failed (ErrorView) or Stale over this scope's previous data.
      */
     suspend fun loadLifestyle(memberId: String?): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
-        _lifestyleLoading.value = true
-        return runCatching {
-            // Polish #5: the seven reads in parallel; any failure fails the whole load as before.
-            coroutineScope {
-                val totalTypes = async { api.getWorkoutTypesTotal(pid, memberId).totalTypes }
-                val mostPopular = async { api.getWorkoutTypeMostPopular(pid, memberId) }
-                val longestDuration = async { api.getWorkoutTypeLongestDuration(pid, memberId) }
-                val highestParticipation = async { api.getWorkoutTypeHighestParticipation(pid, null) }
-                val workoutTypes = async { api.getWorkoutTypes(pid, 100, memberId) }
-                val timeline = async { api.getHealthTimeline("week", pid, memberId) }
-                val steps = async { api.getHealthSteps(pid, memberId) }
-                _lifestyle.value = LifestyleData(
-                    totalTypes = totalTypes.await(),
-                    mostPopular = mostPopular.await(),
-                    longestDuration = longestDuration.await(),
-                    highestParticipation = highestParticipation.await(),
-                    workoutTypes = workoutTypes.await(),
-                    timeline = timeline.await(),
-                    steps = steps.await(),
-                )
-            }
-        }.recoverCatching { throw it.asApiError() }.also { _lifestyleLoading.value = false }
+        val owner = sessionOwner()
+        val key = pid to memberId
+        fun stillMine() = lifestyleKey == key && isCurrentOwner(owner)
+        if (lifestyleKey != key) {
+            lifestyleKey = key
+            _lifestyleState.value = UiState.Idle
+        }
+        _lifestyleState.value = _lifestyleState.value.refreshing()
+        val parts = coroutineScope {
+            val total = async { attempt { api.getWorkoutTypesTotal(pid, memberId).totalTypes } }
+            val mostPopular = async { attempt { api.getWorkoutTypeMostPopular(pid, memberId) } }
+            val longest = async { attempt { api.getWorkoutTypeLongestDuration(pid, memberId) } }
+            val participation = async { attempt { api.getWorkoutTypeHighestParticipation(pid, null) } }
+            val types = async { attempt { api.getWorkoutTypes(pid, 100, memberId) } }
+            val timeline = async { attempt { api.getHealthTimeline("week", pid, memberId) } }
+            val steps = async { attempt { api.getHealthSteps(pid, memberId) } }
+            LifestyleParts(
+                total.await(), mostPopular.await(), longest.await(), participation.await(),
+                types.await(), timeline.await(), steps.await(),
+            )
+        }
+        if (!stillMine()) return Result.success(Unit)   // the scope or the session changed mid-load
+        val errors = parts.errors()
+        if (errors.size == LifestyleParts.COUNT) {
+            _lifestyleState.value = _lifestyleState.value.failing(errors.first().toAppError())
+            return Result.failure(errors.first())
+        }
+        val data = parts.merge(_lifestyleState.value.dataOrNull)
+        if (errors.isEmpty()) {
+            _lifestyleState.value = UiState.fresh(data)
+            return Result.success(Unit)
+        }
+        _lifestyleState.value = UiState.Stale(data, System.currentTimeMillis(), errors.first().toAppError())
+        return Result.failure(errors.first())
     }
 
     /** GET /analytics/health/timeline for a period — the Lifestyle timeline detail's period switch. */
@@ -1392,44 +1450,72 @@ class ProgramContext(
     /** The FULL program workout catalog (incl. hidden) for the manager — distinct from the log-form's filtered list. */
     val programWorkoutsAll: StateFlow<List<ProgramWorkoutDTO>> = _programWorkoutsAll.asStateFlow()
 
+    /** Polish #12: the catalog is written only while the program it was read for is still active (and the session is the
+     *  same) — a late refresh can never put one program's catalog on another (ids act on the program they came from). */
     suspend fun loadAllProgramWorkouts(): Result<Unit> {
         val pid = _activeProgram.value?.id ?: return Result.success(Unit)
-        return runCatching { _programWorkoutsAll.value = api.getProgramWorkouts(pid) }
-            .recoverCatching { throw it.asApiError() }
+        val owner = sessionOwner()
+        return runCatching {
+            val list = api.getProgramWorkouts(pid)
+            if (_activeProgram.value?.id == pid && isCurrentOwner(owner)) _programWorkoutsAll.value = list
+            Unit
+        }.recoverCatching { throw it.asApiError() }
+    }
+
+    /** Polish #12: a workout-type write is judged by the write alone — the local list changes at once (only if [pid], the
+     *  program the write was made in, is still active), then refreshes in the background, so a failed refresh never
+     *  reports a saved write as failed (a retry would flip it back). [refresh] = false when the caller re-reads through
+     *  its own load (the add / edit sheet's screen), so there is one fetch, not two. */
+    private fun afterWorkoutWrite(
+        pid: String?,
+        refresh: Boolean = true,
+        local: (List<ProgramWorkoutDTO>) -> List<ProgramWorkoutDTO>,
+    ) {
+        if (pid == null || _activeProgram.value?.id != pid) return
+        _programWorkoutsAll.value = local(_programWorkoutsAll.value)
+        if (refresh) scope.launch { loadAllProgramWorkouts() }
     }
 
     suspend fun toggleWorkoutVisibility(libraryWorkoutId: String): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
-        return runCatching {
-            api.toggleWorkoutVisibility(ToggleWorkoutVisibilityRequest(pid, libraryWorkoutId))
-            loadAllProgramWorkouts().getOrThrow()
-        }.recoverCatching { throw it.asApiError() }
+        return runCatching { api.toggleWorkoutVisibility(ToggleWorkoutVisibilityRequest(pid, libraryWorkoutId)); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess {
+                afterWorkoutWrite(pid) { list ->
+                    list.map { w -> if (w.libraryWorkoutId == libraryWorkoutId) w.copy(isHidden = !w.isHidden) else w }
+                }
+            }
     }
 
-    suspend fun toggleCustomWorkoutVisibility(workoutId: String): Result<Unit> = runCatching {
-        api.toggleCustomWorkoutVisibility(workoutId)
-        loadAllProgramWorkouts().getOrThrow()
-    }.recoverCatching { throw it.asApiError() }
+    suspend fun toggleCustomWorkoutVisibility(workoutId: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+        return runCatching { api.toggleCustomWorkoutVisibility(workoutId); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { afterWorkoutWrite(pid) { list -> list.map { w -> if (w.id == workoutId) w.copy(isHidden = !w.isHidden) else w } } }
+    }
 
     suspend fun addCustomProgramWorkout(name: String): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
-        return runCatching {
-            api.addCustomWorkout(AddCustomWorkoutRequest(pid, name))
-            loadAllProgramWorkouts().getOrThrow()
-        }.recoverCatching { throw it.asApiError() }
+        return runCatching { api.addCustomWorkout(AddCustomWorkoutRequest(pid, name)); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { afterWorkoutWrite(pid, refresh = false) { list -> list } }
     }
 
-    suspend fun editCustomProgramWorkout(workoutId: String, name: String): Result<Unit> = runCatching {
-        api.editCustomWorkout(workoutId, EditCustomWorkoutRequest(name))
-        loadAllProgramWorkouts().getOrThrow()
-    }.recoverCatching { throw it.asApiError() }
+    suspend fun editCustomProgramWorkout(workoutId: String, name: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+        return runCatching { api.editCustomWorkout(workoutId, EditCustomWorkoutRequest(name)); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { afterWorkoutWrite(pid, refresh = false) { list -> list.map { w -> if (w.id == workoutId) w.copy(workoutName = name) else w } } }
+    }
 
-    suspend fun deleteCustomProgramWorkout(workoutId: String): Result<Unit> = runCatching {
-        api.deleteCustomWorkout(workoutId)
-        loadAllProgramWorkouts().getOrThrow()
-    }.recoverCatching { throw it.asApiError() }
+    suspend fun deleteCustomProgramWorkout(workoutId: String): Result<Unit> {
+        val pid = _activeProgram.value?.id
+        return runCatching { api.deleteCustomWorkout(workoutId); Unit }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { afterWorkoutWrite(pid) { list -> list.filterNot { w -> w.id == workoutId } } }
+    }
 
     // ---- Program tab (Phase G) — account settings + admin program management ----
     // The My-Account settings actions + the admin program edit/leave/role mutations. Errors surface
@@ -1440,19 +1526,27 @@ class ProgramContext(
     suspend fun fetchMember(memberId: String): Result<MemberDTO> =
         runCatching { api.getMember(memberId) }.recoverCatching { throw it.asApiError() }
 
-    /** PUT /members/:id — edit own name/gender. On self-edit, refresh the cached name + gender. */
+    /** PUT /members/:id — edit own name/gender. Polish #44: a JsonObject body, so a cleared gender goes out as an explicit
+     *  `"gender": null` (the global Json drops nulls — explicitNulls=false); [includeGender] = false leaves it unchanged
+     *  (My Profile before its read loaded, #18). On self-edit, refresh the cached name + gender. */
     suspend fun updateMemberProfile(
         memberId: String,
         firstName: String,
         lastName: String,
         gender: String?,
+        includeGender: Boolean = true,
     ): Result<Unit> = runCatching {
-        api.updateMemberProfile(memberId, UpdateMemberProfileRequest(firstName, lastName, gender))
+        val body = buildJsonObject {
+            put("first_name", firstName)
+            put("last_name", lastName)
+            if (includeGender) put("gender", gender)
+        }
+        api.updateMemberProfile(memberId, body)
         if (memberId == loggedInMemberId) {
             val full = "$firstName $lastName".trim()
             _memberName.value = full
             session.saveIdentity(session.memberId, session.username, full, session.globalRole)
-            if (gender != null) _loggedInGender.value = gender
+            if (includeGender) _loggedInGender.value = gender
         }
         Unit
     }.recoverCatching { throw it.asApiError() }
@@ -1529,7 +1623,16 @@ class ProgramContext(
         _widgetRoute.value = null
         setSummaryState(UiState.Idle)
         summaryProgramId = null
+        resetProgramScope()
+    }
+
+    /** Program-scoped state (polish #10): cleared on a program switch ([selectProgram]) and by the sign-out teardown, so
+     *  no screen ever shows the previous program's (or member's) numbers under the new name. Add new program-scoped
+     *  state HERE, not to clearSession. */
+    private fun resetProgramScope() {
         _memberMetrics.value = emptyList()
+        _memberMetricsTotal.value = 0
+        _memberMetricsRange.value = null to null
         _selectedMemberOverview.value = null
         _memberHistory.value = null
         _memberStreaks.value = null
@@ -1543,10 +1646,11 @@ class ProgramContext(
         membersLoadedFor = null
         _memberCardsHeld.value = emptyMap()
         _memberCardsLoad.value = MemberCardsLoad()
-        _lifestyle.value = LifestyleData()
+        _lifestyleState.value = UiState.Idle
+        lifestyleKey = null
         _lifestyleViewAsId.value = null
         _lifestyleViewAsChosen.value = false
-        lifestyleDefaultedFor = null
+        _lifestyleDefaultedFor.value = null
         _programWorkoutsAll.value = emptyList()
     }
 
@@ -1583,17 +1687,6 @@ data class MemberCardsLoad(
     val keys: Map<MemberCardPart, MemberCardKey> = emptyMap(),
     val failed: Set<MemberCardPart> = emptySet(),
     val error: AppError? = null,
-)
-
-/** The active program's Lifestyle-tab analytics for the selected member, refreshed by [ProgramContext.loadLifestyle]. */
-data class LifestyleData(
-    val totalTypes: Int = 0,
-    val mostPopular: WorkoutTypeMostPopularDTO? = null,
-    val longestDuration: WorkoutTypeLongestDurationDTO? = null,
-    val highestParticipation: WorkoutTypeHighestParticipationDTO? = null,
-    val workoutTypes: List<WorkoutTypeDTO> = emptyList(),
-    val timeline: HealthTimelineResponse? = null,
-    val steps: StepsStatsDTO? = null,
 )
 
 /** The 7 Summary reads, each its own result (A13 partial failures). */

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +41,7 @@ fun DistributionDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())   // polish #26
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -53,7 +56,12 @@ fun DistributionDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                 )
             }
 
-            if (!hasData) {
+            if (summary.distribution == null) {
+                // Polish #29: missing data reads "—", never "No workouts logged yet." (the Summary card isn't tappable then).
+                Box(modifier = Modifier.fillMaxWidth().height(360.dp), contentAlignment = Alignment.Center) {
+                    EmptyText("\u2014")
+                }
+            } else if (!hasData) {
                 Box(modifier = Modifier.fillMaxWidth().height(360.dp), contentAlignment = Alignment.Center) {
                     EmptyText("No workouts logged yet.")
                 }

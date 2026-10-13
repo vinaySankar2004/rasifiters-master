@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -35,7 +36,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,13 +45,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.ui.auth.AppTextField
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.KitStaleBanner
+import com.app.rasifiters.ui.components.kit.STALE_BANNER_CLEARANCE
+import com.app.rasifiters.ui.components.kit.rememberLoad
+import com.app.rasifiters.ui.components.kit.showsStaleBanner
+import com.app.rasifiters.ui.components.selectableTarget
+import com.app.rasifiters.ui.components.tapTarget
 import com.app.rasifiters.ui.summary.DatePillField
 import java.time.LocalDate
 import java.util.Locale
@@ -99,9 +108,8 @@ data class MetricsFilters(
 @Composable
 fun MemberMetricsDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val context = LocalContext.current
-    val metrics by programContext.memberMetrics.collectAsStateWithLifecycle()
-    val range by programContext.memberMetricsRange.collectAsStateWithLifecycle()
     val program by programContext.activeProgram.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
 
     var search by remember { mutableStateOf("") }
     var committedSearch by remember { mutableStateOf("") }
@@ -110,18 +118,19 @@ fun MemberMetricsDetailScreen(programContext: ProgramContext, onBack: () -> Unit
     var filters by remember { mutableStateOf(MetricsFilters()) }
     var showSort by remember { mutableStateOf(false) }
     var showFilter by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(committedSearch, sortField, sortDir, filters, program?.id) {
-        loading = true
+    // Polish #29/#34: this screen's own page, one load per (search, sort, filters, program) — the Members-tab preview never
+    // re-sorts under it, a failed load shows ErrorView + Retry (never "No members to display."), and the CSV is exactly
+    // the list on screen.
+    val load = rememberLoad(listOf(committedSearch, sortField, sortDir, filters, program?.id), programContext.isOnline) {
         programContext.loadMemberMetrics(
-            search = committedSearch,
-            sort = sortField.api,
-            direction = sortDir.api,
-            filterParams = filters.toParams(),
+            search = committedSearch, sort = sortField.api, direction = sortDir.api,
+            filterParams = filters.toParams(), publish = false,
         )
-        loading = false
     }
+    val page = load.state.dataOrNull
+    val metrics = page?.members.orEmpty()
+    val range = page?.dateRange?.start to page?.dateRange?.end
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
@@ -146,7 +155,10 @@ fun MemberMetricsDetailScreen(programContext: ProgramContext, onBack: () -> Unit
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
                 trailingIcon = {
                     if (search.isNotEmpty()) {
-                        Icon(Icons.Filled.Close, contentDescription = "Clear", modifier = Modifier.size(20.dp).clickable { search = ""; committedSearch = "" })
+                        Icon(
+                            Icons.Filled.Close, contentDescription = null,
+                            modifier = Modifier.tapTarget("Clear search", shape = CircleShape) { search = ""; committedSearch = "" }.size(20.dp),
+                        )
                     }
                 },
                 placeholder = { Text("Search member") },
@@ -167,15 +179,17 @@ fun MemberMetricsDetailScreen(programContext: ProgramContext, onBack: () -> Unit
                 ControlButton("Filter", Icons.Filled.FilterList, Modifier.weight(1f)) { showFilter = true }
             }
 
-            when {
-                loading && metrics.isEmpty() -> repeat(3) { SkeletonCard() }
-                metrics.isEmpty() -> {
+            KitLoad(load.state, online, onRetry = load::reload, loading = { repeat(3) { SkeletonCard() } }) { p ->
+                if (p.members.isEmpty()) {
                     Text("No members to display.", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                     Text("Adjust filters or try a different search.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                } else {
+                    p.members.forEach { MemberMetricsCard(it, sortField) }
                 }
-                else -> metrics.forEach { MemberMetricsCard(it, sortField) }
             }
+            if (load.state.showsStaleBanner(online)) Spacer(Modifier.height(STALE_BANNER_CLEARANCE))
         }
+        KitStaleBanner(load.state, online, onRetry = load::reload)
     }
 
     if (showSort) {
@@ -266,7 +280,7 @@ fun Segmented(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit
             Box(
                 modifier = Modifier.weight(1f).clip(RoundedCornerShape(8.dp))
                     .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
-                    .clickable { onSelect(i) }.padding(vertical = 8.dp),
+                    .selectableTarget(selected = active, role = Role.RadioButton) { onSelect(i) }.padding(vertical = 8.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = if (active) FontWeight.Bold else FontWeight.Medium, color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))

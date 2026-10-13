@@ -2,7 +2,6 @@ package com.app.rasifiters.ui.program
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -35,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.AppearanceMode
 import com.app.rasifiters.core.AppearanceStore
 import com.app.rasifiters.core.theme.AppOrange
+import com.app.rasifiters.ui.components.selectableTarget
 import com.app.rasifiters.ui.summary.DetailTopBar
 
 /**
@@ -54,7 +55,7 @@ fun AppearanceScreen(appearanceStore: AppearanceStore, onBack: () -> Unit) {
             Column {
                 Text("Appearance", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text(
-                    "Choose how RaSi Fit'ers looks to you",
+                    "Choose how RaSi Fiters looks to you",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 )
@@ -122,7 +123,7 @@ private fun AppearanceOption(
             .fillMaxWidth()
             .background(programRowColor(), shape)
             .border(1.dp, if (selected) AppOrange.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant, shape)
-            .clickable(onClick = onClick)
+            .selectableTarget(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),

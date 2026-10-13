@@ -41,6 +41,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.KitCopy
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.ApiException
@@ -48,10 +50,26 @@ import com.app.rasifiters.net.BulkRowError
 import com.app.rasifiters.net.BulkWorkoutEntry
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.auth.PillButton
+import com.app.rasifiters.ui.components.kit.InlineLoadError
+import com.app.rasifiters.ui.components.kit.RefetchOnReconnect
+import com.app.rasifiters.ui.components.compactTapTarget
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 private const val MAX_ROWS = 200
+
+/** Polish #16 — the log forms' empty-picker lines (one copy table on all three). */
+internal const val NO_WORKOUT_TYPES_HINT = "No workout types available for this program yet."
+internal const val NO_MEMBERS_HINT = "No active members in this program yet."
+
+/** Polish #16 (the picker-hint rule): what an empty picker sheet says — its lookup failed → "Couldn't load this"; loaded
+ *  and empty → [emptyLine]; still loading / no program selected → no text. */
+internal fun pickerEmptyHint(loaded: Boolean, failed: Boolean, emptyLine: String): String? = when {
+    failed -> KitCopy.ERROR_VIEW_TITLE
+    loaded -> emptyLine
+    else -> null
+}
 
 // `internal` (not private) so the widget quick-add form (QuickAddWorkoutWidgetScreen) reuses the exact
 // same row model + validation helpers + card — the iOS "same batch form as the in-app view" contract.
@@ -111,6 +129,30 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var memberOptions by remember { mutableStateOf<List<PickerOption>>(emptyList()) }
     var workoutOptions by remember { mutableStateOf<List<PickerOption>>(emptyList()) }
     var lookupsLoaded by remember { mutableStateOf(false) }
+    var lookupError by remember { mutableStateOf<AppError?>(null) }
+    var membersFailed by remember { mutableStateOf(false) }
+    var workoutsFailed by remember { mutableStateOf(false) }
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+
+    // Polish #16: a failed lookup says "Couldn't load this · Retry" (never a false "No workout types…"), and reloads when
+    // back online.
+    suspend fun loadLookups() {
+        lookupError = null; membersFailed = false; workoutsFailed = false; lookupsLoaded = false
+        coroutineScope {
+            launch {
+                programContext.loadProgramMembers()
+                    .onSuccess { list -> memberOptions = list.map { PickerOption(it.id, it.memberName) } }
+                    .onFailure { lookupError = it.toAppError(); membersFailed = true }
+            }
+            launch {
+                programContext.loadProgramWorkouts()
+                    .onSuccess { list -> workoutOptions = list.map { PickerOption(it.workoutName, it.workoutName) } }
+                    .onFailure { lookupError = it.toAppError(); workoutsFailed = true }
+            }
+        }
+        lookupsLoaded = true
+    }
+    RefetchOnReconnect(programContext.isOnline, needsReload = { lookupError != null }) { scope.launch { loadLookups() } }
 
     val rows = remember { mutableStateListOf<WorkoutRow>() }
     val nextUid = remember { mutableStateOf(0) }
@@ -141,13 +183,7 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
         if (programContext.dataEntryLocked) { onBack(); return@LaunchedEffect }
         addRows(1)
         if (programContext.programs.value.isEmpty()) programContext.loadPrograms()
-        programContext.loadProgramMembers().onSuccess { list ->
-            memberOptions = list.map { PickerOption(it.id, it.memberName) }
-        }
-        programContext.loadProgramWorkouts().onSuccess { list ->
-            workoutOptions = list.map { PickerOption(it.workoutName, it.workoutName) }
-        }
-        lookupsLoaded = true
+        loadLookups()
     }
 
     // Lock transition (DC-3): every row's member resets to self the moment the selection turns non-privileged.
@@ -240,10 +276,11 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 },
             )
 
-            if (lookupsLoaded && workoutOptions.isEmpty()) {
-                LookupHint("No workout types available for this program yet.")
-            } else if (lookupsLoaded && canSelectAnyMember && memberOptions.isEmpty()) {
-                LookupHint("No active members in this program yet.")
+            val failure = lookupError
+            when {
+                failure != null -> InlineLoadError(failure, online, onRetry = { scope.launch { loadLookups() } })
+                lookupsLoaded && workoutOptions.isEmpty() -> LookupHint(NO_WORKOUT_TYPES_HINT)
+                lookupsLoaded && canSelectAnyMember && memberOptions.isEmpty() -> LookupHint(NO_MEMBERS_HINT)
             }
 
             rows.forEachIndexed { index, row ->
@@ -254,6 +291,8 @@ fun LogWorkoutScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     selfName = selfName,
                     memberOptions = memberOptions,
                     workoutOptions = workoutOptions,
+                    memberEmptyHint = pickerEmptyHint(lookupsLoaded, membersFailed, NO_MEMBERS_HINT),
+                    workoutEmptyHint = pickerEmptyHint(lookupsLoaded, workoutsFailed, NO_WORKOUT_TYPES_HINT),
                     memberError = backendFieldError(row.uid, "member_id"),
                     workoutError = backendFieldError(row.uid, "workout_name"),
                     durationError = backendFieldError(row.uid, "duration"),
@@ -311,6 +350,8 @@ internal fun WorkoutRowCard(
     selfName: String,
     memberOptions: List<PickerOption>,
     workoutOptions: List<PickerOption>,
+    memberEmptyHint: String?,
+    workoutEmptyHint: String?,
     memberError: String?,
     workoutError: String?,
     durationError: String?,
@@ -338,15 +379,15 @@ internal fun WorkoutRowCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Entry ${index + 1}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            // Polish #36: a 48dp touch named for its entry ("Remove entry 2"); the row keeps the ✕'s 28dp height.
             Box(
                 modifier = Modifier
+                    .compactTapTarget(28.dp, "Remove entry ${index + 1}", shape = CircleShape, onClick = onRemove)
                     .size(28.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                    .clickable(onClick = onRemove),
+                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Close, contentDescription = "Remove entry", tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Close, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
             }
         }
 
@@ -358,6 +399,7 @@ internal fun WorkoutRowCard(
                 selectedValue = row.memberId,
                 options = memberOptions,
                 onSelect = onMember,
+                emptyHint = memberEmptyHint,
             )
             memberError?.let { FormErrorText(it) }
         } else {
@@ -372,6 +414,7 @@ internal fun WorkoutRowCard(
             selectedValue = row.workoutName,
             options = workoutOptions,
             onSelect = onWorkout,
+            emptyHint = workoutEmptyHint,
         )
         workoutError?.let { FormErrorText(it) }
 

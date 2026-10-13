@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.net.PendingInviteDTO
+import com.app.rasifiters.ui.components.tapTarget
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -101,7 +102,9 @@ fun DeclineInviteDialog(programName: String, onDecline: (blockFuture: Boolean) -
 @Composable
 internal fun InvitePill(label: String, color: Color, enabled: Boolean = true, onClick: () -> Unit) {
     Box(
-        modifier = Modifier.clip(CircleShape).background(color.copy(alpha = 0.16f)).clickable(enabled = enabled, onClick = onClick)
+        // Polish #36: the 36dp pill keeps its look but takes a labelled 48dp touch.
+        modifier = Modifier.tapTarget(label, enabled = enabled, shape = CircleShape, onClick = onClick)
+            .background(color.copy(alpha = 0.16f), CircleShape)
             .padding(horizontal = 18.dp, vertical = 8.dp),
     ) { Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = color) }
 }

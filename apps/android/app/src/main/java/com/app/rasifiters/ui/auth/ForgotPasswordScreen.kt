@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
@@ -73,7 +74,7 @@ fun ForgotPasswordScreen(programContext: ProgramContext, onBackToLogin: () -> Un
             )
         } else {
             Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                AppTextField("Email", email, { email = it }, keyboardType = KeyboardType.Email)
+                AppTextField("Email", email, { email = it }, keyboardType = KeyboardType.Email, contentType = ContentType.EmailAddress, autoCorrect = false)
                 if (email.isNotEmpty() && !isEmailValid(email)) {
                     Text(
                         "Enter a valid email address.",

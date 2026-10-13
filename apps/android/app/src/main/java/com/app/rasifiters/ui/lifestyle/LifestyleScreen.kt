@@ -18,14 +18,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.UnfoldMore
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,20 +36,29 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.app.rasifiters.core.LifestyleData
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.ui.Routes
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.KitStaleBanner
+import com.app.rasifiters.ui.components.kit.RefetchOnReconnect
+import com.app.rasifiters.ui.components.kit.STALE_BANNER_CLEARANCE
+import com.app.rasifiters.ui.components.kit.showsStaleBanner
 import com.app.rasifiters.ui.members.GlassIconButton
 import com.app.rasifiters.ui.members.MemberPickerSheet
+import kotlinx.coroutines.launch
 
 /**
- * The Lifestyle tab (Tab 3) — the workout-types dashboard (iOS `AdminWorkoutTypesTab` /
- * `StandardWorkoutTypesTab`, selected by `isProgramAdmin`). Both variants: a header with a glass button
- * (→ the workout-types manager), the 4 stat cards (total / most-popular / longest / participation), the
- * Workout Type Popularity ranked chart, and the tappable Lifestyle-timeline preview (→ the drill-down).
- * Admins additionally get a "View as" picker (global-admin → "None"/program-wide; program-admin → self by
- * default, or "Admin"/program-wide). Highest-participation is always program-wide. Faithful 1:1 to the iOS
- * tab; read-only (load errors swallowed on-screen — iOS F1).
+ * The Lifestyle tab (Tab 3) — the workout-types dashboard (iOS `AdminWorkoutTypesTab` / `StandardWorkoutTypesTab`,
+ * selected by `isProgramAdmin`): a header with a glass button (→ the workout-types manager), the 4 stat cards, steps,
+ * the popularity chart and the two timeline previews. Admins also get a "View as" picker (global-admin → "None"/
+ * program-wide; program-admin → self by default, or "Admin"/program-wide). Highest-participation is always program-wide.
+ * Polish #10/#31 (the Summary recipe, superseding "load errors swallowed — iOS F1"): kit states keyed by (program, "View
+ * as") — a switch starts from Loading, never the previous scope's numbers; a failed part shows "—"; ErrorView + Retry with
+ * no data; "Couldn't refresh" when stale; pull to refresh; reload on reconnect.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LifestyleScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) {
     val isAdmin = programContext.isProgramAdmin
@@ -55,24 +67,32 @@ fun LifestyleScreen(programContext: ProgramContext, onNavigate: (String) -> Unit
     val roster by programContext.members.collectAsStateWithLifecycle()
     val viewAsId by programContext.lifestyleViewAsId.collectAsStateWithLifecycle()
     val chosen by programContext.lifestyleViewAsChosen.collectAsStateWithLifecycle()
-    val lifestyle by programContext.lifestyle.collectAsStateWithLifecycle()
+    val defaultedFor by programContext.lifestyleDefaultedFor.collectAsStateWithLifecycle()
+    val state by programContext.lifestyleState.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     var showPicker by remember { mutableStateOf(false) }
+    var pulling by remember { mutableStateOf(false) }
 
-    // Admins scope to the "View as" pick (null = program-wide); everyone else sees their own data.
-    // Apply the admin default BEFORE the first load, in ONE coroutine, so a program-admin's first fetch is
-    // already self-scoped — no brief program-wide flash. Mirrors iOS AdminWorkoutTypesTab.task (apply the
-    // default, then load once). A second effect reloads only on a later, user-initiated "View as" change —
-    // gated on loadedOnce so the initial default-set (which also moves viewAsId) doesn't double-fetch.
-    val loadedOnce = remember(program?.id) { mutableStateOf(false) }
-    LaunchedEffect(program?.id, isAdmin) {
-        if (isAdmin) programContext.ensureLifestyleViewAsDefault()
-        val memberId = if (isAdmin) programContext.lifestyleViewAsId.value else programContext.loggedInMemberId
-        programContext.loadLifestyle(memberId)
-        loadedOnce.value = true
+    // The scope the cards show: admins → the "View as" pick (null = program-wide); everyone else → self.
+    fun scopeMemberId(): String? = if (isAdmin) programContext.lifestyleViewAsId.value else programContext.loggedInMemberId
+    fun reload() { scope.launch { programContext.loadLifestyle(scopeMemberId()) } }
+
+    // Admins: the "View as" default for this program, applied once — before the picker's roster read, so a pick made
+    // meanwhile is never overwritten (iOS AdminWorkoutTypesTab.task: apply the default, then load).
+    LaunchedEffect(program?.id, isAdmin) { if (isAdmin) programContext.ensureLifestyleViewAsDefault() }
+    // The keyed-state rule: the cards load for the scope on screen once the admin default is applied for THIS program
+    // (the first fetch is already in the right scope), again on every later pick (setLifestyleViewAs resets the cards to
+    // loading in the same event), and on every tab entry (a refresh underneath the data on screen).
+    val ready = program?.id != null && (!isAdmin || defaultedFor == program?.id)
+    LaunchedEffect(program?.id, isAdmin, ready, viewAsId) {
+        if (ready) programContext.loadLifestyle(scopeMemberId())
     }
-    LaunchedEffect(viewAsId) {
-        if (isAdmin && loadedOnce.value) programContext.loadLifestyle(viewAsId)
-    }
+    // D-KIT-13: back online → a failed / stale Lifestyle reloads by itself.
+    RefetchOnReconnect(
+        programContext.isOnline,
+        needsReload = { programContext.lifestyleState.value.let { it is UiState.Failed || it is UiState.Stale } },
+    ) { reload() }
 
     val selected = roster.firstOrNull { it.id == viewAsId }
     val viewAsLabel = selected?.memberName
@@ -81,75 +101,43 @@ fun LifestyleScreen(programContext: ProgramContext, onNavigate: (String) -> Unit
         else (programContext.loggedInMemberName ?: "Member")
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        PullToRefreshBox(
+            isRefreshing = pulling,
+            onRefresh = { pulling = true; scope.launch { programContext.loadLifestyle(scopeMemberId()); pulling = false } },
+            modifier = Modifier.fillMaxSize(),
         ) {
-            // Header + workout-types manager button.
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Lifestyle", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Text(
-                        programName,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Lifestyle", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                        Text(
+                            programName,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
+                    GlassIconButton(
+                        icon = Icons.Filled.FitnessCenter,
+                        contentDescription = "Workout types",
+                        onClick = { onNavigate(Routes.LIFESTYLE_WORKOUT_TYPES) },
                     )
                 }
-                GlassIconButton(
-                    icon = Icons.Filled.FitnessCenter,
-                    contentDescription = "Workout types",
-                    onClick = { onNavigate(Routes.LIFESTYLE_WORKOUT_TYPES) },
-                )
+
+                if (isAdmin) ViewAsRow(label = viewAsLabel, onClick = { showPicker = true })
+
+                KitLoad(state, online, onRetry = { reload() }) { data -> LifestyleCardStack(data, onNavigate) }
+
+                Spacer(Modifier.height(if (state.showsStaleBanner(online)) STALE_BANNER_CLEARANCE else 8.dp))
             }
-
-            if (isAdmin) {
-                ViewAsRow(label = viewAsLabel, onClick = { showPicker = true })
-            }
-
-            // The 4 stat cards, 2×2.
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                WorkoutTypesTotalCard(total = lifestyle.totalTypes, modifier = Modifier.weight(1f))
-                WorkoutTypeMostPopularCard(
-                    name = lifestyle.mostPopular?.workoutName,
-                    sessions = lifestyle.mostPopular?.sessions ?: 0,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                WorkoutTypeLongestDurationCard(
-                    name = lifestyle.longestDuration?.workoutName,
-                    avgMinutes = lifestyle.longestDuration?.avgMinutes ?: 0,
-                    modifier = Modifier.weight(1f),
-                )
-                WorkoutTypeHighestParticipationCard(
-                    name = lifestyle.highestParticipation?.workoutName,
-                    participationPct = lifestyle.highestParticipation?.participationPct ?: 0.0,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-
-            // Steps analytics card — right after the Longest/Highest row (DC-9).
-            StepsAnalyticsCard(stats = lifestyle.steps)
-
-            WorkoutTypePopularityCard(types = lifestyle.workoutTypes)
-
-            LifestyleTimelinePreviewCard(
-                timeline = lifestyle.timeline,
-                onClick = { onNavigate(Routes.LIFESTYLE_TIMELINE) },
-            )
-
-            // Steps Timeline preview — directly after the Lifestyle Timeline card (DC-9).
-            StepsTimelinePreviewCard(
-                timeline = lifestyle.timeline,
-                onClick = { onNavigate(Routes.LIFESTYLE_STEPS_TIMELINE) },
-            )
-
-            Spacer(Modifier.height(8.dp))
         }
+        KitStaleBanner(state, online, onRetry = { reload() })
     }
 
     if (showPicker) {
@@ -162,6 +150,25 @@ fun LifestyleScreen(programContext: ProgramContext, onNavigate: (String) -> Unit
             onDismiss = { showPicker = false },
         )
     }
+}
+
+/** The loaded cards (unchanged layout): 2×2 stats, steps, popularity, the two timeline previews. */
+@Composable
+private fun LifestyleCardStack(data: LifestyleData, onNavigate: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        WorkoutTypesTotalCard(total = data.totalTypes, modifier = Modifier.weight(1f))
+        WorkoutTypeMostPopularCard(stat = data.mostPopular, modifier = Modifier.weight(1f))
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        WorkoutTypeLongestDurationCard(stat = data.longestDuration, modifier = Modifier.weight(1f))
+        WorkoutTypeHighestParticipationCard(stat = data.highestParticipation, modifier = Modifier.weight(1f))
+    }
+    // Steps analytics card — right after the Longest/Highest row (DC-9).
+    StepsAnalyticsCard(stats = data.steps)
+    WorkoutTypePopularityCard(types = data.workoutTypes)
+    LifestyleTimelinePreviewCard(timeline = data.timeline, onClick = { onNavigate(Routes.LIFESTYLE_TIMELINE) })
+    // Steps Timeline preview — directly after the Lifestyle Timeline card (DC-9).
+    StepsTimelinePreviewCard(timeline = data.timeline, onClick = { onNavigate(Routes.LIFESTYLE_STEPS_TIMELINE) })
 }
 
 /** The "View as" selector row (admin only) — opens the member picker sheet. */

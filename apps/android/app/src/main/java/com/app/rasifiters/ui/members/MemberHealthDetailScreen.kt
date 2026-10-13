@@ -1,7 +1,6 @@
 package com.app.rasifiters.ui.members
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -30,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,6 +45,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppBlueLight
 import com.app.rasifiters.core.theme.AppRed
@@ -52,6 +53,12 @@ import com.app.rasifiters.net.MemberHealthItem
 import com.app.rasifiters.ui.auth.AppDropdownField
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.auth.PillButton
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.KitStaleBanner
+import com.app.rasifiters.ui.components.kit.STALE_BANNER_CLEARANCE
+import com.app.rasifiters.ui.components.kit.rememberLoad
+import com.app.rasifiters.ui.components.kit.showsStaleBanner
+import com.app.rasifiters.ui.components.tapTarget
 import com.app.rasifiters.ui.summary.FormFieldLabel
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -88,7 +95,7 @@ private const val CLEAR_RATING = "Clear rating"
 fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val items by programContext.memberHealthLogs.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
     val memberId by programContext.focusedMemberId.collectAsStateWithLifecycle()
     val memberName by programContext.focusedMemberName.collectAsStateWithLifecycle()
     val locked = programContext.dataEntryLocked
@@ -98,13 +105,17 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
     var filters by remember { mutableStateOf(HealthFilters()) }
     var showSort by remember { mutableStateOf(false) }
     var showFilter by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(true) }
     var editItem by remember { mutableStateOf<MemberHealthItem?>(null) }
     var deleteItem by remember { mutableStateOf<MemberHealthItem?>(null) }
+    var actionError by remember { mutableStateOf<String?>(null) }
+    // Polish #24: a write in flight disables its buttons and spins — a double tap can't send a second delete.
+    var saving by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
 
-    suspend fun reload() {
-        val id = memberId ?: return
-        loading = true
+    // Polish #29/#34: this screen's own list — one load per (member, sort, filters), never the Members-tab preview's rows;
+    // a failed load shows ErrorView + Retry instead of "No daily health logs found."; the CSV is exactly the list on screen.
+    val load = rememberLoad<List<MemberHealthItem>>(listOf(memberId, sortField, sortDir, filters), programContext.isOnline) {
+        val id = memberId ?: return@rememberLoad Result.failure(IllegalStateException("No member selected."))
         programContext.loadMemberHealthLogs(
             memberId = id, limit = 0,
             startDate = if (filters.custom) filters.start?.toString() else null,
@@ -116,11 +127,10 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             maxFoodQuality = filters.maxDiet.toIntOrNull(),
             minSteps = filters.minSteps.toIntOrNull(),
             maxSteps = filters.maxSteps.toIntOrNull(),
+            publish = false,
         )
-        loading = false
     }
-
-    LaunchedEffect(sortField, sortDir, filters, memberId) { reload() }
+    val items = load.state.dataOrNull.orEmpty()
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
@@ -137,24 +147,26 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                 ControlButton("Sort: ${sortField.label}", Icons.Filled.UnfoldMore, Modifier.weight(1f)) { showSort = true }
                 ControlButton(if (filters.isActive) "Filter •" else "Filter", Icons.Filled.FilterList, Modifier.weight(1f)) { showFilter = true }
             }
-            when {
-                loading && items.isEmpty() -> repeat(5) { SkeletonCard(height = 60.dp) }
-                items.isEmpty() -> {
+            KitLoad(load.state, online, onRetry = load::reload, loading = { repeat(5) { SkeletonCard(height = 60.dp) } }) { list ->
+                if (list.isEmpty()) {
                     Text("No daily health logs found.", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                     Text("Adjust filters or log daily health to get started.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-                else -> items.forEach { h ->
-                    // DC-10 row: date + ⋮ on top; three labeled metric cells (Sleep / Diet / Steps, "—" when unset).
-                    val sleep = h.sleepHours?.let { String.format(Locale.US, "%.1f hrs", it) } ?: "—"
-                    val diet = h.foodQuality?.let { "$it/5" } ?: "—"
-                    val steps = h.steps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
-                    HealthLogRow(
-                        date = h.logDate, sleep = sleep, diet = diet, steps = steps,
-                        locked = locked, onEdit = { editItem = h }, onDelete = { deleteItem = h },
-                    )
+                } else {
+                    list.forEach { h ->
+                        // DC-10 row: date + ⋮ on top; three labeled metric cells (Sleep / Diet / Steps, "—" when unset).
+                        val sleep = h.sleepHours?.let { String.format(Locale.US, "%.1f hrs", it) } ?: "—"
+                        val diet = h.foodQuality?.let { "$it/5" } ?: "—"
+                        val steps = h.steps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
+                        HealthLogRow(
+                            date = h.logDate, sleep = sleep, diet = diet, steps = steps,
+                            locked = locked, onEdit = { editItem = h }, onDelete = { deleteItem = h },
+                        )
+                    }
                 }
             }
+            if (load.state.showsStaleBanner(online)) Spacer(Modifier.height(STALE_BANNER_CLEARANCE))
         }
+        KitStaleBanner(load.state, online, onRetry = load::reload)
     }
 
     if (showSort) {
@@ -176,20 +188,21 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
         )
     }
 
-    var actionError by remember { mutableStateOf<String?>(null) }
-
     editItem?.let { item ->
         HealthEditSheet(
             item = item,
+            saving = saving,
             onDismiss = { editItem = null },
             onSave = { sleepHours, foodQuality, steps ->
                 val id = memberId ?: return@HealthEditSheet
+                saving = true
                 scope.launch {
                     programContext.updateDailyHealthLog(
                         id, item.logDate, sleepHours, foodQuality, steps, stepsProvided = true,
                     )
-                        .onSuccess { editItem = null; reload() }
+                        .onSuccess { editItem = null; load.reload() }
                         .onFailure { actionError = it.toAppError().message }
+                    saving = false
                 }
             },
         )
@@ -197,20 +210,26 @@ fun MemberHealthDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
 
     deleteItem?.let { item ->
         AlertDialog(
-            onDismissRequest = { deleteItem = null },
+            onDismissRequest = { if (!deleting) deleteItem = null },
             title = { Text("Delete daily health log") },
             text = { Text("Are you sure you want to delete this daily health log from ${item.logDate}?") },
             confirmButton = {
-                TextButton(onClick = {
-                    val id = memberId
-                    if (id != null) scope.launch {
+                TextButton(enabled = !deleting, onClick = {
+                    val id = memberId ?: return@TextButton
+                    deleting = true
+                    scope.launch {
                         programContext.deleteDailyHealthLog(id, item.logDate)
-                            .onSuccess { deleteItem = null; reload() }
-                            .onFailure { deleteItem = null; actionError = it.toAppError().message }
+                            .onSuccess { load.reload() }
+                            .onFailure { actionError = it.toAppError().message }
+                        deleting = false
+                        deleteItem = null
                     }
-                }) { Text("Delete", color = AppRed) }
+                }) {
+                    if (deleting) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    else Text("Delete", color = AppRed)
+                }
             },
-            dismissButton = { TextButton(onClick = { deleteItem = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(enabled = !deleting, onClick = { deleteItem = null }) { Text("Cancel") } },
         )
     }
 
@@ -253,9 +272,9 @@ private fun HealthLogRow(
             if (!locked) {
                 Box {
                     Icon(
-                        Icons.Filled.MoreVert, contentDescription = "Actions",
+                        Icons.Filled.MoreVert, contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                        modifier = Modifier.size(22.dp).clip(CircleShape).clickable { menuOpen = true },
+                        modifier = Modifier.tapTarget("Actions", shape = CircleShape) { menuOpen = true }.size(22.dp),
                     )
                     com.app.rasifiters.ui.components.AppDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text("Edit") }, onClick = { menuOpen = false; onEdit() })
@@ -349,7 +368,7 @@ private fun HealthFilterSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HealthEditSheet(item: MemberHealthItem, onDismiss: () -> Unit, onSave: (Double?, Int?, Int?) -> Unit) {
+private fun HealthEditSheet(item: MemberHealthItem, saving: Boolean, onDismiss: () -> Unit, onSave: (Double?, Int?, Int?) -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var hours by remember { mutableStateOf(item.sleepHours?.let { it.toInt().toString() } ?: "") }
     var minutes by remember { mutableStateOf(item.sleepHours?.let { (((it - it.toInt()) * 60).roundToInt()).toString() } ?: "") }
@@ -390,7 +409,7 @@ private fun HealthEditSheet(item: MemberHealthItem, onDismiss: () -> Unit, onSav
             AppTextField(label = "Steps", value = steps, onValueChange = { steps = it.filter { c -> c.isDigit() }.take(6) }, keyboardType = KeyboardType.Number)
             if (!hasMetric) Text("Enter sleep, diet quality, or steps.", style = MaterialTheme.typography.bodySmall, color = AppRed, fontWeight = FontWeight.SemiBold)
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                PillButton(label = "Save changes", onClick = { if (valid) onSave(sleepValue, foodValue, stepsValue) }, enabled = valid)
+                PillButton(label = "Save changes", onClick = { if (valid && !saving) onSave(sleepValue, foodValue, stepsValue) }, enabled = valid, loading = saving)
             }
         }
     }

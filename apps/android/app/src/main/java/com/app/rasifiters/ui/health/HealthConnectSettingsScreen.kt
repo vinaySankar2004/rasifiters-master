@@ -49,6 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.AppErrorKind
+import com.app.rasifiters.core.kit.UiState
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
@@ -56,6 +60,9 @@ import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.health.HealthStore
 import com.app.rasifiters.health.HealthSyncResult
 import com.app.rasifiters.net.ProgramDTO
+import com.app.rasifiters.ui.components.kit.InlineLoadError
+import com.app.rasifiters.ui.components.kit.RefetchOnReconnect
+import com.app.rasifiters.ui.components.toggleTarget
 import com.app.rasifiters.ui.program.programRowColor
 import com.app.rasifiters.ui.summary.DetailTopBar
 import kotlinx.coroutines.launch
@@ -72,7 +79,8 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
     val health = programContext.health
     val scope = rememberCoroutineScope()
 
-    val programs by programContext.programs.collectAsStateWithLifecycle()
+    val programsState by programContext.programsState.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
     val workoutEnabled by health.workoutEnabled.collectAsStateWithLifecycle()
     val workoutProgramIds by health.workoutProgramIds.collectAsStateWithLifecycle()
     val sleepEnabled by health.sleepEnabled.collectAsStateWithLifecycle()
@@ -88,8 +96,31 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
     var sleepSyncError by remember { mutableStateOf<String?>(null) }
     var stepsSyncError by remember { mutableStateOf<String?>(null) }
 
-    // Ensure the program list is loaded so the selection + window scoping can resolve (iOS .task).
-    LaunchedEffect(Unit) { if (programs.isEmpty()) runCatching { programContext.loadPrograms() } }
+    // Polish #27 (the sync-list rule): after a fresh successful load, a selected program you're no longer ACTIVE in (it
+    // is hidden from the list, so it couldn't be unticked) is dropped and the selection persisted — through the
+    // controller's own toggles.
+    fun pruneInactive(list: List<ProgramDTO>) {
+        val active = list.filter { it.myStatus == "active" }.map { it.id }.toSet()
+        health.workoutProgramIds.value.filterNot { it in active }.forEach { health.toggleWorkoutProgram(it) }
+        health.sleepProgramIds.value.filterNot { it in active }.forEach { health.toggleSleepProgram(it) }
+        health.stepsProgramIds.value.filterNot { it in active }.forEach { health.toggleStepsProgram(it) }
+    }
+    fun refreshPrograms() {
+        scope.launch { programContext.loadPrograms().onSuccess { pruneInactive(programContext.programs.value) } }
+    }
+    // The program list on every entry (the selection + window scoping resolve against it — iOS .task), and again when
+    // back online after a failure.
+    LaunchedEffect(Unit) { refreshPrograms() }
+    RefetchOnReconnect(programContext.isOnline, needsReload = { programContext.programsState.value is UiState.Failed }) {
+        refreshPrograms()
+    }
+    // The list's load state shows once — in the first enabled sync section.
+    val loadStateFlow = when {
+        workoutEnabled -> HealthStore.Flow.WORKOUTS
+        sleepEnabled -> HealthStore.Flow.SLEEP
+        stepsEnabled -> HealthStore.Flow.STEPS
+        else -> null
+    }
     // Live permission state → "Reconnect Health Connect" when access was turned off (board §4.8).
     LaunchedEffect(Unit) { health.refreshPermissionState() }
 
@@ -133,7 +164,9 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                             workoutPermissionLauncher.launch(health.workoutPermissions)
                         }
                     } else ConnectedRow(Icons.Filled.Favorite, "Workouts will sync automatically")
-                    ProgramSelection(programs, workoutProgramIds, programContext) { health.toggleWorkoutProgram(it) }
+                    ProgramSelection(
+                        programsState, online, loadStateFlow == HealthStore.Flow.WORKOUTS, ::refreshPrograms, workoutProgramIds, programContext,
+                    ) { health.toggleWorkoutProgram(it) }
                     SyncStatus(
                         lastSyncMillis = health.lastWorkoutSyncMillis.collectAsStateWithLifecycle().value,
                         count = health.lastWorkoutSyncCount.collectAsStateWithLifecycle().value,
@@ -173,7 +206,9 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                             sleepPermissionLauncher.launch(health.sleepPermissions)
                         }
                     } else ConnectedRow(Icons.Filled.Bedtime, "Sleep will sync automatically")
-                    ProgramSelection(programs, sleepProgramIds, programContext) { health.toggleSleepProgram(it) }
+                    ProgramSelection(
+                        programsState, online, loadStateFlow == HealthStore.Flow.SLEEP, ::refreshPrograms, sleepProgramIds, programContext,
+                    ) { health.toggleSleepProgram(it) }
                     SyncStatus(
                         lastSyncMillis = health.lastSleepSyncMillis.collectAsStateWithLifecycle().value,
                         count = health.lastSleepSyncCount.collectAsStateWithLifecycle().value,
@@ -207,7 +242,9 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                             stepsPermissionLauncher.launch(health.stepsPermissions)
                         }
                     } else ConnectedRow(Icons.AutoMirrored.Filled.DirectionsWalk, "Steps will sync automatically")
-                    ProgramSelection(programs, stepsProgramIds, programContext) { health.toggleStepsProgram(it) }
+                    ProgramSelection(
+                        programsState, online, loadStateFlow == HealthStore.Flow.STEPS, ::refreshPrograms, stepsProgramIds, programContext,
+                    ) { health.toggleStepsProgram(it) }
                     SyncStatus(
                         lastSyncMillis = health.lastStepsSyncMillis.collectAsStateWithLifecycle().value,
                         count = health.lastStepsSyncCount.collectAsStateWithLifecycle().value,
@@ -304,29 +341,44 @@ private fun ConnectedRow(icon: ImageVector, subtitle: String) {
 
 @Composable
 private fun ProgramSelection(
-    programs: List<ProgramDTO>,
+    state: UiState<List<ProgramDTO>>,
+    online: Boolean,
+    showLoadState: Boolean,
+    onRetry: () -> Unit,
     selected: Set<String>,
     programContext: ProgramContext,
     onToggle: (String) -> Unit,
 ) {
+    // Polish #27: only programs you're ACTIVE in can receive synced data (invited / requested never do), and the list's own
+    // load state shows (once, in the first enabled section) — never "No programs available" while it loads or after it
+    // failed.
+    val programs = state.dataOrNull?.filter { it.myStatus == "active" }
+    if (programs == null && !showLoadState) return
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text("Sync to Programs", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-        if (programs.isEmpty()) {
-            Text(
+        when {
+            programs == null && (state is UiState.Failed || !online) -> InlineLoadError(
+                (state as? UiState.Failed)?.error ?: AppError(AppErrorKind.OFFLINE), online, onRetry,
+                modifier = cardModifier().padding(14.dp),
+            )
+            programs == null -> Box(cardModifier().padding(14.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+            }
+            programs.isEmpty() -> Text(
                 "No programs available. Join or create a program first.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 modifier = cardModifier().padding(14.dp),
             )
-        } else {
-            Column(modifier = cardModifier()) {
+            else -> Column(modifier = cardModifier()) {
                 programs.forEachIndexed { index, program ->
                     val locked = programContext.isDataEntryLocked(program.id)
                     val isSelected = program.id in selected
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(enabled = !locked) { onToggle(program.id) }
+                            // Polish #36: announced as a checkbox with its checked state.
+                            .toggleTarget(checked = isSelected, enabled = !locked) { onToggle(program.id) }
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp),

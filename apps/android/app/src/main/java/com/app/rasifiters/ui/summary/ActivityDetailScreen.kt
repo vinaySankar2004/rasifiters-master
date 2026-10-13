@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,10 +26,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppPurple
-import com.app.rasifiters.net.ActivityTimelinePoint
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.rememberLoad
 import kotlin.math.roundToInt
 
 /**
@@ -40,28 +43,20 @@ import kotlin.math.roundToInt
 @Composable
 fun ActivityDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var period by remember { mutableStateOf(PERIODS.first()) }
-    var points by remember { mutableStateOf<List<ActivityTimelinePoint>>(emptyList()) }
-    var dailyAverage by remember { mutableStateOf(0.0) }
-    var serverLabel by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(true) }
-
-    LaunchedEffect(period.key) {
-        loading = true
-        programContext.loadActivityTimeline(period.key).onSuccess {
-            points = it.buckets
-            dailyAverage = it.dailyAverage
-            serverLabel = it.label
-        }
-        loading = false
-    }
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    // Polish #29/#34: one load per period — a switch starts from Loading, so the old period's bars never sit under the
+    // new label, and a failure shows ErrorView + Retry (not "No data for this range").
+    val load = rememberLoad(period.key, programContext.isOnline) { programContext.loadActivityTimeline(period.key) }
+    val data = load.state.dataOrNull
 
     // Week uses a friendly fixed label; month/year/program use the server's range label (iOS parity).
-    val rangeLabel = if (period.key == "week") "This Week" else serverLabel.ifBlank { period.range }
+    val rangeLabel = if (period.key == "week") "This Week" else data?.label?.ifBlank { null } ?: period.range
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())   // polish #26
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -87,43 +82,41 @@ fun ActivityDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                         modifier = Modifier.alignByBaseline(),
                     )
-                    Text(
-                        rangeLabel,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.alignByBaseline(),
-                    )
+                    Text(rangeLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
                 }
                 Text(
-                    formatAverage(dailyAverage),
+                    data?.let { formatAverage(it.dailyAverage) } ?: "\u2014",
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = AppOrange,
                 )
             }
 
-            when {
-                loading -> ChartCenter { CircularProgressIndicator(color = AppOrange) }
-                points.isEmpty() -> ChartCenter { EmptyText("No data for this range yet.") }
-                else -> BarLineChart(
-                    values = points.map { it.workouts },
-                    labels = axisLabels(points.map { it.label }, period.key),
-                    lineValues = points.map { it.activeMembers },
-                    barColor = AppOrange,
-                    lineColor = com.app.rasifiters.core.theme.AppPurple,
-                    barWidth = 14.dp,
-                    modifier = Modifier.fillMaxWidth().height(360.dp),
-                    tooltip = { i ->
-                        val p = points[i]
-                        TooltipData(
-                            title = calloutTitle(p.date, p.label),
-                            rows = listOf(
-                                TooltipRow("${p.workouts} ${plural(p.workouts, "workout")}", AppOrange),
-                                TooltipRow("${p.activeMembers} active", AppPurple),
-                            ),
-                        )
-                    },
-                )
+            KitLoad(load.state, online, onRetry = load::reload, boxModifier = Modifier.fillMaxWidth().height(360.dp)) { resp ->
+                val points = resp.buckets
+                if (points.isEmpty()) {
+                    ChartCenter { EmptyText("No data for this range yet.") }
+                } else {
+                    BarLineChart(
+                        values = points.map { it.workouts },
+                        labels = axisLabels(points.map { it.label }, period.key),
+                        lineValues = points.map { it.activeMembers },
+                        barColor = AppOrange,
+                        lineColor = AppPurple,
+                        barWidth = 14.dp,
+                        modifier = Modifier.fillMaxWidth().height(360.dp),
+                        tooltip = { i ->
+                            val p = points[i]
+                            TooltipData(
+                                title = calloutTitle(p.date, p.label),
+                                rows = listOf(
+                                    TooltipRow("${p.workouts} ${plural(p.workouts, "workout")}", AppOrange),
+                                    TooltipRow("${p.activeMembers} active", AppPurple),
+                                ),
+                            )
+                        },
+                    )
+                }
             }
         }
     }

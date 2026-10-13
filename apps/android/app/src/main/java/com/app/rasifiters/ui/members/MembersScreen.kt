@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -48,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,6 +63,7 @@ import com.app.rasifiters.core.theme.AppOrangeGradientEnd
 import com.app.rasifiters.net.ProgramMemberDTO
 import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.components.kit.ErrorView
+import com.app.rasifiters.ui.components.selectableTarget
 import com.app.rasifiters.ui.components.kit.FloatingBanner
 import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
 import kotlinx.coroutines.flow.drop
@@ -376,7 +379,8 @@ fun MemberPickerSheet(
             Spacer(Modifier.height(12.dp))
             val filtered = if (query.isBlank()) members
             else members.filter { it.memberName.contains(query.trim(), ignoreCase = true) }
-            LazyColumn(modifier = Modifier.fillMaxWidth().height(if (filtered.size > 6) 380.dp else (48 * (filtered.size + if (showNone) 1 else 0)).coerceAtLeast(48).dp)) {
+            // Polish #42: the list sizes itself (rows are ~52dp; the old 48dp-per-row height clipped the last one).
+            LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp)) {
                 if (showNone) {
                     item {
                         PickerRow(name = noneLabel, selected = selectedId == null, onClick = { onSelect(null) })
@@ -411,7 +415,7 @@ private fun PickerRow(name: String, selected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .selectableTarget(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

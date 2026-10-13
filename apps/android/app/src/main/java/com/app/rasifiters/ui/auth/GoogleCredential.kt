@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
@@ -69,11 +71,11 @@ private const val MSG_GENERIC = "Google sign-in failed. Try again."
  * (theme background surface + a `onSurface` alpha-0.22 border). Content is the multicolor Google "G"
  * (18dp, untinted) + "Continue with Google" in SemiBold on-surface text. The API exchange lives upstream
  * (`ProgramContext.socialSignIn`). A user-cancelled sheet is silent; a real failure surfaces via [onError] with a
- * human message; a second tap while the sheet is up is ignored.
+ * human message; it shows a spinner and stays disabled until [onResult] (the caller's sign-in) finishes (polish #21).
  */
 @Composable
 fun GoogleSignInButton(
-    onResult: (GoogleIdResult) -> Unit,
+    onResult: suspend (GoogleIdResult) -> Unit,
     onError: (GoogleSignInException) -> Unit,
     enabled: Boolean = true,
 ) {
@@ -93,7 +95,7 @@ fun GoogleSignInButton(
             .clip(CircleShape)
             .background(scheme.background)
             .border(1.dp, borderColor, CircleShape)
-            .clickable(enabled = enabled && !inFlight) {
+            .clickable(enabled = enabled && !inFlight, onClickLabel = "Continue with Google", role = Role.Button) {
                 inFlight = true
                 scope.launch {
                     try {
@@ -110,19 +112,19 @@ fun GoogleSignInButton(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_google_g),
-            contentDescription = null,
-            tint = Color.Unspecified,
-            modifier = Modifier.size(18.dp),
-        )
-        Spacer(Modifier.width(10.dp))
-        Text(
-            "Continue with Google",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = contentColor,
-        )
+        if (inFlight) {
+            // Polish #21: busy until the caller's sign-in finishes — no second tap.
+            CircularProgressIndicator(strokeWidth = 2.dp, color = scheme.onSurface, modifier = Modifier.size(18.dp))
+        } else {
+            Icon(
+                painter = painterResource(R.drawable.ic_google_g),
+                contentDescription = null,
+                tint = Color.Unspecified,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Text("Continue with Google", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = contentColor)
+        }
     }
 }
 

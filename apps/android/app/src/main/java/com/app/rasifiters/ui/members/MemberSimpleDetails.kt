@@ -2,7 +2,6 @@ package com.app.rasifiters.ui.members
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,18 +13,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,38 +34,61 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.app.rasifiters.core.MemberCardKey
+import com.app.rasifiters.core.MemberCardPart
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.UiState
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppYellow
+import com.app.rasifiters.net.MemberHistoryResponse
+import com.app.rasifiters.net.MemberStreaksResponse
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.rememberLoad
 import com.app.rasifiters.ui.summary.BarLineChart
 import com.app.rasifiters.ui.summary.CircleBackButton
 import com.app.rasifiters.ui.summary.DetailTopBar
+import com.app.rasifiters.ui.summary.PERIODS
+import com.app.rasifiters.ui.summary.PeriodSelector
 import com.app.rasifiters.ui.summary.axisLabels
 import kotlin.math.roundToInt
 
 // The two read-only Members detail leaves — Streak Stats + Workout History. Both scoped to the focused
 // member (ProgramContext.focusedMemberId, set by the tab before push). Faithful to member-streaks-detail
 // (tiles + milestone ladder, ✓ achieved affordance D-C2) + the member branch of the iOS activity-timeline
-// detail (W/M/Y/P single-series chart, resets to week on leave).
+// detail (W/M/Y/P single-series chart; the detail keeps its own result, polish #34).
 
 // ---- Streak Stats detail ----
 
 @Composable
 fun MemberStreakDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
-    val streaks by programContext.memberStreaks.collectAsStateWithLifecycle()
+    val memberId by programContext.focusedMemberId.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    // Polish #29: the detail loads its member's streaks itself — a failure shows ErrorView + Retry, never "No streak data."
+    // It opens on the card's numbers only when they are THIS member's (S5's held key), and refreshes underneath.
+    val load = rememberLoad<MemberStreaksResponse>(
+        memberId, programContext.isOnline,
+        initial = {
+            val pid = programContext.activeProgram.value?.id
+            val held = programContext.memberCardsHeld.value[MemberCardPart.STREAKS]
+            val seed = programContext.memberStreaks.value
+            if (pid != null && seed != null && held == MemberCardKey(pid, memberId)) UiState.fresh(seed) else UiState.Loading
+        },
+    ) {
+        val id = memberId ?: return@rememberLoad Result.failure(IllegalStateException("No member selected."))
+        programContext.loadMemberStreaks(id)
+    }
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())   // polish #26
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             DetailTopBar(onBack = onBack, centerTitle = "Streak Stats")
-            val s = streaks
-            if (s == null) {
-                Text("No streak data.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-            } else {
+            KitLoad(load.state, online, onRetry = load::reload, boxModifier = Modifier.fillMaxWidth().height(200.dp)) { s ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StreakTile(Icons.Filled.LocalFireDepartment, AppOrange, "Current", "${s.currentStreakDays} days", Modifier.weight(1f))
                     StreakTile(Icons.Filled.EmojiEvents, AppYellow, "Longest", "${s.longestStreakDays} days", Modifier.weight(1f))
@@ -102,47 +123,25 @@ private fun MilestoneChips(items: List<Pair<Int, Boolean>>) {
 
 // ---- Workout History detail (per-member, W/M/Y/P single series) ----
 
-private data class HPeriod(val key: String, val short: String, val range: String)
-
-private val HISTORY_PERIODS = listOf(
-    HPeriod("week", "W", "This Week"),
-    HPeriod("month", "M", "This Month"),
-    HPeriod("year", "Y", "This Year"),
-    HPeriod("program", "P", "Program to date"),
-)
-
 @Composable
 fun MemberHistoryDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val memberId by programContext.focusedMemberId.collectAsStateWithLifecycle()
-    var period by remember { mutableStateOf(HISTORY_PERIODS.first()) }
-    var buckets by remember { mutableStateOf<List<com.app.rasifiters.net.MemberHistoryPoint>>(emptyList()) }
-    var dailyAverage by remember { mutableStateOf(0.0) }
-    var serverLabel by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(true) }
-
-    LaunchedEffect(period.key, memberId) {
-        val id = memberId ?: return@LaunchedEffect
-        loading = true
-        programContext.loadMemberHistory(id, period.key).onSuccess { resp ->
-            buckets = resp.buckets
-            dailyAverage = resp.dailyAverage
-            serverLabel = resp.label
-        }
-        loading = false
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    var period by remember { mutableStateOf(PERIODS.first()) }
+    // Polish #29/#34: one load per (period, member), kept by this screen — never written into the Members-tab card (so no
+    // reset-to-week on leave), never the old period's bars under the new label, ErrorView + Retry on failure.
+    val load = rememberLoad<MemberHistoryResponse>(period.key to memberId, programContext.isOnline) {
+        val id = memberId ?: return@rememberLoad Result.failure(IllegalStateException("No member selected."))
+        programContext.loadMemberHistory(id, period.key, publish = false)
     }
-
-    // Restore the shared history to "week" on leave so the Members-tab card doesn't linger on a non-week
-    // period the user selected here (iOS onDisappear parity).
-    DisposableEffect(memberId) {
-        onDispose { memberId?.let { programContext.resetMemberHistoryToWeek(it) } }
-    }
-
-    val rangeLabel = if (period.key == "week") "This Week" else serverLabel.ifBlank { period.range }
+    val data = load.state.dataOrNull
+    val rangeLabel = if (period.key == "week") "This Week" else data?.label?.ifBlank { null } ?: period.range
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())   // polish #26
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -152,7 +151,7 @@ fun MemberHistoryDetailScreen(programContext: ProgramContext, onBack: () -> Unit
                 Text("Workout Activity Timeline", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
                 Text("Workouts", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
-            HistoryPeriodSelector(selected = period, onSelect = { period = it })
+            PeriodSelector(selected = period, onSelect = { period = it })
             Column {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
@@ -164,55 +163,31 @@ fun MemberHistoryDetailScreen(programContext: ProgramContext, onBack: () -> Unit
                     )
                     Text(rangeLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
                 }
-                Text(dailyAverage.roundToInt().toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = AppOrange)
-            }
-            when {
-                loading -> Box(modifier = Modifier.fillMaxWidth().height(360.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = AppOrange) }
-                buckets.isEmpty() -> Box(modifier = Modifier.fillMaxWidth().height(360.dp), contentAlignment = Alignment.Center) {
-                    Text("No data for this range yet.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-                else -> BarLineChart(
-                    values = buckets.map { it.workouts },
-                    labels = axisLabels(buckets.map { it.label }, period.key),
-                    lineValues = null,
-                    barColor = AppOrange,
-                    lineColor = AppOrange,
-                    barWidth = 14.dp,
-                    modifier = Modifier.fillMaxWidth().height(360.dp),
-                    tooltip = { i -> memberWorkoutsTooltip(buckets[i].date, buckets[i].label, buckets[i].workouts) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HistoryPeriodSelector(selected: HPeriod, onSelect: (HPeriod) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(11.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        HISTORY_PERIODS.forEach { p ->
-            val active = p.key == selected.key
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else androidx.compose.ui.graphics.Color.Transparent)
-                    .clickable { onSelect(p) }
-                    .padding(vertical = 6.dp),
-                contentAlignment = Alignment.Center,
-            ) {
                 Text(
-                    p.short,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (active) FontWeight.Bold else FontWeight.Medium,
-                    color = if (active) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    data?.let { it.dailyAverage.roundToInt().toString() } ?: "\u2014",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = AppOrange,
                 )
+            }
+            KitLoad(load.state, online, onRetry = load::reload, boxModifier = Modifier.fillMaxWidth().height(360.dp)) { resp ->
+                val buckets = resp.buckets
+                if (buckets.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxWidth().height(360.dp), contentAlignment = Alignment.Center) {
+                        Text("No data for this range yet.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
+                } else {
+                    BarLineChart(
+                        values = buckets.map { it.workouts },
+                        labels = axisLabels(buckets.map { it.label }, period.key),
+                        lineValues = null,
+                        barColor = AppOrange,
+                        lineColor = AppOrange,
+                        barWidth = 14.dp,
+                        modifier = Modifier.fillMaxWidth().height(360.dp),
+                        tooltip = { i -> memberWorkoutsTooltip(buckets[i].date, buckets[i].label, buckets[i].workouts) },
+                    )
+                }
             }
         }
     }

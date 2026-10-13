@@ -15,8 +15,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -35,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,7 +63,14 @@ import com.app.rasifiters.core.theme.AppPurple
 import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.net.ProgramWorkoutDTO
 import com.app.rasifiters.ui.components.AppDropdownMenu
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.KitStaleBanner
+import com.app.rasifiters.ui.components.kit.STALE_BANNER_CLEARANCE
+import com.app.rasifiters.ui.components.kit.initialLoadState
+import com.app.rasifiters.ui.components.kit.rememberLoad
+import com.app.rasifiters.ui.components.kit.showsStaleBanner
 import com.app.rasifiters.ui.summary.CircleBackButton
+import com.app.rasifiters.ui.summary.EmptyText
 import com.app.rasifiters.ui.summary.FormErrorText
 import kotlinx.coroutines.launch
 
@@ -82,8 +93,35 @@ fun WorkoutTypesListScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var editTarget by remember { mutableStateOf<ProgramWorkoutDTO?>(null) }
     var deleteTarget by remember { mutableStateOf<ProgramWorkoutDTO?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    val program by programContext.activeProgram.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    var pulling by remember { mutableStateOf(false) }
+    // Polish #9: the add / edit sheet shows its own saving state + error (it used to draw the error behind the sheet).
+    var sheetSaving by remember { mutableStateOf(false) }
+    var sheetError by remember { mutableStateOf<String?>(null) }
+    // Polish #33: the catalog on the kit states — ErrorView + Retry on failure, an honest empty line, pull to refresh.
+    val load = rememberLoad(program?.id, programContext.isOnline, initial = { initialLoadState(all.isNotEmpty()) }) {
+        programContext.loadAllProgramWorkouts()
+    }
 
-    androidx.compose.runtime.LaunchedEffect(Unit) { programContext.loadAllProgramWorkouts() }
+    fun saveSheet(block: suspend () -> Result<Unit>, onSaved: () -> Unit) {
+        sheetSaving = true; sheetError = null
+        scope.launch {
+            block()
+                .onSuccess {
+                    onSaved()
+                    // Polish #12: the write is saved; re-read through this screen's load, so a failed refresh shows as
+                    // "Couldn't refresh" instead of silently leaving the new type out.
+                    load.reload()
+                }
+                .onFailure { e ->
+                    val message = e.toAppError().message
+                    // Shown inside the open sheet; if it was swiped away meanwhile, on the list instead.
+                    if (showAdd || editTarget != null) sheetError = message else error = message
+                }
+            sheetSaving = false
+        }
+    }
 
     val filtered = if (query.isBlank()) all
     else all.filter { it.workoutName.contains(query.trim(), ignoreCase = true) }
@@ -98,7 +136,7 @@ fun WorkoutTypesListScreen(programContext: ProgramContext, onBack: () -> Unit) {
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 16.dp)) {
             // Header: back · centered title · add (admins).
-            Box(modifier = Modifier.fillMaxWidth().height(44.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().height(48.dp)) {
                 CircleBackButton(onBack)
                 Text(
                     "Workout Types",
@@ -107,7 +145,7 @@ fun WorkoutTypesListScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     modifier = Modifier.align(Alignment.Center),
                 )
                 if (canManage) {
-                    IconButton(onClick = { error = null; showAdd = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
+                    IconButton(onClick = { error = null; sheetError = null; showAdd = true }, modifier = Modifier.align(Alignment.CenterEnd)) {
                         Icon(Icons.Filled.Add, contentDescription = "Add custom workout")
                     }
                 }
@@ -136,35 +174,57 @@ fun WorkoutTypesListScreen(programContext: ProgramContext, onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(8.dp))
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                if (visible.isNotEmpty()) {
-                    item(key = "avail-header") { SectionHeader("Available (${visible.size})") }
-                    items(visible, key = { "v-${it.id}" }) { w ->
-                        WorkoutRow(w, canManage, onEdit = { editTarget = w }, onDelete = { deleteTarget = w },
-                            onToggle = { perform { toggle(programContext, w) } })
-                    }
-                }
-                if (canManage && hidden.isNotEmpty()) {
-                    item(key = "hidden-header") {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
-                            Icon(Icons.Filled.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.size(6.dp))
-                            Text(
-                                "Hidden (${hidden.size})",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            )
+            PullToRefreshBox(
+                isRefreshing = pulling,
+                onRefresh = { pulling = true; scope.launch { load.refresh(); pulling = false } },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                // The non-list states scroll too, so pull-to-refresh also works on an error or an empty catalog.
+                KitLoad(
+                    load.state, online, onRetry = load::reload,
+                    boxModifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 32.dp),
+                ) { _ ->
+                    if (visible.isEmpty() && (!canManage || hidden.isEmpty())) {
+                        Box(
+                            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 32.dp),
+                            contentAlignment = Alignment.TopCenter,
+                        ) {
+                            EmptyText(if (query.isBlank()) "No workout types yet." else "No workout types match your search.")
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            if (visible.isNotEmpty()) {
+                                item(key = "avail-header") { SectionHeader("Available (${visible.size})") }
+                                items(visible, key = { "v-${it.id}" }) { w ->
+                                    WorkoutRow(w, canManage, onEdit = { sheetError = null; editTarget = w }, onDelete = { deleteTarget = w },
+                                        onToggle = { perform { toggle(programContext, w) } })
+                                }
+                            }
+                            if (canManage && hidden.isNotEmpty()) {
+                                item(key = "hidden-header") {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)) {
+                                        Icon(Icons.Filled.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.size(6.dp))
+                                        Text(
+                                            "Hidden (${hidden.size})",
+                                            style = MaterialTheme.typography.labelLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                                        )
+                                    }
+                                }
+                                items(hidden, key = { "h-${it.id}" }) { w ->
+                                    WorkoutRow(w, canManage, onEdit = { sheetError = null; editTarget = w }, onDelete = { deleteTarget = w },
+                                        onToggle = { perform { toggle(programContext, w) } })
+                                }
+                            }
+                            item { Spacer(Modifier.height(if (load.state.showsStaleBanner(online)) STALE_BANNER_CLEARANCE else 24.dp)) }
                         }
                     }
-                    items(hidden, key = { "h-${it.id}" }) { w ->
-                        WorkoutRow(w, canManage, onEdit = { editTarget = w }, onDelete = { deleteTarget = w },
-                            onToggle = { perform { toggle(programContext, w) } })
-                    }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
             }
         }
+        KitStaleBanner(load.state, online, onRetry = load::reload)
     }
 
     if (showAdd) {
@@ -172,7 +232,9 @@ fun WorkoutTypesListScreen(programContext: ProgramContext, onBack: () -> Unit) {
             title = "New Workout",
             initial = "",
             confirmLabel = "Add",
-            onConfirm = { name -> perform { programContext.addCustomProgramWorkout(name).onSuccess { showAdd = false } } },
+            saving = sheetSaving,
+            error = sheetError,
+            onConfirm = { name -> saveSheet({ programContext.addCustomProgramWorkout(name) }) { showAdd = false } },
             onDismiss = { showAdd = false },
         )
     }
@@ -181,9 +243,11 @@ fun WorkoutTypesListScreen(programContext: ProgramContext, onBack: () -> Unit) {
             title = "Edit Workout",
             initial = w.workoutName,
             confirmLabel = "Save",
+            saving = sheetSaving,
+            error = sheetError,
             onConfirm = { name ->
                 val id = w.id
-                if (id != null) perform { programContext.editCustomProgramWorkout(id, name).onSuccess { editTarget = null } }
+                if (id != null) saveSheet({ programContext.editCustomProgramWorkout(id, name) }) { editTarget = null }
             },
             onDismiss = { editTarget = null },
         )
@@ -291,6 +355,8 @@ private fun WorkoutNameSheet(
     title: String,
     initial: String,
     confirmLabel: String,
+    saving: Boolean,
+    error: String?,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -320,12 +386,17 @@ private fun WorkoutNameSheet(
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
             )
+            // Polish #9: the save error shows HERE, inside the open sheet.
+            error?.let { FormErrorText(it) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.align(Alignment.End)) {
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss, enabled = !saving) { Text("Cancel") }
                 TextButton(
                     onClick = { onConfirm(name.trim()) },
-                    enabled = name.trim().isNotEmpty(),
-                ) { Text(confirmLabel, fontWeight = FontWeight.Bold, color = AppOrange) }
+                    enabled = name.trim().isNotEmpty() && !saving,
+                ) {
+                    if (saving) CircularProgressIndicator(strokeWidth = 2.dp, color = AppOrange, modifier = Modifier.size(18.dp))
+                    else Text(confirmLabel, fontWeight = FontWeight.Bold, color = AppOrange)
+                }
             }
         }
     }

@@ -53,6 +53,7 @@ import com.app.rasifiters.ui.inbox.InboxScreen
 import com.app.rasifiters.ui.inbox.NotificationToast
 import com.app.rasifiters.ui.program.AppearanceScreen
 import com.app.rasifiters.ui.program.ChangePasswordScreen
+import com.app.rasifiters.ui.program.EditProgramScreen
 import com.app.rasifiters.ui.program.MyProfileScreen
 import com.app.rasifiters.ui.program.NotificationsScreen
 import com.app.rasifiters.ui.programs.ProgramPickerScreen
@@ -287,6 +288,10 @@ private fun SignedInGraph(
             composable(Routes.HEALTH_CONNECT) {
                 SettingsInset { HealthConnectSettingsScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
             }
+            // Polish #40: the picker card's Edit (program-picker A-1 rewritten). The picker selects the program first.
+            composable(Routes.PROGRAM_EDIT) {
+                SettingsInset { EditProgramScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
+            }
             composable(Routes.INBOX) {
                 SettingsInset { InboxScreen(programContext = programContext, onBack = { nav.popBackStack() }) }
             }
@@ -354,6 +359,7 @@ private const val WIDGET_GATE_TIMEOUT_MS = 3_000L
 /** The forms a notification never navigates away from (the routing rule: only mark read there) — root-level ones… */
 private val ROOT_FORMS = setOf(
     Routes.WIDGET_LOG_WORKOUT, Routes.WIDGET_LOG_HEALTH, Routes.INBOX_LOG_WORKOUT, Routes.PROGRAM_PROFILE, Routes.PROGRAM_PASSWORD,
+    Routes.PROGRAM_EDIT,
 )
 
 /** …and the ones inside the program shell (AppScaffold publishes its inner route as NotificationInbox.shellRoute). */

@@ -46,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.SolidColor
@@ -54,6 +55,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -65,6 +68,7 @@ import androidx.compose.ui.window.PopupProperties
 import com.app.rasifiters.R
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
+import com.app.rasifiters.ui.components.compactTapTarget
 
 /** Loose email-format check — mirrors the web/iOS regex (D-C2). */
 private val EMAIL_RE = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
@@ -148,8 +152,12 @@ fun AppTextField(
     imeAction: ImeAction = ImeAction.Done,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     enabled: Boolean = true,
+    contentType: ContentType? = null,
+    autoCorrect: Boolean = true,
     trailing: @Composable (() -> Unit)? = null,
 ) {
+    // Polish #35: the autofill hint (password managers fill + offer to save — Compose 1.8 semantics autofill).
+    val autofillHint = contentType?.let { type -> Modifier.semantics { this.contentType = type } } ?: Modifier
     val scheme = MaterialTheme.colorScheme
     val focusManager = LocalFocusManager.current
     val textColor = if (enabled) scheme.onSurface else scheme.onSurface.copy(alpha = 0.5f)
@@ -157,11 +165,11 @@ fun AppTextField(
         value = value,
         onValueChange = onValueChange,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().height(FieldHeight),
+        modifier = modifier.fillMaxWidth().height(FieldHeight).then(autofillHint),
         singleLine = true,
         textStyle = MaterialTheme.typography.bodyLarge.copy(color = textColor),
         cursorBrush = SolidColor(AppOrange),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = imeAction, autoCorrectEnabled = autoCorrect),
         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         visualTransformation = visualTransformation,
         decorationBox = { innerField ->
@@ -188,7 +196,8 @@ fun AppTextField(
     )
 }
 
-/** Secure field with a Show/Hide toggle — same primitive, so identical height + corners. */
+/** Secure field with a Show/Hide toggle — same primitive, so identical height + corners. Polish #35: a password /
+ *  new-password autofill hint, no autocorrect; #36: the eye is a labelled 48dp target. */
 @Composable
 fun AppPasswordField(
     label: String,
@@ -197,6 +206,7 @@ fun AppPasswordField(
     visible: Boolean,
     onToggleVisible: () -> Unit,
     modifier: Modifier = Modifier,
+    newPassword: Boolean = false,
 ) {
     AppTextField(
         label = label,
@@ -205,14 +215,17 @@ fun AppPasswordField(
         modifier = modifier,
         keyboardType = KeyboardType.Password,
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        contentType = if (newPassword) ContentType.NewPassword else ContentType.Password,
+        autoCorrect = false,
         trailing = {
             Icon(
                 imageVector = if (visible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                contentDescription = if (visible) "Hide password" else "Show password",
+                contentDescription = null,
                 tint = fieldHintColor(),
+                // The 48dp target overflows the eye's old 22dp footprint — the text width and the eye's position are unchanged.
                 modifier = Modifier
-                    .size(22.dp)
-                    .clickable { onToggleVisible() },
+                    .compactTapTarget(22.dp, if (visible) "Hide password" else "Show password", shape = CircleShape, onClick = onToggleVisible)
+                    .size(22.dp),
             )
         },
     )
@@ -230,6 +243,7 @@ fun AppDropdownField(
     options: List<String>,
     onSelect: (String) -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val scheme = MaterialTheme.colorScheme
     val density = LocalDensity.current
@@ -243,14 +257,14 @@ fun AppDropdownField(
                 .height(FieldHeight)
                 .clip(FieldShape)
                 .border(1.dp, fieldBorderColor(), FieldShape)
-                .clickable { expanded = !expanded }
+                .clickable(enabled = enabled) { expanded = !expanded }
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = value.ifEmpty { placeholder },
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (value.isEmpty()) fieldHintColor() else scheme.onSurface,
+                color = if (value.isEmpty()) fieldHintColor() else if (enabled) scheme.onSurface else scheme.onSurface.copy(alpha = 0.5f),
                 maxLines = 1,
                 modifier = Modifier.weight(1f),
             )

@@ -5,18 +5,21 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,11 +35,18 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.AppearanceStore
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppOrangeGradientEnd
 import com.app.rasifiters.ui.Routes
+import com.app.rasifiters.ui.components.kit.FloatingBanner
+import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
+import com.app.rasifiters.ui.components.kit.STALE_BANNER_CLEARANCE
+import com.app.rasifiters.ui.components.kit.initialLoadState
+import com.app.rasifiters.ui.components.kit.rememberLoad
 import com.app.rasifiters.ui.programs.initialsOf
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
 /**
@@ -46,6 +56,7 @@ import kotlinx.coroutines.launch
  * Both share the My Account settings section. Faithful 1:1 to the iOS SPECs; the Apple-Health account
  * row is omitted on Android (Health Connect is Phase H/J).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgramScreen(
     programContext: ProgramContext,
@@ -68,16 +79,24 @@ fun ProgramScreen(
     var showLeave by remember { mutableStateOf(false) }
     var isLeaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    var pulling by remember { mutableStateOf(false) }
 
-    LaunchedEffect(program?.id, isAdmin) {
-        if (isAdmin) {
-            programContext.ensureMembersLoaded()
-            programContext.loadMembershipDetails()
-            programContext.loadAllProgramWorkouts()
-        }
+    // Polish #33: the three admin reads on the kit states — a section shows "—" + "Couldn't load this · Retry", never a
+    // fake "0 enrolled" / "No admins" / "0 types"; a re-entry with data on screen refreshes underneath.
+    val membersLoad = rememberLoad(program?.id, programContext.isOnline, enabled = isAdmin, initial = { initialLoadState(members.isNotEmpty()) }) {
+        programContext.ensureMembersLoaded(force = true)
     }
+    val rolesLoad = rememberLoad(program?.id, programContext.isOnline, enabled = isAdmin, initial = { initialLoadState(membershipDetails.isNotEmpty()) }) {
+        programContext.loadMembershipDetails()
+    }
+    val typesLoad = rememberLoad(program?.id, programContext.isOnline, enabled = isAdmin, initial = { initialLoadState(workoutsAll.isNotEmpty()) }) {
+        programContext.loadAllProgramWorkouts()
+    }
+    val adminLoads = listOf(membersLoad, rolesLoad, typesLoad)
+    val anyStale = online && adminLoads.any { it.state is UiState.Stale }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    val body: @Composable () -> Unit = {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -100,12 +119,20 @@ fun ProgramScreen(
                     onEdit = { onNavigate(Routes.PROGRAM_EDIT) },
                     onLeave = { showLeave = true },
                 )
-                MembersSection(memberCount = members.size, canInvite = canEdit, onNavigate = onNavigate)
-                if (canEdit) RoleManagementSection(details = membershipDetails, onNavigate = onNavigate)
+                MembersSection(
+                    memberCount = members.size, state = membersLoad.state, online = online,
+                    onRetry = membersLoad::reload, canInvite = canEdit, onNavigate = onNavigate,
+                )
+                if (canEdit) {
+                    RoleManagementSection(
+                        details = membershipDetails, state = rolesLoad.state, online = online,
+                        onRetry = rolesLoad::reload, onNavigate = onNavigate,
+                    )
+                }
                 WorkoutTypesSection(
                     visibleCount = workoutsAll.count { !it.isHidden },
                     customCount = workoutsAll.count { it.isCustom },
-                    onNavigate = onNavigate,
+                    state = typesLoad.state, online = online, onRetry = typesLoad::reload, onNavigate = onNavigate,
                 )
             } else {
                 ProgramInfoReadOnlyCard(program)
@@ -118,6 +145,32 @@ fun ProgramScreen(
                 appearanceStore = appearanceStore,
                 onNavigate = onNavigate,
                 onSignOut = { showSignOut = true },
+            )
+            if (anyStale) Spacer(Modifier.height(STALE_BANNER_CLEARANCE))
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        if (isAdmin) {
+            // Polish #33: pull to refresh re-reads the three admin lists (Android had none here).
+            PullToRefreshBox(
+                isRefreshing = pulling,
+                onRefresh = {
+                    pulling = true
+                    scope.launch {
+                        coroutineScope { adminLoads.forEach { l -> launch { l.refresh() } } }
+                        pulling = false
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            ) { body() }
+        } else {
+            body()
+        }
+        if (anyStale) {
+            FloatingBanner(
+                FloatingBannerVariant.Stale, Modifier.align(Alignment.BottomCenter),
+                onRetry = { adminLoads.forEach { it.reload() } },
             )
         }
     }

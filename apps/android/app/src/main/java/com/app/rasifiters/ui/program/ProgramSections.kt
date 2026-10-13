@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
@@ -41,9 +42,20 @@ import com.app.rasifiters.core.theme.AppPurple
 import com.app.rasifiters.net.MembershipDetailDTO
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.Routes
+import com.app.rasifiters.ui.components.kit.InlineLoadError
+import com.app.rasifiters.ui.components.kit.hasData
 import com.app.rasifiters.ui.programs.initialsOf
 
 private val AppBlueTint = AppBlue
+private const val UNAVAILABLE = "\u2014"
+private const val LOADING = "Loading..."
+
+/** Polish #33: a section row's subtitle — its value once loaded, "Loading..." while it loads, "—" only after a failure. */
+private fun loadSubtitle(state: UiState<Unit>, loaded: () -> String): String = when {
+    state.hasData -> loaded()
+    state is UiState.Failed -> UNAVAILABLE
+    else -> LOADING
+}
 
 // ---- Standard (non-admin) variant ----
 
@@ -166,13 +178,23 @@ fun AdminProgramInfoSection(
     }
 }
 
-/** Members section: People (everyone — the roster grew into the People list) + Invite Member (admins only). */
+/** Members section: People (everyone — the roster grew into the People list) + Invite Member (admins only). Polish #33:
+ *  the count reads "Loading..." until the roster loads, and a failed load shows "—" + "Couldn't load this · Retry" under
+ *  the row (never "0 enrolled"). */
 @Composable
-fun MembersSection(memberCount: Int, canInvite: Boolean, onNavigate: (String) -> Unit) {
+fun MembersSection(
+    memberCount: Int,
+    state: UiState<Unit>,
+    online: Boolean,
+    onRetry: () -> Unit,
+    canInvite: Boolean,
+    onNavigate: (String) -> Unit,
+) {
     ProgramSectionCard(Icons.Filled.Groups, "Members", AppGreen) {
-        ProgramSettingsRow(Icons.Filled.Groups, AppGreen, "People", "$memberCount enrolled") {
+        ProgramSettingsRow(Icons.Filled.Groups, AppGreen, "People", loadSubtitle(state) { "$memberCount enrolled" }) {
             onNavigate(Routes.MEMBER_ROSTER)
         }
+        if (state is UiState.Failed) InlineLoadError(state.error, online, onRetry)
         if (canInvite) {
             ProgramSettingsRow(Icons.Filled.MailOutline, AppBlue, "Invite Member", "Send program invitation") {
                 onNavigate(Routes.MEMBER_INVITE)
@@ -181,25 +203,37 @@ fun MembersSection(memberCount: Int, canInvite: Boolean, onNavigate: (String) ->
     }
 }
 
-/** Role Management section (canEdit only): admins/loggers preview + Manage Roles row. */
+/** Role Management section (canEdit only): admins/loggers preview + Manage Roles row. Polish #33: a spinner while
+ *  loading, "Couldn't load this · Retry" on failure, and "No admins or loggers assigned" only for a loaded roster that
+ *  really has none. */
 @Composable
-fun RoleManagementSection(details: List<MembershipDetailDTO>, onNavigate: (String) -> Unit) {
+fun RoleManagementSection(
+    details: List<MembershipDetailDTO>,
+    state: UiState<Unit>,
+    online: Boolean,
+    onRetry: () -> Unit,
+    onNavigate: (String) -> Unit,
+) {
     val admins = details.filter { it.programRole == "admin" }
     val loggers = details.filter { it.programRole == "logger" }
     ProgramSectionCard(Icons.Filled.ManageAccounts, "Role Management", AppPurple) {
-        if (admins.isNotEmpty()) {
-            RoleGroup("Admins", Icons.Filled.Star, AppOrange, admins, AppOrange)
-        }
-        if (loggers.isNotEmpty()) {
-            RoleGroup("Loggers", Icons.Filled.Edit, AppBlue, loggers, AppBlue)
-        }
-        if (admins.isEmpty() && loggers.isEmpty()) {
-            Text(
-                "No admins or loggers assigned",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            )
+        when {
+            state.hasData -> {
+                if (admins.isNotEmpty()) RoleGroup("Admins", Icons.Filled.Star, AppOrange, admins, AppOrange)
+                if (loggers.isNotEmpty()) RoleGroup("Loggers", Icons.Filled.Edit, AppBlue, loggers, AppBlue)
+                if (admins.isEmpty() && loggers.isEmpty()) {
+                    Text(
+                        "No admins or loggers assigned",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                    )
+                }
+            }
+            state is UiState.Failed -> InlineLoadError(state.error, online, onRetry)
+            else -> Box(Modifier.fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(22.dp))
+            }
         }
         ProgramSettingsRow(
             Icons.Filled.ManageAccounts,
@@ -258,13 +292,24 @@ private fun RoleGroup(
     }
 }
 
-/** Workout Types section: a single row into the shared workout-types manager (reused from Lifestyle). */
+/** Workout Types section: a single row into the shared workout-types manager (reused from Lifestyle). Polish #33:
+ *  "Loading..." until the catalog loads, "—" + "Couldn't load this · Retry" on failure (never "0 types available"). */
 @Composable
-fun WorkoutTypesSection(visibleCount: Int, customCount: Int, onNavigate: (String) -> Unit) {
-    val subtitle = if (customCount > 0) "$visibleCount available, $customCount custom" else "$visibleCount types available"
+fun WorkoutTypesSection(
+    visibleCount: Int,
+    customCount: Int,
+    state: UiState<Unit>,
+    online: Boolean,
+    onRetry: () -> Unit,
+    onNavigate: (String) -> Unit,
+) {
+    val subtitle = loadSubtitle(state) {
+        if (customCount > 0) "$visibleCount available, $customCount custom" else "$visibleCount types available"
+    }
     ProgramSectionCard(Icons.Filled.FitnessCenter, "Workout Types", AppPurple) {
         ProgramSettingsRow(Icons.AutoMirrored.Filled.List, AppPurple, "Workout Types", subtitle) {
             onNavigate(Routes.LIFESTYLE_WORKOUT_TYPES)
         }
+        if (state is UiState.Failed) InlineLoadError(state.error, online, onRetry)
     }
 }

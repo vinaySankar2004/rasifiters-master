@@ -100,7 +100,7 @@ fun ProgramAccountSection(
             icon = Icons.Filled.MonitorHeart,
             tint = AppRed,
             title = "Health Connect",
-            subtitle = "Sync workouts and sleep",
+            subtitle = "Sync workouts, sleep, and steps",
             onClick = { onNavigate(Routes.HEALTH_CONNECT) },
         )
         ProgramSettingsRow(

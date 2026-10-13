@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppOrange
@@ -56,6 +58,12 @@ import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.net.MemberRecentItem
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.auth.PillButton
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.KitStaleBanner
+import com.app.rasifiters.ui.components.kit.STALE_BANNER_CLEARANCE
+import com.app.rasifiters.ui.components.kit.rememberLoad
+import com.app.rasifiters.ui.components.kit.showsStaleBanner
+import com.app.rasifiters.ui.components.tapTarget
 import com.app.rasifiters.ui.summary.DatePillField
 import com.app.rasifiters.ui.summary.FormFieldLabel
 import com.app.rasifiters.ui.summary.PickerOption
@@ -87,7 +95,7 @@ data class WorkoutFilters(
 fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val items by programContext.memberRecent.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
     val memberId by programContext.focusedMemberId.collectAsStateWithLifecycle()
     val memberName by programContext.focusedMemberName.collectAsStateWithLifecycle()
     val locked = programContext.dataEntryLocked
@@ -97,13 +105,17 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
     var filters by remember { mutableStateOf(WorkoutFilters()) }
     var showSort by remember { mutableStateOf(false) }
     var showFilter by remember { mutableStateOf(false) }
-    var loading by remember { mutableStateOf(true) }
     var editItem by remember { mutableStateOf<MemberRecentItem?>(null) }
     var deleteItem by remember { mutableStateOf<MemberRecentItem?>(null) }
+    var actionError by remember { mutableStateOf<String?>(null) }
+    // Polish #24: a write in flight disables its buttons and spins — a double tap can't send a second delete.
+    var saving by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
 
-    suspend fun reload() {
-        val id = memberId ?: return
-        loading = true
+    // Polish #29/#34: this screen's own list — one load per (member, sort, filters), never the Members-tab preview's rows;
+    // a failed load shows ErrorView + Retry instead of "No workouts found."; the CSV is exactly the list on screen.
+    val load = rememberLoad<List<MemberRecentItem>>(listOf(memberId, sortField, sortDir, filters), programContext.isOnline) {
+        val id = memberId ?: return@rememberLoad Result.failure(IllegalStateException("No member selected."))
         programContext.loadMemberRecent(
             memberId = id, limit = 0,
             startDate = if (filters.custom) filters.start?.toString() else null,
@@ -112,11 +124,10 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
             workoutType = filters.workoutType,
             minDuration = filters.minDuration.toIntOrNull(),
             maxDuration = filters.maxDuration.toIntOrNull(),
+            publish = false,
         )
-        loading = false
     }
-
-    LaunchedEffect(sortField, sortDir, filters, memberId) { reload() }
+    val items = load.state.dataOrNull.orEmpty()
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
@@ -129,31 +140,31 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
                 exportEnabled = items.isNotEmpty(),
                 onExport = { shareCsv(context, "Workouts_${sanitize(memberName)}.csv", workoutsCsv(items)) },
             )
-
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 ControlButton("Sort: ${sortField.label}", Icons.Filled.UnfoldMore, Modifier.weight(1f)) { showSort = true }
                 ControlButton(if (filters.isActive) "Filter •" else "Filter", Icons.Filled.FilterList, Modifier.weight(1f)) { showFilter = true }
             }
-
-            when {
-                loading && items.isEmpty() -> repeat(5) { SkeletonCard(height = 60.dp) }
-                items.isEmpty() -> {
+            KitLoad(load.state, online, onRetry = load::reload, loading = { repeat(5) { SkeletonCard(height = 60.dp) } }) { list ->
+                if (list.isEmpty()) {
                     Text("No workouts found.", style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
                     Text("Adjust filters or log a workout to get started.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-                else -> items.forEach { w ->
-                    LogRow(
-                        dotColor = AppOrange,
-                        title = w.workoutType,
-                        subtitle = w.workoutDate,
-                        trailing = formatDurationHM(w.durationMinutes),
-                        locked = locked,
-                        onEdit = { editItem = w },
-                        onDelete = { deleteItem = w },
-                    )
+                } else {
+                    list.forEach { w ->
+                        LogRow(
+                            dotColor = AppOrange,
+                            title = w.workoutType,
+                            subtitle = w.workoutDate,
+                            trailing = formatDurationHM(w.durationMinutes),
+                            locked = locked,
+                            onEdit = { editItem = w },
+                            onDelete = { deleteItem = w },
+                        )
+                    }
                 }
             }
+            if (load.state.showsStaleBanner(online)) Spacer(Modifier.height(STALE_BANNER_CLEARANCE))
         }
+        KitStaleBanner(load.state, online, onRetry = load::reload)
     }
 
     if (showSort) {
@@ -176,20 +187,21 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
         )
     }
 
-    var actionError by remember { mutableStateOf<String?>(null) }
-
     editItem?.let { item ->
         WorkoutEditSheet(
             item = item,
+            saving = saving,
             onDismiss = { editItem = null },
             onSave = { minutes ->
+                saving = true
                 scope.launch {
                     val other = memberId != null && memberId != programContext.loggedInMemberId
                     programContext.updateWorkoutLog(
                         memberName = if (other) memberName else null,
                         workoutName = item.workoutType, date = item.workoutDate, durationMinutes = minutes,
-                    ).onSuccess { editItem = null; reload() }
+                    ).onSuccess { editItem = null; load.reload() }
                         .onFailure { actionError = it.toAppError().message }
+                    saving = false
                 }
             },
         )
@@ -197,19 +209,25 @@ fun MemberRecentDetailScreen(programContext: ProgramContext, onBack: () -> Unit)
 
     deleteItem?.let { item ->
         AlertDialog(
-            onDismissRequest = { deleteItem = null },
+            onDismissRequest = { if (!deleting) deleteItem = null },
             title = { Text("Delete workout") },
             text = { Text("Are you sure you want to delete this ${item.workoutType} workout from ${item.workoutDate}?") },
             confirmButton = {
-                TextButton(onClick = {
+                TextButton(enabled = !deleting, onClick = {
+                    deleting = true
                     scope.launch {
                         programContext.deleteWorkoutLog(memberId, null, item.workoutType, item.workoutDate)
-                            .onSuccess { deleteItem = null; reload() }
-                            .onFailure { deleteItem = null; actionError = it.toAppError().message }
+                            .onSuccess { load.reload() }
+                            .onFailure { actionError = it.toAppError().message }
+                        deleting = false
+                        deleteItem = null
                     }
-                }) { Text("Delete", color = AppRed) }
+                }) {
+                    if (deleting) CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                    else Text("Delete", color = AppRed)
+                }
             },
-            dismissButton = { TextButton(onClick = { deleteItem = null }) { Text("Cancel") } },
+            dismissButton = { TextButton(enabled = !deleting, onClick = { deleteItem = null }) { Text("Cancel") } },
         )
     }
 
@@ -252,9 +270,9 @@ fun LogRow(
         if (!locked) {
             Box {
                 Icon(
-                    Icons.Filled.MoreVert, contentDescription = "Actions",
+                    Icons.Filled.MoreVert, contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                    modifier = Modifier.padding(start = 6.dp).size(22.dp).clip(CircleShape).clickable { menuOpen = true },
+                    modifier = Modifier.padding(start = 6.dp).tapTarget("Actions", shape = CircleShape) { menuOpen = true }.size(22.dp),
                 )
                 com.app.rasifiters.ui.components.AppDropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(text = { Text("Edit") }, onClick = { menuOpen = false; onEdit() })
@@ -355,7 +373,7 @@ private fun WorkoutFilterSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun WorkoutEditSheet(item: MemberRecentItem, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
+private fun WorkoutEditSheet(item: MemberRecentItem, saving: Boolean, onDismiss: () -> Unit, onSave: (Int) -> Unit) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var hours by remember { mutableStateOf((item.durationMinutes / 60).toString()) }
     var minutes by remember { mutableStateOf((item.durationMinutes % 60).toString()) }
@@ -375,7 +393,7 @@ private fun WorkoutEditSheet(item: MemberRecentItem, onDismiss: () -> Unit, onSa
             }
             if (!valid) Text("Enter a duration greater than 0.", style = MaterialTheme.typography.bodySmall, color = AppRed, fontWeight = FontWeight.SemiBold)
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                PillButton(label = "Save changes", onClick = { if (valid) onSave(total) }, enabled = valid)
+                PillButton(label = "Save changes", onClick = { if (valid && !saving) onSave(total) }, enabled = valid, loading = saving)
             }
         }
     }

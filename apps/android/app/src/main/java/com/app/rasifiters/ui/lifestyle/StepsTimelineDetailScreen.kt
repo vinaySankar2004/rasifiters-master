@@ -11,12 +11,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,8 +27,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
-import com.app.rasifiters.net.HealthTimelinePoint
+import com.app.rasifiters.core.kit.dataOrNull
+import com.app.rasifiters.ui.components.kit.KitLoad
+import com.app.rasifiters.ui.components.kit.rememberLoad
 import com.app.rasifiters.ui.summary.BarLineChart
 import com.app.rasifiters.ui.summary.CircleBackButton
 import com.app.rasifiters.ui.summary.EmptyText
@@ -55,29 +58,18 @@ fun StepsTimelineDetailScreen(programContext: ProgramContext, onBack: () -> Unit
     // Same scoping as the tab: admins → the "View as" pick (null = program-wide); everyone else → self.
     val memberId = if (programContext.isProgramAdmin) programContext.lifestyleViewAsId.value
     else programContext.loggedInMemberId
-
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
     var period by remember { mutableStateOf(PERIODS.first()) }
-    var points by remember { mutableStateOf<List<HealthTimelinePoint>>(emptyList()) }
-    var avgSteps by remember { mutableStateOf(0) }
-    var serverLabel by remember { mutableStateOf("") }
-    var loading by remember { mutableStateOf(true) }
-
-    LaunchedEffect(period.key) {
-        loading = true
-        programContext.loadHealthTimeline(period.key, memberId).onSuccess {
-            points = it.buckets
-            avgSteps = it.dailyAverageSteps
-            serverLabel = it.label
-        }
-        loading = false
-    }
-
-    val rangeLabel = if (period.key == "week") "This Week" else serverLabel.ifBlank { period.range }
+    // Polish #29/#34: one load per (period, member) — ErrorView + Retry on failure; the old period never sits under the new label.
+    val load = rememberLoad(period.key to memberId, programContext.isOnline) { programContext.loadHealthTimeline(period.key, memberId) }
+    val data = load.state.dataOrNull
+    val rangeLabel = if (period.key == "week") "This Week" else data?.label?.ifBlank { null } ?: period.range
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())   // polish #26
                 .padding(horizontal = 20.dp)
                 .padding(top = 16.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -85,21 +77,15 @@ fun StepsTimelineDetailScreen(programContext: ProgramContext, onBack: () -> Unit
             CircleBackButton(onBack)
             Column {
                 Text("Steps Timeline", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    "Daily steps",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
+                Text("Daily steps", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
-
             PeriodSelector(selected = period, onSelect = { period = it })
-
-            DailyAverageHeader(rangeLabel = rangeLabel, avgSteps = avgSteps)
-
-            when {
-                loading -> ChartCenter { CircularProgressIndicator(color = StepsTeal) }
-                points.isEmpty() -> ChartCenter { EmptyText("No data for this range yet.") }
-                else -> {
+            DailyAverageHeader(rangeLabel = rangeLabel, avgSteps = data?.dailyAverageSteps)
+            KitLoad(load.state, online, onRetry = load::reload, boxModifier = Modifier.fillMaxWidth().height(320.dp), spinnerColor = StepsTeal) { resp ->
+                val points = resp.buckets
+                if (points.isEmpty()) {
+                    ChartCenter { EmptyText("No data for this range yet.") }
+                } else {
                     BarLineChart(
                         values = points.map { it.steps },
                         labels = axisLabels(points.map { it.label }, period.key),
@@ -125,7 +111,7 @@ fun StepsTimelineDetailScreen(programContext: ProgramContext, onBack: () -> Unit
 
 /** "DAILY AVERAGE" + range on the right; then a single teal Steps stat column. */
 @Composable
-private fun DailyAverageHeader(rangeLabel: String, avgSteps: Int) {
+private fun DailyAverageHeader(rangeLabel: String, avgSteps: Int?) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -137,7 +123,7 @@ private fun DailyAverageHeader(rangeLabel: String, avgSteps: Int) {
             Spacer(Modifier.weight(1f))
             Text(rangeLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
         }
-        AverageStat("Steps", String.format(Locale.US, "%,d", avgSteps), StepsTeal)
+        AverageStat("Steps", avgSteps?.let { String.format(Locale.US, "%,d", it) } ?: "\u2014", StepsTeal)
     }
 }
 

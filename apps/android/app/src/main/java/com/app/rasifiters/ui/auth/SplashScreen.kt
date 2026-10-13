@@ -1,8 +1,5 @@
 package com.app.rasifiters.ui.auth
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -31,7 +28,7 @@ private const val CHAR_DELAY_MS = 55L
 
 /**
  * Public welcome screen (iOS `SplashView` / web `splash`). Types the headline then the subheadline,
- * shows the brand mark, and reveals a single "Sign in" CTA. Tapping anywhere fast-forwards the intro
+ * shows the brand mark, and shows a single "Sign in" CTA from the start (polish #25). Tapping anywhere fast-forwards the intro
  * (D-SKIP). No API call — the root gate handles the authed case.
  */
 @Composable
@@ -39,7 +36,6 @@ fun SplashScreen(onSignIn: () -> Unit) {
     var headline by remember { mutableStateOf("") }
     var subheadline by remember { mutableStateOf("") }
     var headlineComplete by remember { mutableStateOf(false) }
-    var ctaVisible by remember { mutableStateOf(false) }
     var skipped by remember { mutableStateOf(false) }
 
     // Typewriter sequence — re-reads `skipped` each tick so a tap short-circuits to the final state.
@@ -59,10 +55,6 @@ fun SplashScreen(onSignIn: () -> Unit) {
                 if (skipped) break
                 subheadline += c
             }
-            if (!skipped) {
-                delay(300)
-                ctaVisible = true
-            }
         }
     }
 
@@ -72,12 +64,11 @@ fun SplashScreen(onSignIn: () -> Unit) {
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTapGestures {
-                        if (!ctaVisible) {
+                        if (!skipped) {
                             skipped = true
                             headline = HEADLINE
                             subheadline = SUBHEADLINE
                             headlineComplete = true
-                            ctaVisible = true
                         }
                     }
                 }
@@ -114,9 +105,8 @@ fun SplashScreen(onSignIn: () -> Unit) {
 
             Spacer(Modifier.weight(1f))
 
-            AnimatedVisibility(visible = ctaVisible, enter = slideInVertically { it } + fadeIn()) {
-                PillButton(label = "Sign in", onClick = onSignIn)
-            }
+            // Polish #25: Sign in is there from the start; the typewriter is decoration only.
+            PillButton(label = "Sign in", onClick = onSignIn)
 
             Spacer(Modifier.weight(0.3f))
         }

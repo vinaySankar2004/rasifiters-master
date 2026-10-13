@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -40,6 +41,10 @@ import com.app.rasifiters.core.theme.workoutTypePaletteColor
 import com.app.rasifiters.net.HealthTimelineResponse
 import com.app.rasifiters.net.StepsStatsDTO
 import com.app.rasifiters.net.WorkoutTypeDTO
+import com.app.rasifiters.net.WorkoutTypeHighestParticipationDTO
+import com.app.rasifiters.net.WorkoutTypeLongestDurationDTO
+import com.app.rasifiters.net.WorkoutTypeMostPopularDTO
+import com.app.rasifiters.ui.components.selectableTarget
 import com.app.rasifiters.ui.summary.BarLineChart
 import com.app.rasifiters.ui.summary.SleepDietChart
 import com.app.rasifiters.ui.summary.SummaryCard
@@ -47,6 +52,7 @@ import java.util.Locale
 
 /** Steps accent — teal on every surface (DC-8). */
 private val StepsTeal = Color(0xFF14B8A6)
+private const val UNAVAILABLE = "\u2014"
 
 // Faithful 1:1 port of the iOS Lifestyle (workout-types) cards (Features/Home/Tabs/WorkoutTypesCards.swift),
 // in the Material idiom: SummaryCard shells (the iOS CardShell analog), brand-accent value + chip per card.
@@ -103,29 +109,40 @@ private fun StatCard(
     }
 }
 
-@Composable
-fun WorkoutTypesTotalCard(total: Int, modifier: Modifier = Modifier) =
-    StatCard("Total workout types", AppOrange, "$total", "different exercises", bigNumber = true, modifier = modifier)
+// Polish #31: a null stat = its read failed with no previous value → "—"; "N/A" / "No data" stay for loaded empty data.
 
 @Composable
-fun WorkoutTypeMostPopularCard(name: String?, sessions: Int, modifier: Modifier = Modifier) =
+fun WorkoutTypesTotalCard(total: Int?, modifier: Modifier = Modifier) =
+    StatCard("Total workout types", AppOrange, total?.toString() ?: UNAVAILABLE, "different exercises", bigNumber = true, modifier = modifier)
+
+@Composable
+fun WorkoutTypeMostPopularCard(stat: WorkoutTypeMostPopularDTO?, modifier: Modifier = Modifier) =
     StatCard(
-        "Most popular", AppPurple, name ?: "N/A",
-        if (name == null) "No data" else "$sessions workouts", bigNumber = false, modifier = modifier,
+        "Most popular", AppPurple,
+        value = if (stat == null) UNAVAILABLE else stat.workoutName ?: "N/A",
+        footnote = when { stat == null -> ""; stat.workoutName == null -> "No data"; else -> "${stat.sessions} workouts" },
+        bigNumber = false, modifier = modifier,
     )
 
 @Composable
-fun WorkoutTypeLongestDurationCard(name: String?, avgMinutes: Int, modifier: Modifier = Modifier) =
+fun WorkoutTypeLongestDurationCard(stat: WorkoutTypeLongestDurationDTO?, modifier: Modifier = Modifier) =
     StatCard(
-        "Longest duration", AppRed, name ?: "N/A",
-        if (name == null) "No data" else "$avgMinutes mins avg", bigNumber = false, modifier = modifier,
+        "Longest duration", AppRed,
+        value = if (stat == null) UNAVAILABLE else stat.workoutName ?: "N/A",
+        footnote = when { stat == null -> ""; stat.workoutName == null -> "No data"; else -> "${stat.avgMinutes} mins avg" },
+        bigNumber = false, modifier = modifier,
     )
 
 @Composable
-fun WorkoutTypeHighestParticipationCard(name: String?, participationPct: Double, modifier: Modifier = Modifier) =
+fun WorkoutTypeHighestParticipationCard(stat: WorkoutTypeHighestParticipationDTO?, modifier: Modifier = Modifier) =
     StatCard(
-        "Highest participation", AppGreen, name ?: "N/A",
-        if (name == null) "No data" else String.format(Locale.US, "%.1f%% of members", participationPct),
+        "Highest participation", AppGreen,
+        value = if (stat == null) UNAVAILABLE else stat.workoutName ?: "N/A",
+        footnote = when {
+            stat == null -> ""
+            stat.workoutName == null -> "No data"
+            else -> String.format(Locale.US, "%.1f%% of members", stat.participationPct)
+        },
         bigNumber = false, modifier = modifier,
     )
 
@@ -197,7 +214,7 @@ enum class PopularityMetric(val title: String, val axisLabel: String) {
 }
 
 @Composable
-fun WorkoutTypePopularityCard(types: List<WorkoutTypeDTO>) {
+fun WorkoutTypePopularityCard(types: List<WorkoutTypeDTO>?) {
     var metric by remember { mutableStateOf(PopularityMetric.COUNT) }
     var showAll by remember { mutableStateOf(false) }
 
@@ -205,7 +222,14 @@ fun WorkoutTypePopularityCard(types: List<WorkoutTypeDTO>) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Workout Type Popularity", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
 
-            if (types.isEmpty()) {
+            if (types == null) {
+                Text(
+                    UNAVAILABLE,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            } else if (types.isEmpty()) {
                 Text(
                     "No workouts logged yet.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -305,7 +329,7 @@ private fun MetricSegmented(selected: PopularityMetric, onSelect: (PopularityMet
                     .weight(1f)
                     .clip(RoundedCornerShape(8.dp))
                     .background(if (active) MaterialTheme.colorScheme.surfaceContainerHighest else Color.Transparent)
-                    .clickable { onSelect(m) }
+                    .selectableTarget(selected = active, role = Role.RadioButton) { onSelect(m) }
                     .padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center,
             ) {
@@ -345,10 +369,10 @@ fun LifestyleTimelinePreviewCard(timeline: HealthTimelineResponse?, onClick: () 
                 )
             }
 
-            if (points.isEmpty()) {
+            if (timeline == null || points.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Text(
-                        "No data yet",
+                        if (timeline == null) UNAVAILABLE else "No data yet",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )
@@ -394,10 +418,10 @@ fun StepsTimelinePreviewCard(timeline: HealthTimelineResponse?, onClick: () -> U
                 )
             }
 
-            if (points.isEmpty()) {
+            if (timeline == null || points.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Text(
-                        "No data yet",
+                        if (timeline == null) UNAVAILABLE else "No data yet",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     )

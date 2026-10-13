@@ -21,7 +21,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.kit.isSamePasswordRejection
@@ -29,7 +28,6 @@ import com.app.rasifiters.core.kit.isUnconfirmedWrite
 import com.app.rasifiters.core.kit.toCredentialMessage
 import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.ui.auth.AppPasswordField
-import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.auth.PillButton
 import com.app.rasifiters.ui.auth.PolicyRow
 import com.app.rasifiters.ui.summary.DetailTopBar
@@ -54,6 +52,7 @@ fun ChangePasswordScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
+    var confirmVisible by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showSuccess by remember { mutableStateOf(false) }
@@ -79,9 +78,9 @@ fun ChangePasswordScreen(programContext: ProgramContext, onBack: () -> Unit) {
             }
 
             FormFieldLabel("New password")
-            AppPasswordField("••••••••", newPassword, { newPassword = it }, visible, { visible = !visible })
+            AppPasswordField("••••••••", newPassword, { newPassword = it }, visible, { visible = !visible }, newPassword = true)
             FormFieldLabel("Confirm password")
-            AppTextField("••••••••", confirmPassword, { confirmPassword = it }, visualTransformation = PasswordVisualTransformation())
+            AppPasswordField("••••••••", confirmPassword, { confirmPassword = it }, confirmVisible, { confirmVisible = !confirmVisible }, newPassword = true)
 
             if (newPassword.isNotEmpty()) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {

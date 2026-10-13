@@ -1,7 +1,7 @@
 package com.app.rasifiters.ui.summary
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
@@ -87,10 +87,11 @@ internal fun BarLineChart(
                     selected = if (o.x < leftPad) null else idx(o.x).let { if (it == selected) null else it }
                 }
             }
+            // Polish #26: horizontal-only scrub — a vertical drag over the chart scrolls the page instead.
             .pointerInput(n) {
                 val leftPad = LEFT_PAD.toPx()
                 fun idx(x: Float) = ((x - leftPad) / ((size.width - leftPad) / n)).toInt().coerceIn(0, n - 1)
-                detectDragGestures { change, _ ->
+                detectHorizontalDragGestures { change, _ ->
                     if (change.position.x >= leftPad) selected = idx(change.position.x)
                     change.consume()
                 }
@@ -210,11 +211,12 @@ internal fun SleepDietChart(
                     selected = if (o.x < leftPad) null else idx(o.x).let { if (it == selected) null else it }
                 }
             }
+            // Polish #26: horizontal-only scrub — a vertical drag over the chart scrolls the page instead.
             .pointerInput(n) {
                 val leftPad = LEFT_PAD.toPx()
                 val rp = rightPad.toPx()
                 fun idx(x: Float) = ((x - leftPad) / ((size.width - leftPad - rp) / n)).toInt().coerceIn(0, n - 1)
-                detectDragGestures { change, _ ->
+                detectHorizontalDragGestures { change, _ ->
                     if (change.position.x >= leftPad) selected = idx(change.position.x)
                     change.consume()
                 }
