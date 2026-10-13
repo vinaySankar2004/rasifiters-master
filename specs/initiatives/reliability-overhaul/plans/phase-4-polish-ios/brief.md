@@ -1,0 +1,183 @@
+# SCOPE BRIEF: Phase 4 Track P (polish), iOS surface, rows #9–#18, #25, #27–#31, #34–#36, #38, #43–#45
+
+All paths below are relative to `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/` (written `iOS/` for short). This track sits on top of the uncommitted quick-wins tree. The groups are synced (`PBXFileSystemSynchronizedRootGroup`), so new files need no pbxproj edit. There is no app version bump: iOS stays 1.5.1 (59).
+
+- **Features** (all changes are client presentation, so none of these needs a backend change):
+  - frontend-kit@0.3.0 (quick wins predict 0.4.0) · SPEC: specs/features/frontend-kit/SPEC.md · consumed_by [web, ios, android] · rows #16, #29, #30, #31, #34, #36. New D-rules are needed for the #29 helper and the #36 tap-target helper.
+  - auth@0.14.0 · specs/features/auth/SPEC.md · [web, ios, android] · #15, #17, #18, #25, #28, #35
+  - programs@0.2.0 · specs/features/programs/SPEC.md · [web, ios, android] · #12, #38
+  - apple-health@0.8.0 · specs/features/apple-health/SPEC.md · [ios] · #14, #27. Also health-sync@0.2.0 (#14: H1 "review once" is unchanged; "Later" uses the existing defer path).
+  - program-workouts@0.1.0 · [web, ios, android] · #9
+  - program-memberships@0.3.0 · [web, ios, android] · #11
+  - workout-logs@0.6.0 and daily-health-logs@0.4.0 · [web, ios, android] · #16
+  - analytics@0.5.0 and analytics-v2@0.2.1 · [web, ios, android] · #30, #31, #34
+  - member-analytics@0.5.0 (the Q bump) · [web, ios, android] · #10, #34
+  - members@0.4.0 · [web, ios, android] · #44
+- **Pages/screens** (`specs/pages/ios/<slug>/SPEC.md`; docs are orchestrator-owned and land in the docs commit, implementers don't edit them):
+  - #9: program-workout-types
+  - #10: admin-members, program-picker
+  - #11: program-member-management (§ the Active Toggle, :51 and :68)
+  - #12, #38: program-actions
+  - #13: admin-home (F4)
+  - #14, #27: apple-health
+  - #15, #18, #44: my-profile
+  - #16: log-workout, log-health, widget-quick-add-workout, widget-quick-add-health
+  - #17: create-account
+  - #25: splash
+  - #28: login
+  - #29, #34: summary-activity-detail, lifestyle-timeline, lifestyle-steps-timeline, member-metrics-detail, member-recent-detail, member-health-detail, member-streaks-detail, program-workout-types. #34 also adds admin-members.
+  - #30: admin-summary, program-picker
+  - #31: admin-workout-types (D-S1 "faithful swallow" is superseded)
+  - #35: login (it also covers ForgotPasswordView), create-account, my-profile, change-password
+  - #36: login, create-account, change-password, log-workout, log-health, program-role-management, program-picker, program-actions, widget-quick-add-workout, widget-quick-add-health, admin-members, admin-workout-types, summary-activity-detail, lifestyle-timeline, lifestyle-steps-timeline, apple-health, appearance
+  - #43: admin-workout-types
+  - #45: appearance, program-picker, admin-program
+
+- **Already done, partly or fully, so don't redo:**
+  - **#15:** the spinner already exists (`AppDestructiveButton isLoading: isDeleting`, MyProfileView :88), and #8 made the message plain language. Only moving the error under the button is left.
+  - **#34, MemberMetricsDetailView:** the dropped-request race is fixed by QA6 (queued reload, :166-186). Only the shared `memberMetrics` field leaking into `MemberMetricsPreviewCard` (MemberOverviewPicker :414) is left.
+  - **#31:** parallel loads are done (#5). The kit states, Retry, pull-to-refresh, refetch on reconnect and admin re-entry reload are left.
+  - **#16:** save errors are on kit copy (#8). Lookup failures and empty pickers are left.
+  - **#10:** the standard tab's program-switch spinner is done (Q-6, `loadedProgramId`). Left: admin and logger "View as", and the reset on program switch.
+  - No row is fully fixed already.
+
+- **Files (exhaustive; the implementer may touch ONLY these), grouped by surface:**
+  - backend/: none. This track owns no backend change (see "Backend needs" under Open questions).
+  - web/: none (planned by the web track).
+  - android/: none (planned by the Android track).
+  - ios/ **NEW** (shared helpers, one per surface):
+    - `iOS/Shared/Kit/LoadStateContent.swift`: #29's single helper. It maps a `LoadState<T>` to a spinner, `ErrorStateView(error.labeled(online:), onRetry:)`, or the content plus a stale `ScreenBanner`. #31 and #18 reuse it.
+    - `iOS/Shared/Components/TapTarget.swift`: #36's single helper, a `.minTapTarget()` modifier (min 44×44 frame + `contentShape`). Every #36 site uses it.
+    - `iOS/Shared/Models/ProgramContext+ProgramSwitch.swift`: #10/#30. One reset of the program-scoped shared fields (selected member overview/history/streaks/recent, Summary MTD and analytics fields, Lifestyle fields), called from `applyProgram`.
+    - `iOS/Shared/Models/ProgramContext+Lifestyle.swift`: #31. One Lifestyle loader that returns which parts loaded plus the first failure, the same shape as `loadSummary`. It is a new file because ProgramContext+Analytics is already 209 lines.
+    - `iOS/Features/Home/Settings/MyProfileSections.swift` (recommended): moves out the Sign-in methods section (#18) and the Delete Account section (#15). MyProfileView is 547 lines and People S3 also edits it.
+  - ios/ **EXISTING:**
+    - `iOS/Shared/Components/EdgeSwipeToReturn.swift`, #13. `handleEdgePan` (:66-77) currently calls `onRootSwipe` when the selected tab has no nested nav controller. Summary, admin Lifestyle and admin Program have no NavigationStack, so their pushes go on the outer stack and a swipe leaves the program. Fix: only leave the program when the tab bar's hosting VC is the outer stack's top; otherwise let the native pop happen. Also: the recognizer is added to the **window** (:56-62) and never removed, so it outlives AdminHomeView. Remove it in `dismantleUIView`.
+    - `iOS/Shared/Views/HealthSyncConfirmationView.swift`:
+      - #14: a leading "Later" toolbar button that calls `dismiss()`, disabled while committing. The existing `onDisappear` (:54-59) already records the defer.
+      - #36: the tick gets the label "Confirm".
+    - `iOS/Features/Home/ProgramManagement/WorkoutTypesSection.swift`:
+      - #9: errors from :290/306/316/326/342 render only in the Add sheet (:253). Show them on the list. `EditCustomWorkoutSheet.isSaving` (:355, :376) never resets, so reset it and keep the sheet open with the error.
+      - #29: a list load failure (`loadProgramWorkouts`) goes through the helper.
+    - `iOS/Features/Home/ProgramManagement/MemberManagementSection.swift`, #11: remove the "Active Membership" Toggle (:238-247) and its `onChange` (:308). `save()` passes `isActive: nil`, so the key is omitted (APIClient+Memberships :37) and the server leaves status alone. **Shared with People S3** (the roster).
+    - `iOS/Features/Home/ProgramManagement/RoleManagementSection.swift`, #36: role chips (:231-255) get a 44pt minimum and the `.isSelected` trait.
+    - `iOS/Shared/Models/ProgramContext+ProgramManagement.swift`, #12: `createProgram` (:87-108) runs `try await fetchPrograms` after the create. Make the refresh non-throwing (background or `try?`), so success depends only on the create call.
+    - `iOS/Features/Home/ProgramActions/CreateProgramTabView.swift`, #38: copy Edit's `dateRangeError` (EditProgramInfoView :38-41, :137-141) into the form and into `isFormValid` (:21-23).
+    - `iOS/Features/Home/Settings/MyProfileView.swift`:
+      - #15: give delete its own `deleteError` under the button. Today it shares the top `errorMessage` slot (:63-67).
+      - #18: Sign-in methods get three states. Today `identities = []` and `hasPassword = true` by default, and `loadIdentities` swallows errors (:33-34, :293-295). Show "—" with buttons disabled while loading, "Couldn't load · Retry" on failure, then the loaded UI.
+      - #35: field `contentType` values. The email `.keyboardType` sits outside AppInputField (:204-205) and is overridden by its inner `.default`, so pass it through the parameter.
+      - #44: clearing gender must send an explicit null (:481).
+      - **Shared with People S3** ("Hide my activity" switch).
+    - `iOS/Shared/Models/ProgramContext+Members.swift`:
+      - #44: `updateMemberProfile` (:343) gets clear-gender semantics.
+      - #16: `loadLookupData` (:14-46) returns its failure as `@discardableResult` (it is called in many places).
+    - `iOS/Shared/Models/ProgramContext+WorkoutManagement.swift`, #16 and #29: `loadProgramWorkouts` (:83-94) returns its failure as `@discardableResult`.
+    - `iOS/Shared/Services/APIClient+Members.swift`, #44: `updateMemberProfile` (:327-341) omits nil gender. It must send JSON `null` when clearing, as web does (`program/profile/page.tsx:158`). The backend sets the field whenever `gender !== undefined` (`memberService.js:139`).
+    - `iOS/Features/Auth/CreateAccountView.swift`:
+      - #17, three parts:
+        - Go back to step 1 with "Username already exists" / "Email already exists" shown inline.
+        - A `didRegister` flag so a retry only signs in (:440-459).
+        - On submit, check every page with `canContinue` and jump to the first one that fails. The paged TabView can be swiped past the checks (:80-87).
+      - #35: content types givenName, familyName, username, emailAddress (+ `.emailAddress` keyboard at :204) and newPassword ×2.
+    - `iOS/Features/Auth/LoginView.swift`:
+      - #28: wrap the VStack (:24-135) in a ScrollView, using CreateAccountView's recipe.
+      - #35: `.username` / `.password` content types, and `.onSubmit` triggers login.
+    - `iOS/Features/Auth/ForgotPasswordView.swift`, #35: `.emailAddress` content type on the field at :54.
+    - `iOS/Features/Home/Settings/ChangePasswordView.swift`, #35: `.newPassword` on both fields (:45, :56).
+    - `iOS/Shared/Components/AppInputField.swift`:
+      - #35: add a `contentType` parameter.
+      - #36: the password eye (:40-47) goes to 44pt with the label "Show password" / "Hide password".
+    - `iOS/Features/Onboarding/SplashView.swift`, #25: the Sign in button shows from the first frame (`isCTAVisible` gate at :110). The typewriter stays as decoration.
+    - `iOS/Features/Home/Settings/AppleHealthSettingsView.swift` (815 lines):
+      - #27: the `.task` uses `try?` on `fetchPrograms` (:89-94), so "No programs available" (:189/:442/:649) also shows while loading or after a failure. Add loading and error states, and list only programs with `my_status == "active"`. The backend skips non-active programs (`healthSyncService.js:153-155`).
+      - #36: program rows get `.isSelected`.
+    - `iOS/Features/Home/Settings/AppearanceSettingsView.swift`:
+      - #45: the "RaSi Fit'ers" typo (:17).
+      - #36: rows get `.isSelected`.
+    - `iOS/Features/Home/ProgramPickerView.swift` (984 lines):
+      - #10/#30: `applyProgram` (:459-484) calls the reset.
+      - #36: the "+" label includes the invite count (:314-339), program cards get `.isButton` (:381-385), and the "Cancel request" chip (~:893-903) gets 44pt.
+      - #45: the AccountMenuSheet Apple Health subtitle (:664).
+      - **Shared with Notifications N4** (Inbox row; badge = unread + invites).
+    - `iOS/Features/Home/Tabs/ProgramCards.swift`, #45: the subtitle at :365. **May be shared with N4** (the in-program account section).
+    - `iOS/Features/Home/Tabs/AdminMembersTab.swift`:
+      - #10: `applySelection` (:123-150) clears the four shared fields before loading.
+      - #36: GlassButton label "Invite member".
+      - **Shared with People S3/S5.**
+    - `iOS/Features/Home/Tabs/StandardMembersTab.swift`:
+      - #10: the logger "View as" switch clears `memberRecent` first (:130-142).
+      - #36: GlassButton label "View members".
+      - **Shared with People.**
+    - `iOS/Features/Home/Tabs/MemberOverviewPicker.swift`, #10 placeholder only. Today `MemberOverviewCard` shows the previous member's name, and shows "No workouts logged yet." while loading. **People S5 rebuilds it**; see Open questions.
+    - `iOS/Features/Home/Tabs/MemberCards.swift`, #10 placeholder only (History, Streak, Recent cards). **People S5 rebuilds it.**
+    - `iOS/Features/Home/Tabs/AdminSummaryTab.swift`, #30: keep a per-program set of loaded parts. A missing part shows a placeholder ("…") while loading and "—" once loaded or stale. Today analytics are hidden only on `.failed` (:164-191).
+    - `iOS/Shared/Models/ProgramContext+Analytics.swift`, #30: `loadSummary` (:10-77) returns which parts applied, not just a Bool.
+    - `iOS/Features/Home/Tabs/SummaryCards.swift`, #30: a "—" unavailable variant of `PlaceholderCard` (:75-96).
+    - `iOS/Features/Home/Tabs/AdminWorkoutTypesTab.swift`, #31: LoadState, ErrorStateView, stale banner, refetch on reconnect, `.refreshable`, and reload on re-entry. Today `.task` loads only when `selectedMember == nil` (:101-107). Keep QA5 (the lookup on every visit) and the #5 queue loop.
+    - `iOS/Features/Home/Tabs/StandardWorkoutTypesTab.swift`:
+      - #31: the same as the admin tab.
+      - #36: GlassButton label "Workout types".
+    - `iOS/Features/Home/Tabs/WorkoutTypesCards.swift`:
+      - #31: replace the fake "0" / "N/A" / "No data" with a placeholder or "—".
+      - #36: header GlassButton label (:31).
+      - #43: darker light-mode text shades for the orange (:39) and green (:148) big values. Keep them local and leave the palette tokens alone (D-KIT-10).
+    - Detail views (`iOS/Features/Home/Detail/`), #29 + #34. Each gets its own `@State LoadState`, loaded through the existing `APIClient` fetchers keyed by `task(id:)`, without the `guard !isLoading` and without writing ProgramContext shared fields. Load failures go through the helper.
+      - `ActivityTimelineDetailView.swift`: also drop the `onDisappear` week reload (:209-217). #36: Period segment labels.
+      - `LifestyleTimelineDetailView.swift`: #36 too.
+      - `StepsTimelineDetailView.swift`: #36 too.
+      - `MemberMetricsDetailView.swift`: the #47 CSV export must read the local state.
+      - `MemberRecentDetail.swift`: after an edit or delete, refresh the tab preview with `loadMemberRecent(limit: 10)`. Keep the success alerts; that item was dropped.
+      - `MemberHealthDetail.swift`
+      - `MemberStreakDetail.swift`: gets its own load and Retry. Today it shows "No streak data." (:27-40).
+    - `iOS/Features/Home/AdminHomeView.swift`, #36: `Period` gets spoken names (Week, Month, Year, Program) for the segment labels.
+    - `iOS/Features/Home/Detail/AddWorkoutsDetailView.swift`:
+      - #16: `ensureLookups` (:418-432) swallows errors. Show "Couldn't load · Retry" inline (reuse `ErrorStateView`) and reload when back online.
+      - #36: the ✕ (:228-234) gets 44pt and the label "Remove entry N".
+    - `iOS/Features/Home/Detail/AddDailyHealthDetailView.swift`: #16 and #36 as above (✕ at :217-223).
+    - `iOS/Features/Widgets/QuickAddWorkoutWidgetEntryView.swift`, #16: per-program `try?` lookups (:488-497) record failures, show inline "Couldn't load · Retry", and reload on reconnect.
+    - `iOS/Features/Widgets/QuickAddHealthWidgetEntryView.swift`, #16: the same (:538).
+    - `iOS/Features/Widgets/WidgetQuickAddComponents.swift`, #36: the back button (:37-47) goes from 36pt to 44pt with the label "Back".
+    - `iOS/Shared/Components/SearchablePickerSheet.swift`, #16: an empty-list hint line.
+    - `iOS/Shared/Components/GlassButton.swift`, #36: add an accessibility-label parameter.
+    - `iOS/Features/Home/ProgramActions/InviteCardView.swift`, #36: Accept / Decline / Revoke (:105-135) get 44pt. **Shared with N4** (Inbox).
+    - `iOS/Features/Home/ProgramActions/InvitesTabView.swift`, #36: the "Block future invites" box (:263-300) gets `.isSelected`. **Shared with N4.**
+- **DB surface**: none.
+- **Flags/env/config involved**: none.
+  - Compile gate: `bash tools/ios-typecheck.sh`, then the user's ⌘B in Xcode. Never `BuildProject`.
+- **Blast radius**: no `depends_on` edge points at a client-only change.
+  - Every row except #13, #14 and #28 has counterpart rows on other surfaces, planned in parallel and checked for parity afterwards: #9, #15, #16, #29, #31 and #36 are on web and Android. #10, #12, #25, #27, #34, #35, #44 and #45 are on Android. #11, #30, #38 and #43 are on web. #17 and #18 are on web and Android.
+  - #13, #14 and #28 are iOS-only. Android already handles these with system back, BackHandler defer and a scrolling AuthScaffold.
+  - Composes with Notifications N4: ProgramPickerView, ProgramCards, InvitesTabView, InviteCardView. The #36 "+" label must read the same count the badge shows.
+  - Composes with People S3/S5: MyProfileView, MemberManagementSection, AdminMembersTab, StandardMembersTab, MemberOverviewPicker, MemberCards.
+  - This track does not touch AppRootView or NotificationsSettingsView.
+- **Live-binary compat**: none. This track makes no backend contract change.
+- **Doc↔code mismatches found**:
+  - admin-home SPEC F4 says there is "no back-swipe off the home shell". The `edgeSwipeToReturn` hack exists, and it leaves the program even from pushed detail screens (#13).
+  - DISCOVERY #16 lists only the widget forms for iOS. The in-app Add workouts and Log health forms also open empty pickers when lookups fail.
+  - admin-workout-types D-S1 ("faithful swallow") and the program-member-management Active Toggle text are superseded by #31 and #11.
+  - REGISTRY has no iOS forgot-password page. ForgotPasswordView is covered inside the login and create-account SPECs.
+  - DISCOVERY line numbers have shifted slightly. For example, the AccountMenuSheet Apple Health row is now :664, not :662, and AdminMembersTab's clear branch is :143-149.
+- **Out of scope (explicitly)**:
+  - #32, Members-tab dashboard on the kit (People S5).
+  - Rows #19–#24, #26, #33, #37, #39–#42 (not iOS).
+  - The dropped items: MemberRecentDetail success alerts and the "Switch Program" picker stacking.
+  - The tertiaryLabel contrast sweep (only WorkoutTypesCards is in #43).
+  - The Notification inbox, toast and settings (N4).
+  - The webcredentials associated domain (an optional M follow-up from the audit).
+  - Any version bump, SPEC, registry or HANDOFF edit.
+- **Open questions for the orchestrator**:
+  1. **#10 vs People S5:** the default is to clear on switch plus a minimal loading placeholder in MemberOverviewCard and MemberCards. S5 later replaces those cards on the kit. The alternative is clear-only now, with the placeholders folded into S5.
+  2. **#17 detection:** the default is to match the exact 400 texts "Username already exists" / "Email already exists" (`authService.js:187/190/530/532`) identically on all three surfaces. Alternative, under "Backend needs" (web-owned, optional, additive): add `code: "username_taken"` / `"email_taken"` to those 400s.
+  3. **#38 server check:** an optional server-side end ≥ start check in `programService.createProgram` is the web track's call. Note it would start returning 400 to live binaries' bad-date creates. iOS doesn't need it.
+  4. **New copy needs one cross-surface table:**
+     - #14 "Later"
+     - #16 the empty-picker hint
+     - #17 "Account created. Please sign in." (after a failed auto sign-in)
+     - #36 "Show password" / "Hide password" / "Remove entry N" / period names
+     - #45 "Sync workouts, sleep, and steps" (Android says "Sync workouts and sleep") and "Choose how RaSi Fiters looks to you"
+  5. **#29/#34:** detail views call the existing `APIClient` fetchers directly into local state, so ProgramContext's shared fields stop leaking between screens. After a detail edit or delete the Members-tab preview refreshes. Confirm.
+  6. **User phone checks:**
+     - #13: Summary → Add workouts → swipe from the left edge. It should go back one screen and stay in the program. Do the same from Edit program on the admin Program tab.
+     - #28: on a small iPhone or with large Dynamic Type, the login fields stay visible above the keyboard.
+     - #14: in airplane mode, "Later" closes the Apple Health review.

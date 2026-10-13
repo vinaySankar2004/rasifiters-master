@@ -1,0 +1,158 @@
+# SCOPE BRIEF: Phase 4 Track P, Android polish (#9 #10 #12 #15 #16 #17 #18 #20 #21 #24 #25 #26 #27 #29 #31 #33 #34 #35 #36 #40 #42 #44 #45)
+
+- **Features**: frontend-kit@0.3.0 (specs/features/frontend-kit/SPEC.md) · consumed_by [web, ios, android] · rows #16 #29 #31 #33 #36, plus the new adoption D-rules. The quick-wins docs step already plans 0.4.0, so this track's bump goes on top of it.
+  - auth@0.14.0 (specs/features/auth/SPEC.md) · [web, ios, android] · rows #15 #17 #18 #21 #35
+  - members@0.4.0 (specs/features/members/SPEC.md, uncommitted S0 bump) · [web, ios, android] · rows #18 #44
+  - programs@0.2.0 (specs/features/programs/SPEC.md) · [web, ios, android] · rows #12 #40
+  - program-memberships@0.3.0 (specs/features/program-memberships/SPEC.md) · [web, ios, android] · rows #12 (Cancel Request) #33
+  - invites@0.2.1 (specs/features/invites/SPEC.md) · [web, ios, android] · row #40 (badge)
+  - program-workouts@0.1.0 (specs/features/program-workouts/SPEC.md) · [web, ios, android] · rows #9 #12 #33
+  - member-analytics@0.5.0 (specs/features/member-analytics/SPEC.md) · [web, ios, android] · rows #10 #29 #34
+  - analytics@0.5.0 (specs/features/analytics/SPEC.md) and analytics-v2@0.2.1 (specs/features/analytics-v2/SPEC.md) · [web, ios, android] · rows #29 #31 #34
+  - workout-logs@0.6.0 (specs/features/workout-logs/SPEC.md) and daily-health-logs@0.4.0 (specs/features/daily-health-logs/SPEC.md) · [web, ios, android] · rows #16 #24
+  - health-connect@0.3.0 (specs/features/health-connect/SPEC.md) · [android] · row #27
+- **Pages/screens**, all under `specs/pages/android/<slug>/SPEC.md`:
+  - `splash` #25 · `login` #21 #35 #36 · `create-account` #17 #21 #35 #36 · `forgot-password` #35 · `change-password` #35 · `my-profile` #15 #18 #35 #44 · `appearance` #36 #45
+  - `program-picker` #12 #36 #40 #45. Its A-1 ("Edit is deferred") and A-4 (badge also counts your own requested programs) are deliberately rewritten by #40.
+  - `edit-program` #40 · `program` #33 #45 · `member-management` #33 · `manage-roles` #33 #36 · `members` #10 #42 · `lifestyle` #10 #31 #42 · `lifestyle-workout-types` #9 #12 #33
+  - `summary-activity-detail` #26 #29 #34 #36 · `summary-distribution-detail` #26 · `member-history-detail` #26 #29 #34 · `member-streaks-detail` #26 #29
+  - `member-workouts-detail` #24 #29 #34 #36 · `member-health-detail` #24 #29 #34 #36 · `member-metrics-detail` #29 #34 #36
+  - `lifestyle-timeline` #26 #29 #34 · `lifestyle-steps-timeline` #26 #29 #34
+  - `log-workout` #16 #36 · `log-health` #16 #36 · `widgets` #16 #20 · `health-connect` #27 #36
+- **Already fixed / partly fixed (no plan, or a reduced plan)**:
+  - No row is fully fixed.
+  - #15: the Android Delete button already shows a spinner (`ProfileScreen.kt` ~:400). Only the error placement is still wrong (it appears in `errorMessage` ~:182, far up the page).
+  - #9 and #24: the quick wins (#8) only made the messages plain. Where the error is drawn (#9) and the double-tap (#24) are still broken.
+- **Files (exhaustive — implementer may touch ONLY these), grouped by surface**:
+  - backend/: none (the web track owns the backend).
+  - web/: none (parallel track).
+  - ios/: none (parallel track).
+  - android/, prefix `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/`. Files marked SHARED are also changed by the Notifications (N5) or People (S4/S5) tracks.
+    - **New files:**
+      - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/ui/components/kit/KitLoad.kt`: NEW. The one #29 helper: renders a `UiState<T>` as spinner / `ErrorView` (offline copy when `!isOnline`, polish-1 rule 6) / content, plus a reconnect-refetch effect for Failed/Stale. Reused by #16 #27 #31 #33 #34.
+      - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/ui/components/TapTarget.kt`: NEW. The one #36 helper:
+        - `Modifier.tapTarget(label, role, onClick)` = M3 `minimumInteractiveComponentSize()` (48dp) + `clickable(role, onClickLabel)` + `contentDescription`.
+        - `Modifier.selectableTarget(selected, role, onClick)` = selectable/toggleable + selected semantics + 48dp minimum.
+      - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/core/LifestyleData.kt`: NEW. #31: move `LifestyleData` out of ProgramContext.kt (:1494), add per-part results and a merge (the `SummaryParts` pattern, ProgramContext.kt :1505-1534) so failed parts show "—".
+    - **Core / net / app:**
+      - `.../core/ProgramContext.kt`:
+        - #10: `selectProgram` (:547) resets program-scoped state when the id changes: `_members`, `_membersViewAsId`, `membersLoadedFor`, `membersSelfLoadedFor`, the 5 per-member flows, `_memberMetrics`/Total/Range, `_programWorkoutsAll`, `_membershipDetails`. Reuse the reset list in `clearSession` (:1435-1470). `setMembersViewAs` (:984) clears the 5 per-member flows when the id changes.
+        - #12: `createProgram` (:480-488), `cancelJoinRequest` (:540-544) and the 5 workout-type writes (:1321-1352) decide success by the write alone, then refresh with `scope.launch { … }`. No refresh `getOrThrow()`.
+        - #21: add a public `clearPendingSocial()` (near :271).
+        - #31: `loadLifestyle` (:1270-1295) becomes a `UiState<LifestyleData>`. The key is (programId, memberId); a key change resets to Loading, never keeps the other member's or program's data. Uses `attempt{}` parts and a merge.
+        - #34: `loadMemberRecent`, `loadMemberHealthLogs`, `loadMemberHistory`, `loadMemberMetrics` return their data and get a no-publish option for detail screens. Remove `resetMemberHistoryToWeek` (:1050).
+        - #44: `updateMemberProfile` (:1364-1378) sends a `JsonObject` with an explicit `gender` null (same pattern as `updateDailyHealthLog`), and sets `_loggedInGender` to null on clear.
+      - `.../net/ApiService.kt`: #44. `updateMemberProfile` (:263) body becomes `JsonObject`, so the explicit null survives `explicitNulls=false` (Network.kt:25).
+      - `.../net/Dtos.kt`: #44. Delete the now-unused `UpdateMemberProfileRequest` (:676).
+      - `.../MainActivity.kt`: #20. Consume the widget deep link once: `handleDeepLink` only when `savedInstanceState == null` and the intent is not `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`, then clear `intent.data`.
+      - `.../ui/RootScreen.kt`: #40. Add a root-level `composable(Routes.PROGRAM_EDIT)` in `SignedInGraph` (`SettingsInset { EditProgramScreen }`) for the picker's Edit. SHARED (N5: toast replaces `NotificationModal`).
+    - **Auth screens:**
+      - `.../ui/auth/AuthComponents.kt`:
+        - #35: `AppTextField` gains autofill content-type and autocorrect/capitalization parameters (usernames and emails get no autocorrect). `AppPasswordField` gains a password / new-password hint.
+        - #36: the password eye (:209-216, 22dp) uses `tapTarget`.
+      - `.../ui/auth/GoogleCredential.kt`: #21. `GoogleSignInButton` (:96-106) shows a spinner and stays disabled until the caller's sign-in finishes (awaitable `onResult` or a `busy` param).
+      - `.../ui/auth/LoginScreen.kt`: #21 (Google busy; Login disabled while busy). #35 (identifier = username hint, no autocorrect; password hint; commit autofill on success).
+      - `.../ui/auth/CreateAccountScreen.kt`:
+        - #17: a 400 "Username already exists" or "Email already exists" jumps to page 1 with the message shown inline there. Track a screen-local `registered` flag so a retry after a successful `register` only calls `login`.
+        - #21: `BackHandler` steps back one page (system Back no longer pops and wipes the form). Leaving at page 0, or via "Sign in", calls `clearPendingSocial()`.
+        - #35: new-username, email (keyboard) and new-password hints.
+      - `.../ui/auth/SplashScreen.kt`: #25. Sign in CTA visible from the start (drop the `ctaVisible` gate at :62-64 and :117); the typewriter stays as decoration.
+      - `.../ui/auth/ForgotPasswordScreen.kt`: #35 (email autofill hint).
+    - **Account and program screens:**
+      - `.../ui/program/ChangePasswordScreen.kt`: #35. The confirm field (:84) becomes `AppPasswordField` with new-password hints.
+      - `.../ui/program/ProfileScreen.kt`: SHARED (People S4: "Hide my activity").
+        - #15: a dedicated delete error rendered under the Delete button (now shown at :182).
+        - #18: identities and email are nullable until loaded. Show "—", keep Link / Add password / Change email disabled, and show inline "Couldn't load · Retry" on failure (:115-122, :264-323).
+        - #35: email fields (:235/:237) get autofill hints.
+        - #44: send an explicit clear when gender is "" (:179, :196).
+      - `.../ui/program/AppearanceScreen.kt`: #36 (options selectable with a selected state, :124/:152). #45: "RaSi Fit'ers" becomes "RaSi Fiters" (:57).
+      - `.../ui/program/ProgramAccountSection.kt`: #45. Health Connect subtitle (:93). SHARED (N5).
+      - `.../ui/programs/AccountMenuSheet.kt`: #45. Same subtitle (:108). SHARED (N5: Inbox row).
+      - `.../ui/program/ProgramScreen.kt`: #33. `PullToRefreshBox`, track the 3 admin load results (:72-78), Retry.
+      - `.../ui/program/ProgramSections.kt`: #33. Members / Roles / Workout Types sections show a spinner or "—" plus inline error and Retry instead of "0 enrolled", "No admins or loggers assigned", "0 types available" (:173, :198, :264).
+      - `.../ui/program/ManageRolesScreen.kt`: #33 (load state, honest empty line, pull-to-refresh). #36 (`RolePill` ~40dp to 48dp, selected semantics).
+      - `.../ui/members/MemberManagementScreens.kt`: #33. Roster `ProgramMembersListScreen` (:153-188): load state, empty line, pull-to-refresh. SHARED (People S4: the roster becomes the People list).
+    - **Members and lifestyle tabs:**
+      - `.../ui/members/MembersScreen.kt`: SHARED (People S4/S5).
+        - #10: the admin body shows the existing spinner while the selected member's 5 reads run (:105-135).
+        - #42: `MemberPickerSheet` LazyColumn changes from the fixed `height(48*n)` (:357) to `heightIn(max = 380.dp)`, like DetailChrome.kt:195.
+        - #36: `PickerRow` gets a selected state.
+      - `.../ui/lifestyle/LifestyleScreen.kt`: #10 and #31. Kit state, `PullToRefreshBox`, `ErrorView` / stale banner, reconnect refetch.
+      - `.../ui/lifestyle/LifestyleCards.kt`: #31. Stat cards take nullable or unavailable values and show "—" on failure (:107-130, :208-213, :348-355). "N/A" and "No data" stay only for genuinely empty loaded data.
+      - `.../ui/lifestyle/WorkoutTypesListScreen.kt`: #9 (error and saving state inside `WorkoutNameSheet`, :170-190 and :287-332). #33 (load state, "No workout types yet", pull-to-refresh).
+    - **Detail screens:**
+      - `.../ui/lifestyle/LifestyleTimelineDetailScreen.kt`: #26 (scroll), #29 (KitLoad), #34 (results keyed by period).
+      - `.../ui/lifestyle/StepsTimelineDetailScreen.kt`: #26, #29, #34.
+      - `.../ui/summary/ActivityDetailScreen.kt`: #26, #29, #34 (old bars under the new label: :59, :110).
+      - `.../ui/summary/DistributionDetailScreen.kt`: #26.
+      - `.../ui/members/MemberSimpleDetails.kt`:
+        - #26: both screens scroll.
+        - #29: the history load error and the streak "No streak data." (:69) become KitLoad.
+        - #34: history keeps its own results; drop the dispose reset (:136-138).
+        - #36: `HistoryPeriodSelector` uses `selectableTarget`.
+      - `.../ui/members/MemberRecentDetailScreen.kt`: #24 (deleting/saving state disables buttons and shows a spinner, :198-214, :378), #29, #34 (own list, not `programContext.memberRecent` :90), #36 (⋮ :257).
+      - `.../ui/members/MemberHealthDetailScreen.kt`: #24 (:203-209, :392), #29, #34 (:91), #36 (⋮ :258).
+      - `.../ui/members/MemberMetricsDetailScreen.kt`: #29 ("No members to display." on failure), #34 (own list; the Members-tab preview stops moving; the CSV reads the local list), #36 (`Segmented` :259, clear ✕ :149).
+    - **Shared summary components and log forms:**
+      - `.../ui/summary/ChartPrimitives.kt`: #26 dependency. Chart scrub becomes horizontal-only drag (`detectDragGestures` at ~:93 and ~:213), so the newly scrolling screens can still scroll over the 320–360dp charts. Shared tooltip look unchanged.
+      - `.../ui/summary/DetailChrome.kt`: #16 (empty-list hint in the `SearchablePickerField` sheet, :192-216). #36 (`PeriodSelector` :235-264 to 48dp with selected/Tab semantics; `CircleBackButton` :72 touch area to 48dp).
+      - `.../ui/summary/LogWorkoutScreen.kt`: #16 (lookup failure → "Couldn't load · Retry", reload on reconnect, no false "No workout types…/No active members" :143-150 :243-247). #36 (Remove ✕ 28dp at :343).
+      - `.../ui/summary/LogHealthScreen.kt`: #16 (:158-166, :264). #36 (Remove ✕ :373).
+      - `.../ui/summary/QuickAddWorkoutWidgetScreen.kt`: #16. Per-program lookup failure gets Retry and reconnect reload (:126-150); today it never recovers.
+      - `.../ui/summary/QuickAddHealthWidgetScreen.kt`: #16 (:117-135).
+    - **Program picker and Health Connect:**
+      - `.../ui/programs/ProgramPickerScreen.kt`: SHARED (N5: badge = unread + invites, toast).
+        - #40: badge = invites only (:167). Card menu gains "Edit" = `selectProgram` + navigate `PROGRAM_EDIT`, the iOS `programToEdit` pattern (:431-436).
+        - #36: ⋮ `IconButton` 32dp at :424.
+      - `.../ui/programs/InviteInbox.kt`: #36 (`InvitePill` ~36dp to 48dp, :102-107). SHARED (N5).
+      - `.../ui/programs/ProgramActionsSheet.kt`: #36 (`SegmentedToggle` selected semantics and 48dp, :143-160). SHARED (N5: My Invites becomes Inbox).
+      - `.../ui/health/HealthConnectSettingsScreen.kt`: #27 (loading/error from `programsState` via KitLoad; list only `myStatus == "active"` programs, :92 and :306-315). #36 (program rows toggleable semantics, :318-335).
+    - **Build:**
+      - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/gradle/libs.versions.toml`: #35 only. Compose BOM `2024.12.01` (Compose UI 1.7) to ≥ `2025.04.01` (UI 1.8) for `ContentType` autofill semantics and `LocalAutofillManager.commit()`. See open question 1.
+- **DB surface**: none.
+- **Backend needs**: none. Every Android row is client-only.
+  - #17 matches the existing 400 text ("Username already exists" / "Email already exists", authService.js:187/:190/:530).
+  - #27 filters on `ProgramDTO.myStatus`.
+  - #44 relies on the backend already honouring an explicit `gender: null` (memberService.js:138).
+  - Optional additive change (web track decides): a `code` on the register/OAuth-complete 400s (`username_taken` / `email_taken`) so clients don't match on text.
+- **Flags/env/config involved**: none at runtime. Build: Compose BOM version (#35). No app version bump (versionCode stays 6 / 1.1.0). Compile gate: `cd apps/android && ./gradlew :app:assembleDebug`.
+- **Blast radius**: client-only, no contract change, so no dependent feature breaks.
+  - Surfaces to keep in parity: web and iOS run the same rows in parallel tracks; parity is checked after.
+  - Android-only rows by DISCOVERY: #20 #21 #26 #40 #42.
+  - Called-out platform idioms:
+    - #35 Compose `ContentType`
+    - #36 M3 48dp `minimumInteractiveComponentSize`
+    - #40 overflow-menu Edit (program-picker A-1)
+    - #26 horizontal-scrub charts
+  - Composes with the quick-wins edits already in these files (MembersScreen #5 `membersSelfLoadedFor`, `loadLifestyle` parallel #5, `toAppError` #8, `ProgramActionsSheet` banner #2).
+- **Live-binary compat**: none. Android-only client changes, no backend change. They ship in the single Phase 4 store release.
+- **Doc↔code mismatches found**:
+  1. DISCOVERY §6 Android line refs have shifted. Examples: #12 workout-type writes are now ProgramContext.kt:1321-1352 (was 1308-1340). #10 MembersScreen.kt:164-165 is now the #5 `logsLoadedFor` block.
+  2. `specs/pages/android/program-picker/SPEC.md` A-1 says "Edit is deferred" and A-4 says the badge counts your own requested programs. #40 deliberately reverses both, converging on iOS `pendingInvites.count` (ProgramPickerView.swift:26).
+  3. DISCOVERY #29's Android list misses `MemberMetricsDetailScreen` ("No members to display.") and the streak detail ("No streak data."). Both have the same failure-shown-as-empty bug, so both are included.
+  4. DISCOVERY #26 cites AppScaffold.kt:140. That line is the cause (the offline reserve shrinks the height), not a fix site, so it is not touched.
+  5. Version drift:
+     - Quick-wins plan.md docs step bumps member-analytics "0.4.0→0.5.0", but the working tree (S0 docs) already has 0.5.0.
+     - `specs/pages/REGISTRY.md` android rows still cite member-analytics 0.4.0.
+     - The orchestrator should re-base the bumps.
+  6. MembersScreen/LifestyleScreen KDocs say "load errors swallowed (iOS F1)". #10 and #31 supersede that for Lifestyle; #32/S5 covers Members.
+- **Out of scope (explicitly)**:
+  - #32 (Members-tab dashboard onto the kit, `MemberCards.kt`; owned by People S5).
+  - Notifications N5: Inbox, toast, unread badge, `NotificationsScreen.kt`, Inbox account row.
+  - People S4: roster becomes People list, profiles, kudos, "Hide my activity".
+  - Rows not on Android: #11 #13 #14 #19 #22 #23 #28 #30 #37 #38 #39 #41 #43. #1–#8, #46–#48 are already done.
+  - Backend, SPEC/registry edits (orchestrator), version bumps, migrations.
+- **Open questions for the orchestrator**:
+  1. **#35:** real password-manager fill and save on Android needs the Compose BOM bump to ≥ 2025.04.01, an app-wide dependency change.
+     - Approve it, or cut #35 Android down to keyboard types, no autocorrect and a real password field for "confirm"?
+     - Recommendation: bump (standard API; the alternative is a deprecated fill-only API).
+  2. **#26:** making the 6 chart screens scroll means switching the chart scrub to horizontal-only drag in the shared `ChartPrimitives.kt`, otherwise vertical drags over a 360dp chart won't scroll the page. OK?
+  3. **#33 roster** overlaps People S4, which rewrites the roster into the People list. Build #33's roster states here (S4 must keep them), or hand that slice to S4?
+  4. **#10 Members** overlaps #32/S5. The proposed Android #10 is: clear on program / View-as switch in ProgramContext, plus a spinner on the admin body. S5 must keep the clears.
+  5. **#45 copy** must be one string on iOS and Android. Proposal: "Sync workouts, sleep and steps"; the iOS track currently uses "Sync workouts automatically".
+  6. **#18 with #44:** if the profile read fails, gender is "", and #44's explicit clear would wipe the saved gender. Proposal: keep Save disabled (or omit gender) until the member is loaded.
+  7. **Device checks** for the user (FYI, not code questions):
+     - rotate or switch dark mode on a widget form: it must not reopen (#20)
+     - scroll vs. scrub on the detail charts (#26)
+     - Google autofill save on login and sign-up (#35)
+     - back mid-wizard on sign-up (#21)

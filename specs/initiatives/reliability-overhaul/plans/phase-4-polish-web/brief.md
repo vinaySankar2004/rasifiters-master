@@ -1,0 +1,182 @@
+# SCOPE BRIEF: Phase 4 Track P (web), polish #9 #11 #15 #16 #17 #18 #19 #22 #23 #29 #30 #31 #33 #36 #37 #38 #39 #41 #43, plus every backend change rows #9–#45 need
+
+- **Features** (all `deployed` with `reference_impl` = backend, except frontend-kit which is `adopted` with `reference_impl` = web):
+  - frontend-kit@0.3.0 (SPEC: specs/features/frontend-kit/SPEC.md) · consumed_by [web, ios, android]. The registry still says 0.3.0; the quick-wins docs commit takes 0.4.0, so the #29 helper rule is 0.5.0 or folds into it.
+  - auth@0.14.0 (specs/features/auth/SPEC.md) · [web, ios, android] · rows #15, #17, #23
+  - programs@0.2.0 (specs/features/programs/SPEC.md) · [web, ios, android] · row #38, which carries the only backend change
+  - program-memberships@0.3.0 (specs/features/program-memberships/SPEC.md) · [web, ios, android] · row #11 (SPEC :52, :68 describe the `is_active` flag)
+  - invites@0.2.1 · [web, ios, android] · row #22, presentation only
+  - program-workouts@0.1.0 · [web, ios, android] · rows #9 and #33, presentation only
+  - workout-logs@0.6.0 and daily-health-logs@0.4.0 · [web, ios, android] · row #16 log forms
+  - analytics@0.5.0 and analytics-v2@0.2.1 · [web, ios, android] · rows #30 and #31
+  - member-analytics@0.5.0 (S0 bump in the working tree; 0.6.0 is pending from Q) · [web, ios, android] · row #39
+  - members@0.4.0 · [web, ios, android] · rows #18 and #44 (no backend change)
+
+- **Pages/screens** (all under specs/pages/web/…/SPEC.md):
+  - login: #43
+  - create-account: #17, #23, #43
+  - forgot-password: #43
+  - reset-password: #43
+  - programs: #22, #36, #37, #38, #41
+  - program: #33, #41
+  - program/profile: #15, #18, #23, #37
+  - program/password: #37
+  - program/edit: #19
+  - program/roles: #19, #29
+  - members/detail: #11, #19, #29
+  - members/history: #19, #29, #36
+  - members/streaks: #19, #29
+  - members/workouts: #9, #19, #29, #36
+  - members/health: #9, #19, #29, #36
+  - members/invite: #19
+  - members/metrics: #39 (optionally #29)
+  - summary: #16 (desktop modals), #30, #43
+  - summary/log-workout: #16, #19
+  - summary/log-health: #16, #19
+  - summary/activity: #29, #36
+  - summary/distribution: #29
+  - summary/workout-types: #29
+  - lifestyle: #31, #36, #43
+  - lifestyle/timeline: #29, #36
+  - lifestyle/steps-timeline: #29, #36
+  - lifestyle/workouts: #9, #29, #36
+
+- **Row status (verified in code on top of the quick-wins tree)**:
+  - **#9**: open. Add/edit modal errors render behind the modal (lifestyle/workouts :148 vs :190-259; members/workouts :248 vs :400; members/health :318 vs :505). `ConfirmDialog` closes before the result arrives.
+  - **#11**: open. Checkbox at members/detail :132-142. No backend change: `is_active` is optional (membershipService.js:229-231) and stays accepted for live binaries. The list's "Inactive" badge (list :97-101) is dead code, because `/details` returns only active rows.
+  - **#15**: half done. Q #8 already made the copy plain (:208). Still missing: no progress state, and the error shows far up the page at :296. `ConfirmDialog` closes at once (:42-45).
+  - **#16**: open. Both forms swallow lookup failures (`catch {}` at LogWorkoutsForm ~:145-160 and LogDailyHealthForm ~:162-180), so a failure shows the "No workout types / No active members" hint. Nothing reloads on reconnect.
+  - **#17**: open. `submitEmail` (:183-206) shows "Username/Email already exists" on step 3, and `goBack` clears it (:240-243). A retry after a successful register (`registered=true`) calls register again.
+  - **#18**: open. `hasPassword ?? true` (:229). The Google row shows "Not linked" plus Link while identities load or fail (:396-419). Name fields stay blank until the profile loads (:136-143).
+  - **#19**: open. Role redirects run before the session is restored (effects fire while `isBootstrapping` is true). Affected pages: history :38-42, streaks :28-32, workouts :71-75, health :86-90, detail :33-36, invite :21-24, program/edit :35-38, roles :29-32, log-workout :27-30, and log-health :27-30 (log-health is missing from the evidence). `auth-provider.tsx` needs no change: session and `isBootstrapping` flip in the same commit (:211-226). The fix is to gate each effect on `!isBootstrapping` (`useAuthGuard` already returns it).
+  - **#22**: partial. Q fixed the order-error copy. Still open:
+    - Deleting a program fails silently: the `mutateAsync` rejection inside `ConfirmDialog` is unhandled (:558-573).
+    - Cancel request has no `onError` (:95-109).
+    - The tab-flip effect (:201-205) unmounts the Create tab when `pendingInvitesCount` changes.
+    - Accept and Decline show no pending state (:982-994, :623-642).
+  - **#23**: open. On a failed load, `loadGsi` leaves the dead `<script>` in place. Every later attempt waits on that tag forever (:27-31, :107-109), and nothing retries.
+  - **#29**: partial. Q #8 made the messages plain. Still open:
+    - No Retry anywhere.
+    - `isLoading` stays true through every retry (about 48 s).
+    - members/workouts and members/health have no error branch at all.
+    - members/detail shows a blank page when the member isn't found (:98).
+  - **#30**: partial. Failures already show "—" via `unavailable`. While loading it still shows 0% / "0 days" (:391-447), Daily avg 0 (:240), and "No workouts logged yet." (:625-626).
+  - **#31**: open. "N/A" / "No data" / "No data yet." show on failure (:221-282, :403-407, :560-562). No ErrorView, no Retry, no refetch on reconnect. Queries are already parallel.
+  - **#33**: open. "0 active" (:155), "No admins or loggers assigned." (:189), "0 types available" (:238) and Active Members (:298) all show on failure.
+  - **#36**: open:
+    - BackButton is about 26 px (:9).
+    - Button `sm` (Button.tsx) is too small.
+    - PeriodSelector buttons have no `type`, accessible name or pressed state (:24-31).
+    - Row pills (`px-3 py-1`) in members/workouts :270-283, members/health :340-353, lifestyle/workouts :318-340.
+    - Modal Done/Close buttons (programs :400-405, :480-485, :1116; lifestyle/workouts :194-200, :230-236).
+    - Drag handle uses `p-1` (programs :690).
+    - Invite buttons use `py-2 text-xs` (:983-1001).
+    - Picker rows use `py-2` (lifestyle :664-683).
+  - **#37**: open. `Modal.tsx` has no role, no Escape handling and no focus management. Program cards are click-only divs (`GlassCard onClick`, :734-738). Labels have no `htmlFor`: programs :1032 / :1054 / :1063 / :1123 / :1144 / :1153, profile :254 / :268, password :78 / :101.
+  - **#38**: open on web. CreateProgramTab (:1008-1092) and the `/programs` EditProgramModal (:1094-1192) have no date check. Copy program/edit's rule (start must be strictly before end), with the copy `End date must be after the start date.` (edit :52-53, :153-156). Android and iOS edit use the same rule.
+  - **#39**: open. `MemberMetricsCard` has no `avg_steps` case (metrics :212-232). After S0, `avg_steps` may be null for other members' rows, so show "—".
+  - **#41**: open. Neither account menu has a Support row or a name/@username row (programs :489-535; program :455-528). The Program-tab Sign Out has no confirm (:517-526). Parity reference: iOS `ProgramPickerView.swift:610-618` (ProfileRow) and :682-692 (Support / "Get help or contact us").
+  - **#43**: open. Light-only boxes on login :150-154 / :196, create-account :437, forgot-password :91 / :118, reset-password :136 / :141 / :200. Low-contrast lifestyle accents (:216, :270, :351, :359-366). White text on sky-400 in summary :480-487. `--rf-text-muted` #7c828e is about 3.9:1 (globals.css:14). Tailwind has no `darkMode` config, so `dark:` variants won't work; use classes or CSS variables in globals.css.
+
+- **Files (exhaustive; the implementer may touch ONLY these), grouped by surface**:
+  - backend/
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/backend/services/programService.js — #38 (recommended; see open question 1). In `createProgram`, when both `start_date` and `end_date` are present and start >= end (compare the yyyy-MM-dd prefix), throw `AppError(400, "End date must be after the start date.")`. This must sit **before** `sequelize.transaction()`, because the catch at the end of `createProgram` turns everything into a 500. `updateProgram` stays unchanged (all three edit screens already validate). S0 does not touch this file.
+  - backend/: verdicts for every other row (#9–#45). No backend change for any of them:
+    - **#9**: `deleteCustomWorkout` already returns 400 with "Cannot delete this workout. It has N workout log(s)… Consider hiding it instead." (workoutService.js:211-225), and the kit shows server text for 400.
+    - **#11**: `is_active` is optional. Clients just stop sending it.
+    - **#12**: toggle and add are non-idempotent by design. Judging success by the save itself removes the retry.
+    - **#17**: client remembers the successful register. Making register idempotent would need a password check, which is over-engineering.
+    - **#24**: a second DELETE returning 404 "Workout log not found." is correct; the client disables the buttons.
+    - **#27**: `loadAccess` already answers `skipped_not_member` for non-active programs (healthSyncService.js:134-161). Clients filter `GET /programs` by `my_status == "active"`.
+    - **#44**: `updateMember` already clears on an explicit JSON `null` (memberService.js:138). The contract for iOS and Android is "send `gender: null` explicitly". Android has a precedent at ApiService.kt:241 (a JsonObject body so explicit nulls survive); iOS can use `NSNull()`. So no edits to the S0 files memberService.js or logService.js.
+  - web/ (apps/web/src/…)
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/ui/ConfirmDialog.tsx — #9 / #15 / #22: optional keep-open-until-done, plus an in-dialog `errorMessage` and pending label. The default behaviour stays the same for existing callers.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/ui/Modal.tsx — #37: `role="dialog"`, `aria-modal`, Escape closes it, focus moves in on open and is restored on close. All modals inherit this.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/kit/QueryView.tsx — **NEW**. The ONE #29 helper: `fromQuery`, then LoadingState, or ErrorView + Retry (offline-aware, polish-1 rule 6), or the stale FloatingBanner (hidden while offline), or `children(data)`. Reused by #31 and #33 where it fits.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/BackButton.tsx — #36: 44 px minimum.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/ui/Button.tsx — #36: `sm` gets a 44 px minimum height.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/ui/PeriodSelector.tsx — #36: `type="button"`, aria-labels Week / Month / Year / Program, `aria-pressed`, 44 px.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/GoogleSignInButton.tsx — #23: remove the failed script tag, and retry `loadGsi` via `subscribeReconnect`.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/MemberPickerModal.tsx — **NEW** (#36). The shared View-as picker with 44 px rows, extracted from lifestyle :618-685. lifestyle uses it now; members/page.tsx adopts it later in People S5.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/hooks/use-log-lookups.ts — **NEW** (#16). Shared lookup loader for both log forms: error state, `reload()`, reload on reconnect. Keeps the ~690-line forms from growing.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/forms/LogWorkoutsForm.tsx — #16: "Couldn't load · Retry" instead of the empty hint, and a hint on empty pickers.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/forms/LogDailyHealthForm.tsx — #16: same as above.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/globals.css — #43: dark-aware `.success-banner` / `.warning-banner` and accent-text classes. Optionally `--rf-text-muted` (see open question 2).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/login/page.tsx — #43.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/create-account/page.tsx — #17 (jump to step 2 with the message on "already exists"; a retry after a successful register only calls `login`) and #43.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/forgot-password/page.tsx — #43.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/reset-password/page.tsx — #43 (Q #8 also edited this file).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/programs/page.tsx (1232 lines) — #22 (`actionError` FloatingBanner `error` + dismiss; tab chosen only on open; "Accepting…" / "Declining…"), #36, #37 (labels; card keyboard via role / tabIndex / onKeyDown), #38 (Create tab + edit modal), #41 (profile row, Support row → `/support`). **Shared with N3.**
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/page.tsx (530 lines) — #33 (loading, error + Retry, honest empty lines) and #41 (rows + Sign Out confirm). **Shared with N3.**
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/profile/page.tsx (515 lines) — #15 (button "Deleting…" with the error right under it), #18 ("—" with disabled buttons until loaded, "Couldn't load · Retry", name seeded from the session), #37 labels. **Shared with People S2.**
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/password/page.tsx — #37 labels.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/edit/page.tsx — #19.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/roles/page.tsx — #19, plus #29 helper.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/detail/page.tsx — #11 (remove the checkbox and `isActive`; the PUT sends only `joined_at`), #19, #29 (incl. member not found).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/history/page.tsx — #19, #29.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/streaks/page.tsx — #19, #29.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/workouts/page.tsx — #9, #19, #29, #36.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/health/page.tsx — #9, #19, #29, #36.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/invite/page.tsx — #19.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/metrics/page.tsx — #39 (optional #29).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/page.tsx — #30 ("…" while loading, "—" when missing) and #43 (health card gradient starts at sky-600).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/log-workout/page.tsx — #19.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/log-health/page.tsx — #19.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/activity/page.tsx — #29.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/distribution/page.tsx — #29.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/workout-types/page.tsx — #29.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/lifestyle/page.tsx (733 lines) — #31 (Summary recipe: ErrorView + Retry, stale banner, `useRefetchOnReconnect`, "—" not "N/A" / "No data" on failure), #36 (use the new picker), #43 accents.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/lifestyle/timeline/page.tsx — #29.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/lifestyle/steps-timeline/page.tsx — #29.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/lifestyle/workouts/page.tsx — #9 (errors inside the add/edit modal and the delete dialog), #29, #36.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/icons/index.tsx — #41: optional `IconHelp` for the Support row (or reuse `IconInfo`). N3 may also touch this file.
+  - ios/: none (owned by the parallel iOS Track P).
+  - android/: none (owned by the parallel Android Track P).
+  - docs (orchestrator, at landing): the 27 web page SPECs above; feature SPECs programs (#38 D-C), auth (#17 retry rule), frontend-kit (#29 helper D-KIT plus `reference_impl`), program-memberships (#11: checkbox retired on web and iOS, `is_active` kept for live binaries); specs/features/registry.json; specs/features/REGISTRY.md; specs/pages/REGISTRY.md.
+
+- **DB surface**: none. No migration (011 and 012 stay reserved for Notifications and People).
+
+- **Flags/env/config involved**:
+  - `GOOGLE_WEB_CLIENT_ID` gates #23: the button renders nothing without it.
+  - `/support` is an in-app route for #41.
+  - Gates: web `npm run build && npm run lint` (apps/web); backend boot check.
+
+- **Blast radius**:
+  - The only backend touch is programs `createProgram` validation. Dependents of programs: program-memberships, invites, program-workouts, workout-logs, daily-health-logs, analytics, member-analytics, apple-health, health-connect, health-sync. None read the create path differently.
+  - No feature depends on frontend-kit.
+  - Surfaces to keep in parity: [web, ios, android] for the shared rows #9 / #11 / #15 / #16 / #17 / #18 / #29 / #30 / #31 / #33 / #36 / #38 / #43.
+  - Web-only by nature: #19, #23, #37, #39, #41 (iOS and Android already have #41), #22.
+
+- **Live-binary compat**: one backend contract change (#38). An invalid create (start >= end, both present) changes from 201 to 400 `{ error: "End date must be after the start date." }`, on the existing error shape.
+  - Safe for iOS 1.4.2 (56) and 1.5.0 (58): their create has no check, so they now get a readable server error instead of a 0% program.
+  - Never reached by Android 1.0.0 (4) and 1.1.0 (5): they already validate.
+  - No route, field or response-shape change.
+  - Deploy backend first.
+
+- **Doc↔code mismatches found**:
+  - DISCOVERY #19 evidence omits summary/log-health/page.tsx:27-30 (same bug).
+  - DISCOVERY #19 cites auth-provider.tsx, but it needs no change.
+  - DISCOVERY #29 evidence omits the same-pattern pages members/streaks, lifestyle/steps-timeline, program/roles and members/metrics (ErrorState with no Retry).
+  - The #11 evidence "members/list :97-101 Inactive" badge is unreachable (server and page return only active rows).
+  - #37 evidence includes NotificationModal.tsx, which D-N3 replaces with a toast.
+  - frontend-kit is still 0.3.0 in registry.json while the Q plan claims 0.4.0 (pending docs commit).
+  - DISCOVERY §5 notes the summary/bulk-log-workout page SPEC has no page (pre-existing).
+
+- **Out of scope (explicitly)**:
+  - #32 and app/members/page.tsx (People S5; also the #36 picker rows at :816/:828).
+  - app/members/list/page.tsx (People S2).
+  - components/NotificationModal.tsx, components/NotificationsGate.tsx and app/shell.tsx (N3 toast and inbox).
+  - The "+" sheet's Invites→Inbox rename, badge semantics, and the Inbox / Notifications rows (N3).
+  - The "Hide my activity" switch (People S2).
+  - All iOS and Android files.
+  - Rows not on the web list: #10, #12–#14, #20, #21, #24–#28, #34, #35, #40, #42, #44 (client part), #45. #13 and #28 are iOS-only phone checks with no web or backend part.
+  - App version bumps.
+  - updateProgram date guard; register idempotency; a `""`→`null` gender normalization.
+
+- **Open questions for the orchestrator**:
+  1. **#38 server guard on create** (recommended: about 3 lines, and it protects old iPhones immediately). Veto it to keep #38 client-only.
+  2. **#43**: darken `--rf-text-muted` globally (#7c828e → ~#6b7280, 3.9 → about 4.8:1)? It restyles every page slightly. Recommend yes, but it's the user's call.
+  3. **Same-file collisions**: programs/page.tsx and program/page.tsx (N3), and program/profile/page.tsx (People S2). Either serialize (P-web lands first, N3 and S2 rebase), or have the web implementer of the later track take these rows.
+  4. **#41**: extract one shared account-menu rows component (new `components/account/AccountMenuRows.tsx`, used by both menus) so N3's Inbox and Notifications rows land once? Recommend yes, coordinated with N3. If so, add that file to the list.
+  5. **#29 siblings**: include members/streaks, lifestyle/steps-timeline, program/roles and members/metrics in the QueryView adoption (recommended for consistency; the first three are already in the file list), or only DISCOVERY's evidence pages.
+  6. **#15 edge case**: a retry after an unseen successful delete gets a 401, which shows the kit's signed-out message. Accept it, or treat a post-delete 401 as done?
