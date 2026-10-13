@@ -1,60 +1,86 @@
-# PLAN VERDICT — OBJECTIONS (8)
+# PLAN VERDICT: OBJECTIONS (4)
 
-1. **[BLOCKING] Seams S-1 and S-2 don't match the S0 module that already exists, and the plan builds a second hide rule next to S0's.**
+All four objections are advisory. None blocks implementation.
+
+1. **[ADVISORY] Change #7 (hide members of every membership status) relies on a leak that doesn't exist, and it departs from binding S1-1 without reason.**
    - Evidence:
-     - S0 is being built in the working tree right now. `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/backend/utils/memberVisibility.js:94` exports `loadViewer, hasProgramAccess, canView, redactHealth, redactMetricsRow, requireMemberView`. There is no `canViewRoster`.
-     - `canView(viewer, targetMemberId, kind)` (:56) is **synchronous** and takes **3 params, with no programId**. Its `viewer` is the object `loadViewer` returns (`isGlobalAdmin`, `isStaff`, `isActiveMember`, `hiddenMemberIds`), not `req.user`.
-     - S0 already has the hide rule: kind `"workouts"` = self, staff, or an active co-member not in `hiddenMemberIds` (:65-66). The S1 hook is documented as "loadViewer fills hiddenMemberIds" (:16-20, :36).
-     - S0 already guards this:
-       - `requireWorkoutsView` is on all 5 `/workouts/types` routes (`routes/analytics.js:138,168,179,190,201`).
-       - `canView(viewer, memberId, "workouts")` is already in `assertMemberAccess` (`services/memberAnalyticsService.js:19-21`).
-     - The plan's anchors (:25, :28-48, :223, :427-432) are pre-S0. Today they are :19, :25, :225 and the export block.
-   - Failure scenarios:
-     - **G0 stops the build.** It prints `undefined function none false`, so the plan halts at step 4.
-     - **Every `/api/people` call would fail.** Implemented as written, `peopleService` calls the missing `canViewRoster`, so every call is a TypeError and a 500.
-     - **Step 8(d) can't be done correctly.** It puts an async `canSeeActivity` inside the sync 3-param `canView`. That returns a Promise, which is always truthy. There is also no programId to pass, and the viewer shape is wrong (`global_role` vs `isGlobalAdmin`).
-     - **The boot check fails.** The `/workouts/types` lines come out `...requireProgramAccess,requireActivityVisible,<anonymous>,<anonymous>`, not the "exactly these 18 lines". The `canViewRoster` check prints `undefined`.
-     - **The switch can lie.** `hiddenMemberIds` stays empty forever, so S0's documented `"workouts"` rule keeps answering true for hidden members. Any later caller that follows S0's documented rule (as the program-memberships SPEC tells it to) leaks hidden activity. There would be two rules for one concept, plus a second membership lookup per request.
-   - Fix (simpler, and follows don't-over-engineer):
-     - In `loadViewer`, fill `hiddenMemberIds` with one query: active members of `programId` with `hide_activity`, skipped for staff and global admins.
-     - Give `requireMemberView` an optional `code` and use it for `requireWorkoutsView` (`activity_hidden`).
-     - Filter metrics rows with `canView(viewer, row.member_id, "workouts")`.
-     - Pass `req.viewer` into `getSummary`.
-     - People uses `loadViewer` + `canView("roster" / "workouts")`.
-     - Drop `viewerActiveRole`, `isActivityStaff`, the WeakMap cache, `requireActivityVisible` and `assertActivityVisible`.
+     - S1-1 says "the program's **active** members whose `hide_activity = true`".
+     - The plan's reason is that a member who left could still be read through `/workouts/types?memberId=`. That's false. All 5 services filter the logs with `activeMembershipInclude(programId)`, which is `required: true` with `status: "active"`:
+       - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/backend/utils/queryHelpers.js:3-11`
+       - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/backend/services/analyticsService.js:439` (v1)
+       - the same file, `:509, :523, :540, :552` (v2)
+     - The other outputs are active-only too:
+       - history, streaks and recent return 404 for a target that isn't active (`memberAnalyticsService.js:16-19`);
+       - metrics only builds rows for active members (`:89-91`);
+       - `top_performers` uses `incl`;
+       - People reads active memberships only.
+   - Effect: the code change protects nothing and does no harm. But the docs would record a protection that doesn't exist (people D-C2, program-memberships D-C6, people §4.1, "What changed #7"), and the user is asked to approve a widening for a reason that's false.
+   - Fix: use `where: { program_id: programId, status: "active" }` as S1-1 says, and drop #7 and the "any membership status" wording from D-C2, D-C6 and §4.1. Alternatively, keep the code but remove the false justification everywhere it appears.
 
-2. **[BLOCKING] The plan contradicts the S0 decision rule on how S1 plugs in, and misses the program-memberships version bump.**
+2. **[ADVISORY] Version numbers and D-rule IDs collide with the wave C polish amendments, which were committed after the NP amendments (`f6a4b91`).**
    - Evidence:
-     - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/specs/features/program-memberships/SPEC.md:209` (D-C5, already written) fixes the method: "People S1 hook: 'Hide my activity' (migration 012) fills `hiddenMemberIds` inside `loadViewer` and adds its workout-field redaction inside `redactMetricsRow`".
-     - S0's member-analytics D-C8, analytics D-C9 and analytics-v2 D-C4 (S0 `plan.md:425,443,455`) say the S0 `"workouts"` guard "is where People S1's Hide my activity takes effect".
-     - S0 lists `utils/memberVisibility.js` under `program-memberships.reference_impl` (S0 `plan.md:479`).
-   - Failure scenario:
-     - S1 adds exports to a file program-memberships owns, but doesn't bump program-memberships or amend D-C5. Steps 20–25 never touch that SPEC, and the brief's docs list leaves it out.
-     - Instead the plan lists the file under `people.reference_impl` and adds `depends_on: "people"` to member-analytics, analytics and analytics-v2. Those features import program-memberships' module, which they already depend on.
-     - The result is a people ↔ member-analytics two-way edge, and five SPEC rules that are now false.
-     - This breaks the git-version rule for owned-interface changes (MINOR on the owning feature).
-   - Fix:
-     - Bump program-memberships 0.3.0→0.4.0 and amend D-C5. The amendment should say metrics rows are *omitted, not redacted*, because iOS `MemberMetricsDTO` has non-optional Ints.
-     - Remove the people `reference_impl` entry and the new `depends_on: people` edges.
-     - Add the program-memberships SPEC to the brief.
+     - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/specs/initiatives/reliability-overhaul/plans/phase-4-polish-amendments.md:85` already assigns "**program-memberships D-C6:** PA2". Its §5 bumps:
+       - program-memberships 0.4.0
+       - member-analytics 0.7.0
+       - members 0.4.1
+       - analytics 0.5.1
+       - analytics-v2 0.2.2
+     - `phase-4-polish-web/plan.md:9` predicts program-memberships 0.3.0→0.3.1 with "New D-C6". `phase-4-polish-ios/plan.md:13` predicts program-memberships 0.4.0.
+   - Failure scenario: S1 lands first (NP §5 order) and creates `feature/program-memberships@v0.4.0` and `feature/member-analytics@v0.7.0` plus a D-C6 row. When wave C lands, it tries to create the same tags and a second D-C6. That breaks git-version's tags invariant and the "assigned once" ID rule.
+   - Fix: extend step 28(e). The orchestrator also amends the polish amendments so wave C takes:
+     - program-memberships D-C7, at a version after 0.4.0;
+     - member-analytics after 0.7.0. Web B already claims 0.8.0, so wave C takes 0.8.x or later.
+     - members after 0.5.0, analytics after 0.6.0, analytics-v2 after 0.3.0.
 
-3. **[ADVISORY] `memberService.js` will go over ~200 lines.** It is exactly 200 lines now (`wc -l`); S0's amendment SA6 trimmed it to fit. Step 12 adds about 22 lines (to roughly 222). Move the `hide_activity` validation into a small helper, or accept the size explicitly.
+3. **[ADVISORY] Reverting N-SRV takes the whole API down, and the plan says nothing about rollback order.**
+   - Evidence:
+     - `server.js` → `routes/people.js` → `services/kudosService.js` requires these at load time:
+       - `./notificationPreferenceService`
+       - `../utils/localTime`
+       - `../utils/notificationTemplates`
+     - `services/peopleService.js` requires `kudosService`.
+     - The Risks section only says "N-SRV first".
+   - Failure scenario: S1 is live and N-SRV is reverted (amendments §4 already plans for that case on web, verdict #2). The boot fails with `MODULE_NOT_FOUND`, so every API route goes down, and live iOS and Android lose the backend.
+   - Fix: add to Risks and to people SPEC §8: "If N-SRV is reverted, revert S1 first, or in the same revert. The 012 column and table stay (harmless)."
 
-4. **[ADVISORY] Coverage guard 2's expected file set is already wrong.** `grep -rlE "WorkoutLog|…|top_performers…"` matches `utils/memberVisibility.js` today (its S0 header :18 mentions `top_performers`), and S1's own pasted comment adds another match. Every run will report a spurious "other file". Add it to the expected set.
+4. **[ADVISORY] The matrix never runs the new hide_activity 403 branch.**
+   - Evidence:
+     - `check("someone else's flag → 403", r.status === 403, r)` runs S (`ava.rivera`) against H. S isn't a global admin; the testbed has no global admins (`tools/testbed/seed.mjs`).
+     - So the existing `"You can only update your own profile."` 403 (`memberService.js:131-134`) answers first.
+   - Failure scenario: the step-11(c) guard ("never a global admin for someone else", members D-C4 / people D-C3) could be missing or wrong and the matrix would still print ALL PASS.
+   - Fix (either):
+     - assert `r.data.error === "You can only update your own profile."` and state that the global-admin branch is unverified on staging;
+     - or add a step-25(b) stub check of the guard's condition.
 
-5. **[ADVISORY] U-3's recommended option quietly reverses a recorded user decision.** `phase-4/DECISIONS.md` says "web ships as each part is reviewed". The plan states that approving without comment applies the recommendation (hold web People until the store release). The plan must say outright that U-3 (recommended) overrides that DECISIONS line.
-
-6. **[ADVISORY] The privacy text (§A item 4) leaves out data co-members can already see.** It says co-members see "your name, username and program role". But `getProgramMembers` / `getMembershipDetails` (`services/membershipService.js`) also return `gender`, `date_joined` and `global_role` to every active co-member, and S0 notes the roster "already shows their name, username and gender". Add gender (and join date) to the disclosure.
-
-7. **[ADVISORY] Matrix row #10 can pass without testing anything.** `/analytics/summary` defaults to `period=day`, so H is in `top_performers` only if H logged today. Use `period=month` and assert that H is **present** for S before asserting H is absent for P.
-
-8. **[ADVISORY] Seam S-3 rests on an unplanned track.** No Notifications plan exists yet in `plans/`. If 011/N2 stores the time zone on `members`, the N-track also edits `models/Member.js`, and the plan's shared-files list (only `models/index.js`, `server.js`) misses that. Keep the G0 STOP and add `Member.js` to the shared-file list.
-
-**What I checked**
-- **Backend at HEAD and in the S0 working tree:** `memberVisibility.js`, `memberAnalyticsService.js`, `routes/analytics.js`, `memberService.js`, `routes/members.js`, `analyticsService.js`, `utils/notifications.js`, `rateLimit.js`, `response.js`, `middleware/auth.js` (`req.user.member_name` is present), the models and `server.js` mounts.
-- **Route inventory:** the GET inventory command prints 33 lines (confirmed).
-- **Database:** FK cascades for `notification_recipients` and `push_deliveries`. The 012 verify values (5 indexes, 6 constraints) match the 009/010 pattern.
-- **Boot env:** loads with the local `.env`. `localDateIn` gives the expected values.
-- **Live binaries:** Android `ignoreUnknownKeys` (HEAD and 1.0.0 `cea59a5`); the overview uses `firstOrNull`. Acknowledging an undone notification returns 404, and iOS 1.4.2 / Android 1.0.0 handle that safely (optimistic removal, then re-fetch). `top_performers` is rendered by no client. All three clients send `memberId` only when it's set.
-- **Web:** members list/detail show names and roles only; the metrics preview is admin-only; the privacy-page anchors exist in both files.
-- **Tooling:** testbed roles on staging, login response fields, git-version rules for shared and owned files.
+**What I checked (nothing else found):**
+- **Names:** these exist exactly in the shipped S0 code:
+  - `loadViewer/hasProgramAccess/canView/redactHealth/redactMetricsRow/requireMemberView` (`memberVisibility.js:94`; arity 2/3/2);
+  - `assertMemberAccess` (:12-23), `redactMetricsRow` (:223), `let result` (:225) and the exports (:429-434);
+  - `routes/analytics.js:5, :30-34, :42-45`;
+  - `analyticsService.js:118, :253`;
+  - `memberService.js:26-27, :52, :120-149`;
+  - `Member.js:54`.
+- **N-SRV C8 names:** `getTimeZones` (notificationPreferenceService export), `localParts`/`dayLabel`, `getContentProvider().render`, and `createNotification({…transaction})` with `afterCommit` and a `null` return. G0 and boot-check line 20 are right: I computed `sha256(seed) % 3 = 2` → the "You got kudos, Liam!" variant, and Sydney gives 2026-10-14.
+- **Boot check 25(b):** all 20 lines verified by hand. Express Layer names come out `<anonymous>` for the returned arrows. The canView and guard results match.
+- **S0 callers re-checked:**
+  - `membershipService.js:128,154` (roster);
+  - `logService.js:742-746` (health; an upper-case self id now passes — backward-compatible);
+  - `memberService.js:21,38`.
+- **Every route honours canView(…, "workouts"):** all of the plan's route checklist (#1–#13).
+- **Counts and file sets:**
+  - The GET inventory is 33 today, plus 4 from N-SRV and 2 from S1, so 39.
+  - Coverage guard (d) gives 8 files today, plus `memberActivityStats.js` and `peopleService.js`, so 10.
+  - Guard (e) `hide_activity` grep gives exactly 3 files.
+- **Other per-person outputs:** none found. I grepped:
+  - every `Member` read and `res.json(member)`;
+  - `top_performers` across web, iOS and Android (decoded only, never rendered).
+- **Live binaries:**
+  - plain-member clients send only their own id (web `members/page.tsx:49,142`, staff-gated history/streaks; iOS `APIClient+Members.swift:242`);
+  - metrics rows are omitted, never zeroed;
+  - the `GET`/`PUT /members/:id` changes only add keys;
+  - kudos never reach `/unacknowledged` (D-C20);
+  - DELETE returns no count, and the client plans already match §E.
+- **Migration 012:** follows the 009/010 RLS and grant pattern. The verify values (5 indexes, 6 constraints) are correct. The cascades `notification_recipients` (`001:235`) and `push_deliveries` (`010:63`) are confirmed.
+- **Anchors:** the `server.js` and `sql/README.md:87` anchors hold after N-SRV step 29. The CONTEXT.md and SPEC text anchors (members, member-analytics, analytics, analytics-v2, program-memberships) all exist.
+- **Registry and dependencies:** the registry deps are consistent, there are no new reverse edges, and the auth no-bump reasoning matches the git-version rule.
+- **Matrix:** the login fields (`token`, `member_id`) and `period=year` are supported, and the testbed has a staging mode.

@@ -91,3 +91,8 @@
 - **Deploy order:** the backend `programService.js` change deploys before web.
 - **Tags:** after landing.
 ```
+## 6. Versions and D-rule IDs (orchestrator)
+
+The bumps and IDs in §5 are provisional. They collide with the Notifications + People waves (for example D-KIT-20
+and program-memberships D-C6), so `phase-4-np-amendments.md` §7 applies: the orchestrator assigns versions, tags
+and IDs at each docs commit, in landing order. Implementers don't write them into SPECs.

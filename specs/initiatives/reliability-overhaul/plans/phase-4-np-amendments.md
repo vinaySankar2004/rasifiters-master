@@ -187,3 +187,22 @@ S1 is re-planned as **revision 3** against this section. Re-run plan-adversary o
 - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/ui/RootScreen.kt`
 - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/page.tsx`
 - `/Users/vinayaksankaranarayanan/Developer/rasifiters-master/specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`
+
+## 6. People server S1, revision 3 (orchestrator, 2026-10-13)
+
+`phase-4-p-server/plan.md` is now revision 3. Its review is clean: 0 blocking, 4 advisory. Revision 2 is kept as
+`plan-rev2.md` / `verdict-rev2.md`.
+
+| # | Amendment |
+|---|---|
+| S1R-1 | **Verdict #1.** The hidden-member query reads **active** memberships only, as S1-1 says. Drop "What changed #7" and the "any membership status" wording from people D-C2, program-memberships D-C6 and §4.1. Every output is already active-only. |
+| S1R-2 | **Verdict #3.** Add to Risks and to people SPEC §8: "If N-SRV is reverted, revert S1 first or in the same revert (S1 requires N-SRV modules at boot). The 012 column and table stay." |
+| S1R-3 | **Verdict #4.** Matrix: the "someone else's flag → 403" check asserts the exact `You can only update your own profile.` message. The global-admin branch is recorded as unverified on staging, and the step-25(b) boot check gains a stub assertion of the guard's condition. |
+
+## 7. Versions, tags and D-rule IDs across all Phase 4 waves (orchestrator)
+
+Every version number, tag and new D-rule ID in the Phase 4 plans and amendments (this file and
+`phase-4-polish-amendments.md`) is **provisional**. The orchestrator assigns them at each docs commit, in landing
+order: the next free version and ID at that moment. This keeps the git-version tags invariant and the
+"assigned once" rule. Implementers don't write version numbers or new D-rule IDs into SPECs, because docs belong to
+the orchestrator. In code comments, cite the rule by name (for example "the toast rule"), not by number.
