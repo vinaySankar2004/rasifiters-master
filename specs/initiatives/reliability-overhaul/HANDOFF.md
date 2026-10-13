@@ -46,6 +46,10 @@
   1. Watch: the E8 queries daily (filter Render on the `[refresh]` tag) + R3's 24 h `push_deliveries` check (revert
      trigger: Android 0 `sent` with ≥ 1 `messaging/invalid-argument`) + G3's distinct-`remote_addr` count.
   2. Legacy `RaSi_Fiters_API` (suspended 2026-10-11, D-16): delete ~2026-11-11.
+  3. Phase 4 polish candidates (user picks): **instant sign-out of other devices** — the API checks the session still
+     exists (cached ~1 min) instead of trusting the JWT until expiry; small backend change, benefit = sign-out-everywhere
+     feels immediate. Old iOS 1.4.x refresh storm still visible (one TZ member: 401 → refresh ~1/s during health sync)
+     → turn on the 1.5.0 soft nudge (`LATEST_IOS_VERSION`) as soon as 1.5.0 is public.
 - **Standing preferences (memory):** `staging-use-sparingly` · `keep-disk-lean` · `dont-over-engineer` ·
   `ios-user-verifies-builds-visually` (the user presses ⌘B — never the `xcode` MCP build) · no shims for old binaries.
   Walkthrough decisions on the board (✅); factual answers in [`discovery/README.md`](discovery/README.md).
@@ -58,6 +62,12 @@
    as each lands. Test on iPhone + Pixel with the checklists at the end of each track's `plan.md` (sessions, Sign out
    everywhere, health sync incl. the upgrade from the store build, invite tap → inbox, offline banner, update banner).
    Then App Store / Play production.
+   **Device tests 2026-10-13 (iPhone 1.5.0 (58) + web):** ✅ upgrade keeps the session + no doubled totals · health
+   sync · invite tap → inbox · offline banner · instant opens · Pixel Google button (on 1.0.0's console fix). By design,
+   not a bug: Sign out everywhere / password change end the OTHER devices only at their next refresh (≤ 1 h — stateless
+   JWT check, auth D-C14); the user accepted it ("no p"). Re-check: in airplane mode iOS showed "Couldn't refresh"
+   instead of "You're offline" (wiring verified correct — likely the seconds before iOS reports the path change).
+   Android 1.1.0 (5): internal track's first-publish opt-in still propagating + closed testing in review.
 2. **After adoption:** raise `LATEST_*` then `MIN_*` app-config versions on Render (user-approved env change) to nudge,
    then require, the new builds.
 3. Daily watch (follow-up 1) — now also `app_events` `auth.*` / `sync.run` from the new clients.
