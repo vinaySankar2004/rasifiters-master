@@ -1,6 +1,6 @@
 # Screen: `member-management` (android) — Invite + roster + member editor cluster
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-member-management`](../../ios/program-member-management/SPEC.md)
 > + [`web members/list`](../../web/members/list/SPEC.md) · [`web members/detail`](../../web/members/detail/SPEC.md)
 > · [`web members/invite`](../../web/members/invite/SPEC.md) — this file records only the Android realization + idiom deviations.
@@ -51,5 +51,6 @@ Bearer-authed by the OkHttp layer.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | Phase 4 quick wins: invite / member save / remove errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.1.1 | 2026-10-13 | **Reliability Phase 3 C3.** Invite-send swallow removed (invites §3.1): "Invitation sent" only on 200 (toast copy aligned with web / iOS), every other outcome through the frontend kit. Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E, lit early for the Members tab; Program-tab Phase G reuses). Invite (privacy-safe F3 swallow) · searchable roster (admin ★ / @username / Inactive badge; global-admin rows → editor) · global-admin editor (read-only Gender/DOB/Account-Created + editable Joined-Program date + Active Switch + Save `editMembership` + Remove confirm → `removeMember`). Deviations A-1 (Members-tab entry) + A-2 (flat chrome, toast). `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

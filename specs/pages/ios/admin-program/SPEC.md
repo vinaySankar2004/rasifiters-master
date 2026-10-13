@@ -1,6 +1,6 @@
 # Screen: `AdminProgramTab` / `StandardProgramTab` (ios) — the Program tab (Tab 4, the LAST tab body)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** Tab 4 **"Program"** (`calendar.badge.clock`) of `AdminHomeView`'s bottom `TabView` — the iOS
 > analogue of the web `/program` workspace hub. Role-bifurcated by `programContext.isProgramAdmin`:
 > `AdminProgramTab` (program/global admin — sectioned management menu) vs `StandardProgramTab` (logger/member —
@@ -183,4 +183,5 @@ write sub-routes, not the program hub). The read-vs-write axis (runs 31/36/54/55
 
 | Version | Date | Change |
 |---|---|---|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error (`ProgramCards.swift`) uses `SessionCopy.kitMessage` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-30 | Initial faithful port — `AdminProgramTab`/`StandardProgramTab` + `ProgramInfoSection` + `ProgramMyAccountSection` + `sectionHeader`/`settingsRow` + `.leaveProgramConfirmation` (D-C1); dropped dead `PlaceholderTab` (D-C2); tokenized `.blue`→`appBlue` (D-C3); deferred the 3 management sections as stubs. CLOSES the 4-tab home shell (run 57). |

@@ -1,6 +1,6 @@
 # Page: `lifestyle/workouts` (web) — workout types (lifestyle sub-route 1 of 2)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle/workouts` — the program's **workout-type management** screen, the first of the two
 > deferred `/lifestyle` sub-routes (reached from the [`lifestyle`](../SPEC.md) landing's
 > "Manage workouts" / "View workouts" pill). A searchable list of the program's workout types — **global**
@@ -174,4 +174,5 @@ client fns are **already ported** ([apps/web/src/lib/api/program-workouts.ts](..
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: every workout-type add / edit / visibility / delete error goes through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 31) — the **seventeenth web page spec**, the **first of the two deferred `/lifestyle` sub-routes**. The **workout-type management** screen — searchable Available/Hidden list of global + custom types; admins Add/Edit/Hide-Show/Delete, everyone else read-only. Decisions: **D-REF** (`consumed_by=[web]`; iOS mirrors later) · **D-SCOPE** (this page only; `/lifestyle/timeline` deferred; 1st-of-2, does not close the group) · **D-DEPS** (**no new dependency** — every import already ported; sweep ports only the page) · **D-S1** (faithful 1:1: `canManage` admin gate with read-only degrade, Available/Hidden split, global-vs-custom control matrix, invalidate-on-success) · **D-C1** (`window.confirm` → `ConfirmDialog`, 2 delete sites) · **D-C2** (clear stale error on Add **and** Edit modal open). Flagged F1–F6 (admin-role gate not `admin_only_data_entry` — corrects the run-23 inference; read-only degrade not redirect; client JWT-decode admin gate; client-side search filter; global types hide/show-only; no per-card in-flight lock). Consumes `program-workouts` (all 6 routes/fns) + `auth` (`useAuthGuard`); **all endpoints already mounted, api module already ported, no feature bump.** Ported `apps/web/src/app/lifestyle/workouts/page.tsx`. `npm run build` ✓ (`/lifestyle/workouts` prerendered, 4.82 kB — no Recharts; Middleware 27.4 kB active). |

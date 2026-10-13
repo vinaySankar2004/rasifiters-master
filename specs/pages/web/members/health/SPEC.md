@@ -1,6 +1,6 @@
 # Page: `members/health` (web) — per-member daily-health log manager (members sub-route 8 of 8 — CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/health?memberId=&name=` — the **View Health** manager for one member, reached by the
 > `/members` landing's "View Health / Daily health logs" card. Sort + filter modal + CSV export over the member's
 > daily-health-log list, each row **editable** (sleep + diet modal) and **deletable**. **8th & LAST** of the eight
@@ -206,6 +206,7 @@ mirror).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **View Health row clarity refactor (cosmetic, cross-surface parity).** Each row (`GlassCard padding="sm"`) moves off the DC-10 two-line format to a **stacked metric-cell layout**: a header (`bg-rf-accent` dot + `logDate` semibold) over a 3-col grid of new `HealthMetric` cells (uppercase `Sleep`/`Diet`/`Steps` label over the semibold value, `bg-rf-surface-muted` fill), so each value reads at a glance. Formatting unchanged (`sleepLabel`/`dietLabel`/`stepsLabel`, `—` for missing, steps grouped); Edit/Delete unchanged; the Members-tab `MemberHealthCard` preview keeps the DC-10 two-line form. Matches the iOS + Android View Health rows. No contract/behavior change. `tsc --noEmit` ✓; user live-tested. |
 | 0.2.0 | 2026-07-09 | **Steps throughout the manager** (daily-health-logs 0.2.0). Sort gains a **Steps** field; the filter modal gains **min/max steps** number inputs (echoed "Steps ≥/≤ N", cleared by Clear-all); list rows adopt the **DC-10 two-line** format (`Sleep · Diet · Steps`, thousands-grouped); the Edit modal gains a **Steps** number input (blank clears → `steps: null`, integer ≥ 0; at-least-one-metric now includes steps); the `updateMutation` payload + `fetchMemberHealthLogs` params gain `steps`/`minSteps`/`maxSteps`; the CSV header gains a Steps column. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/health` (members sub-route 8 of 8 — **CLOSES the group**) — per-member daily-health log manager (sort + filter modal + CSV export + per-row Edit/Delete, URL `memberId`/`name`, non-staff own-only redirect, `admin_only_data_entry`-gated writes). The WRITE twin of `members/workouts` (run 45). D-C1 `window.confirm`→`ConfirmDialog`, D-C2 tokenize the Delete button; no hoist cleanup (deps already shared). No new dependency, zero backend work, no feature bump. |

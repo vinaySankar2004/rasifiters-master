@@ -1,6 +1,6 @@
 # Page: `programs` (web) — the post-login programs hub
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/programs` — **the first protected route after login** (every auth page redirects here on
 > success). **Not** a bottom-nav tab; it's the program-selector hub you land on before entering a program's
 > tabbed workspace (`/summary` …).
@@ -167,6 +167,7 @@ non-admins (`isDataEntryLocked`). The hub shows/creates/edits programs regardles
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.2 | 2026-10-13 | Phase 4 quick wins: the list fails after the first try and Retry (list + invites tab) uses the kit `retryNow`, so it works mid-retry (D-KIT-18, #6); the invites tab reads offline while offline; create / edit / order errors go through `toAppError` — "Couldn't save program order. <kit message>" (D-KIT-19, #8). |
 | 0.3.1 | 2026-10-13 | Polish-1 — D-REL6 (offline with no data → kit offline `ErrorView`, never a spinner; failed reads refetch when the combined online value returns). |
 | 0.3.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 (kit states: `ErrorView`, stale banner, offline wins, "No programs yet" only on loaded data, invites tab `ErrorView`) · D-REL2 (instant open from the per-member launch cache; invites live) · D-REL3 (invite responses refresh the inbox `onSettled`; accept / decline / revoke errors shown) · D-REL4 (Sign Out = teardown + `/auth/logout` this device) · D-REL5 (F3 retired for `invited` cards; `requested` keeps Cancel request). §4/§6/§7/§8 updated; F3 marked retired. |
 | 0.2.1 | 2026-07-05 | **Search UI slimmed (user feedback):** the always-visible `GlassCard` search block is replaced by a collapsed header magnifier (`fab-button` circle, matching the existing FABs) that expands an animated floating `input-shell` pill (framer-motion `AnimatePresence`; autofocus; Esc/toggle closes + clears). The page renders identically to pre-0.2.0 while search is collapsed. Filter/reorder-disable semantics unchanged. |

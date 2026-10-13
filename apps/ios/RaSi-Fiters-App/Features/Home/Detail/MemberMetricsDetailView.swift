@@ -213,7 +213,7 @@ struct MemberMetricsDetailView: View {
         }
     }
 
-    // MARK: CSV — member-analytics D-C8 (polish #47): ONE column contract on web, iOS and Android. Rows = the list on
+    // MARK: CSV — member-analytics D-C9 (polish #47): ONE column contract on web, iOS and Android. Rows = the list on
     // screen, in its order; units live in the headers so cells stay plain numbers; a missing average is an empty cell.
     private static let csvHeader = "Name,Active Days,Workouts,Total Duration (min),Workout Types,Avg Duration (min),Longest Streak (days),Avg Sleep (hrs),Avg Diet Quality (out of 5),Avg Steps,Current Streak (days)"
 

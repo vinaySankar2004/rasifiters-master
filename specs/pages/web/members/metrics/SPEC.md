@@ -1,6 +1,6 @@
 # Page: `members/metrics` (web) — program-wide member performance metrics + CSV export (members sub-route 4 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/metrics` — the **Member Performance Metrics** dashboard reached by the `/members` landing's
 > metrics card (program-admin / global_admin only as an entry path). A searchable, sortable, filterable grid of
 > per-member metric cards + a client-side **Export CSV**. **4th** of the eight deferred `/members` sub-routes
@@ -85,9 +85,10 @@ find outliers, and exports the table to CSV for offline reporting.
   `["members","metrics",programId, search, sortField, direction, JSON.stringify(filterParams)]`, `enabled: !!token
   && !!programId` (`metrics/page.tsx:114-124`) — every control change is a new server fetch (server-driven
   sort/filter/search). Response: `{ total, filtered, date_range, members[] }`.
-- **CSV export** — `handleExport` (`:126-160`) builds the CSV string **client-side** from `metricsQuery.data.members`
-  (filename `MemberPerformanceMetrics_<Program>_<rangeStart>_to_<rangeEnd>.csv`), `escapeCsv`-escapes only the
-  member name (numbers passed raw), and `downloadCsv`s it. No server round-trip.
+- **CSV export** — `handleExport` builds the CSV **client-side** with `metricsCsv` / `metricsCsvFilename` from
+  `lib/metrics-csv.ts` over `metricsQuery.data.members` (the rendered list, in order), per the member-analytics
+  D-C9 column contract (units in the headers; identical on web, iOS and Android), and `downloadCsv`s it. No server
+  round-trip.
 - **Zero backend work, NO feature bump** — `GET /api/member-metrics` already mounted (`server.js:77`,
   `metricsRouter.get("/", authenticateToken)`), and the service `getMemberMetrics` enforces
   `ensureProgramAccess(user.id, user.global_role, programId)` → 403 for non-members
@@ -159,7 +160,7 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
   `authenticateToken`-only, their F2), `getMemberMetrics` calls `ensureProgramAccess` and
   403s a non-member (`memberAnalyticsService.js:74-75`). The route carries only `authenticateToken`; the gate lives
   in the service. Kept faithful.
-- **F4 — client-side CSV export.** `handleExport` builds the CSV from the loaded rows (no server endpoint);
+- **F4 — client-side CSV export.** `handleExport` builds the CSV from the loaded rows via `lib/metrics-csv.ts` (member-analytics D-C9) (no server endpoint);
   `escapeCsv` escapes only `member_name` (numeric fields are emitted raw — safe, they contain no commas/quotes).
   `null` avg sleep/diet → empty cells. Faithful.
 - **F5 — hero metric is sort-coupled.** The big number on each card (`heroValue`/`heroLabel`) is whatever the current
@@ -174,5 +175,6 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the CSV export follows the shared column contract via `lib/metrics-csv.ts` (units in the headers, rows = the list on screen in its order, unified filename — member-analytics D-C9, #47); the load error goes through `toAppError` (#8). |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (sortField initial state active_days; option list order unchanged), card subtitle = "Workouts N", first grid tile = Active days (in-place swap). CSV export unchanged. |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/metrics` (members sub-route 4 of 8) — program-wide member performance dashboard (search/sort/filter + per-member cards + client-side CSV export); D-C1 full-tokenize the amber flame badge → `rf-warning`. No new dependency, zero backend work, no feature bump. |

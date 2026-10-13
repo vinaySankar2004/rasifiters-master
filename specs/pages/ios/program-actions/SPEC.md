@@ -1,6 +1,6 @@
 # Screen: `program-actions` (ios) — the create-program + invites sheet (the picker "+" target)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** presented as a `.sheet` from `ProgramPickerView`'s floating **"+"** button
 > (`ProgramPickerView.swift:148-156`, badge = pending-invite count); `onDismiss` reloads programs +
 > pending invites.
@@ -121,5 +121,6 @@ gates on the data-entry lock (the lock follows *logging*, deep in the tab bodies
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the sheet carries the offline banner (`.offlineBanner()`, 76-pt reserve) with offline-only 116-pt bottom spacers in both tabs; a failed inbox reloads by itself on reconnect and reads offline while offline; the stale banner hides while offline (`ScreenBanner`); create errors use the kit copy (frontend-kit D-KIT-17/19, #2/#8). |
 | 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C1.** Inbox load errors → `ErrorStateView` / stale banner; respond errors → kit copy in one alert for both lists; `initialTab` for the invite push tap. |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 59) — the **create-program + invites sheet** (the picker "+" target), ported into `apps/ios/.../Features/Home/ProgramActions/{ProgramActionsSheet,CreateProgramTabView,InvitesTabView,InviteCardView}.swift`; the deferred stub removed. **D-REF** (legacy iOS + web `programs` parity; `consumed_by=[ios]`) · **D-SCOPE** (the cluster IS the run, ported with `edit-program`) · **D-S1** (faithful 1:1 — both web + legacy iOS agree → faithful is web parity, NO ADD) · **D-DEPS** (no new dependency; `StatusPill` reused from ProgramPickerView). Flagged F1–F5 (dual invite entry paths; admin-only error surface; top-level `StatusPill`; client role gating; create defaults + no create date validation). Role rules = `isGlobalAdmin` bifurcation (all-vs-my invites, grouped + revoke); `admin_only_data_entry` N/A. Build green-check owned by the user (Xcode); symbols grep-verified (each type defined once). |

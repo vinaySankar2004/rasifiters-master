@@ -1,6 +1,6 @@
 # Screen: `log-health` (android) — the Summary "Log daily health" multi-row form
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios log-health`](../../ios/log-health/SPEC.md)
 > + [`web summary/log-health`](../../web/summary/log-health/SPEC.md) (`LogDailyHealthForm`) — this file records only the Android realization + idiom deviations.
 > **Twin of** [`log-workout`](../log-workout/SPEC.md).
@@ -49,6 +49,7 @@ global_admin/program admin/logger, locked-to-self for a member. `admin_only_data
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | Phase 4 quick wins: save errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **Loggable-only program list (D-LOGGABLE).** The shared `ProgramMultiSelect` composable now shows only loggable programs — active AND not `isDataEntryLocked` (current always kept) — dropping completed/locked rows (0.2.0 showed locked rows disabled). Shared with `log-workout`; mirrored on web + iOS. See [`log-workout` 0.2.1](../log-workout/SPEC.md#11-changelog). User request 2026-07-09 (parity + cleaner UI). `assembleDebug` BUILD SUCCESSFUL. |
 | 0.2.0 | 2026-07-09 | **Steps + batched multi-program rebuild.** `LogHealthScreen` rebuilt as a batched multi-row clone of `LogWorkoutScreen` — per-row member · date · sleep hr/min · diet dropdown · **steps** `NumberField`; ≤200 rows; client (member, date) dup check; footer per DC-11 (adds "• {S} steps"); the shared `ProgramMultiSelect` sends `program_ids[]`. Posts to the net-new `ProgramContext.addDailyHealthLogsBatch` (`POST /daily-health-logs/batch`, daily-health-logs 0.2.0 D-C5) instead of the single `addDailyHealthLog`; at-least-one-metric spans sleep/diet/steps (R-1); rowErrors mapped by submit order. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E). |

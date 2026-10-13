@@ -1,6 +1,6 @@
 # Screen: `program-member-management` (ios) — the Program tab's Member Management section
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** `AdminProgramTab.swift:30` (`ProgramMemberManagementSection()`, always shown). The section
 > is a card with two nav rows: **View Members** (everyone → `ProgramMembersListView` → global-admin-only
 > `MemberDetailEditView`) + **Invite Member** (`canEditProgramData` → `InviteMemberView`).
@@ -122,6 +122,8 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 
 ## 11. Changelog
 
+- **0.2.1** (2026-10-13, Phase 4 quick wins) — member save / remove errors use `SessionCopy.kitMessage` (server text
+  kept for 400/422 and row errors — frontend-kit D-KIT-19, #8).
 - **0.2.0** (2026-10-13, reliability Phase 3 C2) — D-C4: "Invitation sent" only on 200; the invite swallow is
   removed (kit copy for every other status). F3 resolved.
 - **0.1.1** (2026-07-11) — D-C3: fix limited tap target on the Send Invitation CTA (styling moved inside the

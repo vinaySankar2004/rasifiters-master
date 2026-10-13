@@ -1,6 +1,6 @@
 # Page: `lifestyle/steps-timeline` (web) — daily-steps timeline detail
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle/steps-timeline` — the **daily-steps** timeline detail, reached from the
 > [`lifestyle`](../SPEC.md) landing's **Steps Timeline** chart card (a clone of the sibling
 > [`lifestyle/timeline`](../timeline/SPEC.md) sleep/diet detail). A `PeriodSelector` (W/M/Y/P) over one
@@ -130,4 +130,5 @@ program bounces to `/programs`.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-07-09 | Initial SPEC + build (steps-tracking run) — the **daily-steps** timeline detail, cloned from the sibling `lifestyle/timeline`: a `PageShell` + `PageHeader` + `PeriodSelector` over one `GlassCard` with a daily-average-steps header and a single teal (`#14b8a6`) `steps` `BarChart` (single left axis "steps", `toLocaleString()` tooltip, no Legend/Line/second-axis). Reuses `fetchHealthTimeline` (the `steps`/`daily_average_steps` fields are additive — analytics 0.2.0 D-C5, per-member-day group semantics per amendment A-4). `consumed_by=[web]`. **No new dependency, no backend work beyond analytics 0.2.0.** Ported `apps/web/src/app/lifestyle/steps-timeline/page.tsx`. `npm run build` ✓. |

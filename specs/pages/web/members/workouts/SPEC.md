@@ -1,6 +1,6 @@
 # Page: `members/workouts` (web) — per-member workout log manager (members sub-route 7 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/workouts?memberId=&name=` — the **View Workouts** manager for one member, reached by the
 > `/members` landing's "Recent Workouts" card. Sort + filter modal + CSV export over the member's workout-log list,
 > each row **editable** (duration modal) and **deletable**. **7th** of the eight deferred `/members` sub-routes
@@ -185,4 +185,5 @@ boundary (the run-40 `members/detail` / run-43 `members/history` mirror).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/workouts` (members sub-route 7 of 8) — per-member workout-log manager (sort + filter modal + CSV export + per-row Edit/Delete, URL `memberId`/`name`, non-staff own-only redirect, `admin_only_data_entry`-gated writes). D-C1 `window.confirm`→`ConfirmDialog`, D-C2 reuse hoisted `formatDuration`, D-C3 tokenize the Delete button. No new dependency, zero backend work, no feature bump. |

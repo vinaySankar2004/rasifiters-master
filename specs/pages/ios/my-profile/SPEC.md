@@ -1,6 +1,6 @@
 # Screen: `my-profile` (ios) — the account-menu "My Profile" screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (the Program tab's My Account section, run 57) →
 > "My Profile" `NavigationLink → MyProfileView()`.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/MyProfileView.swift`.
@@ -125,5 +125,6 @@ this screen (the read-vs-write-lock axis: the lock follows logging, not all writ
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the Delete Account error uses `SessionCopy.kitMessage` (frontend-kit D-KIT-19, #8). |
 | 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0).** D-C4: set-password rule 6 + A1 copy, credential vs kit messages, link / unlink without `refresh_token`. D-C5: "Sign out everywhere" row + confirm above Delete Account. |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **My Profile account screen** (one of the 4-screen account/settings cluster, run 58). Documents the own-profile editor: header, first/last name + gender `Menu`, Save via `updateMemberProfile` (`PUT /members/:id`), Delete via `deleteAccount` (`DELETE /auth/account`, gated `!isGlobalAdmin`), **+ the web-parity email-change form** (`PUT /auth/email`). Decisions: **D-REF** (`consumed_by=[ios]`; legacy iOS + web parity) · **D-S1** (faithful 1:1 port) · **D-C1** (web-parity email-change ADD — new `APIClient.changeEmail` + `ProgramContext.changeEmail` + optional `MemberDTO.email`) · **D-C3** (adopt shared `AppInputField`/`AppPrimaryButton`/`AppDestructiveButton`) · **D-DEPS** (one new API-layer dep, no new view component). Flagged F1–F6 (client role gate; name space-split heuristic; email fetch-once; solid-red delete; name/gender from session not fetch; no client rate-limit). Role rules: every role edits own profile; Delete hidden for global_admin; `admin_only_data_entry` N/A. Ported `apps/ios/.../Features/Home/Settings/MyProfileView.swift`. Build green-check owned by the user (Xcode). |

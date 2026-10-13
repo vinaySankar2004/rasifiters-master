@@ -1,6 +1,6 @@
 # Page: `summary/distribution` (web) — workout distribution by day (summary sub-route 2 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/distribution` — the **workout distribution by day-of-week** detail, the **second** of the
 > six deferred `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's **Workout Distribution**
 > chart card). One `GlassCard` with a single `BarChart` plotting the program's total workout count per weekday
@@ -127,3 +127,9 @@ logging on the `/summary` forms, not reads here).
   rebuild feature.
 - **F5** — The seven weekday labels are **hardcoded client-side** (`Sun`/`Mon`/…) mapping the server's full-name
   keys (`Sunday`/…); the server already bucketed weekdays in explicit UTC (`analytics` D-C3). No client date math.
+
+## 11. Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

@@ -328,7 +328,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.5.0",
+      "version": "0.6.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -357,7 +357,7 @@
       }
     },
     "app-config": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/app-config/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -473,7 +473,7 @@
       }
     },
     "frontend-kit": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/frontend-kit/SPEC.md",
       "status": "adopted",
       "consumed_by": [

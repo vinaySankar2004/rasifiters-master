@@ -1,6 +1,6 @@
 # Screen: `member-workouts-detail` (android) — the per-member Workout history (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios member-recent-detail`](../../ios/member-recent-detail/SPEC.md)
 > + [`web members/workouts`](../../web/members/workouts/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBER_WORKOUTS` (`MemberRecentDetailScreen`), pushed from
@@ -47,4 +47,5 @@ Edit/Delete re-run `reload()` on success. Bearer-authed by the OkHttp layer.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E). Sorted/filterable workout list (date/duration/type) + per-row ⋮ Edit (duration-only) / Delete + FileProvider CSV; D-C1 `admin_only_data_entry` lock (hide Edit/Delete). Deviations A-1 (⋮ menu vs swipe) + A-2 (minutes filter, H:M edit) + A-3 (`limit=0` cap) + A-4 (FileProvider CSV). Reads scoped `focusedMemberId`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

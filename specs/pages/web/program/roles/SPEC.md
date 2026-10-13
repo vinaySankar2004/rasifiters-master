@@ -1,6 +1,6 @@
 # Page: `program/roles` (web) — manage roles (program-settings sub-route 2 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/roles` — the **admin-only** role-management screen, the second of the six deferred
 > `/program/*` settings sub-routes (reached from the [`program`](../SPEC.md) hub's "Role Management" row).
 > A list of the program's **active** members, each with Admin / Logger / Member toggle buttons → `PUT
@@ -145,4 +145,5 @@ notification to the affected member.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the role-update error and the roster load error go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 26) — the **twelfth web page spec**, the **second of the six deferred `/program/*` settings sub-routes**. The **admin-only role-management list** (active members → Admin/Logger/Member buttons → `PUT /program-memberships`). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Manage Roles mirrors later) · **D-SCOPE** (this page only; other 4 `/program/*` sub-routes deferred) · **D-DEPS** (port `LoadingState` verbatim as shared chrome) · **D-S1** (faithful 1:1) · **D-C1** (tokenize role-button colors → `rf-warning`/`rf-info`/`rf-text-muted`) · **D-C2** (optimistic role update + rollback) · **D-C3** (disable all role buttons while any update is in flight). Flagged F1–F5 (client JWT-decode admin gate; client last-admin disable mirroring the backend 400; role-only payload; raw name / default role label; no client throttle). Consumes `program-memberships` (`fetchMembershipDetails`/`updateMembership`) + `auth` (`useAuthGuard`); **all endpoints already mounted, api modules already ported, no feature bump.** Ported `apps/web/src/app/program/roles/page.tsx` + new shared `components/ui/LoadingState.tsx`. `npm run build` ✓. |

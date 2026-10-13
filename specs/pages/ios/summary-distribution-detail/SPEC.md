@@ -1,6 +1,6 @@
 # Screen: `summary-distribution-detail` (ios) — the Workout Distribution by Day drill-down
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s distribution card
 > (`AdminSummaryTab.swift:260-270`, `NavigationLink { DistributionByDayDetailView(points:) }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/WorkoutDistributionViews.swift`
@@ -92,4 +92,5 @@ Read-only analytics — no logging, no lock.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the duplicate `.annotation` callout is removed; the one callout uses the shared `chartCalloutPlacement` (flipped / clamped, never clipped; #46). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 61) — the Summary **distribution-by-day drill-down**, ported into `apps/ios/.../Features/Home/Detail/DistributionByDayDetailView.swift`; deferred stub removed. **D-REF** (keep iOS-native — richer than web; `consumed_by=[ios]`) · **D-SCOPE** (chart drill-down cluster) · **D-S1** (faithful 1:1) · **D-C1** (all-zero empty-state guard keyed off the sum — legacy lacked it; matches web + siblings) · **D-C3** (tokenize chart color) · **D-DEPS** (reuses run-54 helpers; `CalloutView`/`clamp` in shared `ChartDetailComponents.swift`). Flagged F1–F3. Read-only → `admin_only_data_entry` N/A. Build green-check owned by the user (Xcode); symbols grep-verified. |

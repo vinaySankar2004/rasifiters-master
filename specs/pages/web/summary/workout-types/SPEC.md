@@ -1,6 +1,6 @@
 # Page: `summary/workout-types` (web) — top workout types (summary sub-route 3 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/workout-types` — the **top workout types** detail, the **third** (and **last** of the three
 > chart drill-downs) of the six deferred `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's
 > **Workout Types** card). One `GlassCard` with a single-series `BarChart` of sessions per workout type **plus a
@@ -143,3 +143,9 @@ logging on the `/summary` forms, not reads here).
   identity is conveyed by the ranked list below + the hover tooltip. Faithful.
 - **F7** — The window is **program-to-date** (the service has no date filter) — accumulates every `workout_log`
   since program start, like `distribution` and unlike `activity` (period-scoped). Faithful.
+
+## 11. Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

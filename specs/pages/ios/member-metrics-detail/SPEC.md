@@ -1,6 +1,6 @@
 # Screen: `member-metrics-detail` (ios) — the Member Performance Metrics table
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's metrics-preview card
 > (`AdminMembersTab.swift:45`, `NavigationLink { MemberMetricsDetailView() }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/MemberMetricsViews.swift`
@@ -96,5 +96,6 @@ no logging, no lock.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the CSV export follows the shared column contract (member-analytics D-C9, #47) — the filename's S / E come from the list's own load, a control change during a load queues a reload, and Export is disabled while loading. |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (sortField initial `.active_days`; `SortField.allCases` order + CSV unchanged). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 63) — the Members **metrics-detail table**, ported into `apps/ios/.../Features/Home/Detail/MemberMetricsDetailView.swift` (+ co-located `MetricsFilters`/`SortSheet`/`FilterSheet`); deferred stub removed. **D-SCOPE** (Members detail cluster) · **D-S1** (faithful 1:1 — both-agree = web parity) · **D-REF** (keep iOS-native; `consumed_by=[ios]`) · **D-DEPS** (no new dep — `SortField`/`SortDirection`/`MemberMetricsCard` reused from run 55). Flagged F1–F5. Read-only → `admin_only_data_entry` N/A. Build green-check owned by the user (Xcode); symbols grep-verified. |

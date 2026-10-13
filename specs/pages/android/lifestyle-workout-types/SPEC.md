@@ -1,6 +1,6 @@
 # Screen: `lifestyle-workout-types` (android) — the program workout-types manager
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the iOS `ViewWorkoutTypesListView`
 > (`Features/Home/ProgramManagement/WorkoutTypesSection.swift`) + [`web lifestyle/workouts`](../../web/lifestyle/workouts/SPEC.md)
 > — this file records only the Android realization + idiom deviations.
@@ -39,3 +39,9 @@
 | Add custom | `POST /program-workouts/custom` `{program_id, workout_name}` |
 | Rename custom | `PUT /program-workouts/{id}` `{workout_name}` |
 | Delete custom | `DELETE /program-workouts/{id}` |
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: workout-type action errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |

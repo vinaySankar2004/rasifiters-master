@@ -1,6 +1,6 @@
 # Screen: `member-metrics-detail` (android) — the Member Performance Metrics table
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios member-metrics-detail`](../../ios/member-metrics-detail/SPEC.md)
 > + [`web members/metrics`](../../web/members/metrics/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBER_METRICS` (`MemberMetricsDetailScreen`), pushed from the
@@ -51,5 +51,6 @@ Re-runs on every committed search / sort field / direction / filter / program ch
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the CSV export follows the shared column contract (units in the headers, unified filename — member-analytics D-C9, #47). |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (initial state ACTIVE_DAYS; sort-sheet order + CSV unchanged). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E). Search (IME-commit) + Sort sheet (9 fields + asc/desc) + Filter sheet (All/Custom date + per-metric min/max) → server-driven re-fetch; sort-coupled hero; CSV via FileProvider share. No on-screen role gate (F2). Faithful to iOS/web; deviations A-1 (FileProvider CSV) + A-2 (flat chrome). `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

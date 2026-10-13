@@ -1,7 +1,7 @@
 # Feature: `frontend-kit` — shared loading / error / offline / banner kit (web + iOS + Android)
 
 > **Status:** 🧩 adopted (Phase 3 client release: web live; iOS 1.5.0 (58) + Android 1.1.0 (5) built — 🚀 deployed once
-> both store builds are live) · **Version:** 0.3.0 ·
+> both store builds are live) · **Version:** 0.4.0 ·
 > **Apps (`consumed_by`):** `web` `ios` `android`
 > **Provenance:** net-new — reliability overhaul Phase 2 track D. Contract = [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md)
 > §6 (W7) + W7-D1 (one palette = web's) + W7-D2 (keep data + "Couldn't refresh — Retry"); evidence =
@@ -89,7 +89,8 @@ Transitions (same on all three): `fresh(data)` → loaded now; `refreshing()` �
 `refreshing = true`, else loading; `failing(error)` → loaded/stale become stale, else failed. Web derives the
 state from TanStack v5 with `fromQuery`, matching the transitions: data + error + not fetching → stale ·
 data → loaded (refreshing = isFetching — a Retry from stale shows loaded-refreshing, exactly like
-`refreshing()`) · error → failed · paused with no data → failed(offline) (never an endless spinner) ·
+`refreshing()`) · error → failed · a failed try while TanStack still retries (`failureCount > 0`) → failed with
+`failureReason` (D-KIT-18, 0.4.0) · paused with no data → failed(offline) (never an endless spinner) ·
 pending + not fetching → idle · else loading.
 Connectivity = **link up AND not proven offline** (D-KIT-16, 0.3.0): the link signal (web `navigator.onLine`; iOS
 `NWPathMonitor` `.satisfied`; Android `NET_CAPABILITY_INTERNET`) plus request evidence — a no-connection failure flips
@@ -124,7 +125,8 @@ bottom-anchored controls**.
   NavigationBar.
 
 ErrorView = `errorViewTitle` + the message + a Retry pill (only if a handler is given and retryable).
-Adoption recipe — web: `const s = fromQuery(q)`; `failed` → `<ErrorView error={s.error} onRetry={() => q.refetch()} />`;
+Adoption recipe — web: `const s = fromQuery(q)`; `failed` → `<ErrorView error={s.error} onRetry={() => retryNow(queryClient, key)} />`
+(D-KIT-18 — a bare `refetch()` can't cut a live retryer's backoff short);
 `stale` → `<FloatingBanner variant="stale" onRetry={() => q.refetch()} />`. iOS: screen root
 `.floatingBanner { if case .stale = state { FloatingBanner(variant: .stale, onRetry: reload) } }`. Android, inside
 the screen's `Box`: `FloatingBanner(FloatingBannerVariant.Stale, Modifier.align(Alignment.BottomCenter), onRetry = ::reload)`.
@@ -142,7 +144,7 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
 
 ## 8. Files per surface
 - **web:** `src/lib/kit/{copy,app-error,async-state,use-online-status}.ts`, `src/components/kit/{FloatingBanner,ErrorView}.tsx`
-- **ios:** `Shared/Kit/{KitCopy,AppError,LoadState,NetworkMonitor,FloatingBanner,ErrorStateView}.swift`, `Shared/Theme/AppPalette.swift`
+- **ios:** `Shared/Kit/{KitCopy,AppError,LoadState,NetworkMonitor,FloatingBanner,ErrorStateView,OfflineBanner}.swift`, `Shared/Theme/AppPalette.swift`
 - **android:** `core/kit/{KitCopy,AppError,UiState,ConnectivityObserver}.kt`, `ui/components/kit/{FloatingBanner,ErrorView}.kt`,
   `core/theme/Palette.kt`; `AndroidManifest.xml` declares `ACCESS_NETWORK_STATE`
 
@@ -241,15 +243,46 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   Android's launch screens now do it too) uses the combined value. With no data while offline the launch screens show
   the offline error view, never a spinner. Web: queries don't auto-retry while offline. Why: the user's iPhone in
   airplane mode (a USB developer link kept the path "satisfied") showed a spinner and never the offline banner.
+- **D-KIT-17 Presentations carry the offline banner (0.4.0; reliability-overhaul Phase 4 polish #2).** A sheet / cover
+  sits above the app root, so the root banner (D-KIT-13 A6) can't show over it. **iOS:** `.offlineBanner()`
+  (`Shared/Kit/OfflineBanner.swift`) applied once at the presented root, inside `.environmentObject(programContext)` —
+  the "+" sheet (`ProgramActionsSheet`), the widget covers (`WidgetCoverView`) and the Apple Health review
+  (`HealthSyncConfirmationView`); while offline it reserves the root's 76-pt band (bottom `safeAreaInset`), and the "+"
+  sheet's Invites + Create tabs add offline-only 116-pt bottom spacers (the inset isn't relied on to reach a paged
+  `TabView`'s pages). **Android:** the "+" sheet (`ProgramActionsSheet.kt` — `FloatingBanner` + the tab area gives up
+  `OFFLINE_BANNER_RESERVE`, 76dp) and the Health Connect review overlay (`RootScreen` — `offlineReserve` 76dp + the
+  banner). **Invites reload on reconnect on both** (iOS `InvitesTabView` after a failed load; Android the picker's
+  reconnect effect reloads a failed / stale inbox beside the program list), and a failed inbox reads offline while
+  offline on all three (polish-1 rule 6). Web has no sheets or widgets, so the banner part is n/a there.
+- **D-KIT-18 Web fails fast; Retry retries (0.4.0; polish #4 + #6).** `fromQuery` returns `failed`
+  (`toAppError(failureReason)`) after the **first** failed try (`failureCount > 0`) while TanStack keeps retrying quietly — never a
+  "Loading…" that waits out every retry (~48 s on a stuck link). The kit `retryNow(queryClient, key)`
+  (`async-state.ts`) cancels a live retryer (no data + fetching) before refetching, so Retry works mid-retry (a bare
+  `refetch()` only resumes the retryer's backoff); programs, invites and Summary use it, and Summary's Retry also
+  covers queries with `failureCount > 0`. Mutations use `networkMode: "always"` (`providers.tsx`), so an offline save
+  fails at once with the kit offline copy instead of pausing on "Saving…". Scope: the `fromQuery` screens (programs,
+  Summary); detail pages keep `isLoading` / `isError` until polish #29.
+- **D-KIT-19 Every user-facing save / load error goes through the kit (0.4.0; polish #8 sweep).** Web
+  `toAppError(e).message` (reset-password: `credentialErrorMessage` except its 401 "link expired" branch); iOS
+  `SessionCopy.kitMessage(for:)` for user actions and `AppError(error)?.message` for `ProgramContext` loads (`nil` →
+  a cancelled load stays silent); Android `toAppError().message` (rethrows `CancellationException`). The server's
+  useful text survives for 400 / 422 and row-error batches (D-KIT-3) — no raw OS / "Failed to fetch" text. The
+  program-order failure reads "Couldn't save program order. <kit message>" on all three.
 
-## 10. Not in 0.3.0 / open
+## 10. Not in 0.4.0 / open
 Loading skeleton, empty view, toast (board §6.6); spacing/type/radius tokens; Next.js `error.tsx`; web: the TanStack
-query `signal` is not combined with the request's own 15 s abort (the fetchers take no signal). Delivered in 0.2.0
+query `signal` is not combined with the request's own 15 s abort (the fetchers take no signal); web detail pages are
+not on `fromQuery` yet, so they still wait out the retries before an error (polish #29). Delivered in 0.2.0
 (D-KIT-13): `QueryClient` defaults, the 15 s timeout, the on-device cache (D-9), the offline banner (it replaced iOS's
 "You're offline. We'll reconnect…" alert), pull-to-refresh on the launch screens (iOS + Android), the Android blocking
 update screen.
 
 ## 11. Changelog
+- **v0.4.0** (2026-10-13) — **D-KIT-17** offline banner on presentations (iOS `.offlineBanner()` on the "+" sheet,
+  widget covers and Apple Health review; Android on the "+" sheet and the Health Connect review; invites reload on
+  reconnect); **D-KIT-18** web `fromQuery` fails after the first try, `retryNow`, mutations `networkMode: "always"`;
+  **D-KIT-19** the kit-message sweep. §5 / §6 web recipe / §8 (iOS `OfflineBanner.swift`) / §10 updated. No copy-table
+  change. Reliability-overhaul Phase 4 Track Q quick wins (polish #2 / #4 / #6 / #8).
 - **v0.3.0** (2026-10-13) — **D-KIT-16**: offline = link up AND not proven offline (request evidence + an
   `/app-config` probe at once then every 10 s) on all three; D-KIT-7 superseded in part; Android launch screens refetch
   on reconnect; D-KIT-15 iOS line corrected (root safe-area inset, no per-screen inset plumbing). Polish 1.

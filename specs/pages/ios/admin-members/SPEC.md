@@ -110,6 +110,9 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
   `/members/{metrics,invite,list,streaks,workouts,health}` sub-routes; each a later run. Forward-nav (web F2).
 
 ## 11. Changelog
+- **v0.4.1** (2026-10-13, Phase 4 quick wins) — tab reads run in parallel and `MemberHealthCard` loads its own
+  preview; the standard tab spins only for a program's first load, takes its self card from the memberId-scoped
+  overview (no all-member download — member-analytics D-C10), and a logger's Recent follows View-as (#5).
 - **v0.4.0** (2026-10-13, reliability Phase 3 C2) — D-C1: the Invite entry follows program-member-management D-C4
   ("Invitation sent" only on 200; the swallow removed).
 - **v0.3.0** (2026-07-15, member-analytics 0.4.0 D-C7) — **Active Days primary**: self card hero `.active_days` +

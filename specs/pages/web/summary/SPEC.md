@@ -1,6 +1,6 @@
 # Page: `summary` (web) — the program workspace overview (first tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary` — **the first bottom-nav tab** of a program's workspace; the screen you land on
 > after selecting a program on the hub (`saveActiveProgram` → `router.push("/summary")`). Sibling tabs
 > (`/members`, `/lifestyle`, `/program`) and the 6 summary sub-routes are **not** in this run (deferred).
@@ -174,6 +174,7 @@ disabled UI + messaging.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.2 | 2026-10-13 | Phase 4 quick wins: reads fail after the first try and Retry uses `retryNow` for every query that failed or is still retrying (D-KIT-18, #6); the workout / health form errors go through `toAppError` (D-KIT-19, #8). |
 | 0.4.1 | 2026-10-13 | Polish-1 — D-REL3 (a read failed while offline → kit offline `ErrorView` at once; failed reads refetch when the combined online value returns). |
 | 0.4.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 (kit `ErrorView` replaces the raw `ErrorState`; stale banner, offline wins; partial failures keep loaded cards; failed Progress / Timeline cards show `—`; MTD subtitle "Loading..." only while loading) · D-REL2 (instant open — the 8 parallel reads seeded from the per-member launch cache; key values unchanged). §4/§8 updated. |
 | 0.3.0 | 2026-07-09 | **Steps + batched multi-program logging.** The **Log daily health** modal's `LogDailyHealthForm` is rebuilt as a **batched multi-row** clone of `LogWorkoutsForm` (member/date/sleep/diet/**steps** per row, ≤200 rows, per-row `rowErrors`) posting to the net-new `addDailyHealthLogsBatch` (`POST /daily-health-logs/batch`, daily-health-logs 0.2.0 D-C5) — replacing the single `addDailyHealthLog`; at-least-one of sleep/diet/steps per row (R-1). Both forms gain a **`ProgramMultiSelect`** (exported from `LogWorkoutsForm`; current program pre-checked+locked, `admin_only_data_entry`-locked programs disabled "Admin-only — can't log", hidden for single-program users) sending `program_ids[]` = the full selection (workout-logs D-C10 / daily-health-logs D-C5); when any selected program is non-privileged the member column locks to self. Both `onSubmit` lambdas take `(entries, programIds)`; `isGlobalAdmin` passed to both. `AddHealthCard` copy → "Track sleep, diet quality, and steps for the day." `npm run build` ✓. |

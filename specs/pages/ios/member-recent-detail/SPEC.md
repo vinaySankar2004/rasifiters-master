@@ -1,6 +1,6 @@
 # Screen: `member-recent-detail` (ios) — the per-member Workout history (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's recent-workouts card
 > (`MemberCards.swift:118`, `NavigationLink { MemberRecentDetail(memberId:memberName:) }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/WorkoutSortFilterSheets.swift`
@@ -106,4 +106,5 @@ real boundary.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: edit / delete errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 63) — the Members **workout-history detail** (write surface), ported into `apps/ios/.../Features/Home/Detail/MemberRecentDetail.swift` (+ its sort/filter/edit sheets; `WorkoutLogEditSheet` relocated from the legacy health file); deferred stub removed. **D-SCOPE** (Members detail cluster) · **D-S1** (faithful 1:1 — both-agree) · **D-C1** (web-parity `admin_only_data_entry` lock — hide Edit/Delete when `dataEntryLocked`; legacy had none; completes the run-54/60 lock arc) · **D-REF** (keep iOS-native; `consumed_by=[ios]`) · **D-DEPS** (no new dep). Flagged F1–F6. `admin_only_data_entry` LIVE (write path). Build green-check owned by the user (Xcode); symbols grep-verified. |

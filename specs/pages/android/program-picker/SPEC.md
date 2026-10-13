@@ -1,6 +1,6 @@
 # Screen: `program-picker` (android) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-picker`](../../ios/program-picker/SPEC.md)
 > + [`web programs`](../../web/programs/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `SignedInGraph` route `Routes.PROGRAM_PICKER` (`ProgramPickerScreen`) — the
@@ -105,6 +105,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.2 | 2026-10-13 | Phase 4 quick wins: the "+" sheet carries the offline banner (its tab area gives up the 76dp band) and its invites tab reads offline while offline; back online, a failed / stale invite inbox reloads beside the program list; invite-response / create / order errors go through `toAppError()` — "Couldn't save program order. …" (frontend-kit D-KIT-17/19, #2/#8). |
 | 0.3.1 | 2026-10-13 | **Polish 1 (offline detection).** No data while offline (link down OR proven offline by a failed request) → the kit's offline `ErrorView` + Retry, never the spinner (rule 6); the offline banner now follows the combined monitor; back online, a failed / stale list reloads itself (D-KIT-13). Compile-checked green (`assembleDebug`). |
 | 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3.** Invites move to the ONE inbox (`/my-invites`; global admins `/all-invites` + Revoke) answered via `/invite-response` with the decline "Block future invites" dialog; inline invited Accept/Decline retired, requested Cancel Request kept (A-4/A-5 rewritten, A10). Kit adoption: cached list first, parallel loads, `ErrorView`, one floating offline / stale / update banner above the FABs with list padding, pull to refresh (A-7). Update-available banner + withheld sheets under the blocking update screen (A-8). Invite push tap opens the invites tab (A-9). D-C1 narrowed to reorder / delete / cancel failures. Compile-checked green (`assembleDebug`). |
 | 0.2.0 | 2026-07-08 | Forward-nav wired (pre-Phase-H cleanup). New `ProgramActionsSheet` (My Invites / Create) on the "+" → `POST /programs` `createProgram` (ApiService + ProgramContext + `CreateProgramRequest/Response`), fixed-height tab region so the sheet doesn't resize between tabs (A-5). Account sheet's Profile/Change-Password/Appearance/Notifications rows now navigate to the real settings screens (registered in `SignedInGraph`); Health-Connect row removed (deferred, A-3). Edge-back from the 4 main tabs pops to the picker (A-6, `AppScaffold` `BackHandler`). App-wide background standardized to the solid theme background (auth-only orange gradient removed). Compile-checked green (`assembleDebug`). |

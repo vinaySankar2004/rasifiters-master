@@ -1,6 +1,6 @@
 # Screen: `member-health-detail` (android) — the per-member daily-Health logs (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios member-health-detail`](../../ios/member-health-detail/SPEC.md)
 > + [`web members/health`](../../web/members/health/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBER_HEALTH` (`MemberHealthDetailScreen`), pushed from
@@ -51,6 +51,7 @@ Edit/Delete re-run `reload()` on success. Bearer-authed by the OkHttp layer.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **View Health row clarity refactor (cosmetic, cross-surface parity).** The health list moves off the shared `LogRow`/DC-10 two-line format to a dedicated **`HealthLogRow`** with a **stacked metric-cell layout**: a header row (`AppBlueLight` dot + `logDate` semibold + trailing ⋮ `AppDropdownMenu` Edit/Delete) over three equal labeled cells (new `HealthMetricCell`: uppercase `SLEEP`/`DIET`/`STEPS` label over the semibold value, neutral `onSurface @6%` fill). Values/formatting unchanged (`—` for missing, steps grouped); the compact `MemberHealthCard` preview still uses the shared two-line row. Matches the web + iOS View Health rows. No contract/behavior change. `assembleDebug` BUILD SUCCESSFUL; user live-tested. |
 | 0.2.0 | 2026-07-09 | **Steps throughout** (daily-health-logs 0.2.0). `HealthSortField` gains `STEPS`; `HealthFilters` gains `minSteps`/`maxSteps` + a filter-sheet Steps section; `reload()` passes `minSteps`/`maxSteps` to `loadMemberHealthLogs`; list rows adopt the **DC-10** two-line layout (`Sleep · Diet · Steps`, grouped); `HealthEditSheet` gains a Steps digit field (blank = clear, at-least-one-metric includes steps) → `updateDailyHealthLog(…, steps, stepsProvided = true)` (JsonObject body adds explicit `steps`); `healthCsv` gains a Steps column. `MemberHealthItem` gains `steps`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E). Sorted/filterable sleep/diet list + per-row ⋮ Edit (sleep+diet, at-least-one-metric + 0:00–24:00) / Delete + FileProvider CSV; D-C1 `admin_only_data_entry` lock. Deviation A-2 (F3): the PUT body is a `buildJsonObject` so explicit null CLEARS a metric despite the global `explicitNulls=false`; `member_id` always sent. Reads scoped `focusedMemberId`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

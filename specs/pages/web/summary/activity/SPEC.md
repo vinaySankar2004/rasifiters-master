@@ -1,6 +1,6 @@
 # Page: `summary/activity` (web) — workout activity timeline (summary sub-route 1 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/activity` — the **workout activity timeline** detail, the **first** of the six deferred
 > `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's **Activity** chart card). A
 > `PeriodSelector` (W/M/Y/P) over one `GlassCard`: a range/daily-average header + a `BarChart` plotting workouts
@@ -120,3 +120,9 @@ logging on the `/summary` forms, not reads here).
 - **F3** — `admin_only_data_entry` N/A (read-only page) — see §7.
 - **F4** — `daily_average` is server-derived (analytics service); the page only formats it (`.toFixed(1)`). No
   client recomputation.
+
+## 11. Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

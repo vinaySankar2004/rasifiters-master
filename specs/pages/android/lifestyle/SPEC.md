@@ -1,6 +1,6 @@
 # Screen: `lifestyle` (android) — the workout-types dashboard (3rd bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in the iOS Lifestyle tab
 > (`Features/Home/Tabs/{Admin,Standard}WorkoutTypesTab.swift`) + [`web lifestyle/workouts`](../../web/lifestyle/workouts/SPEC.md)
 > — this file records only the Android realization + idiom deviations.
@@ -75,6 +75,7 @@ Fires on entry, on active-program change, and on every "View as" change. Six rea
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: `loadLifestyle`'s seven reads run in parallel (still all-or-nothing; #5). |
 | 0.2.0 | 2026-07-09 | **Two steps cards** (analytics 0.2.0 D-C5). `StepsAnalyticsCard` (teal `#14b8a6`; Total Steps / Avg Steps/Day from `lifestyle.steps`) inserted after the stat Row and `StepsTimelinePreviewCard` (single teal `steps` bar, tooltip-free preview) inserted after the Lifestyle Timeline preview → `Routes.LIFESTYLE_STEPS_TIMELINE`. `ProgramContext.loadLifestyle` adds `getHealthSteps`; `LifestyleData` gains `steps: StepsStatsDTO?`; `HealthTimelinePoint` gains `steps`, `HealthTimelineResponse` gains `dailyAverageSteps`. New route in `Routes.kt` + `AppScaffold.kt`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.1 | 2026-07-08 | Load sequencing fixed to iOS parity: apply the admin "View as" default **before** the first `loadLifestyle`, in one coroutine, so a program-admin's first fetch is self-scoped (no brief program-wide flash); a `loadedOnce`-gated effect reloads on later user-initiated picks without double-fetching the initial default-set. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase F — Lifestyle tab + 4 stat cards + popularity chart + timeline preview; "View as" selector; workout-types manager + timeline drill-down forward targets). |

@@ -1,6 +1,6 @@
 # Screen: `manage-roles` (android) — program role assignment
 
-> **Status:** 🏗️ built · **Version:** 0.1.0 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.1.1 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = iOS `Features/Home/ProgramManagement/RoleManagementSection.swift` (`ManageRolesView`)
 > + web `/program/roles`.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.PROGRAM_ROLES` (`ManageRolesScreen`).
@@ -16,3 +16,9 @@
   iOS-native UX kept over web's optimistic-write/rollback (run-62 D-REF). Tapping a role →
   `PUT /program-memberships` (`updateMemberRole` → `editMembership`), which reloads the roster. Errors
   surface as an inline red footnote.
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: role-update errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |

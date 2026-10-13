@@ -1,6 +1,6 @@
 # Screen: `edit-program` (ios) — the swipe-to-edit program editor
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s swipe-left **Edit** action on a card the viewer
 > `canManage` (`ProgramPickerView.swift:168-171`, `navigationDestination(item: $programToEdit)`); the picker
 > calls `applyProgram(program)` first to hydrate `ProgramContext`.
@@ -120,4 +120,5 @@ editor (the run-27 "this IS the write path for the flag" inversion).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: save errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 59) — the **swipe-to-edit program editor**, ported into `apps/ios/.../Features/Home/ProgramActions/EditProgramInfoView.swift`; the deferred stub removed. **D-REF** (legacy iOS + web `program/edit` parity; `consumed_by=[ios]`) · **D-SCOPE** (cohesive cluster with `program-actions`) · **D-S1** (faithful 1:1 port) · **D-C1** (web-parity admin-only-data-entry toggle ADD — new `adminOnlyDataEntry` on `APIClient.updateProgram` + `ProgramContext.updateProgram` + `ProgramUpdateResponse`; zero backend, no feature bump; completes the run-54 lock story) · **D-C2** (adopt the 3 web Edit cleanups — date-range validation, hydrate-from-response, skip-no-op PUT) · **D-DEPS** (one new API-layer dep, no new view component; `ProgramDTO.admin_only_data_entry` already existed run 54). Flagged F1–F5 (no internal role gate; init from context not a read endpoint; day-granularity date check; snapshot-based no-op; no client rate-limit). Role rules = `canManage` at the picker (global_admin any / program admin own); `admin_only_data_entry` N/A as a gate (this screen edits it). Build green-check owned by the user (Xcode); symbols grep-verified. |

@@ -187,7 +187,7 @@ struct StandardMembersTab: View {
         guard !Task.isCancelled else { return }
 
         // The self metric row IS the overview row (same memberId-scoped /member-metrics DTO) — no all-member download
-        // (member-analytics D-C9). MemberHealthCard loads its own preview, so no tab-level health read either.
+        // (member-analytics D-C10). MemberHealthCard loads its own preview, so no tab-level health read either.
         loggedInUserMetrics = pc.selectedMemberOverview?.member_id == userId ? pc.selectedMemberOverview : nil
         // Only a self overview that really loaded marks this program loaded (Android parity): after a failed load the
         // next visit spins again rather than refreshing under the previous program's numbers (#10).

@@ -1,6 +1,6 @@
 # Screen: `apple-health` (ios) — the account-menu "Apple Health" settings screen
 
-> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.6.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.6.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s `AccountMenuSheet` → "Apple Health"
 > (`AccountDestination.appleHealth` → `AppleHealthSettingsView()`).
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift`.
@@ -130,6 +130,7 @@ sync, not blocked in this UI.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.6.1 | 2026-10-13 | Phase 4 quick wins: the first-sync review cover (`HealthSyncConfirmationView`) carries the offline banner with the 76-pt reserve (frontend-kit D-KIT-17, #2). |
 | 0.6.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-V2.** Health sync v2 under the same UI: engine + batch / state routes, Last Synced = last unheld full run, Sync Now = `manual`, Disconnect local-only (no review on reconnect, no import of the disconnected period), sign-out pauses, server-side review. (0.6.0, not 0.5.0: this log already carries a 2026-07-01 0.5.0 row.) |
 | 0.1.0 | 2026-06-30 | Initial SPEC + build. Ported PR #4's Apple Health settings screen to `apps/ios`, wired into `ProgramPickerView`'s account menu (`AccountDestination.appleHealth`); adapted to `ProgramDTO`/theme tokens, added an availability guard. Consumes the `apple-health` feature. iOS-only; role N/A. Build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-01 | Added a second **Sleep** section on the same screen (own connect/programs/status/disconnect, moon iconography, "Nights Synced") wired to the new sleep sync (`startSleepSync`/`performSleepSync`/`clearSleepSyncSettings`), independent of workouts (D-S3, F3). Header subheading now "workouts and sleep". iOS builds clean. |

@@ -164,7 +164,7 @@ private fun StandardMembersBody(programContext: ProgramContext, programName: Str
     var logsProgramId by remember { mutableStateOf(if (loading) null else program?.id) }
     var showPicker by remember { mutableStateOf(false) }
 
-    // Self data — every read in parallel. The self metric row IS the overview row (no all-member download, D-C9).
+    // Self data — every read in parallel. The self metric row IS the overview row (no all-member download, member-analytics D-C10).
     LaunchedEffect(program?.id) {
         loading = programContext.membersSelfLoadedFor != program?.id
         programContext.ensureMembersLoaded()

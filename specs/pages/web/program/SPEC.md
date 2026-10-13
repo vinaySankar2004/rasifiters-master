@@ -1,6 +1,6 @@
 # Page: `program` (web) — the program settings hub (fourth & last workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/program` — **the fourth (last) bottom-nav tab** of a program's workspace. The settings hub:
 > a role-gated menu of settings entries (program info/edit · members/invite · role management · workout types ·
 > leave program · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins.
@@ -162,4 +162,5 @@ and is not gated by the lock.)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error goes through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 24) — the **ninth web page spec**, the program workspace **Program** tab (fourth & last bottom-nav tab; all four tabs now resolve). The **settings hub**: a role-gated menu (program info/edit · members/invite · role management · workout types · leave · my account) for admins, or a read-only program-info card + switch/leave for non-admins. Only **Leave Program** + **Sign Out** are live actions on the landing; everything else is forward-nav. Read-only-ish → `admin_only_data_entry` **N/A** here. Consumes `program-memberships` (`fetchMembershipDetails` + `leaveProgram`) + `program-workouts` (`fetchProgramWorkouts`) + `auth`; **all endpoints already mounted, no new deps, no feature bump**. Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings tab mirrors later) · **D-SCOPE** (landing only; the 6 `/program/*` sub-routes deferred) · **D-S1** (faithful 1:1) · **D-C1** (appearance label via `getStoredTheme()` instead of raw localStorage) · **D-C2** (extract the duplicated `LeaveProgramButton`, behavior-preserving) · **D-C3** (keep `computeProgramProgress` local — client-computed, distinct from summary's server-derived progress). Flagged F1–F6 (client JWT-decode role; forward-nav to unbuilt routes; global_admin can't leave; client-computed progress; raw `rf:appearance` write contract; no client throttle). Ported `apps/web/src/app/program/page.tsx`. `npm run build` ✓ (`/program` prerendered, 4.36 kB — no Recharts; Middleware 27.3 kB active). |

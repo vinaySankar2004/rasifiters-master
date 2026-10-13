@@ -1,6 +1,6 @@
 # Screen: `member-health-detail` (ios) — the per-member daily-Health logs (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's health card
 > (`MemberCards.swift:192`, `NavigationLink { MemberHealthDetail(memberId:memberName:) }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/HealthSortFilterSheets.swift`
@@ -106,6 +106,7 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | Phase 4 quick wins: edit / delete errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **View Health row clarity refactor (cosmetic, cross-surface parity).** `healthRow` moves off the DC-10 two-line format to a **stacked metric-cell layout**: a header row (`appBlueLight` dot + `logDate` semibold) over three equal labeled cells (new `metricCell`: uppercase `SLEEP`/`DIET`/`STEPS` caption over the semibold value, `systemGray6` fill), so each value reads at a glance. Values/formatting unchanged (`—` for missing, steps grouped); the compact `MemberHealthCard` preview keeps the DC-10 two-line form. Matches the web + Android View Health rows. No contract/behavior change. User live-tested; build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-09 | **Steps throughout (daily-health-logs 0.2.0).** `MemberHealthDetail` reads a local `logs: [APIClient.DailyHealthLogItem]` via the new steps-aware `fetchDailyHealthLogs`/`loadMemberHealthLogs(… minSteps: maxSteps:)`. `HealthSortField` gains `steps`; `HealthFilters` gains `minSteps`/`maxSteps` (+ chip "Steps ≥/≤") + a filter-sheet "Steps" section; `healthRow` adopts the DC-10 two-line layout (`Sleep · Diet · Steps`, grouped); the CSV header gains a Steps column. `DailyHealthEditSheet` takes a `DailyHealthLogItem`, gains a Steps digit field (blank = clear), at-least-one-metric now includes steps, and calls `updateDailyHealthLog(…, steps:)` (`ProgramContext+WorkoutManagement` + the new `APIClient+DailyHealth` overload — explicit null clears). Build green-check owned by the user (Xcode). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 63) — the Members **daily-health detail** (write surface, twin of member-recent), ported into `apps/ios/.../Features/Home/Detail/MemberHealthDetail.swift` (+ its sort/filter/edit sheets); deferred stub removed; `WorkoutLogEditSheet` relocated out to `member-recent-detail`'s file. **D-SCOPE** (Members detail cluster) · **D-S1** (faithful 1:1 — both-agree write twin) · **D-C1** (web-parity `admin_only_data_entry` lock — same as member-recent) · **D-REF** (keep iOS-native; `consumed_by=[ios]`) · **D-DEPS** (no new dep). Flagged F1–F6. `admin_only_data_entry` LIVE (write path). Build green-check owned by the user (Xcode); symbols grep-verified. |

@@ -1,6 +1,6 @@
 # Screen: `widget-quick-add-health` (ios) — the "Log daily health" widget deep-link form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** presented by `AppRootView` when a Home-Screen widget deep-links `WidgetRoute.quickAddHealth`
 > (`.fullScreenCover(item: widgetRoute) { QuickAddHealthWidgetEntryView() }`, gated on `authToken != nil`).
 > Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`).
@@ -108,5 +108,6 @@ bounded to today-or-earlier. Transient per-program fetch failure does **not** wi
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the form opens at once with the version check alongside — an unsupported build gets the update modal over the form in place (`WidgetCoverView`, app-config D-C8, #7); the cover carries the offline banner (D-KIT-17, #2); save errors use the kit copy (#8). |
 | 0.2.0 | 2026-07-09 | **D-BATCH — the widget is now the in-app multi-row batch "Log daily health" form** (`AddDailyHealthDetailView`), replacing the legacy single-entry sleep+diet quick-add (per-program `addDailyHealthLog` loop + rollback). Two deltas: **no auto-selected program** + the **custom back button** exits to My Programs. **Gains the steps field** (in-app parity; the legacy widget had only sleep + diet). Save = one `POST /daily-health-logs/batch` (`program_ids` = selection, upsert; `applyRowErrors` on error). Member options stay the **intersection** across selected programs; in-batch (member, date) duplicates flagged client-side. **D-LOGGABLE** — the shared `ProgramMultiSelectSection` now lists only loggable programs (mirrored on web/android + the in-app forms). **D-REUSE** — no new component/API; retired scaffold deleted. Adversary-hardened (F3; admin rows start empty). Native build green via the xcode MCP (0 errors). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 65) — the legacy single-entry Quick Add Daily Health widget (multi-program select + member intersection + sanitized sleep + at-least-one-metric [sleep/diet] + per-program save loop + rollback + exit-to-My-Programs) + D-C1 per-program lock, D-C2 shared chrome, D-C3 shared scaffold. Superseded by 0.2.0 (D-BATCH). |

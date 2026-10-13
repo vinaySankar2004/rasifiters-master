@@ -1,6 +1,6 @@
 # Page: `program/edit` (web) — edit program details (program-settings sub-route 1 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/edit` — the **admin-only** program-details editor, the first of the six deferred
 > `/program/*` settings sub-routes (reached from the [`program`](../SPEC.md) hub's "Edit Program Details" row).
 > A single form: program **name** · **status** (`Select`) · **start/end date** · **admin-only data entry** toggle
@@ -137,4 +137,5 @@ program (cached in `localStorage`) and the React-Query `["programs"]` list, then
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the save error goes through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 25) — the **eleventh web page spec**, the first of the six deferred `/program/*` settings sub-routes. The **admin-only edit-program-details form** (name · status · start/end date · admin-only-data-entry toggle → `PUT /programs/:id` → back to `/program`). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Edit Program mirrors later) · **D-SCOPE** (this page only; other 5 `/program/*` sub-routes deferred) · **D-DEPS** (port `PageHeader` + `BackButton` verbatim as shared chrome) · **D-S1** (faithful 1:1) · **D-C1** (client-side date-range validation) · **D-C2** (hydrate active-program cache from the server response) · **D-C3** (skip a no-op PUT). Flagged F1–F4 (client JWT-decode admin gate; vestigial `status` default; date-shape trust; no client throttle). Consumes `programs` (`updateProgram`) + `auth` (`useAuthGuard`); **all endpoints already mounted, no new api modules, no feature bump.** Ported `apps/web/src/app/program/edit/page.tsx` + new shared `components/ui/PageHeader.tsx` + `components/BackButton.tsx`. `npm run build` ✓ (`/program/edit` prerendered, 5.7 kB — no Recharts; Middleware 27.3 kB active). |

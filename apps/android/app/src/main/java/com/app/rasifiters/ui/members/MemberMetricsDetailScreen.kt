@@ -353,7 +353,7 @@ private fun RangeRow(label: String, minV: String, maxV: String, onMin: (String) 
     }
 }
 
-// ---- CSV export — member-analytics D-C8 (polish #47): ONE column contract on web, iOS and Android ----
+// ---- CSV export — member-analytics D-C9 (polish #47): ONE column contract on web, iOS and Android ----
 // Rows = the list on screen, in its order; units live in the headers so cells stay plain numbers; a missing average is
 // an empty cell; sleep has one decimal ('.' always).
 private const val METRICS_CSV_HEADER =

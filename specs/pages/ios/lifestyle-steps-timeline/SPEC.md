@@ -1,6 +1,6 @@
 # Screen: `lifestyle-steps-timeline` (ios) — the daily-steps timeline drill-down
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Lifestyle tab's Steps Timeline card (`StepsTimelineCardSummary`) —
 > `StandardWorkoutTypesTab.swift` (`memberId: loggedInUserId`) **and** `AdminWorkoutTypesTab.swift`
 > (`memberId: selectedMember?.id`), `NavigationLink { StepsTimelineDetailView(initialPeriod:.week, memberId:) }`.
@@ -105,4 +105,5 @@ differs. **`admin_only_data_entry` = N/A** — read-only analytics, no logging.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the tap callout uses the shared `chartCalloutPlacement` (measured, flipped below the point when it would cross the top edge, clamped — never clipped; #46). |
 | 0.1.0 | 2026-07-09 | Initial SPEC + build (steps-tracking run) — the **daily-steps** timeline drill-down, cloned from `LifestyleTimelineDetailView` into `Features/Home/Detail/StepsTimelineDetailView.swift`: title "Steps Timeline"/"Daily steps", single teal `steps` `BarMark` on one leading "steps" axis (drops the diet line/second axis), daily-average-steps header (`healthTimelineDailyAverageSteps`, grouped), native "{n} steps" tap-callout (tooltip mandatory), period picker + `loadHealthTimeline` reload. Reached from the new `StepsTimelineCardSummary` on both Lifestyle tabs. Reuses `loadHealthTimeline` (the `steps`/`daily_average_steps` fields are additive — analytics 0.2.0 D-C5, per-member-day group semantics per amendment A-4). `consumed_by=[ios]`; read-only → `admin_only_data_entry` N/A. Build green-check owned by the user (Xcode). |

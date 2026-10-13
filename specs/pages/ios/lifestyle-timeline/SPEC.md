@@ -1,6 +1,6 @@
 # Screen: `lifestyle-timeline` (ios) — the Sleep · Diet-quality timeline drill-down
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Lifestyle tab's timeline card (`LifestyleTimelineCardSummary`) —
 > `StandardWorkoutTypesTab.swift` (`memberId: loggedInUserId`) **and** `AdminWorkoutTypesTab.swift`
 > (`memberId: selectedMember?.id`), `NavigationLink { LifestyleTimelineDetailView(initialPeriod:.week, memberId:) }`.
@@ -114,4 +114,5 @@ logging, no lock.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the tap callout uses the shared `chartCalloutPlacement` (measured, flipped below the point when it would cross the top edge, clamped — never clipped; #46). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 64) — the Lifestyle **sleep/diet timeline drill-down**, ported into `apps/ios/.../Features/Home/Detail/LifestyleTimelineDetailView.swift` (+ `HealthHeaderStats`/`HealthCalloutView` added to `ChartDetailComponents.swift`); deferred stub removed. **D-REF** (keep iOS-native — richer than web; `consumed_by=[ios]`) · **D-SCOPE** (single leaf view) · **D-S1** (faithful 1:1 native + 4 web-parity deviations; no tokenize — legacy already tokenized) · **D-C1** (dual Y-axis, web D-C2 analogue) · **D-C2** (web-parity error banner) · **D-C3** (axis unit labels "hrs"/"/ 5") · **D-C4** (chart Legend) · **D-DEPS** (2 co-located health helpers; everything else pre-ported). Flagged F1–F4. Read-only → `admin_only_data_entry` N/A; always member-scoped (gated upstream at the Lifestyle card). Build green-check owned by the user (Xcode); symbols grep-verified. |

@@ -1,6 +1,6 @@
 # Screen: `AdminWorkoutTypesTab` / `StandardWorkoutTypesTab` (ios) — the Lifestyle tab (Tab 3)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** Tab 3 **"Lifestyle"** (`leaf.fill`) of `AdminHomeView`'s bottom `TabView` — the iOS analogue of
 > the web `/lifestyle` workspace tab. Role-bifurcated by `programContext.isProgramAdmin`:
 > `AdminWorkoutTypesTab` (program/global admin — view-as picker) vs `StandardWorkoutTypesTab` (logger/member —
@@ -156,5 +156,6 @@ forms on `/summary`), not this landing — the read-vs-write axis (runs 31/36/54
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the seven reads run in parallel; the standard tab spins only for a program's first load; a View-as change during an admin load is queued, not dropped (#5); load errors use the kit copy (#8). |
 | 0.2.0 | 2026-07-09 | **Steps analytics + Steps Timeline cards** (analytics 0.2.0 D-C5). Added `StepsStatsCard` (full-width teal card, Total steps / Avg steps/day) directly after the stat row and `StepsTimelineCardSummary` (single teal `steps` bar) after the Lifestyle Timeline card (DC-9) → `StepsTimelineDetailView` (both tabs). `load()` adds `loadStepsStats(memberId:)` (Admin = selected member, Standard = self); `loadHealthTimeline` also sets `healthTimelineDailyAverageSteps`. New cards in `Tabs/WorkoutTypesCards.swift`; wiring in `AdminWorkoutTypesTab`/`StandardWorkoutTypesTab`. Build green-check owned by the user (Xcode). |
 | 0.1.0 | 2026-06-30 | Initial faithful port — `AdminWorkoutTypesTab`/`StandardWorkoutTypesTab` + 7 cards + `AccentChip`; `ViewWorkoutTypesListView` + `LifestyleTimelineDetailView` deferred as stubs (run 56). |

@@ -1,6 +1,6 @@
 # Screen: `health-connect` (android) — Health Connect sync settings + first-sync confirmation
 
-> **Status:** 🏗️ built · **Version:** 0.3.0 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.3.1 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = the [`health-connect`](../../../features/health-connect/SPEC.md) feature (the Android
 > analog of iOS [`apple-health`](../../../features/apple-health/SPEC.md)) + iOS
 > `Features/Home/Settings/AppleHealthSettingsView.swift` + `Shared/Views/HealthSyncConfirmationView.swift`.
@@ -102,6 +102,7 @@ sync (rule 11); live 1.0.0 keeps them.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | Phase 4 quick wins: the first-sync review overlay carries the offline banner with a 76dp reserve and swallows taps under it (frontend-kit D-KIT-17, #2). |
 | 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3 — health-sync v2.** D-REL3-1 batch/state contract (per-sample items, deletions, catch-up window, paging, rule-5 hold, per-program `sync_success`); D-REL3-2 Reconnect row; D-REL3-3 triggers; D-REL3-4 review once; D-REL3-5 disconnect keeps exclusions + reviews; D-REL3-6 per-member store + 1.0.0 upgrade (with the recorded upgrade-window deviation). Compile-checked green (`assembleDebug`). |
 | 0.2.0 | 2026-07-09 | **Third "Steps" section** on `HealthConnectSettingsScreen` (own `READ_STEPS` permission, program selection, "Days Synced" status, disconnect; `DirectionsWalk`/teal `#14b8a6`) + the steps flow in `HealthSyncConfirmationScreen` — the exact sleep model on `StepsRecord` (health-connect feature 0.2.0, D-STEPS; writes `daily_health_logs.steps` via POST→409→PUT). Confirmation priority workouts > sleep > steps. `AndroidManifest.xml` gains `android.permission.health.READ_STEPS`; `HealthSyncController`/`HealthConnectManager`/`HealthStore`/`HealthModels`/`HealthSyncNotifier` gain the steps flow. Requires daily-health-logs 0.2.0 (migration `006`). `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase H) — workouts + sleep sync + first-sync confirmation. |

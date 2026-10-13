@@ -1,6 +1,6 @@
 # Page: `members/streaks` (web) — per-member streak stats (members sub-route 6 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/streaks?memberId=&name=` — the **Streak Stats** detail for one member, reached by the
 > `/members` landing's "Streak Stats" card. Two metric pills (Current / Longest, in days) over a row of milestone
 > badges. **6th** of the eight deferred `/members` sub-routes
@@ -160,4 +160,5 @@ layer, the (looser) backend is the real boundary (the run-40 `members/detail` / 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/streaks` (members sub-route 6 of 8) — per-member Streak Stats (Current/Longest day pills + milestone badge ladder, URL `memberId`/`name`, non-staff own-only redirect); D-C1 non-color milestone affordance (`✓` + ring on achieved). No new dependency, zero backend work, no feature bump. |

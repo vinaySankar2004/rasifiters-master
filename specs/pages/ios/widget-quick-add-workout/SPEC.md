@@ -1,6 +1,6 @@
 # Screen: `widget-quick-add-workout` (ios) — the "Add workouts" widget deep-link form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** presented by `AppRootView` when a Home-Screen widget deep-links `WidgetRoute.quickAddWorkout`
 > (`.fullScreenCover(item: widgetRoute) { QuickAddWorkoutWidgetEntryView() }`, gated on `authToken != nil`).
 > Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`).
@@ -130,5 +130,6 @@ admin/logger/global-admin in **every** selected program — the member column hi
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the form opens at once with the version check alongside — an unsupported build gets the update modal over the form in place (`WidgetCoverView`, app-config D-C8, #7); the cover carries the offline banner (D-KIT-17, #2); save errors use the kit copy (#8). |
 | 0.2.0 | 2026-07-09 | **D-BATCH — the widget is now the in-app multi-row batch "Add workouts" form** (`AddWorkoutsDetailView`), replacing the legacy single-entry multi-program quick-add (per-program `addWorkoutLog` loop + rollback). Two deltas: **no auto-selected program** (`currentProgramId: ""`, no seeding, `alwaysShow: true`) + the **custom back button** exits to My Programs. Save = one `POST /workout-logs/batch` (`program_ids` = selection; `applyRowErrors` on 409). Member/workout options stay the **intersection** across selected programs. **D-LOGGABLE** — the shared `ProgramMultiSelectSection` now lists only loggable programs (active + not-locked; current kept), dropping completed/locked rows (was shown-disabled); lands here + the in-app forms, mirrored on web/android. **D-REUSE** — no new component/API; retired `WidgetProgramSelector`/`WidgetMemberField`/`widgetProgramLockedForLogging` deleted. Adversary-hardened: transient-fetch-failure no longer wipes rows (F3); admin rows start empty (in-app parity). Native build green via the xcode MCP (0 errors). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 65) — the legacy single-entry Quick Add Workout widget (multi-program select + shared-member/-workout intersection + per-program save loop + partial-failure rollback + exit-to-My-Programs) + D-C1 per-program lock, D-C2 shared chrome, D-C3 shared scaffold. Superseded by 0.2.0 (D-BATCH). |

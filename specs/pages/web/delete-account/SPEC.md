@@ -1,6 +1,6 @@
 # Page: `delete-account` (web) — Public Account-Deletion Instructions
 
-> **Status:** 🏗️ built (`apps/web/`, deployed to prod) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (`apps/web/`, deployed to prod) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/delete-account` — the **PUBLIC** (pre-auth) account-deletion instructions page: a single static
 > `GlassCard` explaining how a user requests deletion of their RaSi Fiters account and data (in-app steps + an
 > email fallback), **what data is deleted**, and **what is retained + for how long**. Header **Support** link to
@@ -126,4 +126,5 @@ identically for everyone.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the RaSi brand mark (`BrandMark` 96) centred above the `PageHeader` (#48). |
 | 0.1.0 | 2026-07-10 | **Net-new public account-deletion page** (D-NEW), created for the **first Android Play release** — Google Play's Data safety form + account-deletion policy require a public URL describing how users request account/data deletion, what is deleted vs retained, and the retention period. Static `GlassCard` mirroring [`privacy-policy`](../privacy-policy/SPEC.md) (D-STRUCT): in-app 4-step instructions + email fallback (D-EMAIL) + data-deleted list + retention (immediate live removal, 30-day backup purge, minimal legal records). Content verified faithful to the real in-app deletion flow on [`program/profile`](../program/profile/SPEC.md) (`deleteAccountApi`) and the privacy policy's data enumeration (D-FAITHFUL). `consumed_by=[web]`; the same URL is reused by the Android/iOS store listings (D-REF). Consumes only foundation chrome + `next/link`; **no feature bump.** Added `apps/web/src/app/delete-account/page.tsx`; committed `4101ae0`, deployed to prod (aliased `www.rasifiters.com`), live at `/delete-account` (verified 200). |

@@ -1,6 +1,6 @@
 # Page: `members/history` (web) — per-member workout history timeline (members sub-route 5 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/history?memberId=&name=` — the **Workout History** timeline for one member, reached by the
 > `/members` landing's "Workout History" card. A `PeriodSelector` (W/M/Y/P) over a single-series workouts
 > `BarChart`. **5th** of the eight deferred `/members` sub-routes
@@ -159,4 +159,5 @@ layer, the (looser) backend is the real boundary (the run-40 `members/detail` mi
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/history` (members sub-route 5 of 8) — per-member Workout History timeline (`PeriodSelector` + single-series workouts `BarChart`, URL `memberId`/`name`, non-staff own-only redirect); D-C1 all-zero empty-state guard. No new dependency, zero backend work, no feature bump. |

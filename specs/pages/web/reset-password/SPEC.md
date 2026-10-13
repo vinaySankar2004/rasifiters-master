@@ -1,6 +1,6 @@
 # Page: `reset-password` (web) — set a new password (auth-recovery, step 2)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/reset-password` (the destination of the password-reset **email link**; `PASSWORD_RESET_REDIRECT_URL`).
 > **Provenance (legacy, archived):** **NONE — 100% net-new.** No `/reset-password` exists on either legacy
 > client (web or iOS); confirmed `question-asker` runs 16–17. Exists only because the migration to Supabase
@@ -142,5 +142,6 @@ token is redirected to `/programs`; one **with** a token may still reset (F4).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | Phase 4 quick wins: a failed reset (other than the 401 "link expired" branch) shows `credentialErrorMessage` — server text for 400/409/422, kit copy offline / on timeout / 5xx, never "Failed to fetch" (frontend-kit D-KIT-19, #8). |
 | 0.1.1 | 2026-06-30 | **Removed the standalone "Back to login" link** (D-C5, F3) — this page is the reset email's destination, now opened by **both** web and iOS clients (iOS's request step became native — `apps/ios/.../Features/Auth/ForgotPasswordView.swift`), so a web-only login link would strand iOS users. Page stays navigable via the success auto-redirect + the invalid-link "Request a new reset link". `/forgot-password` keeps its "Back to login". No behavior change to the reset flow itself. `apps/web/src/app/reset-password/page.tsx`. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 18) — the **fourth web page spec** and the **second net-new page** (the reset/consume step pairing with `forgot-password`). Documents `/reset-password`: reads the Supabase recovery `access_token` from the implicit-flow URL **fragment** (D-C4), a **new-password + confirm form with an inline policy hint** (D-C3), forwards the token as Bearer to **`POST /auth/reset-password`** which reuses `authenticateToken` + `changePassword` (D-C1), then **in-page success → `/login?reason=password-reset`** (D-C2). Reset routed **through Express** (R1). Consumes `auth` v0.4.0. Flagged F1–F6 (bootstrap flash; no client rate-limit; iOS recovery gap; authed-with-token may reset; token in fragment; fixed redirect timing). Ported `apps/web/src/app/reset-password/page.tsx` + `resetPassword()` (`api/auth.ts`) + the login `password-reset` banner (login SPEC → v0.1.1); `npm run build` ✓ (`/reset-password` prerendered, 4.28 kB). **The auth-recovery path is now end-to-end** (forgot → email → reset → login). |

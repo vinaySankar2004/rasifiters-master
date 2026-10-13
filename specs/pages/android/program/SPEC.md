@@ -1,6 +1,6 @@
 # Screen: `program` (android) — the Program tab (4th bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the iOS Program tab
 > (`Features/Home/Tabs/{Admin,Standard}ProgramTab.swift` + `ProgramCards.swift`) + the web `/program`
 > surfaces — this file records only the Android realization + idiom deviations.
@@ -50,3 +50,9 @@ Profile row (initials avatar → [`my-profile`](../my-profile/SPEC.md)) · **Cha
   the signed-in gender seed) and `loadAllProgramWorkouts` (Workout Types count).
 - Leave = `PUT /program-memberships/leave` (`ProgramContext.leaveProgram`); Sign Out = the shared
   `signOut()`; program/account mutations live on the sub-route screens.
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error goes through `toAppError()` (frontend-kit D-KIT-19, #8). |

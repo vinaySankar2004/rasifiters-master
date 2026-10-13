@@ -1,6 +1,6 @@
 # Page: `lifestyle/timeline` (web) — health timeline (lifestyle sub-route 2 of 2, CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle/timeline` — the **sleep + diet-quality health timeline** detail, the **last** of the two
 > deferred `/lifestyle` sub-routes (reached from the [`lifestyle`](../SPEC.md) landing's **Lifestyle Timeline**
 > chart card). A `PeriodSelector` (W/M/Y/P) over one `GlassCard`: a range/daily-average header + a `ComposedChart`
@@ -130,3 +130,9 @@ logging on `/summary`, not reads here).
 - **F4** — `admin_only_data_entry` N/A (read-only page) — see §7.
 - **F5** — Diet `food_quality`'s right axis is hard-pinned to `[0, 5]` (D-C2). If the API ever returned a value
   >5 it would clip; faithful to the 1–5 daily-health diet scale (`daily-health-logs` validates 1–5).
+
+## 11. Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

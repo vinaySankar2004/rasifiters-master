@@ -28,10 +28,30 @@
 
 ## Next action
 
-1. **Plan Phase 4 via `multiplex`** against [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md) + [`DISCOVERY.md`](phase-4/DISCOVERY.md)
-   (evidence appendix + `discovery-raw.json`), in the decided order: polish quick wins #2–#8 + #46/#47/#48 → privacy fix
-   (S0 / D-P8, server-only) → Notifications N1–N8 (all four categories, send-anytime composer D-N16, personalized
-   templates D-N17) → People S1–S6 → polish #9–#45 alongside. Backend parts deploy as ready; web as reviewed.
+1. **Phase 4 planning and build (2026-10-13).** Three waves:
+   - **Wave A — ✅ DONE (2026-10-13).** Plans: `plans/phase-4-q-quick-wins/` and `plans/phase-4-s0-privacy/`, plus
+     the binding `plans/phase-4-wave-a-amendments.md`. The #47 CSV puts units in the headers.
+     - **Privacy fix S0:** `5e76113`, live on Render 18:33Z.
+       - Adds `utils/memberVisibility.js`.
+       - Feature versions: members 0.4.0 · program-memberships 0.3.0 · member-analytics 0.5.0 · analytics 0.5.0 ·
+         analytics-v2 0.2.1 · daily-health-logs 0.4.0 · workout-logs 0.7.0.
+       - The user's prod check passed (all pass), after a testbed `--reset`: ava.rivera had been removed from all
+         three test programs.
+     - **Quick wins**, all reviewed with fix rounds:
+       - web `095d864`, live on Vercel;
+       - Android `82b7297`;
+       - iOS `53f2e5d` (⌘B ✅).
+       - Phones ship in the one store release.
+     - Pending: the docs commit for the quick wins (frontend-kit 0.4.0 · member-analytics 0.6.0 · app-config 0.4.0
+       · page SPEC patches).
+   - **Wave B:** the Notifications server (migration 011) and the People server S1 (migration 012). Then web, iOS and
+     Android client plans written against those two contracts, then a parity check.
+   - **Wave C**, once Wave A is approved: polish #9–#45 (#32 is People S5), planned per surface on top of the quick wins.
+
+   Orchestrator calls: five categories (program · activity · reminders · digest · announcements). With the switch off,
+   program and announcements skip the push but still reach the inbox; activity, reminders and the digest are never
+   created. Activity v1 = kudos received. Plans are saved under `plans/phase-4-*`; each wave goes to the user for
+   approval, then builds.
 2. Build → the user tests (iPhone ⌘R/TestFlight, Pixel internal) → ONE store release → raise `LATEST_*` then `MIN_*`.
 
 ## Workstream status

@@ -1,6 +1,6 @@
 # Page: `members/list` (web) — active-member roster (members sub-route 1 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/list` — the **roster screen** behind the [`members`](../SPEC.md) landing's "View Members"
 > pill: a searchable, read-only list of the program's **active** members. **1st** of the eight deferred `/members`
 > sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`) and the **entry point to
@@ -138,4 +138,5 @@ admin redirect** — every role renders the same roster; the only role-condition
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 39) — the **25th web page spec**, the **active-member roster** (`/members` sub-route 1 of 8). Faithful 1:1 port of the legacy 113-line page: a `PageShell` + `PageHeader` ("Members" / program name / `backHref="/members"`) wrapping a search `GlassCard` + a grid of `MemberRow` cards, over `fetchMembershipDetails` (`GET /program-memberships/details`), client-filtered to `status==="active"` + client name search. **global_admin-only** row clickability → the deferred `/members/detail` editor; read-only for every other role; `admin_only_data_entry` **N/A** (read-only list). Decisions: **D-SCOPE** (this page; 1st of 8, does not close the group) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — `fetchMembershipDetails` + all chrome already ported) · **D-S1** (faithful 1:1) · **D-C1** (tokenize the "Inactive" badge `bg-red-100 text-red-600` → `bg-rf-danger/10 text-rf-danger`). Flagged F1–F5 (global_admin-only clickability + entry-path asymmetry; `status` vs `is_active`; client-only filter/search; forward-nav to deferred `/members/detail`; client JWT-decode role drives display-only clickability). **Zero backend work, NO feature bump** — `GET /program-memberships/details` already mounted (`authenticateToken`). Ported `apps/web/src/app/members/list/page.tsx`. `npm run build` ✓. |

@@ -1,6 +1,6 @@
 # Screen: `program-workout-types` (ios) — the Program tab's Workout Types section
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** `AdminProgramTab.swift:38` (`ProgramWorkoutTypesSection()`, always shown). The section is a
 > card with one nav row (counts) → `ViewWorkoutTypesListView` (the workout-type CRUD manager).
 > **File:** `apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/WorkoutTypesSection.swift`
@@ -106,5 +106,7 @@ through `ProgramContext` → `APIClient` and reload the list.
 
 ## 11. Changelog
 
+- **0.1.1** (2026-10-13, Phase 4 quick wins) — add / edit / visibility / delete errors use `SessionCopy.kitMessage`
+  (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8).
 - **0.1.0** (run 62, 2026-06-30) — initial port. Section + list + edit sheet; stub removed (double-duty with
   the Lifestyle tab). Faithful 1:1 + D-C1 tokenize + D-C2 clear-stale-error.

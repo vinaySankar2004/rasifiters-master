@@ -1,6 +1,6 @@
 # Screen: `program-role-management` (ios) — the Program tab's Role Management section
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** `AdminProgramTab.swift:34` (`ProgramRoleManagementSection()`, gated
 > `if programContext.canEditProgramData`). The section shows read-only Admins/Loggers lists + a **Manage
 > Roles** nav row → `ManageRolesView` (the per-member role picker).
@@ -102,5 +102,7 @@ backend 400). The whole section is gated `canEditProgramData` (loggers/members n
 
 ## 11. Changelog
 
+- **0.1.1** (2026-10-13, Phase 4 quick wins) — role-update errors use `SessionCopy.kitMessage` (server text kept for
+  400/422 and row errors — frontend-kit D-KIT-19, #8).
 - **0.1.0** (run 62, 2026-06-30) — initial port. Section + `ManageRolesView`; stub removed. Faithful 1:1,
   kept iOS-native per-member lock (D-REF), + D-C1 tokenize.

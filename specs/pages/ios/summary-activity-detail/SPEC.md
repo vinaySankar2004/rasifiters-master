@@ -1,6 +1,6 @@
 # Screen: `summary-activity-detail` (ios) — the Workout Activity Timeline drill-down
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s activity-timeline card
 > (`AdminSummaryTab.swift:252-259`, `NavigationLink { ActivityTimelineDetailView(initialPeriod:) }`) **and**
 > from the Members tab's `MemberHistoryCard` (`MemberCards.swift:28-34`, `memberId` + `showActiveSeries:false`).
@@ -105,4 +105,5 @@ It re-fetches the timeline on each period change. It is **read-only** analytics 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: the tap callout uses the shared `chartCalloutPlacement` (measured, flipped below the point when it would cross the top edge, clamped — never clipped; #46) — member history reuses this view. |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 61) — the Summary **activity-timeline drill-down**, ported into `apps/ios/.../Features/Home/Detail/ActivityTimelineDetailView.swift` (+ shared `ChartDetailComponents.swift`); deferred stub removed. **D-REF** (keep iOS-native — richer than web; `consumed_by=[ios]`) · **D-SCOPE** (chart drill-down cluster) · **D-S1** (faithful 1:1 — first run iOS richer than web) · **D-C2** (trim 6 unused init providers) · **D-C3** (tokenize chart colors + retro-tokenize run-54 cards) · **D-DEPS** (new `ChartDetailComponents.swift`; skip GlassButton/health variants). Flagged F1–F4. Read-only → `admin_only_data_entry` N/A; serves double-duty (Summary program-wide + Members history member-scoped). Build green-check owned by the user (Xcode); symbols grep-verified. |

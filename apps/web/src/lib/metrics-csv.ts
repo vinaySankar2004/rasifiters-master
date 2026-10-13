@@ -1,7 +1,7 @@
 import type { MemberMetrics, MemberMetricsResponse } from "@/lib/api/members";
 import { escapeCsv } from "@/lib/format";
 
-// Member Performance Metrics CSV — member-analytics D-C8 (polish #47): ONE column contract on web, iOS and Android.
+// Member Performance Metrics CSV — member-analytics D-C9 (polish #47): ONE column contract on web, iOS and Android.
 // Rows = the page's list in its on-screen order (the server applied search + filters + sort). Units live in the headers
 // so every number cell stays a plain number a spreadsheet can sort; a missing average is an empty cell.
 export const METRICS_CSV_HEADERS = [

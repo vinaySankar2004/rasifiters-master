@@ -1,6 +1,6 @@
 # Screen: `log-workout` (ios) — the Summary "Add workouts" multi-row log form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.2 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s "Add workouts" log-action card
 > (`NavigationLink { AddWorkoutsDetailView() }`). When the program is `dataEntryLocked` the card is dimmed +
 > the `NavigationLink` removed (run 54), so a locked non-admin cannot reach this screen.
@@ -138,6 +138,7 @@ logger can normally log for any member yet is locked out when the flag is on (ma
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.2 | 2026-10-13 | Phase 4 quick wins: save errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.3.1 | 2026-07-09 | **Loggable-only program list (D-LOGGABLE).** `ProgramMultiSelectSection` now lists only programs the user can log to — `status == "active"` AND not `admin_only_data_entry`-locked (the current program always kept) — dropping completed/planned + locked rows entirely (0.3.0 showed locked rows disabled "Admin-only — can't log"). Done once in the shared `LogFormComponents.swift`, so it also lands on `log-health` + both widget batch forms, mirrored on web + android. New `alwaysShow` param (default false → in-app still hides the selector when ≤1 loggable program; the widgets pass true). User request 2026-07-09 (cross-client parity + cleaner UI). `BuildProject` ✓ 0 errors; user runs the simulator/visual check. |
 | 0.3.0 | 2026-07-09 | **Multi-program logging (workout-logs 0.5.0 D-C10).** `AddWorkoutsDetailView` gains a `ProgramMultiSelectSection` above the rows (current program checked+disabled; `admin_only_data_entry`-locked programs disabled "Admin-only — can't log"; hidden when in one program) and passes `programIds: Array(selectedProgramIds)` to `APIClient.addWorkoutLogsBatch` (new `programIds:` param, `program_ids[]` body). When any selected program is non-privileged (`privileged(p)` off `p.my_role` + `isGlobalAdmin`) the per-row member field locks to self and rows reset to self on the lock transition. `ensureLookups` also fetches `programs` when empty. Build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-01 | **Merged the single `AddWorkoutDetailView` + admin-only `BulkAddWorkoutDetailView` into one multi-row `AddWorkoutsDetailView`** (both predecessors deleted; `.bulkAdd` `SummaryCardType` + `BulkAddWorkoutCard` removed; the orange "Add workout" card retitled "Add workouts" and pointed at the new view). **D-C5** — opened to plain members with the per-row member field **hidden** (each row seeded to self via `loggedInUserId`; `ignoreMember` gates the empty/valid/error checks); always posts `POST /workout-logs/batch` (backed by `workout-logs` D-C8 — members batch-log their own rows). All-or-nothing duplicate rejection + per-row red highlight retained from the bulk form. Web parity = web `summary` `LogWorkoutsForm` (v0.2.0). Updated §1–§10. `BuildProject` ✓ 0 errors (ios-build run 69). Simulator/visual check owned by the user. |

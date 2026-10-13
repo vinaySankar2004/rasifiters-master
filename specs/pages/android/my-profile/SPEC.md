@@ -1,6 +1,6 @@
 # Screen: `my-profile` (android) — account profile editor
 
-> **Status:** 🏗️ built · **Version:** 0.2.0 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.2.1 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = iOS `Features/Home/Settings/MyProfileView.swift` + web `/program/profile`.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.PROGRAM_PROFILE` (`MyProfileScreen`).
 > **Files:** `ui/program/ProfileScreen.kt`.
@@ -46,5 +46,6 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | Phase 4 quick wins: the Sign-out-everywhere and Delete Account errors go through `toAppError()` (frontend-kit D-KIT-19, #8). |
 | 0.2.0 | 2026-10-13 | **Reliability Phase 3 C3.** D-REL3-1 Sign out everywhere (every role, above Delete Account); D-REL3-2 link nonce + mapped errors; D-REL3-3 set-password rule 6 + 401 re-send + success copy; D-REL3-4 credential / kit error mapping. Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase G). |

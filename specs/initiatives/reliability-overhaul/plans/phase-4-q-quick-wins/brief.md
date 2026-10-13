@@ -1,0 +1,154 @@
+# SCOPE BRIEF: Phase 4 Track Q, polish quick wins #2–#8, #46, #47, #48 (web · iOS · Android; no backend)
+
+- **Features**: frontend-kit@0.3.0 (SPEC: specs/features/frontend-kit/SPEC.md) · consumed_by [web, ios, android]. Covers #2, #4, #6, #8 and copy table §3.
+  - member-analytics@0.4.0 (specs/features/member-analytics/SPEC.md) · [web, ios, android]. Covers #47 (CSV) and #5 (Members reads).
+  - analytics@0.4.0 / analytics-v2@0.2.0 (specs/features/analytics/SPEC.md) · [web, ios, android]. Covers #46 (chart tooltips) and #5 (Lifestyle reads).
+  - app-config@0.3.0 (specs/features/app-config/SPEC.md, D-C7/A7) · [ios, android]. Covers #7.
+  - invites@0.2.1 (specs/features/invites/SPEC.md) · [web, ios, android]. Covers #2 (invites reload).
+  - The #8 call sites only (no contract change) touch: workout-logs@0.6.0, daily-health-logs@0.3.0, programs@0.2.0, program-memberships@0.2.0, program-workouts@0.1.0, members@0.3.0, auth@0.14.0 (reset-password) · all [web, ios, android].
+- **Already done (cf52772, polish 1) — plan only what's left**:
+  - **#3: done.** Android picker reconnect reload is at `ProgramPickerScreen.kt:143-149` and Summary's at `SummaryScreen.kt:94-100`. One gap is left: the picker reload checks `programsState` only, so an invites-only failure never reloads. That gap is folded into #2.
+  - **#4: not done.** `providers.tsx` mutations still only set `retry: false`.
+  - **#6: partly done.** Polish 1 stops retries while proven offline (`isOnlineNow()`), and programs/summary show the offline ErrorView while offline. Still open: on a stuck "online" connection (timeouts), `fromQuery` stays `loading` until the last of 3 tries, about 48 s.
+- **Pages/screens**:
+  - **web**: privacy-policy, support, delete-account, reset-password, programs, summary, summary/log-workout, summary/log-health, summary/activity, summary/distribution, summary/workout-types, members/metrics, members/workouts, members/health, members/detail, members/list, members/history, members/streaks, lifestyle/workouts, lifestyle/timeline, lifestyle/steps-timeline, program, program/edit, program/roles. Each spec is at specs/pages/web/<slug>/SPEC.md.
+  - **ios**: program-actions, widget-quick-add-workout, widget-quick-add-health, apple-health, admin-members, admin-workout-types, member-metrics-detail, summary-activity-detail, summary-distribution-detail, lifestyle-timeline, lifestyle-steps-timeline, admin-summary, log-workout, log-health, member-recent-detail, member-health-detail, my-profile, edit-program, admin-program, program-member-management, program-role-management, program-workout-types. Each spec is at specs/pages/ios/<slug>/SPEC.md.
+  - **android**: program-picker, members, lifestyle, member-metrics-detail, log-workout, log-health, widgets, edit-program, manage-roles, member-management, member-workouts-detail, member-health-detail, lifestyle-workout-types, my-profile, program, plus health-connect (only if OQ-2 is yes). Each spec is at specs/pages/android/<slug>/SPEC.md.
+- **Files (exhaustive — implementer may touch ONLY these), grouped by surface**:
+  - **backend/**: none. #47 needs nothing: `getMemberMetrics` already returns every row (no pagination), with search, sort and filter applied on the server, and each client exports the array it renders.
+  - **web/**
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/providers.tsx — #4: `mutations: { retry: false, networkMode: "always" }`, so an offline save fails at once with the kit offline copy.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/kit/async-state.ts — #6: `QueryLike` gains `failureCount` and `failureReason`. When there is no data and `failureCount > 0`, return `failed(toAppError(failureReason))` while TanStack keeps retrying quietly.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/page.tsx — #6: `retrySummary` must also refetch queries with `failureCount > 0` (`isError` is false during retries). #8 at :320 and :339.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/programs/page.tsx — #8 at :190 (order), :453 (create), :545 (edit). Use `toAppError(e).message`, keeping the "Couldn't save program order." prefix decision.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/reset-password/page.tsx — #8 at :105-107. Keep the 401 "link expired" branch; everything else goes through `credentialErrorMessage(error)` (sign-in scope).
+    - #8 mutation errors (`error.message` / `(m.error as Error).message` → `toAppError(error).message`):
+      - …/apps/web/src/app/summary/log-workout/page.tsx :59
+      - …/apps/web/src/app/summary/log-health/page.tsx :59
+      - …/apps/web/src/app/program/page.tsx :86
+      - …/apps/web/src/app/program/edit/page.tsx :81
+      - …/apps/web/src/app/program/roles/page.tsx :72, :100
+      - …/apps/web/src/app/members/workouts/page.tsx :144, :162
+      - …/apps/web/src/app/members/health/page.tsx :166, :181
+      - …/apps/web/src/app/members/detail/page.tsx :69, :84, :96
+      - …/apps/web/src/app/lifestyle/workouts/page.tsx :62, :70, :82, :94, :102
+      - The `…` prefix is /Users/vinayaksankaranarayanan/Developer/rasifiters-master.
+    - #8 load errors of the same kind (`<ErrorState message={(q.error as Error).message}>` → `toAppError(q.error).message`; message only, the component swap is #29, later):
+      - …/apps/web/src/app/members/list/page.tsx :54
+      - …/apps/web/src/app/members/history/page.tsx :60
+      - …/apps/web/src/app/members/streaks/page.tsx :46
+      - …/apps/web/src/app/lifestyle/timeline/page.tsx :66
+      - …/apps/web/src/app/lifestyle/steps-timeline/page.tsx :67
+      - …/apps/web/src/app/summary/activity/page.tsx :44
+      - …/apps/web/src/app/summary/distribution/page.tsx :53
+      - …/apps/web/src/app/summary/workout-types/page.tsx :40
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/metrics/page.tsx — #47: rewrite `handleExport` (:132-170) to the pinned column contract, still built from `metricsQuery.data.members`. #8 at :215.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/metrics-csv.ts (NEW, optional) — #47 builder, if the planner wants it out of the 440-line page.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/privacy-policy/page.tsx, …/apps/web/src/app/support/page.tsx, …/apps/web/src/app/delete-account/page.tsx — #48: add `components/BrandMark` (the component itself is unchanged) centered above the `PageHeader`, in the auth-page idiom.
+    - #46 on web is a check only. Recharts' default `allowEscapeViewBox {x:false, y:false}` already keeps tooltips inside the chart. Check on desktop and mobile widths; if anything clips, go back to the orchestrator to widen scope.
+  - **ios/**
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/App/AppRootView.swift — #2: apply the offline banner to the content of the widget covers (:122-136) and the Apple Health review cover (:146-154). #7: in `onOpenURL` (:110-121), set `widgetRoute` at once and run `checkMinimumSupportedVersion()` in a separate Task. The existing `onChange(isUpdateRequired)` (:72-76) closes the form.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Kit/OfflineBanner.swift (NEW; synced Xcode groups, so no pbxproj edit) — #2: one `.offlineBanner()` modifier. It shows `FloatingBanner(.offline)` from `programContext.isOnline` and reserves a 76-pt bottom inset while offline, so a Save inside a scroll view is never covered (D-KIT-8).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/ProgramActions/ProgramActionsSheet.swift — #2: apply the modifier at the sheet root.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/ProgramActions/InvitesTabView.swift — #2: route the stale banner (:106-115) through `ScreenBanner`, so it is hidden while offline. Add `onChange(of: isOnline)`: when back online and `loadError != nil`, call `refreshInvites()`.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Views/HealthSyncConfirmationView.swift — #2: modifier at the root. Pick one place, here or the AppRootView cover content, not both.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Widgets/QuickAddWorkoutWidgetEntryView.swift (:559, :562) and …/Features/Widgets/QuickAddHealthWidgetEntryView.swift (:600, :603) — #8 via `SessionCopy.kitMessage(for:)` / `AppError(error)?.message`. Row errors keep the server text. Also #2 if the modifier is applied inside these views.
+    - #5 Members tabs:
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/StandardMembersTab.swift — parallel `async let`. Drop the all-member `loadMemberMetrics` (:175-184) and use `selectedMemberOverview` (the same `MemberMetricsDTO` row) as `loggedInUserMetrics`. Drop the tab-level `loadMemberHealthLogs` (:189, and in `loadLoggerLogsData`). Show the spinner only when nothing is on screen.
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/AdminMembersTab.swift — parallel loads at :131-139 and drop :138. `MemberHealthCard`'s own `.task(id:)` (MemberCards.swift:249-253) stays. `programContext.memberHealthLogs` has no view readers, so dropping it is safe.
+    - #5 Lifestyle tabs: …/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/StandardWorkoutTypesTab.swift (:117-137) and …/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/AdminWorkoutTypesTab.swift (:135-149) — make the 7 reads parallel. Note `guard !isLoading` at :136: a View-as change during an in-flight load is dropped. Keep that, or fix it without making #10 worse.
+    - #8 iOS sites (`error.localizedDescription` → kit):
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/ProgramCards.swift :92
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Settings/MyProfileView.swift :453 (message only; delete placement is #15)
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/MemberManagementSection.swift :352, :366
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/RoleManagementSection.swift :297
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/WorkoutTypesSection.swift :290, :306, :316, :326, :342
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/ProgramActions/EditProgramInfoView.swift :223
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/ProgramActions/CreateProgramTabView.swift :152
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/AddWorkoutsDetailView.swift :464, :467
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/AddDailyHealthDetailView.swift :518, :521
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/MemberRecentDetail.swift :422, :824
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/MemberHealthDetail.swift :457, :968
+      - …/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext+Members.swift (8 catches) and …/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext+Analytics.swift (8 catches). These feed the timeline detail error text (ActivityTimeline/StepsTimeline/LifestyleTimeline read `programContext.errorMessage`).
+      - …/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext+WorkoutManagement.swift :92
+    - #46 charts:
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/ChartCalloutPlacement.swift (NEW): one shared placement helper. It measures the bubble, clamps x inside the plot, and flips below the touch point when the bubble would cross the top edge. Android's algorithm is the reference (ChartPrimitives.kt:331-333).
+      - Apply the helper at …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/ActivityTimelineDetailView.swift :199-202, …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/StepsTimelineDetailView.swift :171-174, …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/LifestyleTimelineDetailView.swift :222-225, and …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/DistributionByDayDetailView.swift :110-113.
+      - …/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/SummaryChartCards.swift :220 and DistributionByDayDetailView.swift :60 use `.annotation(position: .top)`. Add `overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))`; the iOS 18.6 target supports it.
+      - ChartDetailComponents.swift is touched only if the helper lives there instead of the new file.
+    - …/apps/ios/RaSi-Fiters-App/Features/Home/Detail/MemberMetricsDetailView.swift — #47: rewrite `exportCSV()` (:180-208) to the pinned contract.
+  - **android/**
+    - …/apps/android/app/src/main/java/com/app/rasifiters/ui/programs/ProgramActionsSheet.kt — #2: offline banner inside the `ModalBottomSheet` (its own window, so the root banner can't show), with extra scroll room so the Create button isn't covered. #8 at :177 and :339.
+    - …/apps/android/app/src/main/java/com/app/rasifiters/ui/programs/ProgramPickerScreen.kt — #2: the reconnect collector (:143-149) also reloads when `invites` is Failed or Stale.
+    - …/apps/android/app/src/main/java/com/app/rasifiters/ui/RootScreen.kt — **only if OQ-2 is yes**: the Health Connect review overlay (:135-142) is drawn above `SignedInGraph`'s offline banner. Draw the banner over it.
+    - …/apps/android/app/src/main/java/com/app/rasifiters/ui/members/MembersScreen.kt — #5:
+      - Make the reads at :103-111 and :160-172 parallel (`coroutineScope { launch … }`).
+      - Drop the all-member `loadMemberMetrics` at :164-165 and take `selfMetrics` from `selectedMemberOverview` (same DTO, loaded at :167).
+      - Stop the logger effect at :177-182 from re-running recent and health for self on first composition.
+      - Show the spinner (:191-196) only when nothing is on screen.
+    - …/apps/android/app/src/main/java/com/app/rasifiters/core/ProgramContext.kt — #5: `loadLifestyle` (:1267-1282) runs the 7 reads in parallel (`async`). Keep today's all-or-nothing result unless the planner opts into partial (that's #31).
+    - #8 Android sites (`it.message` / `e.message` → `it.toAppError().message`; ApiException rowErrors and 400 text survive):
+      - …/ui/lifestyle/WorkoutTypesListScreen.kt :94
+      - …/ui/program/EditProgramScreen.kt :158
+      - …/ui/program/ManageRolesScreen.kt :91
+      - …/ui/program/ProfileScreen.kt :422, :441
+      - …/ui/program/ProgramScreen.kt :143
+      - …/ui/members/MemberManagementScreens.kt :125, :290, :318
+      - …/ui/members/MemberRecentDetailScreen.kt :191, :207
+      - …/ui/members/MemberHealthDetailScreen.kt :191, :208
+      - …/ui/summary/LogWorkoutScreen.kt :202, :204
+      - …/ui/summary/LogHealthScreen.kt :228, :230
+      - …/ui/summary/QuickAddWorkoutWidgetScreen.kt :219, :221
+      - …/ui/summary/QuickAddHealthWidgetScreen.kt :210, :212
+      - Here `…` = /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters.
+    - …/apps/android/app/src/main/java/com/app/rasifiters/ui/members/MemberMetricsDetailScreen.kt — #47: `metricsCsv` and `metricsCsvName` (:356-381) follow the pinned contract.
+    - #46 on Android needs no change. `ChartPrimitives.kt:295-352` already flips below and clamps. The implementer only confirms this.
+  - **Docs (orchestrator-owned, one docs commit at landing):**
+    - frontend-kit SPEC: new D-KIT rules for the banner on sheets/covers, `fromQuery` failureCount, and mutation `networkMode`; bump 0.3.x.
+    - member-analytics SPEC: a new D-C rule for the CSV contract. It supersedes D-C7's "CSV column order untouched".
+    - app-config SPEC D-C7: the iOS widget gate is non-blocking.
+    - The page SPECs listed above.
+- **DB surface**: none.
+- **Flags/env/config involved**: none. Web `QueryClient` defaults in providers.tsx; the iOS deployment target is 18.6 (Charts `overflowResolution` is available).
+- **Blast radius**:
+  - No feature depends on frontend-kit or member-analytics.
+  - analytics → analytics-v2 and member-analytics; client presentation only, no contract change.
+  - app-config → health-sync (iOS client gate timing only).
+  - Parity across web, iOS and Android is kept for #8, #47 and #46 (web and Android verify only). #2, #5 and #7 are mobile-only by nature: web has no sheets or widgets and its Members/Lifestyle reads are already parallel TanStack queries.
+- **Live-binary compat**: none. No backend contract change.
+  - #5 means new builds stop downloading every member's metrics for plain members, which helps S0 (DISCOVERY P-5).
+  - S0 must still serve the all-member `/member-metrics` call that iOS 1.4.2/1.5.0 and Android 1.0.0/1.1.0 make.
+- **Doc↔code mismatches found**:
+  - DISCOVERY #1 and #3 say "uncommitted" / "no reconnect reload". Both are committed in cf52772. #3 is done except the invites-only gap.
+  - There is no single shared iOS chart-tooltip placement. The bubbles are shared (`CalloutView` / `HealthCalloutView` in ChartDetailComponents.swift; `StepsCalloutView` is private). Each of 4 views computes its own `y: max(plotMinY+12, anchorY-44)`, which ignores the bubble height.
+  - Root cause of #46: `ScrollableBarChart` (SummaryChartCards.swift:42-47) wraps the chart in a horizontal `ScrollView`, which clips the overlay vertically.
+  - DistributionByDayDetailView seems to draw both an `.annotation` (:56-75) and an overlay `CalloutView` (:95-114) for the same selection. Verify.
+  - member-analytics D-C7 says "CSV column order untouched"; #47 deliberately changes it.
+  - CSV formatting differs today:
+    - Web writes `avg_sleep` raw; iOS and Android use `%.1f`.
+    - Filenames differ: Android uses a `[^A-Za-z0-9]→_` slug with "start"/"end" fallbacks; web and iOS strip spaces with "all"/"today".
+  - The web metric card grid differs from the mobile card:
+    - Web: Active days, Total mins, Types, Avg sleep, Avg diet, Longest streak, plus a Current-streak chip. Workouts is in the subtitle; there are no Avg Duration or Avg Steps tiles.
+    - iOS/Android: Active Days, Workouts, Workout Types, Total Duration, Avg Duration, Longest Streak, Avg Sleep, Avg Diet Quality, Avg Steps, Current Streak.
+  - iOS `AdminWorkoutTypesTab` re-fetches `loadLookupData` on every `.task`.
+  - All "…already exists" messages from the server are 400s, so the kit keeps their text. The only single-row 409s are on single-POST routes the new forms don't use. No kit change is needed for "name already exists".
+- **Out of scope (explicitly)**:
+  - #1 (done).
+  - #9–#45: invisible errors, the delete-account spinner and placement (#15), and the kit ErrorView swap on detail screens (#29).
+  - The silent delete-program / cancel-request failures on web (#22).
+  - The previous-program data flash (#10). #5 must not make it worse.
+  - S0 privacy, Notifications, People.
+  - Web signed-in `/program/privacy`.
+  - The web offline banner under the modal backdrop (it is dimmed, not hidden).
+  - Any app version bump, backend change or migration.
+- **Open questions for the orchestrator**:
+  1. **#7 parity:** the task says "opens at once" and also "Android caps at 3 s — match".
+     - Recommend: iOS opens at once and runs the check alongside (the DISCOVERY fix). Android keeps A7's 3 s cap.
+     - Alternative for strict parity: iOS caps at 3 s like Android.
+     - Risk to plan for: presenting `ForcedUpdateModalView` right after the widget cover is dismissed (two `fullScreenCover`s on the same view).
+     - Also decide: should the foreground path (AppRootView.swift:80-86, which awaits the check before restore/`sessionDidBecomeActive`) also run alongside? It's in the raw audit, not in DISCOVERY row #7.
+  2. **#2 Android parity:** should Android's Health Connect first-sync review also show the offline banner (RootScreen.kt) to match the iOS Apple Health review? Recommend yes (one line).
+  3. **#47 column contract to pin:** suggested order is Name, Active Days, Workouts, Total Duration, Workout Types, Avg Duration, Longest Streak, Avg Sleep, Avg Diet Quality, Avg Steps, Current Streak. That is the mobile card order with Total Duration pulled forward; the web card order differs.
+     - Units: in the cells ("45 min", "7.5 hrs", "4 / 5", "12,345"; any cell containing a comma must be quoted) or in the headers ("Total Duration (min)")?
+     - Filename: unify on one (recommend the web/iOS form).
+  4. **#48 BrandMark size:** 96 (login / create-account) or 128 (forgot / reset)?

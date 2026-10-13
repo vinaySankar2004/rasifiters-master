@@ -1,6 +1,6 @@
 # Screen: `widgets` (android) — quick-add home-screen widgets (workout + daily-health) via Jetpack Glance
 
-> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Jetpack Glance + Compose)
+> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Jetpack Glance + Compose)
 > **Thin port-note.** Parity target = the **current built iOS widgets** (`RaSi-Fiters-App-Widgets/AddWorkoutWidget.swift`
 > + `Features/Widgets/QuickAdd*WidgetEntryView.swift`) for **functionality + deep-links**; the on-screen **tile
 > chrome** is a deliberate Android-only redesign (D-ANDROID-WIDGET-4). This file records the Android realization
@@ -132,4 +132,5 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | Phase 4 quick wins: the quick-add forms' save errors go through `toAppError()` (row errors kept; #8); the ≤ 3 s version-gate wait is unchanged (the app-config D-C8 divergence). |
 | 0.2.1 | 2026-10-13 | **Reliability Phase 3 C3 — D-ANDROID-WIDGET-5:** version gate (≤ 3 s) before the widget replay; doc fix: widgets hold no token. Tile chrome unchanged (D-ANDROID-WIDGET-4). Compile-checked green (`assembleDebug`). |

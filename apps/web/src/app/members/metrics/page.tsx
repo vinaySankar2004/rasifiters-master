@@ -135,7 +135,7 @@ export default function MemberMetricsPage() {
   const handleExport = () => {
     const data = metricsQuery.data;
     if (!data || data.members.length === 0) return;
-    // member-analytics D-C8 (polish #47): exactly the list on screen, in its order, under the shared column contract.
+    // member-analytics D-C9 (polish #47): exactly the list on screen, in its order, under the shared column contract.
     downloadCsv(metricsCsvFilename(program?.name, data.date_range), metricsCsv(data.members));
   };
 

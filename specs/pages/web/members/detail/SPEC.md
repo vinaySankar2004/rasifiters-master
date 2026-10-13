@@ -1,6 +1,6 @@
 # Page: `members/detail` (web) — global_admin per-member editor (members sub-route 2 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/detail?memberId=<id>` — the **per-member editor** reached by clicking a row on
 > [`members/list`](../list/SPEC.md) (global_admin only). Identity card + editable **Joined Program** date +
 > **Active Membership** checkbox → `updateMembership`; **Remove from program** → `removeMember`. **2nd** of the
@@ -153,4 +153,5 @@ authorization boundary.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | Phase 4 quick wins: save / remove errors and the roster load error go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 40) — the **26th web page spec**, the **global_admin per-member editor** (`/members` sub-route 2 of 8). Faithful 1:1 port of the legacy 162-line page: a `PageShell` + `PageHeader` ("Member Details" / `backHref="/members/list"`) wrapping a `GlassCard` identity block + editable **Joined Program** date + **Active Membership** checkbox → `updateMembership` (`PUT /program-memberships`, `joined_at`+`is_active` only), and **Remove from program** → `removeMember` (`DELETE`); both → `router.push("/members/list")`. **global_admin-only** (mount redirect for every other role); `admin_only_data_entry` **N/A** (membership editing, not logging). Decisions: **D-SCOPE** (this page; 2nd of 8, does not close the group; the target of `members/list`'s row click) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — the write fns already in `lib/api/programs.ts`, all chrome incl. `ConfirmDialog` already ported) · **D-S1** (faithful 1:1; both navs already deterministic `push` → no nav cleanup) · **D-C1** (`window.confirm` → `ConfirmDialog`) · **D-C2** (tokenize the Remove button `bg-red-100 text-red-600` → `bg-rf-danger/10 text-rf-danger`, matching run-39's list badge) · **D-C3** (clear stale error on field edit). Flagged F1–F7 (client gate stricter than backend; no not-found empty state; shared query key with the list; PUT sends only join-date+active; one shared in-flight flag; client JWT-decode role drives the redirect only; no client throttle). **Zero backend work, NO feature bump** — all three `/program-memberships` routes already mounted (`authenticateToken`). Ported `apps/web/src/app/members/detail/page.tsx`. `npm run build` ✓. |

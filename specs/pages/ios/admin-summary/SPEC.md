@@ -123,6 +123,8 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   boundary is the backend 403 (`requireDataEntryAllowed`) reached by the deferred log forms. (web F2 mirror)
 
 ## 11. Changelog
+- **v0.2.2** (2026-10-13, Phase 4 quick wins) — the distribution card's callout gets `overflowResolution`
+  fit-to-chart, so it is never clipped (#46).
 - **v0.2.1** (2026-10-13, polish 1 — offline detection) — offline = link down OR proven offline by a failed request
   (`NetworkMonitor`); nothing loaded + a load that fails while offline → the kit's offline `ErrorStateView` + Retry, a
   client timeout included (`AppError.labeled(online:)`, rule 6); stale-banner suppression and refetch-on-reconnect
