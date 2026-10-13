@@ -6,7 +6,7 @@
 > `Detail/MemberMetricsViews.swift (MemberMetricsPreviewCard)`; `GlassButton` from `Detail/ActivityTimelineViews.swift:153`)
 > **Web sibling (co-equal reference):** `/members` landing — `specs/pages/web/members/SPEC.md`
 > **Ported to:** `apps/ios/RaSi-Fiters-App/Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,MemberOverviewPicker}.swift`
-> + `Shared/Components/GlassButton.swift` · **Run:** 55 (2026-06-30) · **v0.3.0** (Active-Days-primary, 2026-07-15)
+> + `Shared/Components/GlassButton.swift` · **Run:** 55 (2026-06-30) · **v0.4.0** (2026-10-13)
 
 ## 1. What it is + who uses it
 The **Members tab** — Tab 2 of `AdminHomeView`, the iOS analogue of the web `/members` landing. A **per-member
@@ -90,6 +90,7 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
 | **D-DEPS** | **One new dependency:** `GlassButton` (28-line shared chrome) + the `memberTimelinePoints` free func — both used by the ported subset, neither in the foundation. Everything else (api fns/DTOs/loaders/theme/`ActivityTimelineCardSummary`) already ported. | grep: no `GlassButton`/`memberTimelinePoints` in `apps/ios` pre-run |
 | **D-S1** | **Faithful 1:1** — no behavioral deviation. **No web-parity ADD this run** (the run-53 shape): both web and legacy iOS swallow load errors, so unlike run 52's ProgramPicker there is no swallow-vs-surface gap. | web `/members` landing surfaces no errors; `StandardMembersTab.swift:163` |
 | **D-STUB** | Extend the existing `ActivityTimelineDetailView` stub to accept `memberId: String? = nil` + `showActiveSeries: Bool = true` (defaults keep the run-54 Summary call site `ActivityTimelineDetailView(initialPeriod:)` compiling) — `MemberHistoryCard` passes all three. New stubs: `MemberMetricsDetailView`, `InviteMemberView`, `ProgramMembersListView`, `MemberStreakDetail`, `MemberRecentDetail(memberId:memberName:)`, `MemberHealthDetail(memberId:memberName:)`. | `MemberCards.swift:26-31, 115, 189`; `AdminOtherTabs.swift:36, 44`; `StandardMembersTab.swift:43` |
+| **D-C1** | **Invite entry (reliability Phase 3 C2).** The Invite nav target (`InviteMemberView`) shows "Invitation sent" only on a 200 and every other status through the kit — see [program-member-management](../program-member-management/SPEC.md) D-C4. | invites §3.1. |
 
 ## 10. Flagged characteristics kept as-is
 - **F1** — `StandardMembersTab.errorMessage` is set (`:163`) but **never rendered**; load errors are swallowed
@@ -109,6 +110,8 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
   `/members/{metrics,invite,list,streaks,workouts,health}` sub-routes; each a later run. Forward-nav (web F2).
 
 ## 11. Changelog
+- **v0.4.0** (2026-10-13, reliability Phase 3 C2) — D-C1: the Invite entry follows program-member-management D-C4
+  ("Invitation sent" only on 200; the swallow removed).
 - **v0.3.0** (2026-07-15, member-analytics 0.4.0 D-C7) — **Active Days primary**: self card hero `.active_days` +
   load `sort=active_days` (`StandardMembersTab`); `MemberMetricsCard` subtitle = "Workouts N" + grid row 1 =
   [Active Days, Workouts]; `MemberMetricsPreviewCard` default sort `.active_days` (top member = top-by-active-days)

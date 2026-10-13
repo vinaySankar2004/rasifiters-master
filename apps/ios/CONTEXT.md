@@ -31,20 +31,54 @@ Splash · Login · CreateAccount · ProgramPicker · AdminHome (Summary / Member
 admin + standard variants) · member detail/metrics/streaks/history · Settings (profile / password /
 appearance / notifications / **Apple Health**) · widget entry views · notification modal.
 
-## Apple Health auto-sync (2026-06-30)
-The [`apple-health`](../../specs/features/apple-health/SPEC.md) feature — iOS-only HealthKit workout auto-sync
-(net-new, ported from `vinaySankar2004/RaSi-Fiters` PR #4 and corrected for our curated `workouts_library`).
-Uses the native **HealthKit** framework (still zero third-party deps). Read-only workout access + background
-delivery; maps every `HKWorkoutActivityType` → a library name (`HealthKitWorkoutTypeMap`), aggregates per
-type/day, and writes via the existing `POST /api/workout-logs` (skip-on-conflict via a 409). Sync state lives
-in `UserDefaults` on `ProgramContext+HealthKit`. Requires the HealthKit + Background-Delivery + Background-Modes
-capabilities (entitlements shipped; Xcode capability toggles + App ID enablement are user-run).
+## Apple Health auto-sync (2026-06-30; health-sync v2 since 1.5.0)
+The [`apple-health`](../../specs/features/apple-health/SPEC.md) feature — iOS-only HealthKit workout / sleep / steps
+sync over [`health-sync`](../../specs/features/health-sync/SPEC.md) §8 (native **HealthKit**, zero third-party deps;
+maps every `HKWorkoutActivityType` → a library name via `HealthKitWorkoutTypeMap`). Since **1.5.0** (reliability
+Phase 3 C2):
+- **`HealthSyncEngine`** — a singleton (not the view-owned `ProgramContext`), so a HealthKit background wake syncs
+  without a scene. Observers + background delivery register in `AppDelegate.didFinishLaunching` (every launch) and
+  HealthKit's completion handler is called after the run, inside `beginBackgroundTask`. One run in flight; screen
+  triggers (launch / foreground / program entry, and a HealthKit wake while the app is active) are spaced ≥ 60 s;
+  Sync Now / connect / pull-to-refresh wait for a run in flight and then run.
+- A run = the rule-9 upgrade (once, BEFORE the state read) → `GET /programs` + `GET /api/health-sync/state` →
+  HealthKit reads (`HealthSyncPlanner`) → `POST /api/health-sync/batch` (per-sample workout items incl. deletions;
+  day totals for sleep / steps; ≤ 300 items / 250 kB, halved on 413) → `PUT /state` (`sync_success`) → advance or
+  hold the workout anchor (lock, pending review, `skipped_locked`, upload error, read failure, no program window) →
+  one `sync.run` event. Catch-up window = max(oldest `last_success_at` − 1 d, today − 30 d); workouts never read before
+  the (re)connect date unless the upgrade marker is set (only a device that held the old ledger).
+- **Per-member `HealthSyncPrefs`** (`healthsync.<member>.<kind>.*`): toggles, programs, status, anchor, exclusions,
+  local 0-row confirms. Sign-out pauses (prefs kept); **Disconnect** clears the connection prefs + anchor only and
+  sends nothing. The first-sync review is server-side (`review_done_at`, any integration) and `review_done` is sent
+  only when the user confirms a review page.
+- The old `POST /api/workout-logs` `on_duplicate:"sum"` / daily-health POST→409→PUT sync paths and the client ledger
+  are gone (health-sync rule 11). Requires the HealthKit + Background-Delivery + Background-Modes capabilities
+  (entitlements shipped; no `BGTaskScheduler` id).
 
 ## Auth (client side)
 - **Locked (de-risked by web):** keep the existing Keychain + APIClient networking and have the **backend
   proxy** issue Supabase tokens — clients change minimally, no `supabase-swift`. The web surface PROVED this
   exact path live on `rasifiters.com`, so the only client change is the API base URL (see §Foundation port).
   Formally transcribed into the iOS `auth` SPEC when the auth screens are ported (question-asker).
+- **Sessions (auth §3.1, 1.5.0):** ONE token store — `SessionStore` caches one keychain pair item
+  (`AfterFirstUnlockThisDeviceOnly`, update-or-add; the pre-1.5 two-item store migrates on first read). Only a
+  stored item that won't decode (or has no refresh token) forces a sign-out (`token_store_unreadable`); any other
+  keychain status reads as "locked" and is re-read on unlock / the next foreground. `ProgramContext.authToken` is a
+  UI mirror only. `APIClient+Session` reads the token at send time; refresh within 60 s of expiry (by the token's
+  own lifetime from `receivedAt`, so a wrong device clock doesn't matter) or on a 401; single-flight; one quick retry
+  after min(Retry-After ?? 2, 5) s, then back-off 30 / 60 / 120 / 300 s. Sign-out ONLY on `/refresh`
+  `401 session_invalid`. `SessionTeardown.end(_:)` is the single teardown (logout this device, unregister the device,
+  pause health sync, clear the launch cache + tokens + `session.*`); the client event queue survives it. A forced
+  sign-out is explained once (splash subheadline, else the login alert); any sign-in clears it. Offline → one
+  app-wide banner whose band is a bottom safe-area inset on both stacks; reconnecting clears the refresh back-off.
+  "Sign out everywhere" lives in My Profile above Delete Account. The change-password / email `PUT`s send a one-shot
+  body (no silent CFNetwork replay).
+  15 s request timeout; every call sends `X-App-Platform` / `X-App-Version` / `X-App-Build` + a fresh `X-Request-Id`.
+- **Push (notifications §3.1–3.3):** `DeviceRegistry` = keychain install id + one serial register / unregister
+  queue (PUT /device ≤ once per 12 h per token; unregister on every sign-out and once per permission denial, the
+  sign-in ride-along then omits `push_token`; sign-out forgets the memo, keeps the token — D-IOS-PUSH-1). The SSE
+  stream lives in the foreground only, reconnects with 1 s × 2 / 30 s full-jitter backoff (paused offline) and
+  re-fetches `/unacknowledged` on every `ready`. An invite push tap opens the Invites tab; others re-fetch.
 
 ## Foundation port (run 50, 2026-06-30)
 
@@ -87,7 +121,8 @@ components) and/or **reboot** (clears the stale CoreSimulator launchd job). Gree
 
 ## Deploy
 Xcode → TestFlight → App Store (the user handles signing/upload). Bump the version one higher at push time.
-App config (`min_ios_version`) served by the backend `/app-config`.
+App config served by the backend `/app-config`: `min_ios_version` → the blocking `ForcedUpdateModalView`;
+`latest_ios_version` → the dismissable "Update available" banner on the program picker (once per version, 1.5.0+).
 
 ## Staging (opt-in scheme — reliability-overhaul Phase 2 B, auth D-C13)
 - `Config/APIConfig.swift`: `#if DEBUG` → `stagingBaseURL` (`https://rasifiters-api-staging.onrender.com/api`);
@@ -100,6 +135,8 @@ App config (`min_ios_version`) served by the backend `/app-config`.
   with a `+stg` staging account (testbed: `ava.rivera` + the shared test password). Sign out before switching
   schemes — tokens are valid on both (one Supabase project) but map to different members.
 - Push: Xcode builds hold sandbox APNs tokens; staging runs `APNS_PRODUCTION=false`, so staging pushes reach them.
+- Run session / auth checks (sign out everywhere, password change) on the Staging scheme first. The launch cache,
+  health-sync prefs and the event queue are per member / per install, so switching schemes after a sign-out is safe.
 
 ## Auth screens port (run 51, 2026-06-30)
 

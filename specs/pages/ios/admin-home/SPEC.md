@@ -71,6 +71,7 @@ data loading lives in the deferred tab bodies.
 | **D-REF** | **Keep iOS-native `TabView`** — do NOT collapse to web's 4-top-level-routes-with-nav layout. Platform-idiom EXCEPTION to web parity (memory `ios-matches-web-not-just-legacy`; the run-52 D-REF shape). Tab set + order already match web (Summary/Members/Lifestyle/Program), so it is a structural idiom divergence, not a parity gap. | `AdminHomeView.swift:34-58`; web `(workspace)` routes |
 | **D-S1** | **Faithful 1:1 to the legacy iOS shell** — same `TabView`, tab labels/SF-Symbol icons, the `Admin*`/`Standard*` `@ViewBuilder` role switches, `.adaptiveTint()`, `.navigationBarBackButtonHidden(true)`, the nested `Period` enum. No web-parity deviation (the shell is pure nav; tab set/order already match web; no behavior to diff vs web — unlike run-52's silent-error-swallow). | `AdminHomeView.swift:3-96` |
 | **D-DEPS** | **No new dependency** — `isProgramAdmin` (`ProgramContext.swift:269`) + `adaptiveTint()` (`AppTheme.swift:208`) ported in the foundation (run 50); all 7 tab-body names collision-free. The run ports the shell file + rewrites the stub block. | dep-purity grep, run 53 |
+| **D-C1** | **Program entry = a health-sync trigger (reliability Phase 3 C2; health-sync §8 rule 1).** `.task` → `HealthSyncEngine.shared.trigger(.programEntry)` — every active kind (was workouts + sleep only), spaced ≥ 60 s with the launch / foreground runs. | health-sync §8 rules 1 / 10. |
 
 ## 10. Flagged characteristics (kept as-is)
 - **F1 — Role bifurcation by physically-separate views.** iOS has distinct `Admin*Tab`/`Standard*Tab`
@@ -85,4 +86,6 @@ data loading lives in the deferred tab bodies.
   the picker/account flows. Faithful. (`AdminHomeView.swift:60`)
 
 ## 11. Changelog
+- **v0.2.0** (2026-10-13, reliability Phase 3 C2) — D-C1: program entry runs the health-sync engine
+  (`program_entry` trigger, all active kinds).
 - **v0.1.0** (run 53, 2026-06-30) — initial SPEC; AdminHomeView shell ported, 7 tab bodies stubbed.

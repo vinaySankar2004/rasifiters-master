@@ -63,17 +63,21 @@ struct AppError: LocalizedError {
             default: self = AppError(kind: .offline)
             }
         } else if let httpError = error as? APIHTTPError {
-            self = AppError.fromHTTP(status: httpError.statusCode, serverMessage: httpError.message)
+            self = AppError.fromHTTP(status: httpError.statusCode, code: httpError.code,
+                                     retryAfter: httpError.retryAfter, serverMessage: httpError.message)
         } else if let bulkError = error as? APIClient.BulkWorkoutError {
-            // No status until Phase 3 (D-KIT-5). With rowErrors it is the batch forms' row-level 400 / 409 →
-            // invalidInput + the server's text (web / Android label a 409 `conflict`; same text shown).
-            // Without rowErrors the status is unknowable → unknown.
-            self = bulkError.rowErrors.isEmpty
-                ? AppError(kind: .unknown)
-                : AppError(kind: .invalidInput, message: AppError.serverText(bulkError.message), rowErrors: bulkError.rowErrors)
+            // Status since Phase 3 (D-KIT-5): the batch writers carry it; without one keep the Phase 2 fallback
+            // (rowErrors → the forms' row-level invalidInput + the server's text, else unknown).
+            if let status = bulkError.status {
+                self = AppError.fromHTTP(status: status, serverMessage: bulkError.message, rowErrors: bulkError.rowErrors)
+            } else {
+                self = bulkError.rowErrors.isEmpty
+                    ? AppError(kind: .unknown)
+                    : AppError(kind: .invalidInput, message: AppError.serverText(bulkError.message), rowErrors: bulkError.rowErrors)
+            }
         } else {
-            // `APIError` carries no status until Phase 3 sessions adds one (D-KIT-5); `DecodingError` and
-            // anything else → unknown.
+            // Every API status arrives as `APIHTTPError` since Phase 3 (D-KIT-5); `APIError` (client-side guards),
+            // `DecodingError` and anything else → unknown.
             self = AppError(kind: .unknown)
         }
     }

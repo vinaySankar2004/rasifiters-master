@@ -432,28 +432,29 @@ struct CreateAccountView: View {
         }
     }
 
+    private func showAlert(_ message: String) {
+        alertMessage = message
+        isShowingAlert = true
+    }
+
     private func handleCreateAccount() async {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-
         do {
-            _ = try await APIClient.shared.registerAccount(
-                firstName: firstName,
-                lastName: lastName,
-                username: username,
-                email: email,
-                password: password,
-                gender: gender
-            )
-
+            _ = try await APIClient.shared.registerAccount(firstName: firstName, lastName: lastName, username: username,
+                                                            email: email, password: password, gender: gender)
+        } catch {
+            showAlert(SessionCopy.credentialMessage(for: error))        // sign-up, not a sign-in: no event
+            return
+        }
+        do {
             let response = try await APIClient.shared.loginGlobal(identifier: username, password: password)
-            await programContext.applyAuthResponse(response)
-
+            try await programContext.applyAuthResponse(response)
             navigateToProgramPicker = true
         } catch {
-            alertMessage = error.localizedDescription
-            isShowingAlert = true
+            ClientEventQueue.shared.recordSignInFailure(error, method: "password")
+            showAlert(SessionCopy.credentialMessage(for: error))
         }
     }
 
@@ -461,7 +462,6 @@ struct CreateAccountView: View {
         guard !isLoading, let pending = social else { return }
         isLoading = true
         defer { isLoading = false }
-
         do {
             let response = try await APIClient.shared.completeSocialRegistration(
                 pendingToken: pending.token,
@@ -471,12 +471,12 @@ struct CreateAccountView: View {
                 firstName: firstName,
                 lastName: lastName
             )
-            await programContext.applyAuthResponse(response)
-
+            try await programContext.applyAuthResponse(response)
+            DeviceRegistry.shared.register()          // `/oauth/complete` has no registration ride-along (notifications §3.1)
             navigateToProgramPicker = true
         } catch {
-            alertMessage = error.localizedDescription
-            isShowingAlert = true
+            ClientEventQueue.shared.recordSignInFailure(error, method: pending.provider)   // A11
+            showAlert(SessionCopy.credentialMessage(for: error))
         }
     }
 
@@ -487,25 +487,24 @@ struct CreateAccountView: View {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-
+        let google: (idToken: String, nonce: String)
         do {
             guard let presenter = AuthPresenter.rootViewController else {
                 throw APIError(message: "Unable to present Google sign-in.")
             }
-            let google = try await programContext.startGoogleSignIn(presenting: presenter)
-            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
-            let response = try await APIClient.shared.socialSignIn(
-                provider: "google",
-                idToken: google.idToken,
-                nonce: google.nonce,
-                pushToken: pushToken
-            )
-            await handleSocialResponse(response)
+            google = try await programContext.startGoogleSignIn(presenting: presenter)
         } catch {
-            if !isGoogleCancellation(error) {
-                alertMessage = error.localizedDescription
-                isShowingAlert = true
-            }
+            guard !isGoogleCancellation(error) else { return }
+            ClientEventQueue.shared.recordProviderFailure(error, method: "google")
+            showAlert(KitCopy.message(for: .unknown))
+            return
+        }
+        do {
+            let response = try await APIClient.shared.socialSignIn(provider: "google", idToken: google.idToken, nonce: google.nonce)
+            try await handleSocialResponse(response, provider: "google")
+        } catch {
+            ClientEventQueue.shared.recordSignInFailure(error, method: "google")
+            showAlert(SessionCopy.credentialMessage(for: error))
         }
     }
 
@@ -514,24 +513,22 @@ struct CreateAccountView: View {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-
+        let apple: (idToken: String, nonce: String, firstName: String?, lastName: String?)
         do {
-            let apple = try await programContext.startAppleSignIn()
-            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
-            let response = try await APIClient.shared.socialSignIn(
-                provider: "apple",
-                idToken: apple.idToken,
-                nonce: apple.nonce,
-                firstName: apple.firstName,
-                lastName: apple.lastName,
-                pushToken: pushToken
-            )
-            await handleSocialResponse(response)
+            apple = try await programContext.startAppleSignIn()
         } catch {
-            if !isAppleCancellation(error) {
-                alertMessage = error.localizedDescription
-                isShowingAlert = true
-            }
+            guard !isAppleCancellation(error) else { return }
+            ClientEventQueue.shared.recordProviderFailure(error, method: "apple")
+            showAlert(KitCopy.message(for: .unknown))
+            return
+        }
+        do {
+            let response = try await APIClient.shared.socialSignIn(provider: "apple", idToken: apple.idToken, nonce: apple.nonce,
+                                                                   firstName: apple.firstName, lastName: apple.lastName)
+            try await handleSocialResponse(response, provider: "apple")
+        } catch {
+            ClientEventQueue.shared.recordSignInFailure(error, method: "apple")
+            showAlert(SessionCopy.credentialMessage(for: error))
         }
     }
 
@@ -539,7 +536,7 @@ struct CreateAccountView: View {
     /// social user is transitioned INTO the social branch in-place — this IS CreateAccountView — so we
     /// never double-present. An existing member logs straight in via the shared session-write path.
     @MainActor
-    private func handleSocialResponse(_ response: AuthResponse) async {
+    private func handleSocialResponse(_ response: AuthResponse, provider: String) async throws {
         if response.needsProfile == true {
             withAnimation {
                 enterSocialMode(with: PendingSocial(
@@ -547,11 +544,12 @@ struct CreateAccountView: View {
                     refreshToken: response.refreshToken,
                     email: response.email,
                     firstName: response.firstName,
-                    lastName: response.lastName
+                    lastName: response.lastName,
+                    provider: provider
                 ))
             }
         } else {
-            await programContext.applyAuthResponse(response)
+            try await programContext.applyAuthResponse(response)
             navigateToProgramPicker = true
         }
     }

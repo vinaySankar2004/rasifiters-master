@@ -1,6 +1,6 @@
 # Screen: `program-actions` (ios) — the create-program + invites sheet (the picker "+" target)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** presented as a `.sheet` from `ProgramPickerView`'s floating **"+"** button
 > (`ProgramPickerView.swift:148-156`, badge = pending-invite count); `onDismiss` reloads programs +
 > pending invites.
@@ -105,6 +105,7 @@ gates on the data-entry lock (the lock follows *logging*, deep in the tab bodies
 | **D-SCOPE** | **The cluster IS the run** — port the sheet + its 3 sub-views (`CreateProgramTabView`, `InvitesTabView`+`DeclineInviteDialog`, `InviteCard`) together with [`edit-program`](../edit-program/SPEC.md), the picker's two deferred forward-nav targets (run-58 cohesive-cluster precedent). Both stubs removed. | run-58; ProgramPickerView call sites. |
 | **D-S1** | **Stance = faithful 1:1** — both web AND legacy iOS agree on the create form + the invites flow (Accept/Decline/Revoke + block-future-on-decline), so faithful **is** web parity (the run-55/56 both-agree shape). No web-parity ADD on this sheet (the ADD is on `edit-program`). | user answer; web programs SPEC §7. |
 | **D-DEPS** | **No new dependency** — every service/DTO/component was ported in the foundation (run 50); `StatusPill` is reused from `ProgramPickerView` (top-level, run 52), not redefined. | foundation inventory; collision grep. |
+| **D-C1** | **Inbox errors through the kit (reliability Phase 3 C2; invites §3.1; W7 i10).** A failed inbox load with nothing to show is `ErrorStateView` (Retry) — never "No pending invitations"; a failed refresh over a kept list shows the kit stale banner (floating; shown even offline, since the sheet covers the app-wide offline banner); the spinner shows only with nothing on screen. Accept / Decline / Revoke failures show the kit copy (a 400 keeps the server's text) in the "Unable to update invitation" alert — now on both the standard and the global-admin list. The sheet opens straight on its Invites tab for an invite push tap (`initialTab: 0`, amendment U2). | frontend-kit §5–§6; invites §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) U2. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -120,4 +121,5 @@ gates on the data-entry lock (the lock follows *logging*, deep in the tab bodies
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C1.** Inbox load errors → `ErrorStateView` / stale banner; respond errors → kit copy in one alert for both lists; `initialTab` for the invite push tap. |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 59) — the **create-program + invites sheet** (the picker "+" target), ported into `apps/ios/.../Features/Home/ProgramActions/{ProgramActionsSheet,CreateProgramTabView,InvitesTabView,InviteCardView}.swift`; the deferred stub removed. **D-REF** (legacy iOS + web `programs` parity; `consumed_by=[ios]`) · **D-SCOPE** (the cluster IS the run, ported with `edit-program`) · **D-S1** (faithful 1:1 — both web + legacy iOS agree → faithful is web parity, NO ADD) · **D-DEPS** (no new dependency; `StatusPill` reused from ProgramPickerView). Flagged F1–F5 (dual invite entry paths; admin-only error surface; top-level `StatusPill`; client role gating; create defaults + no create date validation). Role rules = `isGlobalAdmin` bifurcation (all-vs-my invites, grouped + revoke); `admin_only_data_entry` N/A. Build green-check owned by the user (Xcode); symbols grep-verified (each type defined once). |

@@ -14,6 +14,7 @@ struct ChangePasswordView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showSuccessAlert = false
+    @State private var hadUnconfirmedAttempt = false
 
     // Web policy: ≥8 chars + upper + lower + number, and passwords match (matches the
     // backend authService.validatePassword + the web checklist + run-51 create-account).
@@ -91,10 +92,8 @@ struct ChangePasswordView: View {
         .adaptiveBackground(topLeading: true)
         .navigationTitle("Change Password")
         .navigationBarTitleDisplayMode(.inline)
-        .alert("Password Updated", isPresented: $showSuccessAlert) {
+        .alert(SessionCopy.passwordUpdated, isPresented: $showSuccessAlert) {   // A1 copy (auth D-C14b)
             Button("OK") { dismiss() }
-        } message: {
-            Text("Your password has been changed successfully")
         }
     }
 
@@ -113,17 +112,27 @@ struct ChangePasswordView: View {
         newPassword.range(of: pattern, options: .regularExpression) != nil
     }
 
+    /// auth §3.1 rule 6: never auto-retried. After a 503 / 5xx / timeout the change may have landed → say so; a
+    /// same-password 400 on the user's manual retry means the first attempt landed → show it as done.
     private func save() async {
         isSaving = true
         errorMessage = nil
-
+        defer { isSaving = false }
         do {
             try await programContext.changePassword(newPassword: newPassword)
+            hadUnconfirmedAttempt = false
             showSuccessAlert = true
         } catch {
-            errorMessage = error.localizedDescription
+            if hadUnconfirmedAttempt, let http = error as? APIHTTPError, http.statusCode == 400,
+               http.message == SessionCopy.samePassword {
+                hadUnconfirmedAttempt = false
+                showSuccessAlert = true
+            } else if SessionCopy.isUnconfirmedWrite(error) {
+                hadUnconfirmedAttempt = true
+                errorMessage = SessionCopy.passwordUnconfirmed
+            } else {
+                errorMessage = SessionCopy.kitMessage(for: error)          // A8: authenticated route → kit copy
+            }
         }
-
-        isSaving = false
     }
 }

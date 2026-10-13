@@ -62,12 +62,8 @@ struct AdminHomeView: View {
             programContext.returnToMyPrograms = true
         }
         .task {
-            if programContext.isHealthKitEnabled {
-                await programContext.performHealthKitSync()
-            }
-            if programContext.isSleepSyncEnabled {
-                await programContext.performSleepSync()
-            }
+            // health-sync rule 1: every active kind through the engine (spaced ≥ 60 s with launch / foreground).
+            HealthSyncEngine.shared.trigger(.programEntry)
         }
     }
 

@@ -1,6 +1,6 @@
 # Screen: `program-picker` (ios) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
 > **Location:** the root view once `authToken` is set — `AppRootView.swift:11-14` shows `ProgramPickerView()`
 > inside a `NavigationStack`. Both `LoginView` + `CreateAccountView` flip the root here on success.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift`.
@@ -115,14 +115,17 @@ downstream log screens, never gating the picker (no data entry on this screen).
 
 ## 8. States & edge cases
 
-- **Loading:** `isLoading` → a centered `ProgressView` (the `.task` runs `loadPrograms` + `loadPendingInvites`).
+- **Loading (D-C2, 1.5.0):** `LoadState<[ProgramDTO]>` — the last good list shows at once (in memory, else the
+  `LaunchCache` copy), then the network; programs + invites load in parallel. A `ProgressView` shows only with no list
+  at all. Pull-to-refresh reloads both and starts a background `pull_to_refresh` health sync.
 - **Empty:** `programContext.programs.isEmpty` → "No programs yet — Create a program to get started." card.
-- **Error (D-C1):** any `loadPrograms`/`deleteProgram`/`respondToInvite` failure sets `errorMessage`, now
-  rendered as an **additive red banner** (does not hide the list). Cleared on the next successful
-  `loadPrograms`. **The legacy set `errorMessage` but never displayed it** (errors silently swallowed) — see
-  D-C1 / F1.
-- **No token:** `loadPrograms` guards `authToken` non-empty → "Please log in to load programs." (now visible
-  via the banner).
+- **Error (D-C2, supersedes the D-C1 banner):** no list + a failed load → the kit `ErrorStateView` (Retry); a list +
+  a failed refresh → the kit "Couldn't refresh" floating banner; a failed delete / reorder / cancel-request → a
+  dismissable kit error banner. One floating banner at a time (`bottomInset: 150`, above the FAB stack): action
+  error > stale > "update available"; the list's bottom spacer grows while one shows. Offline → the app-wide offline
+  banner instead (AppRootView), whose band is a bottom safe-area inset on the whole stack, so the cards and floating
+  buttons sit above it. Back online → refetch.
+- **Invite push tap (D-C3):** pops to the picker and opens the program-actions sheet on its Invites tab.
 - **Delete / Sign-out:** native confirm `Alert`s before the destructive action.
 - **Forward dependencies (all DEFERRED stubs):** `AdminHomeView`, `ProgramActionsSheet`, `EditProgramInfoView`,
   and the 4 account screens render the `ScaffoldPlaceholder` until ported (F2).
@@ -134,9 +137,11 @@ downstream log screens, never gating the picker (no data entry on this screen).
 | **D-SCOPE** | **This port owns the PICKER ONLY** — `ProgramPickerView.swift` verbatim incl. its inline `ProgramCard`/`StatusPill`/`AccountMenuSheet`. The **7 forward-nav screens** it navigates to (`AdminHomeView`, `ProgramActionsSheet`, `EditProgramInfoView`, `MyProfileView`, `ChangePasswordView`, `AppearanceSettingsView`, `NotificationsSettingsView`) are added as `ScaffoldPlaceholder` stubs and ported later. Mirrors run-21/50 ("the scope cut IS the run"). | user answer ("Picker only + stub the 7"); legacy `ProgramPickerView.swift:138-173`. |
 | **D-REF** | **Reference impl = legacy `.../Features/Home/ProgramPickerView.swift`; web parity = [`web programs`](../../web/programs/SPEC.md). `consumed_by=[ios]`. Keep iOS-native multi-screen navigation** — the web hub's single-page-modal layout is a **platform-idiom divergence**, NOT a parity gap. | user answer ("Keep iOS-native navigation"); [[ios-matches-web-not-just-legacy]]; web programs SPEC cross-app note. |
 | **D-S1** | **Stance = faithful 1:1 port** — the `List` of `ProgramCard`s, `canOpen`/`canManage` gating, swipe edit/delete, accept/decline invites, the floating "+" with the invite badge, the inline `AccountMenuSheet` (7 rows incl. the iOS-only Notifications + Support), `applyProgram` hydration + `persistSession`, the delete/sign-out `Alert`s, navigation to the deferred screens. Oddities → §10. | legacy `ProgramPickerView.swift:1-764`; user answer. |
-| **D-C1** | **ONE web-parity addition — a visible error display.** The legacy sets `errorMessage` in `loadPrograms`/`deleteProgram`/`respondToInvite` but **never renders it** (errors silently swallowed). Added an additive red `errorBanner` (shown whenever `errorMessage != nil`, does not hide the list), matching how the web hub surfaces query errors. Chose additive-banner over web's replace-the-list so mutation errors stay visible alongside the loaded cards. | user answer ("Faithful + surface errors"); web programs error line (`page.tsx:208-211`); legacy never-displayed `errorMessage`. |
+| **D-C1** | *(Superseded by D-C2 — iOS 1.5.0: the kit error view / banners replace this inline banner.)* **ONE web-parity addition — a visible error display.** The legacy sets `errorMessage` in `loadPrograms`/`deleteProgram`/`respondToInvite` but **never renders it** (errors silently swallowed). Added an additive red `errorBanner` (shown whenever `errorMessage != nil`, does not hide the list), matching how the web hub surfaces query errors. Chose additive-banner over web's replace-the-list so mutation errors stay visible alongside the loaded cards. | user answer ("Faithful + surface errors"); web programs error line (`page.tsx:208-211`); legacy never-displayed `errorMessage`. |
 | **D-DEPS** | **No new dependency** — every component/service/model/theme symbol was ported in the foundation (run 50); the inline components live in the picker file; `StatusPill` is a fresh non-private type (no collision verified). | foundation inventory (run 50); collision grep (no existing `StatusPill`/component clashes). |
 | **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): drag-to-reorder + search.** Reorder = native `List` + `ForEach.onMove` press-and-hold lift-and-drag, NO edit mode (Reminders-style; chosen over the `AdminSummaryTab` `.onDrag/.onDrop` grid precedent — that pattern is for grids, this is a real List). The spacer/error/loading/empty rows sit outside the `ForEach`, so they're neither movable nor drop targets. **`.onMove(perform:)` gets `nil` while the search query is non-empty** — reorder only runs when `visiblePrograms` is the unfiltered array, so offsets map 1:1 onto `programContext.programs` and the full display order is what's persisted. Search (0.2.1) = a collapsed header magnifier toggling a floating material capsule — NOT `.searchable` (tried at 0.2.0; its nav-drawer field collided with the custom `pickerHeader` overlay and restyled the screen — user rejected). New programs land at the bottom (server-side `NULLS LAST, start_date`). | programs feature SPEC 0.2.0 (D-N1); web programs SPEC 0.2.1; user decisions (long-press drag · bottom placement · collapsed search, 2026-07-05). |
+| **D-C2** | **Kit adoption + instant open (reliability Phase 3 C2; board §6.5, D-9; frontend-kit §5–§6).** `LoadState<[ProgramDTO]>`; cache-first (`LaunchCache`, per member, cleared on sign-out) then network; programs + invites in parallel; `ErrorStateView` / stale banner / dismissable action-error banner via `ScreenBanner` at `bottomInset: 150`; the app-config "update available" banner shows here only (amendment A7); offline = the app-wide banner, its band reserved as the stack's bottom safe-area inset (A6); a pushed invite request is skipped while a full-screen cover is up (never a dead "+"); refetch on reconnect. **Pull-to-refresh (amendment A13)**: the header's height became a clear top safe-area inset (+ a 6 pt spacer row, min row height 0), so the spinner sits below the header while every card rests exactly where it did. | frontend-kit §5–§6, D-KIT-8/9; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A6 / A7 / A13 / A14. |
+| **D-C3** | **Invites + account (Phase 3 C2).** An invite push tap (`ProgramContext.openInvitesRequested`, amendment U2) opens `ProgramActionsSheet` on its Invites tab. The card's *invited* Accept / Decline is retired — the Invites tab is the one inbox; a *requested* membership keeps "Cancel request" (A10). The account menu's Sign Out runs `SessionTeardown` (this device only, auth D-C14); "Sign out everywhere" is in [My Profile](../my-profile/SPEC.md), not here (U3). | notifications §3.2; invites §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) U2 / U3 / A10. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -154,6 +159,7 @@ downstream log screens, never gating the picker (no data entry on this screen).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0).** D-C2: instant open (cache, then network), programs + invites in parallel, kit error view / stale / action-error / update banners (one at a time, `bottomInset: 150`), pull-to-refresh with the header as a top safe-area inset (cards unmoved), refetch on reconnect — D-C1 superseded. D-C3: an invite push tap opens the Invites tab; the card's invited Accept / Decline retired (Cancel request kept). |
 | 0.2.2 | 2026-07-05 | **Search toggle moved out of the header (user feedback):** the 0.2.1 header magnifier circle squeezed the "My Programs" title into wrapping. Now a `floatingSearchButton` stacked above the floating "+" (bottom-right, 14pt gap, identical circle style); header restored to its original layout. Pill/filter semantics unchanged. |
 | 0.2.1 | 2026-07-05 | **Search UI slimmed (user feedback after simulator pass):** dropped `.searchable` (nav-drawer field collided with the custom header + restyled the screen). Now a 56pt header magnifier circle (matching the account button) toggles a floating `.ultraThinMaterial` capsule with autofocus + clear; top spacer animates 90→148pt; closing clears the query. Drag-reorder confirmed working in the simulator; filter/`onMove`-disable semantics unchanged. |
 | 0.2.0 | 2026-07-05 | **Net-new post-parity (D-N1): per-member drag-to-reorder + program search.** Press-and-hold reorder via `ForEach.onMove` (no edit mode; `nil` while searching), persisted through `APIClient.saveProgramOrder` → `PUT /programs/order` (optimistic, revert + D-C1 banner on failure). `.searchable` nav-drawer name filter over `visiblePrograms` + `noMatchesState`. List now renders the server-saved order as-is. Pairs with `programs` feature 0.2.0 and web `programs` 0.2.0. |

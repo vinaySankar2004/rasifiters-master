@@ -78,11 +78,14 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   views. Admins always see the cards enabled.
 
 ## 8. States & edge cases
-- **Loading:** `isLoading` guards re-entrancy; cards with nil data fall back to `PlaceholderCard` (MTD) or an
-  in-card "No data yet" (`ActivityTimelineCardSummary`/`DistributionByDayCard`) / "No workouts logged yet."
-  (`WorkoutTypesSummaryCard`).
-- **Error:** `errorMessage` (captured from `programContext.errorMessage` after `load()`) now renders a visible
-  red banner (D-C1) — legacy captured it but rendered nowhere.
+- **Loading (D-C3, 1.5.0):** `LoadState` keyed by program; `.task(id:)` on (program, period, timeline period,
+  `summaryRefreshToken`) — a newer key cancels the running load. Cached Summary first (`LaunchCache`), then the 8
+  loads in parallel; parts that loaded are kept. Cards with nil data fall back to `PlaceholderCard` (MTD) or an
+  in-card "No data yet" (the timeline card's never-ending spinner is gone — W7 F3).
+- **Error (D-C3, supersedes the D-C1 banner):** nothing loaded for this program → `ErrorStateView` (Retry) and the
+  analytics cards hide (the add / progress cards stay) — never another program's or zero values; some parts loaded, or
+  data + a failed refresh → those values stay with the kit stale banner. Back online → refetch. Pull-to-refresh reloads now and starts a background
+  `pull_to_refresh` sync; a sync that lands workouts bumps `summaryRefreshToken` → reload again.
 - **Reorder:** drag a card → `CardDropDelegate` moves it + `persistOrder()` writes
   `summary.card.order.<programId>`; `restoreOrder()` merges saved + any new cards, enforcing add-workout/
   add-health adjacency.
@@ -93,9 +96,10 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
 | **D-SCOPE** | **The scope cut IS the run** — port the dashboard grid + all 10 cards (charts render live) into 3 files; **defer the 5 `NavigationLink` detail targets as `ScaffoldPlaceholder` stubs**. Mirrors web's landing-vs-sub-routes split (web landing run 21 vs sub-routes runs 33–38) + the run-50/52/53 stub-the-forward-nav pattern. | legacy `AdminSummaryTab.swift` (228 LoC) + ~2,600 LoC of helper/detail files; the 5 detail views map 1:1 to deferred web `/summary` sub-routes |
 | **D-REF** | **Keep iOS-native** — a reorderable card grid + native `NavigationLink` drill-downs, NOT web's fixed-grid + routes/modals. Platform-idiom (memory `ios-matches-web-not-just-legacy`; the run-52/53 D-REF shape). The card SET + the MTD stats match web, so the grid/nav shape is a structural idiom divergence, not a parity gap. | `AdminSummaryTab.swift:31-61`; web `summary/page.tsx` |
 | **D-S1** | **Faithful 1:1 to the legacy iOS dashboard otherwise** — same cards byte-for-byte (incl. the 4×-duplicated inline `changeBadge`, the Swift Charts, the drag-reorder + `UserDefaults` persistence, the vestigial `period`/`timelinePeriod` bindings). | legacy card structs, verified file:line |
-| **D-C1** | **Web-parity ADD — a visible error banner.** Legacy set `errorMessage` (`AdminSummaryTab.swift:88`) but rendered it nowhere; web shows an `ErrorState`. Additive red banner, no new dep. The run-52 swallow-vs-surface mirror. | web `summary/page.tsx:181-183` |
+| **D-C1** | *(Superseded by D-C3 — iOS 1.5.0: the kit error view / stale banner.)* **Web-parity ADD — a visible error banner.** Legacy set `errorMessage` (`AdminSummaryTab.swift:88`) but rendered it nowhere; web shows an `ErrorState`. Additive red banner, no new dep. The run-52 swallow-vs-surface mirror. | web `summary/page.tsx:181-183` |
 | **D-C2** | **Web-parity ADD — the `admin_only_data_entry` landing treatment.** A 🔒 banner (verbatim `DATA_LOCK_MESSAGE`) + dimmed/non-navigating add cards when `dataEntryLocked`. Required adding `ProgramDTO.admin_only_data_entry` decode + `ProgramContext.adminOnlyDataEntry`/`dataEntryLocked` (web `isDataEntryLocked` = flag on && not admin). Absent from legacy iOS entirely. | web `lib/permissions.ts:5,21-25`, `summary/page.tsx:196-200`; backend `Program` model |
 | **D-DEPS** | **No new dependency for the dashboard** — every analytics loader/DTO/theme symbol + the progress computeds ported in the foundation (run 50). Newly ported WITH the cards (lived only in deferred Detail files): `ScrollableBarChart`, `DistributionPoint`/`distributionPoints`, `DistributionChartOverlay`, `typeColor`/`barColor`. | dep-purity grep; foundation `WorkoutPopularityLogic.swift` |
+| **D-C3** | **Kit adoption + instant open (reliability Phase 3 C2; board §6.5, D-9; frontend-kit §5–§6).** `ProgramContext.loadSummary` runs the 8 loads in parallel (was serial) and applies every part that loaded; `LoadState<String>` (the program id on screen) + `.task(id: SummaryLoadKey)` replaces `guard !isLoading` (W7 F5); cache-first via `LaunchCache`; `ErrorStateView` only when nothing loaded (analytics cards hidden — amendment A13), any part that loaded → stale (kept values + banner) via `ScreenBanner`; the scroll content gets bottom padding while that banner shows, and the offline band is the stack's bottom safe-area inset (A6); refetch on reconnect; `.refreshable` = reload now + a background `pull_to_refresh` sync, and a run that applies workouts reloads again (A13, H5); the timeline card's empty spinner removed (W7 F3). | frontend-kit §5–§6; health-sync §8 rule 1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A6 / A13 / H5. |
 
 ## 10. Flagged characteristics (kept as-is)
 - **F1 — iOS-only drag-to-reorder + per-program `UserDefaults` persistence.** Web has no card reordering; this
@@ -118,6 +122,9 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   boundary is the backend 403 (`requireDataEntryAllowed`) reached by the deferred log forms. (web F2 mirror)
 
 ## 11. Changelog
+- **v0.2.0** (2026-10-13, reliability Phase 3 C2) — D-C3: 8 parallel loads, `LoadState` + `.task(id:)`, cache-first,
+  kit error view (analytics cards hidden) + stale banner (D-C1 superseded), pull-to-refresh with a background sync,
+  reload when a sync lands workouts, refetch on reconnect, the timeline spinner fix.
 - **v0.1.0** (run 54, 2026-06-30) — initial SPEC; Summary dashboard grid + 10 cards ported (3 files), 5 detail
   views stubbed; web-parity error banner (D-C1) + data-lock treatment (D-C2) added; `admin_only_data_entry`
   wired into `ProgramDTO`/`ProgramContext`.

@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 // MARK: - Summary
 // Faithful 1:1 port of the legacy iOS Summary tab (ios-mobile Features/Home/Tabs/AdminSummaryTab.swift)
 // + two web-parity reconciles vs the built web /summary surface:
-//   • a visible error banner (legacy captured `errorMessage` but rendered it nowhere)
+//   • a visible load error — since reliability Phase 3 the frontend kit (ErrorStateView / stale banner, LoadState)
 //   • the `admin_only_data_entry` data-lock treatment (lock banner + disabled log cards) — absent from legacy iOS.
 // The five NavigationLink detail targets live in Features/Home/Detail/ (runs 60–61).
 
@@ -12,12 +12,18 @@ struct AdminSummaryTab: View {
     @EnvironmentObject var programContext: ProgramContext
     @Environment(\.colorScheme) private var colorScheme
     @Binding var period: AdminHomeView.Period
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    /// The loaded value is the program id whose analytics are on screen (frontend-kit §5; A13: the error view never
+    /// sits over another program's or zero values).
+    @State private var loadState: LoadState<String> = .idle
     @State private var cardOrder: [SummaryCardType] = SummaryCardType.defaultOrder
     @State private var draggingCard: SummaryCardType?
     @State private var timelinePeriod: AdminHomeView.Period = .week
     private let rowSpacing: CGFloat = 12
+
+    /// Cards that show fetched analytics — hidden while the load failed with nothing to show.
+    private static let analyticsCards: Set<SummaryCardType> = [
+        .mtdParticipation, .totalWorkouts, .totalDuration, .avgDuration, .activityTimeline, .distributionByDay, .workoutTypes
+    ]
 
     /// Web parity (`DATA_LOCK_MESSAGE`, lib/permissions.ts).
     private let dataLockMessage =
@@ -37,8 +43,8 @@ struct AdminSummaryTab: View {
                         initials: programContext.adminInitials
                     )
 
-                    if let errorMessage {
-                        errorBanner(errorMessage)
+                    if case .failed(let error) = loadState {
+                        ErrorStateView(error: error, onRetry: { Task { await load() } })
                     }
 
                     if programContext.dataEntryLocked {
@@ -74,52 +80,33 @@ struct AdminSummaryTab: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 24)
-                .padding(.bottom, 24)
+                .padding(.bottom, isBannerShowing ? 88 : 24)        // A6: the stale banner never covers the last card
                 .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
                 .frame(maxWidth: .infinity)
             }
+            .refreshable {
+                // A13: reload now, sync in the background; a sync that lands workouts bumps summaryRefreshToken →
+                // the .task(id:) below reloads again.
+                HealthSyncEngine.shared.trigger(.pullToRefresh)
+                await load()
+            }
         }
-        .task {
-            await load()
-            restoreOrder()
-        }
-        .onChange(of: period) { _, _ in
-            Task { await load() }
+        .floatingBanner { ScreenBanner(banner: staleBanner) }
+        .onAppear { restoreOrder() }
+        .task(id: SummaryLoadKey(programId: programContext.programId, period: period.apiValue,
+                                 timelinePeriod: timelinePeriod.apiValue, refresh: programContext.summaryRefreshToken)) {
+            await load()          // a newer key cancels the running load (W7 F5 — replaces `guard !isLoading`)
         }
         .onChange(of: programContext.programId) { _, _ in
             restoreOrder()
             Task { await programContext.loadLookupData() }
         }
-        // Web parity: a log-workout / log-health save bumps the token → reload the summary analytics
-        // (the iOS analogue of web's `invalidateQueries(["summary"])`). Run 60, D-C3.
-        .onChange(of: programContext.summaryRefreshToken) { _, _ in
-            Task { await load() }
+        .onChange(of: programContext.isOnline) { _, online in
+            if online, loadState.error != nil { Task { await load() } }       // D-IOS-KIT-3: refetch on reconnect
         }
     }
 
-    // MARK: - Web-parity banners
-
-    private func errorBanner(_ message: String) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.appRed)
-            Text(message)
-                .font(.footnote.weight(.semibold))
-                .foregroundColor(.appRed)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.appRed.opacity(0.12))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.appRed.opacity(0.3), lineWidth: 1)
-        )
-    }
+    // MARK: - Banners
 
     private var dataLockBanner: some View {
         HStack(spacing: 12) {
@@ -143,20 +130,34 @@ struct AdminSummaryTab: View {
         )
     }
 
+    private var staleBanner: FloatingBanner? {
+        guard case .stale = loadState else { return nil }
+        return FloatingBanner(variant: .stale, onRetry: { Task { await load() } })
+    }
+
+    /// This screen's own banner is up (`ScreenBanner` shows it only online; offline space is the root's inset — A6).
+    private var isBannerShowing: Bool { programContext.isOnline && staleBanner != nil }
+
+    /// Instant open (D-9): cached Summary first, then the network; the 8 loads run in parallel (ProgramContext.loadSummary).
     private func load() async {
-        guard !isLoading else { return }
-        isLoading = true
-        errorMessage = nil
-        await programContext.loadAnalytics(period: period.apiValue)
-        await programContext.loadMTDParticipation()
-        await programContext.loadTotalWorkoutsMTD()
-        await programContext.loadTotalDurationMTD()
-        await programContext.loadAvgDurationMTD()
-        await programContext.loadActivityTimeline(period: timelinePeriod.apiValue)
-        await programContext.loadDistributionByDay()
-        await programContext.loadWorkoutTypes()
-        errorMessage = programContext.errorMessage
-        isLoading = false
+        guard let pid = programContext.programId else { return }
+        if loadState.value != pid { loadState = .idle }                   // another program's data never carries over
+        if loadState.value == nil,
+           let cached = try? await programContext.loadSummary(period: period.apiValue, timelinePeriod: timelinePeriod.apiValue,
+                                                               read: .cacheOnly),
+           cached.failure == nil {
+            loadState = .loaded(pid, fetchedAt: Date(), refreshing: true)
+        }
+        loadState = loadState.refreshing()
+        guard let result = try? await programContext.loadSummary(period: period.apiValue, timelinePeriod: timelinePeriod.apiValue,
+                                                                 read: .network) else { return }   // superseded
+        guard let failure = result.failure else {
+            loadState = .fresh(pid)
+            return
+        }
+        guard let appError = AppError(failure) else { return }        // cancelled = superseded, not a failure
+        // A13: parts that loaded stay on screen as stale data (never the error view over real values).
+        loadState = result.applied ? .stale(pid, fetchedAt: Date(), error: appError) : loadState.failing(with: appError)
     }
 
     /// Arrange cards into rows honoring full-width cards and packing half-width cards two per row.
@@ -164,7 +165,9 @@ struct AdminSummaryTab: View {
         var rows: [[SummaryCardType]] = []
         var currentRow: [SummaryCardType] = []
 
-        for card in cardOrder {
+        var hideAnalytics = false
+        if case .failed = loadState { hideAnalytics = true }
+        for card in cardOrder where !(hideAnalytics && Self.analyticsCards.contains(card)) {
             if card.requiresFullWidth {
                 if !currentRow.isEmpty {
                     rows.append(currentRow)
@@ -311,4 +314,11 @@ struct AdminSummaryTab: View {
             cardOrder = SummaryCardType.defaultOrder
         }
     }
+}
+
+private struct SummaryLoadKey: Equatable {
+    let programId: String?
+    let period: String
+    let timelinePeriod: String
+    let refresh: Int
 }

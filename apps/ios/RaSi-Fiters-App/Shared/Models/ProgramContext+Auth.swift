@@ -8,77 +8,54 @@ import CryptoKit
 extension ProgramContext {
     // MARK: - Session Persistence & Auth
 
-    private enum SessionDefaultsKeys {
-        static let userId = "session.userId"
-        static let userName = "session.userName"
-        static let username = "session.username"
-        static let userGender = "session.userGender"
-        static let globalRole = "session.globalRole"
-        static let programId = "session.programId"
-        static let programRole = "session.programRole"
-    }
-
     func configureAPIClientHandlers() {
-        APIClient.shared.tokenUpdateHandler = { [weak self] accessToken, refreshToken in
-            Task { @MainActor in
-                self?.authToken = accessToken
-                self?.refreshToken = refreshToken
-                self?.persistSession()
-            }
+        APIClient.shared.tokenUpdateHandler = { [weak self] access, refresh in
+            self?.authToken = access            // UI mirror only — SessionStore already holds the pair
+            self?.refreshToken = refresh
         }
-
-        APIClient.shared.authFailureHandler = { [weak self] in
-            Task { @MainActor in
-                self?.signOut()
-            }
-        }
+        APIClient.shared.updateRequiredHandler = { [weak self] in self?.isUpdateRequired = true }
     }
 
     func restorePersistedSession() {
-        authToken = SessionStore.shared.accessToken
-        refreshToken = SessionStore.shared.refreshToken
+        switch SessionStore.shared.read() {
+        case .tokens(let tokens):
+            authToken = tokens.access
+            refreshToken = tokens.refresh
+        case .signedOut, .locked:
+            authToken = nil                         // locked: read again on unlock / next foreground (D-IOS-AUTH-3)
+            refreshToken = nil
+        case .unreadable:
+            authToken = nil
+            refreshToken = nil
+            SessionTeardown.end(.forced(reason: "token_store_unreadable", status: nil, code: nil))
+        }
 
         let defaults = UserDefaults.standard
-        loggedInUserId = defaults.string(forKey: SessionDefaultsKeys.userId)
-        loggedInUserName = defaults.string(forKey: SessionDefaultsKeys.userName)
-        loggedInUsername = defaults.string(forKey: SessionDefaultsKeys.username)
-        loggedInUserGender = defaults.string(forKey: SessionDefaultsKeys.userGender)
-        globalRole = defaults.string(forKey: SessionDefaultsKeys.globalRole) ?? globalRole
-        programId = defaults.string(forKey: SessionDefaultsKeys.programId)
-        loggedInUserProgramRole = defaults.string(forKey: SessionDefaultsKeys.programRole) ?? loggedInUserProgramRole
+        loggedInUserId = defaults.string(forKey: SessionStore.Keys.userId)
+        loggedInUserName = defaults.string(forKey: SessionStore.Keys.userName)
+        loggedInUsername = defaults.string(forKey: SessionStore.Keys.username)
+        loggedInUserGender = defaults.string(forKey: SessionStore.Keys.userGender)
+        globalRole = defaults.string(forKey: SessionStore.Keys.globalRole) ?? globalRole
+        programId = defaults.string(forKey: SessionStore.Keys.programId)
+        loggedInUserProgramRole = defaults.string(forKey: SessionStore.Keys.programRole) ?? loggedInUserProgramRole
 
         if let name = loggedInUserName {
             adminName = name
         }
 
-        restoreHealthKitSettings()
-        restoreSleepSyncSettings()
-        restoreStepsSyncSettings()
+        reloadHealthSyncMirror()
     }
 
+    /// The session.* defaults only — tokens live in SessionStore and are never written back from here (W1 F2).
     func persistSession() {
-        SessionStore.shared.saveTokens(accessToken: authToken, refreshToken: refreshToken)
-
         let defaults = UserDefaults.standard
-        setDefault(defaults, value: loggedInUserId, key: SessionDefaultsKeys.userId)
-        setDefault(defaults, value: loggedInUserName, key: SessionDefaultsKeys.userName)
-        setDefault(defaults, value: loggedInUsername, key: SessionDefaultsKeys.username)
-        setDefault(defaults, value: loggedInUserGender, key: SessionDefaultsKeys.userGender)
-        setDefault(defaults, value: globalRole, key: SessionDefaultsKeys.globalRole)
-        setDefault(defaults, value: programId, key: SessionDefaultsKeys.programId)
-        setDefault(defaults, value: loggedInUserProgramRole, key: SessionDefaultsKeys.programRole)
-    }
-
-    private func clearPersistedSession() {
-        SessionStore.shared.clearTokens()
-        let defaults = UserDefaults.standard
-        defaults.removeObject(forKey: SessionDefaultsKeys.userId)
-        defaults.removeObject(forKey: SessionDefaultsKeys.userName)
-        defaults.removeObject(forKey: SessionDefaultsKeys.username)
-        defaults.removeObject(forKey: SessionDefaultsKeys.userGender)
-        defaults.removeObject(forKey: SessionDefaultsKeys.globalRole)
-        defaults.removeObject(forKey: SessionDefaultsKeys.programId)
-        defaults.removeObject(forKey: SessionDefaultsKeys.programRole)
+        setDefault(defaults, value: loggedInUserId, key: SessionStore.Keys.userId)
+        setDefault(defaults, value: loggedInUserName, key: SessionStore.Keys.userName)
+        setDefault(defaults, value: loggedInUsername, key: SessionStore.Keys.username)
+        setDefault(defaults, value: loggedInUserGender, key: SessionStore.Keys.userGender)
+        setDefault(defaults, value: globalRole, key: SessionStore.Keys.globalRole)
+        setDefault(defaults, value: programId, key: SessionStore.Keys.programId)
+        setDefault(defaults, value: loggedInUserProgramRole, key: SessionStore.Keys.programRole)
     }
 
     private func setDefault(_ defaults: UserDefaults, value: String?, key: String) {
@@ -89,78 +66,8 @@ extension ProgramContext {
         }
     }
 
-    @MainActor
-    func refreshSessionIfNeeded() async {
-        guard let refreshToken, !refreshToken.isEmpty else { return }
-        do {
-            try await performTokenRefresh(using: refreshToken)
-        } catch {
-            if isNetworkError(error) {
-                isOffline = true
-                if offlineNotice == nil {
-                    offlineNotice = "You're offline. We'll reconnect when internet is back."
-                }
-                return
-            }
-            if isAuthFailure(error) {
-                // Retry once: another call may have rotated the token already
-                try? await Task.sleep(nanoseconds: 300_000_000)
-                if let retryToken = SessionStore.shared.refreshToken,
-                   retryToken != refreshToken {
-                    do {
-                        try await performTokenRefresh(using: retryToken)
-                        return
-                    } catch {}
-                }
-                signOut()
-                return
-            }
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    private func performTokenRefresh(using token: String) async throws {
-        let response = try await APIClient.shared.refreshSession(refreshToken: token)
-        authToken = response.token
-        refreshToken = response.refreshToken ?? token
-        persistSession()
-        isOffline = false
-        offlineNotice = nil
-        await loadLookupData()
-        if programId != nil {
-            await loadMembershipDetails()
-        }
-    }
-
-    func signOut() {
-        let tokenToRevoke = refreshToken
-        authToken = nil
-        refreshToken = nil
-        loggedInUserId = nil
-        loggedInUserName = nil
-        loggedInUsername = nil
-        loggedInUserGender = nil
-        loggedInUserProgramRole = "member"
-        globalRole = "standard"
-        programId = nil
-        membershipDetails = []
-        pendingInvites = []
-        isOffline = false
-        offlineNotice = nil
-
-        stopNotificationStream()
-        clearHealthKitSettings()
-        clearPersistedSession()
-
-        if let tokenToRevoke {
-            Task {
-                try? await APIClient.shared.logout(refreshToken: tokenToRevoke)
-            }
-        }
-    }
-
     /// Changes the user's password
+    /// auth §3.1 rule 6: never auto-retried — the only retry is APIClient's 401 → refresh → once (the write never ran).
     @MainActor
     func changePassword(newPassword: String) async throws {
         guard let token = authToken, !token.isEmpty else {
@@ -192,41 +99,25 @@ extension ProgramContext {
 
         _ = try await APIClient.shared.deleteAccount(token: token)
 
-        // Clear all local state after successful deletion
-        signOut()
-    }
-
-    private func isNetworkError(_ error: Error) -> Bool {
-        if error is URLError { return true }
-        let nsError = error as NSError
-        return nsError.domain == NSURLErrorDomain
-    }
-
-    private func isAuthFailure(_ error: Error) -> Bool {
-        if let httpError = error as? APIHTTPError {
-            return httpError.statusCode == 401 || httpError.statusCode == 403
-        }
-        return false
-    }
-
-    /// Call when device push token is available and user is logged in; registers the token with the backend.
-    func registerPushTokenIfNeeded(_ deviceToken: String) {
-        guard let token = authToken, !token.isEmpty, !deviceToken.isEmpty else { return }
-        Task {
-            try? await APIClient.shared.registerDevice(token: token, pushToken: deviceToken)
-        }
+        // Clear all local state after successful deletion (device rows cascade server-side).
+        SessionTeardown.end(.accountDeleted)
     }
 
     // MARK: - Federated Sign-in (Google / Apple)
 
-    /// Writes an authenticated `AuthResponse` into the shared context — the single session-write path
-    /// shared by password login (`LoginView`), password sign-up (`CreateAccountView`) and federated
-    /// sign-in. Extracted 1:1 from the former inline `handleLogin`/`handleCreateAccount` writes.
+    /// The single session-write path (password login, sign-up, federated). Tokens go to SessionStore FIRST and the
+    /// member defaults + this member's sync prefs load BEFORE the `authToken` mirror flips (that flip starts the
+    /// session work). A keychain that refuses the pair fails the sign-in (nothing half-saved).
     @MainActor
-    func applyAuthResponse(_ r: AuthResponse) async {
+    func applyAuthResponse(_ r: AuthResponse) async throws {
+        do {
+            try SessionStore.shared.save(access: r.token, refresh: r.refreshToken)
+        } catch {
+            SessionStore.shared.clear()
+            throw error
+        }
+        SessionTeardown.clearForcedSignOutNotice()          // A2: every successful sign-in path, social sign-up included
         let role = (r.globalRole ?? "").lowercased()
-        authToken = r.token
-        refreshToken = r.refreshToken
         globalRole = role.isEmpty ? "standard" : role
         loggedInUserId = r.memberId
         loggedInUsername = r.username
@@ -237,8 +128,11 @@ extension ProgramContext {
             loggedInUserName = uname
             adminName = uname
         }
-        await loadLookupData()
         persistSession()
+        reloadHealthSyncMirror()
+        refreshToken = r.refreshToken
+        authToken = r.token
+        await loadLookupData()
     }
 
     /// Presents the Google sign-in sheet and returns the Google ID token + the raw nonce (to POST to
@@ -285,30 +179,29 @@ extension ProgramContext {
         return try await APIClient.shared.listIdentities(token: token)
     }
 
+    // Link / unlink need only the Bearer since auth 0.13.0 (D-C14c) — no refresh-token guard (amendment A8).
     @MainActor
     func linkGoogle() async throws -> IdentitiesResponse {
         guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
-        guard let refresh = refreshToken, !refresh.isEmpty else { throw APIError(message: "Session expired. Sign in again to manage linked accounts.") }
         guard let presenter = AuthPresenter.rootViewController else { throw APIError(message: "Unable to present Google sign-in.") }
         let google = try await startGoogleSignIn(presenting: presenter)
-        return try await APIClient.shared.linkProvider(token: token, refreshToken: refresh, provider: "google", idToken: google.idToken, nonce: google.nonce)
+        return try await APIClient.shared.linkProvider(token: token, provider: "google", idToken: google.idToken, nonce: google.nonce)
     }
 
     @MainActor
     func linkApple() async throws -> IdentitiesResponse {
         guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
-        guard let refresh = refreshToken, !refresh.isEmpty else { throw APIError(message: "Session expired. Sign in again to manage linked accounts.") }
         let apple = try await startAppleSignIn()
-        return try await APIClient.shared.linkProvider(token: token, refreshToken: refresh, provider: "apple", idToken: apple.idToken, nonce: apple.nonce)
+        return try await APIClient.shared.linkProvider(token: token, provider: "apple", idToken: apple.idToken, nonce: apple.nonce)
     }
 
     @MainActor
     func unlink(provider: String) async throws -> IdentitiesResponse {
         guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
-        guard let refresh = refreshToken, !refresh.isEmpty else { throw APIError(message: "Session expired. Sign in again to manage linked accounts.") }
-        return try await APIClient.shared.unlinkProvider(token: token, refreshToken: refresh, provider: provider)
+        return try await APIClient.shared.unlinkProvider(token: token, provider: provider)
     }
 
+    /// auth §3.1 rule 6: never auto-retried — the only retry is APIClient's 401 → refresh → once (the write never ran).
     @MainActor
     func setPassword(newPassword: String) async throws -> IdentitiesResponse {
         guard let token = authToken, !token.isEmpty else { throw APIError(message: "No auth token") }
@@ -324,6 +217,8 @@ struct PendingSocial {
     let email: String?
     let firstName: String?
     let lastName: String?
+    /// `google` | `apple` — the `auth.sign_in_failed` method of a failed `/oauth/complete` (A11).
+    let provider: String
 }
 
 /// Resolves the current key window / top view controller for presenting the Google sheet + the

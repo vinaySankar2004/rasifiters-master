@@ -1,6 +1,6 @@
 # Screen: `program-member-management` (ios) — the Program tab's Member Management section
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** `AdminProgramTab.swift:30` (`ProgramMemberManagementSection()`, always shown). The section
 > is a card with two nav rows: **View Members** (everyone → `ProgramMembersListView` → global-admin-only
 > `MemberDetailEditView`) + **Invite Member** (`canEditProgramData` → `InviteMemberView`).
@@ -88,8 +88,8 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
   explicit empty/error state (both web + legacy iOS swallow list load errors — F1).
 - **Editor:** inline error on Save/Remove failure (cleared on field edit — D-C2); Remove requires `.alert`
   confirm; `isSaving` gates both Save and Remove.
-- **Invite:** privacy-safe — any non-network failure shows the success toast (F3); network errors show an
-  inline retry message.
+- **Invite (D-C4, 1.5.0):** "Invitation sent" toast only on a 200 (the server answers 200 for unknown / blocked /
+  already-member usernames — privacy is server-side); every other status → the kit message in the inline error line.
 
 ## 9. Decisions made
 
@@ -102,6 +102,7 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 | **D-C1** | **Tokenize bare colors** — `.orange`→`Color.appOrange` (avatar/star/save), `.blue`→`Color.appBlue` (invite row + info-note); light-mode-safe (run-26/61). | `MemberManagementSection.swift`, `InviteMemberView.swift` |
 | **D-C2** | **Clear stale error on edit** — `MemberDetailEditView` clears the error `.onChange` of `joinedAt`/`isActive`; `InviteMemberView` clears `.onChange` of `username`. Matches web members/detail D-C3 + members/invite D-C2. | web SPECs |
 | **D-C3** | **Full-pill tap target on Send Invitation** — the CTA's `.frame/.padding/.background/.cornerRadius` now live INSIDE the `Button` label closure with `.contentShape(RoundedRectangle(cornerRadius: 14))` + `.buttonStyle(.plain)`, so the whole orange pill is tappable (not just the icon+text). Matches the `AppPrimaryButton` reference pattern. No behavior/contract change. | `InviteMemberView.swift`; `AppButton.swift` |
+| **D-C4** | **Invite send = server-side privacy (invites §3.1 0.2.0, reliability Phase 3 C2).** "Invitation sent" (was "Invite sent") shows ONLY on a 200 — the server already answers 200 for unknown / blocked / already-member usernames; every other status goes through the kit (`AppError`) in the existing error line. The client-side always-success swallow is removed (F3 resolved). | invites §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A1. |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -110,7 +111,7 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 - **F2 — client gate STRICTER than backend.** The editor is global-admin-only on the client (both iOS + web),
   but the backend `updateMembership`/`removeMember` also authorize a **program admin** of the target program.
   Kept faithful; the backend is the real boundary (web members/detail F1; run 40/43 client-stricter shape).
-- **F3 — invite errors swallowed as success (privacy).** Any non-network failure (unknown username / already
+- **F3 — invite errors swallowed as success (privacy).** *(Resolved by D-C4 — iOS 1.5.0: invites §3.1 0.2.0 moved the privacy rule server-side; the swallow is removed.)* Any non-network failure (unknown username / already
   invited / blocked / 403) renders the success toast with the field cleared, so the screen never confirms a
   username exists (web members/invite F1). **Load-bearing — never surface the real error.**
 - **F4 — client role gating (JWT-decoded).** `isGlobalAdmin`/`canEditProgramData` are display/gating only; the
@@ -121,6 +122,8 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 
 ## 11. Changelog
 
+- **0.2.0** (2026-10-13, reliability Phase 3 C2) — D-C4: "Invitation sent" only on 200; the invite swallow is
+  removed (kit copy for every other status). F3 resolved.
 - **0.1.1** (2026-07-11) — D-C3: fix limited tap target on the Send Invitation CTA (styling moved inside the
   Button label + `.contentShape` → whole pill tappable). Audit swept all ~180 iOS buttons; this was the only
   offender. No behavior/contract change.

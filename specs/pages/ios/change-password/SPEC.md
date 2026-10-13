@@ -1,6 +1,6 @@
 # Screen: `change-password` (ios) — the account-menu "Change Password" screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (run 57) → "Change Password"
 > `NavigationLink → ChangePasswordView()`.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/ChangePasswordView.swift`.
@@ -91,6 +91,7 @@ confirm non-empty.
 | **D-C2** | **Web-parity 5-rule live policy checklist** replacing the legacy `count >= 6` hint — a ✓/○ list (≥8 · uppercase · lowercase · number) greening per satisfied rule, with `isValid` requiring policy + match. Matches `/program/password` AND run-51 create-account AND the real backend `validatePassword`. | web password D-C1; run-51 create-account D-C3; backend `authService.validatePassword`; user answer. |
 | **D-C3** | **Adopt the foundation's shared chrome components** — `AppInputField` (+ `AppPasswordToggleButton`) for the fields, `AppPrimaryButton` for the CTA — replacing the legacy hand-rolled `systemGray6`/`cornerRadius` fields + inline button. Matches the run-51 auth screens. | user answer; run-51 auth chrome. |
 | **D-DEPS** | **No new dependency** — every component was ported in the foundation (run 50); `policyRow` is an inline helper (shared shape with create-account). | foundation inventory (run 50). |
+| **D-C4** | **Password write never auto-retried (auth §3.1 rule 6, reliability Phase 3 C2).** The only retry is the central 401 → refresh → once (the write never ran — A9). The body goes as a fresh one-shot stream with an explicit Content-Length, so CFNetwork can't silently replay the `PUT` on a dropped connection (it fails with `requestBodyStreamExhausted` instead). After a 503 / 5xx / 408 / client timeout / dropped connection / refused replay the line reads "We couldn't confirm your password change. It may have gone through, so try signing in with your new password."; a same-password `400` on the user's manual retry after that means the first attempt landed → shown as done. Success = an alert titled "Password updated. Your other devices will be signed out." (this device stays signed in — auth D-C14b). Other errors → kit copy (an authenticated route — no raw "Invalid token.", A8). | auth §3.1 rules 4 + 6; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A1 / A8 / A9. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -106,4 +107,5 @@ confirm non-empty.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C4.** Rule-6 "couldn't confirm" copy, same-password-after-unconfirmed = success, A1 success copy, kit copy for other errors. No layout change. |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **Change Password account screen** (one of the 4-screen account/settings cluster, run 58). Documents the own-password form: new + confirm (Show/Hide on new only), submit via `changePassword` (`PUT /auth/change-password`), success-`Alert`-then-`dismiss`. Decisions: **D-REF** (`consumed_by=[ios]`; legacy iOS + web parity) · **D-S1** (faithful 1:1 port) · **D-C2** (web-parity 5-rule live checklist replacing the legacy 6-char hint — matches web + run-51 + backend policy) · **D-C3** (adopt shared `AppInputField`/`AppPasswordToggleButton`/`AppPrimaryButton`) · **D-DEPS** (no new dependency). Flagged F1–F5 (client policy mirror; Show/Hide on new only; no old-password challenge; no JWT re-issue; no client rate-limit). Role rules: same for every role (no role-conditional UI); `admin_only_data_entry` N/A. Ported `apps/ios/.../Features/Home/Settings/ChangePasswordView.swift`. Build green-check owned by the user (Xcode). |

@@ -1,6 +1,6 @@
 # Screen: `member-health-detail` (ios) — the per-member daily-Health logs (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's health card
 > (`MemberCards.swift:192`, `NavigationLink { MemberHealthDetail(memberId:memberName:) }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/HealthSortFilterSheets.swift`

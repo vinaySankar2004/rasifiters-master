@@ -152,6 +152,10 @@ struct LoginView: View {
                 dismissButton: .default(Text("OK"))
             )
         }
+        .onAppear {
+            // Amendment A2: a forced sign-out is explained once, in this screen's existing alert slot.
+            if SessionTeardown.consumeForcedSignOutNotice() { showAlert(KitCopy.message(for: .signedOut)) }
+        }
     }
 
     // MARK: - Social sign-in (Google + Apple)
@@ -191,26 +195,24 @@ struct LoginView: View {
 
     // MARK: - Handlers
 
+    private func showAlert(_ message: String) {
+        alertMessage = message
+        isShowingAlert = true
+    }
+
+    /// observability §8 `auth.sign_in_failed` on every failure but a cancellation; credential copy per
+    /// SessionCopy.credentialMessage (server text for 400/401/409/422, the kit's copy otherwise).
     private func handleLogin() async {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-
         do {
-            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
-            let response = try await APIClient.shared.loginGlobal(
-                identifier: identifier,
-                password: password,
-                pushToken: pushToken,
-                deviceId: nil
-            )
-            await programContext.applyAuthResponse(response)
-
-            // Both global_admin and standard users go to ProgramPickerView
+            let response = try await APIClient.shared.loginGlobal(identifier: identifier, password: password)
+            try await programContext.applyAuthResponse(response)
             navigateToProgramPicker = true
         } catch {
-            alertMessage = error.localizedDescription
-            isShowingAlert = true
+            ClientEventQueue.shared.recordSignInFailure(error, method: "password")
+            showAlert(SessionCopy.credentialMessage(for: error))
         }
     }
 
@@ -219,25 +221,24 @@ struct LoginView: View {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-
+        let google: (idToken: String, nonce: String)
         do {
             guard let presenter = AuthPresenter.rootViewController else {
                 throw APIError(message: "Unable to present Google sign-in.")
             }
-            let google = try await programContext.startGoogleSignIn(presenting: presenter)
-            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
-            let response = try await APIClient.shared.socialSignIn(
-                provider: "google",
-                idToken: google.idToken,
-                nonce: google.nonce,
-                pushToken: pushToken
-            )
-            await handleSocialResponse(response)
+            google = try await programContext.startGoogleSignIn(presenting: presenter)
         } catch {
-            if !isGoogleCancellation(error) {
-                alertMessage = error.localizedDescription
-                isShowingAlert = true
-            }
+            guard !isGoogleCancellation(error) else { return }
+            ClientEventQueue.shared.recordProviderFailure(error, method: "google")
+            showAlert(KitCopy.message(for: .unknown))
+            return
+        }
+        do {
+            let response = try await APIClient.shared.socialSignIn(provider: "google", idToken: google.idToken, nonce: google.nonce)
+            try await handleSocialResponse(response, provider: "google")
+        } catch {
+            ClientEventQueue.shared.recordSignInFailure(error, method: "google")
+            showAlert(SessionCopy.credentialMessage(for: error))
         }
     }
 
@@ -246,42 +247,41 @@ struct LoginView: View {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-
+        let apple: (idToken: String, nonce: String, firstName: String?, lastName: String?)
         do {
-            let apple = try await programContext.startAppleSignIn()
-            let pushToken = UserDefaults.standard.string(forKey: PushTokenNotification.userDefaultsKey)
-            let response = try await APIClient.shared.socialSignIn(
-                provider: "apple",
-                idToken: apple.idToken,
-                nonce: apple.nonce,
-                firstName: apple.firstName,
-                lastName: apple.lastName,
-                pushToken: pushToken
-            )
-            await handleSocialResponse(response)
+            apple = try await programContext.startAppleSignIn()
         } catch {
-            if !isAppleCancellation(error) {
-                alertMessage = error.localizedDescription
-                isShowingAlert = true
-            }
+            guard !isAppleCancellation(error) else { return }
+            ClientEventQueue.shared.recordProviderFailure(error, method: "apple")
+            showAlert(KitCopy.message(for: .unknown))
+            return
+        }
+        do {
+            let response = try await APIClient.shared.socialSignIn(provider: "apple", idToken: apple.idToken, nonce: apple.nonce,
+                                                                   firstName: apple.firstName, lastName: apple.lastName)
+            try await handleSocialResponse(response, provider: "apple")
+        } catch {
+            ClientEventQueue.shared.recordSignInFailure(error, method: "apple")
+            showAlert(SessionCopy.credentialMessage(for: error))
         }
     }
 
     /// Branches an OAuth response: a brand-new social user (needs_profile) is routed to the
     /// CreateAccountView social branch to pick a username; an existing member is logged straight in.
     @MainActor
-    private func handleSocialResponse(_ response: AuthResponse) async {
+    private func handleSocialResponse(_ response: AuthResponse, provider: String) async throws {
         if response.needsProfile == true {
             pendingSocial = PendingSocial(
                 token: response.token,
                 refreshToken: response.refreshToken,
                 email: response.email,
                 firstName: response.firstName,
-                lastName: response.lastName
+                lastName: response.lastName,
+                provider: provider
             )
             navigateToCreateAccount = true
         } else {
-            await programContext.applyAuthResponse(response)
+            try await programContext.applyAuthResponse(response)
             navigateToProgramPicker = true
         }
     }

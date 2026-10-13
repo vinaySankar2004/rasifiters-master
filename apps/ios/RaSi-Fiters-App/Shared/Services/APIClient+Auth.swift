@@ -55,48 +55,41 @@ extension APIClient {
         return try JSONDecoder().decode(AuthResponse.self, from: data)
     }
 
-    // New global-role-aware login; optional push_token and device_id for push notifications.
-    func loginGlobal(identifier: String, password: String, pushToken: String? = nil, deviceId: String? = nil) async throws -> AuthResponse {
+    /// Mobile login. Waits for the device-registry queue first (notifications §3.1 ordering rule), then sends the
+    /// registration ride-along (`push_token`, `device_id`, `platform`).
+    func loginGlobal(identifier: String, password: String) async throws -> AuthResponse {
+        await DeviceRegistry.shared.beginSignIn()
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/login/global"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var body: [String: String] = ["identifier": identifier, "password": password]
-        if let pushToken, !pushToken.isEmpty { body["push_token"] = pushToken }
-        if let deviceId, !deviceId.isEmpty { body["device_id"] = deviceId }
+        var body = DeviceRegistry.shared.signInFields()
+        body["identifier"] = identifier
+        body["password"] = password
         request.httpBody = try JSONEncoder().encode(body)
-
         let data = try await data(for: request)
         return try JSONDecoder().decode(AuthResponse.self, from: data)
     }
 
-    /// Register the device for push notifications (call when user is already logged in and token is available).
-    func registerDevice(token: String, pushToken: String) async throws {
-        var request = URLRequest(url: baseURL.appendingPathComponent("notifications/device"))
-        request.httpMethod = "PUT"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let body = ["push_token": pushToken]
+    /// PUT /notifications/device (notifications §3.1): Bearer + `{ push_token, platform: "ios", device_id }`.
+    func registerDevice(pushToken: String, deviceId: String?) async throws {
+        var request = authorizedRequest("notifications/device", method: "PUT")
+        var body = ["push_token": pushToken, "platform": "ios"]
+        if let deviceId { body["device_id"] = deviceId }
         request.httpBody = try JSONEncoder().encode(body)
-
-        let (_, response) = try await rawData(for: request)
-        guard 200..<300 ~= response.statusCode else {
-            throw APIError(message: "Failed to register device for push")
-        }
+        _ = try await data(for: request)
     }
 
-    /// Unregister the device from push notifications (e.g. when user disables notifications in system settings).
-    func deregisterDevice(token: String, pushToken: String?) async throws {
-        var request = URLRequest(url: baseURL.appendingPathComponent("notifications/device"))
-        request.httpMethod = "DELETE"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+    /// POST /notifications/device/unregister — NO login (the push token / install id prove the device). Returns the
+    /// HTTP status; throws only on a transport error.
+    func unregisterDevice(pushToken: String?, deviceId: String?) async throws -> Int {
+        var request = URLRequest(url: baseURL.appendingPathComponent("notifications/device/unregister"))
+        request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let pushToken, !pushToken.isEmpty {
-            request.httpBody = try JSONEncoder().encode(["push_token": pushToken])
-        }
-        let (_, response) = try await rawData(for: request)
-        guard 200..<300 ~= response.statusCode else {
-            throw APIError(message: "Failed to unregister device for push")
-        }
+        var body: [String: String] = [:]
+        if let pushToken { body["push_token"] = pushToken }
+        if let deviceId { body["device_id"] = deviceId }
+        request.httpBody = try JSONEncoder().encode(body)
+        return try await transport(request).1.statusCode
     }
 
     func registerAccount(
@@ -131,19 +124,18 @@ extension APIClient {
     /// Federated sign-in — POST auth/oauth. `firstName`/`lastName` are Apple first-auth name hints
     /// (Apple returns the name ONLY on the first authorization, so forward them when present).
     func socialSignIn(provider: String, idToken: String, nonce: String? = nil,
-                      firstName: String? = nil, lastName: String? = nil,
-                      pushToken: String? = nil, deviceId: String? = nil) async throws -> AuthResponse {
+                      firstName: String? = nil, lastName: String? = nil) async throws -> AuthResponse {
+        await DeviceRegistry.shared.beginSignIn()
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/oauth"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var body: [String: String] = ["provider": provider, "id_token": idToken]
+        var body = DeviceRegistry.shared.signInFields()
+        body["provider"] = provider
+        body["id_token"] = idToken
         if let nonce { body["nonce"] = nonce }
         if let firstName, !firstName.isEmpty { body["first_name"] = firstName }
         if let lastName, !lastName.isEmpty { body["last_name"] = lastName }
-        if let pushToken, !pushToken.isEmpty { body["push_token"] = pushToken }
-        if let deviceId, !deviceId.isEmpty { body["device_id"] = deviceId }
         request.httpBody = try JSONEncoder().encode(body)
-
         let data = try await data(for: request)
         return try JSONDecoder().decode(AuthResponse.self, from: data)
     }
@@ -183,29 +175,25 @@ extension APIClient {
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/refresh"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body = ["refresh_token": refreshToken]
-        request.httpBody = try JSONEncoder().encode(body)
-
-        let (data, response) = try await rawData(for: request)
-        guard 200..<300 ~= response.statusCode else {
-            let message = extractErrorMessage(from: data) ?? "Request failed (\(response.statusCode))"
-            throw APIHTTPError(statusCode: response.statusCode, message: message)
-        }
+        request.httpBody = try JSONEncoder().encode(["refresh_token": refreshToken])
+        let (data, http) = try await transport(request)
+        guard 200..<300 ~= http.statusCode else { throw APIHTTPError.from(data, http) }
         return try JSONDecoder().decode(TokenRefreshResponse.self, from: data)
     }
 
-    func logout(refreshToken: String) async throws {
+    /// POST /auth/logout — this device only (auth D-C14): the captured Bearer AND the body refresh token. Best-effort.
+    func logout(accessToken: String, refreshToken: String?) async {
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/logout"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        let body = ["refresh_token": refreshToken]
-        request.httpBody = try JSONEncoder().encode(body)
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        if let refreshToken { request.httpBody = try? JSONEncoder().encode(["refresh_token": refreshToken]) }
+        _ = try? await transport(request)
+    }
 
-        let (data, response) = try await rawData(for: request)
-        guard 200..<300 ~= response.statusCode else {
-            let message = extractErrorMessage(from: data) ?? "Request failed (\(response.statusCode))"
-            throw APIError(message: message)
-        }
+    /// POST /auth/logout-all — "Sign out everywhere" (auth §3.1). 200 → the caller runs the teardown.
+    func logoutAll() async throws {
+        _ = try await data(for: authorizedRequest("auth/logout-all", method: "POST"))
     }
 
     /// Changes the password for the authenticated user
@@ -248,8 +236,8 @@ extension APIClient {
         return try JSONDecoder().decode(DeleteAccountResponse.self, from: data)
     }
 
-    // Auth phase-2 (D-C10) — manage linked sign-in identities. All authenticated. link/unlink thread the
-    // caller's refresh token so the backend can bind the session (linkIdentityIdToken / unlinkIdentity).
+    // Auth phase-2 (D-C10) — manage linked sign-in identities. All authenticated. Since auth 0.13.0 (D-C14c) the
+    // backend binds link / unlink to the Bearer alone — no `refresh_token` in the body (approval amendment A8).
     func listIdentities(token: String) async throws -> IdentitiesResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/identities"))
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -258,24 +246,24 @@ extension APIClient {
         return try JSONDecoder().decode(IdentitiesResponse.self, from: data)
     }
 
-    func linkProvider(token: String, refreshToken: String, provider: String, idToken: String, nonce: String? = nil) async throws -> IdentitiesResponse {
+    func linkProvider(token: String, provider: String, idToken: String, nonce: String? = nil) async throws -> IdentitiesResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/link"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        var body: [String: String] = ["provider": provider, "id_token": idToken, "refresh_token": refreshToken]
+        var body: [String: String] = ["provider": provider, "id_token": idToken]
         if let nonce { body["nonce"] = nonce }
         request.httpBody = try JSONEncoder().encode(body)
         let data = try await data(for: request)
         return try JSONDecoder().decode(IdentitiesResponse.self, from: data)
     }
 
-    func unlinkProvider(token: String, refreshToken: String, provider: String) async throws -> IdentitiesResponse {
+    func unlinkProvider(token: String, provider: String) async throws -> IdentitiesResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("auth/unlink"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.httpBody = try JSONEncoder().encode(["provider": provider, "refresh_token": refreshToken])
+        request.httpBody = try JSONEncoder().encode(["provider": provider])
         let data = try await data(for: request)
         return try JSONDecoder().decode(IdentitiesResponse.self, from: data)
     }

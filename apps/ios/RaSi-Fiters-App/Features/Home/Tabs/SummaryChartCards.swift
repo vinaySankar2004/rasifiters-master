@@ -91,7 +91,6 @@ struct ActivityTimelineCardSummary: View {
 
                 if points.isEmpty {
                     VStack(spacing: 8) {
-                        ProgressView()
                         Text("No data yet")
                             .font(.footnote)
                             .foregroundColor(Color(.secondaryLabel))

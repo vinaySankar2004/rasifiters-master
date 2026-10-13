@@ -25,6 +25,8 @@ final class NetworkMonitor: ObservableObject {
                 // publishing only real changes keeps observers from re-rendering on each one.
                 guard let self, self.isOnline != online else { return }
                 self.isOnline = online
+                // auth §3.1 / amendment A3: the link is back → a refresh may run again at once (no offline back-off).
+                if online { APIClient.shared.clearRefreshBackoff() }
             }
         }
         monitor.start(queue: .main)

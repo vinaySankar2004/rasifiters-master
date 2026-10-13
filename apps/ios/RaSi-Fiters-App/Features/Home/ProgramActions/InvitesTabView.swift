@@ -10,6 +10,7 @@ struct InvitesTabView: View {
 
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var loadError: AppError?
     @State private var inviteToDecline: APIClient.PendingInviteDTO?
     @State private var showDeclineConfirmation = false
     @State private var blockFutureInvites = false
@@ -50,6 +51,11 @@ struct InvitesTabView: View {
                             Spacer()
                         }
                         .padding(.top, 40)
+                    } else if let loadError, programContext.pendingInvites.isEmpty {
+                        // W7 i10: a failed inbox load is never "No pending invitations".
+                        ErrorStateView(error: loadError, onRetry: { Task { await refreshInvites() } })
+                            .padding(.horizontal, 20)
+                            .padding(.top, 20)
                     } else if programContext.pendingInvites.isEmpty {
                         emptyState
                             .padding(.horizontal, 20)
@@ -63,7 +69,7 @@ struct InvitesTabView: View {
                         }
                     }
 
-                    Spacer(minLength: 40)
+                    Spacer(minLength: staleBanner == nil ? 40 : 104)      // A6: the banner never covers the last card
                 }
             }
 
@@ -88,6 +94,24 @@ struct InvitesTabView: View {
         .task {
             await refreshInvites()
         }
+        .alert("Unable to update invitation", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK") { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "")
+        }
+        // A sheet covers the root offline banner, so this screen's banner shows on its own here.
+        .floatingBanner {
+            if let staleBanner { staleBanner }
+        }
+    }
+
+    /// A failed refresh over a list we still show → "Couldn't refresh" + Retry (frontend-kit §6).
+    private var staleBanner: FloatingBanner? {
+        guard loadError != nil, !programContext.pendingInvites.isEmpty else { return nil }
+        return FloatingBanner(variant: .stale, onRetry: { Task { await refreshInvites() } })
     }
 
     private var emptyState: some View {
@@ -169,18 +193,18 @@ struct InvitesTabView: View {
                 }
             }
         }
-        .alert("Unable to update invitation", isPresented: .constant(errorMessage != nil)) {
-            Button("OK") { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
-        }
     }
 
+    /// Spinner only with nothing to show; a failure keeps any list (stale banner) or shows the kit error view.
     private func refreshInvites() async {
-        isLoading = true
-        errorMessage = nil
-        await programContext.loadPendingInvites()
-        isLoading = false
+        isLoading = programContext.pendingInvites.isEmpty
+        defer { isLoading = false }
+        do {
+            try await programContext.loadPendingInvites()
+            loadError = nil
+        } catch {
+            loadError = AppError(error)
+        }
     }
 
     private func respondToInvite(_ invite: APIClient.PendingInviteDTO, action: String, blockFuture: Bool = false) async {
@@ -198,7 +222,7 @@ struct InvitesTabView: View {
                 onAccepted()
             }
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = AppError(error)?.message           // kit copy (a 400 keeps the server's text)
         }
 
         inviteToDecline = nil

@@ -7,6 +7,8 @@ struct ProgramActionsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
+    /// 0 = Invites (an invite push tap — amendment U2); nil = Invites when there are any, else Create.
+    var initialTab: Int? = nil
     let onDismiss: () -> Void
 
     @State private var selectedTab: Int = 0
@@ -66,7 +68,9 @@ struct ProgramActionsSheet: View {
             }
         }
         .onAppear {
-            if hasInvites {
+            if let initialTab {
+                selectedTab = initialTab
+            } else if hasInvites {
                 selectedTab = 0
             } else {
                 selectedTab = 1

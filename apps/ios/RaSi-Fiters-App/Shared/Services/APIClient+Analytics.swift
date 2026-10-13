@@ -105,7 +105,7 @@ extension APIClient {
     }
 
     // Analytics summary (period: day | week | month | year)
-    func fetchAnalyticsSummary(token: String, period: String, programId: String?) async throws -> AnalyticsSummary {
+    func fetchAnalyticsSummary(token: String, period: String, programId: String?, read: LaunchRead = .network) async throws -> AnalyticsSummary {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics/summary"), resolvingAgainstBaseURL: false)!
         var items = [URLQueryItem(name: "period", value: period)]
         if let programId {
@@ -122,11 +122,11 @@ extension APIClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
 
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode(AnalyticsSummary.self, from: data)
     }
 
-    func fetchMTDParticipation(token: String, programId: String) async throws -> MTDParticipationDTO {
+    func fetchMTDParticipation(token: String, programId: String, read: LaunchRead = .network) async throws -> MTDParticipationDTO {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics-v2/participation/mtd"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "programId", value: programId)]
         guard let url = components.url else {
@@ -136,11 +136,11 @@ extension APIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode(MTDParticipationDTO.self, from: data)
     }
 
-    func fetchTotalWorkoutsMTD(token: String, programId: String) async throws -> TotalWorkoutsMTDDTO {
+    func fetchTotalWorkoutsMTD(token: String, programId: String, read: LaunchRead = .network) async throws -> TotalWorkoutsMTDDTO {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics/workouts/total"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "programId", value: programId)]
         guard let url = components.url else {
@@ -150,11 +150,11 @@ extension APIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode(TotalWorkoutsMTDDTO.self, from: data)
     }
 
-    func fetchTotalDurationMTD(token: String, programId: String) async throws -> TotalDurationMTDDTO {
+    func fetchTotalDurationMTD(token: String, programId: String, read: LaunchRead = .network) async throws -> TotalDurationMTDDTO {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics/duration/total"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "programId", value: programId)]
         guard let url = components.url else {
@@ -164,11 +164,11 @@ extension APIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode(TotalDurationMTDDTO.self, from: data)
     }
 
-    func fetchAvgDurationMTD(token: String, programId: String) async throws -> AvgDurationMTDDTO {
+    func fetchAvgDurationMTD(token: String, programId: String, read: LaunchRead = .network) async throws -> AvgDurationMTDDTO {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics/duration/average"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "programId", value: programId)]
         guard let url = components.url else {
@@ -178,11 +178,11 @@ extension APIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode(AvgDurationMTDDTO.self, from: data)
     }
 
-    func fetchActivityTimeline(token: String, period: String, programId: String) async throws -> ActivityTimelineResponse {
+    func fetchActivityTimeline(token: String, period: String, programId: String, read: LaunchRead = .network) async throws -> ActivityTimelineResponse {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics/timeline"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "period", value: period),
@@ -195,7 +195,7 @@ extension APIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode(ActivityTimelineResponse.self, from: data)
     }
 
@@ -225,7 +225,7 @@ extension APIClient {
         return try JSONDecoder().decode(HealthTimelineResponse.self, from: data)
     }
 
-    func fetchDistributionByDay(token: String, programId: String) async throws -> DistributionByDayDTO {
+    func fetchDistributionByDay(token: String, programId: String, read: LaunchRead = .network) async throws -> DistributionByDayDTO {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics/distribution/day"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "programId", value: programId)]
         guard let url = components.url else {
@@ -235,11 +235,11 @@ extension APIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode(DistributionByDayDTO.self, from: data)
     }
 
-    func fetchWorkoutTypes(token: String, programId: String, memberId: String? = nil, limit: Int = 100) async throws -> [WorkoutTypeDTO] {
+    func fetchWorkoutTypes(token: String, programId: String, memberId: String? = nil, limit: Int = 100, read: LaunchRead = .network) async throws -> [WorkoutTypeDTO] {
         var components = URLComponents(url: baseURL.appendingPathComponent("analytics/workouts/types"), resolvingAgainstBaseURL: false)!
         var items = [
             URLQueryItem(name: "programId", value: programId),
@@ -256,7 +256,7 @@ extension APIClient {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode([WorkoutTypeDTO].self, from: data)
     }
 

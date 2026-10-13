@@ -1,20 +1,14 @@
 import Foundation
 import HealthKit
 
-/// HealthKit access for Apple Health workout auto-sync: authorization, incremental (anchored) fetch,
-/// background delivery, and same-type/same-day aggregation.
-///
-/// Anchor integrity: unlike a naive anchored query, this does NOT persist the new anchor inside the
-/// fetch. `fetchNewWorkouts()` returns the new anchor to the caller, which persists it via
-/// `commitAnchor(_:)` only AFTER the backend sync succeeds — so a failed upload is retried on the next
-/// trigger instead of being silently skipped.
+/// HealthKit access for the health-sync v2 engine: authorization, workout changes (anchored, with deletions), reads by
+/// UUID, observers + background delivery, and the (type, day) grouping used by the first-sync review rows.
 final class HealthKitService {
     static let shared = HealthKitService()
     private init() {}
 
     private let healthStore = HKHealthStore()
-    private var observerQuery: HKObserverQuery?
-    private let anchorKey = "healthkit.workoutAnchor"
+    private var observerQueries: [HealthSyncKind: HKObserverQuery] = [:]
 
     var isAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
@@ -30,98 +24,95 @@ final class HealthKitService {
         try await healthStore.requestAuthorization(toShare: [], read: [workoutType])
     }
 
-    // MARK: - Anchor persistence
+    // MARK: - health-sync v2 (HealthSyncEngine / HealthSyncPlanner / HealthSyncUpgrade)
 
-    private func loadAnchor() -> HKQueryAnchor? {
-        guard let data = UserDefaults.standard.data(forKey: anchorKey) else { return nil }
-        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: HKQueryAnchor.self, from: data)
+    static func sampleType(for kind: HealthSyncKind) -> HKSampleType {
+        switch kind {
+        case .workout: return HKObjectType.workoutType()
+        case .sleep: return HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
+        case .steps: return HKQuantityType.quantityType(forIdentifier: .stepCount)!
+        }
     }
 
-    /// Persist the anchor. Call ONLY after the corresponding workouts have been successfully synced.
-    func commitAnchor(_ anchor: HKQueryAnchor?) {
-        guard let anchor,
-              let data = try? NSKeyedArchiver.archivedData(withRootObject: anchor, requiringSecureCoding: true)
-        else { return }
-        UserDefaults.standard.set(data, forKey: anchorKey)
+    func requestAuthorization(for kind: HealthSyncKind) async throws {
+        switch kind {
+        case .workout: try await requestAuthorization()
+        case .sleep: try await requestSleepAuthorization()
+        case .steps: try await requestStepsAuthorization()
+        }
     }
 
-    func clearAnchor() {
-        UserDefaults.standard.removeObject(forKey: anchorKey)
-    }
-
-    // MARK: - Fetch new workouts (anchored query)
-
-    struct FetchResult {
+    struct WorkoutChanges {
         let workouts: [HKWorkout]
+        let deletedIds: [String]
         let newAnchor: HKQueryAnchor?
     }
 
-    /// Fetch workouts added/changed since the persisted anchor. On the first sync (nil anchor) only
-    /// workouts from the connect date forward are considered, so we never backfill arbitrary history.
-    /// Does NOT persist the anchor — the caller commits it after a successful sync.
-    func fetchNewWorkouts(firstSyncCutoff: Date?) async throws -> FetchResult {
-        let workoutType = HKObjectType.workoutType()
-        let anchor = loadAnchor()
-
-        var predicate: NSPredicate?
-        if anchor == nil, let cutoff = firstSyncCutoff {
-            predicate = HKQuery.predicateForSamples(withStart: cutoff, end: nil, options: .strictStartDate)
-        }
-
+    /// Workouts added since `anchor` + the ids HealthKit deleted (§8 rule 3). With no anchor (first run, a new member,
+    /// the upgrade run) it reads from `start` — the rule-4 catch-up window. The caller persists the anchor.
+    func fetchWorkoutChanges(anchor: HKQueryAnchor?, since start: Date) async throws -> WorkoutChanges {
+        let predicate = anchor == nil ? HKQuery.predicateForSamples(withStart: start, end: nil, options: .strictStartDate) : nil
         return try await withCheckedThrowingContinuation { continuation in
-            let query = HKAnchoredObjectQuery(
-                type: workoutType,
-                predicate: predicate,
-                anchor: anchor,
-                limit: HKObjectQueryNoLimit
-            ) { _, samples, _, newAnchor, error in
+            let query = HKAnchoredObjectQuery(type: HKObjectType.workoutType(), predicate: predicate, anchor: anchor,
+                                              limit: HKObjectQueryNoLimit) { _, samples, deleted, newAnchor, error in
                 if let error {
                     continuation.resume(throwing: error)
                     return
                 }
-                let workouts = (samples ?? []).compactMap { $0 as? HKWorkout }
-                continuation.resume(returning: FetchResult(workouts: workouts, newAnchor: newAnchor))
+                continuation.resume(returning: WorkoutChanges(workouts: (samples ?? []).compactMap { $0 as? HKWorkout },
+                                                              deletedIds: (deleted ?? []).map { $0.uuid.uuidString },
+                                                              newAnchor: newAnchor))
             }
             healthStore.execute(query)
         }
     }
 
-    // MARK: - Background delivery
-
-    func startBackgroundDelivery(onUpdate: @escaping () -> Void) {
-        guard isAvailable else { return }
-
-        if let existing = observerQuery {
-            healthStore.stop(existing)
-            observerQuery = nil
-        }
-
-        let workoutType = HKObjectType.workoutType()
-        let query = HKObserverQuery(sampleType: workoutType, predicate: nil) { _, completionHandler, error in
-            if error == nil {
-                onUpdate()
+    /// Re-read workouts by UUID (rule 9). Samples Health no longer has are simply absent.
+    func fetchWorkouts(uuids: Set<UUID>) async throws -> [HKWorkout] {
+        guard !uuids.isEmpty else { return [] }
+        return try await withCheckedThrowingContinuation { continuation in
+            let query = HKSampleQuery(sampleType: HKObjectType.workoutType(), predicate: HKQuery.predicateForObjects(with: uuids),
+                                      limit: HKObjectQueryNoLimit, sortDescriptors: nil) { _, samples, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                    return
+                }
+                continuation.resume(returning: (samples ?? []).compactMap { $0 as? HKWorkout })
             }
-            completionHandler()
+            healthStore.execute(query)
         }
-        observerQuery = query
-        healthStore.execute(query)
-        healthStore.enableBackgroundDelivery(for: workoutType, frequency: .immediate) { _, _ in }
     }
 
-    func stopBackgroundDelivery() {
-        if let query = observerQuery {
-            healthStore.stop(query)
-            observerQuery = nil
+    /// Rule 1, Apple's way: observer queries + background delivery for `kinds` (workouts `.immediate`, sleep / steps
+    /// `.hourly` — Apple's cap), disabled for the rest. `onWake` receives HealthKit's completion handler and must call
+    /// it once the run is over — never before the work (W3 F2).
+    func observe(_ kinds: Set<HealthSyncKind>, onWake: @escaping @Sendable (@escaping () -> Void) -> Void) {
+        guard isAvailable else { return }
+        for kind in HealthSyncKind.allCases {
+            if let query = observerQueries.removeValue(forKey: kind) { healthStore.stop(query) }
+            let type = Self.sampleType(for: kind)
+            guard kinds.contains(kind) else {
+                healthStore.disableBackgroundDelivery(for: type) { _, _ in }
+                continue
+            }
+            let query = HKObserverQuery(sampleType: type, predicate: nil) { _, completionHandler, error in
+                guard error == nil else {
+                    completionHandler()
+                    return
+                }
+                onWake(completionHandler)
+            }
+            observerQueries[kind] = query
+            healthStore.execute(query)
+            healthStore.enableBackgroundDelivery(for: type, frequency: kind == .workout ? .immediate : .hourly) { _, _ in }
         }
-        let workoutType = HKObjectType.workoutType()
-        healthStore.disableBackgroundDelivery(for: workoutType) { _, _ in }
     }
 
-    // MARK: - Aggregation
+    // MARK: - Aggregation (first-sync review rows only)
 
     struct AggregatedWorkout {
         struct Sample {
-            let uuid: String        // HKWorkout.uuid — the idempotency-ledger identity (D-SUM)
+            let uuid: String        // HKWorkout.uuid
             let minutes: Double     // raw (unrounded) duration of this one sample
         }
 
@@ -132,17 +123,14 @@ final class HealthKitService {
         /// Whole-group minutes (min 1) — used for confirmation-row display.
         var durationMinutes: Int { AggregatedWorkout.minutes(of: samples) }
 
-        /// Rounded, floored-at-1 minutes for a subset (the per-program unapplied slice).
+        /// Rounded, floored-at-1 minutes for a subset.
         static func minutes(of samples: [Sample]) -> Int {
             max(Int(samples.map(\.minutes).reduce(0, +).rounded()), 1)
         }
     }
 
-    /// Group workouts by (mapped library name, calendar day), so multiple Apple workouts of the same
-    /// type on one day collapse into a single log matching the backend's composite primary key. Each
-    /// group keeps its contributing samples (uuid + minutes) so the write sites can filter out samples
-    /// already applied to a given program (see `HealthKitAppliedLedger`) and send only the unapplied
-    /// remainder. Uses the local calendar for the date bucket.
+    /// Group workouts by (mapped library name, calendar day) for the review screen's rows (exclusion keys are per
+    /// program + day + name). Uploads stay per sample (health-sync §8 rule 3). Uses the local calendar for the day.
     func aggregate(_ workouts: [HKWorkout]) -> [AggregatedWorkout] {
         let formatter = DateFormatter()
         formatter.calendar = Calendar.current

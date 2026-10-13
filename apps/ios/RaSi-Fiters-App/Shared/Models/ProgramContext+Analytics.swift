@@ -3,124 +3,77 @@ import Foundation
 extension ProgramContext {
     // MARK: - Analytics
 
+    /// Summary tab (board §6 item 5 + D-9): the 8 loads in PARALLEL, cache-only when `read == .cacheOnly`. Every load
+    /// that succeeded is applied (amendment A13: partial failures keep the parts that loaded). Returns whether any part
+    /// applied + the first failure (the tab goes stale / failed — frontend-kit §5); throws only when superseded.
     @MainActor
-    func loadAnalytics(period: String) async {
-        guard let token = authToken, !token.isEmpty else {
-            errorMessage = "No auth token set. Log in to load analytics."
-            return
-        }
-
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            let summary = try await APIClient.shared.fetchAnalyticsSummary(token: token, period: period, programId: programId)
-            totalLogsThisPeriod = summary.totals.logs
-            totalWorkouts = summary.totals.logs
-            totalDurationHours = Int(round(Double(summary.totals.duration_minutes) / 60.0))
-            averageDurationMinutes = summary.totals.avg_duration_minutes
-            logsChangePct = summary.totals.logs_change_pct
-            durationChangePct = summary.totals.duration_change_pct
-            avgDurationChangePct = summary.totals.avg_duration_change_pct
-            atRiskMembers = summary.members.at_risk
-            timelinePoints = summary.timeline
-            distributionByDay = summary.distribution_by_day
-            topPerformers = summary.top_performers
-            topWorkoutTypes = summary.top_workout_types
+    func loadSummary(period: String, timelinePeriod: String,
+                     read: APIClient.LaunchRead) async throws -> (applied: Bool, failure: Error?) {
+        guard let pid = programId else { throw AppError(kind: .notFound) }
+        let api = APIClient.shared
+        let token = authToken ?? ""
+        async let summaryCall = api.fetchAnalyticsSummary(token: token, period: period, programId: pid, read: read)
+        async let mtdCall = api.fetchMTDParticipation(token: token, programId: pid, read: read)
+        async let workoutsCall = api.fetchTotalWorkoutsMTD(token: token, programId: pid, read: read)
+        async let durationCall = api.fetchTotalDurationMTD(token: token, programId: pid, read: read)
+        async let averageCall = api.fetchAvgDurationMTD(token: token, programId: pid, read: read)
+        async let timelineCall = api.fetchActivityTimeline(token: token, period: timelinePeriod, programId: pid, read: read)
+        async let distributionCall = api.fetchDistributionByDay(token: token, programId: pid, read: read)
+        async let typesCall = api.fetchWorkoutTypes(token: token, programId: pid, read: read)
+        var failure: Error?
+        var summary: AnalyticsSummary?
+        var mtd: APIClient.MTDParticipationDTO?
+        var workouts: APIClient.TotalWorkoutsMTDDTO?
+        var duration: APIClient.TotalDurationMTDDTO?
+        var average: APIClient.AvgDurationMTDDTO?
+        var timeline: APIClient.ActivityTimelineResponse?
+        var distribution: APIClient.DistributionByDayDTO?
+        var types: [APIClient.WorkoutTypeDTO]?
+        do { summary = try await summaryCall } catch { failure = failure ?? error }
+        do { mtd = try await mtdCall } catch { failure = failure ?? error }
+        do { workouts = try await workoutsCall } catch { failure = failure ?? error }
+        do { duration = try await durationCall } catch { failure = failure ?? error }
+        do { average = try await averageCall } catch { failure = failure ?? error }
+        do { timeline = try await timelineCall } catch { failure = failure ?? error }
+        do { distribution = try await distributionCall } catch { failure = failure ?? error }
+        do { types = try await typesCall } catch { failure = failure ?? error }
+        try Task.checkCancellation()                     // superseded by a newer .task(id:) — never apply late results
+        guard programId == pid else { throw CancellationError() }   // the program changed meanwhile
+        if let s = summary {
+            totalLogsThisPeriod = s.totals.logs
+            totalWorkouts = s.totals.logs
+            totalDurationHours = Int(round(Double(s.totals.duration_minutes) / 60.0))
+            averageDurationMinutes = s.totals.avg_duration_minutes
+            logsChangePct = s.totals.logs_change_pct
+            durationChangePct = s.totals.duration_change_pct
+            avgDurationChangePct = s.totals.avg_duration_change_pct
+            atRiskMembers = s.members.at_risk
+            timelinePoints = s.timeline
+            distributionByDay = s.distribution_by_day
+            topPerformers = s.top_performers
+            topWorkoutTypes = s.top_workout_types
             lastFetchedPeriod = period
-            distributionByDayCounts = summary.distribution_by_day.mapValues { $0.workouts }
-        } catch {
-            errorMessage = error.localizedDescription
+            distributionByDayCounts = s.distribution_by_day.mapValues { $0.workouts }
         }
-
-        isLoading = false
-    }
-
-    @MainActor
-    func loadDistributionByDay() async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for distribution."
-            return
+        if let mtd { mtdParticipation = mtd }
+        if let workouts { totalWorkoutsMTD = workouts.total_workouts; totalWorkoutsChangePct = workouts.change_pct }
+        if let duration {
+            totalDurationHoursMTD = ((Double(duration.total_minutes) / 60.0) * 10).rounded() / 10.0
+            totalDurationChangePct = duration.change_pct
         }
-        do {
-            let data = try await APIClient.shared.fetchDistributionByDay(token: token, programId: pid)
-            distributionByDayCounts = [
-                "Sunday": data.Sunday,
-                "Monday": data.Monday,
-                "Tuesday": data.Tuesday,
-                "Wednesday": data.Wednesday,
-                "Thursday": data.Thursday,
-                "Friday": data.Friday,
-                "Saturday": data.Saturday
-            ]
-        } catch {
-            errorMessage = error.localizedDescription
+        if let average { avgDurationMinutesMTD = average.avg_minutes; avgDurationChangePctMTD = average.change_pct }
+        if let timeline {
+            activityTimeline = timeline.buckets
+            activityTimelineLabel = timeline.label
+            activityTimelineDailyAverage = timeline.daily_average
         }
-    }
-
-    @MainActor
-    func loadMTDParticipation() async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for MTD participation."
-            return
+        if let d = distribution {
+            distributionByDayCounts = ["Sunday": d.Sunday, "Monday": d.Monday, "Tuesday": d.Tuesday, "Wednesday": d.Wednesday,
+                                       "Thursday": d.Thursday, "Friday": d.Friday, "Saturday": d.Saturday]
         }
-        do {
-            let data = try await APIClient.shared.fetchMTDParticipation(token: token, programId: pid)
-            mtdParticipation = data
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    func loadTotalWorkoutsMTD() async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for total workouts."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchTotalWorkoutsMTD(token: token, programId: pid)
-            totalWorkoutsMTD = data.total_workouts
-            totalWorkoutsChangePct = data.change_pct
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    func loadTotalDurationMTD() async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for total duration."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchTotalDurationMTD(token: token, programId: pid)
-            let hours = Double(data.total_minutes) / 60.0
-            totalDurationHoursMTD = (hours * 10).rounded() / 10.0
-            totalDurationChangePct = data.change_pct
-        } catch {
-            errorMessage = error.localizedDescription
-        }
-    }
-
-    @MainActor
-    func loadAvgDurationMTD() async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for avg duration."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchAvgDurationMTD(token: token, programId: pid)
-            avgDurationMinutesMTD = data.avg_minutes
-            avgDurationChangePctMTD = data.change_pct
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        if let types { workoutTypes = types }
+        let parts: [Any?] = [summary, mtd, workouts, duration, average, timeline, distribution, types]
+        return (parts.contains(where: { $0 != nil }), failure)
     }
 
     @MainActor

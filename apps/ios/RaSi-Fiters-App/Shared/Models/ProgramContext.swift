@@ -22,6 +22,8 @@ enum WidgetRoute: String, Identifiable {
 
 /// Shared program context so all tabs and queries know the active program.
 final class ProgramContext: ObservableObject {
+    /// UI mirror of `SessionStore` (the ONE token store) — written only from the store (restore / sign-in / refresh
+    /// hook / teardown). APIClient reads the token at send time, so a stale mirror is harmless.
     @Published var authToken: String?
     @Published var refreshToken: String? = nil
     @Published var name: String
@@ -96,8 +98,9 @@ final class ProgramContext: ObservableObject {
     @Published var errorMessage: String?
     @Published var isUpdateRequired: Bool = false
     @Published var minimumSupportedVersion: String?
-    @Published var isOffline: Bool = false
-    @Published var offlineNotice: String?
+    /// app-config soft nudge: the `latest_ios_version` this build is behind (nil = no banner; D-KIT-9).
+    @Published var updateAvailableVersion: String?
+    @Published var isOnline = true          // mirror of NetworkMonitor (frontend-kit §5, one monitor per app)
     
     // Logged-in user info
     @Published var loggedInUserId: String?
@@ -111,6 +114,8 @@ final class ProgramContext: ObservableObject {
     
     // Pending program invites
     @Published var pendingInvites: [APIClient.PendingInviteDTO] = []
+    /// Set by an invite push tap (amendment U2); ProgramPickerView consumes it and opens the Invites tab.
+    @Published var openInvitesRequested: Bool = false
 
     // Notifications (queued modals)
     @Published var notificationQueue: [APIClient.NotificationDTO] = []
@@ -147,7 +152,12 @@ final class ProgramContext: ObservableObject {
 
     var notificationStreamClient: NotificationStreamClient?
     var notificationIds: Set<String> = []
+    var streamReconnectTask: Task<Void, Never>?
+    var streamAttempt = 0
+    /// Ids acknowledged on this device in the last few minutes — a re-fetch never brings them back (A4).
+    var acknowledgedNotificationIds: [String: Date] = [:]
     let notificationDateFormatter = ISO8601DateFormatter()
+    var cancellables = Set<AnyCancellable>()
 
     init(
         authToken: String? = nil,
@@ -254,6 +264,8 @@ final class ProgramContext: ObservableObject {
 
         restorePersistedSession()
         configureAPIClientHandlers()
+        observeSessionLifecycle()
+        configureHealthSyncHooks()
     }
 
     // MARK: - Computed Properties
@@ -320,10 +332,7 @@ final class ProgramContext: ObservableObject {
     /// Fail-open when the program isn't loaded; the backend 403 (`requireDataEntryAllowed`) is the
     /// backstop. Used by the Apple Health syncs, which target many programs at once.
     func isDataEntryLocked(programId: String) -> Bool {
-        guard let program = programs.first(where: { $0.id == programId }) else { return false }
-        guard program.admin_only_data_entry == true else { return false }
-        let isAdmin = isGlobalAdmin || (program.my_role?.lowercased() == "admin")
-        return !isAdmin
+        programs.first(where: { $0.id == programId })?.isDataEntryLocked(globalAdmin: isGlobalAdmin) ?? false
     }
 
     var loggedInUserInitials: String {

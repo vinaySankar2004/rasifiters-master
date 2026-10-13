@@ -3,13 +3,16 @@ import SwiftUI
 struct ProgramPickerView: View {
     @EnvironmentObject var programContext: ProgramContext
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.openURL) private var openURL
 
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    /// The programs on screen (frontend-kit §5); a failed action floats separately (`actionError`).
+    @State private var loadState: LoadState<[APIClient.ProgramDTO]> = .idle
+    @State private var actionError: AppError?
     @State private var showDeleteConfirmation = false
     @State private var programToDelete: APIClient.ProgramDTO?
     @State private var isDeleting = false
     @State private var showProgramActions = false
+    @State private var programActionsTab: Int?
     @State private var programToEdit: APIClient.ProgramDTO?
     @State private var programToOpen: APIClient.ProgramDTO?
     @State private var showSignOutConfirmation = false
@@ -40,55 +43,7 @@ struct ProgramPickerView: View {
             Color.appBackground
                 .ignoresSafeArea()
 
-            List {
-                Color.clear
-                    .frame(height: isSearching ? 148 : 90)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-
-                // D-C1 (web parity): surface load/delete/invite failures instead of
-                // silently swallowing them. Additive banner — does not hide the list,
-                // covering both the load path and mutation errors.
-                if let errorMessage {
-                    errorBanner(errorMessage)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                }
-
-                if isLoading {
-                    ProgressView()
-                        .padding(.top, 12)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                } else if programContext.programs.isEmpty {
-                    emptyState
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                } else if visiblePrograms.isEmpty {
-                    noMatchesState
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                } else {
-                    ForEach(visiblePrograms, id: \.id) { program in
-                        programRow(for: program)
-                    }
-                    // Press-and-hold lift-and-drag (no edit mode). nil while searching —
-                    // filtered offsets would corrupt the full order.
-                    .onMove(perform: moveHandler)
-                }
-
-                // Bottom padding for floating button
-                Color.clear
-                    .frame(height: 90)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-            }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            // Cap the List itself — not the row content — so swipe reveals, slide animations, and
-            // drag-reorder all stay inside the column on iPad/Mac (+40 covers the 20pt row insets).
-            .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
+            programList
 
             // Header at top (+ the floating search pill when active)
             VStack(spacing: 12) {
@@ -123,9 +78,16 @@ struct ProgramPickerView: View {
 
         }
         .navigationBarBackButtonHidden(true)
-        .task {
-            await loadPrograms()
-            await programContext.loadPendingInvites()
+        .floatingBanner(bottomInset: 150) { ScreenBanner(banner: pickerBanner) }   // clears the FAB stack (56+14+56+24)
+        .task { await load() }
+        .onAppear {
+            if programContext.openInvitesRequested { openInvitesInbox() }
+        }
+        .onChange(of: programContext.openInvitesRequested) { _, requested in
+            if requested { openInvitesInbox() }
+        }
+        .onChange(of: programContext.isOnline) { _, online in
+            if online, loadState.error != nil { Task { await load() } }       // D-IOS-KIT-3: refetch on reconnect
         }
         .onChange(of: programContext.returnToMyPrograms) { _, shouldReturn in
             guard shouldReturn else { return }
@@ -139,11 +101,8 @@ struct ProgramPickerView: View {
             programContext.returnToMyPrograms = false
         }
         .sheet(isPresented: $showProgramActions) {
-            ProgramActionsSheet(onDismiss: {
-                Task {
-                    await loadPrograms()
-                    await programContext.loadPendingInvites()
-                }
+            ProgramActionsSheet(initialTab: programActionsTab, onDismiss: {
+                Task { await load() }
             })
             .environmentObject(programContext)
         }
@@ -200,6 +159,64 @@ struct ProgramPickerView: View {
         } message: {
             Text("Are you sure you want to sign out?")
         }
+    }
+
+    /// The card list. The header's height is a clear top safe-area inset, so the pull-to-refresh spinner (A13) sits
+    /// below the header; the short spacer row keeps every card exactly where it was (inset + row = the former 90 / 148
+    /// spacer row, hence the 0 minimum row height).
+    private var programList: some View {
+        List {
+            Color.clear
+                .frame(height: 6)
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+
+            if case .failed(let error) = loadState, programContext.programs.isEmpty {
+                ErrorStateView(error: error, onRetry: { Task { await load() } })
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            } else if case .loading = loadState {
+                ProgressView()
+                    .padding(.top, 12)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            } else if programContext.programs.isEmpty {
+                emptyState
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            } else if visiblePrograms.isEmpty {
+                noMatchesState
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            } else {
+                ForEach(visiblePrograms, id: \.id) { program in
+                    programRow(for: program)
+                }
+                // Press-and-hold lift-and-drag (no edit mode). nil while searching —
+                // filtered offsets would corrupt the full order.
+                .onMove(perform: moveHandler)
+            }
+
+            // Bottom padding for the floating buttons (+ this screen's own banner above them; the offline band is the
+            // root's bottom safe-area inset — A6)
+            Color.clear
+                .frame(height: isBannerShowing ? 222 : 90)            // banner top = 150 + 12 + 52 = 214
+                .listRowSeparator(.hidden)
+                .listRowBackground(Color.clear)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 0)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Color.clear.frame(height: isSearching ? 142 : 84)
+        }
+        .refreshable {
+            HealthSyncEngine.shared.trigger(.pullToRefresh)        // health-sync rule 1, in the background
+            await load()
+        }
+        // Cap the List itself — not the row content — so swipe reveals, slide animations, and
+        // drag-reorder all stay inside the column on iPad/Mac (+40 covers the 20pt row insets).
+        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
     }
 
     private var pickerHeader: some View {
@@ -296,6 +313,7 @@ struct ProgramPickerView: View {
 
     private var floatingProgramActionsButton: some View {
         Button {
+            programActionsTab = nil
             showProgramActions = true
         } label: {
             ZStack {
@@ -321,15 +339,13 @@ struct ProgramPickerView: View {
     }
 
     private func deleteProgram(_ program: APIClient.ProgramDTO) async {
-        guard let token = programContext.authToken else { return }
+        guard programContext.authToken != nil else { return }
         isDeleting = true
         do {
             try await programContext.deleteProgram(programId: program.id)
             programToDelete = nil
         } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-            }
+            actionError = AppError(error)
         }
         isDeleting = false
     }
@@ -343,6 +359,8 @@ struct ProgramPickerView: View {
 
     // Extracted from body — the row expression pushed the List past the
     // type-checker's complexity limit once search/reorder branches were added.
+    // Amendment A10: the card's *invited* Accept / Decline is retired (the Invites tab is the one inbox); a
+    // *requested* membership keeps its Cancel request.
     @ViewBuilder
     private func programRow(for program: APIClient.ProgramDTO) -> some View {
         let membershipStatus = program.my_status?.lowercased()
@@ -352,11 +370,8 @@ struct ProgramPickerView: View {
         ProgramCard(
             program: program,
             membershipStatus: membershipStatus,
-            onAccept: membershipStatus == "invited" ? {
-                _ = Task<Void, Never> { await respondToInvite(program: program, accept: true) }
-            } : nil,
-            onDecline: (membershipStatus == "invited" || membershipStatus == "requested") ? {
-                _ = Task<Void, Never> { await respondToInvite(program: program, accept: false) }
+            onCancelRequest: membershipStatus == "requested" ? {
+                _ = Task<Void, Never> { await cancelRequest(program) }
             } : nil
         )
         .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
@@ -425,28 +440,21 @@ struct ProgramPickerView: View {
         )
     }
 
-    // D-C1 (web parity): the error display the legacy iOS picker lacked — the
-    // legacy set `errorMessage` but never rendered it, so load/delete/invite
-    // failures were silently swallowed. The web /programs hub surfaces query
-    // errors; this banner restores parity.
-    private func errorBanner(_ message: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .font(.footnote.weight(.semibold))
-                .foregroundColor(.appRed)
-            Text(message)
-                .font(.footnote.weight(.semibold))
-                .foregroundColor(.appRed)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+    /// The screen's own banner (frontend-kit §6 — one at a time): a failed action (dismissable) beats "Couldn't
+    /// refresh" over kept data, which beats "update available" (app-config soft nudge — the picker only, A7).
+    private var pickerBanner: FloatingBanner? {
+        if let actionError { return FloatingBanner(variant: .error(actionError), onDismiss: { self.actionError = nil }) }
+        if case .stale = loadState { return FloatingBanner(variant: .stale, onRetry: { Task { await load() } }) }
+        if programContext.updateAvailableVersion != nil {
+            return FloatingBanner(variant: .updateAvailable,
+                                  onDismiss: { programContext.dismissUpdateBanner() },
+                                  onUpdate: { openURL(APIConfig.appStoreURL) })
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.appRedLight)
-        )
+        return nil
     }
+
+    /// This screen's own banner is up (`ScreenBanner` shows it only online; offline space is the root's inset).
+    private var isBannerShowing: Bool { programContext.isOnline && pickerBanner != nil }
 
     private func applyProgram(_ program: APIClient.ProgramDTO) {
         programContext.name = program.name
@@ -476,20 +484,17 @@ struct ProgramPickerView: View {
         }
     }
 
-    private func respondToInvite(program: APIClient.ProgramDTO, accept: Bool) async {
+    private func cancelRequest(_ program: APIClient.ProgramDTO) async {
         do {
-            let status = accept ? "active" : "removed"
-            try await programContext.updateMembershipStatus(programId: program.id, status: status)
-            await loadPrograms()
+            try await programContext.updateMembershipStatus(programId: program.id, status: "removed")
+            await load()
         } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-            }
+            actionError = AppError(error)
         }
     }
 
     // Net-new post-parity (2026-07-05): optimistic reorder — mutate the context array,
-    // persist the full display order, revert + surface in the D-C1 banner on failure.
+    // persist the full display order, revert + surface in the action banner on failure.
     // Only reachable with an empty search filter (onMove is nil otherwise), so offsets
     // map 1:1 onto programContext.programs.
     private func moveProgram(from source: IndexSet, to destination: Int) {
@@ -504,30 +509,56 @@ struct ProgramPickerView: View {
             } catch {
                 await MainActor.run {
                     programContext.programs = previousOrder
-                    errorMessage = "Couldn't save program order: \(error.localizedDescription)"
+                    if let appError = AppError(error) {
+                        actionError = AppError(kind: appError.kind, message: "Couldn't save program order. \(appError.message)")
+                    }
                 }
             }
         }
     }
 
-    private func loadPrograms() async {
-        guard let token = programContext.authToken, !token.isEmpty else {
-            errorMessage = "Please log in to load programs."
-            return
+    /// Instant open (D-9): cached programs first, then the network; programs + invites load in parallel (board §6.5).
+    private func load() async {
+        if loadState.value == nil {
+            if !programContext.programs.isEmpty {
+                loadState = .loaded(programContext.programs, fetchedAt: Date(), refreshing: true)
+            } else if let cached = try? await APIClient.shared.fetchPrograms(token: programContext.authToken ?? "", read: .cacheOnly) {
+                programContext.programs = cached
+                loadState = .loaded(cached, fetchedAt: Date(), refreshing: true)
+            }
         }
-        isLoading = true
-        errorMessage = nil
+        loadState = loadState.refreshing()
+        let invites = Task<Void, Never> { _ = try? await programContext.loadPendingInvites() }   // the badge — silent on failure
         do {
-            let programs = try await APIClient.shared.fetchPrograms(token: token)
-            await MainActor.run {
-                programContext.programs = programs
-            }
+            let programs = try await APIClient.shared.fetchPrograms(token: programContext.authToken ?? "")
+            programContext.programs = programs
+            loadState = .fresh(programs)
         } catch {
-            await MainActor.run {
-                errorMessage = error.localizedDescription
-            }
+            if let appError = AppError(error) { loadState = loadState.failing(with: appError) }
         }
-        isLoading = false
+        await invites.value
+    }
+
+    /// Amendment U2: an invite push tap opens the invite inbox — the Program actions sheet on its Invites tab.
+    private func openInvitesInbox() {
+        programContext.openInvitesRequested = false
+        programToOpen = nil
+        programToEdit = nil
+        accountDestination = nil
+        showAccountMenu = false
+        showProgramActions = false
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            // A full-screen cover (widget quick-add, Apple Health review, forced update) would swallow the sheet and
+            // leave `showProgramActions` stuck true — a dead "+" button. Skip it; the badge still shows the invite.
+            guard !isFullScreenCoverUp else { return }
+            programActionsTab = 0
+            showProgramActions = true
+        }
+    }
+
+    /// AppRootView's full-screen covers — a sheet can't present from under them.
+    private var isFullScreenCoverUp: Bool {
+        programContext.isUpdateRequired || programContext.widgetRoute != nil || programContext.pendingSyncConfirmation != nil
     }
 
     private func handleAccountSelection(_ destination: AccountDestination) {
@@ -817,8 +848,7 @@ private struct SignOutRow: View {
 private struct ProgramCard: View {
     let program: APIClient.ProgramDTO
     let membershipStatus: String?
-    let onAccept: (() -> Void)?
-    let onDecline: (() -> Void)?
+    let onCancelRequest: (() -> Void)?
 
     private var normalizedStatus: String? {
         membershipStatus?.lowercased()
@@ -860,27 +890,15 @@ private struct ProgramCard: View {
                 .accentColor(statusColor(program.status))
                 .scaleEffect(x: 1, y: 1.1, anchor: .center)
 
-            if isInvited || isRequested {
+            if isRequested, let onCancelRequest {
                 HStack(spacing: 10) {
-                    if let onAccept, isInvited {
-                        Button(action: onAccept) {
-                            Text("Accept")
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(Capsule().fill(Color.appOrange))
-                                .foregroundColor(.black)
-                        }
-                    }
-                    if let onDecline {
-                        Button(action: onDecline) {
-                            Text(isRequested ? "Cancel request" : "Decline")
-                                .font(.caption.weight(.semibold))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(Capsule().fill(Color(.systemGray5)))
-                                .foregroundColor(Color(.label))
-                        }
+                    Button(action: onCancelRequest) {
+                        Text("Cancel request")
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Capsule().fill(Color(.systemGray5)))
+                            .foregroundColor(Color(.label))
                     }
                     Spacer()
                 }

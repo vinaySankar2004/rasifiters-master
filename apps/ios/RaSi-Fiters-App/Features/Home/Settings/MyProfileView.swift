@@ -37,6 +37,8 @@ struct MyProfileView: View {
     @State private var showPasswordForm = false
     @State private var newAccountPassword = ""
     @State private var isSettingPassword = false
+    @State private var hadUnconfirmedSetPassword = false
+    @State private var showPasswordSetNotice = false
 
     private let genderOptions = ["Male", "Female", "Non-binary", "Prefer not to say"]
 
@@ -73,6 +75,9 @@ struct MyProfileView: View {
                 emailSection
 
                 signInMethodsSection
+
+                // auth §3.1 / amendment U3: "Sign out everywhere" sits above Delete Account (every role).
+                SignOutEverywhereSection()
 
                 // Delete Account Section
                 if !programContext.isGlobalAdmin {
@@ -241,6 +246,12 @@ struct MyProfileView: View {
                 }
             }
 
+            if showPasswordSetNotice {
+                Text(SessionCopy.passwordSet)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundColor(.appGreen)
+            }
+
             if showPasswordForm && !hasPassword {
                 AppInputField(title: "New password", text: $newAccountPassword, isSecure: true)
                 Text("At least 8 characters with an uppercase, a lowercase, and a number.")
@@ -298,17 +309,37 @@ struct MyProfileView: View {
                 apply(try await (provider == "apple" ? programContext.linkApple() : programContext.linkGoogle()))
             }
         } catch {
-            if !isCancellation(error) { linkError = error.localizedDescription }
+            if !isCancellation(error) { linkError = SessionCopy.credentialMessage(for: error) }   // A8
         }
     }
 
+    /// auth §3.1 rule 6 for set-password: never auto-retried; "couldn't confirm" after a 503 / 5xx / timeout; a
+    /// same-password 400 on the manual retry means the earlier attempt landed. Other errors → kit copy (A8).
     private func addPassword() async {
-        isSettingPassword = true; linkError = nil
+        isSettingPassword = true; linkError = nil; showPasswordSetNotice = false
         defer { isSettingPassword = false }
         do {
             apply(try await programContext.setPassword(newPassword: newAccountPassword))
-            showPasswordForm = false; newAccountPassword = ""
-        } catch { linkError = error.localizedDescription }
+            passwordSetDone()
+        } catch {
+            if hadUnconfirmedSetPassword, let http = error as? APIHTTPError, http.statusCode == 400,
+               http.message == SessionCopy.samePassword {
+                await loadIdentities()                                  // rule 6: the earlier attempt landed
+                passwordSetDone()
+            } else if SessionCopy.isUnconfirmedWrite(error) {
+                hadUnconfirmedSetPassword = true
+                linkError = SessionCopy.passwordUnconfirmed
+            } else {
+                linkError = SessionCopy.kitMessage(for: error)
+            }
+        }
+    }
+
+    private func passwordSetDone() {
+        showPasswordForm = false
+        newAccountPassword = ""
+        hadUnconfirmedSetPassword = false
+        showPasswordSetNotice = true
     }
 
     private func isCancellation(_ error: Error) -> Bool {
@@ -404,7 +435,7 @@ struct MyProfileView: View {
             newEmail = ""
             emailPassword = ""
         } catch {
-            emailError = error.localizedDescription
+            emailError = SessionCopy.credentialMessage(for: error)              // A8
         }
 
         isChangingEmail = false
@@ -451,9 +482,66 @@ struct MyProfileView: View {
             )
             showSuccessAlert = true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)                   // A8: profile save → kit copy
         }
 
         isSaving = false
+    }
+}
+
+/// "Sign out everywhere" (auth §3.1, amendment U3): the My Profile row idiom (title + subtitle), a confirm alert,
+/// then `POST /auth/logout-all` → the full teardown (→ sign-in screen). A failure keeps the session.
+private struct SignOutEverywhereSection: View {
+    @EnvironmentObject var programContext: ProgramContext
+    @State private var showConfirmation = false
+    @State private var isSigningOut = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Divider()
+            Button {
+                errorMessage = nil
+                showConfirmation = true
+            } label: {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(SessionCopy.signOutEverywhere)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(.appRed)
+                        Text(SessionCopy.signOutEverywhereHint)
+                            .font(.subheadline)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer()
+                    if isSigningOut { ProgressView() }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(isSigningOut)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundColor(.appRed)
+            }
+        }
+        .alert(SessionCopy.signOutEverywhereTitle, isPresented: $showConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button(SessionCopy.signOutEverywhere, role: .destructive) {
+                Task { await signOutEverywhere() }
+            }
+        } message: {
+            Text(SessionCopy.signOutEverywhereMessage)
+        }
+    }
+
+    private func signOutEverywhere() async {
+        isSigningOut = true
+        defer { isSigningOut = false }
+        do { try await programContext.signOutEverywhere() }
+        catch { errorMessage = SessionCopy.kitMessage(for: error) }
     }
 }

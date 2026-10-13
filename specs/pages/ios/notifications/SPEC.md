@@ -1,6 +1,6 @@
 # Screen: `notifications` (ios) — the account-menu "Notifications" settings screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (run 57) → "Notifications"
 > `NavigationLink → NotificationsSettingsView()`.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/NotificationsSettingsView.swift`.
@@ -83,6 +83,8 @@ requests `[.alert,.sound,.badge]`, registers for remote notifications on grant, 
 | **D-REF** | **Reference impl = legacy `.../Features/Home/Settings/NotificationsSettingsView.swift`. iOS-only — no web parity reference** (web has no push-settings page; push is `[ios]`-only). `consumed_by = [ios]`. | legacy `NotificationsSettingsView.swift:1-169`; web has no analogue. |
 | **D-S1** | **Stance = faithful 1:1 verbatim port.** OS-authorization-driven status card + conditional Enable/Open-Settings; no web sibling to reconcile, so no parity deviation. The component-adoption cleanup (D-C3 elsewhere) **does not apply** — bespoke status/action controls, no inputs/generic CTA. | legacy `NotificationsSettingsView.swift`; user answer (cluster stance). |
 | **D-DEPS** | **No new dependency** — `UserNotifications` is a system framework; the registration path (`registerDevice`/`registerPushTokenIfNeeded`) was ported in the foundation (run 50). | foundation inventory (run 50). |
+| **D-C1** | **Device registry (notifications §3.1, reliability Phase 3 C2).** Permission denied (seen on a foreground) → `POST /api/notifications/device/unregister` with the push token + install id, **no login**, once per denial (amendment A12), replacing the Bearer `DELETE /device`. Granted → the foreground re-registration re-arms that memo; `PUT /device` runs through `DeviceRegistry`'s serial queue, at most once per 12 h for the same token. While the denial memo is set, the sign-in ride-along omits `push_token` (a sign-in never re-registers a device the user turned off). No change on this screen's UI. | notifications §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A12. |
+| **D-IOS-PUSH-1** | **iOS reading of notifications §3.1 "afterwards forget the cached push token and any already-registered memo": forget the memo, keep the token.** Every sign-out path clears the registration memo (`push.registeredToken` / `push.registeredAt`), so the next sign-in registers again; the APNs token value itself (`rf_push_device_token`) is kept — it is stable per install, and the next sign-in's ride-along re-sends it (APNs only re-issues it on the next `registerForRemoteNotifications`). The install id stays. | notifications §3.1; `DeviceRegistry.swift`. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -95,4 +97,5 @@ requests `[.alert,.sound,.badge]`, registers for remote notifications on grant, 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C1, D-IOS-PUSH-1.** Permission denied → `POST /device/unregister` (no login, once per denial; the sign-in ride-along then omits `push_token`); registrations through `DeviceRegistry` (≤ once per 12 h per token); sign-out forgets the memo, keeps the token. No UI change. |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **Notifications settings screen** (one of the 4-screen account/settings cluster, run 58; **iOS-only**, no web sibling). Documents the OS-authorization status card + conditional Enable (`requestPermission` → `registerForRemoteNotifications`) / Open-Settings actions, re-read on `willEnterForeground`. Decisions: **D-REF** (`consumed_by=[ios]`; legacy iOS only — no web parity) · **D-S1** (faithful 1:1 verbatim port; D-C3 component-adoption N/A) · **D-DEPS** (no new dependency; the `notifications`-feature registration path owns the APNs `PUT /notifications/device`). Flagged F1 (iOS-only) / F2 (no per-type preferences). Role rules: same for every role (no role read); `admin_only_data_entry` N/A. No direct API. Ported `apps/ios/.../Features/Home/Settings/NotificationsSettingsView.swift`. Build green-check owned by the user (Xcode). |

@@ -41,12 +41,13 @@ extension APIClient {
         let message: String?
     }
 
-    func fetchPrograms(token: String) async throws -> [ProgramDTO] {
+    /// `read: .cacheOnly` = the instant-open copy of the last good list (LaunchCache, D-9).
+    func fetchPrograms(token: String, read: LaunchRead = .network) async throws -> [ProgramDTO] {
         var request = URLRequest(url: baseURL.appendingPathComponent("programs"))
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await data(for: request)
+        let data = try await launchData(for: request, read)
         return try JSONDecoder().decode([ProgramDTO].self, from: data)
     }
 

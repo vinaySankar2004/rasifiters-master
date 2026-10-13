@@ -108,21 +108,15 @@ extension ProgramContext {
         programs = updatedPrograms
     }
 
-    /// Loads pending invites - fetches appropriate invites based on user's global role
-    /// Global admin sees all invites system-wide, standard users see only their own
+    /// The invite inbox (invites §3.1): global admins GET /all-invites, everyone else GET /my-invites. Throws — the
+    /// caller decides (InvitesTabView shows the kit error view; the picker badge stays silent).
     @MainActor
-    func loadPendingInvites() async {
-        guard let token = authToken, !token.isEmpty else {
-            return
-        }
-        do {
-            if isGlobalAdmin {
-                pendingInvites = try await APIClient.shared.fetchAllInvites(token: token)
-            } else {
-                pendingInvites = try await APIClient.shared.fetchMyInvites(token: token)
-            }
-        } catch {
-            errorMessage = error.localizedDescription
+    func loadPendingInvites() async throws {
+        guard let token = authToken, !token.isEmpty else { return }
+        if isGlobalAdmin {
+            pendingInvites = try await APIClient.shared.fetchAllInvites(token: token)
+        } else {
+            pendingInvites = try await APIClient.shared.fetchMyInvites(token: token)
         }
     }
 
@@ -146,7 +140,7 @@ extension ProgramContext {
         )
 
         // Refresh invites list after responding
-        await loadPendingInvites()
+        try? await loadPendingInvites()
 
         // If accepted, refresh programs list as user may have joined a new program
         if action == "accept" {

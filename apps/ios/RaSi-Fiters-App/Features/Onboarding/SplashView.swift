@@ -9,10 +9,17 @@ final class SplashViewModel: ObservableObject {
     @Published var isHeadlineComplete: Bool = false
 
     private let headline = "Hi, welcome to RaSi Fiters"
-    private let subheadline = "Track your fitness journey by logging workouts and monitoring your progress!"
+    private var subheadline = "Track your fitness journey by logging workouts and monitoring your progress!"
 
     private var hasStarted = false
     private var isSkipped = false
+
+    /// Amendment A2: after a forced sign-out the subheadline slot explains it once (kit `signedOut` copy). Call
+    /// before `start()`.
+    func showForcedSignOutNotice() {
+        guard !hasStarted else { return }
+        subheadline = KitCopy.message(for: .signedOut)
+    }
 
     func start() async {
         guard !hasStarted else { return }
@@ -128,6 +135,7 @@ struct SplashView: View {
             viewModel.skip()
         }
         .task {
+            if SessionTeardown.consumeForcedSignOutNotice() { viewModel.showForcedSignOutNotice() }
             await viewModel.start()
         }
     }

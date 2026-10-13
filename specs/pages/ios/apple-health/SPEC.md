@@ -1,6 +1,6 @@
 # Screen: `apple-health` (ios) — the account-menu "Apple Health" settings screen
 
-> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.4.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.6.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s `AccountMenuSheet` → "Apple Health"
 > (`AccountDestination.appleHealth` → `AppleHealthSettingsView()`).
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift`.
@@ -87,6 +87,9 @@ sync, not blocked in this UI.
 - **Not connected** → connect button only.
 - **Connected, no programs** → "No programs available" empty state.
 - **Sync Now in flight** → spinner, button disabled (workouts + sleep have independent spinners).
+- **Since 1.5.0 (D-V2)** the review state is server-side (`review_done_at`, any integration / device / platform) and a
+  0-row first sync is a local confirm; "Last Synced" moves only after an unheld, fully uploaded run; Disconnect
+  keeps exclusions + confirms and a reconnect shows no review and reads nothing from before the reconnect.
 - **First sync of an unconfirmed program** → instead of writing silently, a full-screen **confirmation**
   (`HealthSyncConfirmationView`, presented from `AppRootView`) reviews the rows one program per page with a
   glass tick to confirm + advance; unchecked rows are excluded, dismiss defers (re-offers next trigger).
@@ -113,6 +116,7 @@ sync, not blocked in this UI.
 | **D-ROLE** | The client now **reads** the per-program admin lock (`isDataEntryLocked`) to render locked programs non-selectable and pre-skip them in sync; the server 403 (`requireDataEntryAllowed`) remains the backstop (feature D-LOCK). (Was: "no role read; locked programs skipped at the server" — corrected in 0.5.0.) | `apple-health` feature D-LOCK; `requireDataEntryAllowed`. |
 | **D-ENTRY** | Second entry point (in-program **My Account**) opens the **same** screen with **no** auto-scoping — the program list shows the real saved state, identical to the main-level entry. (Auto-selecting the current program was considered and rejected as confusing.) | `ProgramMyAccountSection`; `AppleHealthSettingsView()`. |
 | **D-CONF** | First-sync review is a **separate full-screen modal** (`HealthSyncConfirmationView`) presented globally from `AppRootView`, **not** UI inside this settings screen — so it appears no matter which entry (Account menu or in-program) or trigger started the sync. Full gating/exclusion/defer semantics live in the feature SPEC (D-CONF). | feature `apple-health` D-CONF; `AppRootView` `.fullScreenCover`. |
+| **D-V2** | **Health sync v2 under the same UI (reliability Phase 3 C2, iOS 1.5.0; health-sync §8).** No visual change. The sync is `HealthSyncEngine` (`POST /api/health-sync/batch` + `GET/PUT /state`, per-sample workouts with deletions, the 30-day catch-up). **Last Synced** = the last unheld, fully uploaded run (a lock / pending review / `skipped_locked` holds it). **Sync Now** = the `manual` trigger (waits for a run in flight). **Disconnect** clears this kind's toggle, programs, status and connect date (+ the workout anchor and upgrade marker), keeps exclusions + local confirms, sends nothing; a **reconnect** shows no review and reads workouts from max(last success − 1 d, the reconnect date) (amendment H2). **Sign-out pauses** sync; the same member resumes (prefs are per member). Observers register once a member is known; a HealthKit wake while the device is locked is acknowledged without a run (the next trigger catches up); a kind disconnected mid-run never shows its review. The review is server-side (`review_done` only when the user confirms a page; exclusions recorded only after that PUT lands — H1, C2#10), honoured across devices and platforms. | health-sync §8 rules 1–11; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) H1–H5. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -126,6 +130,7 @@ sync, not blocked in this UI.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.6.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-V2.** Health sync v2 under the same UI: engine + batch / state routes, Last Synced = last unheld full run, Sync Now = `manual`, Disconnect local-only (no review on reconnect, no import of the disconnected period), sign-out pauses, server-side review. (0.6.0, not 0.5.0: this log already carries a 2026-07-01 0.5.0 row.) |
 | 0.1.0 | 2026-06-30 | Initial SPEC + build. Ported PR #4's Apple Health settings screen to `apps/ios`, wired into `ProgramPickerView`'s account menu (`AccountDestination.appleHealth`); adapted to `ProgramDTO`/theme tokens, added an availability guard. Consumes the `apple-health` feature. iOS-only; role N/A. Build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-01 | Added a second **Sleep** section on the same screen (own connect/programs/status/disconnect, moon iconography, "Nights Synced") wired to the new sleep sync (`startSleepSync`/`performSleepSync`/`clearSleepSyncSettings`), independent of workouts (D-S3, F3). Header subheading now "workouts and sleep". iOS builds clean. |
 | 0.3.0 | 2026-07-01 | Added a second entry point — the in-program **My Account** section (`ProgramMyAccountSection`) now shows an "Apple Health" row that opens the **same** screen with identical behavior (no auto-scoping; the program list reflects real saved state, D-ENTRY). iOS builds clean. |

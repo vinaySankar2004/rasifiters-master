@@ -5,9 +5,9 @@ import SwiftUI
 // SHARED: also the "Invite" nav target of the ported AdminMembersTab (run 55) — this port removes the
 // shared deferred stub and lights up both entry points.
 //
-// LOAD-BEARING (kept faithful, matches web /members/invite F1): the send is PRIVACY-PRESERVING — on any
-// non-network failure (username not found / already invited / blocked / 403) it shows SUCCESS with the
-// field cleared, so the screen never confirms whether a username exists. NEVER surface the real error here.
+// invites §3.1 (0.2.0): privacy is server-side — POST /invite answers 200 "Invitation sent" for unknown / blocked /
+// already-member usernames. "Invitation sent" shows ONLY on 200; every other status goes through the frontend kit
+// (the old client-side swallow is removed).
 // Cleanup (run 62): clear-stale-error-on-edit (web members/invite D-C2) + tokenize the info-note blue.
 
 struct InviteMemberView: View {
@@ -153,22 +153,11 @@ struct InviteMemberView: View {
                 username: trimmedUsername
             )
 
-            // Always show success (privacy-preserving)
             showSuccessToast = true
             username = ""
             scheduleToastDismiss()
-
         } catch {
-            // Even on error, show success for privacy
-            // But if it's a network error, show that
-            if error.localizedDescription.contains("network") ||
-               error.localizedDescription.contains("connection") {
-                errorMessage = "Network error. Please try again."
-            } else {
-                showSuccessToast = true
-                username = ""
-                scheduleToastDismiss()
-            }
+            errorMessage = AppError(error)?.message
         }
 
         isSending = false
@@ -178,7 +167,7 @@ struct InviteMemberView: View {
         HStack(spacing: 8) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundColor(.appGreen)
-            Text("Invite sent")
+            Text("Invitation sent")
                 .foregroundColor(Color(.label))
                 .font(.subheadline.weight(.semibold))
         }

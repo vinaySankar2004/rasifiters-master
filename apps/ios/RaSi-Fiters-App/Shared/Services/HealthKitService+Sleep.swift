@@ -1,27 +1,20 @@
 import Foundation
 import HealthKit
 
-/// HealthKit access for Apple Health SLEEP auto-sync: authorization, rolling-window fetch, per-night
-/// "time asleep" aggregation, and background delivery.
+/// HealthKit access for Apple Health SLEEP sync: authorization, the catch-up-window fetch (health-sync §8 rule 4), and
+/// per-night "time asleep" aggregation. Observers + background delivery live in `HealthKitService.observe`.
 ///
 /// Why this differs from the workout path: a workout is a single self-contained `HKWorkout`, so an
 /// anchored (append-only) query works. A night's sleep is stitched from MANY small `HKCategorySample`s
 /// that arrive incrementally (the watch syncs stages over time), so an anchor would deliver fragments,
-/// not the whole night. Instead we re-query a rolling look-back window every sync and recompute each
-/// night from its FULL sample set, then upsert-overwrite the backend value. Background delivery /
-/// observer is used only as a trigger, never to compute the value.
+/// not the whole night. Instead we re-query the catch-up window every sync and recompute each night from its
+/// FULL sample set; the server sets (overwrites) the day's value.
 ///
 /// Stored state lives in statics (the type is a singleton) because Swift extensions can't add instance
-/// stored properties; `sleepStore` must outlive the call so its observer keeps delivering.
+/// stored properties.
 extension HealthKitService {
 
-    /// How many days back each sync re-queries. A rolling ~2-week window so recent + revised nights flow
-    /// in (a night revised after a late watch sync is recomputed and overwritten); per-program window
-    /// scoping at write time bounds which of these nights actually land in each program.
-    static let sleepRecentDays = 14
-
     private static let sleepStore = HKHealthStore()
-    private static var sleepObserverQuery: HKObserverQuery?
 
     private static var sleepType: HKCategoryType {
         HKObjectType.categoryType(forIdentifier: .sleepAnalysis)!
@@ -36,20 +29,13 @@ extension HealthKitService {
         try await Self.sleepStore.requestAuthorization(toShare: [], read: [Self.sleepType])
     }
 
-    // MARK: - Fetch (rolling window)
+    // MARK: - Fetch (catch-up window)
 
-    /// Re-query sleep samples across the last `sleepRecentDays` so each night is recomputed from its full
-    /// sample set. Starts at the START OF DAY `sleepRecentDays` ago (so the earliest night is whole) — NOT
-    /// floored at the connect date, which previously collapsed the window to `[today, today]` when a user
-    /// connected the same day and silently synced nothing. Which of these nights land in a program is
-    /// decided per-program at write time. Returns raw category samples; asleep/in-bed filtering happens in
+    /// health-sync §8 rule 4: every sample overlapping `[start of start's day, now]` (the catch-up window), so each
+    /// night is recomputed from its full sample set. Returns raw category samples; asleep/in-bed filtering happens in
     /// `aggregateSleep(_:)`.
-    func fetchSleepSamples() async throws -> [HKCategorySample] {
-        let now = Date()
-        let startOfToday = Calendar.current.startOfDay(for: now)
-        let start = Calendar.current.date(byAdding: .day, value: -Self.sleepRecentDays, to: startOfToday) ?? startOfToday
-        let predicate = HKQuery.predicateForSamples(withStart: start, end: now, options: [])
-
+    func fetchSleepSamples(from start: Date) async throws -> [HKCategorySample] {
+        let predicate = HKQuery.predicateForSamples(withStart: Calendar.current.startOfDay(for: start), end: Date(), options: [])
         return try await withCheckedThrowingContinuation { continuation in
             let query = HKSampleQuery(
                 sampleType: Self.sleepType,
@@ -120,35 +106,5 @@ extension HealthKitService {
         default:
             return false
         }
-    }
-
-    // MARK: - Background delivery (trigger only)
-
-    func startSleepBackgroundDelivery(onUpdate: @escaping () -> Void) {
-        guard isAvailable else { return }
-
-        if let existing = Self.sleepObserverQuery {
-            Self.sleepStore.stop(existing)
-            Self.sleepObserverQuery = nil
-        }
-
-        let query = HKObserverQuery(sampleType: Self.sleepType, predicate: nil) { _, completionHandler, error in
-            if error == nil {
-                onUpdate()
-            }
-            completionHandler()
-        }
-        Self.sleepObserverQuery = query
-        Self.sleepStore.execute(query)
-        // Apple caps non-glucose category types at `.hourly` — sleep can't be `.immediate` like workouts.
-        Self.sleepStore.enableBackgroundDelivery(for: Self.sleepType, frequency: .hourly) { _, _ in }
-    }
-
-    func stopSleepBackgroundDelivery() {
-        if let query = Self.sleepObserverQuery {
-            Self.sleepStore.stop(query)
-            Self.sleepObserverQuery = nil
-        }
-        Self.sleepStore.disableBackgroundDelivery(for: Self.sleepType) { _, _ in }
     }
 }
