@@ -1,198 +1,91 @@
-// Native push — see specs/features/notifications/SPEC.md §3/§6.
-// Two senders behind one entry point (sendPushToMembers): APNs for iOS device tokens (platform:'ios') and
-// FCM for Android device tokens (platform:'android'). Both degrade to a logged no-op when their credentials
-// are unset (getProvider()/getFcmApp() return null) — so SSE + DB delivery + the unacknowledged backfill work
-// fully regardless. Invalid/expired tokens are pruned from member_push_tokens on delivery failure.
-const apn = require("apn");
-const admin = require("firebase-admin");
+// Native push facade — specs/features/notifications/SPEC.md §3 + §3.2 (0.4.0). sendPushToMembers is the ONE entry
+// point (called by utils/notifications.js after the notification commits):
+//   1. one member_push_tokens query for every recipient, both platforms;
+//   2. APNs (utils/push/apns.js) and FCM (utils/push/fcm.js) in parallel — 7-day lifetime, explicit FCM channel;
+//   3. prune the tokens a provider declared dead (D-C14) — the 60-day unseen prune is pg_cron's (sql/010);
+//   4. one push_deliveries row per attempt + one `no_device` row per recipient with no registered device (D-C15).
+// Fire-and-forget: never throws. getProvider / getFcmApp stay exported here (unchanged facade surface).
 const { MemberPushToken } = require("../models");
+const { getProvider, sendApns } = require("./push/apns");
+const { getFcmApp, sendFcm } = require("./push/fcm");
+const { recordDeliveries } = require("../services/pushDeliveryService");
 
-// ---- APNs (iOS) ----
+// APNs apns-expiration and FCM android.ttl (D-C13): 7 days (APNs was 1 h; FCM had none = its 4-week default).
+const PUSH_TTL_SECONDS = 7 * 24 * 60 * 60;
 
-let provider = null;
+// Custom keys on both platforms, all strings (FCM data values must be). Live binaries read only notification_id;
+// type + program_id are additive, for tap routing in the next builds (D-C13). program_id is omitted when null.
+const buildPushData = ({ id, type, programId }) => {
+    const data = { notification_id: String(id || ""), type: String(type || "") };
+    if (programId) data.program_id = String(programId);
+    return data;
+};
 
-function getProvider() {
-    if (provider) return provider;
-    const keyId = process.env.APNS_KEY_ID;
-    const teamId = process.env.APNS_TEAM_ID;
-    const bundleId = process.env.APNS_BUNDLE_ID;
-    const keyPath = process.env.APNS_KEY_PATH;
-    const keyContent = process.env.APNS_KEY;
-    const explicitProduction = process.env.APNS_PRODUCTION;
-    const production =
-        explicitProduction !== undefined && explicitProduction !== ""
-            ? process.env.APNS_PRODUCTION === "true"
-            : process.env.NODE_ENV === "production";
-
-    if (!keyId || !teamId || !bundleId) return null;
-    const key = keyPath || (keyContent ? Buffer.from(keyContent, "base64") : null);
-    if (!key) return null;
-
-    const options = {
-        token: {
-            key,
-            keyId,
-            teamId
-        },
-        production
-    };
-    provider = new apn.Provider(options);
-    return provider;
-}
-
-async function sendApnsPush(memberIds, payload) {
-    const apnProvider = getProvider();
-    if (!apnProvider) {
-        console.warn("[push] APNs not configured; skipping iOS.");
-        return;
-    }
-
-    const tokens = await MemberPushToken.findAll({
-        where: { member_id: memberIds, platform: "ios" },
-        attributes: ["id", "device_token"]
-    });
-    if (tokens.length === 0) return;
-
-    const bundleId = process.env.APNS_BUNDLE_ID;
-    const note = new apn.Notification();
-    note.expiry = Math.floor(Date.now() / 1000) + 3600;
-    note.sound = "default";
-    note.alert = {
-        title: payload.title || "Notification",
-        body: payload.body || ""
-    };
-    note.topic = bundleId;
-    note.payload = { notification_id: payload.id };
-
-    const deviceTokens = tokens.map((t) => t.device_token);
-    const results = await apnProvider.send(note, deviceTokens);
-
-    if (results && results.sent && results.sent.length > 0) {
-        console.log("[push] APNs sent to", results.sent.length, "device(s).");
-    }
-    if (results && results.failed && results.failed.length > 0) {
-        const invalidTokens = new Set();
-        for (const fail of results.failed) {
-            const status = fail.status;
-            const reason = fail.response?.reason;
-            console.warn("[push] APNs delivery failed:", { status, reason, device: fail.device ? "(present)" : "(none)" });
-            if (status === 410 || reason === "BadDeviceToken" || reason === "Unregistered" || reason === "DeviceTokenNotForTopic") {
-                if (fail.device) invalidTokens.add(fail.device);
-            }
-        }
-        if (invalidTokens.size > 0) {
-            await MemberPushToken.destroy({
-                where: { device_token: Array.from(invalidTokens) }
-            }).catch((err) => console.error("[push] Error removing invalid APNs tokens:", err));
-        }
-    }
-}
-
-// ---- FCM (Android) ----
-
-let fcmApp = null;
-
-// The service-account credential (Firebase console → Project settings → Service accounts → Generate new
-// private key). Provided via FIREBASE_SERVICE_ACCOUNT (base64-encoded JSON preferred; raw JSON also
-// accepted) — the secret stays out of git (render.yaml declares it sync:false). Returns null (⇒ FCM
-// no-ops) when unset or unparsable — the APNs-deferral pattern, mirrored for Android.
-function getFcmApp() {
-    if (fcmApp) return fcmApp;
-    const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-    if (!raw || !raw.trim()) return null;
-
-    let serviceAccount;
+const pruneTokens = async (ids) => {
+    if (ids.length === 0) return;
     try {
-        const text = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
-        serviceAccount = JSON.parse(text);
+        await MemberPushToken.destroy({ where: { id: ids } });
     } catch (err) {
-        console.warn("[push] FIREBASE_SERVICE_ACCOUNT could not be parsed:", err.message);
-        return null;
+        console.error("[push] token prune failed: %s %s", err.name, err.parent?.code || "");
     }
+};
 
-    try {
-        // A named app ("fcm") so this never collides with any other admin.initializeApp() call.
-        fcmApp = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) }, "fcm");
-    } catch (err) {
-        console.warn("[push] Firebase admin init failed:", err.message);
-        return null;
-    }
-    return fcmApp;
-}
+const attemptRow = (notificationId, { token, outcome, errorCode }) => ({
+    notification_id: notificationId,
+    member_id: token.member_id,
+    push_token_id: token.id,
+    platform: token.platform,
+    outcome,
+    error_code: errorCode ? String(errorCode).slice(0, 64) : null
+});
 
-async function sendFcmPush(memberIds, payload) {
-    const app = getFcmApp();
-    if (!app) {
-        console.warn("[push] FCM not configured; skipping Android.");
-        return;
-    }
-
-    const tokens = await MemberPushToken.findAll({
-        where: { member_id: memberIds, platform: "android" },
-        attributes: ["id", "device_token"]
-    });
-    if (tokens.length === 0) return;
-
-    const deviceTokens = tokens.map((t) => t.device_token);
-    const message = {
-        notification: {
-            title: payload.title || "Notification",
-            body: payload.body || ""
-        },
-        // Data values must be strings. The client reads notification_id to acknowledge on tap.
-        data: { notification_id: String(payload.id || "") },
-        android: { priority: "high" }
-    };
-
-    let response;
-    try {
-        response = await admin.messaging(app).sendEachForMulticast({ ...message, tokens: deviceTokens });
-    } catch (err) {
-        console.error("[push] FCM send error:", err.message);
-        return;
-    }
-
-    if (response.successCount > 0) {
-        console.log("[push] FCM sent to", response.successCount, "device(s).");
-    }
-    if (response.failureCount > 0) {
-        const invalidTokens = [];
-        response.responses.forEach((r, i) => {
-            if (r.success) return;
-            const code = r.error?.code;
-            console.warn("[push] FCM delivery failed:", { code, message: r.error?.message });
-            if (
-                code === "messaging/registration-token-not-registered" ||
-                code === "messaging/invalid-registration-token" ||
-                code === "messaging/invalid-argument"
-            ) {
-                invalidTokens.push(deviceTokens[i]);
-            }
-        });
-        if (invalidTokens.length > 0) {
-            await MemberPushToken.destroy({
-                where: { device_token: invalidTokens }
-            }).catch((err) => console.error("[push] Error removing invalid FCM tokens:", err));
-        }
-    }
-}
+const noDeviceRow = (notificationId, memberId) => ({
+    notification_id: notificationId,
+    member_id: memberId,
+    push_token_id: null,
+    platform: null,
+    outcome: "no_device",
+    error_code: null
+});
 
 /**
- * Send push notifications to every registered device (iOS via APNs + Android via FCM) for the given member
- * IDs. Payload: { title, body, id (notification id) }. Each sender is independent + degrade-safe.
+ * Push one notification to every registered device of the given members (iOS via APNs + Android via FCM) and record
+ * every attempt. Payload: { id (notification id), title, body, type, programId }.
  * @param {string[]} memberIds
- * @param {{ title: string, body: string, id: string }} payload
+ * @param {{ id: string, title: string, body: string, type?: string, programId?: string|null }} payload
  */
 async function sendPushToMembers(memberIds, payload) {
-    if (!memberIds || memberIds.length === 0) return;
-    await Promise.all([
-        sendApnsPush(memberIds, payload).catch((err) => console.error("[push] APNs error:", err)),
-        sendFcmPush(memberIds, payload).catch((err) => console.error("[push] FCM error:", err))
-    ]);
+    const recipients = Array.from(new Set((memberIds || []).filter(Boolean)));
+    if (recipients.length === 0 || !payload?.id) return;
+    try {
+        const tokens = await MemberPushToken.findAll({
+            where: { member_id: recipients },
+            attributes: ["id", "member_id", "device_token", "platform"],
+            raw: true
+        });
+        const message = {
+            title: payload.title || "Notification",
+            body: payload.body || "",
+            type: payload.type || "",
+            data: buildPushData(payload),
+            ttlSeconds: PUSH_TTL_SECONDS
+        };
+        const [apnsAttempts, fcmAttempts] = await Promise.all([
+            sendApns(tokens.filter((t) => t.platform === "ios"), message),
+            sendFcm(tokens.filter((t) => t.platform === "android"), message)
+        ]);
+        const attempts = [...apnsAttempts, ...fcmAttempts];
+        await pruneTokens(attempts.filter((a) => a.outcome === "pruned").map((a) => a.token.id));
+
+        const rows = attempts.map((attempt) => attemptRow(payload.id, attempt));
+        const withDevice = new Set(tokens.map((t) => t.member_id));
+        for (const memberId of recipients) {
+            if (!withDevice.has(memberId)) rows.push(noDeviceRow(payload.id, memberId));
+        }
+        await recordDeliveries(rows);
+    } catch (err) {
+        console.error("[push] sendPushToMembers failed: %s %s", err.name, err.parent?.code || err.code || "");
+    }
 }
 
-module.exports = {
-    getProvider,
-    getFcmApp,
-    sendPushToMembers
-};
+module.exports = { getProvider, getFcmApp, sendPushToMembers, buildPushData, PUSH_TTL_SECONDS };

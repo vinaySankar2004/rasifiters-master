@@ -1,14 +1,24 @@
 // /api/notifications routes — see specs/features/notifications/SPEC.md §3.
 // MIGRATION DELTA (D-C2): the SSE GET /stream auth (authenticateStream) now lives in middleware/auth.js and
 // verifies a Supabase JWT via JWKS (header OR ?token=), replacing the legacy symmetric jwt.verify(JWT_SECRET).
+// 0.4.0 (reliability-overhaul R3): PUT /device → services/deviceService (one row per installation, D-C11); net-new
+// POST /device/unregister works WITHOUT a login, rate-limited (D-C12); /stream cleans up on either side's close and is
+// ended with a plain close on shutdown (D-C16).
 const express = require("express");
 const { Notification, NotificationRecipient } = require("../models");
 const { authenticateToken, authenticateStream } = require("../middleware/auth");
 const authService = require("../services/authService");
+const deviceService = require("../services/deviceService");
+const { rateLimit } = require("../utils/rateLimit");
+const { AppError } = require("../utils/response");
 const { registerNotificationStream, removeNotificationStream } = require("../utils/notificationStreams");
 const { createNotification, getMemberIdsWithPushTokens } = require("../utils/notifications");
 
 const router = express.Router();
+
+// D-C12: the same per-client window as POST /api/client-events (observability D-C4). One call per sign-out is the
+// expected rate; a shared NAT still has headroom.
+const limitUnregister = rateLimit({ windowMs: 60 * 1000, max: 30 });
 
 router.get("/unacknowledged", authenticateToken, async (req, res) => {
     try {
@@ -44,13 +54,20 @@ router.get("/unacknowledged", authenticateToken, async (req, res) => {
 router.put("/device", authenticateToken, async (req, res) => {
     try {
         const { push_token: pushToken } = req.body;
-        if (!pushToken || typeof pushToken !== "string" || !pushToken.trim()) {
+        // 0.4.0: > 512 chars (device_token is varchar(512)) is the same 400 — it was a 500 from Postgres 22001.
+        if (!pushToken || typeof pushToken !== "string" || !pushToken.trim() || pushToken.trim().length > 512) {
             return res.status(400).json({ error: "push_token is required." });
         }
-        await authService.upsertPushToken(req.user.id, pushToken.trim(), req.body.device_id, req.body.platform);
+        await deviceService.registerDevice({
+            memberId: req.user.id,
+            pushToken: pushToken.trim(),
+            deviceId: req.body.device_id,
+            platform: req.body.platform
+        });
         res.json({ message: "Device registered for push notifications." });
     } catch (error) {
-        console.error("Error registering device:", error);
+        // Name + Postgres code only — never the push token (observability F8).
+        console.error("[push] device register failed: %s %s", error.name, error.parent?.code || "");
         res.status(500).json({ error: "Failed to register device." });
     }
 });
@@ -62,6 +79,24 @@ router.delete("/device", authenticateToken, async (req, res) => {
         res.json({ message: "Device unregistered from push notifications." });
     } catch (error) {
         console.error("Error unregistering device:", error);
+        res.status(500).json({ error: "Failed to unregister device." });
+    }
+});
+
+// D-C12: unregister WITHOUT a login — the push token and/or the install id prove the device (sign-out paths run
+// exactly when the session is gone). 200 for every valid body, matched or not (no existence oracle).
+router.post("/device/unregister", limitUnregister, async (req, res) => {
+    try {
+        await deviceService.unregisterDevice({
+            pushToken: req.body?.push_token,
+            deviceId: req.body?.device_id
+        });
+        res.json({ message: "Device unregistered from push notifications." });
+    } catch (error) {
+        if (error instanceof AppError) {
+            return res.status(error.statusCode).json({ error: error.message, code: error.code });
+        }
+        console.error("[push] device unregister failed: %s %s", error.name, error.parent?.code || "");
         res.status(500).json({ error: "Failed to unregister device." });
     }
 });
@@ -135,14 +170,21 @@ router.get("/stream", authenticateStream, (req, res) => {
     res.write(`event: ready\ndata: {}\n\n`);
     registerNotificationStream(memberId, res);
 
+    // Keepalive every 25 s; skipped once the response has ended (the shutdown close, D-C16).
     const pingInterval = setInterval(() => {
-        res.write(`event: ping\ndata: {}\n\n`);
+        if (!res.writableEnded) res.write(`event: ping\ndata: {}\n\n`);
     }, 25000);
 
-    req.on("close", () => {
+    // Cleanup runs once, on whichever closes first: the client (req) or the server's shutdown close (res).
+    let cleanedUp = false;
+    const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
         clearInterval(pingInterval);
         removeNotificationStream(memberId, res);
-    });
+    };
+    req.on("close", cleanup);
+    res.on("close", cleanup);
 });
 
 module.exports = router;

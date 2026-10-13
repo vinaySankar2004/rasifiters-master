@@ -6,87 +6,22 @@
 //           Promise.all(Member.findOne) per invite. Identical response shape.
 // The notification emits are wired LIVE (D-C2) — createNotification + getActiveProgramMemberIds are the
 // ported notifications engine (no stub; the keystone is already ported).
-const crypto = require("crypto");
+// 0.2.0 (reliability overhaul R3): sendInvite moved to services/inviteSendService.js (one transaction + logged no-op
+// reasons — invites D-C4/D-C5); getMyInvites hides expired invites (D-C7).
 const { Op } = require("sequelize");
 const { Member, Program, ProgramMembership, ProgramInvite, ProgramInviteBlock } = require("../models");
 const { sequelize } = require("../config/database");
 const { AppError } = require("../utils/response");
 const { createNotification, getActiveProgramMemberIds } = require("../utils/notifications");
 
-async function sendInvite({ program_id, username }, requester) {
-    if (!program_id || !username) {
-        throw new AppError(400, "program_id and username are required.");
-    }
-
-    const isGlobalAdmin = requester?.global_role === "global_admin";
-    if (!isGlobalAdmin) {
-        const pm = await ProgramMembership.findOne({
-            where: { program_id, member_id: requester?.id, role: "admin", status: "active" }
-        });
-        if (!pm) throw new AppError(403, "Admin privileges required for this program.");
-    }
-
-    const program = await Program.findOne({ where: { id: program_id, is_deleted: false } });
-    if (!program) return { message: "Invitation sent" };
-
-    const normalizedUsername = username.trim().toLowerCase();
-    const targetMember = await Member.findOne({
-        where: sequelize.where(
-            sequelize.fn('LOWER', sequelize.col('username')),
-            normalizedUsername
-        )
-    });
-
-    if (!targetMember) return { message: "Invitation sent" };
-
-    const existingMembership = await ProgramMembership.findOne({
-        where: { program_id, member_id: targetMember.id }
-    });
-    if (existingMembership && existingMembership.status !== "removed") {
-        return { message: "Invitation sent" };
-    }
-
-    const blocked = await ProgramInviteBlock.findOne({
-        where: { program_id, member_id: targetMember.id }
-    });
-    if (blocked) return { message: "Invitation sent" };
-
-    const existingInvite = await ProgramInvite.findOne({
-        where: { program_id, invited_username: targetMember.username, status: "pending" }
-    });
-    if (existingInvite) {
-        const isExpired = existingInvite.expires_at && new Date(existingInvite.expires_at) < new Date();
-        if (!isExpired) return { message: "Invitation sent" };
-        await existingInvite.update({ status: "expired" });
-    }
-
-    const tokenHash = crypto.randomBytes(32).toString("hex");
-    await ProgramInvite.create({
-        program_id,
-        invited_by: requester.id,
-        invited_username: targetMember.username,
-        token_hash: tokenHash,
-        status: "pending",
-        max_uses: 1,
-        uses_count: 0,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-    });
-
-    await createNotification({
-        type: "program.invite_received",
-        programId: program_id,
-        actorMemberId: requester?.id || null,
-        title: "Program invitation",
-        body: `You've been invited to join ${program.name}.`,
-        recipientIds: [targetMember.id]
-    });
-
-    return { message: "Invitation sent" };
-}
-
 async function getMyInvites(requester) {
     const invites = await ProgramInvite.findAll({
-        where: { invited_username: requester.username, status: "pending" },
+        where: {
+            invited_username: requester.username,
+            status: "pending",
+            // invites 0.2.0 (D-C7): expired invites are hidden — accepting one would only 400 "expired".
+            [Op.or]: [{ expires_at: null }, { expires_at: { [Op.gt]: new Date() } }]
+        },
         include: [
             { model: Program, attributes: ["id", "name", "status", "start_date", "end_date"] },
             { model: Member, as: "InvitedByMember", attributes: ["id", "first_name", "last_name", "username"] }
@@ -327,7 +262,6 @@ async function respondToInvite({ invite_id, action, block_future }, requester) {
 }
 
 module.exports = {
-    sendInvite,
     getMyInvites,
     getAllInvites,
     respondToInvite

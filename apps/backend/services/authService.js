@@ -103,40 +103,17 @@ const supabaseSignIn = async (member, password, ip) => {
     return data.session;
 };
 
-// `platform` defaults to "ios" so the LIVE iOS binary (which sends no platform) keeps registering APNs
-// tokens exactly as before; the Android client passes "android" so its FCM tokens are stored + queried by
-// the FCM sender. Any other/invalid value falls back to "ios" (the column is NOT NULL, default 'ios').
-async function upsertPushToken(memberId, deviceToken, deviceId = null, platform = "ios") {
-    const resolvedPlatform = platform === "android" ? "android" : "ios";
-    const existing = await MemberPushToken.findOne({
-        where: { device_token: deviceToken }
-    });
-    const now = new Date();
-    if (existing) {
-        await existing.update({
-            member_id: memberId,
-            device_id: deviceId ?? existing.device_id,
-            platform: resolvedPlatform,
-            updated_at: now
-        });
-        return;
-    }
-    await MemberPushToken.create({
-        member_id: memberId,
-        device_token: deviceToken,
-        platform: resolvedPlatform,
-        device_id: deviceId,
-        created_at: now,
-        updated_at: now
-    });
+// notifications 0.4.0 (D-C11): the device registry lives in services/deviceService.js — one row per installation,
+// last_seen_at on every registration, an omitted platform → "ios" for a NEW row only (the live iOS binary sends
+// none). These two wrappers keep the exports and the login / OAuth callers (loginGlobal, socialSignIn) unchanged.
+const deviceService = require("./deviceService");
+
+async function upsertPushToken(memberId, deviceToken, deviceId = null, platform = null) {
+    await deviceService.registerDevice({ memberId, pushToken: deviceToken, deviceId, platform });
 }
 
 async function removePushToken(memberId, deviceToken = null) {
-    const where = { member_id: memberId };
-    if (deviceToken && typeof deviceToken === "string" && deviceToken.trim()) {
-        where.device_token = deviceToken.trim();
-    }
-    await MemberPushToken.destroy({ where });
+    await deviceService.unregisterMemberDevices(memberId, deviceToken);
 }
 
 async function loginLegacy(identifier, password, ip = null) {

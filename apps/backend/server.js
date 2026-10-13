@@ -126,6 +126,8 @@ app.get("/api/test", (req, res) => {
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5001;
+// notifications 0.4.0 (D-C16): the HTTP server handle, kept for the graceful shutdown at the end of this file.
+let server = null;
 
 const startServer = async () => {
     try {
@@ -133,7 +135,7 @@ const startServer = async () => {
         await assertDatabaseSchema(); // auth D-C13: staging must be on `staging`; prod only logs if it is
         console.log("Database connected successfully");
         // Bind 0.0.0.0 explicitly — Render (and most PaaS) require it to route external traffic.
-        app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
+        server = app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
     } catch (error) {
         console.error("Failed to start server:", error);
         process.exit(1);
@@ -141,3 +143,26 @@ const startServer = async () => {
 };
 
 startServer();
+
+// notifications 0.4.0 (D-C16) — graceful shutdown. Render sends SIGTERM on every deploy / restart and kills the
+// process 30 s later. Order: end every SSE stream with a PLAIN close (never a frame — iOS 1.4.x decodes any data:
+// frame as a notification) → stop accepting connections and drop idle keep-alive sockets → exit 2 s after the server
+// has closed (lets a just-dispatched push finish) → hard exit at 25 s whatever is still open.
+const { closeAllNotificationStreams } = require("./utils/notificationStreams");
+const SHUTDOWN_DRAIN_MS = 2000;
+const SHUTDOWN_HARD_EXIT_MS = 25000;
+let shuttingDown = false;
+
+const shutdown = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    const streamsClosed = closeAllNotificationStreams();
+    console.log(JSON.stringify({ type: "shutdown", signal, sse_streams_closed: streamsClosed }));
+    setTimeout(() => process.exit(0), SHUTDOWN_HARD_EXIT_MS).unref();
+    if (!server) return process.exit(0);
+    server.close(() => setTimeout(() => process.exit(0), SHUTDOWN_DRAIN_MS).unref());
+    server.closeIdleConnections?.();
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

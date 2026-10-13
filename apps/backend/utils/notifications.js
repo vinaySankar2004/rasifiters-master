@@ -73,10 +73,13 @@ const createNotification = async ({
 
     const dispatch = () => {
         uniqueRecipients.forEach((memberId) => sendNotificationToMember(memberId, payload));
+        // notifications 0.4.0: `type` picks the FCM channel; type + program_id ride in the push data (D-C13).
         sendPushToMembers(uniqueRecipients, {
             id: payload.id,
             title: payload.title,
-            body: payload.body
+            body: payload.body,
+            type: payload.type,
+            programId: payload.program_id
         }).catch((err) => console.error("[push] sendPushToMembers error:", err));
     };
 

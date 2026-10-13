@@ -111,7 +111,7 @@
       }
     },
     "notifications": {
-      "version": "0.3.1",
+      "version": "0.4.0",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -122,7 +122,8 @@
       "depends_on": [
         "auth",
         "members",
-        "program-memberships"
+        "program-memberships",
+        "observability"
       ],
       "reference_impl": {
         "app": "backend",
@@ -131,20 +132,27 @@
           "utils/notifications.js",
           "utils/notificationStreams.js",
           "utils/pushNotifications.js",
+          "utils/push/apns.js",
+          "utils/push/fcm.js",
+          "services/deviceService.js",
+          "services/pushDeliveryService.js",
           "models/Notification.js",
           "models/NotificationRecipient.js",
           "models/MemberPushToken.js",
+          "models/PushDelivery.js",
+          "sql/010_push_deliveries_device_registry.sql",
           "server.js"
         ]
       }
     },
     "invites": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/invites/SPEC.md",
       "status": "deployed",
       "consumed_by": [
         "web",
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [
         "auth",
@@ -158,6 +166,7 @@
         "paths": [
           "routes/invites.js",
           "services/inviteService.js",
+          "services/inviteSendService.js",
           "models/ProgramInvite.js",
           "models/ProgramInviteBlock.js",
           "server.js"
