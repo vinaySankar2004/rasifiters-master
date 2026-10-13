@@ -1,6 +1,6 @@
 # Phase 4 Notifications + People: approval amendments (all five tracks)
 
-> **Status: PENDING user approval.** Once approved, this file is binding. Implementers apply it on top of their track's `plan.md`; where a plan and this file disagree, this file wins.
+> **Status: APPROVED by the user (2026-10-13): all recommended options (NP-U1–NP-U6).** This file is binding. Implementers apply it on top of their track's `plan.md`; where a plan and this file disagree, this file wins.
 > - Evidence: [`phase-4-np-parity.md`](phase-4-np-parity.md) (P#) and each track's `verdict.md`.
 > - For every verdict objection not named here, the orchestrator takes the verdict's fix.
 > - Shared docs stay orchestrator-owned.

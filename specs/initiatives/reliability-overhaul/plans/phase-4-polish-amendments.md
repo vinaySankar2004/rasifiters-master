@@ -1,6 +1,6 @@
 # Phase 4 polish (#9–#45, #32 = People S5) — approval amendments (all three tracks)
 
-> **Status: DRAFT — binding once the user approves U1–U3.** Implementers apply these ON TOP of their track's
+> **Status: APPROVED by the user (2026-10-13): U1 yes, U2 yes, U3 accept.** Binding. Implementers apply these ON TOP of their track's
 > `plans/phase-4-polish-{web,ios,android}/plan.md`; where a plan and this file disagree, this file wins. Evidence:
 > [`phase-4-polish-parity.md`](phase-4-polish-parity.md) (P#) and each track's `verdict.md` (W# / I# / A#).
 > Shared docs (feature + page SPECs, registry, REGISTRY, RELEASES) stay orchestrator-owned: one docs commit at landing.

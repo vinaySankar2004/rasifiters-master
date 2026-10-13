@@ -48,7 +48,24 @@
      Android client plans written against those two contracts, then a parity check.
    - **Wave C:** polish #9–#45 (#32 is People S5), planned per surface on top of the quick wins. Web owns every
      backend change any row needs.
-   - **PAUSED by the user (2026-10-13, leaving, will lose connectivity).** When the B + C plans land, save them and
+   - **Waves B + C — APPROVED (2026-10-13), all recommendations (NP-U1–U6, polish U1–U3). BUILDING.**
+     - **Plans:**
+       - `plans/phase-4-{n-server,p-server (rev 3),c-web,c-ios,c-android,polish-web,polish-ios,polish-android}/`
+       - binding `plans/phase-4-np-amendments.md` (incl. §6 S1 rev-3 fixes and §7 provisional versions/IDs)
+       - `plans/phase-4-polish-amendments.md`
+     - **Build order:**
+       1. Notifications server (N-SRV) + web Pass A + iOS Track C + Android Track C, in parallel. Running now.
+       2. People server S1 rev 3, after N-SRV passes review (same files: `server.js`).
+       3. Web Pass B (People, behind `PEOPLE_LIVE`).
+       4. Polish, per surface after that surface's Track C (shared files). Polish web owns the backend #38.
+     - **Deploy:**
+       1. The user runs migration 011 on staging, then on public.
+       2. N-SRV deploys, with the user's yes.
+       3. 012 runs, then S1 deploys.
+       4. Web goes live per pass.
+       5. The phones wait for the one store release.
+     - **People** goes live with the store release on all clients (NP-U5).
+   - *(Earlier pause, resolved:)* paused by the user (2026-10-13, leaving, would lose connectivity). When the B + C plans land, save them and
      STOP — no building until the user approves.
      - **Resume a run that was cut off** (same session):
        `Workflow({scriptPath, resumeFromRunId})`. Finished agents replay from cache.
