@@ -27,6 +27,9 @@ iOS screen/feature, or `/ios-build`. Whenever `apps/ios/**` Swift changed and yo
 1. **Xcode is open** with `apps/ios/RaSi-Fiters-App.xcodeproj`, scheme `RaSi-Fiters-App`.
 
 ## Workflow
+0. **Pre-check (cheap, ~1 min):** `tools/ios-typecheck.sh` — a scratch `swiftc -typecheck` of the app target with its
+   Swift settings and the SPM module maps from DerivedData. Fix every `error:` it prints first. It doesn't link, build
+   assets or the widget target, so it predicts ⌘B but never replaces it.
 1. **Ask the user to press ⌘B** (scheme `RaSi-Fiters-App`) and report the result — build only, no run.
 2. **Read the reported errors** (errors first, then warnings) as file:line:message — NOT the raw build log.
 3. **Fix → ask for another ⌘B** until **0 errors**. Warnings: surface them, fix only the ones our
@@ -54,6 +57,9 @@ The user owns the visual/runtime confirmation in the simulator.
   run is a separate confirmation, not a commit blocker.
 
 ## Converged lessons (durable — fold new patterns here as they recur)
+- **Typecheck before ⌘B (2026-10-13):** `tools/ios-typecheck.sh` predicted 0 errors on a 62-file change and ⌘B
+  passed first try; it caught the fix round clean too. If the project's Swift settings change (Swift version,
+  default isolation, upcoming features), update the script's flags. Run it via `bash` (zsh doesn't word-split).
 - *The next three bullets record the pre-2026-10-12 MCP build loop — reference only; never call `BuildProject` now.*
 - **Tool names (confirmed live):** build = `mcp__xcode__BuildProject`, structured issues =
   `mcp__xcode__XcodeListNavigatorIssues` (filter by `severity`/`glob`/`pattern`), raw log =

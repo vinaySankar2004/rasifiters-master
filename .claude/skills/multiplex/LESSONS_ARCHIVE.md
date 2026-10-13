@@ -10,6 +10,21 @@ distilled "Converged lessons"). Append one entry per notable run.
   - New durable pattern promoted to Converged lessons: <… or none>.
 
 ## Runs
+- **Run 4 (2026-10-13) — task: reliability overhaul Phase 3 client release** (web / iOS / Android; plans in
+  `specs/initiatives/reliability-overhaul/plans/phase-3-c*`). Planning = one workflow: `plan-pipeline` per surface in
+  parallel → low-effort summarizers → one **parity-check** agent over all three plans (19 agents, ~2 h). Every track
+  revised once; the parity check found **8 blocking cross-surface mismatches** the per-track adversaries couldn't
+  see (refresh constants, SSE values, Sign-out-everywhere placement + copy, push-tap behaviour, review-once,
+  Disconnect semantics, forced sign-out message, web swallowing invite errors). The orchestrator folded them into
+  ONE shared `phase-3-client-amendments.md` (user decisions U1–U3 + shared rules + per-track fixes) instead of three
+  per-plan sections. Build: three implementers in the main tree with **no git writes**; the orchestrator committed
+  each surface after its review + fix round; web shipped live while mobile was still building. Reviews: web 0
+  blocking / 8 advisory, Android 1 blocking (banner padding) / 10, iOS 0 / 8 — all fixed in one resume round each.
+  iOS ⌘B passed first try (62 files) after a reviewer's scratch `swiftc -typecheck`. A reviewer surfaced an infra gap
+  (Supabase refresh-token reuse window 10 s vs the clients' 30 s backoff) → one settings change with the user's yes.
+  Shared docs came from a separate docs agent fed the implementers' "Docs for the orchestrator" lists. Promoted:
+  parity check after parallel per-surface plans; shared amendments file; no-git-writes implementers + per-surface
+  commits; ship each surface when it's reviewed.
 - **Run 3 (2026-10-11 → 13) — task: reliability overhaul Phases 1b, 2 and 3-backend** (BRIEF §7; plans in
   `specs/initiatives/reliability-overhaul/plans/`). Planning = a wrapper workflow running `plan-pipeline` per track in
   parallel + a scribe (1b: 1 track · 2: 4 tracks · 3: 3 tracks, ~18 agents). Every plan came back "revised-once" with

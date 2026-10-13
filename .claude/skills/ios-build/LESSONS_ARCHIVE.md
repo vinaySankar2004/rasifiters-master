@@ -416,3 +416,9 @@ specific "list navigator issues" tool must be called after the build tool.
   system-managed and out of scope). WidgetSuccessToast is a content-hugging centered pill — no-op.
 - **Build:** MCP `BuildProject(windowtab1)` → clean, 0 errors, 22.5s. Large-screen pass complete
   across every in-app screen + modal.
+
+## Run — 2026-10-13 — reliability Phase 3 iOS 1.5.0 (58)
+- **Change:** 62-file client release (sessions, HealthKit sync v2, push registry, invite inbox, kit, version gate).
+- **Build:** the user's ⌘B passed first try. Before it, the impl-adversary ran a scratch `swiftc -typecheck` with the
+  target's flags + DerivedData module maps (0 errors, 28 pre-existing warnings) → saved as `tools/ios-typecheck.sh`
+  and made step 0 of the loop. Fix round: the script again reported 0 errors before the second ⌘B.

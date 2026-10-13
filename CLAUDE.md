@@ -123,7 +123,7 @@ loop — writes both feature specs and page/screen specs incl. role-based view r
 deploy to Vercel/Render, create Supabase schema/buckets) · `audit` (web↔iOS parity check for shared
 features) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
 read-only doc-health cross-review; strict, report-only via plan mode) · `ios-build` (the iOS compile-check
-loop — the user presses ⌘B in Xcode, Claude fixes the reported errors, repeat; NO
+loop — `tools/ios-typecheck.sh` pre-check, then the user presses ⌘B in Xcode, Claude fixes the reported errors, repeat; NO
 screenshots/simulator, the user runs those) · `android-build` (the Android compile-check loop via the
 Gradle CLI — `cd apps/android && ./gradlew :app:assembleDebug`, read Kotlin/AGP diagnostics, fix, repeat;
 pure-CLI, compile-only — NO emulator/screenshots, the user runs those) · `multiplex` (the role-agent

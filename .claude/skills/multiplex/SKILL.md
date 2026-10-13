@@ -108,3 +108,11 @@ anything you'd want adversarially checked before the user tests it on prod.
   old code), ONE combined staging deploy, ONE prod push. Hard gates are read-only SQL/log checks the
   orchestrator runs; credentialed smokes stay user-run in the Terminal panel (zsh) and are read back with
   `read_terminal`. Staging infra ≠ prod (3 proxy hops vs 2), so IP-keyed checks can differ there.
+- (Run 4, 2026-10-13) Parallel per-surface plans drift on shared behaviour that no per-track adversary sees: add ONE
+  parity-check agent over all the plans (constants, copy, error mapping, teardown, event fields), then write ONE
+  shared amendments file (user decisions + shared rules + per-track fixes) that every implementer applies on top of
+  its plan. Shared docs stay out of implementer fences: each lists "Docs for the orchestrator"; a docs agent writes
+  them once at landing.
+- (Run 4) Directory-disjoint implementers in the main tree must run **no git writes**; the orchestrator commits each
+  surface after its review + fix round, and ships it (web) without waiting for the slower surfaces. Fix rounds =
+  resume the same implementer with the reviewer's list; the orchestrator spot-checks the fix diff + re-runs the compile.

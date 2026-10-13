@@ -613,3 +613,10 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   stage by path and surface the stray diff to the user.
 - A workflow scribe's file write was blocked by a safety classifier; the full agent output was recoverable
   from the run's `journal.jsonl` (one `result` line per agent).
+- **Run — 2026-10-13 — reliability Phase 3 client release (web / iOS / Android).** Shape: one `feat(<surface>)`
+  commit per surface as each passed review (no bumps — commit shape (a)), then ONE docs commit with every feature
+  bump (auth 0.14.0, notifications 0.5.0, invites 0.2.1, observability 0.3.0, frontend-kit 0.2.0, app-config 0.3.0,
+  health-sync 0.2.0, apple-health 0.8.0, health-connect 0.3.0) + registry + both REGISTRY files, tagged on that docs
+  commit. iOS renames done as create + delete by an agent → stage with `git add -A -- apps/ios` (path-scoped) so git
+  records the renames. Page-SPEC headers had drifted from their own changelogs (6 pages) — the pages REGISTRY sweep
+  caught them; fix the header, then the cell.
