@@ -24,6 +24,12 @@ The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) cons
 - **Added (reliability overhaul Phase 2):** `app_events` (observability event trail — `POST /api/client-events`, 90-day `pg_cron` retention; migration `sql/007`, [`observability`](../../specs/features/observability/SPEC.md)).
 - **Added (reliability overhaul Phase 3 R2):** `health_sync_samples` (permanent per-sample health-sync ledger) + `health_sync_state` (review-once + last successful sync per member/program/integration/kind) + `daily_health_logs.sleep_source` / `steps_source` (per-field provenance, not mapped by the `DailyHealthLog` model) — migration `sql/009`, routes `/api/health-sync/{batch,state}` mounted before the global body parser ([`health-sync`](../../specs/features/health-sync/SPEC.md)).
 - **Added (reliability overhaul Phase 3 R3):** `push_deliveries` (one row per push attempt + `no_device`; 90-day `pg_cron` retention) and the device registry on `member_push_tokens` (`last_seen_at`, unique install `device_id`, nightly 60-day unseen prune) — migration `sql/010`, [`notifications`](../../specs/features/notifications/SPEC.md) 0.4.0.
+- **Added (reliability overhaul Phase 4 N-SRV):** `notification_preferences` (per-member category switches, reminder
+  time, time zone), `notification_send_keys` (the never-send-twice ledger for scheduled sends) and
+  `notification_announcements` (the composer's audit + schedule), plus `member_push_tokens.supports_inbox` (per
+  installation: gates the iOS app-icon badge and the Android category channels) and nightly 90-day `pg_cron` retention
+  for `notifications` and the send keys — migration `sql/011`, [`notifications`](../../specs/features/notifications/SPEC.md).
+- **Added (reliability overhaul Phase 4, People S1):** `members.hide_activity` ("Hide my activity", default false) + `kudos` (one per giver → recipient per recipient-local day; FK cascades; `notification_id` SET NULL) — migration `sql/012`; routes `/api/people` (list · profile · kudos give/undo); the rule stays the shared `utils/memberVisibility.js` "workouts" kind ([`people`](../../specs/features/people/SPEC.md), [`program-memberships`](../../specs/features/program-memberships/SPEC.md) — the "Hide my activity" rule).
 - Migrations: `sql/` (numbered, idempotent, user-reviewed/run).
 
 ## Auth (see CLAUDE.md + METHODOLOGY.md R1)
@@ -36,8 +42,8 @@ The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) cons
   [`program-memberships`](../../specs/features/program-memberships/SPEC.md) D-C5.
 
 ## Endpoints
-~13 route groups (auth, members, programs, program-memberships, invites, workouts, program-workouts,
-workout-logs, daily-health-logs, health-sync, notifications, client-events, analytics v1+v2, member-analytics). Documented
+~14 route groups (auth, members, programs, program-memberships, invites, workouts, program-workouts,
+workout-logs, daily-health-logs, health-sync, notifications, client-events, analytics v1+v2, member-analytics, people). Documented
 feature-by-feature in `specs/features/` as they're rebuilt; cross-checked against the legacy routes.
 
 ## Deploy
@@ -83,11 +89,16 @@ per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
   not logged) carries `X-Request-Id`. `trust proxy` = `TRUST_PROXY_HOPS` (default 2 = prod: Cloudflare edge + Render LB; staging sets 3; observability D-C7). The global `errorHandler` never prints a request
   body. Event trail: `app_events` via `POST /api/client-events`. Contract + fields:
   [`observability`](../../specs/features/observability/SPEC.md).
+- **In-process notification scheduler** (`services/notificationScheduler.js`, Phase 4): one 15-min `setInterval`
+  (unref'd; first tick 60 s after `listen`; stopped in `shutdown()`; each job capped at 5 min) runs the daily
+  reminders, weekly digests and due announcements. Never-send-twice comes from `notification_send_keys`, so a restart
+  or the brief two-instance overlap of a Render deploy can't double-send; the free staging instance only ticks while
+  awake. No kill switch — an emergency stop is a deploy revert.
 - Live binaries hard-code `https://rasifiters-api.onrender.com/api` (iOS `Config/APIConfig.swift`, Android
   `app/build.gradle.kts`) — a host/domain change needs an app release + adoption window first.
 
 ## Status
-🚀 **Feature-complete + LIVE on Render.** All ~13 route groups (see §Endpoints) are mounted and serving
+🚀 **Feature-complete + LIVE on Render.** All ~14 route groups (see §Endpoints) are mounted and serving
 all three clients + the public store binaries; backend feature coverage is complete — every feature except
 the two client-only health integrations (`apple-health`, `health-connect`) has a backend half; the canonical
 list is `specs/features/registry.json` (don't restate the count here).

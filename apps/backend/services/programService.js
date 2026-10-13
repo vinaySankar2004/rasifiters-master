@@ -3,9 +3,9 @@
 //   • D-C2 — createProgram DROPS the vestigial `description` field (legacy destructured + persisted +
 //     returned it, but no client sends it, update can't change it, and list never returns it). The
 //     programs.description column is kept in schema (R5); this path just no longer writes it.
-//   • D-C1 — the program.updated / program.deleted notification emit is DEFERRED to the `notifications`
-//     feature (it pulls in SSE streams + APNs push). The CRUD is fully functional; only the member-alert
-//     side-effect is a guarded no-op (emitProgramNotification) until notifications is ported.
+//   • The program-change emit (notifications D-N13; supersedes the deferred D-C1 no-op) — the program.updated /
+//     program.deleted emit is LIVE: every active member EXCEPT the requester is notified; an emit failure is logged
+//     and never fails the update / delete that already succeeded.
 // getPrograms keeps its two raw sequelize.query branches verbatim (D-S2), EXCEPT the net-new
 // post-parity per-member ordering (2026-07-05): both branches LEFT JOIN member_program_order
 // and ORDER BY mpo.position NULLS LAST before the legacy start_date sort; setProgramOrder
@@ -13,13 +13,21 @@
 const { Program, ProgramMembership } = require("../models");
 const { sequelize } = require("../config/database");
 const { AppError } = require("../utils/response");
+const { createNotification, getActiveProgramMemberIds } = require("../utils/notifications");
+const { logError } = require("../utils/logError");
 
-// DEFERRED (D-C1): when the `notifications` feature is ported, replace this with the real
-// getActiveProgramMemberIds + createNotification emit (legacy utils/notifications.js). Until then it is a
-// no-op so program CRUD works without dragging in SSE streams + APNs push. Faithful behavior = emit.
-async function emitProgramNotification(/* { type, programId, actorMemberId, title, body } */) {
-    // TODO(notifications): wire program.updated / program.deleted emit to active members.
-    return null;
+// The program-change emit: notify the program's active members, never the person who made the change. Runs after the
+// write succeeded, outside any transaction — a failure is logged and swallowed so the response stays the write's.
+async function emitProgramNotification({ type, programId, actorMemberId, title, body }) {
+    try {
+        const activeMemberIds = await getActiveProgramMemberIds(programId);
+        const recipientIds = activeMemberIds.filter((memberId) => memberId !== actorMemberId);
+        if (recipientIds.length === 0) return null;
+        return await createNotification({ type, programId, actorMemberId, title, body, recipientIds });
+    } catch (err) {
+        logError(`[notifications] ${type} emit failed:`, err);
+        return null;
+    }
 }
 
 async function getPrograms(requester) {
@@ -172,7 +180,7 @@ async function updateProgram(programId, { name, status, start_date, end_date, ad
     });
 
     if (hasDetailChange) {
-        // DEFERRED (D-C1): emit program.updated to active members when notifications is ported.
+        // The program-change emit: program.updated to the active members, except the requester.
         await emitProgramNotification({
             type: "program.updated",
             programId,
@@ -206,7 +214,7 @@ async function deleteProgram(programId, requester) {
 
     await program.update({ is_deleted: true, updated_at: new Date() });
 
-    // DEFERRED (D-C1): emit program.deleted to active members when notifications is ported.
+    // The program-change emit: program.deleted to the active members, except the requester.
     await emitProgramNotification({
         type: "program.deleted",
         programId,

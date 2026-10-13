@@ -4,6 +4,9 @@
 // 0.4.0 (reliability-overhaul R3): PUT /device → services/deviceService (one row per installation, D-C11); net-new
 // POST /device/unregister works WITHOUT a login, rate-limited (D-C12); /stream cleans up on either side's close and is
 // ended with a plain close on shutdown (D-C16).
+// Phase 4 (the legacy-feed rule, the time-zone rule, the per-device push rule): GET /unacknowledged + plain streams
+// carry LEGACY_TYPES only (every live binary turns each item into a blocking pop-up); ?inbox=1 opts a stream into every
+// type; PUT /device records the `inbox` capability and the caller's X-Time-Zone. Response shapes unchanged.
 const express = require("express");
 const { Notification, NotificationRecipient } = require("../models");
 const { authenticateToken, authenticateStream } = require("../middleware/auth");
@@ -14,6 +17,9 @@ const { AppError } = require("../utils/response");
 const { logError } = require("../utils/logError");
 const { registerNotificationStream, removeNotificationStream } = require("../utils/notificationStreams");
 const { createNotification, getMemberIdsWithPushTokens } = require("../utils/notifications");
+const { LEGACY_TYPES } = require("../utils/notificationCategories");
+const { parseTimeZone } = require("../utils/clientInfo");
+const { rememberTimeZone } = require("../services/notificationPreferenceService");
 
 const router = express.Router();
 
@@ -28,7 +34,8 @@ router.get("/unacknowledged", authenticateToken, async (req, res) => {
             where: { member_id: memberId, acknowledged_at: null },
             include: [{
                 model: Notification,
-                attributes: ["id", "type", "program_id", "actor_member_id", "title", "body", "created_at"]
+                attributes: ["id", "type", "program_id", "actor_member_id", "title", "body", "created_at"],
+                where: { type: Array.from(LEGACY_TYPES) } // the legacy-feed rule — new types reach Phase 4 clients via /inbox only
             }],
             order: [[Notification, "created_at", "ASC"]]
         });
@@ -59,11 +66,15 @@ router.put("/device", authenticateToken, async (req, res) => {
         if (!pushToken || typeof pushToken !== "string" || !pushToken.trim() || pushToken.trim().length > 512) {
             return res.status(400).json({ error: "push_token is required." });
         }
+        // Phase 4: a Phase 4 client sends its zone (the time-zone rule) and `inbox: true` (the per-device push rule);
+        // live binaries send neither.
+        rememberTimeZone(req.user.id, parseTimeZone(req.get("x-time-zone")));
         await deviceService.registerDevice({
             memberId: req.user.id,
             pushToken: pushToken.trim(),
             deviceId: req.body.device_id,
-            platform: req.body.platform
+            platform: req.body.platform,
+            supportsInbox: req.body.inbox === true
         });
         res.json({ message: "Device registered for push notifications." });
     } catch (error) {
@@ -168,7 +179,9 @@ router.get("/stream", authenticateStream, (req, res) => {
     res.flushHeaders?.();
 
     res.write(`event: ready\ndata: {}\n\n`);
-    registerNotificationStream(memberId, res);
+    // The legacy-feed rule: ?inbox=1 (a Phase 4 client) gets every type as an inbox item; every other stream only the
+    // legacy types.
+    registerNotificationStream(memberId, res, { inbox: req.query.inbox === "1" });
 
     // Keepalive every 25 s; skipped once the response has ended (the shutdown close, D-C16).
     const pingInterval = setInterval(() => {

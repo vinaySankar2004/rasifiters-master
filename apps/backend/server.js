@@ -28,6 +28,10 @@ const {
 } = require("./routes/memberAnalytics");
 const clientEventRoutes = require("./routes/clientEvents");
 const healthSyncRoutes = require("./routes/healthSync");
+const notificationInboxRoutes = require("./routes/notificationInbox");
+const notificationPreferenceRoutes = require("./routes/notificationPreferences");
+const announcementRoutes = require("./routes/announcements");
+const { startNotificationScheduler, stopNotificationScheduler } = require("./services/notificationScheduler");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
 // documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/.
 
@@ -104,6 +108,11 @@ app.use("/api/members", memberRoutes);
 app.use("/api/programs", programRoutes);
 app.use("/api/program-memberships", membershipRoutes);
 app.use("/api/program-memberships", inviteRoutes);
+// notifications Phase 4: inbox, preferences and the announcement composer live under /api/notifications; mounted ahead
+// of the legacy router (no path overlaps — keeping them first keeps it that way).
+app.use("/api/notifications/inbox", notificationInboxRoutes);
+app.use("/api/notifications/preferences", notificationPreferenceRoutes);
+app.use("/api/notifications/announcements", announcementRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/workouts", workoutRoutes);
 app.use("/api/program-workouts", programWorkoutRoutes);
@@ -136,7 +145,11 @@ const startServer = async () => {
         await assertDatabaseSchema(); // auth D-C13: staging must be on `staging`; prod only logs if it is
         console.log("Database connected successfully");
         // Bind 0.0.0.0 explicitly — Render (and most PaaS) require it to route external traffic.
-        server = app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
+        server = app.listen(PORT, "0.0.0.0", () => {
+            console.log(`Server running on port ${PORT}`);
+            // notifications Phase 4 (D-N9): the 15-minute reminder / digest / announcement timer — only once we serve.
+            startNotificationScheduler();
+        });
     } catch (error) {
         console.error("Failed to start server:", error);
         process.exit(1);
@@ -157,6 +170,7 @@ let shuttingDown = false;
 const shutdown = (signal) => {
     if (shuttingDown) return;
     shuttingDown = true;
+    stopNotificationScheduler(); // notifications Phase 4: no new tick on a draining instance (the send key covers a cut one)
     const streamsClosed = closeAllNotificationStreams();
     console.log(JSON.stringify({ type: "shutdown", signal, sse_streams_closed: streamsClosed }));
     setTimeout(() => process.exit(0), SHUTDOWN_HARD_EXIT_MS).unref();

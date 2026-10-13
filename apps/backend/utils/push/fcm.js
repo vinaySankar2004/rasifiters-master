@@ -1,20 +1,16 @@
-// FCM sender (Android) — notifications SPEC §3.2 (0.4.0). getFcmApp() is the faithful lazy, named firebase-admin app
-// from FIREBASE_SERVICE_ACCOUNT (null when unset/unparsable ⇒ every Android token records `not_configured`). Every
-// message carries an explicit channel id + TTL (D-C13). firebase-admin 12.x already times each send out after 15 s
-// (FIREBASE_MESSAGING_TIMEOUT), so no extra timer. Prunes only on dead-token codes; `invalid-argument` is a payload
-// bug — logged at error level, token kept (D-C14). Returns one attempt per token —
-// { token, outcome: "sent" | "failed" | "pruned" | "not_configured", errorCode } — and never throws.
+// FCM sender (Android) — notifications SPEC §3.2. getFcmApp() is the faithful lazy, named firebase-admin app from
+// FIREBASE_SERVICE_ACCOUNT (null when unset/unparsable ⇒ every Android token records `not_configured`). Every message
+// carries an explicit channel id + TTL (D-C13). Phase 4 (the per-device push rule): ONE message per token (sendEach) so
+// each device gets its own channel — a category channel only when the installation registered as inbox-capable
+// (Android 1.1.0 posts a foreground push on the message's channel id and a missing channel drops it) — and `tag`
+// (replace, not stack) for reminders + digest. No notification_count: Android shows launcher dots itself (platform
+// idiom). firebase-admin 12.x times each send out after 15 s. Prunes only on dead-token codes; `invalid-argument` is a
+// payload bug — logged at error level, token kept (D-C14). Returns one attempt per token — { token, outcome, errorCode }
+// — and never throws.
 const admin = require("firebase-admin");
 const { logError } = require("../logError");
+const { androidChannelFor } = require("../notificationCategories");
 
-const CHANNEL_DEFAULT = "rasi_default"; // the live Android 1.0.0 channel + its manifest default
-const CHANNEL_INVITES = "rasi_invites"; // "Invites & membership", IMPORTANCE_HIGH — created by the next Android build
-const INVITE_CHANNEL_TYPES = new Set([
-    "program.invite_received",
-    "program.role_changed",
-    "program.admin_transferred",
-    "program.member_removed"
-]);
 // FCM v1 UNREGISTERED / NOT_FOUND map to registration-token-not-registered (firebase-admin lib/utils/error.js).
 const DEAD_TOKEN_CODES = new Set([
     "messaging/registration-token-not-registered",
@@ -51,8 +47,23 @@ function getFcmApp() {
     return fcmApp;
 }
 
-const channelIdFor = (type) => (INVITE_CHANNEL_TYPES.has(type) ? CHANNEL_INVITES : CHANNEL_DEFAULT);
 const isDeadTokenCode = (code) => DEAD_TOKEN_CODES.has(code);
+
+const buildMessage = (token, message) => {
+    const notification = { channelId: androidChannelFor(message.type, token.supports_inbox === true) };
+    if (message.replaceKey) notification.tag = message.replaceKey;
+    return {
+        token: token.device_token,
+        // The notification block stays: Android 1.0.0 ignores data-only messages.
+        notification: { title: message.title, body: message.body },
+        data: message.data,
+        android: {
+            priority: "high",
+            ttl: message.ttlSeconds * 1000, // firebase-admin takes milliseconds
+            notification
+        }
+    };
+};
 
 async function sendFcm(tokens, message) {
     if (tokens.length === 0) return [];
@@ -64,17 +75,8 @@ async function sendFcm(tokens, message) {
 
     let response;
     try {
-        response = await admin.messaging(app).sendEachForMulticast({
-            tokens: tokens.map((t) => t.device_token),
-            // The notification block stays: Android 1.0.0 ignores data-only messages.
-            notification: { title: message.title, body: message.body },
-            data: message.data,
-            android: {
-                priority: "high",
-                ttl: message.ttlSeconds * 1000, // firebase-admin takes milliseconds
-                notification: { channelId: channelIdFor(message.type) }
-            }
-        });
+        // sendEach takes ≤ 500 messages per call — the whole member base is far below it (same cap as the old multicast).
+        response = await admin.messaging(app).sendEach(tokens.map((token) => buildMessage(token, message)));
     } catch (err) {
         logError("[push] FCM send error:", err);
         return tokens.map((token) => ({ token, outcome: "failed", errorCode: err.code || "send_error" }));
@@ -97,4 +99,4 @@ async function sendFcm(tokens, message) {
     return attempts;
 }
 
-module.exports = { getFcmApp, sendFcm, channelIdFor, isDeadTokenCode };
+module.exports = { getFcmApp, sendFcm, isDeadTokenCode };

@@ -4,6 +4,9 @@
 // send() is a Promise.all over its tokens, so one hung stream would otherwise fail — and mis-record — them all.
 // Returns one attempt per token — { token, outcome: "sent" | "failed" | "pruned" | "not_configured", errorCode } —
 // and never throws.
+// Phase 4 (the per-device push rule): aps.thread-id = the category; apns-collapse-id = the replace key (reminders /
+// digest); aps.badge only when the facade set token.badge (inbox-capable devices). Never an interruption-level (no Time
+// Sensitive — D-N8).
 const apn = require("apn");
 const { logError } = require("../logError");
 
@@ -55,13 +58,16 @@ const withTimeout = (promise, ms) => {
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 };
 
-const buildNote = (message) => {
+const buildNote = (message, token) => {
     const note = new apn.Notification();
     note.expiry = Math.floor(Date.now() / 1000) + message.ttlSeconds;
     note.sound = "default";
     note.alert = { title: message.title, body: message.body };
     note.topic = process.env.APNS_BUNDLE_ID;
     note.payload = message.data;
+    if (message.category) note.threadId = message.category;
+    if (message.replaceKey) note.collapseId = message.replaceKey;
+    if (Number.isInteger(token.badge)) note.badge = token.badge;
     return note;
 };
 
@@ -104,8 +110,7 @@ async function sendApns(tokens, message) {
         return tokens.map((token) => ({ token, outcome: "not_configured", errorCode: null }));
     }
 
-    const note = buildNote(message);
-    const attempts = await Promise.all(tokens.map((token) => sendOne(apnProvider, note, token)));
+    const attempts = await Promise.all(tokens.map((token) => sendOne(apnProvider, buildNote(message, token), token)));
 
     const timedOut = attempts.filter((a) => a.errorCode === "timeout").length;
     if (timedOut > 0) {

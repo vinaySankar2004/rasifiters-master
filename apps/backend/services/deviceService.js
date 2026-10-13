@@ -2,6 +2,8 @@
 // installation. EVERY device write goes through here: PUT /device, the login/OAuth push_token ride-along (via
 // authService.upsertPushToken), DELETE /device (via authService.removePushToken) and POST /device/unregister.
 // R1's sign-out work must call these functions too — never a second path (D-C11).
+// Phase 4 (the per-device push rule): records the installation's inbox capability (supports_inbox) — PUT /device passes
+// true/false, the login ride-along passes nothing (= keep).
 const { Op } = require("sequelize");
 const { sequelize } = require("../config/database");
 const { MemberPushToken } = require("../models");
@@ -30,15 +32,18 @@ const DELETE_ROTATED_SQL =
 
 // Atomic upsert keyed on the token (two concurrent registrations can't both INSERT). Re-binds the token to the caller
 // (faithful), keeps a stored device_id when none is sent, stamps last_seen_at on EVERY call — old builds included.
+// supports_inbox (Phase 4, the per-device push rule): PUT /device always sends true/false (an old build → false, so a
+// downgrade turns it off); the login ride-along sends NULL = keep the stored value.
 const UPSERT_SQL = `
-INSERT INTO member_push_tokens (member_id, device_token, platform, device_id, created_at, updated_at, last_seen_at)
-VALUES (:memberId, :pushToken, COALESCE(:platform, 'ios'), :deviceId, now(), now(), now())
+INSERT INTO member_push_tokens (member_id, device_token, platform, device_id, supports_inbox, created_at, updated_at, last_seen_at)
+VALUES (:memberId, :pushToken, COALESCE(:platform, 'ios'), :deviceId, COALESCE(:supportsInbox, false), now(), now(), now())
 ON CONFLICT (device_token) DO UPDATE SET
-    member_id    = EXCLUDED.member_id,
-    platform     = COALESCE(:platform, member_push_tokens.platform),
-    device_id    = COALESCE(EXCLUDED.device_id, member_push_tokens.device_id),
-    updated_at   = now(),
-    last_seen_at = now()`;
+    member_id      = EXCLUDED.member_id,
+    platform       = COALESCE(:platform, member_push_tokens.platform),
+    device_id      = COALESCE(EXCLUDED.device_id, member_push_tokens.device_id),
+    supports_inbox = COALESCE(:supportsInbox, member_push_tokens.supports_inbox),
+    updated_at     = now(),
+    last_seen_at   = now()`;
 
 const isUniqueViolation = (err) => err?.parent?.code === "23505";
 
@@ -54,12 +59,13 @@ const scrubbed = (err) => {
 };
 
 /** PUT /device + the login ride-along. `pushToken` arrives trimmed and non-empty (the callers validate it). */
-async function registerDevice({ memberId, pushToken, deviceId, platform }) {
+async function registerDevice({ memberId, pushToken, deviceId, platform, supportsInbox }) {
     const replacements = {
         memberId,
         pushToken,
         platform: normalizePlatform(platform),
-        deviceId: normalizeDeviceId(deviceId)
+        deviceId: normalizeDeviceId(deviceId),
+        supportsInbox: typeof supportsInbox === "boolean" ? supportsInbox : null
     };
     const write = () => sequelize.transaction(async (transaction) => {
         if (replacements.deviceId) {

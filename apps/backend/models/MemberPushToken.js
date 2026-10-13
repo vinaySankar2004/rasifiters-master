@@ -39,6 +39,13 @@ const MemberPushToken = sequelize.define("MemberPushToken", {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW
+    },
+    // notifications Phase 4 (the per-device push rule, sql/011): true once this installation registered from a Phase 4
+    // build (PUT /device `inbox: true`). Gates the iOS app-icon badge and the Android category channels.
+    supports_inbox: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
     }
 }, {
     tableName: "member_push_tokens",

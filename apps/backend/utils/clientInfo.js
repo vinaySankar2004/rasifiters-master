@@ -8,10 +8,14 @@
 //   User-Agent      okhttp → android · CFNetwork/Darwin → ios · Mozilla/ → web      → platformHint (live binaries
 //                   send no X-App-* headers; coarse, never authoritative)
 //   X-Request-Id    8–64 chars of [A-Za-z0-9._:-]                                   → parseRequestId, else null
+//   X-Time-Zone     IANA zone (e.g. America/Vancouver), ≤ 64 chars of [A-Za-z0-9_+-/:] that Intl accepts → its canonical
+//                   name (Intl's casing), else null. Read ONLY by the notifications routes (notifications' time-zone
+//                   rule) — never logged, never part of getClientInfo.
 const PLATFORMS = new Set(["ios", "android", "web"]);
 const VERSION_RE = /^[0-9A-Za-z .+_()-]{1,32}$/;
 const BUILD_RE = /^\d{1,9}$/;
 const REQUEST_ID_RE = /^[A-Za-z0-9._:-]{8,64}$/;
+const TIME_ZONE_RE = /^[A-Za-z0-9_+\-/:]{1,64}$/;
 
 const parsePlatform = (raw) => {
     if (typeof raw !== "string") return null;
@@ -33,6 +37,17 @@ const parseBuild = (raw) => {
 
 const parseRequestId = (raw) => (typeof raw === "string" && REQUEST_ID_RE.test(raw) ? raw : null);
 
+const parseTimeZone = (raw) => {
+    if (typeof raw !== "string") return null;
+    const value = raw.trim();
+    if (!TIME_ZONE_RE.test(value)) return null;
+    try {
+        return new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions().timeZone;
+    } catch (_err) {
+        return null; // RangeError: not a zone this runtime knows
+    }
+};
+
 const platformFromUserAgent = (userAgent) => {
     if (typeof userAgent !== "string" || userAgent === "") return null;
     if (/okhttp/i.test(userAgent)) return "android";
@@ -48,4 +63,4 @@ const getClientInfo = (req) => ({
     platformHint: platformFromUserAgent(req.get("user-agent"))
 });
 
-module.exports = { getClientInfo, parsePlatform, parseVersion, parseBuild, parseRequestId, platformFromUserAgent };
+module.exports = { getClientInfo, parsePlatform, parseVersion, parseBuild, parseRequestId, parseTimeZone, platformFromUserAgent };
