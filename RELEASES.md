@@ -43,7 +43,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | Play Store (production) | 1.0.0 (4) | **LIVE — public on Google Play** | 2026-08-06 | **Current public release** — 100% rollout, 176 countries + rest of world. Repo pre-bumped to versionCode 5, so the next upload must be ≥5 (the Android analog of one-train-ahead). Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
-| Play Console — closed testing ("Alpha") | 1.0.0 (4) | Available (same build as production) | 2026-07-16 | Testers auto-update. Some may still be on (3) — the backend must stay compatible with it |
+| Play Console — closed testing ("Alpha") | **1.1.0 (5)** | **In review** (sent 2026-10-13 ~08:50 PDT; Google says ≤ 7 days) — 1.0.0 (4) stays available until approved | 2026-10-13 | Backup route to the user's Pixel while the internal track's first-time opt-in link propagates; 100% rollout to the one-account list. Some testers may still be on (3)/(4) |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
 | Play Console — internal testing | **1.1.0 (5)** | **Available to internal testers** (released 2026-10-13 00:05 local) | 2026-10-13 | **The reliability release** (Phase 3 client). Testers = the "RaSi Fiters closed testers" list (the user's account); opt-in link https://play.google.com/apps/internaltest/4701584098902409817. Built by `./gradlew :app:bundleRelease` with the upload key (`keystore.properties`). Repo pre-bumped to **versionCode 6** |
 
@@ -51,6 +51,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-13 | Android | 1.1.0 (5) | Play — closed testing (Alpha) | promoted from internal + sent for review (the user's yes) | **In review**. Why: the internal track's FIRST publish — its opt-in link "can take several hours" (Play help 9845334); the user's Pixel kept showing "Accept invite" ~8.5 h later and stayed on (4) |
 | 2026-10-13 | Android | 1.1.0 (5) | Play — internal testing | AAB built from the CLI + uploaded by the user; Claude set testers + notes + published (the user's yes) | **Available to internal testers** — first use of the internal track; repo pre-bumped to versionCode 6 |
 | 2026-10-13 | iOS | 1.5.0 (58) | TestFlight — internal | uploaded from Xcode | **Processed → in the Internal group** (Ready to Submit for external — skipped). Reliability overhaul Phase 3 client release; repo pre-bumped to 1.5.1 (59) |
 | 2026-08-15 | Android | (no binary) | (repo) | pre-bump for the next train | **versionCode 4 → 5** (`apps/android/app/build.gradle.kts:41`; `versionName` stays `1.0.0` until the next release ships). The live production build consumed (4), so Play rejects any future upload at 4 — the Android analog of the iOS one-train-ahead convention |

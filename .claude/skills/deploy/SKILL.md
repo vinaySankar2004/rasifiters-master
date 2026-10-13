@@ -197,6 +197,10 @@ Blueprint / Vercel App), done once per repo in the dashboard; everything else is
   Console (the browser tools can't upload files). Claude then fills the release with the user's yes per step —
   internal testing = no review, testers = the existing "RaSi Fiters closed testers" list. The release-notes box is
   prefilled with a template: set it with `form_input` (typing appends). Pre-bump `versionCode` right after.
+  **A track's FIRST publish:** its opt-in link "can take several hours" to work (the page keeps showing "Accept invite"
+  and Play keeps serving the older track) — internal testing is now set up, so later internal releases arrive in
+  minutes. A tester opted into internal testing is excluded from closed/open tests. Closed-testing releases go
+  through Google review ("typically ≤ 7 days").
 
 ### Result
 Push to `main` touching `apps/web/**` → Vercel rebuilds + deploys; touching `apps/backend/**` →
