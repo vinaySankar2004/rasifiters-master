@@ -220,6 +220,11 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 - **Inbox:** a real notification center on all three (read/unread, 90-day history) on today's table.
 - **Scheduling:** reminders and digests sent by a scheduler at the member's **local time** (needs a time zone
   per member). Every send goes through the W2 pipeline (recorded deliveries).
+- **Direction (user, 2026-10-13):** notifications must be **personalized and genuinely engaging** (built from the
+  member's own data — streaks, progress, names), and the team must be able to **send one anytime** (targeted or
+  broadcast), not only automatic triggers. **Later, not now:** an AI step that writes reports, delivered by push
+  and **email**. Design the pipeline as content source → trigger → preferences → channel so email and AI-written
+  content plug in later without rework. Powerful, not over-engineered.
 
 ## 10. Social layer (concept — Phase 4, privacy first)
 
