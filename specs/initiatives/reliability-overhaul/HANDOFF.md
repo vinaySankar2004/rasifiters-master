@@ -70,9 +70,15 @@
    **Android 1.1.0 (5) on the user's Pixel (internal track, 2026-10-13):** ✅ upgrade · sign out everywhere · invite
    inbox + tap · offline banner · instant opens · Google button · quick-add widget; Health Connect hand-entry test
    pending. **No store submission until all of Phase 4 ships (user, 2026-10-13)** — then one big release.
-2. **After adoption:** raise `LATEST_*` then `MIN_*` app-config versions on Render (user-approved env change) to nudge,
+2. **Phase 4 (all of it ships before the store release — user, 2026-10-13):** discovery done →
+   [`phase-4/DISCOVERY.md`](phase-4/DISCOVERY.md) (45 polish fixes from 89 findings · 15+2 notification decisions incl.
+   the user's send-anytime + personalized direction · 11 People decisions · a privacy gap: any signed-in member can
+   read every member's email). **Decision board:** https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD (private; answers
+   in `db` doc `board/phase4` — read with ArtifactData). Next: the user fills it → plans. Polish #1 (offline detection,
+   `plans/polish-1-offline-detection.md`) is built on all three, in a review fix round, uncommitted.
+3. **After adoption:** raise `LATEST_*` then `MIN_*` app-config versions on Render (user-approved env change) to nudge,
    then require, the new builds.
-3. Daily watch (follow-up 1) — now also `app_events` `auth.*` / `sync.run` from the new clients.
+4. Daily watch (follow-up 1) — now also `app_events` `auth.*` / `sync.run` from the new clients.
 
 ## Workstream status
 
