@@ -10,6 +10,20 @@ distilled "Converged lessons"). Append one entry per notable run.
   - New durable pattern promoted to Converged lessons: <… or none>.
 
 ## Runs
+- **Run 3 (2026-10-11 → 13) — task: reliability overhaul Phases 1b, 2 and 3-backend** (BRIEF §7; plans in
+  `specs/initiatives/reliability-overhaul/plans/`). Planning = a wrapper workflow running `plan-pipeline` per track in
+  parallel + a scribe (1b: 1 track · 2: 4 tracks · 3: 3 tracks, ~18 agents). Every plan came back "revised-once" with
+  ≤ 1 blocking objection left; the orchestrator folded the fixes in as an "Approval amendments" section the user
+  approved. Build: Phase 2 tracks were directory-disjoint (main tree); Phase 3's three tracks all lived in
+  `apps/backend`, so worktrees. What broke: (1) worktrees branched from origin/main (the pushed commit) and missed the
+  local amendment commit — caught by the first implementer, the others were told to `ff` mid-run; (2) the scribe
+  skipped writing a 2,000-line plan (Phase 2 A and Phase 3 R2) — recovered byte-exact from `journal.jsonl`; (3) R3's
+  rate-limit smoke failed on staging only — staging has an extra proxy hop (`xff_n` 3) → `TRUST_PROXY_HOPS`. What
+  worked: impl-adversaries found 0 blocking in R1/R3 and 1 doc-blocking in R2 (an iOS anchor-age rule the client
+  can't evaluate); fix rounds by resuming each implementer + `--amend`; `git merge-tree` predicted the exact
+  docs-only conflicts; one combined staging deploy + one prod push with read-only SQL hard gates (R3: the new column
+  must exist on public before the push; R1: a 5-minute refresh STOP rule with a pre-written env rollback). Promoted:
+  worktrees-from-origin, merge-tree + cherry-pick landing, journal-not-scribe, fast combined landing.
 - **Run 2 (2026-07-15) — task: member-analytics 0.4.0 D-C7 — Active Days ⇄ Workouts primary-stat swap
   (hero, subtitle, tile order, default sort, top-performer) on backend + web + ios + android.** Shape:
   **parallel per-surface** [backend+shared-docs · web · ios · android] in the main tree (directory-disjoint,

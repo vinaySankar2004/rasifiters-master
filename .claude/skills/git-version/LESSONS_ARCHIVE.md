@@ -9,6 +9,14 @@
 Before ending a run, capture what you learned: a detect/bump call that was non-obvious, a
 blast-radius reverse-scan subtlety, a dangling-edge case, anything awkward in staging/tagging.
 
+### 2026-10-13 — Run: reliability overhaul Phase 3 backend (3 track commits, 8 tags)
+R1 `2f19e01` (auth 0.13.0, observability 0.2.0) · R2 `f7863b5` (health-sync 0.1.0 new, daily-health-logs 0.3.0,
+workout-logs 0.6.0, observability 0.2.1) · R3 `79a3067` (notifications 0.4.0, invites 0.2.0). Built in worktrees,
+landed by cherry-pick R1 → R2 → R3; the only conflicts were the shared observability version line/changelog and
+registry rows (resolved to the later track's version, changelog rows newest-first) plus `sql/README.md` /
+`CONTEXT.md` append rows. Tags created after the cherry-picks, pushed by name. `health-sync` built → deployed
+was a no-bump flip in the docs commit after the prod smoke. Promoted: "Multi-track landings".
+
 ### 2026-08-20 — Run: Play Store truth pass + repo-wide doc freshness/condense (NO bump, NO tag)
 Two commits, **zero feature impact** both times. Reusable judgments:
 

@@ -129,6 +129,11 @@ Verify: every feature's **current** `version` in `registry.json` has a matching
   deployed feature (e.g. logo PNG→SVG, no contract/behavior delta) → **PATCH** + §11 — the shipped impl
   changed (so not a no-bump flip) but no new owned files/behavior (so not MINOR). A semver bump tracks a real
   impl/contract delta, NOT a faithful status flip (which refreshes the tag in place, no bump).
+- **Multi-track landings (2026-10-13):** one commit per track may bump several features — tag each on that
+  track's commit, and tag only AFTER cherry-picking onto `main` (cherry-picks change shas). Two tracks bumping the
+  same feature take consecutive versions in landing order (observability 0.2.0 → 0.2.1). Push tags **by name**,
+  never `--tags`. `server.js` sits in ~15 features' `reference_impl`: bump only the feature whose behavior moved and
+  say "no bump for the other features listing server.js" in the commit body.
 - **Lessons edits = a separate `chore(skills)` commit.** The skills' `LESSONS_ARCHIVE.md` files ARE in-repo,
   so they commit normally; methodology/playbook docs that live outside this git repo are intentionally
   untracked — don't hunt for them in `git status`.

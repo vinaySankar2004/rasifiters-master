@@ -96,3 +96,15 @@ anything you'd want adversarially checked before the user tests it on prod.
   confirm it's live (a new route flips 404→401) → git-version the clients + push → web deploys.
   Deferring the deploy until after the adversary avoids shipping a contract the clients never
   validated against, while the two-push order still lands backend before web.
+- (Run 3, 2026-10-13) Same-directory parallel tracks (three backend tracks in `apps/backend`) DO need
+  worktrees. Agent worktrees branch from **origin/main, not local HEAD**: push the plan/amendment commit
+  first, or have each implementer `git merge --ff-only <sha>` before coding. Dry-run conflicts early with
+  `git merge-tree --write-tree A B`; land by cherry-pick in a fixed order (conflicts were docs/registry
+  only); tag after the cherry-pick (new shas). Fix round = resume the SAME implementer (SendMessage) +
+  `git commit --amend`; the orchestrator reads the small fix diff instead of a full re-review.
+- (Run 3) A workflow "scribe" agent can't copy 100k+-char plans verbatim (it silently skipped one file,
+  twice). Write brief/plan/verdict straight from the run's `journal.jsonl` with a script — byte-exact.
+- (Run 3) Landing fast (user said "asap"): migrations first (staging, then public — additive, safe for the
+  old code), ONE combined staging deploy, ONE prod push. Hard gates are read-only SQL/log checks the
+  orchestrator runs; credentialed smokes stay user-run in the Terminal panel (zsh) and are read back with
+  `read_terminal`. Staging infra ≠ prod (3 proxy hops vs 2), so IP-keyed checks can differ there.
