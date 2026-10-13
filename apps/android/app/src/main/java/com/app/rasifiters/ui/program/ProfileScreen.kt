@@ -38,11 +38,16 @@ import androidx.compose.ui.unit.dp
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.isSamePasswordRejection
+import com.app.rasifiters.core.kit.isUnconfirmedWrite
+import com.app.rasifiters.core.kit.toAppError
+import com.app.rasifiters.core.kit.toCredentialMessage
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.IdentityDTO
 import com.app.rasifiters.ui.auth.AppDropdownField
 import com.app.rasifiters.ui.auth.AppPasswordField
 import com.app.rasifiters.ui.auth.AppTextField
+import com.app.rasifiters.ui.auth.GoogleSignInException
 import com.app.rasifiters.ui.auth.PillButton
 import com.app.rasifiters.ui.auth.fetchGoogleIdToken
 import com.app.rasifiters.ui.auth.isEmailValid
@@ -55,9 +60,9 @@ import kotlinx.coroutines.launch
 private val GENDER_OPTIONS = listOf("Male", "Female", "Non-binary", "Prefer not to say")
 
 /**
- * "My Profile" — edit first/last name + gender, change email (web-parity, password-confirmed), delete
- * account. Faithful 1:1 to the iOS MyProfileView. Name is seeded by splitting the cached display name;
- * gender + email come from a GET /members/:id read.
+ * "My Profile" — edit first/last name + gender, change email (web-parity, password-confirmed), sign-in methods,
+ * "Sign out everywhere" (auth §3.1, every role, above Delete Account), delete account. Faithful 1:1 to the iOS
+ * MyProfileView. Name is seeded by splitting the cached display name; gender + email come from a GET /members/:id read.
  */
 @Composable
 fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
@@ -94,6 +99,13 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var newPassword by remember { mutableStateOf("") }
     var pwVisible by remember { mutableStateOf(false) }
     var settingPw by remember { mutableStateOf(false) }
+    var pwUnconfirmed by remember { mutableStateOf(false) }
+    var pwSetDone by remember { mutableStateOf(false) }
+
+    // Sign out everywhere (auth §3.1 — POST /auth/logout-all).
+    var showSignOutAll by remember { mutableStateOf(false) }
+    var signingOutAll by remember { mutableStateOf(false) }
+    var signOutAllError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(memberName) {
         val parts = (memberName ?: "").trim().split(Regex("\\s+"), limit = 2)
@@ -183,7 +195,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     scope.launch {
                         programContext.updateMemberProfile(id, f, l, gender.ifEmpty { null })
                             .onSuccess { successMessage = "Profile updated successfully" }
-                            .onFailure { errorMessage = it.message ?: "Couldn't save your profile." }
+                            .onFailure { errorMessage = it.toAppError().message }
                         isSaving = false
                     }
                 },
@@ -235,7 +247,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                                     currentEmail = updated ?: newEmail.trim()
                                     emailSuccess = true; showEmailForm = false; newEmail = ""; emailPassword = ""
                                 }
-                                .onFailure { emailError = it.message ?: "Couldn't change your email." }
+                                .onFailure { emailError = it.toCredentialMessage(authenticated = true) }
                             isChangingEmail = false
                         }
                     },
@@ -274,15 +286,15 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                                 val result = if (googleLinked) {
                                     programContext.unlink("google")
                                 } else {
-                                    val idToken = fetchGoogleIdToken(context)
-                                    programContext.linkGoogle(idToken)
+                                    val google = fetchGoogleIdToken(context)
+                                    programContext.linkGoogle(google.idToken, google.rawNonce)
                                 }
                                 result.onSuccess { identities = it.identities; hasPassword = it.hasPassword }
-                                    .onFailure { linkError = it.message ?: "Couldn't update Google link." }
+                                    .onFailure { linkError = it.toCredentialMessage(authenticated = true) }
                             } catch (_: GetCredentialCancellationException) {
                                 // User dismissed the picker — stay silent.
-                            } catch (e: Exception) {
-                                linkError = e.message ?: "Google sign-in failed."
+                            } catch (e: GoogleSignInException) {
+                                linkError = e.userMessage   // linking isn't a sign-in → no auth.sign_in_failed event
                             }
                             linkBusy = false
                         }
@@ -304,7 +316,7 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     )
                 }
                 if (!hasPassword) {
-                    TextButton(onClick = { showPwForm = !showPwForm; linkError = null; newPassword = "" }) {
+                    TextButton(onClick = { showPwForm = !showPwForm; linkError = null; newPassword = ""; pwUnconfirmed = false }) {
                         Text(if (showPwForm) "Cancel" else "Add password", color = AppOrange, fontWeight = FontWeight.SemiBold)
                     }
                 }
@@ -324,8 +336,21 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                         settingPw = true; linkError = null
                         scope.launch {
                             programContext.setAccountPassword(newPassword)
-                                .onSuccess { identities = it.identities; hasPassword = it.hasPassword; showPwForm = false; newPassword = "" }
-                                .onFailure { linkError = it.message ?: "Couldn't set password." }
+                                .onSuccess {
+                                    identities = it.identities; hasPassword = it.hasPassword; showPwForm = false; newPassword = ""
+                                    pwUnconfirmed = false; pwSetDone = true
+                                }
+                                .onFailure { e ->
+                                    when {
+                                        // rule 6: a manual retry answered "must be different" → the first attempt landed.
+                                        pwUnconfirmed && e.isSamePasswordRejection() -> {
+                                            programContext.listIdentities().onSuccess { identities = it.identities; hasPassword = it.hasPassword }
+                                            showPwForm = false; newPassword = ""; pwUnconfirmed = false; pwSetDone = true
+                                        }
+                                        e.isUnconfirmedWrite() -> { pwUnconfirmed = true; linkError = PASSWORD_UNCONFIRMED }
+                                        else -> linkError = e.toCredentialMessage(authenticated = true)
+                                    }
+                                }
                             settingPw = false
                         }
                     },
@@ -335,6 +360,29 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 )
             }
             linkError?.let { FormErrorText(it) }
+            if (pwSetDone) {
+                Text(PASSWORD_SET, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = com.app.rasifiters.core.theme.AppGreen)
+            }
+
+            // Sign out everywhere (auth §3.1 — POST /auth/logout-all; A1 copy). Every role, above Delete Account.
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Sign out everywhere", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Signs you out on every device, including this one.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    )
+                }
+                TextButton(enabled = !signingOutAll, onClick = { signOutAllError = null; showSignOutAll = true }) {
+                    Text("Sign out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            signOutAllError?.let { FormErrorText(it) }
 
             // Delete account (not shown to global admins, matching iOS)
             if (!isGlobalAdmin) {
@@ -360,6 +408,24 @@ fun MyProfileScreen(programContext: ProgramContext, onBack: () -> Unit) {
                 )
             }
         }
+    }
+
+    if (showSignOutAll) {
+        AlertDialog(
+            onDismissRequest = { showSignOutAll = false },
+            title = { Text("Sign out everywhere?") },
+            text = { Text("You'll be signed out on all your devices, including this one.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showSignOutAll = false; signingOutAll = true
+                    scope.launch {
+                        programContext.logoutAll().onFailure { signOutAllError = it.message; signingOutAll = false }
+                        // Success: the teardown flips the gate to the auth graph.
+                    }
+                }) { Text("Sign out everywhere", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = { TextButton(onClick = { showSignOutAll = false }) { Text("Cancel") } },
+        )
     }
 
     if (showDelete) {

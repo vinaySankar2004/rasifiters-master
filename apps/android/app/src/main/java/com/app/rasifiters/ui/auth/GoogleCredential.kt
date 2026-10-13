@@ -1,5 +1,7 @@
 package com.app.rasifiters.ui.auth
 
+import android.content.Context
+import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,7 +18,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,32 +34,53 @@ import androidx.compose.ui.unit.dp
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.GetCredentialInterruptedException
+import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
+import androidx.credentials.exceptions.GetCredentialUnsupportedException
+import androidx.credentials.exceptions.NoCredentialException
 import com.app.rasifiters.BuildConfig
 import com.app.rasifiters.R
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
+import java.security.SecureRandom
+import kotlin.coroutines.cancellation.CancellationException
+
+/** A Google ID token + the raw nonce whose SHA-256 hex Google embedded in it (W5 §7.3; /auth/oauth + /auth/link re-hash it). */
+data class GoogleIdResult(val idToken: String, val rawNonce: String)
+
+/** A Credential Manager failure mapped to a human message + a short SDK code for auth.sign_in_failed. */
+class GoogleSignInException(val userMessage: String, val code: String) : Exception(userMessage)
+
+private const val MSG_NO_ACCOUNT = "No Google account is available on this device. Add one in Settings, then try again."
+private const val MSG_PLAY_SERVICES = "Google sign-in isn't available right now. Update Google Play services and try again."
+private const val MSG_UNSUPPORTED = "Google sign-in isn't supported on this device."
+private const val MSG_INTERRUPTED = "Google sign-in was interrupted. Try again."
+private const val MSG_GENERIC = "Google sign-in failed. Try again."
 
 /**
  * "Continue with Google" — a custom dark pill (a sibling of the auth [PillButton], one emphasis step
- * lower) that runs Credential Manager on tap and hands the resulting Google id_token to [onIdToken].
+ * lower) that runs Credential Manager on tap and hands the resulting Google id_token + raw nonce to [onResult].
  * Chrome mirrors the shared auth primitives so it reads as part of the form: the pill shape + height of
  * [PillButton] (`CircleShape`, 48dp, capped 260dp) with the fill + hairline border of [AppTextField]
  * (theme background surface + a `onSurface` alpha-0.22 border). Content is the multicolor Google "G"
  * (18dp, untinted) + "Continue with Google" in SemiBold on-surface text. The API exchange lives upstream
- * (`ProgramContext.socialSignIn`); this composable only acquires the token. `serverClientId` is the
- * non-secret Google OAuth **web** client id (`BuildConfig.GOOGLE_WEB_CLIENT_ID`), the audience the backend
- * verifies against. A user-cancelled sheet is silent; any real failure surfaces via [onError].
+ * (`ProgramContext.socialSignIn`). A user-cancelled sheet is silent; a real failure surfaces via [onError] with a
+ * human message; a second tap while the sheet is up is ignored.
  */
 @Composable
 fun GoogleSignInButton(
-    onIdToken: (String) -> Unit,
-    onError: (String) -> Unit,
+    onResult: (GoogleIdResult) -> Unit,
+    onError: (GoogleSignInException) -> Unit,
     enabled: Boolean = true,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val scheme = MaterialTheme.colorScheme
+    var inFlight by remember { mutableStateOf(false) }
     // Mirror AppTextField's chrome: transparent-over-background surface + the same 0.22 hairline border.
     val contentColor = if (enabled) scheme.onSurface else scheme.onSurface.copy(alpha = 0.5f)
     val borderColor = scheme.onSurface.copy(alpha = if (enabled) 0.22f else 0.12f)
@@ -66,24 +93,17 @@ fun GoogleSignInButton(
             .clip(CircleShape)
             .background(scheme.background)
             .border(1.dp, borderColor, CircleShape)
-            .clickable(enabled = enabled) {
+            .clickable(enabled = enabled && !inFlight) {
+                inFlight = true
                 scope.launch {
                     try {
-                        val credentialManager = CredentialManager.create(context)
-                        val googleIdOption = GetGoogleIdOption.Builder()
-                            .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-                            .setFilterByAuthorizedAccounts(false)
-                            .build()
-                        val request = GetCredentialRequest.Builder()
-                            .addCredentialOption(googleIdOption)
-                            .build()
-                        val result = credentialManager.getCredential(context, request)
-                        val idToken = GoogleIdTokenCredential.createFrom(result.credential.data).idToken
-                        onIdToken(idToken)
+                        onResult(fetchGoogleIdToken(context))
                     } catch (_: GetCredentialCancellationException) {
                         // User dismissed the account-picker sheet — not an error, stay silent.
-                    } catch (e: Exception) {
-                        onError(e.message ?: "Google sign-in failed.")
+                    } catch (e: GoogleSignInException) {
+                        onError(e)
+                    } finally {
+                        inFlight = false
                     }
                 }
             },
@@ -106,18 +126,46 @@ fun GoogleSignInButton(
     }
 }
 
-/**
- * Headless Google id_token acquisition for the account-settings LINK flow (no button chrome).
- * Reuses the same [GetGoogleIdOption] + web-client-id audience as [GoogleSignInButton]. Throws
- * [GetCredentialCancellationException] on user dismissal (callers stay silent).
- */
-suspend fun fetchGoogleIdToken(context: android.content.Context): String {
-    val credentialManager = CredentialManager.create(context)
-    val googleIdOption = GetGoogleIdOption.Builder()
-        .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
-        .setFilterByAuthorizedAccounts(false)
-        .build()
-    val request = GetCredentialRequest.Builder().addCredentialOption(googleIdOption).build()
-    val result = credentialManager.getCredential(context, request)
-    return GoogleIdTokenCredential.createFrom(result.credential.data).idToken
+/** Google's button flow (GetSignInWithGoogleOption) with a fresh nonce — the sign-in button + the account-settings LINK
+ *  flow. User cancel → GetCredentialCancellationException (callers stay silent); coroutine cancellation rethrown; one
+ *  automatic retry on Interrupted; everything else → GoogleSignInException. */
+suspend fun fetchGoogleIdToken(context: Context): GoogleIdResult {
+    val rawNonce = newRawNonce()
+    val option = GetSignInWithGoogleOption.Builder(BuildConfig.GOOGLE_WEB_CLIENT_ID).setNonce(sha256Hex(rawNonce)).build()
+    val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+    val manager = CredentialManager.create(context)
+    var retried = false
+    while (true) {
+        try {
+            val result = manager.getCredential(context, request)
+            return GoogleIdResult(GoogleIdTokenCredential.createFrom(result.credential.data).idToken, rawNonce)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: GetCredentialCancellationException) {
+            throw e
+        } catch (e: GetCredentialInterruptedException) {
+            if (!retried) { retried = true; continue }
+            throw GoogleSignInException(MSG_INTERRUPTED, "interrupted")
+        } catch (e: NoCredentialException) {
+            throw GoogleSignInException(MSG_NO_ACCOUNT, "no_credential")
+        } catch (e: GetCredentialProviderConfigurationException) {
+            throw GoogleSignInException(MSG_PLAY_SERVICES, "provider_configuration")
+        } catch (e: GetCredentialUnsupportedException) {
+            throw GoogleSignInException(MSG_UNSUPPORTED, "unsupported")
+        } catch (e: GetCredentialException) {
+            throw GoogleSignInException(MSG_GENERIC, e.type.takeLast(64))
+        } catch (e: GoogleIdTokenParsingException) {
+            throw GoogleSignInException(MSG_GENERIC, "token_parsing")
+        } catch (e: Exception) {
+            throw GoogleSignInException(MSG_GENERIC, "unknown")
+        }
+    }
 }
+
+private fun newRawNonce(): String {
+    val bytes = ByteArray(32).also { SecureRandom().nextBytes(it) }
+    return Base64.encodeToString(bytes, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+}
+
+private fun sha256Hex(value: String): String =
+    MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }

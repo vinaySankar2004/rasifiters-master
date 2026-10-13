@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.app.rasifiters.core.AppLinks
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toCredentialMessage
 import com.app.rasifiters.core.theme.AppOrange
 import kotlinx.coroutines.launch
 
@@ -44,7 +45,8 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
+    // A2: a forced sign-out's reason (kit signedOut copy) shows once, in the existing error slot.
+    var errorMessage by remember { mutableStateOf(programContext.consumeSignOutNotice()) }
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
 
@@ -87,7 +89,7 @@ fun LoginScreen(
                 loading = true
                 scope.launch {
                     programContext.login(identifier, password)
-                        .onFailure { errorMessage = it.message ?: "Something went wrong." }
+                        .onFailure { errorMessage = it.toCredentialMessage() }
                     loading = false
                 }
             },
@@ -111,14 +113,14 @@ fun LoginScreen(
         }
         Spacer(Modifier.height(12.dp))
         GoogleSignInButton(
-            onIdToken = { idToken ->
+            onResult = { google ->
                 scope.launch {
-                    programContext.socialSignIn(idToken)
+                    programContext.socialSignIn(google.idToken, google.rawNonce)
                         .onSuccess { needsProfile -> if (needsProfile) onCreateAccount() }
-                        .onFailure { errorMessage = it.message ?: "Sign-in failed" }
+                        .onFailure { errorMessage = it.toCredentialMessage() }
                 }
             },
-            onError = { errorMessage = it },
+            onError = { e -> errorMessage = e.userMessage; programContext.reportGoogleProviderFailure(e.code) },
         )
 
         Spacer(Modifier.height(12.dp))

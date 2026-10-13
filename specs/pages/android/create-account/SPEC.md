@@ -1,6 +1,6 @@
 # Screen: `create-account` (android) — the public sign-up screen
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.4.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios create-account`](../../ios/create-account/SPEC.md)
 > + [`web create-account`](../../web/create-account/SPEC.md) — this file records only the Android realization.
 > **Location:** `ui/RootScreen.kt` `AuthGraph` route `Routes.CREATE_ACCOUNT` (`CreateAccountScreen`), pushed from login.
@@ -57,10 +57,18 @@
 - **F1–F5 (kept):** role from body; register-then-login with no rollback on the login leg; no client rate-limit;
   no client username-format rules (server is authority).
 
+- **D-C6 (error copy, 0.4.0 — A8):** register / auto-login / social completion failures show the server's own text only
+  for 400 / 401 / 409 / 422 (`toCredentialMessage`), the kit copy otherwise; a failed social sign-in or completion
+  sends `auth.sign_in_failed` (`method: google`).
+- **D-C7 (Google, 0.4.0):** the page-0 Google button is the login screen's nonce flow (`GetSignInWithGoogleOption` +
+  raw nonce to `/auth/oauth`, mapped Credential Manager messages, `kind: provider` events, double-tap guard) — see
+  login D-REL3-2.
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **Reliability Phase 3 C3.** D-C6: credential error copy via `toCredentialMessage` + `auth.sign_in_failed`. D-C7: Google nonce flow + mapped errors (login D-REL3-2). Compile-checked green (`assembleDebug`). |
 | 0.3.1 | 2026-07-10 | **Google button restyle (web parity).** The email-mode page-0 `GoogleSignInButton` (A-7) is now a custom **dark pill** — `PillButton`'s pill shape + 48dp height with `AppTextField`'s input-surface fill + 1dp `onSurface` alpha-0.22 hairline border, centering the multicolor Google "G" (`ic_google_g`, 18dp) + SemiBold "Continue with Google". Sibling of the filled CTA, one emphasis step lower; auth logic unchanged. Compile-checked green (`:app:assembleDebug`). |
 | 0.3.0 | 2026-07-10 | **Sign-up wizard + social branch.** Single form → **`HorizontalPager`** (3 pages email / 2 pages social) with `StepDots` + Back/Continue, per-page gates (A-6). New **social 2-step branch** driven by `ProgramContext.pendingSocial` — Google-prefilled editable names + **locked email** + no password, finishing via `completeSocial` → `POST /auth/oauth/complete` (A-7). Extracted `GoogleSignInButton` (Credential Manager) into a sibling `GoogleCredential.kt`; shared `AppTextField` gained an `enabled` (locked) mode. Compile-checked green (`:app:assembleDebug`). USER fills `GOOGLE_WEB_CLIENT_ID`. |
 | 0.2.1 | 2026-07-09 | UI nudge (user visual review): 48dp leading `Spacer` above `BrandMark` so the tall (top-anchored) form starts lower off the status bar — Android-only, scrolls if it overflows (A-5). |

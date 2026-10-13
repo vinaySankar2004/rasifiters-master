@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
         val container = (application as App).container
         container.programContext.healIdentityIfNeeded()
         handleDeepLink(intent)
+        if (savedInstanceState == null) handlePushTap(intent)
         setContent {
             val appearance by container.appearanceStore.mode.collectAsStateWithLifecycle()
             val darkTheme = when (appearance) {
@@ -31,6 +32,7 @@ class MainActivity : ComponentActivity() {
                 RootScreen(
                     programContext = container.programContext,
                     appearanceStore = container.appearanceStore,
+                    versionGate = container.versionGate,
                 )
             }
         }
@@ -42,6 +44,14 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleDeepLink(intent)
+        handlePushTap(intent)
+    }
+
+    /** FCM tap (tray or our foreground post): extras carry notification_id / type → acknowledge + route (notifications §3.2). */
+    private fun handlePushTap(intent: Intent?) {
+        val id = intent?.getStringExtra("notification_id")?.takeIf { it.isNotEmpty() } ?: return
+        (application as App).container.programContext.onPushTap(id, intent.getStringExtra("type"))
+        intent.removeExtra("notification_id")
     }
 
     /** Resolve a `rasifiters://quick-add-*` widget deep-link and stash it for RootScreen to replay. */

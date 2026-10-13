@@ -29,6 +29,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,8 +45,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.UiState
+import com.app.rasifiters.core.kit.dataOrNull
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppOrange
+import com.app.rasifiters.net.PendingInviteDTO
 import com.app.rasifiters.net.ProgramDTO
+import com.app.rasifiters.ui.components.kit.ErrorView
 import com.app.rasifiters.ui.auth.AppDropdownField
 import com.app.rasifiters.ui.auth.AppTextField
 import com.app.rasifiters.ui.summary.DatePillField
@@ -65,24 +71,29 @@ private val TAB_CONTENT_HEIGHT = 500.dp
 
 /**
  * The "+" actions sheet on the picker — the Android analog of the iOS `ProgramActionsSheet`: a two-tab
- * segmented control over **My Invites** (pending invitation programs, Accept/Decline) and **Create** (the
- * new-program form). Opens on the invites tab when invites are pending, else on Create (iOS onAppear
- * parity). Accepting/declining reuses [ProgramContext.respondToInvite] — the same path the inline picker
- * cards use — so the two presentations stay consistent.
+ * segmented control over **My Invites** (global admins: **All Invites**) and **Create** (the new-program form).
+ * The invites tab is the ONE inbox (invites §3.1): `GET /my-invites` (`/all-invites` for global admins, with
+ * Revoke — A10), answered through `PUT /invite-response`; the member's own "requested" programs keep their
+ * Cancel Request. Opens on the invites tab when there is something to act on or when [openOnInvites] (an invite
+ * push tap), else on Create (iOS onAppear parity).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgramActionsSheet(
     programContext: ProgramContext,
     onDismiss: () -> Unit,
+    openOnInvites: Boolean = false,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val invitesState by programContext.invites.collectAsStateWithLifecycle()
     val programs by programContext.programs.collectAsStateWithLifecycle()
     val isGlobalAdmin = programContext.isGlobalAdmin
-
-    val pendingInvites = programs.filter { it.myStatus == "invited" || it.myStatus == "requested" }
-    // Land on Invites when there's something to act on, else Create (iOS onAppear).
-    var selectedTab by remember { mutableIntStateOf(if (pendingInvites.isNotEmpty()) 0 else 1) }
+    val requested = programs.filter { it.myStatus == "requested" }
+    // Push tap → always the invites tab (the inbox may still be loading); else land there only when there's something to act on.
+    var selectedTab by remember {
+        mutableIntStateOf(if (openOnInvites || invitesState.dataOrNull.orEmpty().isNotEmpty() || requested.isNotEmpty()) 0 else 1)
+    }
+    LaunchedEffect(openOnInvites) { if (openOnInvites) selectedTab = 0 }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
@@ -102,7 +113,7 @@ fun ProgramActionsSheet(
 
             Box(modifier = Modifier.fillMaxWidth().height(TAB_CONTENT_HEIGHT)) {
                 when (selectedTab) {
-                    0 -> InvitesTab(programContext, pendingInvites, isGlobalAdmin)
+                    0 -> InvitesTab(programContext, invitesState, requested, isGlobalAdmin, onAccepted = onDismiss)
                     else -> CreateProgramTab(programContext, onCreated = onDismiss)
                 }
             }
@@ -145,9 +156,28 @@ private fun SegmentedToggle(left: String, right: String, selectedIndex: Int, onS
 // ---- Invites tab ----
 
 @Composable
-private fun InvitesTab(programContext: ProgramContext, invites: List<ProgramDTO>, isGlobalAdmin: Boolean) {
+private fun InvitesTab(
+    programContext: ProgramContext,
+    state: UiState<List<PendingInviteDTO>>,
+    requested: List<ProgramDTO>,
+    isGlobalAdmin: Boolean,
+    onAccepted: () -> Unit,
+) {
     val scope = rememberCoroutineScope()
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var busyId by remember { mutableStateOf<String?>(null) }
+    var declineTarget by remember { mutableStateOf<PendingInviteDTO?>(null) }
+    val invites = state.dataOrNull.orEmpty().let { list -> if (isGlobalAdmin) list.sortedBy { it.programName.orEmpty() } else list }
+
+    fun respond(invite: PendingInviteDTO, action: String, block: Boolean = false) {
+        busyId = invite.inviteId; errorMessage = null
+        scope.launch {
+            programContext.respondToInvite(invite.inviteId, action, block)
+                .onSuccess { if (action == "accept") onAccepted() }
+                .onFailure { errorMessage = it.message }
+            busyId = null
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -168,21 +198,39 @@ private fun InvitesTab(programContext: ProgramContext, invites: List<ProgramDTO>
 
         errorMessage?.let { FormErrorText(it) }
 
-        if (invites.isEmpty()) {
-            InvitesEmptyState(isGlobalAdmin)
-        } else {
-            invites.forEach { program ->
-                InviteRow(
-                    program = program,
-                    onRespond = { accept ->
+        val empty = invites.isEmpty() && requested.isEmpty()
+        when {
+            empty && state is UiState.Failed -> ErrorView(state.error, onRetry = { scope.launch { programContext.loadInvites() } })
+            empty && (state is UiState.Loading || state is UiState.Idle) ->
+                Box(Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            empty -> InvitesEmptyState(isGlobalAdmin)
+            else -> {
+                invites.forEach { invite ->
+                    InviteCard(
+                        invite = invite,
+                        busy = busyId == invite.inviteId,
+                        onAccept = { respond(invite, "accept") },
+                        onDecline = { declineTarget = invite },
+                        onRevoke = if (isGlobalAdmin) ({ respond(invite, "revoke") }) else null,
+                    )
+                }
+                requested.forEach { program ->
+                    RequestedRow(program) {
                         scope.launch {
-                            programContext.respondToInvite(program.id, accept)
-                                .onFailure { errorMessage = it.message ?: "Couldn't update invitation." }
+                            programContext.cancelJoinRequest(program.id).onFailure { errorMessage = it.toAppError().message }
                         }
-                    },
-                )
+                    }
+                }
             }
         }
+    }
+
+    declineTarget?.let { invite ->
+        DeclineInviteDialog(
+            programName = invite.programName ?: "this program",
+            onDecline = { block -> declineTarget = null; respond(invite, "decline", block) },
+            onDismiss = { declineTarget = null },
+        )
     }
 }
 
@@ -212,8 +260,9 @@ private fun InvitesEmptyState(isGlobalAdmin: Boolean) {
     }
 }
 
+/** The member's own join request (a "requested" program) — kept on every surface with its Cancel Request (A10). */
 @Composable
-private fun InviteRow(program: ProgramDTO, onRespond: (Boolean) -> Unit) {
+private fun RequestedRow(program: ProgramDTO, onCancel: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,32 +271,12 @@ private fun InviteRow(program: ProgramDTO, onRespond: (Boolean) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(program.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, maxLines = 2)
-        if (program.myStatus == "requested") {
-            Text(
-                "Request pending approval",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            )
-            InvitePill("Cancel Request", MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)) { onRespond(false) }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InvitePill("Accept", AppOrange) { onRespond(true) }
-                InvitePill("Decline", MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)) { onRespond(false) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun InvitePill(label: String, color: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(color.copy(alpha = 0.16f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = color)
+        Text(
+            "Request pending approval",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        )
+        InvitePill("Cancel Request", MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), onClick = onCancel)
     }
 }
 

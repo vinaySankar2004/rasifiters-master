@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.AppLinks
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.toCredentialMessage
 import com.app.rasifiters.core.theme.AppOrange
 import kotlinx.coroutines.launch
 
@@ -89,15 +90,15 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
             if (social) {
                 // POST /auth/oauth/complete — the root gate swaps on success (no explicit navigate, A-3).
                 programContext.completeSocial(username, gender.ifBlank { null }, firstName, lastName)
-                    .onFailure { errorMessage = it.message ?: "Something went wrong." }
+                    .onFailure { errorMessage = it.toCredentialMessage() }
             } else {
                 programContext.register(firstName, lastName, username, email, password, gender.ifBlank { null })
                     .onSuccess {
                         // No token from register — auto-login for the session (iOS F2 parity).
                         programContext.login(username, password)
-                            .onFailure { errorMessage = it.message ?: "Account created — please sign in." }
+                            .onFailure { errorMessage = it.toCredentialMessage() }
                     }
-                    .onFailure { errorMessage = it.message ?: "Something went wrong." }
+                    .onFailure { errorMessage = it.toCredentialMessage() }
             }
             loading = false
         }
@@ -154,7 +155,7 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                             // Email-mode only: "or" divider + Continue with Google (parity with the login
                             // entry). A needs_profile result sets pendingSocial → this wizard recomposes
                             // IN-PLACE into the 2-page social branch (prefill + locked email, no password);
-                            // a non-needs-profile success flips the root gate via authToken.
+                            // a non-needs-profile success flips the root gate via isSignedIn.
                             if (!social) {
                                 Column(
                                     modifier = Modifier.fillMaxWidth(),
@@ -175,13 +176,16 @@ fun CreateAccountScreen(programContext: ProgramContext, onSignIn: () -> Unit) {
                                         HorizontalDivider(modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f))
                                     }
                                     GoogleSignInButton(
-                                        onIdToken = { idToken ->
+                                        onResult = { google ->
                                             scope.launch {
-                                                programContext.socialSignIn(idToken)
-                                                    .onFailure { errorMessage = it.message ?: "Sign-in failed" }
+                                                programContext.socialSignIn(google.idToken, google.rawNonce)
+                                                    .onFailure { errorMessage = it.toCredentialMessage() }
                                             }
                                         },
-                                        onError = { errorMessage = it },
+                                        onError = { e ->
+                                            errorMessage = e.userMessage
+                                            programContext.reportGoogleProviderFailure(e.code)
+                                        },
                                     )
                                 }
                             }

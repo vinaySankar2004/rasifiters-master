@@ -7,6 +7,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.HTTP
 import retrofit2.http.Header
+import retrofit2.http.Headers
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Path
@@ -27,8 +28,9 @@ interface ApiService {
     @POST("auth/refresh")
     suspend fun refresh(@Body body: RefreshRequest): TokenRefreshResponse
 
+    /** This device's session only (D-C14) — the Bearer and/or the body refresh token; called after the local teardown. */
     @POST("auth/logout")
-    suspend fun logout(@Body body: LogoutRequest): MessageResponse
+    suspend fun logout(@Header("Authorization") bearer: String?, @Body body: LogoutRequest): MessageResponse
 
     @GET("auth/me")
     suspend fun me(): MeResponse
@@ -57,6 +59,7 @@ interface ApiService {
     @POST("auth/unlink")
     suspend fun unlinkIdentity(@Body body: UnlinkRequest): IdentitiesResponse
 
+    @Headers("X-One-Shot: 1")
     @POST("auth/set-password")
     suspend fun setPassword(@Body body: SetPasswordRequest): IdentitiesResponse
 
@@ -259,6 +262,7 @@ interface ApiService {
     @PUT("members/{id}")
     suspend fun updateMemberProfile(@Path("id") id: String, @Body body: UpdateMemberProfileRequest): MessageResponse
 
+    @Headers("X-One-Shot: 1")
     @PUT("auth/change-password")
     suspend fun changePassword(@Body body: ChangePasswordRequest): MessageResponse
 
@@ -282,24 +286,39 @@ interface ApiService {
     @POST("notifications/{id}/acknowledge")
     suspend fun acknowledgeNotification(@Path("id") id: String): MessageResponse
 
-    // ---- Health Connect auto-sync (Phase H) — status-code-aware writes ----
-    // These return the raw Retrofit Response (never throw HttpException) so the sync can classify the HTTP
-    // status: workout 200=summed / 201=created / 409=duplicate / 400,403,404=skipped (the sum-on-conflict
-    // `on_duplicate:"sum"` flag + member fields go in the JsonObject body). The 401 refresh+retry is handled
-    // transparently by the OkHttp Authenticator, so a 401 reaching here means refresh failed → retryable.
-    @POST("workout-logs")
-    suspend fun postWorkoutLog(@Body body: JsonObject): Response<Unit>
-
-    @POST("daily-health-logs")
-    suspend fun postDailyHealthLogRaw(@Body body: JsonObject): Response<Unit>
-
-    @PUT("daily-health-logs")
-    suspend fun putDailyHealthLogRaw(@Body body: JsonObject): Response<Unit>
-
-    // FCM device-token lifecycle (Phase I-b).
+    // FCM device-token lifecycle (notifications §3.1).
     @PUT("notifications/device")
     suspend fun registerDevice(@Body body: DeviceRegisterRequest): MessageResponse
 
-    @HTTP(method = "DELETE", path = "notifications/device", hasBody = true)
+    @POST("notifications/device/unregister")
     suspend fun unregisterDevice(@Body body: DeviceUnregisterRequest): MessageResponse
+
+    // ---- Reliability Phase 3 (auth §3.1, invites §3.1, app-config §3, observability §8, health-sync §3) ----
+    @POST("auth/logout-all")
+    suspend fun logoutAll(): MessageResponse
+
+    @GET("program-memberships/my-invites")
+    suspend fun getMyInvites(): List<PendingInviteDTO>
+
+    /** Global admins only (403 otherwise). */
+    @GET("program-memberships/all-invites")
+    suspend fun getAllInvites(): List<PendingInviteDTO>
+
+    @PUT("program-memberships/invite-response")
+    suspend fun respondToInvite(@Body body: InviteResponseRequest): MessageResponse
+
+    @GET("app-config")
+    suspend fun getAppConfig(): AppConfigResponse
+
+    @POST("client-events")
+    suspend fun postClientEvents(@Body body: ClientEventBatch): Response<ClientEventsResponse>
+
+    @POST("health-sync/batch")
+    suspend fun healthSyncBatch(@Body body: HealthSyncBatchRequest): HealthSyncBatchResponse
+
+    @GET("health-sync/state")
+    suspend fun getHealthSyncState(): HealthSyncStateResponse
+
+    @PUT("health-sync/state")
+    suspend fun putHealthSyncState(@Body body: HealthSyncStatePut): HealthSyncStateResponse
 }

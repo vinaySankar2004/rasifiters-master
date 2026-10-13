@@ -17,25 +17,40 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.SummaryData
+import com.app.rasifiters.core.SummaryPart
+import com.app.rasifiters.core.kit.UiState
+import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppOrangeGradientEnd
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.Routes
+import com.app.rasifiters.ui.components.kit.ErrorView
+import com.app.rasifiters.ui.components.kit.FloatingBanner
+import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -43,8 +58,10 @@ import java.time.temporal.ChronoUnit
  * The Summary tab — the per-program workspace overview (Android analog of the iOS `AdminSummaryTab` /
  * web `/summary` landing). A scrollable card dashboard: program progress · MTD participation/workouts/
  * duration/avg · activity-timeline & distribution charts · top workout types · the two log action cards.
- * Shown identically to every enrolled role. Faithful 1:1 to the iOS SPEC + its two web-parity reconciles
- * (error banner, `admin_only_data_entry` data-lock banner + disabled log cards).
+ * Shown identically to every enrolled role. Faithful 1:1 to the iOS SPEC + its web-parity data-lock banner + disabled
+ * log cards. Kit (frontend-kit §5–6): this program's cached Summary shows first; the 7 reads run in parallel; a first
+ * load that fails with no data → ErrorView (never zero cards); a stale reload → a floating "Couldn't refresh" banner
+ * (offline is the app-wide banner); pull to refresh reloads now + runs a `pull_to_refresh` health sync.
  *
  * Android-idiom deviations (see specs/pages/android/summary/SPEC.md):
  *  • No card drag-reorder (iOS-only legacy nicety, web lacks it) — fixed vertical layout.
@@ -54,11 +71,14 @@ import java.time.temporal.ChronoUnit
  * The 5 forward targets (activity / distribution / workout-types / log-workout / log-health) are stubs
  * this phase, per the iOS D-SCOPE landing-vs-details split.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SummaryScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) {
     val program by programContext.activeProgram.collectAsStateWithLifecycle()
-    val summary by programContext.summary.collectAsStateWithLifecycle()
-    val error by programContext.summaryError.collectAsStateWithLifecycle()
+    val state by programContext.summaryState.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    var pulling by remember { mutableStateOf(false) }
     val memberName by programContext.memberName.collectAsStateWithLifecycle()
     val refreshToken by programContext.summaryRefreshToken.collectAsStateWithLifecycle()
     val locked = programContext.dataEntryLocked
@@ -68,71 +88,112 @@ fun SummaryScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) 
         if (program != null) programContext.loadSummary()
     }
 
+    val summary = state.dataOrNull
+    // Offline is the app-wide banner (AppScaffold, A6); this screen adds only its own "Couldn't refresh".
+    val staleBanner = online && state is UiState.Stale
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+        PullToRefreshBox(
+            isRefreshing = pulling,
+            onRefresh = { pulling = true; scope.launch { programContext.refreshSummary(); pulling = false } },
+            modifier = Modifier.fillMaxSize(),
         ) {
-            Header(programName = program?.name ?: "", initials = initialsOf(memberName))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Header(programName = program?.name ?: "", initials = initialsOf(memberName))
 
-            error?.let { ErrorBanner(it) }
-            if (locked) DataLockBanner()
+                if (locked) DataLockBanner()
 
-            val p = program
-            ProgramProgressCard(
-                progress = (p?.progressPercent ?: 0).coerceIn(0, 100),
-                elapsedDays = elapsedDays(p),
-                totalDays = totalDays(p),
-                status = p?.status ?: "—",
-            )
+                val p = program
+                ProgramProgressCard(
+                    progress = (p?.progressPercent ?: 0).coerceIn(0, 100),
+                    elapsedDays = elapsedDays(p),
+                    totalDays = totalDays(p),
+                    status = p?.status ?: "—",
+                )
 
-            AddWorkoutCard(locked = locked, onClick = { onNavigate(Routes.SUMMARY_LOG_WORKOUT) })
-            AddDailyHealthCard(locked = locked, onClick = { onNavigate(Routes.SUMMARY_LOG_HEALTH) })
+                AddWorkoutCard(locked = locked, onClick = { onNavigate(Routes.SUMMARY_LOG_WORKOUT) })
+                AddDailyHealthCard(locked = locked, onClick = { onNavigate(Routes.SUMMARY_LOG_HEALTH) })
 
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                val mtd = summary.mtdParticipation
-                if (mtd == null) {
-                    MetricPlaceholderCard("MTD Participation", Modifier.weight(1f))
-                } else {
-                    MtdParticipationCard(
-                        active = mtd.activeMembers,
-                        total = mtd.totalMembers,
-                        pct = mtd.participationPct,
-                        change = mtd.changePct,
-                        modifier = Modifier.weight(1f),
-                    )
+                val current = state
+                when {
+                    summary != null -> SummaryAnalytics(summary, onNavigate)
+                    current is UiState.Failed -> ErrorView(current.error, onRetry = { scope.launch { programContext.loadSummary() } })
+                    else -> Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
                 }
-                TotalWorkoutsCard(
-                    total = summary.totalWorkouts?.totalWorkouts ?: 0,
-                    change = summary.totalWorkouts?.changePct ?: 0.0,
-                    modifier = Modifier.weight(1f),
-                )
-            }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                TotalDurationCard(
-                    hours = (summary.totalDuration?.totalMinutes ?: 0) / 60.0,
-                    change = summary.totalDuration?.changePct ?: 0.0,
-                    modifier = Modifier.weight(1f),
-                )
-                AvgDurationCard(
-                    minutes = summary.avgDuration?.avgMinutes ?: 0,
-                    change = summary.avgDuration?.changePct ?: 0.0,
-                    modifier = Modifier.weight(1f),
-                )
+                Spacer(Modifier.height(if (staleBanner) 84.dp else 8.dp))
             }
-
-            ActivityTimelineCard(points = summary.timeline, onClick = { onNavigate(Routes.SUMMARY_ACTIVITY) })
-            DistributionByDayCard(
-                orderedCounts = summary.distribution?.ordered() ?: emptyList(),
-                onClick = { onNavigate(Routes.SUMMARY_DISTRIBUTION) },
+        }
+        if (staleBanner) {
+            FloatingBanner(
+                FloatingBannerVariant.Stale, Modifier.align(Alignment.BottomCenter),
+                onRetry = { scope.launch { programContext.loadSummary() } },
             )
-            WorkoutTypesCard(types = summary.workoutTypes, onClick = { onNavigate(Routes.SUMMARY_WORKOUT_TYPES) })
+        }
+    }
+}
 
-            Spacer(Modifier.height(8.dp))
+/** The metric rows + the three chart cards (unchanged layout). A part that failed with no previous value shows "—"
+ *  (A13 — never a fake zero / empty chart). */
+@Composable
+private fun SummaryAnalytics(summary: SummaryData, onNavigate: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        val mtd = summary.mtdParticipation
+        if (mtd == null) {
+            UnavailableCard("MTD Participation", Modifier.weight(1f), height = 240.dp)
+        } else {
+            MtdParticipationCard(
+                active = mtd.activeMembers,
+                total = mtd.totalMembers,
+                pct = mtd.participationPct,
+                change = mtd.changePct,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        val total = summary.totalWorkouts
+        if (total == null) UnavailableCard("Total workouts", Modifier.weight(1f), height = 240.dp)
+        else TotalWorkoutsCard(total = total.totalWorkouts, change = total.changePct, modifier = Modifier.weight(1f))
+    }
+
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        val duration = summary.totalDuration
+        if (duration == null) UnavailableCard("Total duration", Modifier.weight(1f), height = 240.dp)
+        else TotalDurationCard(hours = duration.totalMinutes / 60.0, change = duration.changePct, modifier = Modifier.weight(1f))
+        val avg = summary.avgDuration
+        if (avg == null) UnavailableCard("Avg duration", Modifier.weight(1f), height = 240.dp)
+        else AvgDurationCard(minutes = avg.avgMinutes, change = avg.changePct, modifier = Modifier.weight(1f))
+    }
+
+    if (SummaryPart.TIMELINE in summary.unavailable) UnavailableCard("Workout Activity Timeline", height = 300.dp)
+    else ActivityTimelineCard(points = summary.timeline, onClick = { onNavigate(Routes.SUMMARY_ACTIVITY) })
+    val distribution = summary.distribution
+    if (distribution == null) UnavailableCard("Workout Distribution by Day", height = 300.dp)
+    else DistributionByDayCard(orderedCounts = distribution.ordered(), onClick = { onNavigate(Routes.SUMMARY_DISTRIBUTION) })
+    if (SummaryPart.TYPES in summary.unavailable) UnavailableCard("Top Workout Types")
+    else WorkoutTypesCard(types = summary.workoutTypes, onClick = { onNavigate(Routes.SUMMARY_WORKOUT_TYPES) })
+}
+
+/** A card whose read failed with no previous value: its title + "—" (the stale banner explains + retries). */
+@Composable
+private fun UnavailableCard(title: String, modifier: Modifier = Modifier, height: Dp? = null) {
+    Box(modifier) {
+        SummaryCard(height = height) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "\u2014",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
         }
     }
 }
@@ -158,22 +219,6 @@ private fun Header(programName: String, initials: String) {
         ) {
             Text(initials, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = androidx.compose.ui.graphics.Color.Black)
         }
-    }
-}
-
-@Composable
-private fun ErrorBanner(message: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Icon(Icons.Filled.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
-        Text(message, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
     }
 }
 

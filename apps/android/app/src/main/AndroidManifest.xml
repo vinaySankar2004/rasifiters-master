@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -24,12 +25,15 @@
     <application
         android:name=".App"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.RaSiFiters"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        tools:targetApi="31">
 
         <activity
             android:name=".MainActivity"
@@ -68,8 +72,9 @@
             </intent-filter>
         </activity-alias>
 
-        <!-- FCM push (Phase I-b) — receives new-token + message events. onNewToken re-registers the device;
-             foreground messages defer to the in-app SSE modal, background ones are shown by the system tray. -->
+        <!-- FCM push — onNewToken → push/DeviceRegistry; a foreground message is posted (rasi_invites / rasi_default) only
+             while the in-app SSE stream is disconnected; background ones are shown by the system tray. A tap acknowledges +
+             routes (MainActivity). -->
         <service
             android:name=".push.RaSiFirebaseMessagingService"
             android:exported="false">

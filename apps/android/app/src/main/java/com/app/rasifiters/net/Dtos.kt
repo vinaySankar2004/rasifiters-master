@@ -16,6 +16,8 @@ data class LoginRequest(
     val password: String,
     @SerialName("push_token") val pushToken: String? = null,
     @SerialName("device_id") val deviceId: String? = null,
+    /** Pass "android" explicitly (encodeDefaults=false; the login ride-along defaults to ios without it). */
+    val platform: String? = null,
 )
 
 /** Response of POST /auth/login/app — the mobile login (carries member_id + identity). */
@@ -77,6 +79,7 @@ data class OAuthRequest(
     val nonce: String? = null,
     @SerialName("push_token") val pushToken: String? = null,
     @SerialName("device_id") val deviceId: String? = null,
+    val platform: String? = null,
 )
 
 /** POST /auth/oauth AND /auth/oauth/complete response — login payload (refresh_token may be echoed and can
@@ -164,10 +167,11 @@ data class DeviceRegisterRequest(
     @SerialName("device_id") val deviceId: String? = null,
 )
 
-/** DELETE /notifications/device — unregister this device's token (on sign-out). */
+/** POST /notifications/device/unregister — no login (notifications §3.1); the token and/or the install id. */
 @Serializable
 data class DeviceUnregisterRequest(
-    @SerialName("push_token") val pushToken: String,
+    @SerialName("push_token") val pushToken: String? = null,
+    @SerialName("device_id") val deviceId: String? = null,
 )
 
 // ---- Programs ----
@@ -211,7 +215,7 @@ data class CreateProgramResponse(val id: String? = null, val message: String? = 
 @Serializable
 data class ProgramOrderRequest(@SerialName("program_ids") val programIds: List<String>)
 
-/** PUT /program-memberships — inline invite Accept ("active") / Decline / Cancel ("removed"). */
+/** PUT /program-memberships — a "requested" card's Cancel Request (status removed). */
 @Serializable
 data class MembershipUpdateRequest(
     @SerialName("program_id") val programId: String,
@@ -710,4 +714,6 @@ data class ErrorBody(
     val error: String? = null,
     val message: String? = null,
     val rowErrors: List<BulkRowError>? = null,
+    /** Machine code (session_invalid, auth_unavailable, busy, …) — informational; the status decides the kind. */
+    val code: String? = null,
 )

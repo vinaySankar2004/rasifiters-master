@@ -1,6 +1,6 @@
 # Screen: `login` (android) — the public sign-in screen + entry to auth-recovery
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios login`](../../ios/login/SPEC.md) +
 > [`web login`](../../web/login/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `AuthGraph` route `Routes.LOGIN` (`LoginScreen`), pushed from splash.
@@ -18,7 +18,7 @@
   `member_id` + accepting `push_token`/`device_id`), not iOS/web's `/auth/login/global`. Chosen for the mobile
   surface (Phase A `ProgramContext.login`). Same session outcome; identity self-heals via `GET /auth/me`.
 - **Deviation A-2 (idiom):** no explicit navigate-on-success — a successful `login()` flips
-  `programContext.authToken`, so the root gate swaps to the app shell (structural mirror of iOS F4's root swap;
+  `programContext.isSignedIn` (the one token store, 0.3.0), so the root gate swaps to the app shell (structural mirror of iOS F4's root swap;
   the redundant `navigateToProgramPicker` push is simply not ported).
 - **Deviation A-3 (idiom):** error surfaced via Material3 `AlertDialog`; recovery/create-account/privacy are
   `TextButton`s (`onSurface`/`AppOrange`); Privacy Policy opens in the browser via `LocalUriHandler`.
@@ -30,6 +30,18 @@
   returns `needs_profile`; `socialSignIn` stashes the pending session in `pendingSocial` and the screen navigates
   to `create-account`, which renders its 2-step social branch (see create-account A-7). A user-cancelled
   account-picker sheet is silent; any real failure surfaces in the existing "Login" error dialog.
+- **D-REL3-1 (error copy, 0.3.0 — frontend-kit §4 scope rule, A8):** the "Login" dialog shows the server's own text
+  only for 400 / 401 / 409 / 422 on these public sign-in routes (`toCredentialMessage`); 503 / 429 / offline /
+  timeout / 5xx show the kit copy (never raw text). A **forced sign-out** (refresh `401 session_invalid`, A2) lands on
+  Login (not the splash) and shows the kit `signedOut` copy ("Your session has ended. Please sign in again.") once in
+  the same dialog — also after a corrupt token store was reset at launch (`token_store_unreadable`; only keyset /
+  decrypt corruption deletes the store, a transient failure keeps it). A failed attempt sends `auth.sign_in_failed` (`method` password / google, `kind`, `status`, `code`).
+  Login + Google ride along `push_token` + `device_id` (install id) + `platform:"android"`.
+- **D-REL3-2 (Google, 0.3.0 — W5):** the button runs `GetSignInWithGoogleOption` with a fresh **nonce** (SHA-256 hex to
+  Google, the raw nonce to `POST /auth/oauth`); Credential Manager failures map to human messages (no Google account /
+  update Play services / unsupported / interrupted — one automatic retry / generic) and send `auth.sign_in_failed`
+  `kind: provider` + the SDK code; a second tap while the sheet is up is ignored; a user cancel stays silent;
+  coroutine cancellation is rethrown.
 - **F1–F5 (kept, from iOS/web):** role from response body not a JWT decode; no client rate-limit; no inline
   field validation (identifier is dual-purpose); recovery *request* is native, set-new-password stays on web.
 - **Global keyboard dismissal (UX-polish, ALL input screens app-wide — parity with web/iOS):** the root `Box` in
@@ -43,6 +55,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3.** D-REL3-1: server text only for 400/401/409/422, kit copy otherwise; forced sign-out reason shown once; `auth.sign_in_failed`; device ride-along incl. `platform`. D-REL3-2: Google nonce flow + mapped Credential Manager errors + double-tap guard. Compile-checked green (`assembleDebug`). |
 | 0.2.2 | 2026-07-10 | **Fit-on-one-screen layout tighten (no scroll).** After the Google button pushed the footer down, compressed the auth screens' vertical rhythm so Login fits a standard phone with no scroll: `BrandMark` 88→64 (Login/Forgot), 84→64 (Create); `AuthScaffold` padding top 24→20 / bottom 32→24; Login inter-block Spacers reduced (brand 24→16, pre-fields 30→20, fields `spacedBy` 14→12, pre-Login 24→16, pre-"or" 20→14, pre-Google 16→12, pre-forgot 16→12, and the outsized footer gap 28→16 — dropped the redundant 6dp spacer above the "New here?" row). Forgot/Create tightened to match. Spacing/sizing only — **no auth logic or button-style change**. Compile-checked green (`:app:assembleDebug`). |
 | 0.2.1 | 2026-07-10 | **Google button restyle (web parity).** `GoogleSignInButton` is now a custom **dark pill** — the pill shape + 48dp height of `PillButton` with `AppTextField`'s input-surface fill (theme background) + a 1dp `onSurface` alpha-0.22 hairline border, centering the **multicolor Google "G"** (`ic_google_g`, 18dp, untinted) + SemiBold "Continue with Google" in `onSurface`. Reads as a sibling of the filled Login CTA, one emphasis step lower. Auth logic (Credential Manager → `socialSignIn`) unchanged. Compile-checked green (`:app:assembleDebug`). |
 | 0.2.0 | 2026-07-10 | **Continue with Google.** Added an "or" divider + `GoogleSignInButton` (Credential Manager → Google `id_token` → `ProgramContext.socialSignIn` → `POST /auth/oauth`); existing member logs in via the root-gate flip, a `needs_profile` result routes to the create-account social wizard (A-4). Compile-checked green (`:app:assembleDebug`). USER fills `GOOGLE_WEB_CLIENT_ID` in `build.gradle.kts`. |

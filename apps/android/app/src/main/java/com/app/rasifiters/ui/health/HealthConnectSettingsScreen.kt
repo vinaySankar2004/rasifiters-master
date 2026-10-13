@@ -53,6 +53,7 @@ import com.app.rasifiters.core.theme.AppBlue
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppRed
+import com.app.rasifiters.health.HealthStore
 import com.app.rasifiters.health.HealthSyncResult
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.program.programRowColor
@@ -78,6 +79,7 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
     val sleepProgramIds by health.sleepProgramIds.collectAsStateWithLifecycle()
     val stepsEnabled by health.stepsEnabled.collectAsStateWithLifecycle()
     val stepsProgramIds by health.stepsProgramIds.collectAsStateWithLifecycle()
+    val missing by health.missingPermissions.collectAsStateWithLifecycle()
 
     var isSyncingWorkouts by remember { mutableStateOf(false) }
     var isSyncingSleep by remember { mutableStateOf(false) }
@@ -88,18 +90,29 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
 
     // Ensure the program list is loaded so the selection + window scoping can resolve (iOS .task).
     LaunchedEffect(Unit) { if (programs.isEmpty()) runCatching { programContext.loadPrograms() } }
+    // Live permission state → "Reconnect Health Connect" when access was turned off (board §4.8).
+    LaunchedEffect(Unit) { health.refreshPermissionState() }
 
     val workoutPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
-    ) { granted -> if (granted.containsAll(health.workoutPermissions)) health.enableWorkoutsAfterPermission() }
+    ) { granted ->
+        if (granted.containsAll(health.workoutPermissions)) health.enableWorkoutsAfterPermission()
+        else scope.launch { health.refreshPermissionState() }
+    }
 
     val sleepPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
-    ) { granted -> if (granted.containsAll(health.sleepPermissions)) health.enableSleepAfterPermission() }
+    ) { granted ->
+        if (granted.containsAll(health.sleepPermissions)) health.enableSleepAfterPermission()
+        else scope.launch { health.refreshPermissionState() }
+    }
 
     val stepsPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
-    ) { granted -> if (granted.containsAll(health.stepsPermissions)) health.enableStepsAfterPermission() }
+    ) { granted ->
+        if (granted.containsAll(health.stepsPermissions)) health.enableStepsAfterPermission()
+        else scope.launch { health.refreshPermissionState() }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
@@ -115,7 +128,11 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
             } else {
                 // ── Workouts ──
                 if (workoutEnabled) {
-                    ConnectedRow(Icons.Filled.Favorite, "Workouts will sync automatically")
+                    if (HealthStore.Flow.WORKOUTS in missing) {
+                        ConnectButton(Icons.Filled.Favorite, AppRed, RECONNECT_TITLE, RECONNECT_SUBTITLE) {
+                            workoutPermissionLauncher.launch(health.workoutPermissions)
+                        }
+                    } else ConnectedRow(Icons.Filled.Favorite, "Workouts will sync automatically")
                     ProgramSelection(programs, workoutProgramIds, programContext) { health.toggleWorkoutProgram(it) }
                     SyncStatus(
                         lastSyncMillis = health.lastWorkoutSyncMillis.collectAsStateWithLifecycle().value,
@@ -125,7 +142,7 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                         onSyncNow = {
                             isSyncingWorkouts = true; workoutSyncError = null
                             scope.launch {
-                                if (health.performWorkoutSync() is HealthSyncResult.Failed) workoutSyncError = SYNC_NOW_ERROR
+                                if (health.syncNow(HealthStore.Flow.WORKOUTS) is HealthSyncResult.Failed) workoutSyncError = SYNC_NOW_ERROR
                                 isSyncingWorkouts = false
                             }
                         },
@@ -145,7 +162,11 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                 // ── Sleep (independent toggle, same screen) ──
                 Header("Sleep", "Automatically log your nightly time asleep", small = true)
                 if (sleepEnabled) {
-                    ConnectedRow(Icons.Filled.Bedtime, "Sleep will sync automatically")
+                    if (HealthStore.Flow.SLEEP in missing) {
+                        ConnectButton(Icons.Filled.Bedtime, AppBlue, RECONNECT_TITLE, RECONNECT_SUBTITLE) {
+                            sleepPermissionLauncher.launch(health.sleepPermissions)
+                        }
+                    } else ConnectedRow(Icons.Filled.Bedtime, "Sleep will sync automatically")
                     ProgramSelection(programs, sleepProgramIds, programContext) { health.toggleSleepProgram(it) }
                     SyncStatus(
                         lastSyncMillis = health.lastSleepSyncMillis.collectAsStateWithLifecycle().value,
@@ -155,7 +176,7 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                         onSyncNow = {
                             isSyncingSleep = true; sleepSyncError = null
                             scope.launch {
-                                if (health.performSleepSync() is HealthSyncResult.Failed) sleepSyncError = SYNC_NOW_ERROR
+                                if (health.syncNow(HealthStore.Flow.SLEEP) is HealthSyncResult.Failed) sleepSyncError = SYNC_NOW_ERROR
                                 isSyncingSleep = false
                             }
                         },
@@ -175,7 +196,11 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                 // ── Steps (independent toggle, same screen) ──
                 Header("Steps", "Automatically log your daily step count", small = true)
                 if (stepsEnabled) {
-                    ConnectedRow(Icons.AutoMirrored.Filled.DirectionsWalk, "Steps will sync automatically")
+                    if (HealthStore.Flow.STEPS in missing) {
+                        ConnectButton(Icons.AutoMirrored.Filled.DirectionsWalk, StepsTeal, RECONNECT_TITLE, RECONNECT_SUBTITLE) {
+                            stepsPermissionLauncher.launch(health.stepsPermissions)
+                        }
+                    } else ConnectedRow(Icons.AutoMirrored.Filled.DirectionsWalk, "Steps will sync automatically")
                     ProgramSelection(programs, stepsProgramIds, programContext) { health.toggleStepsProgram(it) }
                     SyncStatus(
                         lastSyncMillis = health.lastStepsSyncMillis.collectAsStateWithLifecycle().value,
@@ -185,7 +210,7 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
                         onSyncNow = {
                             isSyncingSteps = true; stepsSyncError = null
                             scope.launch {
-                                if (health.performStepsSync() is HealthSyncResult.Failed) stepsSyncError = SYNC_NOW_ERROR
+                                if (health.syncNow(HealthStore.Flow.STEPS) is HealthSyncResult.Failed) stepsSyncError = SYNC_NOW_ERROR
                                 isSyncingSteps = false
                             }
                         },
@@ -206,6 +231,8 @@ fun HealthConnectSettingsScreen(programContext: ProgramContext, onBack: () -> Un
 }
 
 private const val SYNC_NOW_ERROR = "Couldn't reach the server. Check your connection and try again."
+private const val RECONNECT_TITLE = "Reconnect Health Connect"
+private const val RECONNECT_SUBTITLE = "Access was turned off. Tap to allow it again."
 private const val AUTO_RETRY_TEXT = "Last sync couldn't reach the server — will retry automatically."
 
 /** Steps accent — teal on every surface (DC-8). */

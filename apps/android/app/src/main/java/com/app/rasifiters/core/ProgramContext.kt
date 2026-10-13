@@ -1,7 +1,27 @@
 package com.app.rasifiters.core
 
 import android.content.Context
+import com.app.rasifiters.core.events.ClientEventQueue
+import com.app.rasifiters.core.events.forcedSignOut
+import com.app.rasifiters.core.events.signInFailed
+import com.app.rasifiters.core.events.signInProviderFailed
+import com.app.rasifiters.core.kit.AppErrorException
+import com.app.rasifiters.core.kit.AppErrorKind
+import com.app.rasifiters.core.kit.KitCopy
+import com.app.rasifiters.core.kit.UiState
+import com.app.rasifiters.core.kit.dataOrNull
+import com.app.rasifiters.core.kit.failing
+import com.app.rasifiters.core.kit.refreshing
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.health.HealthSyncController
+import com.app.rasifiters.health.HealthSyncResult
+import com.app.rasifiters.net.ApiException
+import com.app.rasifiters.net.AuthUnavailableException
+import com.app.rasifiters.net.InviteResponseRequest
+import com.app.rasifiters.net.Network
+import com.app.rasifiters.net.PendingInviteDTO
+import com.app.rasifiters.net.TokenRefresher
+import com.app.rasifiters.push.DeviceRegistry
 import com.app.rasifiters.net.ApiService
 import com.app.rasifiters.net.AvgDurationMtdDTO
 import com.app.rasifiters.net.BulkHealthEntry
@@ -10,8 +30,6 @@ import com.app.rasifiters.net.BulkWorkoutEntry
 import com.app.rasifiters.net.BulkWorkoutRequest
 import com.app.rasifiters.net.DailyHealthDeleteRequest
 import com.app.rasifiters.net.DailyHealthRequest
-import com.app.rasifiters.net.DeviceRegisterRequest
-import com.app.rasifiters.net.DeviceUnregisterRequest
 import com.app.rasifiters.net.DistributionByDayDTO
 import com.app.rasifiters.net.ChangeEmailRequest
 import com.app.rasifiters.net.ChangePasswordRequest
@@ -62,12 +80,15 @@ import com.app.rasifiters.net.WorkoutTypeDTO
 import com.app.rasifiters.net.WorkoutTypeHighestParticipationDTO
 import com.app.rasifiters.net.WorkoutTypeLongestDurationDTO
 import com.app.rasifiters.net.WorkoutTypeMostPopularDTO
-import android.util.Log
+import android.os.SystemClock
 import com.app.rasifiters.net.toApiException
-import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -75,12 +96,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import retrofit2.HttpException
-import java.io.IOException
+import kotlin.coroutines.cancellation.CancellationException
 
-private const val PUSH_TAG = "RaSiPush"
+private const val PLATFORM = "android"
+private const val INVITE_TYPE = "program.invite_received"
+/** A4: acknowledged ids are remembered this long so a racing /unacknowledged re-fetch can't resurrect them. */
+private const val ACK_MEMORY_MS = 120_000L
 
 /**
  * App-scoped state hub — the analog of the iOS `ProgramContext` ObservableObject and the web
@@ -92,6 +119,12 @@ class ProgramContext(
     private val session: Session,
     private val baseUrl: String,
     appContext: Context,
+    private val refresher: TokenRefresher,
+    private val events: ClientEventQueue,
+    private val deviceRegistry: DeviceRegistry,
+    private val launchCache: LaunchCache,
+    /** One app-wide connectivity monitor (frontend-kit §5) — the global offline banner + SSE reconnect pause. */
+    val isOnline: StateFlow<Boolean>,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -99,11 +132,17 @@ class ProgramContext(
      * Health Connect auto-sync (Phase H) — the analog of the iOS Apple-Health lifecycle that hangs off
      * `ProgramContext`. Reads this context (token/programs/identity/lock); owns its own persisted state.
      */
-    val health: HealthSyncController = HealthSyncController(appContext, api, this)
+    val health: HealthSyncController = HealthSyncController(appContext, api, this, events)
 
-    private val _authToken = MutableStateFlow(session.accessToken)
-    /** Drives the root auth gate: non-null → signed in. */
-    val authToken: StateFlow<String?> = _authToken.asStateFlow()
+    /** Root gate (auth §3.1 — the ONE store's sign-in state; a refresh never flips it). */
+    val isSignedIn: StateFlow<Boolean> = session.signedIn
+
+    private val _signOutNotice = MutableStateFlow<String?>(null)
+    /** A2: why the last session ended without the user asking — shown ONCE in the login screen's error slot. */
+    val signOutNotice: StateFlow<String?> = _signOutNotice.asStateFlow()
+    fun consumeSignOutNotice(): String? = _signOutNotice.value.also { _signOutNotice.value = null }
+    /** A2: the session ended without the user asking (refresh `session_invalid`, a corrupt token store). Any thread. */
+    fun noteForcedSignOut() { _signOutNotice.value = KitCopy.messageFor(AppErrorKind.SIGNED_OUT) }
 
     private val _globalRole = MutableStateFlow(session.globalRole)
     val globalRole: StateFlow<String?> = _globalRole.asStateFlow()
@@ -162,8 +201,19 @@ class ProgramContext(
     private val _programs = MutableStateFlow<List<ProgramDTO>>(emptyList())
     val programs: StateFlow<List<ProgramDTO>> = _programs.asStateFlow()
 
-    private val _programsLoading = MutableStateFlow(false)
-    val programsLoading: StateFlow<Boolean> = _programsLoading.asStateFlow()
+    private val _programsState = MutableStateFlow<UiState<List<ProgramDTO>>>(UiState.Idle)
+    /** The picker's kit state (frontend-kit §5); its data always equals [programs]. */
+    val programsState: StateFlow<UiState<List<ProgramDTO>>> = _programsState.asStateFlow()
+
+    /** Replace the list keeping the load-state variant (reorder / delete / edit / leave). */
+    private fun setPrograms(list: List<ProgramDTO>) {
+        _programs.value = list
+        _programsState.value = when (val st = _programsState.value) {
+            is UiState.Loaded -> st.copy(data = list)
+            is UiState.Stale -> st.copy(data = list)
+            else -> st
+        }
+    }
 
     /** The program chosen in the picker; hydrated on pick, read by the downstream shell (Phase D+). */
     private val _activeProgram = MutableStateFlow<ProgramDTO?>(null)
@@ -171,9 +221,13 @@ class ProgramContext(
 
     /** Mobile login via POST /auth/login/app. Persists tokens + identity, flips the gate. */
     suspend fun login(identifier: String, password: String): Result<Unit> = runCatching {
-        val resp = api.loginApp(LoginRequest(identifier = identifier, password = password))
+        val ride = deviceRegistry.beginSignIn()
+        val resp = api.loginApp(
+            LoginRequest(identifier, password, pushToken = ride.pushToken, deviceId = ride.deviceId, platform = PLATFORM),
+        )
         applyLoginSession(resp.token, resp.refreshToken, resp.memberId, resp.username, resp.memberName, resp.globalRole)
-    }.recoverCatching { throw it.asApiError() }
+        deviceRegistry.markRegistered(ride)
+    }.recoverCatching { throw it.asApiError() }.onFailure { events.signInFailed("password", it) }
 
     /** The single session-write path shared by password login + social sign-in/completion: persist tokens +
      *  identity and flip the StateFlows that drive the root gate + header. */
@@ -185,12 +239,15 @@ class ProgramContext(
         memberName: String?,
         globalRole: String?,
     ) {
-        session.saveTokens(token, refreshToken)
+        // Identity first: the gate flips on saveTokens and the signed-in graph reads the member id at once.
         session.saveIdentity(memberId, username, memberName, globalRole)
-        _authToken.value = token
+        refresher.reset()
+        _signOutNotice.value = null
+        session.saveTokens(token, refreshToken)
         _globalRole.value = globalRole
         _memberName.value = memberName
         _memberUsername.value = username
+        health.reloadForMember()
     }
 
     // ---- Social sign-in (Continue with Google) — the id_token exchange + brand-new-user profile completion.
@@ -216,8 +273,14 @@ class ProgramContext(
      * root gate swaps). Brand-new social user → stash the pending session + prefill (returns true, the screen
      * routes to the completion wizard). The device push token rides along when we already have one.
      */
-    suspend fun socialSignIn(idToken: String): Result<Boolean> = runCatching {
-        val resp = api.oauth(OAuthRequest(provider = "google", idToken = idToken, pushToken = lastRegisteredPushToken))
+    suspend fun socialSignIn(idToken: String, nonce: String): Result<Boolean> = runCatching {
+        val ride = deviceRegistry.beginSignIn()
+        val resp = api.oauth(
+            OAuthRequest(
+                provider = "google", idToken = idToken, nonce = nonce,
+                pushToken = ride.pushToken, deviceId = ride.deviceId, platform = PLATFORM,
+            ),
+        )
         if (resp.needsProfile) {
             _pendingSocial.value = PendingSocial(
                 token = resp.token ?: error("Missing pending token."),
@@ -236,9 +299,10 @@ class ProgramContext(
                 memberName = resp.memberName,
                 globalRole = resp.globalRole,
             )
+            deviceRegistry.markRegistered(ride)
             false
         }
-    }.recoverCatching { throw it.asApiError() }
+    }.recoverCatching { throw it.asApiError() }.onFailure { events.signInFailed("google", it) }
 
     /**
      * POST /auth/oauth/complete — finish a brand-new social user's profile (Bearer = the pending access token).
@@ -265,24 +329,38 @@ class ProgramContext(
             globalRole = resp.globalRole,
         )
         _pendingSocial.value = null
-    }.recoverCatching { throw it.asApiError() }
+        deviceRegistry.sync()
+    }.recoverCatching { throw it.asApiError() }.onFailure { events.signInFailed("google", it) }
 
     // ---- Auth phase-2 (D-C10): linked sign-in identities ----
     suspend fun listIdentities(): Result<IdentitiesResponse> =
         runCatching { api.listIdentities() }.recoverCatching { throw it.asApiError() }
 
-    suspend fun linkGoogle(idToken: String): Result<IdentitiesResponse> =
-        runCatching {
-            api.linkIdentity(LinkRequest(provider = "google", idToken = idToken, refreshToken = session.refreshToken))
-        }.recoverCatching { throw it.asApiError() }
+    /** POST /auth/link — the raw [nonce] whose SHA-256 hex Google embedded (link/unlink ignore refresh_token, D-C14c). */
+    suspend fun linkGoogle(idToken: String, nonce: String): Result<IdentitiesResponse> =
+        runCatching { api.linkIdentity(LinkRequest(provider = "google", idToken = idToken, nonce = nonce)) }
+            .recoverCatching { throw it.asApiError() }
 
     suspend fun unlink(provider: String): Result<IdentitiesResponse> =
-        runCatching { api.unlinkIdentity(UnlinkRequest(provider = provider, refreshToken = session.refreshToken)) }
+        runCatching { api.unlinkIdentity(UnlinkRequest(provider = provider)) }
             .recoverCatching { throw it.asApiError() }
 
+    /** The Google SDK failed before any API call (observability §8 `kind: provider`). */
+    fun reportGoogleProviderFailure(code: String) = events.signInProviderFailed("google", code)
+
     suspend fun setAccountPassword(newPassword: String): Result<IdentitiesResponse> =
-        runCatching { api.setPassword(SetPasswordRequest(newPassword)) }
-            .recoverCatching { throw it.asApiError() }
+        passwordWrite { api.setPassword(SetPasswordRequest(newPassword)) }
+
+    /** auth §3.1 rule 6 (password writes): the body is one-shot, so OkHttp never replays it after a dropped connection.
+     *  A 401 means the write never ran — the authenticator has refreshed by then, so re-send ONCE (A9). */
+    private suspend fun <T> passwordWrite(call: suspend () -> T): Result<T> {
+        val first = runCatching { call() }.recoverCatching { throw it.asApiError() }
+        val e = first.exceptionOrNull()
+        if (e is ApiException && e.status == 401 && session.signedIn.value) {
+            return runCatching { call() }.recoverCatching { throw it.asApiError() }
+        }
+        return first
+    }
 
     suspend fun register(
         firstName: String,
@@ -312,7 +390,7 @@ class ProgramContext(
 
     /** Self-heal identity from the verified token on relaunch (GET /auth/me). Best-effort. */
     fun healIdentityIfNeeded() {
-        if (_authToken.value == null) return
+        if (!session.signedIn.value) return
         scope.launch {
             runCatching { api.me() }.onSuccess { me ->
                 session.saveIdentity(me.memberId, me.username, me.memberName, me.globalRole)
@@ -323,28 +401,75 @@ class ProgramContext(
         }
     }
 
-    fun signOut() {
-        scope.launch {
-            // Deregister this device from push while the access token is still valid (iOS parity).
-            lastRegisteredPushToken?.let { t ->
-                runCatching { api.unregisterDevice(DeviceUnregisterRequest(t)) }
-            }
-            runCatching { api.logout(LogoutRequest(session.refreshToken)) }
+    /** The user's own sign-out (auth §3.1 rule 1): revoke THIS device, then the full teardown. */
+    fun signOut() { scope.launch { tearDown(revoke = true) } }
+
+    /** TokenRefresher saw `401 session_invalid` for the stored session (tokens already cleared, so the gate has already
+     *  flipped) — the A2 reason is set at once (any thread), then the forced teardown. */
+    fun onSessionInvalid() {
+        noteForcedSignOut()
+        scope.launch { tearDown(revoke = false, forcedReason = "refresh_session_invalid") }
+    }
+
+    /** POST /auth/logout-all (My Profile → Sign out everywhere). 200 → every session ended → teardown. */
+    suspend fun logoutAll(): Result<Unit> {
+        val result = runCatching { api.logoutAll(); Unit }.recoverCatching { throw AppErrorException(it.toAppError()) }
+        if (result.isSuccess) tearDown(revoke = false)
+        return result
+    }
+
+    /** ONE teardown for every sign-out path (board §2 client rule 5): state + tokens cleared at once (the gate flips),
+     *  then best-effort revoke / unregister in the background with the captured credentials. */
+    private suspend fun tearDown(revoke: Boolean, forcedReason: String? = null) {
+        // NonCancellable: logout-all / delete account run this in My Profile's scope, which dies the moment the gate
+        // flips — the rest of the teardown must still complete.
+        withContext(NonCancellable) {
+            health.cancelRun()
+            deviceRegistry.unregister()
+            val access = session.accessToken
+            val refresh = session.refreshToken
+            // A2: the reason is set BEFORE the gate flips, so the auth graph mounts straight onto Login with it.
+            if (forcedReason != null) noteForcedSignOut()
             clearSession()
+            launchCache.clear()
+            refresher.reset()
+            health.reloadForMember()
+            if (forcedReason != null) events.forcedSignOut(forcedReason, status = 401, code = "session_invalid")
+            if (revoke && (access != null || refresh != null)) {
+                scope.launch { runCatching { api.logout(access?.let { "Bearer $it" }, LogoutRequest(refresh)) } }
+            }
         }
     }
 
-    /** Called by the network layer when a token refresh fails (session already cleared). */
-    fun onAuthFailure() {
-        scope.launch { clearSession() }
-    }
+    /** Who a load started for: null = signed out, else the member id ("" if unknown). A late response is applied only
+     *  while [isCurrentOwner] — a sign-out / another sign-in meanwhile drops it (no cross-session state or cache). */
+    private fun sessionOwner(): String? = if (session.signedIn.value) session.memberId.orEmpty() else null
+    private fun isCurrentOwner(owner: String?): Boolean = owner != null && owner == sessionOwner()
 
-    /** Load "My Programs" (GET /programs). The list arrives in the member's saved order — rendered as-is. */
+    /** Load "My Programs" (GET /programs), in the member's saved order. The first call after launch / sign-in shows this
+     *  member's cached list instantly (board §6.5), then refreshes. */
     suspend fun loadPrograms(): Result<Unit> {
-        _programsLoading.value = true
-        return runCatching { _programs.value = api.getPrograms() }
+        val owner = sessionOwner()
+        val memberId = session.memberId
+        if (_programsState.value is UiState.Idle && memberId != null) {
+            launchCache.readPrograms(memberId)?.let { hit ->
+                if (_programsState.value is UiState.Idle && isCurrentOwner(owner)) {
+                    _programs.value = hit.data; _programsState.value = UiState.Loaded(hit.data, hit.savedAt)
+                }
+            }
+        }
+        _programsState.value = _programsState.value.refreshing()
+        return runCatching { api.getPrograms() }
             .recoverCatching { throw it.asApiError() }
-            .also { _programsLoading.value = false }
+            .onSuccess { list ->
+                if (!isCurrentOwner(owner)) return@onSuccess
+                _programs.value = list; _programsState.value = UiState.fresh(list)
+                if (memberId != null) launchCache.writePrograms(memberId, list)
+            }
+            .onFailure {
+                if (it !is CancellationException && isCurrentOwner(owner)) _programsState.value = _programsState.value.failing(it.toAppError())
+            }
+            .map { }
     }
 
     /** POST /programs — create a program (creator becomes its admin); reload the list to include it (iOS parity). */
@@ -363,7 +488,7 @@ class ProgramContext(
         val current = _programs.value.toMutableList()
         if (from !in current.indices || to !in current.indices || from == to) return
         current.add(to, current.removeAt(from))
-        _programs.value = current
+        setPrograms(current)
     }
 
     /** Persist the current display order (PUT /programs/order). On failure, revert to [previousOrder]. */
@@ -371,24 +496,48 @@ class ProgramContext(
         api.saveProgramOrder(ProgramOrderRequest(_programs.value.map { it.id }))
         Unit
     }.recoverCatching {
-        _programs.value = previousOrder
+        setPrograms(previousOrder)
         throw it.asApiError()
     }
 
     /** Manage-gated delete (DELETE /programs/:id); drops the card locally on success. */
     suspend fun deleteProgram(programId: String): Result<Unit> = runCatching {
         api.deleteProgram(programId)
-        _programs.value = _programs.value.filterNot { it.id == programId }
+        setPrograms(_programs.value.filterNot { it.id == programId })
     }.recoverCatching { throw it.asApiError() }
 
-    /** Inline invite response (PUT /program-memberships): accept → "active", decline/cancel → "removed". */
-    suspend fun respondToInvite(programId: String, accept: Boolean): Result<Unit> = runCatching {
+    // ---- Invites (invites §3.1) — the ONE inbox; push / SSE are hints only ----
+
+    private val _invites = MutableStateFlow<UiState<List<PendingInviteDTO>>>(UiState.Idle)
+    /** GET /my-invites; global admins GET /all-invites (A10 — iOS parity, with Revoke). */
+    val invites: StateFlow<UiState<List<PendingInviteDTO>>> = _invites.asStateFlow()
+
+    suspend fun loadInvites(): Result<Unit> {
+        val owner = sessionOwner()
+        _invites.value = _invites.value.refreshing()
+        return runCatching { if (isGlobalAdmin) api.getAllInvites() else api.getMyInvites() }
+            .recoverCatching { throw it.asApiError() }
+            .onSuccess { if (isCurrentOwner(owner)) _invites.value = UiState.fresh(it) }
+            .onFailure {
+                if (it !is CancellationException && isCurrentOwner(owner)) _invites.value = _invites.value.failing(it.toAppError())
+            }
+            .map { }
+    }
+
+    /** PUT /invite-response (`accept` / `decline` [+ block_future] / `revoke` for global admins), then inbox + programs
+     *  reload in parallel. The 200 message is not shown (invites §3.1 as amended — all three surfaces). */
+    suspend fun respondToInvite(inviteId: String, action: String, blockFuture: Boolean = false): Result<Unit> = runCatching {
+        api.respondToInvite(InviteResponseRequest(inviteId, action, blockFuture.takeIf { it && action == "decline" }))
+        coroutineScope { launch { loadInvites() }; launch { loadPrograms() } }
+        Unit
+    }.recoverCatching { throw AppErrorException(it.toAppError()) }
+
+    /** A "requested" card's Cancel Request — unchanged PUT /program-memberships (status removed). */
+    suspend fun cancelJoinRequest(programId: String): Result<Unit> = runCatching {
         val memberId = session.memberId ?: error("Missing member id.")
-        api.updateMembership(
-            MembershipUpdateRequest(programId, memberId, if (accept) "active" else "removed"),
-        )
+        api.updateMembership(MembershipUpdateRequest(programId, memberId, "removed"))
         loadPrograms().getOrThrow()
-    }.recoverCatching { throw it.asApiError() }
+    }.recoverCatching { throw AppErrorException(it.toAppError()) }
 
     /** Pick a program → hydrate the active-program state the shell reads. */
     fun selectProgram(program: ProgramDTO) {
@@ -408,72 +557,93 @@ class ProgramContext(
     /** Drop the active program (iOS `returnToMyPrograms`) — used by the widget forms' exit-to-My-Programs. */
     fun clearActiveProgram() { _activeProgram.value = null }
 
-    // ---- Notifications (Phase I) — real-time SSE + the modal queue ----
-    // The alerts layer: an SSE stream (NotificationStreamClient) pushes new alerts live, backed by a
-    // `GET /notifications/unacknowledged` backfill on connect. Alerts render as a single-notification modal
-    // QUEUE (oldest-first, one at a time), acknowledged optimistically via `POST /:id/acknowledge`. Mirrors
-    // the iOS `ProgramContext+Notifications` set (notifications SPEC D-REF). FCM push is the follow-up.
+    // ---- Notifications (notifications §3.3) — real-time SSE + the modal queue ----
+    // An SSE stream pushes new alerts live; every `ready` re-fetches `GET /notifications/unacknowledged` (the stream
+    // never replays). Alerts render as a single-notification modal QUEUE (oldest-first), acknowledged optimistically.
 
-    private var notificationStreamClient: NotificationStreamClient? = null
     private val notificationIds = mutableSetOf<String>()
+    private val recentlyAcked = LinkedHashMap<String, Long>()
 
     /** The pending-alert queue; the shell shows `first` in a modal and pops it on acknowledge (web F7 parity). */
     private val _notificationQueue = MutableStateFlow<List<NotificationDTO>>(emptyList())
     val notificationQueue: StateFlow<List<NotificationDTO>> = _notificationQueue.asStateFlow()
 
-    /** Open (or restart) the SSE stream when signed in + run the unacknowledged backfill. Idempotent — safe
-     *  to call on launch and on every resume (iOS `startNotificationStreamIfNeeded`). */
-    fun startNotificationStreamIfNeeded() {
-        val token = session.accessToken?.takeIf { it.isNotEmpty() } ?: return
-        notificationStreamClient?.disconnect()
-        val client = NotificationStreamClient(baseUrl) { session.accessToken }
-        client.onNotification = { dto -> scope.launch { enqueueNotification(dto) } }
-        client.connect()
-        notificationStreamClient = client
-        scope.launch { loadUnacknowledgedNotifications() }
+    private val streamClient = NotificationStreamClient(
+        baseUrl, Network.streamClient(), scope,
+        awaitOnline = { isOnline.first { it } },
+    ) { force ->
+        try {
+            if (force) (refresher.refresh(session.accessToken) as? TokenRefresher.Outcome.Refreshed)?.accessToken
+            else refresher.tokenForRequest()
+        } catch (_: AuthUnavailableException) { null }
+    }.also { c ->
+        c.onNotification = { dto -> scope.launch { enqueueNotification(dto) } }
+        c.onReady = { scope.launch { loadUnacknowledgedNotifications() } }
     }
 
-    /** Tear down the stream + clear the queue (sign-out / auth-fail). */
+    /** FCM foreground suppression (A5): the in-app modal already shows what arrives while the stream is connected. */
+    val isStreamConnected: Boolean get() = streamClient.isConnected
+
+    fun startNotificationStream() { if (session.signedIn.value) streamClient.start() }
+    fun pauseNotificationStream() = streamClient.stop()
+
+    /** Tear down the stream + clear the queue (sign-out). */
     fun stopNotificationStream() {
-        notificationStreamClient?.disconnect()
-        notificationStreamClient = null
+        streamClient.stop()
         _notificationQueue.value = emptyList()
         notificationIds.clear()
     }
 
-    /** Backfill the member's un-acked alerts (oldest-first). Swallowed on failure — retried on next event. */
+    /** RootScreen ON_START — `launch` (first start of this signed-in state) or `foreground`. */
+    fun onForeground(trigger: String) {
+        events.flushSoon()
+        if (!session.signedIn.value) return
+        startNotificationStream()
+        registerPushTokenIfNeeded()
+        health.onTrigger(trigger)
+    }
+
+    /** RootScreen ON_STOP — the stream is foreground-only. */
+    fun onBackground() = pauseNotificationStream()
+
+    /** notifications §3.3: after every `ready`, re-fetch — drops items acknowledged elsewhere, keeps our own recent acks
+     *  out (A4), and refreshes the invite inbox when an invite is among them. */
     suspend fun loadUnacknowledgedNotifications() {
-        if (session.accessToken.isNullOrEmpty()) return
+        if (!session.signedIn.value) return
         runCatching { api.getUnacknowledgedNotifications() }.onSuccess { items ->
+            pruneAcked()
+            val fresh = items.filterNot { it.id in recentlyAcked }
+            val newTypes = fresh.filter { it.id !in notificationIds }.map { it.type }.toSet()
             notificationIds.clear()
-            notificationIds.addAll(items.map { it.id })
-            _notificationQueue.value = sortNotifications(items)
+            notificationIds.addAll(fresh.map { it.id })
+            _notificationQueue.value = sortNotifications(fresh)
+            if (fresh.any { it.type == INVITE_TYPE }) runCatching { loadInvites() }
+            newTypes.filter { it != INVITE_TYPE }.forEach { refreshDataForType(it) }
         }
     }
 
     /** Optimistic acknowledge: pop the alert immediately, then `POST /:id/acknowledge`; on failure re-backfill
      *  so it reappears (iOS/web F8 parity). */
     suspend fun acknowledgeNotification(notification: NotificationDTO) {
-        if (session.accessToken.isNullOrEmpty()) return
+        if (!session.signedIn.value) return
+        rememberAcked(notification.id)
         _notificationQueue.value = _notificationQueue.value.filterNot { it.id == notification.id }
         notificationIds.remove(notification.id)
         runCatching { api.acknowledgeNotification(notification.id) }
-            .onFailure { loadUnacknowledgedNotifications() }
+            .onFailure { recentlyAcked.remove(notification.id); loadUnacknowledgedNotifications() }
     }
 
     private suspend fun enqueueNotification(notification: NotificationDTO) {
-        if (!notificationIds.add(notification.id)) return
+        if (notification.id in recentlyAcked || !notificationIds.add(notification.id)) return
         _notificationQueue.value = sortNotifications(_notificationQueue.value + notification)
-        refreshDataForNotification(notification)
+        refreshDataForType(notification.type)
     }
 
     /** Invalidate the caches an event touches so the open screen reflects it (iOS `refreshDataForNotification`
-     *  / web per-notification query invalidation). Best-effort; the picker list carries invites on Android. */
-    private suspend fun refreshDataForNotification(notification: NotificationDTO) {
-        when (notification.type) {
-            "program.invite_received" -> {
-                runCatching { loadPrograms() }
-            }
+     *  / web per-notification query invalidation). Best-effort; the inbox is always GET /my-invites. */
+    private suspend fun refreshDataForType(type: String) {
+        when (type) {
+            INVITE_TYPE -> runCatching { loadInvites() }
             "program.role_changed", "program.member_removed", "program.member_left",
             "program.member_joined", "program.admin_transferred", "program.updated", "program.deleted" -> {
                 runCatching { loadPrograms() }
@@ -482,40 +652,43 @@ class ProgramContext(
         }
     }
 
+    private fun rememberAcked(id: String) { pruneAcked(); recentlyAcked[id] = SystemClock.elapsedRealtime() }
+    private fun pruneAcked() {
+        val cutoff = SystemClock.elapsedRealtime() - ACK_MEMORY_MS
+        recentlyAcked.entries.removeAll { it.value < cutoff }
+    }
+
     /** Oldest-first (ISO `created_at` string sort; missing dates sink to the front — distant past). */
     private fun sortNotifications(items: List<NotificationDTO>): List<NotificationDTO> =
         items.sortedBy { it.createdAt ?: "" }
 
-    // ---- Push (FCM, Phase I-b) — device-token registration (the iOS APNs device lifecycle analog) ----
+    // ---- Push (FCM, notifications §3.1–3.2) — registration lives in DeviceRegistry ----
 
-    /** The last token we successfully registered — dedupes redundant `PUT /device` calls. */
-    private var lastRegisteredPushToken: String? = null
+    fun registerPushTokenIfNeeded() = deviceRegistry.sync()
+    fun shouldAskNotificationPermission() = deviceRegistry.shouldAskNotificationPermission()
+    fun markNotificationPermissionAsked() = deviceRegistry.markNotificationPermissionAsked()
 
-    /** Fetch the current FCM token and register it (if signed in). Called on sign-in + resume. Best-effort;
-     *  failures are logged (a push path must not swallow errors silently). */
-    fun registerPushTokenIfNeeded() {
-        if (session.accessToken.isNullOrEmpty()) { Log.d(PUSH_TAG, "register skipped — not signed in"); return }
-        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val token = task.result
-                Log.d(PUSH_TAG, "FCM token fetched: ${token?.take(16)}…")
-                token?.let { onNewPushToken(it) }
-            } else {
-                Log.w(PUSH_TAG, "FCM token fetch FAILED", task.exception)
-            }
-        }
+    /** A foreground FCM message (tray path) — keep the inbox fresh (invites §3.1). Any thread. */
+    fun onPushReceived(type: String?) {
+        if (type == INVITE_TYPE) scope.launch { if (session.signedIn.value) loadInvites() }
     }
 
-    /** Register a (new) FCM token with the backend as an `android` device. Called from
-     *  [registerPushTokenIfNeeded] + the FirebaseMessagingService's `onNewToken`. */
-    fun onNewPushToken(token: String) {
-        if (token.isEmpty() || session.accessToken.isNullOrEmpty()) return
-        if (token == lastRegisteredPushToken) return
+    private val _inviteInboxRequest = MutableStateFlow(false)
+    /** U2: an invite push tap asks the picker to open the actions sheet on its invites tab. */
+    val inviteInboxRequest: StateFlow<Boolean> = _inviteInboxRequest.asStateFlow()
+    fun consumeInviteInboxRequest() { _inviteInboxRequest.value = false }
+
+    /** notifications §3.2 (U2): a push tap acknowledges; an invite opens the inbox, any other type re-fetches its data. */
+    fun onPushTap(notificationId: String, type: String?) {
+        if (!session.signedIn.value) return
+        rememberAcked(notificationId)
+        _notificationQueue.value = _notificationQueue.value.filterNot { it.id == notificationId }
+        notificationIds.remove(notificationId)
         scope.launch {
-            runCatching { api.registerDevice(DeviceRegisterRequest(pushToken = token, platform = "android")) }
-                .onSuccess { lastRegisteredPushToken = token; Log.d(PUSH_TAG, "device registered ✓") }
-                .onFailure { Log.w(PUSH_TAG, "device register FAILED", it) }
+            runCatching { api.acknowledgeNotification(notificationId) }
+            type?.let { refreshDataForType(it) }
         }
+        if (type == INVITE_TYPE) _inviteInboxRequest.value = true
     }
 
     // ---- Summary dashboard (Phase D) ----
@@ -543,15 +716,15 @@ class ProgramContext(
         return !isAdmin
     }
 
+    private val _summaryState = MutableStateFlow<UiState<SummaryData>>(UiState.Idle)
+    /** The Summary tab's kit state (frontend-kit §5). */
+    val summaryState: StateFlow<UiState<SummaryData>> = _summaryState.asStateFlow()
     private val _summary = MutableStateFlow(SummaryData())
-    /** The active program's Summary-tab analytics (7 reads, refreshed together). */
+    /** The detail screens' view of the same data (empty until loaded). */
     val summary: StateFlow<SummaryData> = _summary.asStateFlow()
+    private var summaryProgramId: String? = null
 
-    private val _summaryLoading = MutableStateFlow(false)
-    val summaryLoading: StateFlow<Boolean> = _summaryLoading.asStateFlow()
-
-    private val _summaryError = MutableStateFlow<String?>(null)
-    val summaryError: StateFlow<String?> = _summaryError.asStateFlow()
+    private fun setSummaryState(state: UiState<SummaryData>) { _summaryState.value = state; _summary.value = state.dataOrNull ?: SummaryData() }
 
     /**
      * Bumped after a successful log-form save so the Summary tab re-runs [loadSummary] — the Android
@@ -570,31 +743,64 @@ class ProgramContext(
     val messages: SharedFlow<String> = _messages.asSharedFlow()
 
     /**
-     * Load the Summary tab's 7 analytics reads for the active program (the iOS `AdminSummaryTab.load()`
-     * analogue). Program progress is read straight from the already-loaded [activeProgram] DTO
-     * (progress_percent + start/end dates), so the vestigial `analytics/summary` over-fetch — which the
-     * iOS/web landings flag as feeding only the deferred detail views (iOS F2 / web F5) — is skipped here.
+     * Load the Summary tab's 7 analytics reads for the active program, in PARALLEL (board §6.5); this member's cached
+     * Summary shows first when the program changes. A13: a partial failure keeps the parts that loaded (the rest keep
+     * this program's previous values) and shows the stale banner; only all seven failing with no data → ErrorView.
+     * Program progress is read from the loaded [activeProgram] DTO (the vestigial `analytics/summary` is skipped).
      */
     suspend fun loadSummary(): Result<Unit> {
-        val pid = _activeProgram.value?.id
-            ?: return Result.failure(IllegalStateException("No active program."))
-        _summaryLoading.value = true
-        _summaryError.value = null
-        return runCatching {
-            _summary.value = SummaryData(
-                mtdParticipation = api.getMtdParticipation(pid),
-                totalWorkouts = api.getTotalWorkoutsMtd(pid),
-                totalDuration = api.getTotalDurationMtd(pid),
-                avgDuration = api.getAvgDurationMtd(pid),
-                timeline = api.getActivityTimeline("week", pid).buckets,
-                distribution = api.getDistributionByDay(pid),
-                workoutTypes = api.getWorkoutTypes(pid, 100),
-            )
-        }.recoverCatching {
-            val err = it.asApiError()
-            _summaryError.value = err.message ?: "Couldn't load summary."
-            throw err
-        }.also { _summaryLoading.value = false }
+        val pid = _activeProgram.value?.id ?: return Result.failure(IllegalStateException("No active program."))
+        val owner = sessionOwner()
+        val memberId = session.memberId
+        fun stillMine() = summaryProgramId == pid && isCurrentOwner(owner)
+        if (summaryProgramId != pid) {
+            summaryProgramId = pid
+            setSummaryState(UiState.Idle)
+            if (memberId != null) launchCache.readSummary(memberId, pid)?.let { hit ->
+                if (stillMine() && _summaryState.value is UiState.Idle) setSummaryState(UiState.Loaded(hit.data, hit.savedAt))
+            }
+        }
+        setSummaryState(_summaryState.value.refreshing())
+        val parts = coroutineScope {
+            val mtd = async { attempt { api.getMtdParticipation(pid) } }
+            val total = async { attempt { api.getTotalWorkoutsMtd(pid) } }
+            val duration = async { attempt { api.getTotalDurationMtd(pid) } }
+            val avg = async { attempt { api.getAvgDurationMtd(pid) } }
+            val timeline = async { attempt { api.getActivityTimeline("week", pid).buckets } }
+            val distribution = async { attempt { api.getDistributionByDay(pid) } }
+            val types = async { attempt { api.getWorkoutTypes(pid, 100) } }
+            SummaryParts(mtd.await(), total.await(), duration.await(), avg.await(), timeline.await(), distribution.await(), types.await())
+        }
+        if (!stillMine()) return Result.success(Unit)   // the program or the session changed mid-load
+        val errors = parts.errors()
+        val prev = _summaryState.value.dataOrNull
+        if (errors.size == SummaryParts.COUNT) {
+            setSummaryState(_summaryState.value.failing(errors.first().toAppError()))
+            return Result.failure(errors.first())
+        }
+        val data = parts.merge(prev)
+        if (errors.isEmpty()) {
+            setSummaryState(UiState.fresh(data))
+            if (memberId != null) launchCache.writeSummary(memberId, pid, data)
+            return Result.success(Unit)
+        }
+        setSummaryState(UiState.Stale(data, System.currentTimeMillis(), errors.first().toAppError()))
+        return Result.failure(errors.first())
+    }
+
+    /** Summary pull-to-refresh (A13): reload now; the health run (`pull_to_refresh`) goes on the app scope (survives
+     *  leaving the tab) and reloads again only if it applied something. */
+    suspend fun refreshSummary(): Result<Unit> {
+        scope.launch { if (((health.sync("pull_to_refresh") as? HealthSyncResult.Synced)?.count ?: 0) > 0) loadSummary() }
+        return loadSummary()
+    }
+
+    private suspend fun <T> attempt(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e.asApiError())
     }
 
     /** Fetch the activity timeline for a period (week|month|year|program) — the detail view's period switch. */
@@ -992,18 +1198,15 @@ class ProgramContext(
     }
 
     /**
-     * POST /program-memberships/invite — privacy-safe (F3, LOAD-BEARING). Any HTTP/AppError failure is
-     * swallowed as success so the screen never reveals whether a username exists; only a true network/IO
-     * failure surfaces. The backend also swallows non-AppError to 200 — this completes the guarantee client-side.
+     * POST /program-memberships/invite. The server keeps the privacy guarantee (every no-op is a 200 "Invitation
+     * sent", F1); the client-side swallow is removed (invites §3.1) — "Invitation sent" only on 200, every other
+     * status / transport failure through the frontend kit.
      */
     suspend fun sendProgramInvite(username: String): Result<Unit> {
         val pid = _activeProgram.value?.id
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching { api.sendInvite(InviteRequest(pid, username.trim())); Unit }
-            .recoverCatching { e ->
-                if (e is IOException) throw com.app.rasifiters.net.ApiException(0, "Network error. Please try again.")
-                Unit
-            }
+            .recoverCatching { throw AppErrorException(it.toAppError()) }
     }
 
     // ---- Lifestyle tab (Phase F) — workout-type analytics + health timeline + workout management ----
@@ -1155,8 +1358,7 @@ class ProgramContext(
 
     /** PUT /auth/change-password. */
     suspend fun changePassword(newPassword: String): Result<Unit> =
-        runCatching { api.changePassword(ChangePasswordRequest(newPassword)); Unit }
-            .recoverCatching { throw it.asApiError() }
+        passwordWrite { api.changePassword(ChangePasswordRequest(newPassword)); Unit }
 
     /** PUT /auth/email — direct, password-confirmed change. Returns the updated email. */
     suspend fun changeEmail(newEmail: String, password: String): Result<String?> =
@@ -1164,10 +1366,11 @@ class ProgramContext(
             .recoverCatching { throw it.asApiError() }
 
     /** DELETE /auth/account — permanent. On success the session is cleared (→ back to login). */
-    suspend fun deleteAccount(): Result<Unit> =
-        runCatching { api.deleteAccount(); Unit }
-            .recoverCatching { throw it.asApiError() }
-            .onSuccess { clearSession() }
+    suspend fun deleteAccount(): Result<Unit> {
+        val result = runCatching { api.deleteAccount(); Unit }.recoverCatching { throw it.asApiError() }
+        if (result.isSuccess) tearDown(revoke = false)
+        return result
+    }
 
     /** PUT /programs/:id — admin program edit. Updates the active program + picker card locally. */
     suspend fun updateProgram(
@@ -1189,7 +1392,7 @@ class ProgramContext(
                 endDate = endDate, adminOnlyDataEntry = adminOnlyDataEntry,
             )
             _activeProgram.value = updated
-            _programs.value = _programs.value.map { if (it.id == updated.id) updated else it }
+            setPrograms(_programs.value.map { if (it.id == updated.id) updated else it })
         }.recoverCatching { throw it.asApiError() }
     }
 
@@ -1199,7 +1402,7 @@ class ProgramContext(
             ?: return Result.failure(IllegalStateException("No active program."))
         return runCatching {
             api.leaveProgram(LeaveProgramRequest(program.id))
-            _programs.value = _programs.value.filterNot { it.id == program.id }
+            setPrograms(_programs.value.filterNot { it.id == program.id })
             _activeProgram.value = null
         }.recoverCatching { throw it.asApiError() }
     }
@@ -1210,19 +1413,21 @@ class ProgramContext(
 
     private fun clearSession() {
         stopNotificationStream()
-        lastRegisteredPushToken = null
         session.clear()
+        _invites.value = UiState.Idle
+        _inviteInboxRequest.value = false
+        recentlyAcked.clear()
         _pendingSocial.value = null
         _loggedInGender.value = null
-        _authToken.value = null
         _globalRole.value = null
         _memberName.value = null
         _memberUsername.value = null
         _programs.value = emptyList()
+        _programsState.value = UiState.Idle
         _activeProgram.value = null
         _widgetRoute.value = null
-        _summary.value = SummaryData()
-        _summaryError.value = null
+        setSummaryState(UiState.Idle)
+        summaryProgramId = null
         _memberMetrics.value = emptyList()
         _selectedMemberOverview.value = null
         _memberHistory.value = null
@@ -1246,7 +1451,8 @@ class ProgramContext(
         if (this is HttpException) toApiException() else this
 }
 
-/** The active program's Summary-tab analytics, refreshed together by [ProgramContext.loadSummary]. */
+/** The active program's Summary-tab analytics, loaded together by [ProgramContext.loadSummary] (also launch-cached). */
+@Serializable
 data class SummaryData(
     val mtdParticipation: MtdParticipationDTO? = null,
     val totalWorkouts: TotalWorkoutsMtdDTO? = null,
@@ -1255,7 +1461,12 @@ data class SummaryData(
     val timeline: List<ActivityTimelinePoint> = emptyList(),
     val distribution: DistributionByDayDTO? = null,
     val workoutTypes: List<WorkoutTypeDTO> = emptyList(),
+    /** A13: list parts that failed with no previous value ([SummaryPart.TIMELINE] / [SummaryPart.TYPES]) — shown as "—",
+     *  never as an empty chart. A failed object part is simply null. Never cached (only full successes are). */
+    @Transient val unavailable: Set<SummaryPart> = emptySet(),
 )
+
+enum class SummaryPart { TIMELINE, TYPES }
 
 /** The active program's Lifestyle-tab analytics for the selected member, refreshed by [ProgramContext.loadLifestyle]. */
 data class LifestyleData(
@@ -1267,3 +1478,35 @@ data class LifestyleData(
     val timeline: HealthTimelineResponse? = null,
     val steps: StepsStatsDTO? = null,
 )
+
+/** The 7 Summary reads, each its own result (A13 partial failures). */
+private data class SummaryParts(
+    val mtd: Result<MtdParticipationDTO>,
+    val total: Result<TotalWorkoutsMtdDTO>,
+    val duration: Result<TotalDurationMtdDTO>,
+    val avg: Result<AvgDurationMtdDTO>,
+    val timeline: Result<List<ActivityTimelinePoint>>,
+    val distribution: Result<DistributionByDayDTO>,
+    val types: Result<List<WorkoutTypeDTO>>,
+) {
+    fun errors(): List<Throwable> =
+        listOf(mtd, total, duration, avg, timeline, distribution, types).mapNotNull { it.exceptionOrNull() }
+
+    /** Loaded parts win; a failed part keeps [prev] (this program's previous values) when there is one, else it is
+     *  null / marked unavailable (rendered "—", never a fake zero — A13). */
+    fun merge(prev: SummaryData?) = SummaryData(
+        mtdParticipation = mtd.getOrElse { prev?.mtdParticipation },
+        totalWorkouts = total.getOrElse { prev?.totalWorkouts },
+        totalDuration = duration.getOrElse { prev?.totalDuration },
+        avgDuration = avg.getOrElse { prev?.avgDuration },
+        timeline = timeline.getOrElse { prev?.timeline.orEmpty() },
+        distribution = distribution.getOrElse { prev?.distribution },
+        workoutTypes = types.getOrElse { prev?.workoutTypes.orEmpty() },
+        unavailable = buildSet {
+            if (timeline.isFailure && (prev == null || SummaryPart.TIMELINE in prev.unavailable)) add(SummaryPart.TIMELINE)
+            if (types.isFailure && (prev == null || SummaryPart.TYPES in prev.unavailable)) add(SummaryPart.TYPES)
+        },
+    )
+
+    companion object { const val COUNT = 7 }
+}

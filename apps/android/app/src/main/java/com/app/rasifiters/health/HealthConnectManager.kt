@@ -2,6 +2,7 @@ package com.app.rasifiters.health
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.changes.DeletionChange
 import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ExerciseSessionRecord
@@ -16,19 +17,15 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.Period
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import kotlin.math.roundToInt
 
 /**
- * Health Connect access for workout + sleep auto-sync — the Android analog of iOS `HealthKitService`
- * (+`+Sleep`): availability, read authorization, incremental (changes-token) workout fetch,
- * rolling-window sleep fetch, and same-type/same-day (workouts) / per-night (sleep) aggregation.
+ * Health Connect access for workout + sleep + steps sync — the Android analog of iOS `HealthKitService`:
+ * availability, read authorization, incremental (changes-token) workout fetch incl. deletions, paged window reads
+ * (health-sync §8 rule 4), and same-type/same-day (workouts, review display) / per-night (sleep) aggregation.
  *
- * Anchor integrity: `fetchNewWorkouts` returns the new changes token to the caller (the sync
- * orchestration), which commits it via [HealthStore.workoutChangesToken] ONLY after the backend sync
- * succeeds — so a failed upload is retried on the next trigger instead of being silently skipped (iOS
- * `commitAnchor` after success).
+ * Anchor integrity: [fetchWorkouts] returns the new changes token to the caller (the sync runner), which commits it
+ * via [HealthStore.workoutChangesToken] ONLY after a run that may advance (rule 5).
  */
 class HealthConnectManager(private val context: Context) {
 
@@ -53,49 +50,60 @@ class HealthConnectManager(private val context: Context) {
     suspend fun hasSleepPermission(): Boolean = grantedPermissions().containsAll(sleepPermissions)
     suspend fun hasStepsPermission(): Boolean = grantedPermissions().containsAll(stepsPermissions)
 
-    // MARK: - Workouts (incremental via the changes token — the anchored-query analog)
-
-    data class WorkoutFetchResult(val records: List<ExerciseSessionRecord>, val newToken: String?)
-
-    /**
-     * Fetch exercise sessions added/changed since the saved changes token. On the first sync (null token)
-     * only sessions from the connect date forward are read (no arbitrary backfill), then a fresh token is
-     * minted for future incremental fetches. Does NOT persist the token — the caller commits it after a
-     * successful sync. An expired token falls back to a full read from the connect date + a fresh token.
-     */
-    suspend fun fetchNewWorkouts(connectMillis: Long, savedToken: String?): WorkoutFetchResult {
-        val client = clientOrNull() ?: return WorkoutFetchResult(emptyList(), savedToken)
-        val recordTypes = setOf(ExerciseSessionRecord::class)
-
-        if (savedToken == null) {
-            val records = readWorkoutsSince(client, connectMillis)
-            val token = client.getChangesToken(ChangesTokenRequest(recordTypes))
-            return WorkoutFetchResult(records, token)
-        }
-
-        var token: String = savedToken
-        val records = mutableListOf<ExerciseSessionRecord>()
-        while (true) {
-            val response = client.getChanges(token)
-            if (response.changesTokenExpired) {
-                val full = readWorkoutsSince(client, connectMillis)
-                val fresh = client.getChangesToken(ChangesTokenRequest(recordTypes))
-                return WorkoutFetchResult(full, fresh)
-            }
-            response.changes.forEach { change ->
-                if (change is UpsertionChange) (change.record as? ExerciseSessionRecord)?.let(records::add)
-            }
-            token = response.nextChangesToken
-            if (!response.hasMore) break
-        }
-        return WorkoutFetchResult(records, token)
+    fun permissionsFor(flow: HealthStore.Flow): Set<String> = when (flow) {
+        HealthStore.Flow.WORKOUTS -> workoutPermissions
+        HealthStore.Flow.SLEEP -> sleepPermissions
+        HealthStore.Flow.STEPS -> stepsPermissions
     }
 
-    private suspend fun readWorkoutsSince(client: HealthConnectClient, connectMillis: Long): List<ExerciseSessionRecord> {
-        val start = if (connectMillis > 0) Instant.ofEpochMilli(connectMillis) else Instant.EPOCH
-        return client.readRecords(
-            ReadRecordsRequest(ExerciseSessionRecord::class, TimeRangeFilter.after(start)),
-        ).records
+    // MARK: - Workouts (incremental via the changes token — the anchored-query analog)
+
+    /** readFrom != null → a window read (no / expired token). The caller commits newToken only when the run may advance (rule 5). */
+    data class WorkoutFetch(val upserts: List<ExerciseSessionRecord>, val deletedIds: Set<String>, val newToken: String?, val readFrom: Instant?)
+
+    /** Changes since [savedToken] (upserts + DeletionChange ids, every page). No / expired token → mint a fresh token FIRST,
+     *  then read every session since [fallbackStart] (paged) — health-sync §8 rule 4. Throws on a read failure. */
+    suspend fun fetchWorkouts(savedToken: String?, fallbackStart: Instant): WorkoutFetch {
+        val client = clientOrNull() ?: return WorkoutFetch(emptyList(), emptySet(), savedToken, null)
+        if (savedToken != null) {
+            var token: String = savedToken
+            val upserts = LinkedHashMap<String, ExerciseSessionRecord>()
+            val deleted = LinkedHashSet<String>()
+            while (true) {
+                val response = client.getChanges(token)
+                if (response.changesTokenExpired) return fullRead(client, fallbackStart)
+                response.changes.forEach { change ->
+                    when (change) {
+                        is UpsertionChange -> (change.record as? ExerciseSessionRecord)?.let { upserts[it.metadata.id] = it; deleted.remove(it.metadata.id) }
+                        is DeletionChange -> { deleted += change.recordId; upserts.remove(change.recordId) }
+                    }
+                }
+                token = response.nextChangesToken
+                if (!response.hasMore) break
+            }
+            return WorkoutFetch(upserts.values.toList(), deleted, token, null)
+        }
+        return fullRead(client, fallbackStart)
+    }
+
+    private suspend fun fullRead(client: HealthConnectClient, start: Instant): WorkoutFetch {
+        val token = client.getChangesToken(ChangesTokenRequest(setOf(ExerciseSessionRecord::class)))
+        return WorkoutFetch(readWorkoutsSince(start), emptySet(), token, start)
+    }
+
+    /** Every session starting at/after [start] — all pages. */
+    suspend fun readWorkoutsSince(start: Instant): List<ExerciseSessionRecord> {
+        val client = clientOrNull() ?: return emptyList()
+        val out = mutableListOf<ExerciseSessionRecord>()
+        var page: String? = null
+        do {
+            val response = client.readRecords(
+                ReadRecordsRequest(ExerciseSessionRecord::class, TimeRangeFilter.after(start), pageToken = page),
+            )
+            out += response.records
+            page = response.pageToken
+        } while (page != null)
+        return out
     }
 
     /**
@@ -109,9 +117,7 @@ class HealthConnectManager(private val context: Context) {
         for (record in records) {
             val name = HealthConnectWorkoutTypeMap.workoutName(record.exerciseType)
             val date = HealthDates.localYMD(record.startTime)
-            val minutes = Duration.between(record.startTime, record.endTime).seconds / 60.0
-            grouped.getOrPut("$name||$date") { mutableListOf() }
-                .add(WorkoutSample(uuid = record.metadata.id, minutes = minutes))
+            grouped.getOrPut("$name||$date") { mutableListOf() }.add(WorkoutSample.of(record))
         }
         return grouped.mapNotNull { (key, samples) ->
             val parts = key.split("||")
@@ -119,25 +125,22 @@ class HealthConnectManager(private val context: Context) {
         }
     }
 
-    // MARK: - Sleep (rolling look-back window — NOT anchored, NOT connect-date floored)
+    // MARK: - Sleep (catch-up window, health-sync §8 rule 4)
 
-    /** How many days back each sleep sync re-queries — a rolling ~2-week window (iOS `sleepRecentDays`). */
-    val sleepRecentDays: Int = 14
-
-    /**
-     * Re-query sleep sessions across the last [sleepRecentDays] so each night is recomputed from its full
-     * sample set. Starts at the START OF DAY [sleepRecentDays] ago (so the earliest night is whole) — NOT
-     * floored at the connect date (which would collapse same-day connects to `[today, today]`). Which of
-     * these nights land in a program is decided per-program at write time.
-     */
-    suspend fun fetchSleepSamples(): List<SleepSessionRecord> {
+    /** Every sleep session from [start] to now — all pages. Throws on a read failure. */
+    suspend fun fetchSleepSamples(start: Instant): List<SleepSessionRecord> {
         val client = clientOrNull() ?: return emptyList()
+        val out = mutableListOf<SleepSessionRecord>()
         val now = Instant.now()
-        val startOfToday = LocalDate.now(ZoneId.systemDefault()).atStartOfDay(ZoneId.systemDefault()).toInstant()
-        val start = startOfToday.minus(sleepRecentDays.toLong(), ChronoUnit.DAYS)
-        return client.readRecords(
-            ReadRecordsRequest(SleepSessionRecord::class, TimeRangeFilter.between(start, now)),
-        ).records
+        var page: String? = null
+        do {
+            val response = client.readRecords(
+                ReadRecordsRequest(SleepSessionRecord::class, TimeRangeFilter.between(start, now), pageToken = page),
+            )
+            out += response.records
+            page = response.pageToken
+        } while (page != null)
+        return out
     }
 
     /**
@@ -174,22 +177,16 @@ class HealthConnectManager(private val context: Context) {
         }
     }
 
-    // MARK: - Steps (rolling look-back window — same rolling shape as sleep, aggregated per day)
-
-    /** How many days back each steps sync re-queries — a rolling ~2-week window (iOS `stepsRecentDays`). */
-    val stepsRecentDays: Int = 14
+    // MARK: - Steps (catch-up window, aggregated per day)
 
     /**
-     * Total steps per local calendar day across the last [stepsRecentDays], via
-     * `aggregateGroupByPeriod` with `StepsRecord.COUNT_TOTAL` (the HC analogue of HKStatistics
-     * cumulative-sum: it dedups overlapping sources so a phone + a watch don't double-count). Emits a row
-     * only when the day's total is > 0. Which of these days land in a program is decided per-program at
-     * write time.
+     * Total steps per local calendar day from [startDate] to now, via `aggregateGroupByPeriod` with
+     * `StepsRecord.COUNT_TOTAL` (the HC analogue of HKStatistics cumulative-sum: it dedups overlapping sources so a
+     * phone + a watch don't double-count). Emits a row only when the day's total is > 0. Throws on a read failure.
      */
-    suspend fun fetchStepsDailyTotals(): List<AggregatedSteps> {
+    suspend fun fetchStepsDailyTotals(startDate: LocalDate): List<AggregatedSteps> {
         val client = clientOrNull() ?: return emptyList()
-        val zone = ZoneId.systemDefault()
-        val start = LocalDate.now(zone).minusDays(stepsRecentDays.toLong()).atStartOfDay()
+        val start = startDate.atStartOfDay()
         val response = client.aggregateGroupByPeriod(
             AggregateGroupByPeriodRequest(
                 metrics = setOf(StepsRecord.COUNT_TOTAL),

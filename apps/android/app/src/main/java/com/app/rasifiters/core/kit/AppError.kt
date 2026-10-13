@@ -1,6 +1,7 @@
 package com.app.rasifiters.core.kit
 
 import com.app.rasifiters.net.ApiException
+import com.app.rasifiters.net.AuthUnavailableException
 import com.app.rasifiters.net.BulkRowError
 import com.app.rasifiters.net.toApiException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -98,14 +99,69 @@ data class AppError(
 fun Throwable.toAppError(): AppError = when (this) {
     is TimeoutCancellationException -> AppError(AppErrorKind.TIMEOUT)
     is CancellationException -> throw this
-    is ApiException -> AppError.fromHttp(status, serverMessage = message, rowErrors = rowErrors)
-    is HttpException -> {
-        val retryAfter = AppError.parseRetryAfter(response()?.headers()?.get("Retry-After"))
-        val api = toApiException()
-        AppError.fromHttp(api.status, retryAfterSeconds = retryAfter, serverMessage = api.message, rowErrors = api.rowErrors)
+    is AppErrorException -> error
+    is ApiException -> AppError.fromHttp(status, code = code, retryAfterSeconds = retryAfter, serverMessage = message, rowErrors = rowErrors)
+    is HttpException -> toApiException().toAppError()
+    // The refresh couldn't run: offline / timeout keep their kit kinds (D-KIT-4); anything else = busy.
+    is AuthUnavailableException -> when (kind) {
+        "offline" -> AppError(AppErrorKind.OFFLINE)
+        "timeout" -> AppError(AppErrorKind.TIMEOUT)
+        else -> AppError(AppErrorKind.UNAVAILABLE, retryAfterSeconds = retryAfterSeconds)
     }
     is InterruptedIOException -> AppError(AppErrorKind.TIMEOUT)
     is IOException -> AppError(AppErrorKind.OFFLINE)
     is SerializationException -> AppError(AppErrorKind.UNKNOWN)
     else -> AppError(AppErrorKind.UNKNOWN)
 }
+
+/** Carries an already-mapped [AppError] through a `Result`; its message is the kit copy (or invalidInput server text). */
+class AppErrorException(val error: AppError) : Exception(error.message)
+
+/** observability §8 `kind` for auth.* events (a 401 on a sign-in route = wrong_credentials). */
+fun AppError.eventKind(): String = when (kind) {
+    AppErrorKind.OFFLINE -> "offline"
+    AppErrorKind.TIMEOUT -> "timeout"
+    AppErrorKind.SIGNED_OUT -> "wrong_credentials"
+    AppErrorKind.INVALID_INPUT -> "invalid_input"
+    AppErrorKind.CONFLICT -> "conflict"
+    AppErrorKind.UNAVAILABLE -> "unavailable"
+    AppErrorKind.SERVER -> "server"
+    else -> "unknown"
+}
+
+/** observability §8.1 `error_class` (frontend-kit kind names). */
+fun AppError.errorClass(): String = when (kind) {
+    AppErrorKind.OFFLINE -> "offline"
+    AppErrorKind.TIMEOUT -> "timeout"
+    AppErrorKind.SIGNED_OUT -> "signedOut"
+    AppErrorKind.UNAVAILABLE -> "unavailable"
+    AppErrorKind.SERVER -> "server"
+    AppErrorKind.INVALID_INPUT -> "invalidInput"
+    AppErrorKind.UPDATE_REQUIRED -> "updateRequired"
+    else -> "unknown"
+}
+
+private val CREDENTIAL_TEXT_STATUSES = setOf(400, 401, 409, 422)
+
+/** Credential screens (frontend-kit §4 scope rule, A8): the server's own text for 400/401/409/422 on the PUBLIC sign-in
+ *  routes, the kit copy otherwise. [authenticated] routes (password / email / link) map a 401 through the kit (it is the
+ *  session, never the credential — auth §3.1 rule 2), so "Invalid token." never reaches the user. */
+fun Throwable.toCredentialMessage(authenticated: Boolean = false): String {
+    val app = toAppError()
+    val api = this as? ApiException ?: return app.message
+    if (authenticated && api.status == 401) return app.message
+    val text = api.message.trim()
+    return if (api.status in CREDENTIAL_TEXT_STATUSES && text.isNotEmpty() && !text.startsWith("Request failed (")) text else app.message
+}
+
+/** auth §3.1 rule 6: the password write may have landed (timeout / dropped connection / 408 / 5xx). */
+fun Throwable.isUnconfirmedWrite(): Boolean = when (this) {
+    is AuthUnavailableException, is java.net.UnknownHostException, is java.net.ConnectException -> false
+    is IOException -> true
+    is ApiException -> status == 408 || status >= 500
+    else -> false
+}
+
+/** auth §3.1 rule 6: a manual retry answered "must be different" proves the first attempt landed. */
+fun Throwable.isSamePasswordRejection(): Boolean =
+    this is ApiException && status == 400 && message.contains("must be different", ignoreCase = true)

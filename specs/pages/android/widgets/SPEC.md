@@ -1,6 +1,6 @@
 # Screen: `widgets` (android) — quick-add home-screen widgets (workout + daily-health) via Jetpack Glance
 
-> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Jetpack Glance + Compose)
+> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Jetpack Glance + Compose)
 > **Thin port-note.** Parity target = the **current built iOS widgets** (`RaSi-Fiters-App-Widgets/AddWorkoutWidget.swift`
 > + `Features/Widgets/QuickAdd*WidgetEntryView.swift`) for **functionality + deep-links**; the on-screen **tile
 > chrome** is a deliberate Android-only redesign (D-ANDROID-WIDGET-4). This file records the Android realization
@@ -87,6 +87,12 @@
   exit-to-My-Programs, and the success toast (D-ANDROID-WIDGET-3) are unchanged — only the tile's visual
   composition differs. Future work must NOT "re-sync" the chrome to iOS.
 
+- **D-ANDROID-WIDGET-5 (version gate before the replay, 0.2.1 — app-config §3, A7):** before replaying a stashed
+  widget route, `SignedInGraph` runs `VersionGate.check()` bounded to **3 s** (`withTimeoutOrNull`) so a weak network
+  never stalls the tap; if the build is below `min_android_version_code` (or any 426 was seen) the route is dropped
+  and the blocking "Update required" screen shows instead. **Doc fix:** the Glance widgets hold **no token** — they
+  only deep-link; the form reaches the API through `ProgramContext` and the ONE token store (`core/Session`).
+
 - **Signed-out = STASH & REPLAY (iOS parity, NOT a divergence):** a widget tap while signed out stashes the
   route on `ProgramContext` and leaves it intact; `RootScreen`'s signed-out branch does **not** clear it. The
   moment a token flips authed, `SignedInGraph` mounts and its `LaunchedEffect(widgetRoute)` replays the stashed
@@ -121,3 +127,9 @@
   shows immediately on placement; the widget still resizes down to the compact `110dp` square
   (`minResizeWidth/Height=110dp`). On API < 31 launchers without `previewLayout` support the tile falls back to
   the default placeholder (cosmetic only).
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.2.1 | 2026-10-13 | **Reliability Phase 3 C3 — D-ANDROID-WIDGET-5:** version gate (≤ 3 s) before the widget replay; doc fix: widgets hold no token. Tile chrome unchanged (D-ANDROID-WIDGET-4). Compile-checked green (`assembleDebug`). |

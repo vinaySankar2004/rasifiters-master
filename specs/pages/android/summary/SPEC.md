@@ -1,6 +1,6 @@
 # Screen: `summary` (android) — the per-program workspace overview (first bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-summary`](../../ios/admin-summary/SPEC.md)
 > + [`web summary`](../../web/summary/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.SUMMARY` (`SummaryScreen`) — Tab 1 of the per-program
@@ -22,11 +22,22 @@
   colors by name) — and the two gradient **action cards** (Add workouts / Log daily health). Shown
   identically to every enrolled role (no page-level role gate). Loading → MTD placeholder + "No data yet"
   charts + zeroed metrics; empty types → "No workouts logged yet."
-- **D-C1 (web-parity, kept):** a visible **error banner** on a summary-load failure (legacy iOS swallowed it).
+- **D-C1 (web-parity) — SUPERSEDED by D-C3 (0.2.0):** the inline error banner is gone; a load failure is the
+  frontend kit's `ErrorView` (no data) or its floating stale banner (with data).
 - **D-C2 (web-parity, kept):** the **`admin_only_data_entry` data-lock** treatment — a 🔒 banner (verbatim
   web `DATA_LOCK_MESSAGE`) + the two action cards **dimmed + non-navigating** when `dataEntryLocked`
   (`admin_only_data_entry` on AND viewer not global/program admin). Client display gate only; the backend
   `requireDataEntryAllowed` 403 (reached by the deferred log forms) is the real boundary.
+- **D-C3 (frontend kit + instant opens, 0.2.0):** on a program change this member's **cached Summary** for that
+  program shows first (`core/LaunchCache`; never another program's values); the **7 reads run in parallel**. With no
+  data yet the analytics area is a **spinner, never zero cards**; a first load that fails entirely → `ErrorView` +
+  Retry. A **partial** failure keeps the parts that loaded (the failed parts keep this program's previous values; with no
+  previous value a failed card shows its title + **"—"**, never a fake zero or an empty chart) and shows the floating
+  **"Couldn't refresh"** banner + Retry (A13); a response that lands after a sign-out / program switch is dropped; a fully failed reload with data → the same stale
+  banner. While it shows, the content gains 84 dp of bottom space. Offline is the app-wide banner above the nav bar
+  (`AppScaffold`, A6) — the tab content gives up its height while it shows. **Pull to refresh** reloads at once,
+  runs a `pull_to_refresh` health sync on the app scope, and reloads again if the sync applied anything (A13). The
+  cache is written only after a full success, only while signed in, and cleared by sign-out.
 - **Deviation A-1 (no card drag-reorder):** the dashboard is a **fixed vertical layout** — iOS's per-program
   `UserDefaults` card drag-reorder (iOS F1) is an iOS-only legacy nicety **web lacks**, so it is not ported.
   Layout order = iOS `defaultOrder`: progress → add-workouts → log-health → (MTD | total-workouts) →
@@ -51,9 +62,9 @@
 
 ## Data / API (all via `ProgramContext.loadSummary()`, Bearer-authed by the OkHttp layer)
 
-Fires on entry + on active-program change. Seven reads, refreshed together into `ProgramContext.summary`
-(`SummaryData`); a failure sets `summaryError` (→ the banner). Program progress needs **no** call (read from
-the `ProgramDTO`).
+Fires on entry, on active-program change and after a log-form save. Seven reads **in parallel**, each its own
+result, merged into `ProgramContext.summaryState` (kit `UiState<SummaryData>`; `summary` mirrors its data for the
+detail screens). Program progress needs **no** call (read from the `ProgramDTO`).
 
 | Call | Endpoint | Card |
 |------|----------|------|
@@ -69,4 +80,5 @@ the `ProgramDTO`).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **Reliability Phase 3 C3 — D-C3.** Cached Summary first, 7 parallel reads with partial-failure merge, spinner (never zero cards), `ErrorView`, floating stale banner (offline = the app-wide banner), pull to refresh with a `pull_to_refresh` health sync. D-C1 superseded. Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase D — the Summary **dashboard landing**). `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`; `ProgramContext` gains `summary`/`summaryLoading`/`summaryError` + `dataEntryLocked` + `loadSummary()`; `net` gains 7 analytics DTOs + `SummaryData` + 7 GET endpoints; theme gains `AppOrangeGradientEnd`/`AppBlue`/`AppPurple`/`AppRed` + `ChartPalette` + `workoutTypePaletteColor`. Faithful to iOS/web incl. D-C1 error banner + D-C2 data-lock; deviations A-1..A-4 (no card reorder, signed-in-user avatar, ProgramDTO progress source, Canvas charts). The 5 forward targets stubbed per D-SCOPE. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

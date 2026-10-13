@@ -1,42 +1,49 @@
 package com.app.rasifiters.health
 
 import android.content.Context
+import android.os.SystemClock
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.events.ClientEventQueue
 import com.app.rasifiters.net.ApiService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * Health Connect auto-sync lifecycle — the Android analog of the iOS Apple-Health orchestration
- * (`ProgramContext+HealthKit` + `+HealthKitSleep` + `+HealthKitWindows` + `+HealthSyncGating`, plus the
- * `APIClient+Workouts/+DailyHealth` write classification). Owns the sync run for both flows: single-flight
- * guard, per-program date-window scoping (D-S5), admin-lock skip (D-LOCK), first-sync confirmation gating
- * (D-CONF), the sum-on-conflict applied-sample ledger (D-SUM), and silent auto-retry (D-SIL).
- *
- * Reads [ProgramContext] for the live token / identity / programs / per-program lock; persists all sync
- * state in [HealthStore]; reads Health Connect via [HealthConnectManager]; writes via [ApiService]'s raw
- * status-code endpoints. Deviation: Android Health Connect has no HealthKit-style immediate background
- * delivery, so sync runs on app triggers (launch / auth / foreground / program entry) via [onTrigger].
+ * Health Connect sync lifecycle — the Android analog of the iOS Apple-Health orchestration. Owns the settings state
+ * (connect / disconnect / program selection), the first-sync review queue (D-CONF) and the run triggers; one v2 run
+ * ([HealthSyncRunner], health-sync §8) is in flight per device. Android Health Connect has no background delivery, so
+ * runs fire on app triggers (`launch` / `foreground` / `program_entry` — ≥ 60 s apart) and user actions (`connect` /
+ * `manual` / `pull_to_refresh` — they wait for an in-flight run, H4).
  */
 class HealthSyncController(
     private val context: Context,
-    private val api: ApiService,
+    api: ApiService,
     private val programContext: ProgramContext,
+    events: ClientEventQueue,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val store = HealthStore(context)
+    private val store = HealthStore(context) { programContext.loggedInMemberId }
     val manager = HealthConnectManager(context)
+    private val runner = HealthSyncRunner(api, store, manager, programContext, events)
+    private val runMutex = Mutex()
+    private var lastRunStartMs = 0L
+    /** The in-flight run — cancelled by the sign-out teardown ([cancelRun]). */
+    private var runJob: Job? = null
 
     // ── Public state for the settings screen ──
     private val _workoutEnabled = MutableStateFlow(store.workoutEnabled)
@@ -72,9 +79,12 @@ class HealthSyncController(
     private val _lastStepsSyncFailed = MutableStateFlow(store.lastStepsSyncFailed)
     val lastStepsSyncFailed: StateFlow<Boolean> = _lastStepsSyncFailed.asStateFlow()
 
+    /** Flows whose Health Connect permission is no longer granted → "Reconnect Health Connect" (board §4.8). */
+    private val _missingPermissions = MutableStateFlow<Set<HealthStore.Flow>>(emptySet())
+    val missingPermissions: StateFlow<Set<HealthStore.Flow>> = _missingPermissions.asStateFlow()
+
     /** The confirmation currently presented (globally, from RootScreen). A sleep/steps flow computed while a
-     *  higher-priority flow is showing waits in [deferredSleep]/[deferredSteps] (priority workouts > sleep >
-     *  steps). */
+     *  higher-priority flow is showing waits in [deferredSleep]/[deferredSteps] (priority workouts > sleep > steps). */
     private val _pendingConfirmation = MutableStateFlow<PendingSyncConfirmation?>(null)
     val pendingConfirmation: StateFlow<PendingSyncConfirmation?> = _pendingConfirmation.asStateFlow()
     private var deferredSleep: PendingSyncConfirmation? = null
@@ -85,35 +95,125 @@ class HealthSyncController(
     val sleepPermissions: Set<String> get() = manager.sleepPermissions
     val stepsPermissions: Set<String> get() = manager.stepsPermissions
 
-    private val workoutSyncing = AtomicBoolean(false)
-    private val sleepSyncing = AtomicBoolean(false)
-    private val stepsSyncing = AtomicBoolean(false)
-
-    // Stashed while a first-sync confirmation awaits the user: the fetch's new changes token commits only
-    // after the whole flow finishes cleanly (see [commitPendingWorkoutTokenIfClean]).
+    // Held while a first-sync review awaits the user: the run's changes token commits only after the review finishes
+    // and the run was clean (see [commitPendingWorkoutTokenIfClean]).
     private var pendingWorkoutToken: String? = null
-    private var pendingWorkoutHadRetryable = false
-    private var pendingWorkoutLockHeld = false
+    private var pendingWorkoutClean = false
+
+    init {
+        programContext.loggedInMemberId?.let(store::adoptLegacyKeys)
+        publishAll()
+    }
 
     // MARK: - Triggers
 
-    /** Run all syncs if enabled (launch / auth / foreground / program entry). Guards make this cheap. */
-    fun onTrigger() {
-        scope.launch { performWorkoutSync() }
-        scope.launch { performSleepSync() }
-        scope.launch { performStepsSync() }
+    fun onTrigger(trigger: String) { scope.launch { sync(trigger) } }
+
+    /** One v2 run of every enabled flow. Synced(applied) when anything applied or the run fully succeeded. */
+    suspend fun sync(trigger: String): HealthSyncResult {
+        val r = runOnce(trigger) ?: return HealthSyncResult.Skipped
+        val applied = r.flows.values.sumOf { it.counts.applied }
+        return when {
+            r.outcome == "skipped" -> HealthSyncResult.Skipped
+            r.outcome == "success" || applied > 0 -> HealthSyncResult.Synced(applied)
+            else -> HealthSyncResult.Failed
+        }
     }
 
-    // MARK: - Connect / disconnect
+    /** Settings "Sync Now" for [flow]: one run of all flows (`manual`), judged by [flow]'s own outcome only. */
+    suspend fun syncNow(flow: HealthStore.Flow): HealthSyncResult {
+        val r = runOnce("manual") ?: return HealthSyncResult.Skipped
+        val f = r.flows[flow]
+        return when {
+            flow in r.missingPermissions || f == null -> HealthSyncResult.Skipped   // the Reconnect row explains it
+            f.failed -> HealthSyncResult.Failed
+            else -> HealthSyncResult.Synced(f.counts.applied)
+        }
+    }
+
+    /** health-sync §8 rule 1: one run in flight per device. Automatic triggers skip when one is running and run ≥ 60 s
+     *  apart (D-C12 limiter headroom); user triggers wait for the in-flight run, then run (H4). */
+    private suspend fun runOnce(trigger: String): HealthSyncRunner.RunResult? {
+        if (!programContext.isSignedIn.value || !isAvailable) return null
+        if (trigger in AUTOMATIC_TRIGGERS) {
+            val now = SystemClock.elapsedRealtime()
+            if (lastRunStartMs != 0L && now - lastRunStartMs < MIN_AUTO_INTERVAL_MS) return null
+            if (!runMutex.tryLock()) return null
+        } else {
+            runMutex.lock()
+        }
+        try {
+            val memberId = programContext.loggedInMemberId ?: return null
+            val inputs = HealthStore.Flow.entries.filter { enabled(it) && !awaitingReview(it) }
+                .map { HealthSyncRunner.FlowInput(it, programIds(it)) }
+            if (inputs.isEmpty() || !programContext.isSignedIn.value) return null
+            lastRunStartMs = SystemClock.elapsedRealtime()
+            val job = scope.async { runner.run(trigger, inputs, memberId) }
+            runJob = job
+            val result = try {
+                job.await()
+            } catch (e: CancellationException) {
+                if (job.isCancelled && currentCoroutineContext().isActive) return null   // cancelled by the teardown
+                throw e
+            } finally {
+                if (runJob === job) runJob = null
+            } ?: return null
+            // Applied only to the member the run was for (the run itself aborts once the session moves on).
+            if (!isCurrentMember(memberId)) return null
+            applyResult(result)
+            return result
+        } finally { runMutex.unlock() }
+    }
+
+    /** Sign-out teardown: stop the in-flight run (it would otherwise keep uploading for a signed-out member). */
+    fun cancelRun() { runJob?.cancel() }
+
+    private fun isCurrentMember(memberId: String) = programContext.isSignedIn.value && programContext.loggedInMemberId == memberId
+
+    private fun applyResult(result: HealthSyncRunner.RunResult) {
+        _missingPermissions.value = result.missingPermissions
+        val now = System.currentTimeMillis()
+        result.flows.forEach { (flow, f) ->
+            if (!f.attempted && !f.failed) return@forEach
+            // A held workout review advances "Last Synced" only on commit (commitPendingWorkoutTokenIfClean).
+            if (f.advanced && (flow != HealthStore.Flow.WORKOUTS || f.reviewRows.isEmpty())) setLastSync(flow, now)
+            setFailed(flow, f.failed)
+            val n = if (flow == HealthStore.Flow.WORKOUTS) f.counts.applied else f.counts.created
+            addCount(flow, n)
+            notifySynced(flow, n)
+            if (f.reviewRows.isNotEmpty()) {
+                val pages = buildConfirmationPages(f.reviewRows)
+                if (pages.isNotEmpty()) enqueuePendingConfirmation(PendingSyncConfirmation(flow.confirmationFlow(), pages))
+            }
+        }
+        result.heldWorkoutToken?.let { pendingWorkoutToken = it; pendingWorkoutClean = result.heldWorkoutTokenClean }
+        publishAll()
+    }
+
+    /** "Reconnect Health Connect" state — re-read on the settings screen and after a grant. */
+    suspend fun refreshPermissionState() {
+        val granted = runCatching { manager.grantedPermissions() }.getOrNull() ?: return
+        _missingPermissions.value = HealthStore.Flow.entries.filter { enabled(it) && !granted.containsAll(manager.permissionsFor(it)) }.toSet()
+    }
+
+    /** Sign-in / sign-out: adopt the old build's keys once, drop the previous member's queue, republish. */
+    fun reloadForMember() {
+        programContext.loggedInMemberId?.let(store::adoptLegacyKeys)
+        _pendingConfirmation.value = null; deferredSleep = null; deferredSteps = null
+        pendingWorkoutToken = null; pendingWorkoutClean = false
+        _missingPermissions.value = emptySet()
+        lastRunStartMs = 0L
+        publishAll()
+    }
+
+    // MARK: - Connect / disconnect (H2: Disconnect keeps exclusions + confirmed reviews and sends nothing; a reconnect
+    // no longer re-gates — the server's review_done_at is the record — and reads from the reconnect date at most.)
 
     fun enableWorkoutsAfterPermission() {
         store.workoutEnabled = true
-        if (store.workoutConnectMillis == 0L) {
-            store.workoutConnectMillis = System.currentTimeMillis()
-            store.clearConfirmedPrograms(HealthStore.Flow.WORKOUTS) // fresh (re)connect → re-gate every program
-        }
-        publishWorkoutState()
-        scope.launch { performWorkoutSync() }
+        if (store.workoutConnectMillis == 0L) store.workoutConnectMillis = System.currentTimeMillis()
+        publishAll()
+        onTrigger("connect"); scope.launch { refreshPermissionState() }
     }
 
     fun disconnectWorkouts() {
@@ -124,27 +224,23 @@ class HealthSyncController(
         store.lastWorkoutSyncFailed = false
         store.workoutConnectMillis = 0L
         store.workoutChangesToken = null
-        store.ledgerClear()                                          // safe on reconnect (fresh connect date bounds fetch)
-        store.clearConfirmedPrograms(HealthStore.Flow.WORKOUTS)
-        store.clearExcludedKeys(HealthStore.Flow.WORKOUTS)
-        pendingWorkoutToken = null; pendingWorkoutHadRetryable = false; pendingWorkoutLockHeld = false
-        publishWorkoutState()
+        store.upgradeMarker = false   // a reconnect is a new connect: its window floors at the reconnect date (H2)
+        pendingWorkoutToken = null; pendingWorkoutClean = false
+        _missingPermissions.value = _missingPermissions.value - HealthStore.Flow.WORKOUTS
+        publishAll()
     }
 
     fun toggleWorkoutProgram(id: String) {
         val set = store.workoutProgramIds
         store.workoutProgramIds = if (id in set) set - id else set + id
-        publishWorkoutState()
+        publishAll()
     }
 
     fun enableSleepAfterPermission() {
         store.sleepEnabled = true
-        if (store.sleepConnectMillis == 0L) {
-            store.sleepConnectMillis = System.currentTimeMillis()
-            store.clearConfirmedPrograms(HealthStore.Flow.SLEEP)
-        }
-        publishSleepState()
-        scope.launch { performSleepSync() }
+        if (store.sleepConnectMillis == 0L) store.sleepConnectMillis = System.currentTimeMillis()
+        publishAll()
+        onTrigger("connect"); scope.launch { refreshPermissionState() }
     }
 
     fun disconnectSleep() {
@@ -154,25 +250,21 @@ class HealthSyncController(
         store.lastSleepSyncCount = 0
         store.lastSleepSyncFailed = false
         store.sleepConnectMillis = 0L
-        store.clearConfirmedPrograms(HealthStore.Flow.SLEEP)
-        store.clearExcludedKeys(HealthStore.Flow.SLEEP)
-        publishSleepState()
+        _missingPermissions.value = _missingPermissions.value - HealthStore.Flow.SLEEP
+        publishAll()
     }
 
     fun toggleSleepProgram(id: String) {
         val set = store.sleepProgramIds
         store.sleepProgramIds = if (id in set) set - id else set + id
-        publishSleepState()
+        publishAll()
     }
 
     fun enableStepsAfterPermission() {
         store.stepsEnabled = true
-        if (store.stepsConnectMillis == 0L) {
-            store.stepsConnectMillis = System.currentTimeMillis()
-            store.clearConfirmedPrograms(HealthStore.Flow.STEPS)
-        }
-        publishStepsState()
-        scope.launch { performStepsSync() }
+        if (store.stepsConnectMillis == 0L) store.stepsConnectMillis = System.currentTimeMillis()
+        publishAll()
+        onTrigger("connect"); scope.launch { refreshPermissionState() }
     }
 
     fun disconnectSteps() {
@@ -182,300 +274,14 @@ class HealthSyncController(
         store.lastStepsSyncCount = 0
         store.lastStepsSyncFailed = false
         store.stepsConnectMillis = 0L
-        store.clearConfirmedPrograms(HealthStore.Flow.STEPS)
-        store.clearExcludedKeys(HealthStore.Flow.STEPS)
-        publishStepsState()
+        _missingPermissions.value = _missingPermissions.value - HealthStore.Flow.STEPS
+        publishAll()
     }
 
     fun toggleStepsProgram(id: String) {
         val set = store.stepsProgramIds
         store.stepsProgramIds = if (id in set) set - id else set + id
-        publishStepsState()
-    }
-
-    // MARK: - Workout sync
-
-    suspend fun performWorkoutSync(): HealthSyncResult {
-        if (!store.workoutEnabled || !manager.isAvailable) return HealthSyncResult.Skipped
-        val token = programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return HealthSyncResult.Skipped
-        val memberName = programContext.loggedInMemberName?.takeIf { it.isNotEmpty() } ?: return HealthSyncResult.Skipped
-        val programIds = store.workoutProgramIds
-        if (programIds.isEmpty()) return HealthSyncResult.Skipped
-        if (_pendingConfirmation.value?.flow == PendingSyncConfirmation.Flow.WORKOUTS) return HealthSyncResult.Skipped
-        if (!workoutSyncing.compareAndSet(false, true)) return HealthSyncResult.Skipped
-        token.let {} // keep token in scope (the OkHttp layer attaches it); guard above proves signed-in
-
-        try {
-            store.ledgerPrune()
-
-            val fetch = try {
-                manager.fetchNewWorkouts(store.workoutConnectMillis, store.workoutChangesToken)
-            } catch (e: Exception) {
-                return HealthSyncResult.Failed  // couldn't read HC — local condition, flag stays as-is
-            }
-
-            if (fetch.records.isEmpty()) {
-                store.workoutChangesToken = fetch.newToken
-                store.lastWorkoutSyncMillis = System.currentTimeMillis()
-                store.lastWorkoutSyncFailed = false
-                publishWorkoutState()
-                return HealthSyncResult.Synced(0)
-            }
-
-            val aggregated = manager.aggregate(fetch.records)
-            val windows = loadSyncWindows(programIds)
-            if (windows.isEmpty()) {
-                store.lastWorkoutSyncFailed = true; publishWorkoutState()
-                return HealthSyncResult.Failed
-            }
-
-            var synced = 0
-            var hadRetryable = false
-            var lockHeld = false
-            val pageRows = HashMap<String, MutableList<PendingSyncConfirmation.Row>>()
-            val confirmed = store.confirmedProgramIds(HealthStore.Flow.WORKOUTS)
-            val excluded = store.excludedKeys(HealthStore.Flow.WORKOUTS)
-
-            for (workout in aggregated) {
-                for (pid in programIds) {
-                    val window = windows[pid] ?: continue
-                    if (!HealthDates.isWithin(workout.date, window.first, window.second)) continue
-                    val key = workoutExclusionKey(pid, workout.date, workout.workoutName)
-                    if (key in excluded) continue
-                    if (programContext.isDataEntryLocked(pid)) { lockHeld = true; continue }
-
-                    if (pid in confirmed) {
-                        val unapplied = workout.samples.filter { !store.ledgerIsApplied(it.uuid, pid) }
-                        if (unapplied.isEmpty()) continue
-                        when (writeWorkout(memberName, workout.workoutName, workout.date, AggregatedWorkout.minutes(unapplied), pid)) {
-                            WorkoutOutcome.CREATED, WorkoutOutcome.SUMMED -> {
-                                synced++
-                                store.ledgerMarkApplied(unapplied.map { it.uuid }, pid, workout.date)
-                            }
-                            WorkoutOutcome.DUPLICATE, WorkoutOutcome.SKIPPED -> Unit
-                            WorkoutOutcome.RETRYABLE -> hadRetryable = true
-                        }
-                    } else {
-                        pageRows.getOrPut(pid) { mutableListOf() }.add(
-                            PendingSyncConfirmation.Row(
-                                title = workout.workoutName,
-                                subtitle = "${displayDate(workout.date)} · ${workout.durationMinutes} min",
-                                exclusionKey = key,
-                                payload = PendingSyncConfirmation.Payload.Workout(workout),
-                            ),
-                        )
-                    }
-                }
-            }
-
-            // Unconfirmed programs with no rows (0-row first sync) confirm silently — never a locked one.
-            for (pid in programIds) {
-                if (pid !in confirmed && pageRows[pid] == null && !programContext.isDataEntryLocked(pid)) {
-                    store.markProgramConfirmed(pid, HealthStore.Flow.WORKOUTS)
-                }
-            }
-
-            store.lastWorkoutSyncCount += synced
-
-            val pages = buildConfirmationPages(pageRows)
-            if (pages.isEmpty()) {
-                if (!hadRetryable && !lockHeld) store.workoutChangesToken = fetch.newToken
-                store.lastWorkoutSyncMillis = System.currentTimeMillis()
-                store.lastWorkoutSyncFailed = hadRetryable
-                publishWorkoutState()
-                HealthSyncNotifier.notifyWorkoutSuccess(context, synced)
-                return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(synced)
-            }
-
-            pendingWorkoutToken = fetch.newToken
-            pendingWorkoutHadRetryable = hadRetryable
-            pendingWorkoutLockHeld = lockHeld
-            store.lastWorkoutSyncFailed = hadRetryable
-            publishWorkoutState()
-            enqueuePendingConfirmation(PendingSyncConfirmation(PendingSyncConfirmation.Flow.WORKOUTS, pages))
-            return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(synced)
-        } finally {
-            workoutSyncing.set(false)
-        }
-    }
-
-    // MARK: - Sleep sync
-
-    suspend fun performSleepSync(): HealthSyncResult {
-        if (!store.sleepEnabled || !manager.isAvailable) return HealthSyncResult.Skipped
-        val token = programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return HealthSyncResult.Skipped
-        val programIds = store.sleepProgramIds
-        if (programIds.isEmpty()) return HealthSyncResult.Skipped
-        if (_pendingConfirmation.value?.flow == PendingSyncConfirmation.Flow.SLEEP || deferredSleep != null) return HealthSyncResult.Skipped
-        if (!sleepSyncing.compareAndSet(false, true)) return HealthSyncResult.Skipped
-        token.let {}
-
-        try {
-            store.pruneSleepExcludedKeys(manager.sleepRecentDays)
-
-            val samples = try {
-                manager.fetchSleepSamples()
-            } catch (e: Exception) {
-                return HealthSyncResult.Failed
-            }
-
-            val aggregated = manager.aggregateSleep(samples)
-            if (aggregated.isEmpty()) {
-                store.lastSleepSyncMillis = System.currentTimeMillis()
-                store.lastSleepSyncFailed = false
-                publishSleepState()
-                return HealthSyncResult.Synced(0)
-            }
-
-            val windows = loadSyncWindows(programIds)
-            if (windows.isEmpty()) {
-                store.lastSleepSyncFailed = true; publishSleepState()
-                return HealthSyncResult.Failed
-            }
-
-            var created = 0
-            var hadRetryable = false
-            val pageRows = HashMap<String, MutableList<PendingSyncConfirmation.Row>>()
-            val confirmed = store.confirmedProgramIds(HealthStore.Flow.SLEEP)
-            val excluded = store.excludedKeys(HealthStore.Flow.SLEEP)
-
-            for (night in aggregated) {
-                for (pid in programIds) {
-                    val window = windows[pid] ?: continue
-                    if (!HealthDates.isWithin(night.date, window.first, window.second)) continue
-                    val key = sleepExclusionKey(pid, night.date)
-                    if (key in excluded) continue
-                    if (programContext.isDataEntryLocked(pid)) continue  // rolling window self-heals on unlock
-
-                    if (pid in confirmed) {
-                        when (writeSleep(night.date, night.hours, pid)) {
-                            SleepOutcome.CREATED -> created++
-                            SleepOutcome.UPDATED, SleepOutcome.SKIPPED -> Unit
-                            SleepOutcome.RETRYABLE -> hadRetryable = true
-                        }
-                    } else {
-                        pageRows.getOrPut(pid) { mutableListOf() }.add(
-                            PendingSyncConfirmation.Row(
-                                title = "Sleep",
-                                subtitle = "${displayDate(night.date)} · ${formatHours(night.hours)}",
-                                exclusionKey = key,
-                                payload = PendingSyncConfirmation.Payload.Sleep(night),
-                            ),
-                        )
-                    }
-                }
-            }
-
-            for (pid in programIds) {
-                if (pid !in confirmed && pageRows[pid] == null && !programContext.isDataEntryLocked(pid)) {
-                    store.markProgramConfirmed(pid, HealthStore.Flow.SLEEP)
-                }
-            }
-
-            store.lastSleepSyncMillis = System.currentTimeMillis()
-            store.lastSleepSyncCount += created
-            store.lastSleepSyncFailed = hadRetryable
-            publishSleepState()
-
-            val pages = buildConfirmationPages(pageRows)
-            if (pages.isEmpty()) {
-                HealthSyncNotifier.notifySleepSuccess(context, created)
-                return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(created)
-            }
-            enqueuePendingConfirmation(PendingSyncConfirmation(PendingSyncConfirmation.Flow.SLEEP, pages))
-            return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(created)
-        } finally {
-            sleepSyncing.set(false)
-        }
-    }
-
-    // MARK: - Steps sync (rolling window, upsert — the sleep model verbatim, DC-12)
-
-    suspend fun performStepsSync(): HealthSyncResult {
-        if (!store.stepsEnabled || !manager.isAvailable) return HealthSyncResult.Skipped
-        val token = programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return HealthSyncResult.Skipped
-        val programIds = store.stepsProgramIds
-        if (programIds.isEmpty()) return HealthSyncResult.Skipped
-        if (_pendingConfirmation.value?.flow == PendingSyncConfirmation.Flow.STEPS || deferredSteps != null) return HealthSyncResult.Skipped
-        if (!stepsSyncing.compareAndSet(false, true)) return HealthSyncResult.Skipped
-        token.let {}
-
-        try {
-            store.pruneStepsExcludedKeys(manager.stepsRecentDays)
-
-            val aggregated = try {
-                manager.fetchStepsDailyTotals()
-            } catch (e: Exception) {
-                return HealthSyncResult.Failed
-            }
-
-            if (aggregated.isEmpty()) {
-                store.lastStepsSyncMillis = System.currentTimeMillis()
-                store.lastStepsSyncFailed = false
-                publishStepsState()
-                return HealthSyncResult.Synced(0)
-            }
-
-            val windows = loadSyncWindows(programIds)
-            if (windows.isEmpty()) {
-                store.lastStepsSyncFailed = true; publishStepsState()
-                return HealthSyncResult.Failed
-            }
-
-            var created = 0
-            var hadRetryable = false
-            val pageRows = HashMap<String, MutableList<PendingSyncConfirmation.Row>>()
-            val confirmed = store.confirmedProgramIds(HealthStore.Flow.STEPS)
-            val excluded = store.excludedKeys(HealthStore.Flow.STEPS)
-
-            for (day in aggregated) {
-                for (pid in programIds) {
-                    val window = windows[pid] ?: continue
-                    if (!HealthDates.isWithin(day.date, window.first, window.second)) continue
-                    val key = stepsExclusionKey(pid, day.date)
-                    if (key in excluded) continue
-                    if (programContext.isDataEntryLocked(pid)) continue  // rolling window self-heals on unlock
-
-                    if (pid in confirmed) {
-                        when (writeSteps(day.date, day.count, pid)) {
-                            SleepOutcome.CREATED -> created++
-                            SleepOutcome.UPDATED, SleepOutcome.SKIPPED -> Unit
-                            SleepOutcome.RETRYABLE -> hadRetryable = true
-                        }
-                    } else {
-                        pageRows.getOrPut(pid) { mutableListOf() }.add(
-                            PendingSyncConfirmation.Row(
-                                title = "Steps",
-                                subtitle = "${displayDate(day.date)} · ${formatSteps(day.count)}",
-                                exclusionKey = key,
-                                payload = PendingSyncConfirmation.Payload.Steps(day),
-                            ),
-                        )
-                    }
-                }
-            }
-
-            for (pid in programIds) {
-                if (pid !in confirmed && pageRows[pid] == null && !programContext.isDataEntryLocked(pid)) {
-                    store.markProgramConfirmed(pid, HealthStore.Flow.STEPS)
-                }
-            }
-
-            store.lastStepsSyncMillis = System.currentTimeMillis()
-            store.lastStepsSyncCount += created
-            store.lastStepsSyncFailed = hadRetryable
-            publishStepsState()
-
-            val pages = buildConfirmationPages(pageRows)
-            if (pages.isEmpty()) {
-                HealthSyncNotifier.notifyStepsSuccess(context, created)
-                return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(created)
-            }
-            enqueuePendingConfirmation(PendingSyncConfirmation(PendingSyncConfirmation.Flow.STEPS, pages))
-            return if (hadRetryable) HealthSyncResult.Failed else HealthSyncResult.Synced(created)
-        } finally {
-            stepsSyncing.set(false)
-        }
+        publishAll()
     }
 
     // MARK: - Confirmation queue + per-page commit
@@ -518,11 +324,7 @@ class HealthSyncController(
     /** Called by the confirmation screen when it finishes (committed) or is dismissed (deferred). */
     fun finishConfirmation(flow: PendingSyncConfirmation.Flow, committed: Boolean) {
         if (flow == PendingSyncConfirmation.Flow.WORKOUTS) {
-            if (committed) {
-                commitPendingWorkoutTokenIfClean()
-            } else {
-                pendingWorkoutToken = null; pendingWorkoutHadRetryable = false; pendingWorkoutLockHeld = false
-            }
+            if (committed) commitPendingWorkoutTokenIfClean() else { pendingWorkoutToken = null; pendingWorkoutClean = false }
         }
         promoteDeferredConfirmation()
     }
@@ -549,203 +351,76 @@ class HealthSyncController(
     }
 
     private fun commitPendingWorkoutTokenIfClean() {
-        if (!pendingWorkoutHadRetryable && !pendingWorkoutLockHeld && pendingWorkoutToken != null) {
+        if (pendingWorkoutClean && pendingWorkoutToken != null) {
             store.workoutChangesToken = pendingWorkoutToken
             store.lastWorkoutSyncMillis = System.currentTimeMillis()
-            publishWorkoutState()
+            publishAll()
         }
-        pendingWorkoutToken = null; pendingWorkoutHadRetryable = false; pendingWorkoutLockHeld = false
+        pendingWorkoutToken = null; pendingWorkoutClean = false
     }
 
-    /** Commit ONE workout program's checked rows. Returns false (retry, stays unconfirmed) on offline
-     *  window resolution / lock / retryable write; true marks the program confirmed. Never touches the token. */
-    suspend fun commitWorkoutPage(page: PendingSyncConfirmation.ProgramPage): Boolean {
-        programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return false
-        val memberName = programContext.loggedInMemberName?.takeIf { it.isNotEmpty() } ?: return false
-        val window = loadSyncWindows(setOf(page.id))[page.id] ?: return false
-        if (programContext.isDataEntryLocked(page.id)) return false
+    /** Commit ONE program's checked rows (rule 6). false = retry (offline / lock / a non-final result); true marks the
+     *  program reviewed (locally + PUT review_done). Never touches the token. */
+    suspend fun commitWorkoutPage(page: PendingSyncConfirmation.ProgramPage) = commitPage(HealthStore.Flow.WORKOUTS, page)
+    suspend fun commitSleepPage(page: PendingSyncConfirmation.ProgramPage) = commitPage(HealthStore.Flow.SLEEP, page)
+    suspend fun commitStepsPage(page: PendingSyncConfirmation.ProgramPage) = commitPage(HealthStore.Flow.STEPS, page)
 
-        store.addExcludedKeys(page.rows.filterNot { it.isChecked }.map { it.exclusionKey }, HealthStore.Flow.WORKOUTS)
-
-        var hadRetryable = false
-        var synced = 0
-        for (row in page.rows.filter { it.isChecked }) {
-            val workout = (row.payload as? PendingSyncConfirmation.Payload.Workout)?.workout ?: continue
-            if (!HealthDates.isWithin(workout.date, window.first, window.second)) continue
-            val unapplied = workout.samples.filter { !store.ledgerIsApplied(it.uuid, page.id) }
-            if (unapplied.isEmpty()) continue
-            when (writeWorkout(memberName, workout.workoutName, workout.date, AggregatedWorkout.minutes(unapplied), page.id)) {
-                WorkoutOutcome.CREATED, WorkoutOutcome.SUMMED -> {
-                    synced++
-                    store.ledgerMarkApplied(unapplied.map { it.uuid }, page.id, workout.date)
-                }
-                WorkoutOutcome.DUPLICATE, WorkoutOutcome.SKIPPED -> Unit
-                WorkoutOutcome.RETRYABLE -> hadRetryable = true
-            }
-        }
-
-        if (hadRetryable) return false
-        store.markProgramConfirmed(page.id, HealthStore.Flow.WORKOUTS)
-        store.lastWorkoutSyncCount += synced
-        publishWorkoutState()
+    private suspend fun commitPage(flow: HealthStore.Flow, page: PendingSyncConfirmation.ProgramPage): Boolean {
+        if (!programContext.isSignedIn.value) return false
+        val memberId = programContext.loggedInMemberId ?: return false
+        val counts = runMutex.withLock { runner.commitPage(flow, page, memberId) } ?: return false
+        if (!isCurrentMember(memberId)) return false
+        addCount(flow, if (flow == HealthStore.Flow.WORKOUTS) counts.applied else counts.created)
+        publishAll()
         return true
     }
 
-    /** Commit ONE sleep program's checked nights (POST-then-PUT upsert). Sleep has no token, so each page
-     *  commit is fully self-contained. */
-    suspend fun commitSleepPage(page: PendingSyncConfirmation.ProgramPage): Boolean {
-        programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return false
-        val window = loadSyncWindows(setOf(page.id))[page.id] ?: return false
-        if (programContext.isDataEntryLocked(page.id)) return false
+    // MARK: - Per-flow helpers
 
-        store.addExcludedKeys(page.rows.filterNot { it.isChecked }.map { it.exclusionKey }, HealthStore.Flow.SLEEP)
-
-        var hadRetryable = false
-        var created = 0
-        for (row in page.rows.filter { it.isChecked }) {
-            val night = (row.payload as? PendingSyncConfirmation.Payload.Sleep)?.sleep ?: continue
-            if (!HealthDates.isWithin(night.date, window.first, window.second)) continue
-            when (writeSleep(night.date, night.hours, page.id)) {
-                SleepOutcome.CREATED -> created++
-                SleepOutcome.UPDATED, SleepOutcome.SKIPPED -> Unit
-                SleepOutcome.RETRYABLE -> hadRetryable = true
-            }
-        }
-
-        if (hadRetryable) return false
-        store.markProgramConfirmed(page.id, HealthStore.Flow.SLEEP)
-        store.lastSleepSyncCount += created
-        publishSleepState()
-        return true
+    private fun enabled(flow: HealthStore.Flow) = when (flow) {
+        HealthStore.Flow.WORKOUTS -> store.workoutEnabled
+        HealthStore.Flow.SLEEP -> store.sleepEnabled
+        HealthStore.Flow.STEPS -> store.stepsEnabled
     }
 
-    /** Commit ONE steps program's checked days (POST-then-PUT upsert). Steps has no token, so each page
-     *  commit is fully self-contained (the sleep-page model verbatim). */
-    suspend fun commitStepsPage(page: PendingSyncConfirmation.ProgramPage): Boolean {
-        programContext.authToken.value?.takeIf { it.isNotEmpty() } ?: return false
-        val window = loadSyncWindows(setOf(page.id))[page.id] ?: return false
-        if (programContext.isDataEntryLocked(page.id)) return false
-
-        store.addExcludedKeys(page.rows.filterNot { it.isChecked }.map { it.exclusionKey }, HealthStore.Flow.STEPS)
-
-        var hadRetryable = false
-        var created = 0
-        for (row in page.rows.filter { it.isChecked }) {
-            val day = (row.payload as? PendingSyncConfirmation.Payload.Steps)?.steps ?: continue
-            if (!HealthDates.isWithin(day.date, window.first, window.second)) continue
-            when (writeSteps(day.date, day.count, page.id)) {
-                SleepOutcome.CREATED -> created++
-                SleepOutcome.UPDATED, SleepOutcome.SKIPPED -> Unit
-                SleepOutcome.RETRYABLE -> hadRetryable = true
-            }
-        }
-
-        if (hadRetryable) return false
-        store.markProgramConfirmed(page.id, HealthStore.Flow.STEPS)
-        store.lastStepsSyncCount += created
-        publishStepsState()
-        return true
+    private fun programIds(flow: HealthStore.Flow) = when (flow) {
+        HealthStore.Flow.WORKOUTS -> store.workoutProgramIds
+        HealthStore.Flow.SLEEP -> store.sleepProgramIds
+        HealthStore.Flow.STEPS -> store.stepsProgramIds
     }
 
-    // MARK: - Per-program date windows (D-S5)
+    /** A flow whose review is showing / queued doesn't run again until it finishes (faithful D-CONF gating). */
+    private fun awaitingReview(flow: HealthStore.Flow): Boolean =
+        _pendingConfirmation.value?.flow == flow.confirmationFlow() ||
+            (flow == HealthStore.Flow.SLEEP && deferredSleep != null) ||
+            (flow == HealthStore.Flow.STEPS && deferredSteps != null)
 
-    private suspend fun loadSyncWindows(ids: Set<String>): Map<String, Pair<String, String>> {
-        if (ids.isEmpty()) return emptyMap()
-        var list = programContext.programs.value
-        if (!ids.all { id -> list.any { it.id == id } }) {
-            runCatching { programContext.loadPrograms() }
-            list = programContext.programs.value
-        }
-        val today = HealthDates.localYMD(System.currentTimeMillis())
-        val windows = HashMap<String, Pair<String, String>>()
-        for (program in list) {
-            if (program.id !in ids) continue
-            val start = program.startDate?.takeIf { it.isNotEmpty() } ?: continue
-            val end = minOf(program.endDate ?: today, today)
-            if (start <= end) windows[program.id] = start to end
-        }
-        return windows
+    private fun setLastSync(flow: HealthStore.Flow, millis: Long) = when (flow) {
+        HealthStore.Flow.WORKOUTS -> store.lastWorkoutSyncMillis = millis
+        HealthStore.Flow.SLEEP -> store.lastSleepSyncMillis = millis
+        HealthStore.Flow.STEPS -> store.lastStepsSyncMillis = millis
     }
 
-    // MARK: - Writes (status-code classification)
+    private fun setFailed(flow: HealthStore.Flow, failed: Boolean) = when (flow) {
+        HealthStore.Flow.WORKOUTS -> store.lastWorkoutSyncFailed = failed
+        HealthStore.Flow.SLEEP -> store.lastSleepSyncFailed = failed
+        HealthStore.Flow.STEPS -> store.lastStepsSyncFailed = failed
+    }
 
-    private enum class WorkoutOutcome { CREATED, SUMMED, DUPLICATE, SKIPPED, RETRYABLE }
-    private enum class SleepOutcome { CREATED, UPDATED, SKIPPED, RETRYABLE }
-
-    private suspend fun writeWorkout(memberName: String, name: String, date: String, minutes: Int, programId: String): WorkoutOutcome {
-        val body = buildJsonObject {
-            put("member_name", memberName)
-            put("workout_name", name)
-            put("date", date)
-            put("duration", minutes)
-            put("program_id", programId)
-            put("on_duplicate", "sum")                  // later same-type workouts ADD minutes to the day's row (D-SUM)
-            programContext.loggedInMemberId?.let { put("member_id", it) }
-        }
-        return try {
-            when (val code = api.postWorkoutLog(body).code()) {
-                200 -> WorkoutOutcome.SUMMED           // sum-on-conflict resolved a same-day collision
-                in 201..299 -> WorkoutOutcome.CREATED
-                409 -> WorkoutOutcome.DUPLICATE        // old backend / delete race; nothing added (ledger NOT marked)
-                400, 403, 404 -> WorkoutOutcome.SKIPPED
-                else -> { code; WorkoutOutcome.RETRYABLE }
-            }
-        } catch (e: Exception) {
-            WorkoutOutcome.RETRYABLE
+    private fun addCount(flow: HealthStore.Flow, n: Int) {
+        if (n <= 0) return
+        when (flow) {
+            HealthStore.Flow.WORKOUTS -> store.lastWorkoutSyncCount += n
+            HealthStore.Flow.SLEEP -> store.lastSleepSyncCount += n
+            HealthStore.Flow.STEPS -> store.lastStepsSyncCount += n
         }
     }
 
-    private suspend fun writeSleep(date: String, hours: Double, programId: String): SleepOutcome {
-        val body = buildJsonObject {
-            put("program_id", programId)
-            put("log_date", date)
-            put("sleep_hours", hours)
-            programContext.loggedInMemberId?.let { put("member_id", it) }
-        }
-        val postCode = try { api.postDailyHealthLogRaw(body).code() } catch (e: Exception) { return SleepOutcome.RETRYABLE }
-        return when (postCode) {
-            in 200..299 -> SleepOutcome.CREATED
-            400, 403, 404 -> SleepOutcome.SKIPPED
-            409 -> {
-                val putCode = try { api.putDailyHealthLogRaw(body).code() } catch (e: Exception) { return SleepOutcome.RETRYABLE }
-                when (putCode) {
-                    in 200..299 -> SleepOutcome.UPDATED
-                    400, 403, 404 -> SleepOutcome.SKIPPED
-                    else -> SleepOutcome.RETRYABLE
-                }
-            }
-            else -> SleepOutcome.RETRYABLE
-        }
+    private fun notifySynced(flow: HealthStore.Flow, n: Int) = when (flow) {
+        HealthStore.Flow.WORKOUTS -> HealthSyncNotifier.notifyWorkoutSuccess(context, n)
+        HealthStore.Flow.SLEEP -> HealthSyncNotifier.notifySleepSuccess(context, n)
+        HealthStore.Flow.STEPS -> HealthSyncNotifier.notifyStepsSuccess(context, n)
     }
-
-    private suspend fun writeSteps(date: String, steps: Int, programId: String): SleepOutcome {
-        val body = buildJsonObject {
-            put("program_id", programId)
-            put("log_date", date)
-            put("steps", steps)
-            programContext.loggedInMemberId?.let { put("member_id", it) }
-        }
-        val postCode = try { api.postDailyHealthLogRaw(body).code() } catch (e: Exception) { return SleepOutcome.RETRYABLE }
-        return when (postCode) {
-            in 200..299 -> SleepOutcome.CREATED
-            400, 403, 404 -> SleepOutcome.SKIPPED
-            409 -> {
-                val putCode = try { api.putDailyHealthLogRaw(body).code() } catch (e: Exception) { return SleepOutcome.RETRYABLE }
-                when (putCode) {
-                    in 200..299 -> SleepOutcome.UPDATED
-                    400, 403, 404 -> SleepOutcome.SKIPPED
-                    else -> SleepOutcome.RETRYABLE
-                }
-            }
-            else -> SleepOutcome.RETRYABLE
-        }
-    }
-
-    // MARK: - Gating / display helpers
-
-    private fun workoutExclusionKey(programId: String, date: String, name: String) = "$programId|$date|$name"
-    private fun sleepExclusionKey(programId: String, date: String) = "$programId|$date"
-    private fun stepsExclusionKey(programId: String, date: String) = "$programId|$date"
 
     private fun buildConfirmationPages(pageRows: Map<String, List<PendingSyncConfirmation.Row>>): List<PendingSyncConfirmation.ProgramPage> {
         val nameById = programContext.programs.value.associate { it.id to it.name }
@@ -759,23 +434,17 @@ class HealthSyncController(
         }.sortedBy { it.programName.lowercase(Locale.getDefault()) }
     }
 
-    private fun publishWorkoutState() {
+    private fun publishAll() {
         _workoutEnabled.value = store.workoutEnabled
         _workoutProgramIds.value = store.workoutProgramIds
         _lastWorkoutSyncMillis.value = store.lastWorkoutSyncMillis.takeIf { it > 0 }
         _lastWorkoutSyncCount.value = store.lastWorkoutSyncCount
         _lastWorkoutSyncFailed.value = store.lastWorkoutSyncFailed
-    }
-
-    private fun publishSleepState() {
         _sleepEnabled.value = store.sleepEnabled
         _sleepProgramIds.value = store.sleepProgramIds
         _lastSleepSyncMillis.value = store.lastSleepSyncMillis.takeIf { it > 0 }
         _lastSleepSyncCount.value = store.lastSleepSyncCount
         _lastSleepSyncFailed.value = store.lastSleepSyncFailed
-    }
-
-    private fun publishStepsState() {
         _stepsEnabled.value = store.stepsEnabled
         _stepsProgramIds.value = store.stepsProgramIds
         _lastStepsSyncMillis.value = store.lastStepsSyncMillis.takeIf { it > 0 }
@@ -784,6 +453,8 @@ class HealthSyncController(
     }
 
     companion object {
+        private val AUTOMATIC_TRIGGERS = setOf("launch", "foreground", "program_entry")
+        private const val MIN_AUTO_INTERVAL_MS = 60_000L
         private val displayFormatter = DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
 
         /** `yyyy-MM-dd` → e.g. "Tue, Jul 1"; falls back to the raw string. */

@@ -24,6 +24,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.kit.isSamePasswordRejection
+import com.app.rasifiters.core.kit.isUnconfirmedWrite
+import com.app.rasifiters.core.kit.toCredentialMessage
 import com.app.rasifiters.core.theme.AppRed
 import com.app.rasifiters.ui.auth.AppPasswordField
 import com.app.rasifiters.ui.auth.AppTextField
@@ -34,9 +37,16 @@ import com.app.rasifiters.ui.summary.FormErrorText
 import com.app.rasifiters.ui.summary.FormFieldLabel
 import kotlinx.coroutines.launch
 
+/** auth §3.1 rule 6 (A1 copy, all three surfaces): the write may have landed — never retried automatically. */
+internal const val PASSWORD_UNCONFIRMED =
+    "We couldn't confirm your password change. It may have gone through, so try signing in with your new password."
+internal const val PASSWORD_UPDATED = "Password updated. Your other devices will be signed out."
+internal const val PASSWORD_SET = "Password set. Your other devices will be signed out."
+
 /**
  * "Change Password" — new + confirm password with the web-parity live 5-rule policy checklist.
- * Faithful 1:1 to the iOS ChangePasswordView. On success, a confirmation dialog pops back.
+ * Faithful 1:1 to the iOS ChangePasswordView. On success, a confirmation dialog pops back. Rule 6: a timeout / 5xx
+ * says "couldn't confirm"; a manual retry answered "must be different" counts as done.
  */
 @Composable
 fun ChangePasswordScreen(programContext: ProgramContext, onBack: () -> Unit) {
@@ -47,6 +57,7 @@ fun ChangePasswordScreen(programContext: ProgramContext, onBack: () -> Unit) {
     var isSaving by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showSuccess by remember { mutableStateOf(false) }
+    var unconfirmed by remember { mutableStateOf(false) }
 
     fun matches(re: String) = Regex(re).containsMatchIn(newPassword)
     val meetsPolicy = newPassword.length >= 8 && matches("[A-Z]") && matches("[a-z]") && matches("[0-9]")
@@ -92,7 +103,13 @@ fun ChangePasswordScreen(programContext: ProgramContext, onBack: () -> Unit) {
                     scope.launch {
                         programContext.changePassword(newPassword)
                             .onSuccess { showSuccess = true }
-                            .onFailure { errorMessage = it.message ?: "Couldn't change your password." }
+                            .onFailure { e ->
+                                when {
+                                    unconfirmed && e.isSamePasswordRejection() -> { unconfirmed = false; showSuccess = true }
+                                    e.isUnconfirmedWrite() -> { unconfirmed = true; errorMessage = PASSWORD_UNCONFIRMED }
+                                    else -> errorMessage = e.toCredentialMessage(authenticated = true)
+                                }
+                            }
                         isSaving = false
                     }
                 },
@@ -106,8 +123,7 @@ fun ChangePasswordScreen(programContext: ProgramContext, onBack: () -> Unit) {
     if (showSuccess) {
         AlertDialog(
             onDismissRequest = { showSuccess = false; onBack() },
-            title = { Text("Password Updated") },
-            text = { Text("Your password has been changed successfully") },
+            text = { Text(PASSWORD_UPDATED) },
             confirmButton = { TextButton(onClick = { showSuccess = false; onBack() }) { Text("OK") } },
         )
     }

@@ -7,6 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +36,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -40,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -56,6 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -63,10 +69,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
+import com.app.rasifiters.core.VersionGate
+import com.app.rasifiters.core.kit.UiState
+import com.app.rasifiters.core.kit.dataOrNull
+import com.app.rasifiters.core.kit.toAppError
 import com.app.rasifiters.core.theme.AppGreen
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.auth.AppTextField
+import com.app.rasifiters.ui.components.kit.ErrorView
+import com.app.rasifiters.ui.components.kit.FloatingBanner
+import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -74,24 +88,35 @@ import java.util.Locale
 
 /**
  * The post-auth landing — "My Programs" (the Android analog of iOS `ProgramPickerView` / web `/programs`).
- * Lists the member's programs as cards; opens a program (→ the shell), accepts/declines invites inline,
- * deletes managed programs (Android-idiom overflow menu vs the iOS swipe), reaches the account sheet, and
- * carries the net-new drag-to-reorder + floating search (iOS D-N1). Faithful 1:1 to the iOS SPEC plus its
- * one web-parity addition — a visible error banner (D-C1). The "+" opens the [ProgramActionsSheet]
- * (My Invites / Create); the account sheet reaches the settings screens via [onNavigate].
+ * Lists the member's programs as cards; opens a program (→ the shell), deletes managed programs (Android-idiom
+ * overflow menu vs the iOS swipe), reaches the account sheet, and carries the net-new drag-to-reorder + floating
+ * search (iOS D-N1). Invites come from the ONE inbox (`/my-invites`, invites §3.1) in the [ProgramActionsSheet]
+ * (My Invites / Create) — cards no longer accept inline; a "requested" card keeps Cancel Request. The account
+ * sheet reaches the settings screens via [onNavigate].
+ *
+ * Kit (frontend-kit §5–6): the cached list shows first, then refreshes; programs + invites load in parallel; a
+ * failed first load → ErrorView; offline / stale / update-available → ONE floating banner above the FABs; pull to
+ * refresh.
  *
  * Android-idiom deviations (recorded in specs/pages/android/program-picker/SPEC.md):
  *  • Edit/Delete via a per-card overflow (⋮) menu, not iOS swipe actions — long-press is the reorder gesture.
  *  • Reorder = long-press-drag over the LazyColumn (Material idiom for SwiftUI `.onMove`); disabled while searching.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProgramPickerScreen(
     programContext: ProgramContext,
     onOpenProgram: (ProgramDTO) -> Unit,
     onNavigate: (String) -> Unit,
+    versionGate: VersionGate,
 ) {
     val programs by programContext.programs.collectAsStateWithLifecycle()
-    val loading by programContext.programsLoading.collectAsStateWithLifecycle()
+    val loadState by programContext.programsState.collectAsStateWithLifecycle()
+    val online by programContext.isOnline.collectAsStateWithLifecycle()
+    val updateAvailable by versionGate.updateAvailable.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val invitesState by programContext.invites.collectAsStateWithLifecycle()
+    val inviteInboxRequest by programContext.inviteInboxRequest.collectAsStateWithLifecycle()
     val isGlobalAdmin = programContext.isGlobalAdmin
     val scope = rememberCoroutineScope()
 
@@ -100,11 +125,23 @@ fun ProgramPickerScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showAccount by remember { mutableStateOf(false) }
     var showActions by remember { mutableStateOf(false) }
+    var actionsOnInvites by remember { mutableStateOf(false) }
     var showSignOut by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ProgramDTO?>(null) }
+    var pulling by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        programContext.loadPrograms().onFailure { errorMessage = it.message ?: "Couldn't load programs." }
+    // Programs + the invite inbox load in parallel (board §6.5).
+    suspend fun reloadAll() = coroutineScope {
+        launch { programContext.loadPrograms() }
+        launch { programContext.loadInvites() }
+    }
+    LaunchedEffect(Unit) { reloadAll() }
+    // Invite push tap (U2): open the actions sheet on its invites tab, then refresh.
+    LaunchedEffect(inviteInboxRequest) {
+        if (!inviteInboxRequest) return@LaunchedEffect
+        programContext.consumeInviteInboxRequest()
+        actionsOnInvites = true; showActions = true
+        reloadAll()
     }
 
     val visiblePrograms = remember(programs, query) {
@@ -112,7 +149,17 @@ fun ProgramPickerScreen(
         if (q.isEmpty()) programs else programs.filter { it.name.contains(q, ignoreCase = true) }
     }
     val reorderEnabled = query.isBlank()
-    val pendingInvites = programs.count { it.myStatus == "invited" || it.myStatus == "requested" }
+    val pendingInvites = (invitesState.dataOrNull?.size ?: 0) + programs.count { it.myStatus == "requested" }
+
+    // One floating banner slot (A6/A7): offline (the global monitor) › stale › update available.
+    val banner: FloatingBannerVariant? = when {
+        !online -> FloatingBannerVariant.Offline
+        loadState is UiState.Stale -> FloatingBannerVariant.Stale
+        updateAvailable -> FloatingBannerVariant.UpdateAvailable
+        else -> null
+    }
+
+    val navBarBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
 
     val listState = rememberLazyListState()
     val reorderState = remember(listState) { ReorderState(listState) { from, to -> programContext.moveProgram(from, to) } }
@@ -142,9 +189,17 @@ fun ProgramPickerScreen(
                 SearchPill(query = query, onQueryChange = { query = it })
             }
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            PullToRefreshBox(
+                isRefreshing = pulling,
+                onRefresh = { pulling = true; scope.launch { reloadAll(); pulling = false } },
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+            ) {
+                val current = loadState
                 when {
-                    loading && programs.isEmpty() -> CircularProgressIndicator(Modifier.align(Alignment.Center))
+                    programs.isEmpty() && current is UiState.Failed ->
+                        ErrorView(current.error, Modifier.align(Alignment.Center), onRetry = { scope.launch { reloadAll() } })
+                    programs.isEmpty() && (current is UiState.Loading || current is UiState.Idle) ->
+                        CircularProgressIndicator(Modifier.align(Alignment.Center))
                     programs.isEmpty() -> EmptyState(
                         "No programs yet",
                         "Create a program to get started.",
@@ -175,7 +230,7 @@ fun ProgramPickerScreen(
                                         if (before.map { it.id } != after.map { it.id }) {
                                             scope.launch {
                                                 programContext.persistProgramOrder(before).onFailure {
-                                                    errorMessage = "Couldn't save program order: ${it.message ?: "try again."}"
+                                                    errorMessage = "Couldn't save program order: ${it.toAppError().message}"
                                                 }
                                             }
                                         }
@@ -183,7 +238,12 @@ fun ProgramPickerScreen(
                                     onDragCancel = { reorderState.onDragEnd() },
                                 )
                             },
-                        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 120.dp),
+                        // The floating banner sits above the FABs; the last card must still scroll clear of it (A6):
+                        // 146 inset + 12 + 52 + 12 banner block + a 16 gap, above the system nav bar.
+                        contentPadding = PaddingValues(
+                            start = 20.dp, end = 20.dp, top = 4.dp,
+                            bottom = if (banner != null) BANNER_LIST_CLEARANCE + navBarBottom else 120.dp,
+                        ),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         itemsIndexed(visiblePrograms, key = { _, p -> p.id }) { index, program ->
@@ -193,10 +253,9 @@ fun ProgramPickerScreen(
                                 isGlobalAdmin = isGlobalAdmin,
                                 onOpen = { if (program.canOpen(isGlobalAdmin)) onOpenProgram(program) },
                                 onDelete = { deleteTarget = program },
-                                onRespond = { accept ->
+                                onCancelRequest = {
                                     scope.launch {
-                                        programContext.respondToInvite(program.id, accept)
-                                            .onFailure { errorMessage = it.message ?: "Couldn't update invite." }
+                                        programContext.cancelJoinRequest(program.id).onFailure { errorMessage = it.toAppError().message }
                                     }
                                 },
                                 modifier = if (dragging) {
@@ -235,12 +294,22 @@ fun ProgramPickerScreen(
                 onClick = { showActions = true },
             )
         }
+
+        banner?.let { v ->
+            FloatingBanner(
+                v, Modifier.align(Alignment.BottomCenter).navigationBarsPadding(), bottomInset = 146.dp,
+                onRetry = if (v == FloatingBannerVariant.Stale) ({ scope.launch { reloadAll() } }) else null,
+                onUpdate = if (v == FloatingBannerVariant.UpdateAvailable) ({ versionGate.openStore(context) }) else null,
+                onDismiss = if (v == FloatingBannerVariant.UpdateAvailable) ({ versionGate.dismissUpdate() }) else null,
+            )
+        }
     }
 
     if (showActions) {
         ProgramActionsSheet(
             programContext = programContext,
-            onDismiss = { showActions = false },
+            onDismiss = { showActions = false; actionsOnInvites = false },
+            openOnInvites = actionsOnInvites,
         )
     }
 
@@ -263,7 +332,7 @@ fun ProgramPickerScreen(
                     deleteTarget = null
                     scope.launch {
                         programContext.deleteProgram(target.id)
-                            .onFailure { errorMessage = it.message ?: "Couldn't delete program." }
+                            .onFailure { errorMessage = it.toAppError().message }
                     }
                 }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
             },
@@ -287,6 +356,9 @@ fun ProgramPickerScreen(
     }
 }
 
+/** List bottom padding while the floating banner shows: 146 (FAB inset) + 12 + 52 + 12 (banner) + 16 gap. */
+private val BANNER_LIST_CLEARANCE = 238.dp
+
 // ---- Role gating (client-side; the backend re-authorizes every call) ----
 
 private fun ProgramDTO.canOpen(isGlobalAdmin: Boolean): Boolean =
@@ -303,7 +375,7 @@ private fun ProgramCard(
     isGlobalAdmin: Boolean,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
-    onRespond: (Boolean) -> Unit,
+    onCancelRequest: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val accent = statusColor(program.status)
@@ -365,16 +437,9 @@ private fun ProgramCard(
             trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
         )
 
-        when (program.myStatus) {
-            "invited" -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                InvitePill("Accept", accent, onClick = { onRespond(true) })
-                InvitePill("Decline", MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), onClick = { onRespond(false) })
-            }
-            "requested" -> InvitePill(
-                "Cancel Request",
-                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-                onClick = { onRespond(false) },
-            )
+        // An "invited" card is answered in the inbox (invites §3.1, A10); a "requested" card keeps Cancel Request.
+        if (program.myStatus == "requested") {
+            InvitePill("Cancel Request", MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f), onClick = onCancelRequest)
         }
     }
 }
@@ -394,19 +459,6 @@ private fun StatusPill(status: String?) {
             fontWeight = FontWeight.Bold,
             color = color,
         )
-    }
-}
-
-@Composable
-private fun InvitePill(label: String, color: Color, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(color.copy(alpha = 0.16f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 8.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, color = color)
     }
 }
 

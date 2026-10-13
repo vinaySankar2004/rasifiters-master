@@ -1,5 +1,9 @@
 package com.app.rasifiters.health
 
+import androidx.health.connect.client.records.ExerciseSessionRecord
+import com.app.rasifiters.net.HealthSyncItemDTO
+import java.time.Duration
+import java.time.Instant
 import kotlin.math.roundToInt
 
 /**
@@ -7,11 +11,24 @@ import kotlin.math.roundToInt
  * `HealthKitService.AggregatedWorkout/AggregatedSleep` + `PendingSyncConfirmation`).
  */
 
-/** One contributing Health Connect exercise session — the idempotency-ledger identity (D-SUM) + its minutes. */
+/** One Health Connect exercise session — a health-sync item of its own (one item per sample, §3.2). */
 data class WorkoutSample(
-    val uuid: String,     // ExerciseSessionRecord.metadata.id
-    val minutes: Double,  // raw (unrounded) duration of this one session
-)
+    val uuid: String,       // ExerciseSessionRecord.metadata.id → sample_id
+    val minutes: Double,    // raw (unrounded) duration of this one session
+    val startAt: Instant,
+    val endAt: Instant,
+    val origin: String,     // metadata.dataOrigin.packageName
+) {
+    /** health-sync §3.2 `value`: max(1, round(seconds / 60)) per sample. */
+    val wholeMinutes: Int get() = maxOf(1, minutes.roundToInt())
+
+    companion object {
+        fun of(r: ExerciseSessionRecord) = WorkoutSample(
+            r.metadata.id, Duration.between(r.startTime, r.endTime).seconds / 60.0, r.startTime, r.endTime,
+            r.metadata.dataOrigin.packageName,
+        )
+    }
+}
 
 /** A (mapped library name, calendar day) group of exercise sessions — one backend log per group. */
 data class AggregatedWorkout(
@@ -84,9 +101,38 @@ data class PendingSyncConfirmation(
     }
 }
 
-/** Outcome of one sync run, consumed only by the manual "Sync Now" button (auto triggers discard it). */
+/** One batch item + what its result feeds locally. programId null = a deletion; legacyKey = the old-ledger key it retires. */
+data class PlannedItem(val dto: HealthSyncItemDTO, val flow: HealthStore.Flow, val programId: String?, val legacyKey: String? = null)
+
+/** Per-kind result counts for sync.run (observability §8.1); `created` also feeds the sleep/steps "Synced N" count. */
+class KindCounts {
+    var sent = 0; var applied = 0; var created = 0; var unchanged = 0; var duplicate = 0
+    var skipped = 0; var removed = 0; var invalid = 0
+
+    fun add(status: String) {
+        sent++
+        when (status) {
+            "created" -> { applied++; created++ }
+            "updated" -> applied++
+            "unchanged" -> unchanged++
+            "duplicate", "recorded" -> duplicate++
+            "removed" -> removed++
+            "not_found" -> Unit
+            "invalid" -> invalid++
+            else -> if (status.startsWith("skipped")) skipped++
+        }
+    }
+}
+
+fun HealthStore.Flow.confirmationFlow(): PendingSyncConfirmation.Flow = when (this) {
+    HealthStore.Flow.WORKOUTS -> PendingSyncConfirmation.Flow.WORKOUTS
+    HealthStore.Flow.SLEEP -> PendingSyncConfirmation.Flow.SLEEP
+    HealthStore.Flow.STEPS -> PendingSyncConfirmation.Flow.STEPS
+}
+
+/** Outcome of one sync run, consumed by "Sync Now" and Summary pull-to-refresh (auto triggers discard it). */
 sealed interface HealthSyncResult {
-    data class Synced(val count: Int) : HealthSyncResult   // clean run; count = created + summed
+    data class Synced(val count: Int) : HealthSyncResult   // count = applied (created + updated)
     object Failed : HealthSyncResult                       // couldn't reach the server (or read HC)
     object Skipped : HealthSyncResult                      // a guard bailed (disabled / already syncing / pending)
 }

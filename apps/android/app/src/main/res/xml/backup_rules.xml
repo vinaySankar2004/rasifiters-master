@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup (API ≤ 30): the token store, Health Connect sync state and the push registration never leave the device
+     (auth §3.1 / health-sync §8 rule 7 / notifications §3.1). install_id, the event queue and the launch cache live in
+     noBackupFilesDir (excluded by the platform). -->
+<full-backup-content>
+    <exclude domain="sharedpref" path="rasi.fiters.session.xml" />
+    <exclude domain="sharedpref" path="rasi.health.xml" />
+    <exclude domain="sharedpref" path="rasi.push.xml" />
+</full-backup-content>

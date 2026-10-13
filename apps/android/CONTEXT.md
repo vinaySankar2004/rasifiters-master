@@ -11,11 +11,19 @@ HealthKit, FCM vs APNs) and are recorded per-screen in `specs/pages/android/<scr
 - Jetpack Compose + Material 3 · Kotlin 2.0.21 · **minSdk 26, compile/targetSdk 36** · JDK 17 bytecode
 - Architecture: one app-scoped `ProgramContext` state hub (`StateFlow`) — the analog of the iOS
   `ProgramContext` ObservableObject / web `AuthProvider`. Manual DI via `core/AppContainer`.
-- Networking: **Retrofit + OkHttp + kotlinx.serialization**. Bearer header on every request + a
-  single-flight 401 refresh in an OkHttp `Authenticator` (mirrors the iOS `APIClient`).
-- Tokens in **EncryptedSharedPreferences** (Android Keystore-backed — the Keychain analog); session/prefs
-  in DataStore.
-- Real-time: SSE (okhttp-sse) — Phase I. Push: **FCM** — Phase I.
+- Networking: **Retrofit + OkHttp + kotlinx.serialization**. Every client (main, refresh, SSE) sends the
+  observability §4.1 headers (`X-App-Platform: android`, `X-App-Version`, `X-App-Build`) + a fresh `X-Request-Id`
+  (`net/ClientHeaders.kt`). Requests time out at **15 s end to end** (`callTimeout`). Bearer from the one token store
+  with a proactive + single-flight refresh (`net/TokenRefresher.kt`); a 426 opens the blocking update screen.
+- Storage: tokens + identity in **EncryptedSharedPreferences** `rasi.fiters.session` = the ONE token store
+  (`core/Session.kt`, a `StateFlow`; rotation is compare-and-set; only keyset / decrypt corruption resets it →
+  `token_store_unreadable` + the sign-out notice; a transient failure keeps the file and the session is absent for that
+  process).
+  Appearance + the version-gate dismissal: `rasi.fiters.prefs`. Push registration + the one-time permission flag:
+  `rasi.push`. Health Connect state: `rasi.health`, **per member** (`m.<memberId>.*`). `noBackupFilesDir`: `install_id`,
+  `client_events.json` (observability queue), `launch_cache/` (instant opens). Auto Backup / device transfer exclude
+  session, health and push (`res/xml/backup_rules.xml`, `data_extraction_rules.xml`). DataStore is declared but unused.
+- Real-time: SSE (okhttp-sse). Push: **FCM** (channels `rasi_default` + high-importance `rasi_invites`).
 - applicationId / package: `com.app.rasifiters` (matches the iOS bundle-id root). URL scheme `rasifiters://`.
 - Version: the next-out version is whatever `app/build.gradle.kts` says (`versionName` / `versionCode`);
   what is **live per channel** is tracked in `RELEASES.md` (the SoT — don't restate numbers here).
@@ -50,20 +58,64 @@ password/appearance/privacy + Health Connect settings) · two quick-add Glance w
 
 ## Auth (client side)
 Supabase-Auth-proxied through the Express backend — **no Supabase SDK on the client** (same as web + iOS).
-Mobile login = `POST /auth/login/app` (returns `member_id`, accepts `push_token`+`device_id`).
-`GET /auth/me` self-heals identity on relaunch. `POST /auth/refresh` rotates the refresh token — persisted
-each time. 401 → single-flight refresh + one retry, else sign-out.
+Mobile login = `POST /auth/login/app` (returns `member_id`); login + Google OAuth ride along `push_token` +
+`device_id` (the install id) + `platform:"android"` (`push/DeviceRegistry`). `GET /auth/me` self-heals identity on
+relaunch. Sessions (auth §3.1, reliability Phase 3 / 1.1.0):
+- `net/TokenRefresher` — the one refresh path (interceptor, 401 authenticator, SSE): single-flight; proactive when the
+  access token expires within 60 s (lifetime-based: `receivedAt + (exp − iat)`, clock-skew safe); one quick retry after
+  `min(Retry-After ?: 2, 5)` s, then backoff 30 / 60 / 120 / 300 s; **sign-out only on `401 session_invalid`** —
+  503 / 429 / 5xx / timeout / offline keep the session (`auth.refresh_failed` once per failure cycle).
+- One teardown on every sign-out path (own sign-out revokes this device via `/auth/logout`; `session_invalid`;
+  `logout-all`; delete account): unregister the device, clear state + launch cache, stop the stream, reset the refresher.
+  A forced sign-out shows the kit `signedOut` copy once on Login.
+- **"Sign out everywhere"** in My Profile (above Delete Account, every role) → `POST /auth/logout-all`.
+- Password writes (`change-password`, `set-password`) are one-shot (never replayed by OkHttp); a 401 re-sends once;
+  a timeout / 5xx says "couldn't confirm" (rule 6).
+- Credential screens show the server's text for 400/401/409/422 on the public sign-in routes; authenticated routes map
+  a 401 through the kit (`toCredentialMessage`). Google = `GetSignInWithGoogleOption` + nonce (raw nonce to `/auth/oauth`
+  and `/auth/link`), mapped Credential Manager errors, `auth.sign_in_failed kind:provider`.
 
 ## Health (Samsung Health)
-Via **Health Connect** (`androidx.health.connect:connect-client`) — the HealthKit analog. **Built (Phase H,
-Run 14).** Reads `ExerciseSessionRecord` → `POST /workout-logs` (idempotent applied-ledger,
-`on_duplicate:"sum"`) and `SleepSessionRecord` → `daily-health-logs` upsert. Per-program toggles,
-date-window scoped (D-S5), data-lock aware (D-LOCK), first-sync confirmation (D-CONF), silent auto-retry
-(D-SIL). Incremental workouts use the **Changes API** (the anchor analog); sleep uses a rolling 14-day
-`readRecords` window. Sync runs on app triggers (launch/auth/foreground/program-entry) — **no OS-push
-background delivery** (H-1; Health Connect has none). New `health-connect` feature spec
-(`specs/features/health-connect/`, 0.1.0) parallels iOS `apple-health` (which stays iOS-only). Code:
-`health/*` + `ui/health/*`.
+Via **Health Connect** (`androidx.health.connect:connect-client`) — the HealthKit analog. Since 1.1.0 it speaks
+**health-sync v2** (`POST /health-sync/batch` + `GET|PUT /health-sync/state`); the old POST→409→PUT /
+`on_duplicate:"sum"` paths are gone. One run per device (`health/HealthSyncRunner`): read → one item per workout
+sample / sleep night / steps day × selected in-window, unlocked, non-excluded program → batches of ≤ 300 (halved on
+413; legacy items first) → `PUT /state` (`sync_success` per (program, kind) minus held keys) → one `sync.run` event.
+Workouts use the **Changes API** incl. deletions (`DeletionChange.recordId`); a missing / expired token reads the
+**catch-up window** `max(last_success − 1 d, today − 30 d)` (first sync: connect date; a reconnect never reads before
+the reconnect date); sleep / steps read the same catch-up window (first sync 14 d). Every read pages (`pageToken`).
+**Review once:** the first-sync review shows only when no integration has `review_done_at`; `review_done` is sent
+only after a user confirm (a 0-row first sync and a same-integration `last_success_at` confirm locally). D-LOCK holds
+the token on `skipped_locked`. Upgrade from 1.0.0 (`health/HealthSyncUpgrade`): the old ledger's samples go up as
+`legacy` items, the token is discarded once, the confirmed lists carry over as `review_done`. Disconnect keeps
+exclusions + confirmed reviews and sends nothing. Triggers: `launch` / `foreground` / `program_entry` (≥ 60 s apart),
+`connect` / `manual` / `pull_to_refresh` (wait for an in-flight run). A run is tied to its member (pinned store; it
+aborts once the session moves on; sign-out cancels it). A revoked permission shows "Reconnect Health
+Connect". **No background sync** (H-1 / D-6). Code: `health/*` + `ui/health/*`.
+
+## Push + real-time
+- FCM: `onNewToken` → `push/DeviceRegistry` (one serial queue; install id in `noBackupFilesDir/install_id`; `PUT /device`
+  at most every 12 h unless the token / permission changed; `POST /device/unregister` — no login — on every sign-out
+  and once when notifications are turned off). POST_NOTIFICATIONS is asked once, right after the first sign-in
+  (settings fallback = the Notifications screen). A foreground FCM message is posted to the tray (on `rasi_invites` /
+  `rasi_default`) only while the SSE stream is disconnected. A tap acknowledges; an invite opens the program picker's
+  actions sheet on its invites tab, any other type re-fetches its data.
+- SSE (`net/NotificationStreamClient`): foreground only (ON_START / ON_STOP); reconnect on every close / error with
+  1 s × 2 backoff, 30 s cap, full jitter, paused while offline; 60 s idle timeout; `ready` resets the backoff and
+  re-fetches `/unacknowledged` (recent acks filtered; an invite among them reloads the inbox).
+- Invites: the ONE inbox is `GET /my-invites` (global admins `GET /all-invites` + Revoke), answered via
+  `PUT /invite-response` (decline offers "Block future invites"); program cards no longer accept inline.
+
+## Frontend kit (reliability Phase 3)
+Program picker + Summary: this member's cached data first (`core/LaunchCache`, `noBackupFilesDir`, written only while
+signed in, cleared by the teardown), then refresh; programs + invites load in parallel; Summary's 7 reads in
+parallel (a partial failure keeps the parts that loaded); a first load that fails with no data → `ErrorView`; pull to
+refresh on both. One app-wide connectivity monitor → one floating offline banner (picker: above the FABs; program
+shell: above the nav bar; elsewhere at the bottom — the content gives up its height while it shows); stale →
+"Couldn't refresh"; the picker also shows "update available". `core/VersionGate` reads `GET /app-config` on launch /
+foreground / before a widget replay (≤ 3 s): below `min_android_version_code` or any 426 → the blocking
+`ui/components/UpdateRequiredScreen` (plain Play Store intent, no in-app-update library). Observability events
+(`auth.*`, `sync.run`) go through `core/events/ClientEventQueue` (persisted, batches ≤ 25, survives sign-out).
 
 ## Deploy
 Android Studio → signed AAB → Google Play Console **closed testing** (went straight to closed, skipping
@@ -77,6 +129,11 @@ sender + `platform:"android"` registration, live since 2026-07-08).
 🚀 **LIVE on the public Google Play Store (production, 2026-08-06).** The first Android production release
 rolled out at 100% to 176 countries + rest of world; the repo is pre-bumped one train ahead for the next
 upload. Version/channel specifics live in `RELEASES.md` (don't restate build numbers here).
+
+🟢 **Reliability Phase 3, track C3 (2026-10-13): the 1.1.0 client release.** Sessions (one token store, the
+`TokenRefresher` policy, one teardown, Sign out everywhere), health-sync v2 for Health Connect, push + SSE + the
+invite inbox, the Google nonce flow, instant opens + kit adoption on the picker / Summary, the app-wide offline
+banner and the version gate — see the Auth / Health / Push / Frontend kit sections above and the page SPECs.
 
 🟢 **Phase H (2026-07-08, Run 14): Health Connect — workout + sleep auto-sync.** The Android analog of the
 iOS `apple-health` feature, re-expressed on **Health Connect** (`androidx.health.connect:connect-client
