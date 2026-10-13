@@ -68,6 +68,8 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY    # service-role key — admin createUser/updateUser/deleteUser
         sync: false
+      - key: SUPABASE_SECRET_KEY          # secret API key (sb_secret_…) — per-user Supabase rate limits (auth D-C14); unset → anon key
+        sync: false
       - key: GOOGLE_WEB_CLIENT_SECRET     # Web OAuth client secret — web "Continue with Google" auth-code exchange (D-C8)
         sync: false
       # --- APNs push (notifications SPEC §6, D-C8) — creds PROVISIONED 2026-06-30 (token-based APNs Auth

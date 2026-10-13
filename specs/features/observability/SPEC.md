@@ -1,6 +1,6 @@
 # Feature: `observability` — request log, client identity headers, event trail
 
-> **Status:** 🚀 deployed (backend, live on Render 2026-10-12; reliability-overhaul Phase 2 track A) · **Version:** 0.1.1 · **Apps (`consumed_by`):** none yet — `[]` until Phase 3 adds the web / iOS / Android senders
+> **Status:** 🚀 deployed (backend, live on Render 2026-10-12; reliability-overhaul Phase 2 track A) · **Version:** 0.2.0 · **Apps (`consumed_by`):** none yet — `[]` until Phase 3 adds the web / iOS / Android senders
 > **Provenance:** **NET-NEW** — no legacy equivalent (the legacy backend logged SQL only). Contract:
 > [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md) §7 (W6, "observability is free" ✅);
 > evidence: [`discovery/W6`](../../initiatives/reliability-overhaul/discovery/W6-observability-perf.md).
@@ -23,7 +23,7 @@ Postgres are the sinks):
    User-Agent `platform_hint` for live binaries that send no headers. Read + log only.
 4. **Event trail** — the `app_events` table + `POST /api/client-events` (works signed-out, size-capped,
    rate-limited per client, per-client + global daily event caps, idempotent retries), 90-day retention (§3.2, §5).
-5. **SQL query logging off** by default (§6), and the global `errorHandler` never prints a request body (D-C10).
+5. **SQL query logging off** by default (§6); the global `errorHandler` never prints a request body (D-C10) and answers a malformed / oversized / mis-encoded body with its 4xx in the frontend-kit vocabulary on every route; one log helper for caught errors, `logError` (D-C11).
 6. **CORS preflight cache** (2 h) + `Retry-After` / `X-Request-Id` exposed to the web app.
 
 ## 2. Why it exists
@@ -139,9 +139,18 @@ and app-config's D-C5 gate (presence of `X-App-Version` only).
   charged twice. The per-minute request limiter never refunds — every request counts, whatever its outcome.
 - **`clientKey(ip)`**: an IPv4 address as-is; an IPv4-mapped IPv6 address (`::ffff:…`) as-is; any other IPv6
   address → its `/64`; anything that is not an IP literal → the shared key `"unknown"`.
-- **Router-local body-parser error handler** keeps the real 413 / 400 / 415 for every parser 4xx, including
-  decompression errors that carry no `err.type` (the global `errorHandler` turns every non-`AppError` into 500 —
-  unchanged for every other route, §10 F2).
+- **Router-local body-parser error handler** keeps the real 413 / 400 / 415 for every parser 4xx of the 64 kb parser,
+  including decompression errors that carry no `err.type`. Since 0.2.0 the global `errorHandler` answers every other
+  route's body-parser failures the same way (D-C11).
+- **Global `errorHandler`** (`middleware/errorHandler.js`, 0.2.0): `AppError` → `{ error, code? }` + `Retry-After` when
+  set; body-parser 4xx → `400`/`415 { error: "Invalid request body.", code: "invalid_body" }` or `413 { error: "Payload
+  too large.", code: "payload_too_large" }`, logged `Rejected request body: <type or name> <status>`; anything else →
+  `500 { error: "Internal server error." }`, logged via `logError("Unhandled error:", err)`.
+- **`logError(tag, err)`** (`utils/logError.js`, 0.2.0 — kept beside `utils/response.js` in auth's reference_impl, so
+  no feature-graph cycle) — the ONE log line for a caught error: `<tag> <name> code=<code> status=<status> <message ≤
+  200 chars, line breaks flattened> [<first two stack frames>]`; a `Sequelize*` error prints only `<tag> <name>
+  code=<Postgres code>`. Never the error object, `err.sql`, `err.parameters` or `err.body`. New code logs through it
+  (R2/R3 adopt it after the merge — follow-up).
 
 ## 5. Data / schema
 
@@ -153,7 +162,7 @@ DESIGN_BOARD §8). Model `models/AppEvent.js` (no associations → not registere
 | `id` | `uuid` PK | client-supplied event UUID (idempotency) or `gen_random_uuid()` / Sequelize UUIDV4 |
 | `created_at` | `timestamptz NOT NULL` | server receive time — the retention + query axis |
 | `occurred_at` | `timestamptz` | client-reported time, clamped (§4) |
-| `source` | `varchar(16) NOT NULL` | `'client'` (this endpoint) · `'server'` (Phase 3 R1 auth events); CHECK |
+| `source` | `varchar(16) NOT NULL` | `'client'` (this endpoint) · `'server'` (reserved — no server-side writer yet, D-C9); CHECK |
 | `type` | `varchar(64) NOT NULL` | dotted event name, e.g. `auth.forced_sign_out` |
 | `member_id` | `uuid` | FK → `members(id)` **ON DELETE CASCADE** |
 | `platform` | `varchar(16)` | `ios` / `android` / `web` / `null` |
@@ -185,8 +194,7 @@ re-run the file). Staging runs of `007` go over the session pooler / a direct co
 
 - **Upstream:** `auth` (`optionalAuthenticate` → `resolveReqUser`); `members` (FK target). app-config's gate reads
   the §4.1 `X-App-Version` presence (documentation only — no code import either way).
-- **Downstream:** Phase 3 web / iOS / Android senders (`consumed_by` grows then); R1 writes `source = 'server'`
-  auth events; R3 adds `push_deliveries` (own table).
+- **Downstream:** Phase 3 web / iOS / Android senders (`consumed_by` grows then); server-side auth events are deferred (D-C9); R3 adds `push_deliveries` (own table).
 - **Order:** the user runs `sql/007` **before** the backend deploy (otherwise `POST /api/client-events` → 500).
 - **Live binaries** (iOS 1.4.0–1.4.2, Android 1.0.0 (3)/(4)): additive only — new response headers, a new route no
   binary calls, SQL logging invisible; every existing status and body is unchanged.
@@ -207,8 +215,16 @@ re-run the file). Staging runs of `007` go over the session pooler / a direct co
 - On 429 wait `Retry-After`. On 413 split the batch in half and retry (drop a single event that still 413s).
   On 400 drop the batch (it will never succeed). On 5xx / network error retry with backoff.
 - `props` never carries tokens, emails, usernames or free text the user typed.
-- Event `type`s are registered here when the senders land (board §7.2 families: `auth.*`, `sync.*`, `client.error`).
-  Web sends `fetch` with `application/json` (a `text/plain` `sendBeacon` body is not parsed).
+- Web sends `fetch` with `application/json` (a `text/plain` `sendBeacon` body is not parsed).
+- **Registered event types** (more families — `sync.*`, `client.error` — are registered by the tracks that add them):
+
+  | `type` | When | `props` (all optional unless marked) |
+  |---|---|---|
+  | `auth.forced_sign_out` | the client ended the session without the user asking | `reason` (**required**): `refresh_session_invalid` (`/auth/refresh` → `401 session_invalid` — incl. a password change / sign-out-everywhere on another device, or the 90-day inactivity limit) · `token_store_unreadable` (the device's token store is unreadable or corrupt); `status` (int, HTTP status when there was one); `code` (the server `code`, e.g. `session_invalid`) |
+  | `auth.sign_in_failed` | a sign-in attempt failed for any reason other than the user cancelling | `method` (**required**): `password` · `google` · `apple`; `kind` (**required**): `wrong_credentials` (401 on a public sign-in route) · `invalid_input` (400/422) · `conflict` (409) · `unavailable` (429/503) · `offline` · `timeout` · `server` (other 5xx) · `provider` (the native provider SDK failed before any API call) · `unknown`; `status` (int); `code` (server `code` or the provider SDK's error code, ≤ 64 chars) |
+  | `auth.refresh_failed` | `/auth/refresh` failed and the session was KEPT (503 / 429 / 5xx / timeout / offline) | `kind` (**required**, same values as above); `status` (int); `code` |
+
+  The backend needs no change for these (auth 0.13.0 / Phase 3 R1): `POST /api/client-events` already accepts them signed-out.
 
 ## 9. Decisions made
 
@@ -222,8 +238,9 @@ re-run the file). Staging runs of `007` go over the session pooler / a direct co
 | **D-C6** | **90-day retention via `pg_cron`** — `007` PART 2 enables `pg_cron` (not enabled on the project as of 2026-10-12; enabling it approved by the user 2026-10-12) and schedules `app_events_retention_<schema>` daily 04:17 UTC; re-running updates the job by name. | DESIGN_BOARD §7.2; user approval at the plan gate. |
 | **D-C7** | **`trust proxy` = 2 hops** (0.1.1; was 1 in 0.1.0) — needed for the per-client limiters (and Phase 3 R1's forwarded user IP); nothing else reads `req.ip` / `protocol` / `hostname` / `secure`. Too low → all clients share one bucket; too high → spoofable. **Measured on prod 2026-10-12:** a curl with no `X-Forwarded-For` logs `xff_n: 2` (Cloudflare edge + Render LB), one with a spoofed entry `xff_n: 3` (the edge passes client XFF through and appends) → hop count 2. Re-measure after any infra change. | DESIGN_BOARD §2 backend contract 3; `server.js`. |
 | **D-C8** | **CORS preflight cache + exposed headers** — `maxAge: 7200` (Chrome caps at 2 h; repeat web opens skip the preflight); `exposedHeaders: ["Retry-After", "X-Request-Id"]` (**resolves auth F16**). Request headers stay reflected by `cors` (no `allowedHeaders` list, so the §4.1 headers need no change); the origin list stays hard-coded. | DESIGN_BOARD §7.5; auth SPEC §10 F16; `server.js`. |
-| **D-C9** | **Deferred (not in 0.1.0):** an error `code` in the log line (needs every catch → W7 error vocabulary, Phase 3); client senders (Phase 3); server-side auth events (Phase 3 R1); `push_deliveries` (R3); the `tools/` query pack (§7.4); process `unhandledRejection` handlers; changing the global `errorHandler`'s 500 for malformed JSON on other routes. | Phase 2 track A scope (BRIEF §7). |
-| **D-C10** | **The global `errorHandler` never prints a request body (log-only).** Body-parser errors (a string `err.type` with a numeric `err.status`) carry the raw body in `err.body` — a malformed-JSON login put its password in the Render log. Those, and any other error carrying a `body`, are logged as `Unhandled error: <type or name> <status>`; every other error is still logged in full. Every status and response body is unchanged. Resolves F7. | Plan F7 / O1; user amendment 2026-10-12; `middleware/errorHandler.js`. |
+| **D-C9** | **Deferred:** an error `code` in the log line (needs every catch on the kit vocabulary); the `tools/` query pack (§7.4); process `unhandledRejection` handlers; client senders (the Phase 3 client release — §8 is their contract); `push_deliveries` (R3). **Server-side auth events (`source = 'server'`): not built** — decided in Phase 3 R1 (auth 0.13.0): forced sign-outs, sign-in failures and kept-session refresh failures are client-reported (§8), and the server's own `[refresh] session_invalid\|auth_unavailable`, `[login] auth_unavailable`, `[logout:*]` and `[password]` log lines cover the server side for 7 days; revisit only if those prove insufficient. Done in 0.2.0: malformed JSON → 4xx on every route (D-C11). | Phase 2 track A scope (BRIEF §7). |
+| **D-C10** | **The global `errorHandler` never prints a request body (log-only).** Body-parser errors (a string `err.type` with a numeric `err.status`) carry the raw body in `err.body` — a malformed-JSON login put its password in the Render log. Those, and any other error carrying a `body`, are logged as `Unhandled error: <type or name> <status>`; every other error is still logged in full. Every status and response body is unchanged. Resolves F7. Since 0.2.0 (D-C11) body-parser errors answer their 4xx and log `Rejected request body: <type or name> <status>`; every other error is logged via `logError` (no longer "in full"). | Plan F7 / O1; user amendment 2026-10-12; `middleware/errorHandler.js`. |
+| **D-C11** | **Deliberate change (0.2.0) — body-parser failures keep their 4xx on every route + one log helper (resolves F2; F8 for the adopting files; reliability-overhaul Phase 3 R1).** (a) The global `errorHandler` answers an `express.json()` failure — a 4xx `status` with a string `type` or http-errors' `expose` (decompression errors carry no `type`) — with `413 { error: "Payload too large.", code: "payload_too_large" }` or `<status> { error: "Invalid request body.", code: "invalid_body" }` (400 malformed / non-object JSON / corrupt gzip-deflate, 415 unsupported charset or encoding) instead of `500`; the mapping `routes/clientEvents.js` has used since 0.1.0. (b) An `AppError` reaching the global handler also echoes its `code` and sets `Retry-After` when `retryAfter` is set (additive). (c) `utils/logError.js` `logError(tag, err)`: `<tag> <name> code=<code> status=<status> <message ≤ 200 chars> [<first two stack frames>]` (line breaks in the message become spaces, so one error is always one log line — plan-verdict #7; frames are code locations; the stack header is skipped whole); `Sequelize*` errors print `<tag> <name> code=<Postgres code>` only; never the error object, `err.sql`, `err.parameters` or `err.body`. Adopted by the global handler's 500 path and every `/api/auth` catch (auth D-C15); other routes adopt it as Phase 3 tracks touch them — the signature is fixed. Lives beside `utils/response.js` under auth's reference_impl (every feature already depends on auth — no graph cycle). Live binaries: no client sends malformed JSON; a > 100 kb body was 500 and is now 413 (none observed — 2 × 500 in 30 days). MINOR (status change on an error path of every route). | Phase 3 R1 brief (F2, F8) + verdict #7; frontend-kit §4; `middleware/errorHandler.js`; `utils/logError.js`; `routes/clientEvents.js`. |
 | **D-REF** | **NET-NEW**, no legacy reference. `consumed_by = []` until the Phase 3 senders; `depends_on = [auth]` (imports `optionalAuthenticate`). | — |
 
 ## 10. Flagged characteristics
@@ -231,18 +248,19 @@ re-run the file). Staging runs of `007` go over the session pooler / a direct co
 | ID | Characteristic | Where | Follow-up? |
 |----|----------------|-------|-----------|
 | **F1** | A route that hands an error to `next(err)` (e.g. analytics `requireProgramAccess` on a non-UUID id) is logged without its mount prefix — Express resets `req.baseUrl` as the error leaves the router. | `middleware/requestLog.js` `routeTemplate` | Accepted (rare 500 path). |
-| **F2** | Malformed JSON on every OTHER route still answers 500 via the global `errorHandler` (pre-existing; its log line no longer carries the body — D-C10). | `middleware/errorHandler.js` | Phase 3 W7 (error vocabulary). |
+| **F2** | ~~Malformed JSON on every OTHER route still answers 500 via the global `errorHandler` (pre-existing; its log line no longer carries the body — D-C10).~~ | `middleware/errorHandler.js` | **Resolved 0.2.0 (D-C11).** |
 | **F3** | Limits are per-process memory; a deploy resets them. One client is capped at 1,000 events/day, so only ≥ 10 clients (a distributed flood) can spend the global budget; then the endpoint fails closed (429) until the window resets — telemetry goes dark, the rest of the API is unaffected. The per-client daily map holds at most 10,000 client keys and refuses NEW keys when full (expired windows are swept first): after a flood of ≥ 10,000 distinct clients, a client first seen afterwards gets 429 until the oldest windows expire — a lockout of up to 24 h. | `utils/rateLimit.js`, `clientEventService` | Revisit only if 429s on `/api/client-events` show up in the request log. |
 | **F4** | `platform_hint` is coarse UA sniffing (iOS widget/extension share the app's CFNetwork UA). | `utils/clientInfo.js` | None — `platform` (header) is authoritative. |
 | **F5** | `country` depends on Render's edge forwarding `CF-IPCountry`. | `middleware/requestLog.js` | Checked after deploy (changelog). |
 | **F6** | Sensitive-key stripping in `props` is top-level only; a literal backslash-`u0000` text in props is a false positive for `props_invalid`. | `services/clientEventService.js` | Clients own §8's "no PII in props". |
 | **F7** | ~~The global `errorHandler` printed body-parser errors with their raw `err.body`, so a malformed-JSON request body (e.g. a login with a password) reached the Render log.~~ | `middleware/errorHandler.js` | **Resolved 0.1.0 (D-C10)** — log-only fix, responses unchanged. |
-| **F8** | **Pre-existing:** route-level `catch` blocks elsewhere still `console.error` the whole error object — a Sequelize error prints its SQL and parameter values (e.g. `routes/members.js:51`, `"Error updating member:", err`). D-C10 covers only the global `errorHandler`. | `routes/*.js` catch blocks | Yes — Phase 3 W7 (error vocabulary). |
+| **F8** | **Pre-existing:** route-level `catch` blocks elsewhere still `console.error` the whole error object — a Sequelize error prints its SQL and parameter values (e.g. `routes/members.js:51`, `"Error updating member:", err`). D-C10 covers only the global `errorHandler`. | `routes/*.js` catch blocks | **Partially resolved 0.2.0 (D-C11):** `logError` adopted by the global handler + every `/api/auth` catch; the remaining routes (e.g. `routes/members.js:51`) adopt it as Phase 3 tracks touch them. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-12 | **D-C11 — body-parser 4xx on every route + `logError` (Phase 3 R1).** The global `errorHandler` answers malformed / oversized / mis-encoded bodies with `400`/`415 invalid_body` / `413 payload_too_large` (was 500 — F2 resolved), echoes an `AppError`'s `code` + `Retry-After`, and logs other errors via the new `utils/logError.js` (name / code / status / one-line message / two stack frames; Sequelize → name + Postgres code; never the object — F8 partially resolved). §8 registers `auth.forced_sign_out`, `auth.sign_in_failed`, `auth.refresh_failed`. D-C9: server-side auth events stay unbuilt (client-reported instead). MINOR; ships with auth 0.13.0. |
 | 0.1.1 (deployed 🚀) | 2026-10-12 | Live on Render (`ac52491`). Prod smoke 28/28; `app_events` got exactly the 6 expected rows (signed-in event linked to its member with `access_token`/`email` stripped; replayed id stored once; NUL props → `props_invalid`). `xff_n` = 2 (client XFF **passed through** + appended → 3), `country` **seen** (CA), `X-Request-Id` **echoed**, no `Executing (default)` lines. Limiter key **per-client ✓**: 31 POSTs from a phone hotspot → 30×400 + 1×429; one POST from home Wi-Fi 38 s later → 400. |
 | 0.1.1 | 2026-10-12 | **PATCH — `trust proxy` 1 → 2 (D-C7, plan E6).** Prod measurement: `xff_n` = 2 with no client XFF, 3 with a spoofed one (Cloudflare edge passes client XFF through, Render LB appends). With 1 hop, `req.ip` was the Cloudflare edge address, so every client behind one edge location shared a limiter bucket. Also observed live: custom `X-Request-Id` echoed, `country` populated (CA), no `Executing (default)` lines. |
 | 0.1.0 | 2026-10-12 | **NET-NEW feature (reliability-overhaul Phase 2 track A, board §7 W6).** Structured request log + `X-Request-Id` (`middleware/requestLog.js`, D-C1); SQL logging off unless `DB_LOG_SQL=true` (D-C2); owns the client identity header contract `X-App-Platform` / `X-App-Version` / `X-App-Build` / `X-Request-Id` + its one parser `utils/clientInfo.js` (D-C3); `POST /api/client-events` — optional auth, 30 req/min per client (IPv6 /64), 1,000 events/day per client, 10k events/day global budget, 64 kb, ≤ 25 events, idempotent event ids (`routes/clientEvents.js`, `services/clientEventService.js`, `utils/rateLimit.js`, D-C4); `app_events` table (+ `app_build`) + RLS (public) + nightly 90-day `pg_cron` retention via schema-neutral `sql/007_app_events.sql` (D-C5/D-C6); `trust proxy` 1 (D-C7); CORS `maxAge` 7200 + `exposedHeaders` Retry-After / X-Request-Id (D-C8, resolves auth F16); the global `errorHandler` no longer logs request bodies (D-C10, resolves F7). Uses auth 0.11.0 `optionalAuthenticate`. Backend-only, additive for every live binary; `consumed_by = []` until Phase 3. |

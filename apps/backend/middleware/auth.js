@@ -92,6 +92,8 @@ const authenticateToken = async (req, res, next) => {
 // OR a ?token= query param (browser EventSource can't set headers). This now verifies a SUPABASE JWT
 // via the SAME resolveReqUser path as authenticateToken, keeping the dual token source so the web
 // EventSource (?token=) and iOS URLSession (either) clients are unchanged.
+// auth D-C15 (0.13.0, resolves F12): an infrastructure failure (JWKS / network / TLS / DB) answers 503 auth_unavailable
+// + Retry-After exactly like authenticateToken; every token fault stays 401.
 const authenticateStream = async (req, res, next) => {
     const authHeader = req.headers["authorization"];
     const headerToken = authHeader && authHeader.split(" ")[1];
@@ -111,6 +113,10 @@ const authenticateStream = async (req, res, next) => {
         req.authUserId = resolved.authUserId;
         next();
     } catch (error) {
+        if (isVerifyInfraFailure(error)) {
+            console.error("[auth] stream token verification unavailable: %s", error.code || error.name);
+            return sendAuthUnavailable(res);
+        }
         return res.status(401).json({ error: "Invalid token." });
     }
 };
@@ -240,4 +246,4 @@ const optionalAuthenticate = async (req, res, next) => {
     next();
 };
 
-module.exports = { authenticateToken, authenticateStream, optionalAuthenticate, isAdmin, canModifyLog, requireProgramAdmin, requireProgramMember };
+module.exports = { authenticateToken, authenticateStream, optionalAuthenticate, isAdmin, canModifyLog, requireProgramAdmin, requireProgramMember, isVerifyInfraFailure, sendAuthUnavailable };

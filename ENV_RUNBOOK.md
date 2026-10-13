@@ -102,9 +102,9 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 |---|---|---|---|
 | `DATABASE_URL` | Postgres DSN for the Sequelize pool | **secret** | **CHANGES (R4)** — was legacy `DB_URL` pointing at Render (`*.oregon-postgres.render.com`); becomes the **Supabase** project's pooled connection string. Set on the platform (live). Sequelize uses SSL (`rejectUnauthorized:false`). |
 | `SUPABASE_URL` | Supabase project URL `https://<ref>.supabase.co` | no | **NEW (R1/R4)** — the backend's Auth proxy + JWT verification target. Set on the platform (live). |
-| `SUPABASE_ANON_KEY` | anon key for the Auth proxy (sign-in/up/refresh on behalf of clients) | **secret-ish** | **NEW (R1)** — anon (publishable) key; never the service-role for client-acting flows. Set on the platform (live). |
+| `SUPABASE_ANON_KEY` | anon key — the fallback key for every Auth call made on a user's behalf (sign-in / refresh / logout / password / link / recovery) while `SUPABASE_SECRET_KEY` is unset | **secret-ish** | **NEW (R1)** — anon (publishable) key; never the service-role for client-acting flows. Set on the platform (live). Since auth 0.13.0 used only when `SUPABASE_SECRET_KEY` is unset (D-C14). |
 | `SUPABASE_SERVICE_ROLE_KEY` | server-side admin Auth ops (create user on bcrypt import, link `auth_user_id`, admin lookups) | **secret** | **NEW (R1)** — full privilege; backend-only, never shipped to a client. Set on the platform (live). |
-| `SUPABASE_SECRET_KEY` | new-style Supabase secret API key (`sb_secret_…`, name `rasifiters-api`) — Phase 3 R1 sends it so GoTrue honours `Sb-Forwarded-For` (per-user IP rate limits; the anon / service_role keys can't) | **secret** | Set 2026-10-12 on `rasifiters-api` **and** `rasifiters-api-staging` (board D-4). **No code reads it yet.** |
+| `SUPABASE_SECRET_KEY` | new-style Supabase secret API key (`sb_secret_…`, name `rasifiters-api`) — authenticates every Auth call made on a user's behalf so Supabase honours `Sb-Forwarded-For` (per-user IP rate limits; the anon / service_role keys can't) | **secret** | Set 2026-10-12 on `rasifiters-api` **and** `rasifiters-api-staging` (board D-4). **Read by `config/supabase.js` `userAuthKey()` since auth 0.13.0 (D-C14)**; forwarding also needs the §7c setting `security_sb_forwarded_for_enabled`. **Both services must hold the SAME key** (staging proves it before prod). **Risk:** a key Supabase rejects makes every `/auth/refresh` answer 503, and live Android 1.0.0 signs out on any non-2xx refresh — every live Android user would be signed out (auth D-C14a). **Kill switch:** delete the var on the service and redeploy → the anon key, no forwarding (pre-0.13.0 behaviour). Rotate = create a new secret key in Supabase → set it here → redeploy → delete the old key. |
 | `SUPABASE_JWT_SECRET` / `SUPABASE_JWKS_URL` | verify Supabase-issued JWTs on every request | **secret** | **NEW (R1)** — **replaces** the legacy `jwt.verify(token, JWT_SECRET)` in `middleware/auth.js`. Use the project's JWT secret (HS) or the JWKS endpoint (`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`) depending on the verification mode chosen. Set on the platform (live). |
 | `PORT` | HTTP listen port | no | legacy default `5001` (`server.js`). **Render injects `PORT` (default `10000`)** — never set it; `server.js` binds `process.env.PORT` on `0.0.0.0`. |
 | `MIN_IOS_VERSION` | min iOS app version, served as `min_ios_version` at `GET /api/app-config` | no | legacy `1.2.0`; force-upgrade gate for the iOS client. Keep. **Declared in `render.yaml`** (`value: "1.2.0"` — blocks nobody; oldest live iOS is 1.4.0); change it there (app-config SPEC §7, F4). Applies on the next deploy. |
@@ -115,7 +115,7 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | `DB_LOG_SQL` | Sequelize SQL query logging | no | **NEW (observability D-C2, 2026-10-12)** — unset / anything but `"true"` = **off** (prod: leave unset). `"true"` prints every query to stdout — local debugging only (queries carry usernames, emails and push tokens as literals). Not keyed on `NODE_ENV` (unset on Render); not in `render.yaml`. |
 | `CORS_ALLOWED_ORIGINS` | allowed browser origins for the web client | no | **Not read by the code** (doc fix 2026-10-12): the origins are hard-coded in `apps/backend/server.js`'s `cors()` block (`http://localhost:3000`, `https://rasi-fiters.vercel.app`, `https://rasifiters.com`, `https://www.rasifiters.com`); a new web origin is a backend code change + deploy. The same block sets `maxAge: 7200` + `exposedHeaders: ["Retry-After","X-Request-Id"]` (observability D-C8). iOS/Android are native (no CORS). |
 | `CORS_EXTRA_ORIGINS` | comma-separated browser origins appended to the CORS origin list hard-coded in `server.js` | no | **NEW (auth D-C13, 2026-10)** — staging service only (= the Vercel staging alias, §Staging). Unset on prod → the CORS list is exactly the hard-coded one. |
-| `APP_ENV` | `staging` marks the staging service | no | **NEW (auth D-C13, 2026-10)** — turns on `utils/stagingGuard.js` (login-change guard, staging-only reset mail, local-scope logout, boot check: schema `staging` + user `rasifiters_staging` or no start). **Never set on prod.** A prod process whose `DATABASE_URL` is the staging role still boots but logs `[staging-guard] DATABASE_URL logs in as the staging role…`. §Staging. |
+| `APP_ENV` | `staging` marks the staging service | no | **NEW (auth D-C13, 2026-10)** — turns on `utils/stagingGuard.js` (login-change guard incl. `+stg`-only password change and sign-out-everywhere, staging-only reset mail, boot check: schema `staging` + user `rasifiters_staging` or no start). **Never set on prod.** A prod process whose `DATABASE_URL` is the staging role still boots but logs `[staging-guard] DATABASE_URL logs in as the staging role…`. §Staging. |
 | `APNS_KEY_ID` | APNs auth-key id | no | **provisioned `RA353TA52W`** (fresh token-based Auth Key for this rebuild; legacy was `F9C876PZ9K`). Push for iOS (the `apn` lib). |
 | `APNS_TEAM_ID` | Apple team id | no | `VSTTF2AM22` (unchanged — same Apple account). |
 | `APNS_BUNDLE_ID` | iOS bundle id (push topic) | no | `com.app.rasifiters` — must match the app's `aps-environment` entitlement / build target. |
@@ -281,6 +281,33 @@ Supabase reloads auth config ~1 min after Save ("reloading api with new configur
   `smtp_host = smtp.resend.com`; then trigger a reset for a non-team address and check
   `tools/supabase-logs.sh` (`/recover` → 200) + the Resend dashboard (Delivered).
 
+## 7c. Supabase Auth settings (shared by prod + staging)
+
+One Supabase project = one Auth config for both APIs (DESIGN_BOARD §8). These are **settings, not env vars**; they change
+only by a user-approved admin-token call.
+
+- **Read** (read-only token): `tools/ops-get.sh supabase '/v1/projects/kpadxjekpiwfkqcxtrio/config/auth' | jq '{jwt_exp, refresh_token_rotation_enabled, security_refresh_token_reuse_interval, rate_limit_token_refresh, rate_limit_otp, security_sb_forwarded_for_enabled, sessions_inactivity_timeout, sessions_timebox, sessions_single_per_user, security_manual_linking_enabled, security_update_password_require_reauthentication, security_update_password_require_current_password}'`
+- **Change** — one Management API `PATCH` with `SUPABASE_ADMIN_TOKEN` (the `token-guard` hook asks the user every time;
+  the token goes in on stdin, never on the command line); then read back. Supabase reloads Auth ~1 min later:
+  ```bash
+  printf 'Authorization: Bearer %s' "$SUPABASE_ADMIN_TOKEN" | curl -sS -m 60 -X PATCH -H @- \
+    -H 'Content-Type: application/json' -A 'rasifiters-ops/1.0' -d '<JSON body from the table>' \
+    'https://api.supabase.com/v1/projects/kpadxjekpiwfkqcxtrio/config/auth' | jq '<the keys you changed>'
+  ```
+
+| Setting | Value | Status | Why | Revert body |
+|---|---|---|---|---|
+| `jwt_exp` | `3600` (1 h access tokens) | default | — | — |
+| `refresh_token_rotation_enabled` / `security_refresh_token_reuse_interval` | `true` / `10` (s) | default | a refresh token re-sent > 10 s after its rotation revokes the whole session (W1) | — |
+| `rate_limit_token_refresh` | `1500` per 5 min per IP (was 150) | applied 2026-10-12T19:08:19Z (Phase 1b H2 / D-2) | one user's refresh storm no longer drains everyone's bucket | `{"rate_limit_token_refresh":150}` |
+| `rate_limit_otp` | `30` per 5 min per IP | default | also limits GoTrue `PUT /user` — `/change-password` + `/set-password` since auth 0.13.0 (a 429 answers 503) | — |
+| `security_sb_forwarded_for_enabled` | `true` (was `false`) | pending — Phase 3 R1 go-live step G3 | auth D-C14: Auth rate-limits by the `Sb-Forwarded-For` IP the backend sends with `SUPABASE_SECRET_KEY` → one bucket per user instead of one per Render IP | `{"security_sb_forwarded_for_enabled":false}` |
+| `sessions_inactivity_timeout` | `2160` **hours** = 90 days (was `0` = never); Pro plan | pending — Phase 3 R1 go-live step G4 | board D-5: a session not refreshed for 90 days ends at its next refresh (`session_expired` → `401 session_invalid`); any app open or background sync counts as use | `{"sessions_inactivity_timeout":0}` |
+| `security_update_password_require_reauthentication` / `security_update_password_require_current_password` | `false` / `false` | default — **must stay false** | auth D-C14b: `/change-password` + `/set-password` call `PUT /user` without a nonce or the current password; turning either on makes both answer 400 | — |
+| `sessions_timebox` / `sessions_single_per_user` | `0` / `false` | default | no maximum lifetime; several devices per user | — |
+| `security_manual_linking_enabled` | `true` | applied (auth D-C10) | `/link` + `/unlink` | — |
+| SMTP (`smtp_*`) | Resend | applied 2026-10-12 | password-reset mail (§7b) | — |
+
 ## Staging (reliability-overhaul Phase 2 B — DESIGN_BOARD §8, auth SPEC D-C13)
 
 Same Supabase project (schema `staging` + role `rasifiters_staging` — `apps/backend/sql/008` + `sql/README.md`
@@ -312,4 +339,11 @@ Same Supabase project (schema `staging` + role `rasifiters_staging` — `apps/ba
 (testbed: `<inbox-local>+stg-<username>@<inbox-domain>` from `TESTBED_STAGING_MAILBOX`); the staging API refuses
 or skips every login-level change for any other account and mails resets only to `+stg` addresses outside
 `@rasifiters.com`. Supabase Auth settings, the 30 emails/hour SMTP limit and the refresh rate limits are shared
-with prod.
+with prod (§7c).
+
+**Auth / session tests (Phase 3 R1, auth 0.13.0).** Staging and prod share Supabase Auth, so the secret key, IP forwarding
+and the inactivity timeout act on staging requests too. The R1 smoke (`specs/initiatives/reliability-overhaul/plans/phase-3-r1-sessions/`)
+uses the `+stg` accounts `mason.w` and `zoe.chen`; it changes `zoe.chen`'s staging password and restores it — if the
+restore fails, reset it via the staging forgot-password page (the mail reaches the `TESTBED_STAGING_MAILBOX` inbox).
+`/link` / `/unlink` on staging need a `+stg` account plus a dedicated test Google account (auth D-C13). Staging's
+`SUPABASE_SECRET_KEY` must be the same key as prod's — a staging pass only proves prod's key if they match (§3).

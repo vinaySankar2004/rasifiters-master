@@ -1,21 +1,40 @@
 const { AppError } = require("../utils/response");
+const { logError } = require("../utils/logError");
 
-// Never print a request body (observability D-C10): body-parser errors (string `type` + numeric `status`, e.g.
-// "entity.parse.failed" 400) carry the raw body in err.body — a malformed-JSON login would put its password in the
-// Render log. Those, and any other error carrying a `body`, are logged as type/name + status only. Log-only: every
-// response is unchanged.
-const carriesRequestBody = (err) =>
+// An express.json() failure: a 4xx `status` with a string `type` ("entity.parse.failed", "entity.too.large",
+// "charset.unsupported", "encoding.unsupported", …) or http-errors' `expose` flag (a corrupt gzip/deflate body carries
+// no `type`). Its `err.body` holds the raw request body — never logged (observability D-C10: a malformed-JSON login
+// carried its password).
+const isBodyParserError = (err) =>
     Boolean(err) &&
     typeof err === "object" &&
-    ((typeof err.type === "string" && typeof err.status === "number") || err.body !== undefined);
+    Number.isInteger(err.status) &&
+    err.status >= 400 &&
+    err.status < 500 &&
+    (typeof err.type === "string" || err.expose === true);
 
 const errorHandler = (err, req, res, _next) => {
     if (err instanceof AppError) {
-        return res.status(err.statusCode).json({ error: err.message });
+        // observability D-C11 (b): echo the machine code + Retry-After, like routes/auth.js (additive).
+        if (err.retryAfter) res.set("Retry-After", String(err.retryAfter));
+        const body = { error: err.message };
+        if (err.code) body.code = err.code;
+        return res.status(err.statusCode).json(body);
     }
 
-    if (carriesRequestBody(err)) console.error("Unhandled error: %s %s", err.type || err.name, err.status);
-    else console.error("Unhandled error:", err);
+    // observability D-C11 (a) — resolves F2: a body-parser failure keeps its real 4xx in the frontend-kit vocabulary on
+    // EVERY route (was 500) — the mapping routes/clientEvents.js has used since 0.1.0.
+    if (isBodyParserError(err)) {
+        console.warn("Rejected request body: %s %s", err.type || err.name, err.status);
+        if (err.status === 413) {
+            return res.status(413).json({ error: "Payload too large.", code: "payload_too_large" });
+        }
+        return res.status(err.status).json({ error: "Invalid request body.", code: "invalid_body" });
+    }
+
+    // observability D-C11 (c): name / code / status / message / top frames only — never the error object (a Sequelize
+    // error carries its SQL + bound values; any error may carry a request `body`).
+    logError("Unhandled error:", err);
     return res.status(500).json({ error: "Internal server error." });
 };
 
