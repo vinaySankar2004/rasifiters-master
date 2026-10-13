@@ -1,11 +1,10 @@
 import Foundation
 
 extension ProgramContext {
-    // MARK: - Real-time stream (notifications §3.3, amendment A4): foreground only; every close reconnects with a fresh
-    // token, exponential backoff + full jitter (1 s base, ×2, 30 s cap), paused while offline; every `ready` resets the
-    // backoff and re-fetches /unacknowledged.
-
-    private static let acknowledgedMemory: TimeInterval = 5 * 60
+    // MARK: - Real-time stream (notifications §3.3 + contract C7): foreground only, opened with `?inbox=1` so every type
+    // arrives as a C3 inbox item. Every close reconnects with a fresh token — exponential backoff + full jitter (1 s base,
+    // ×2, 30 s cap), paused while offline (A4). Every `ready` resets the backoff and runs the catch-up (C7.3 retires
+    // A4's /unacknowledged re-fetch and the blocking modal queue, D-N3).
 
     @MainActor
     func startNotificationStreamIfNeeded() {
@@ -18,9 +17,9 @@ extension ProgramContext {
             let client = NotificationStreamClient()
             client.onReady = { [weak self] in
                 self?.streamAttempt = 0
-                Task { await self?.loadUnacknowledgedNotifications() }
+                self?.catchUp()
             }
-            client.onNotification = { [weak self] notification in self?.enqueueNotification(notification) }
+            client.onNotification = { [weak self] item in self?.receiveInboxItem(item) }
             client.onClose = { [weak self] status in self?.streamClosed(status: status) }
             self.notificationStreamClient = client
             client.connect(token: token)
@@ -42,7 +41,7 @@ extension ProgramContext {
         }
     }
 
-    /// Backgrounded / offline: close the stream, keep the modal queue (resumes on foreground / reconnect).
+    /// Backgrounded / offline: close the stream (it resumes on foreground / reconnect).
     @MainActor
     func suspendNotificationStream() {
         streamReconnectTask?.cancel()
@@ -52,86 +51,44 @@ extension ProgramContext {
         streamAttempt = 0
     }
 
-    /// Sign-out teardown: close + clear.
+    /// Sign-out teardown: close it (the inbox state is reset by `resetInboxState`).
     @MainActor
     func stopNotificationStream() {
         suspendNotificationStream()
-        notificationQueue = []
-        notificationIds = []
     }
 
-    /// Idempotent re-fetch after every `ready` (A4): items acknowledged elsewhere leave the queue, items this device
-    /// acknowledged moments ago never come back, new items merge by id, and new invite / membership items refresh
-    /// what they are about.
+    /// C7.5: a live item → fresh counts, a visible InboxView reloads (and reads it), a toast when its category is on,
+    /// and an invite / membership item refreshes what it is about.
     @MainActor
-    func loadUnacknowledgedNotifications() async {
-        guard let token = authToken else { return }
-        let before = notificationIds
-        guard let items = try? await APIClient.shared.fetchUnacknowledgedNotifications(token: token) else { return }
-        let cutoff = Date().addingTimeInterval(-Self.acknowledgedMemory)
-        acknowledgedNotificationIds = acknowledgedNotificationIds.filter { $0.value > cutoff }
-        let serverIds = Set(items.map(\.id))
-        let goneElsewhere = before.subtracting(serverIds)
-        notificationQueue.removeAll { goneElsewhere.contains($0.id) }
-        notificationIds.subtract(goneElsewhere)
-        var newTypes = Set<String>()
-        for item in items where !notificationIds.contains(item.id) && acknowledgedNotificationIds[item.id] == nil {
-            notificationIds.insert(item.id)
-            notificationQueue.append(item)
-            newTypes.insert(item.type)
-        }
-        notificationQueue = sortNotifications(notificationQueue)
-        for type in newTypes { await refreshData(forType: type) }
+    private func receiveInboxItem(_ item: APIClient.NotificationDTO) {
+        inboxRevision += 1
+        Task { await refreshInboxCounts() }
+        if isCategoryEnabled(item.resolvedCategory) { showToast(item) }
+        Task { await refreshData(forType: item.type) }
     }
 
+    /// C7.6 (the routing rule): a tapped push is marked read, then opens its target (`openTarget`).
     @MainActor
-    func acknowledgeNotification(_ notification: APIClient.NotificationDTO) async {
-        guard let token = authToken else { return }
-        rememberAcknowledged(notification.id)
-        do {
-            _ = try await APIClient.shared.acknowledgeNotification(token: token, notificationId: notification.id)
-        } catch {
-            acknowledgedNotificationIds[notification.id] = nil
-            await loadUnacknowledgedNotifications()
-        }
-    }
-
-    @MainActor
-    func acknowledgeNotificationById(_ notificationId: String) {
-        guard let token = authToken, !notificationId.isEmpty else { return }
-        rememberAcknowledged(notificationId)
-        Task { _ = try? await APIClient.shared.acknowledgeNotification(token: token, notificationId: notificationId) }
-    }
-
-    /// notifications §3.2 clients (amendment U2): a tapped push is acknowledged; an invite opens the invite inbox
-    /// (ProgramPickerView consumes `openInvitesRequested`), any other type re-fetches what it is about.
-    @MainActor
-    func handlePushTap(notificationId: String, type: String?) {
+    func handlePushTap(notificationId: String, type: String?, target: String?, programId: String?) {
         guard authToken != nil else { return }
-        acknowledgeNotificationById(notificationId)
-        if type == "program.invite_received" { openInvitesRequested = true }
+        Task { await markInboxRead(ids: [notificationId]) }
+        openTarget(InboxTarget(target: target, type: type, programId: programId))
+        Task { await refreshData(forType: type ?? "") }
+    }
+
+    /// A remote push shown while the app is in front (AppDelegate.willPresent): counts, a visible inbox, and invites.
+    /// Skipped while the stream is connected — it delivers the same item (receiveInboxItem).
+    @MainActor
+    func foregroundPushReceived(type: String?) {
+        guard !NotificationStreamClient.isConnected else { return }
+        inboxRevision += 1
+        Task { await refreshInboxCounts() }
         Task { await refreshData(forType: type ?? "") }
     }
 
     @MainActor
-    private func rememberAcknowledged(_ id: String) {
-        acknowledgedNotificationIds[id] = Date()
-        notificationQueue.removeAll { $0.id == id }
-        notificationIds.remove(id)
-    }
-
-    @MainActor
-    private func enqueueNotification(_ notification: APIClient.NotificationDTO) {
-        guard !notificationIds.contains(notification.id), acknowledgedNotificationIds[notification.id] == nil else { return }
-        notificationIds.insert(notification.id)
-        notificationQueue.append(notification)
-        notificationQueue = sortNotifications(notificationQueue)
-        Task { @MainActor in await refreshData(forType: notification.type) }
-    }
-
-    @MainActor
     private func refreshData(forType type: String) async {
-        if type == "program.invite_received" {          // invites §3.1: the inbox is always GET /my-invites
+        if type == "program.invite_received" {          // invites §3.1: the invitations are always GET /my-invites
             try? await loadPendingInvites()
             await loadLookupData()
             return
@@ -140,14 +97,6 @@ extension ProgramContext {
             "program.admin_transferred", "program.updated", "program.deleted"].contains(type) {
             await loadLookupData()
             if programId != nil { await loadMembershipDetails() }
-        }
-    }
-
-    private func sortNotifications(_ items: [APIClient.NotificationDTO]) -> [APIClient.NotificationDTO] {
-        return items.sorted { lhs, rhs in
-            let lhsDate = lhs.createdAt.flatMap { notificationDateFormatter.date(from: $0) } ?? .distantPast
-            let rhsDate = rhs.createdAt.flatMap { notificationDateFormatter.date(from: $0) } ?? .distantPast
-            return lhsDate < rhsDate
         }
     }
 }

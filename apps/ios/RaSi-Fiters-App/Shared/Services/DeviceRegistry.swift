@@ -4,7 +4,8 @@ import Security
 /// notifications §3.1 — this installation's push identity: a keychain install id (`…ThisDeviceOnly`, never copied to
 /// another device) + ONE serial queue for register / unregister, so an unregister never lands after the next
 /// sign-in's registration. iOS keeps the APNs token value itself (the login ride-along re-sends it; D-IOS-PUSH-1).
-/// Cadence (amendment A12): `PUT /device` at most once per 12 h for the same token, and one unregister per denial.
+/// Cadence (amendment A12 + notifications contract C7.4): `PUT /device` at most once per 12 h for the same token AND
+/// build — a new build re-registers once, so its `inbox: true` capability lands at once — and one unregister per denial.
 final class DeviceRegistry {
     static let shared = DeviceRegistry()
     private init() {}
@@ -13,6 +14,8 @@ final class DeviceRegistry {
     private static let installAccount = "install_id"
     private static let registeredTokenKey = "push.registeredToken"
     private static let registeredAtKey = "push.registeredAt"
+    private static let registeredBuildKey = "push.registeredBuild"
+    private static var currentBuild: String { Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0" }
     private static let deniedUnregisteredKey = "push.deniedUnregistered"
     private static let registerInterval: TimeInterval = 12 * 60 * 60
     private var tail: Task<Void, Never>?
@@ -61,6 +64,7 @@ final class DeviceRegistry {
         if let token { defaults.set(token, forKey: PushTokenNotification.userDefaultsKey) }
         guard let pushToken = token ?? self.pushToken else { return }
         if defaults.string(forKey: Self.registeredTokenKey) == pushToken,
+           defaults.string(forKey: Self.registeredBuildKey) == Self.currentBuild,
            let registeredAt = defaults.object(forKey: Self.registeredAtKey) as? Date,
            Date().timeIntervalSince(registeredAt) < Self.registerInterval { return }
         enqueue {
@@ -68,6 +72,7 @@ final class DeviceRegistry {
             guard (try? await APIClient.shared.registerDevice(pushToken: pushToken, deviceId: self.installId)) != nil else { return }
             defaults.set(pushToken, forKey: Self.registeredTokenKey)
             defaults.set(Date(), forKey: Self.registeredAtKey)
+            defaults.set(Self.currentBuild, forKey: Self.registeredBuildKey)
         }
     }
 
@@ -89,6 +94,7 @@ final class DeviceRegistry {
     func unregister() {
         UserDefaults.standard.removeObject(forKey: Self.registeredTokenKey)
         UserDefaults.standard.removeObject(forKey: Self.registeredAtKey)
+        UserDefaults.standard.removeObject(forKey: Self.registeredBuildKey)
         let token = pushToken, id = installId, startedIn = generation
         guard token != nil || id != nil else { return }
         enqueue {

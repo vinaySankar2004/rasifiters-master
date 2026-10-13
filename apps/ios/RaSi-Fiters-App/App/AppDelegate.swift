@@ -6,15 +6,18 @@ enum PushTokenNotification {
     static let userDefaultsKey = "rf_push_device_token"
 }
 
-/// Push hand-offs to AppRootView: a tap (notification_id + type) and a foreground `program.invite_received`.
+/// Push hand-offs to AppRootView: a tap (notification_id + type + target + program_id — notifications contract C5) and
+/// any remote push shown in the foreground (counts / a visible inbox / invites refresh).
 enum PushNotificationTapped {
     static let notificationName = Notification.Name("RaSiFitersPushNotificationTapped")
-    static let inviteReceived = Notification.Name("RaSiFitersInviteReceived")
+    static let remoteReceived = Notification.Name("RaSiFitersRemotePushReceived")
     static let notificationIdKey = "notification_id"
     static let typeKey = "type"
+    static let targetKey = "target"
+    static let programIdKey = "program_id"
     /// The last tap not yet handled — on a cold launch AppRootView may not be listening yet, so it also drains this
-    /// at launch (U2: an invite tap must still open the inbox).
-    static var pendingTap: (id: String, type: String?)?
+    /// at launch (a tap must still open its target).
+    static var pendingTap: (id: String, type: String?, target: String?, programId: String?)?
 }
 
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -49,14 +52,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         // Simulator or misconfiguration; token will not be available.
     }
 
-    /// Foreground: a remote push shows only its badge while the SSE stream is open — the in-app modal already shows it
-    /// (amendment A5); local notifications (Apple Health sync results) keep their banner. An invite push also refreshes
-    /// the inbox (invites §3.1).
+    /// Foreground: a remote push shows only its badge while the SSE stream is open — the in-app toast already shows it
+    /// (amendment A5); local notifications (Apple Health sync results) keep their banner. Every remote push refreshes the
+    /// counts / a visible inbox / invites (AppRootView → ProgramContext.foregroundPushReceived).
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,
                                 withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let isRemote = notification.request.trigger is UNPushNotificationTrigger
-        if isRemote, notification.request.content.userInfo[PushNotificationTapped.typeKey] as? String == "program.invite_received" {
-            NotificationCenter.default.post(name: PushNotificationTapped.inviteReceived, object: nil)
+        if isRemote {
+            NotificationCenter.default.post(name: PushNotificationTapped.remoteReceived,
+                                            object: notification.request.content.userInfo[PushNotificationTapped.typeKey] as? String)
         }
         if isRemote, NotificationStreamClient.isConnected {
             completionHandler([.badge])
@@ -65,12 +69,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
     }
 
-    /// Tap → acknowledge; an invite opens the inbox, anything else re-fetches (AppRootView → ProgramContext.handlePushTap).
+    /// Tap → mark read + open its target (AppRootView → ProgramContext.handlePushTap; contract C7.6).
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse,
                                 withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
         if let notificationId = userInfo[PushNotificationTapped.notificationIdKey] as? String, !notificationId.isEmpty {
-            PushNotificationTapped.pendingTap = (notificationId, userInfo[PushNotificationTapped.typeKey] as? String)
+            PushNotificationTapped.pendingTap = (notificationId,
+                                                 userInfo[PushNotificationTapped.typeKey] as? String,
+                                                 userInfo[PushNotificationTapped.targetKey] as? String,
+                                                 userInfo[PushNotificationTapped.programIdKey] as? String)
             NotificationCenter.default.post(name: PushNotificationTapped.notificationName, object: nil)
         }
         completionHandler()

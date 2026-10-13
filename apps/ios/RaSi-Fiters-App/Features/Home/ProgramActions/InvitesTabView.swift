@@ -1,158 +1,53 @@
 import SwiftUI
 
-// MARK: - Invites Tab View
+// MARK: - Inbox · invitations section (D-N4)
 
-struct InvitesTabView: View {
-    @EnvironmentObject var programContext: ProgramContext
-    @Environment(\.colorScheme) private var colorScheme
-
-    let onAccepted: () -> Void
-
-    @State private var isLoading = false
-    @State private var errorMessage: String?
-    @State private var loadError: AppError?
-    @State private var inviteToDecline: APIClient.PendingInviteDTO?
-    @State private var showDeclineConfirmation = false
-    @State private var blockFutureInvites = false
-
-    private var isGlobalAdmin: Bool {
-        programContext.isGlobalAdmin
-    }
-
-    private var headerTitle: String {
-        isGlobalAdmin ? "All Program Invitations" : "Program Invitations"
-    }
-
-    private var headerSubtitle: String {
-        isGlobalAdmin ? "Manage invites across all programs" : "Accept invitations to join programs"
-    }
+/// The Inbox's first section: pending invitations with their actions — Accept / Decline (+ Block future invites) for the
+/// invitee, every pending invite + Revoke for global admins (amendment A10). Presentational: InboxView loads the
+/// invites (GET /my-invites | /all-invites) and runs the actions. Hidden while there's nothing to show.
+struct InboxInvitesSection: View {
+    let invites: [APIClient.PendingInviteDTO]
+    let isGlobalAdmin: Bool
+    /// The last invites load failed (labeled) — the kit error view, only when there's no list to show. InboxView passes
+    /// nil while the notification list itself has failed (one error view per screen).
+    let loadError: AppError?
+    /// An accept / decline / revoke is in flight.
+    let isBusy: Bool
+    let onRetry: () -> Void
+    let onAccept: (APIClient.PendingInviteDTO) -> Void
+    let onDecline: (APIClient.PendingInviteDTO) -> Void
+    let onRevoke: (APIClient.PendingInviteDTO) -> Void
 
     var body: some View {
-        ZStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(headerTitle)
-                            .font(.title2.weight(.bold))
-                            .foregroundColor(Color(.label))
-                        Text(headerSubtitle)
-                            .font(.subheadline)
-                            .foregroundColor(Color(.secondaryLabel))
-                    }
+        if !invites.isEmpty || loadError != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(isGlobalAdmin ? InboxCopy.allInvitationsHeader : InboxCopy.invitationsHeader)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(Color(.label))
                     .padding(.horizontal, 20)
-                    .padding(.top, 8)
-
-                    // Content
-                    if isLoading {
-                        HStack {
-                            Spacer()
-                            ProgressView()
-                            Spacer()
-                        }
-                        .padding(.top, 40)
-                    } else if let loadError, programContext.pendingInvites.isEmpty {
-                        // W7 i10: a failed inbox load is never "No pending invitations".
-                        ErrorStateView(error: loadError.labeled(online: programContext.isOnline), onRetry: { Task { await refreshInvites() } })
-                            .padding(.horizontal, 20)
-                            .padding(.top, 20)
-                    } else if programContext.pendingInvites.isEmpty {
-                        emptyState
-                            .padding(.horizontal, 20)
-                            .padding(.top, 20)
-                    } else {
-                        // Invites list
-                        if isGlobalAdmin {
-                            adminInvitesList
-                        } else {
-                            standardInvitesList
-                        }
-                    }
-
-                    // A6: the banner never covers the last card. Offline, the sheet's banner band (64) is cleared here in the
-                    // page itself — the sheet's safe-area inset isn't relied on to reach a paged TabView's pages (#2).
-                    Spacer(minLength: !programContext.isOnline ? 116 : (staleBanner == nil ? 40 : 104))
+                if invites.isEmpty, let loadError {
+                    // W7 i10: a failed load is never "no invitations".
+                    ErrorStateView(error: loadError, onRetry: onRetry)
+                        .padding(.horizontal, 20)
+                } else if isGlobalAdmin {
+                    adminInvitesList
+                } else {
+                    standardInvitesList
                 }
             }
-
-            if showDeclineConfirmation, let invite = inviteToDecline {
-                DeclineInviteDialog(
-                    programName: invite.program_name ?? "this program",
-                    blockFutureInvites: $blockFutureInvites,
-                    onDecline: {
-                        Task {
-                            await respondToInvite(invite, action: "decline", blockFuture: blockFutureInvites)
-                        }
-                    },
-                    onCancel: {
-                        inviteToDecline = nil
-                        blockFutureInvites = false
-                        showDeclineConfirmation = false
-                    }
-                )
-                .transition(.opacity)
-            }
+            .disabled(isBusy)
+            .opacity(isBusy ? 0.6 : 1)
         }
-        .task {
-            await refreshInvites()
-        }
-        .alert("Unable to update invitation", isPresented: Binding(
-            get: { errorMessage != nil },
-            set: { if !$0 { errorMessage = nil } }
-        )) {
-            Button("OK") { errorMessage = nil }
-        } message: {
-            Text(errorMessage ?? "")
-        }
-        .onChange(of: programContext.isOnline) { _, online in
-            // Polish #2: back online after a failed load → reload by itself (the picker's D-KIT-13 rule).
-            if online, loadError != nil { Task { await refreshInvites() } }
-        }
-        // Hidden while offline (ScreenBanner) — the sheet's own offline banner (`.offlineBanner()`) wins.
-        .floatingBanner { ScreenBanner(banner: staleBanner) }
-    }
-
-    /// A failed refresh over a list we still show → "Couldn't refresh" + Retry (frontend-kit §6).
-    private var staleBanner: FloatingBanner? {
-        guard loadError != nil, !programContext.pendingInvites.isEmpty else { return nil }
-        return FloatingBanner(variant: .stale, onRetry: { Task { await refreshInvites() } })
-    }
-
-    private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "envelope.open")
-                .font(.system(size: 40))
-                .foregroundColor(Color(.tertiaryLabel))
-            Text("No pending invitations")
-                .font(.headline.weight(.semibold))
-                .foregroundColor(Color(.label))
-            Text(isGlobalAdmin ? "There are no pending invites in the system." : "You don't have any program invitations right now.")
-                .font(.subheadline)
-                .foregroundColor(Color(.secondaryLabel))
-                .multilineTextAlignment(.center)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
-        .padding(.horizontal, 20)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.systemGray6))
-        )
     }
 
     private var standardInvitesList: some View {
         VStack(spacing: 12) {
-            ForEach(programContext.pendingInvites) { invite in
+            ForEach(invites) { invite in
                 InviteCard(
                     invite: invite,
                     isAdmin: false,
-                    onAccept: {
-                        Task { await respondToInvite(invite, action: "accept") }
-                    },
-                    onDecline: {
-                        inviteToDecline = invite
-                        showDeclineConfirmation = true
-                    },
+                    onAccept: { onAccept(invite) },
+                    onDecline: { onDecline(invite) },
                     onRevoke: nil
                 )
             }
@@ -162,34 +57,22 @@ struct InvitesTabView: View {
 
     private var adminInvitesList: some View {
         VStack(spacing: 16) {
-            // Group invites by program
-            let groupedInvites = Dictionary(grouping: programContext.pendingInvites) { $0.program_name ?? "Unknown Program" }
-            let sortedKeys = groupedInvites.keys.sorted()
-
-            ForEach(sortedKeys, id: \.self) { programName in
-                if let invites = groupedInvites[programName] {
+            // Grouped by program
+            let groupedInvites = Dictionary(grouping: invites) { $0.program_name ?? "Unknown Program" }
+            ForEach(groupedInvites.keys.sorted(), id: \.self) { programName in
+                if let programInvites = groupedInvites[programName] {
                     VStack(alignment: .leading, spacing: 10) {
-                        // Program header
                         Text(programName)
                             .font(.headline.weight(.semibold))
                             .foregroundColor(Color(.label))
                             .padding(.horizontal, 20)
-
-                        // Invites for this program
-                        ForEach(invites) { invite in
+                        ForEach(programInvites) { invite in
                             InviteCard(
                                 invite: invite,
                                 isAdmin: true,
-                                onAccept: {
-                                    Task { await respondToInvite(invite, action: "accept") }
-                                },
-                                onDecline: {
-                                    inviteToDecline = invite
-                                    showDeclineConfirmation = true
-                                },
-                                onRevoke: {
-                                    Task { await respondToInvite(invite, action: "revoke") }
-                                }
+                                onAccept: { onAccept(invite) },
+                                onDecline: { onDecline(invite) },
+                                onRevoke: { onRevoke(invite) }
                             )
                         }
                         .padding(.horizontal, 20)
@@ -197,42 +80,6 @@ struct InvitesTabView: View {
                 }
             }
         }
-    }
-
-    /// Spinner only with nothing to show; a failure keeps any list (stale banner) or shows the kit error view.
-    private func refreshInvites() async {
-        isLoading = programContext.pendingInvites.isEmpty
-        defer { isLoading = false }
-        do {
-            try await programContext.loadPendingInvites()
-            loadError = nil
-        } catch {
-            loadError = AppError(error)
-        }
-    }
-
-    private func respondToInvite(_ invite: APIClient.PendingInviteDTO, action: String, blockFuture: Bool = false) async {
-        isLoading = true
-        errorMessage = nil
-
-        do {
-            _ = try await programContext.respondToInvite(
-                inviteId: invite.invite_id,
-                action: action,
-                blockFuture: blockFuture
-            )
-
-            if action == "accept" {
-                onAccepted()
-            }
-        } catch {
-            errorMessage = AppError(error)?.message           // kit copy (a 400 keeps the server's text)
-        }
-
-        inviteToDecline = nil
-        blockFutureInvites = false
-        showDeclineConfirmation = false
-        isLoading = false
     }
 }
 

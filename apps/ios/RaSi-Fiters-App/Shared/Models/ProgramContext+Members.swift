@@ -45,6 +45,8 @@ extension ProgramContext {
         }
     }
 
+    /// nil when it loaded; else the failure (cancellation → nil). polish #32 (S5).
+    @discardableResult
     @MainActor
     func loadMemberMetrics(
         search: String = "",
@@ -52,11 +54,11 @@ extension ProgramContext {
         direction: String = "desc",
         filters: [String: String] = [:],
         dateRange: (start: Date?, end: Date?) = (nil, nil)
-    ) async {
-        guard let token = authToken, !token.isEmpty else { return }
+    ) async -> AppError? {
+        guard let token = authToken, !token.isEmpty else { return nil }
         guard let pid = programId else {
             errorMessage = "No program selected for member metrics."
-            return
+            return AppError(kind: .unknown)
         }
         do {
             let resp = try await APIClient.shared.fetchMemberMetrics(
@@ -79,24 +81,28 @@ extension ProgramContext {
                 memberMetricsRangeStart = dateRange.start
                 memberMetricsRangeEnd = dateRange.end
             }
+            return nil
         } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
+            let appError = AppError(error)
+            if let message = appError?.message { errorMessage = message }
+            return appError
         }
     }
 
-    /// `true` only when the overview row loaded (false on failure or cancellation) — the Members tab marks a program
-    /// loaded on it (polish #5 / #10, Android parity). Other callers ignore it.
+    /// nil when it loaded; else the failure (cancellation → nil). polish #32 (S5). `ownedWrite` = a Members-card owner's
+    /// own load (loadMemberCards); any other write clears the owner token (the card-owner rule).
     @discardableResult
     @MainActor
     func loadMemberOverview(
         memberId: String,
         filters: [String: String] = [:],
-        dateRange: (start: Date?, end: Date?) = (nil, nil)
-    ) async -> Bool {
-        guard let token = authToken, !token.isEmpty else { return false }
+        dateRange: (start: Date?, end: Date?) = (nil, nil),
+        ownedWrite: Bool = false
+    ) async -> AppError? {
+        guard let token = authToken, !token.isEmpty else { return nil }
         guard let pid = programId else {
             errorMessage = "No program selected for member metrics."
-            return false
+            return AppError(kind: .unknown)
         }
         do {
             let resp = try await APIClient.shared.fetchMemberMetrics(
@@ -108,6 +114,7 @@ extension ProgramContext {
                 memberId: memberId,
                 filters: filters
             )
+            if !ownedWrite { memberCardsOwner = nil }
             selectedMemberOverview = resp.members.first
             if let dr = resp.date_range {
                 memberMetricsRangeStart = dr.start.flatMap { Self.dateFromString($0) }
@@ -116,19 +123,22 @@ extension ProgramContext {
                 memberMetricsRangeStart = dateRange.start
                 memberMetricsRangeEnd = dateRange.end
             }
-            return true
+            return nil
         } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-            return false
+            let appError = AppError(error)
+            if let message = appError?.message { errorMessage = message }
+            return appError
         }
     }
 
+    /// nil when it loaded; else the failure (cancellation → nil). polish #32 (S5); `ownedWrite` as loadMemberOverview.
+    @discardableResult
     @MainActor
-    func loadMemberHistory(memberId: String, period: String) async {
-        guard let token = authToken, !token.isEmpty else { return }
+    func loadMemberHistory(memberId: String, period: String, ownedWrite: Bool = false) async -> AppError? {
+        guard let token = authToken, !token.isEmpty else { return nil }
         guard let pid = programId else {
             errorMessage = "No program selected for member history."
-            return
+            return AppError(kind: .unknown)
         }
         do {
             let resp = try await APIClient.shared.fetchMemberHistory(
@@ -137,22 +147,29 @@ extension ProgramContext {
                 memberId: memberId,
                 period: period
             )
+            if !ownedWrite { memberCardsOwner = nil }
             memberHistory = resp.buckets
+            memberHistoryMemberId = memberId
             memberHistoryLabel = resp.label
             memberHistoryDailyAverage = resp.daily_average
             memberHistoryStartDate = Self.dateFromString(resp.start) ?? Date()
             memberHistoryEndDate = Self.dateFromString(resp.end) ?? Date()
+            return nil
         } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
+            let appError = AppError(error)
+            if let message = appError?.message { errorMessage = message }
+            return appError
         }
     }
 
+    /// nil when it loaded; else the failure (cancellation → nil). polish #32 (S5); `ownedWrite` as loadMemberOverview.
+    @discardableResult
     @MainActor
-    func loadMemberStreaks(memberId: String) async {
-        guard let token = authToken, !token.isEmpty else { return }
+    func loadMemberStreaks(memberId: String, ownedWrite: Bool = false) async -> AppError? {
+        guard let token = authToken, !token.isEmpty else { return nil }
         guard let pid = programId else {
             errorMessage = "No program selected for member streaks."
-            return
+            return AppError(kind: .unknown)
         }
         do {
             let resp = try await APIClient.shared.fetchMemberStreaks(
@@ -160,12 +177,19 @@ extension ProgramContext {
                 programId: pid,
                 memberId: memberId
             )
+            if !ownedWrite { memberCardsOwner = nil }
             memberStreaks = resp
+            memberStreaksMemberId = memberId
+            return nil
         } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
+            let appError = AppError(error)
+            if let message = appError?.message { errorMessage = message }
+            return appError
         }
     }
 
+    /// nil when it loaded; else the failure (cancellation → nil). polish #32 (S5); `ownedWrite` as loadMemberOverview.
+    @discardableResult
     @MainActor
     func loadMemberRecent(
         memberId: String,
@@ -176,12 +200,13 @@ extension ProgramContext {
         sortDir: String? = nil,
         workoutType: String? = nil,
         minDuration: Int? = nil,
-        maxDuration: Int? = nil
-    ) async {
-        guard let token = authToken, !token.isEmpty else { return }
+        maxDuration: Int? = nil,
+        ownedWrite: Bool = false
+    ) async -> AppError? {
+        guard let token = authToken, !token.isEmpty else { return nil }
         guard let pid = programId else {
             errorMessage = "No program selected for member recent."
-            return
+            return AppError(kind: .unknown)
         }
         do {
             let resp = try await APIClient.shared.fetchMemberRecentWorkouts(
@@ -197,10 +222,31 @@ extension ProgramContext {
                 minDuration: minDuration,
                 maxDuration: maxDuration
             )
+            if !ownedWrite { memberCardsOwner = nil }
             memberRecent = resp.items
+            memberRecentMemberId = memberId
+            return nil
         } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
+            let appError = AppError(error)
+            if let message = appError?.message { errorMessage = message }
+            return appError
         }
+    }
+
+    /// polish #32 (people S5): the four Members-card reads in parallel (polish #5) — each card's outcome + the first
+    /// failure. A cancelled read reports nil (callers check `Task.isCancelled`). The caller owns the cards
+    /// (`memberCardsOwner`), so these writes keep the owner token.
+    @MainActor
+    func loadMemberCards(memberId: String, recentMemberId: String? = nil) async -> (cards: MemberCardsState, error: AppError?) {
+        async let overview = loadMemberOverview(memberId: memberId, ownedWrite: true)
+        async let history = loadMemberHistory(memberId: memberId, period: "week", ownedWrite: true)
+        async let streaks = loadMemberStreaks(memberId: memberId, ownedWrite: true)
+        async let recent = loadMemberRecent(memberId: recentMemberId ?? memberId, limit: 10, ownedWrite: true)
+        let errors = await [overview, history, streaks, recent]
+        let state: (AppError?) -> MemberCardState = { $0 == nil ? .loaded : .failed }
+        return (MemberCardsState(overview: state(errors[0]), history: state(errors[1]),
+                                 streaks: state(errors[2]), recent: state(errors[3])),
+                errors.compactMap { $0 }.first)
     }
 
     /// Loads a member's daily-health logs (steps-aware). Keeps the published `memberHealthLogs`
@@ -254,14 +300,16 @@ extension ProgramContext {
         }
     }
 
+    /// `true` when this program's details loaded (PersonProfileView's Edit membership waits for it); others ignore it.
+    @discardableResult
     @MainActor
-    func loadMembershipDetails() async {
+    func loadMembershipDetails() async -> Bool {
         guard let token = authToken, !token.isEmpty else { 
-            return 
+            return false
         }
         guard let pid = programId else {
             errorMessage = "No program selected for membership details."
-            return
+            return false
         }
         do {
             let data = try await APIClient.shared.fetchMembershipDetails(token: token, programId: pid)
@@ -275,8 +323,10 @@ extension ProgramContext {
                 loggedInUserGender = myMembership.gender
                 persistSession()
             }
+            return true
         } catch {
             if let message = AppError(error)?.message { errorMessage = message }
+            return false
         }
     }
 

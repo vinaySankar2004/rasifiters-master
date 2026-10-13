@@ -31,17 +31,6 @@ struct AppRootView: View {
                     .safeAreaInset(edge: .bottom, spacing: 0) { offlineBannerSpace }
                 }
             }
-
-            if let notification = programContext.notificationQueue.first {
-                NotificationModalView(
-                    title: notification.title,
-                    message: notification.body
-                ) {
-                    Task { @MainActor in
-                        await programContext.acknowledgeNotification(notification)
-                    }
-                }
-            }
         }
         .environmentObject(programContext)
         // Amendment A6: ONE offline banner for the whole app (one monitor). Both stacks reserve its band as a bottom
@@ -52,6 +41,15 @@ struct AppRootView: View {
                 FloatingBanner(variant: .offline)
             }
         }
+        // D-N3: the floating toast replaces the blocking pop-up queue (top, 5 s) + the root Inbox sheet (an `inbox` /
+        // `invites` target over whatever is on screen).
+        .notificationToast(programContext)
+        // people U-1 (b): "Who can see your activity", once per member (ActivityVisibilityNotice.swift). It yields to the
+        // Apple Health review, the widget form and the update screen, and comes back once they close.
+        .activityVisibilityNotice(isPresented: $programContext.showActivityVisibilityNotice, context: programContext)
+        .onChange(of: programContext.pendingSyncConfirmation?.id) { _, _ in programContext.rootCoverChanged() }
+        .onChange(of: programContext.widgetRoute) { _, _ in programContext.rootCoverChanged() }
+        .onChange(of: programContext.isUpdateRequired) { _, _ in programContext.rootCoverChanged() }
         .task {
             if programContext.authToken != nil { programContext.sessionDidBecomeActive(.launch) }
             handlePendingPushTap()
@@ -69,8 +67,8 @@ struct AppRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: PushNotificationTapped.notificationName)) { _ in
             handlePendingPushTap()
         }
-        .onReceive(NotificationCenter.default.publisher(for: PushNotificationTapped.inviteReceived)) { _ in
-            Task { try? await programContext.loadPendingInvites() }
+        .onReceive(NotificationCenter.default.publisher(for: PushNotificationTapped.remoteReceived)) { note in
+            programContext.foregroundPushReceived(type: note.object as? String)      // counts, a visible inbox, invites
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
@@ -110,13 +108,17 @@ struct AppRootView: View {
             if let route = WidgetRoute(url: url) {
                 // Polish #7 (app-config D-C8): open the form at once; the check runs alongside. An unsupported build gets
                 // the update modal over the form (WidgetCoverView) — never a second cover while this one is up.
-                if !programContext.isUpdateRequired { programContext.widgetRoute = route }
+                if !programContext.isUpdateRequired {
+                    programContext.widgetRouteFromNotification = false        // a widget tap exits to My Programs
+                    programContext.widgetRoute = route
+                }
                 Task { @MainActor in await programContext.checkMinimumSupportedVersion() }
             }
         }
+        // Covers wait while the visibility notice is up — it yields first (recheckActivityVisibilityNotice).
         .fullScreenCover(
             item: Binding(
-                get: { programContext.authToken != nil ? programContext.widgetRoute : nil },
+                get: { programContext.authToken != nil && !programContext.showActivityVisibilityNotice ? programContext.widgetRoute : nil },
                 set: { programContext.widgetRoute = $0 }
             )
         ) { route in
@@ -125,7 +127,7 @@ struct AppRootView: View {
         .fullScreenCover(
             isPresented: Binding(
                 // While a widget form is up, WidgetCoverView shows the update modal in place (polish #7).
-                get: { programContext.isUpdateRequired && !widgetCoverVisible },
+                get: { programContext.isUpdateRequired && !widgetCoverVisible && !programContext.showActivityVisibilityNotice },
                 set: { _ in }      // blocking: only checkMinimumSupportedVersion changes isUpdateRequired
             )
         ) {
@@ -134,7 +136,7 @@ struct AppRootView: View {
         }
         .fullScreenCover(
             item: Binding(
-                get: { programContext.authToken != nil ? programContext.pendingSyncConfirmation : nil },
+                get: { programContext.authToken != nil && !programContext.showActivityVisibilityNotice ? programContext.pendingSyncConfirmation : nil },
                 set: { programContext.pendingSyncConfirmation = $0 }
             )
         ) { confirmation in
@@ -154,7 +156,7 @@ struct AppRootView: View {
     private func handlePendingPushTap() {
         guard let tap = PushNotificationTapped.pendingTap else { return }
         PushNotificationTapped.pendingTap = nil
-        programContext.handlePushTap(notificationId: tap.id, type: tap.type)
+        programContext.handlePushTap(notificationId: tap.id, type: tap.type, target: tap.target, programId: tap.programId)
     }
 }
 

@@ -10,12 +10,14 @@ extension APIClient {
     static let refreshMargin: TimeInterval = 60
     static let refreshBackoffSteps: [TimeInterval] = [30, 60, 120, 300]
 
-    /// The observability §4.1 identity headers (the SSE client sends them too).
+    /// The observability §4.1 identity headers + `X-Time-Zone` (notifications contract C1 — the IANA zone the server
+    /// stores for reminders, the digest and kudos days). The SSE client sends them too.
     static var identityHeaders: [String: String] {
         let info = Bundle.main.infoDictionary
         return ["X-App-Platform": "ios",
                 "X-App-Version": info?["CFBundleShortVersionString"] as? String ?? "0",
-                "X-App-Build": info?["CFBundleVersion"] as? String ?? "0"]
+                "X-App-Build": info?["CFBundleVersion"] as? String ?? "0",
+                "X-Time-Zone": TimeZone.current.identifier]
     }
 
     /// Paths whose bearer the caller owns: logout's captured token, the pending OAuth session, refresh (none).

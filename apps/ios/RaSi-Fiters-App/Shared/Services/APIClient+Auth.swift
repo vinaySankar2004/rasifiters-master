@@ -70,12 +70,13 @@ extension APIClient {
         return try JSONDecoder().decode(AuthResponse.self, from: data)
     }
 
-    /// PUT /notifications/device (notifications §3.1): Bearer + `{ push_token, platform: "ios", device_id }`.
+    /// PUT /notifications/device (notifications §3.1 + contract C7.4): Bearer + `{ push_token, platform: "ios",
+    /// device_id, inbox: true }` — `inbox` tells the server this build has the inbox (app-icon badge + push routing).
     func registerDevice(pushToken: String, deviceId: String?) async throws {
         var request = authorizedRequest("notifications/device", method: "PUT")
-        var body = ["push_token": pushToken, "platform": "ios"]
+        var body: [String: Any] = ["push_token": pushToken, "platform": "ios", "inbox": true]
         if let deviceId { body["device_id"] = deviceId }
-        request.httpBody = try JSONEncoder().encode(body)
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
         _ = try await data(for: request)
     }
 

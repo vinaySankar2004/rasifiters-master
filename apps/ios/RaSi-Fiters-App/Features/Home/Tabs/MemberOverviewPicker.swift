@@ -81,8 +81,14 @@ struct MemberPickerView: View {
 struct MemberOverviewCard: View {
     @EnvironmentObject var programContext: ProgramContext
     let member: APIClient.MemberDTO?
+    var state: MemberCardState = .loaded
 
     private var overview: APIClient.MemberMetricsDTO? { programContext.selectedMemberOverview }
+    /// Render-time identity: the shared overview row shows only when it is this card's member's (nil member = signed-in).
+    private var shownState: MemberCardState {
+        guard state == .loaded, let overview, overview.member_id != (member?.id ?? programContext.loggedInUserId) else { return state }
+        return .loading
+    }
     private var programTotalDays: Int {
         let start = programContext.startDate
         let end = min(programContext.endDate, Date())
@@ -102,14 +108,21 @@ struct MemberOverviewCard: View {
                 Spacer()
             }
 
-            if let m = overview {
-                topRow(for: m)
-                statsGrid(for: m)
-                progress(for: m)
-            } else {
-                Text("No workouts logged yet.")
-                    .font(.subheadline)
-                    .foregroundColor(Color(.secondaryLabel))
+            switch shownState {
+            case .loading:
+                MemberCardPlaceholder(height: 120)
+            case .failed:
+                MemberCardFailure()
+            case .loaded:
+                if let m = overview {
+                    topRow(for: m)
+                    statsGrid(for: m)
+                    progress(for: m)
+                } else {
+                    Text("No workouts logged yet.")
+                        .font(.subheadline)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
             }
         }
         .padding(16)
@@ -385,7 +398,12 @@ struct MemberMetricsCard: View {
 
 struct MemberMetricsPreviewCard: View {
     @EnvironmentObject var programContext: ProgramContext
-    @State private var isLoading = false
+    /// Bumped by the Admin Members tab's pull-to-refresh / Retry (polish #32).
+    var refreshToken = 0
+    /// This card's own state (polish #32): rows show only after THIS card loaded the program on screen — the shared
+    /// `memberMetrics` may still hold another program's or a previous session's rows (A13 / #10).
+    @State private var state: MemberCardState = .loading
+    @State private var loadedProgramId: String?
     @State private var sortField: SortField = .active_days
     @State private var sortDirection: SortDirection = .desc
 
@@ -396,7 +414,7 @@ struct MemberMetricsPreviewCard: View {
                     Text("Member Performance Metrics")
                         .font(.headline.weight(.semibold))
                         .foregroundColor(Color(.label))
-                    Text("\(memberCount) members")
+                    Text(state == .loaded ? "\(memberCount) members" : "—")
                         .font(.subheadline)
                         .foregroundColor(Color(.secondaryLabel))
                 }
@@ -406,17 +424,22 @@ struct MemberMetricsPreviewCard: View {
                     .foregroundColor(Color(.tertiaryLabel))
             }
 
-            if isLoading {
+            switch state {
+            case .loading:
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color(.systemGray5))
                     .frame(height: 120)
                     .redacted(reason: .placeholder)
-            } else if let top = programContext.memberMetrics.first {
-                topPreview(top)
-            } else {
-                Text("No members to display")
-                    .font(.footnote)
-                    .foregroundColor(Color(.secondaryLabel))
+            case .failed:
+                MemberCardFailure()
+            case .loaded:
+                if let top = programContext.memberMetrics.first {
+                    topPreview(top)
+                } else {
+                    Text("No members to display")
+                        .font(.footnote)
+                        .foregroundColor(Color(.secondaryLabel))
+                }
             }
         }
         .padding(16)
@@ -429,7 +452,10 @@ struct MemberMetricsPreviewCard: View {
                 .stroke(Color(.systemGray4).opacity(0.6), lineWidth: 1)
         )
         .adaptiveShadow(radius: 10, y: 6)
-        .task { await loadTop() }
+        .task(id: "\(programContext.programId ?? "")|\(refreshToken)") { await loadTop() }
+        .onChange(of: programContext.isOnline) { _, online in
+            if online, state == .failed { Task { await loadTop() } }        // D-KIT-13
+        }
     }
 
     private var memberCount: Int {
@@ -501,17 +527,25 @@ struct MemberMetricsPreviewCard: View {
         }
     }
 
+    /// A program this card hasn't loaded yet → placeholder until ITS load lands; success → this program's rows; failure →
+    /// "—" unless this card already shows this program's rows (kept — W7-D2).
     private func loadTop() async {
-        guard !isLoading else { return }
-        isLoading = true
-        await programContext.loadMemberMetrics(
+        guard let programId = programContext.programId else { return }
+        if loadedProgramId != programId { state = .loading }
+        let error = await programContext.loadMemberMetrics(
             search: "",
             sort: sortField.rawValue,
             direction: sortDirection.rawValue,
             filters: [:],
             dateRange: (nil, nil)
         )
-        isLoading = false
+        guard !Task.isCancelled, programContext.programId == programId else { return }
+        if error == nil {
+            loadedProgramId = programId
+            state = .loaded
+        } else if loadedProgramId != programId {
+            state = .failed
+        }
     }
 }
 

@@ -1,7 +1,8 @@
 import Foundation
 
-/// notifications §3.3 SSE client. Frames: `event: ready` (opened) · `event: ping` (25 s keepalive) · `event:
-/// notification` + the 7-field payload. EVERY close or error is reported through `onClose` and the owner reconnects
+/// notifications §3.3 SSE client, opened with `?inbox=1` (contract C7.2). Frames: `event: ready` (opened) · `event: ping`
+/// (25 s keepalive) · `event: notification` + a C3 inbox item (the 7 legacy fields + category, target, read_at — every
+/// type). EVERY close or error is reported through `onClose` and the owner reconnects
 /// (a plain close on deploy is not an error). Delegate callbacks run on the main queue; no resource cap (60 s idle
 /// timeout > the 25 s ping, so a silent stream times out and reconnects). The session is invalidated on every close
 /// (a URLSession retains its delegate until then).
@@ -27,7 +28,8 @@ final class NotificationStreamClient: NSObject {
         disconnect()
         closed = false
         refusedStatus = nil
-        var request = URLRequest(url: baseURL.appendingPathComponent("notifications/stream"))
+        var request = URLRequest(url: baseURL.appendingPathComponent("notifications/stream")
+            .appending(queryItems: [URLQueryItem(name: "inbox", value: "1")]))
         request.httpMethod = "GET"
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

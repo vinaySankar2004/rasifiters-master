@@ -314,6 +314,22 @@ struct ProgramMyAccountSection: View {
                 }
                 .buttonStyle(.plain)
 
+                // Inbox (D-N4) — the same InboxView as the "+" sheet's Inbox tab
+                NavigationLink {
+                    InboxView()
+                        .navigationTitle(InboxCopy.title)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .adaptiveBackground(topLeading: true)
+                } label: {
+                    settingsRow(
+                        icon: "tray.fill",
+                        color: .appOrange,
+                        title: InboxCopy.title,
+                        subtitle: InboxCopy.rowSubtitle(badge: programContext.inboxBadgeCount)
+                    )
+                }
+                .buttonStyle(.plain)
+
                 // Change Password
                 NavigationLink {
                     ChangePasswordView()

@@ -93,6 +93,11 @@ final class ProgramContext: ObservableObject {
     @Published var memberHistoryEndDate: Date = Date()
     @Published var memberStreaks: APIClient.MemberStreaksResponse?
     @Published var memberRecent: [APIClient.MemberRecentWorkoutsResponse.Item] = []
+    /// The member each shared Members-card value belongs to, set by its loader on every write. A card renders data only
+    /// when the tag equals its own member (render-time identity — never another member's numbers, whatever the timing).
+    @Published var memberHistoryMemberId: String?
+    @Published var memberStreaksMemberId: String?
+    @Published var memberRecentMemberId: String?
     @Published var memberHealthLogs: [APIClient.MemberHealthLogResponse.Item] = []
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
@@ -112,13 +117,24 @@ final class ProgramContext: ObservableObject {
     // Membership details for program management
     @Published var membershipDetails: [APIClient.MembershipDetailDTO] = []
     
-    // Pending program invites
+    // Pending program invites (the Inbox's first section — notifications D-N4)
     @Published var pendingInvites: [APIClient.PendingInviteDTO] = []
-    /// Set by an invite push tap (amendment U2); ProgramPickerView consumes it and opens the Invites tab.
-    @Published var openInvitesRequested: Bool = false
 
-    // Notifications (queued modals)
-    @Published var notificationQueue: [APIClient.NotificationDTO] = []
+    // Notifications inbox (D-N3 / D-N4; logic in ProgramContext+Inbox.swift)
+    /// Server counts (contract C4) — nil until GET /inbox/unread-count first answers (the "+" badge then falls back).
+    @Published var inboxCounts: APIClient.InboxCountsDTO?
+    /// The floating toast's item (D-N3) — the newest live item whose category is switched on.
+    @Published var toastItem: APIClient.NotificationDTO?
+    /// Bumped by every live item / foreground push / catch-up — a VISIBLE InboxView reloads (and marks it read).
+    @Published var inboxRevision = 0
+    /// Cached GET /notifications/preferences — gates the toast (C7.5) and seeds the settings screen.
+    @Published var notificationPreferences: APIClient.NotificationPreferencesDTO?
+    /// A target only the program picker can open (contract C2 targets; supersedes U2's invite-only flag).
+    @Published var inboxRoute: InboxTarget?
+    /// The root Inbox sheet (NotificationToast.swift) — an `inbox` / `invites` target over whatever is on screen.
+    @Published var showInboxSheet = false
+    /// "Who can see your activity" (people U-1 b), presented from AppRootView (ActivityVisibilityNotice.swift).
+    @Published var showActivityVisibilityNotice = false
     @Published var widgetRoute: WidgetRoute?
     @Published var returnToMyPrograms: Bool = false
 
@@ -151,12 +167,24 @@ final class ProgramContext: ObservableObject {
     var deferredStepsConfirmation: PendingSyncConfirmation?
 
     var notificationStreamClient: NotificationStreamClient?
-    var notificationIds: Set<String> = []
     var streamReconnectTask: Task<Void, Never>?
     var streamAttempt = 0
-    /// Ids acknowledged on this device in the last few minutes — a re-fetch never brings them back (A4).
-    var acknowledgedNotificationIds: [String: Date] = [:]
-    let notificationDateFormatter = ISO8601DateFormatter()
+    /// The toast's 5-s auto-dismiss (ProgramContext+Inbox.swift).
+    var toastDismissTask: Task<Void, Never>?
+    /// InboxViews on screen right now — no toast and no root Inbox sheet while one is visible (the toast rule).
+    var visibleInboxCount = 0
+    /// The catch-up rule's 5-s guard (ProgramContext+Inbox.catchUp).
+    var lastCatchUpAt: Date?
+    /// The visibility notice is owed but waits for a free root (no review / widget form / other presentation).
+    var activityNoticeDeferred = false
+    /// The quick-add workout form was opened by a `log_workout` target: closing it returns to the current screen (the
+    /// program stays open) instead of My Programs.
+    var widgetRouteFromNotification = false
+    /// Who last loaded the shared Members-card state (selectedMemberOverview · memberHistory · memberStreaks ·
+    /// memberRecent): `MemberCardsOwner.membersTab` or one MemberFullStatsView (its UUID); nil = an unowned write.
+    /// A screen that finds another owner shows placeholders and reloads its own member — never another member's
+    /// numbers. Not published: it must never re-render a screen by itself.
+    var memberCardsOwner: String?
     var cancellables = Set<AnyCancellable>()
 
     init(

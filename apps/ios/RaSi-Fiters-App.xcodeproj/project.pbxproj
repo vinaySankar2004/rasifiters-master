@@ -378,7 +378,7 @@
 				INFOPLIST_FILE = "RaSi-Fiters-App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "RaSi Fiters";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "RaSi Fit'ers reads your workout and sleep data from Apple Health to automatically log workouts and nightly sleep to your fitness programs.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "RaSi Fiters reads your workouts, sleep, and steps from Apple Health to log them in your programs. Members of your programs can see your workouts unless you turn on Hide my activity.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "RaSi Fit'ers does not write data to Apple Health, but this permission is required by the system.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -417,7 +417,7 @@
 				INFOPLIST_FILE = "RaSi-Fiters-App/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "RaSi Fiters";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "RaSi Fit'ers reads your workout and sleep data from Apple Health to automatically log workouts and nightly sleep to your fitness programs.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "RaSi Fiters reads your workouts, sleep, and steps from Apple Health to log them in your programs. Members of your programs can see your workouts unless you turn on Hide my activity.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "RaSi Fit'ers does not write data to Apple Health, but this permission is required by the system.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

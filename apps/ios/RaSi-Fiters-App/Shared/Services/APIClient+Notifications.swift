@@ -2,6 +2,10 @@ import Foundation
 
 extension APIClient {
 
+    /// One notification — an SSE frame and a GET /notifications/inbox item (notifications contract C3). `category`,
+    /// `target` and `read_at` arrive with the inbox (`?inbox=1` streams + the inbox); a legacy frame decodes without
+    /// them (ProgramContext+Inbox resolves the C2 defaults). The legacy GET /unacknowledged + POST /:id/acknowledge calls
+    /// are retired here (C7.3 — read = POST /notifications/inbox/read).
     struct NotificationDTO: Decodable, Identifiable {
         let id: String
         let type: String
@@ -10,39 +14,16 @@ extension APIClient {
         let programId: String?
         let actorMemberId: String?
         let createdAt: String?
+        let category: String?
+        let target: String?
+        let readAt: String?
 
         enum CodingKeys: String, CodingKey {
-            case id
-            case type
-            case title
-            case body
+            case id, type, title, body, category, target
             case programId = "program_id"
             case actorMemberId = "actor_member_id"
             case createdAt = "created_at"
+            case readAt = "read_at"
         }
-    }
-
-    struct NotificationAckResponse: Decodable {
-        let message: String?
-    }
-
-    func fetchUnacknowledgedNotifications(token: String) async throws -> [NotificationDTO] {
-        var request = URLRequest(url: baseURL.appendingPathComponent("notifications/unacknowledged"))
-        request.httpMethod = "GET"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        let data = try await data(for: request)
-        return try JSONDecoder().decode([NotificationDTO].self, from: data)
-    }
-
-    func acknowledgeNotification(token: String, notificationId: String) async throws -> NotificationAckResponse {
-        var request = URLRequest(url: baseURL.appendingPathComponent("notifications/\(notificationId)/acknowledge"))
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        let data = try await data(for: request)
-        return try JSONDecoder().decode(NotificationAckResponse.self, from: data)
     }
 }

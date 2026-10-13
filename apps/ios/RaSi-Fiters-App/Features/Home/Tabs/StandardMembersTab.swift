@@ -2,15 +2,24 @@ import SwiftUI
 
 // MARK: - Standard Members Tab (for non-admin users)
 // Ported faithfully from legacy Features/Home/Tabs/StandardMembersTab.swift.
+// D-P2: the header button opens People (was the roster list). polish #32 (people S5): the cards run on the kit's Summary
+// recipe — placeholders while loading, "—" per failed card, ErrorStateView + Retry when nothing loaded, "Couldn't
+// refresh · Retry" over kept data, pull-to-refresh, reload on reconnect; never another program's or member's numbers
+// (#10, the card-owner rule). polish #5 kept: every read in parallel; the self metric row IS the overview row (no
+// all-member download, member-analytics D-C10); a logger's Recent + Health follow the View-as member (QA2).
 
 struct StandardMembersTab: View {
     @EnvironmentObject var programContext: ProgramContext
-    @State private var isLoading = false
-    @State private var errorMessage: String?
+    /// The program whose cards are on screen (frontend-kit §5).
+    @State private var loadState: LoadState<String> = .idle
+    @State private var cards = MemberCardsState()
+    /// Bumped by pull-to-refresh / Retry — the self-loading health card reloads too.
+    @State private var refreshCount = 0
     @State private var loggedInUserMetrics: APIClient.MemberMetricsDTO?
     @State private var loggerViewAsMember: APIClient.MemberDTO?
     @State private var showLoggerMemberPicker = false
-    @State private var loadedProgramId: String?
+    /// The tab's own screen is on screen (not covered by People / a profile / "Open full stats" / a detail).
+    @State private var isVisible = false
 
     private var isLogger: Bool {
         programContext.loggedInUserProgramRole == "logger"
@@ -21,15 +30,30 @@ struct StandardMembersTab: View {
         return programContext.members.first { $0.id == userId }
     }
 
+    /// Recent + Health: the logger's View-as member; everyone else sees themself.
+    private var logsMember: APIClient.MemberDTO? {
+        isLogger ? (loggerViewAsMember ?? loggedInMember) : loggedInMember
+    }
+
     private var loggerViewAsLabel: String {
         loggerViewAsMember?.member_name ?? programContext.loggedInUserName ?? "Member"
+    }
+
+    /// The member Recent shows: a logger's View-as member, else the signed-in member.
+    private var recentMemberId: String? {
+        (isLogger ? loggerViewAsMember?.id : nil) ?? programContext.loggedInUserId
+    }
+
+    /// The shared card state is ours or unowned — a background reload may write it (the card-owner rule).
+    private var cardsFree: Bool {
+        let owner = programContext.memberCardsOwner
+        return owner == nil || owner == MemberCardsOwner.membersTab
     }
 
     var body: some View {
         NavigationStack {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 16) {
-                    // Header with View Members button
                     HStack(alignment: .center) {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Members")
@@ -40,66 +64,72 @@ struct StandardMembersTab: View {
                                 .foregroundColor(Color(.secondaryLabel))
                         }
                         Spacer()
-                        // View Members button
+                        // People — the standard / logger entry (D-P2; replaces the roster list)
                         NavigationLink {
-                            ProgramMembersListView()
+                            PeopleListView()
                         } label: {
                             GlassButton(icon: "person.2")
                         }
+                        .accessibilityLabel(PeopleCopy.title)
                     }
                     .padding(.top, 24)
 
-                    if isLoading {
-                        ProgressView()
-                            .padding()
+                    if case .failed(let error) = loadState {
+                        ErrorStateView(error: error, onRetry: retry)
                     } else {
-                        // The member's own cards render UNCONDITIONALLY (parity with web). Each card handles its
-                        // own empty/nil state ("No workouts logged yet.", 0-day streak, etc.), so we no longer
-                        // gate the whole set on selectedMemberOverview != nil — a member with no data (or a
-                        // transient load miss) would otherwise see a blank tab with only "View Members".
-                        MemberOverviewCard(member: loggedInMember)
-
-                        // Logged-in user's MemberMetricsCard — needs a concrete metric row, so keep its own gate.
+                        MemberOverviewCard(member: loggedInMember, state: cards.overview)
+                        // The self metric row — needs a concrete row, so it keeps its own gate.
                         if let metrics = loggedInUserMetrics {
                             MemberMetricsCard(metric: metrics, hero: .active_days)
                         }
-
-                        // History and Streak (always the logged-in user for standard and logger)
-                        MemberHistoryCard(selectedMember: loggedInMember)
-                        MemberStreakCard(selectedMember: loggedInMember)
-
+                        // History and Streak: always the signed-in member (standard and logger).
+                        MemberHistoryCard(selectedMember: loggedInMember, state: cards.history)
+                        MemberStreakCard(selectedMember: loggedInMember, state: cards.streaks)
                         if isLogger {
-                            // Logger: View as bar right above only the two log cards
-                            loggerViewAsSelector
-                            MemberRecentCard(selectedMember: loggerViewAsMember ?? loggedInMember)
-                            MemberHealthCard(selectedMember: loggerViewAsMember ?? loggedInMember)
-                        } else {
-                            // Standard: same two cards for self
-                            MemberRecentCard(selectedMember: loggedInMember)
-                            MemberHealthCard(selectedMember: loggedInMember)
+                            loggerViewAsSelector                          // right above the two log cards only
                         }
+                        MemberRecentCard(selectedMember: logsMember, state: cards.recent)
+                        MemberHealthCard(selectedMember: logsMember, refreshToken: refreshCount)
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.bottom, 24)
+                .padding(.bottom, isBannerShowing ? 88 : 24)              // A6: the stale banner never covers the last card
                 .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
                 .frame(maxWidth: .infinity)
             }
-            .adaptiveBackground(topLeading: true)
-            .navigationBarBackButtonHidden(true)
-        }
-        .task {
-            await loadUserData()
-        }
-        .onChange(of: programContext.programId) { _, _ in
-            Task {
+            .refreshable {
+                refreshCount += 1
                 await loadUserData()
             }
+            .adaptiveBackground(topLeading: true)
+            .navigationBarBackButtonHidden(true)
+            .floatingBanner { ScreenBanner(banner: staleBanner) }
+            // Whenever THIS screen comes on screen (first open, tab re-entry, back from People / "Open full stats" / a
+            // detail) — never while another screen of this stack is on top and owns the shared cards.
+            .task { await loadUserData() }
+            .onAppear { isVisible = true }
+            .onDisappear { isVisible = false }
+        }
+        .onChange(of: programContext.programId) { _, _ in
+            Task { await loadUserData() }
+        }
+        .onChange(of: programContext.loggedInUserId) { _, _ in
+            Task { await loadUserData() }
         }
         .onChange(of: programContext.members.count) { _, _ in
             if isLogger {
                 applyDefaultLoggerSelectionIfNeeded()
             }
+        }
+        .onChange(of: programContext.isOnline) { _, online in
+            // D-KIT-13: refetch on reconnect — not while another screen owns the shared cards.
+            if online, loadState.error != nil, cardsFree { Task { await loadUserData() } }
+        }
+        .onChange(of: programContext.memberCardsIdentity) { _, _ in
+            // A late write that isn't ours (the cards already show placeholders — render-time identity): reload.
+            guard isVisible, loadState.value != nil, cardsFree, let userId = programContext.loggedInUserId,
+                  programContext.memberCardsMismatch(cards, memberId: userId, recentMemberId: recentMemberId) else { return }
+            Task { await loadUserData() }
         }
     }
 
@@ -133,6 +163,7 @@ struct StandardMembersTab: View {
                     showLoggerMemberPicker = false
                     guard let m = member else {
                         loggerViewAsMember = loggedInMember
+                        if let me = loggedInMember { Task { await loadLoggerLogsData(memberId: me.id) } }
                         return
                     }
                     loggerViewAsMember = m
@@ -144,6 +175,19 @@ struct StandardMembersTab: View {
         }
     }
 
+    private var staleBanner: FloatingBanner? {
+        guard case .stale = loadState else { return nil }
+        return FloatingBanner(variant: .stale, onRetry: retry)
+    }
+
+    private var isBannerShowing: Bool { programContext.isOnline && staleBanner != nil }
+
+    /// Retry (error view / banner): the tab's cards + the self-loading health card.
+    private func retry() {
+        refreshCount += 1
+        Task { await loadUserData() }
+    }
+
     private func applyDefaultLoggerSelectionIfNeeded() {
         guard isLogger else { return }
         guard loggerViewAsMember == nil else { return }
@@ -153,49 +197,49 @@ struct StandardMembersTab: View {
         loggerViewAsMember = member
     }
 
+    /// A logger's View-as change re-reads Recent only (MemberHealthCard loads its own preview) — all four cards when the
+    /// shared state isn't this tab's any more.
     @MainActor
     private func loadLoggerLogsData(memberId: String) async {
-        // MemberHealthCard loads its own preview (.task(id:)) — only Recent is tab-level state.
-        await programContext.loadMemberRecent(memberId: memberId, limit: 10)
+        guard programContext.memberCardsOwner == MemberCardsOwner.membersTab else { return await loadUserData() }
+        cards.recent = .loading
+        let error = await programContext.loadMemberRecent(memberId: memberId, limit: 10, ownedWrite: true)
+        guard !Task.isCancelled else { return }
+        cards.recent = error == nil ? .loaded : .failed
     }
 
-    private func loadUserData() async {
-        guard let userId = programContext.loggedInUserId else {
-            errorMessage = "Unable to identify logged-in user."
-            return
-        }
-
-        // Polish #5: the spinner shows only while nothing for this program is on screen (first load / program switch);
-        // a tab re-entry keeps the cards and refreshes underneath. Every read runs in parallel.
-        let programId = programContext.programId
-        isLoading = loadedProgramId != programId
-        errorMessage = nil
-
+    /// `retried`: the one re-run after a late write landed mid-load (never stuck on placeholders).
+    @MainActor
+    private func loadUserData(retried: Bool = false) async {
+        guard let userId = programContext.loggedInUserId, let programId = programContext.programId else { return }
         let pc = programContext
-        let needsLookup = isLogger && (pc.members.isEmpty || pc.membersProgramId != pc.programId)
-        // A logger's Recent card follows the View-as member, so it never shows the logger's own rows under another name.
-        let recentId = (isLogger ? loggerViewAsMember?.id : nil) ?? userId
-        async let overviewLoaded = pc.loadMemberOverview(memberId: userId)      // alongside the group below
-        await withDiscardingTaskGroup { group in
-            if needsLookup { group.addTask { await pc.loadLookupData() } }
-            group.addTask { await pc.loadMemberHistory(memberId: userId, period: "week") }
-            group.addTask { await pc.loadMemberStreaks(memberId: userId) }
-            group.addTask { await pc.loadMemberRecent(memberId: recentId, limit: 10) }
+        // A new program, or another screen / an unowned write in the shared card state: placeholders — never those
+        // numbers. Otherwise keep the cards and refresh under them.
+        if loadState.value != programId || pc.memberCardsOwner != MemberCardsOwner.membersTab {
+            cards = MemberCardsState()
+            loadState = .loading
+        } else {
+            loadState = loadState.refreshing()
         }
-        let selfOverviewLoaded = await overviewLoaded
-        // A cancelled load never marks this program as loaded (#10): the next visit spins instead of showing old numbers.
-        guard !Task.isCancelled else { return }
-
-        // The self metric row IS the overview row (same memberId-scoped /member-metrics DTO) — no all-member download
-        // (member-analytics D-C10). MemberHealthCard loads its own preview, so no tab-level health read either.
+        pc.memberCardsOwner = MemberCardsOwner.membersTab
+        let lookup: Task<Void, Never>? = isLogger && (pc.members.isEmpty || pc.membersProgramId != programId)
+            ? Task { await pc.loadLookupData() } : nil
+        // A logger's Recent follows the View-as member, so it never shows the logger's own rows under another name.
+        let recentId = recentMemberId ?? userId
+        let result = await pc.loadMemberCards(memberId: userId, recentMemberId: recentId)
+        await lookup?.value
+        // Superseded (a program switch, the screen went away, or another screen took the cards over).
+        guard !Task.isCancelled, pc.programId == programId, cardsFree else { return }
+        cards = loadState.value == programId ? cards.merging(result.cards) : result.cards
+        loadState = loadState.applying(cards: cards, error: result.error, key: programId, online: pc.isOnline)
+        // The self metric row IS the overview row (same memberId-scoped /member-metrics DTO) — no all-member download.
         loggedInUserMetrics = pc.selectedMemberOverview?.member_id == userId ? pc.selectedMemberOverview : nil
-        // Only a self overview that really loaded marks this program loaded (Android parity): after a failed load the
-        // next visit spins again rather than refreshing under the previous program's numbers (#10).
-        if selfOverviewLoaded { loadedProgramId = programId }
-        isLoading = false
-
         if isLogger, loggerViewAsMember == nil, let member = loggedInMember {
             loggerViewAsMember = member
+        }
+        // A late write that isn't ours landed while loading (its card shows a placeholder): re-run once.
+        if !retried, pc.memberCardsMismatch(cards, memberId: userId, recentMemberId: recentMemberId ?? userId) {
+            await loadUserData(retried: true)
         }
     }
 }

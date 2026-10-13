@@ -8,7 +8,8 @@
 //    1. NO auto-selected program — the user picks any active/loggable program(s) (`currentProgramId`
 //       is "" so nothing is force-checked, and there is no `.task` seeding).
 //    2. The custom back button exits to My Programs (`exitToMyPrograms`, today's widget behavior)
-//       instead of a plain dismiss, and the form stays non-interactively-dismissible.
+//       instead of a plain dismiss, and the form stays non-interactively-dismissible. Opened from a
+//       `log_workout` notification target instead, save / back return to the screen it covered.
 //
 //  Because there is no single active program here, member/workout options are the INTERSECTION across
 //  the selected programs (per-program lookups cached in `programMembers`/`programWorkouts`), and the
@@ -585,9 +586,12 @@ struct QuickAddWorkoutWidgetEntryView: View {
         }
     }
 
+    /// A form opened by a `log_workout` notification target returns to the screen it covered — the program stays open
+    /// (the log_workout rule); a widget-opened form exits to My Programs as before.
     @MainActor
     private func exitToMyPrograms() {
-        programContext.returnToMyPrograms = true
+        if !programContext.widgetRouteFromNotification { programContext.returnToMyPrograms = true }
+        programContext.widgetRouteFromNotification = false
         programContext.widgetRoute = nil
         dismiss()
     }

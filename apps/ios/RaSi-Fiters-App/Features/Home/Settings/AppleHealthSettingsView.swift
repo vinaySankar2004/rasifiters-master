@@ -213,6 +213,12 @@ struct AppleHealthSettingsView: View {
                 .background(cardBackground)
                 .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
             }
+
+            // people U-1: synced workouts are part of program activity.
+            Text("Synced workouts are visible to members of your programs unless you turn on Hide my activity in My Profile.")
+                .font(.caption)
+                .foregroundColor(Color(.secondaryLabel))
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

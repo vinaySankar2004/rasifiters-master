@@ -6,6 +6,8 @@ import SwiftUI
 // member-detail gate matches BOTH legacy iOS AND web (web members/detail F1 — client stricter
 // than the backend, which also allows a program admin; kept faithful, the backend is the real
 // boundary). Cleanups (run 62): clear-stale-error-on-edit + tokenize bare colors.
+// people (the roster retires): the old roster list is gone — the row below, the Program tab's entry, opens
+// PeopleListView; MemberDetailEditView stays (global admins reach it from a person's profile, D-P11).
 
 struct ProgramMemberManagementSection: View {
     @EnvironmentObject var programContext: ProgramContext
@@ -20,15 +22,15 @@ struct ProgramMemberManagementSection: View {
             sectionHeader(title: "Members", icon: "person.2.fill", color: .appGreen)
 
             VStack(spacing: 12) {
-                // View Members - everyone can see the list
+                // People — every role's Program-tab entry (D-P2; replaces the roster list)
                 NavigationLink {
-                    ProgramMembersListView()
+                    PeopleListView()
                 } label: {
                     settingsRow(
                         icon: "person.3.fill",
                         color: .appGreen,
-                        title: "View Members",
-                        subtitle: "\(programContext.members.count) enrolled"
+                        title: PeopleCopy.title,
+                        subtitle: PeopleCopy.enrolled(programContext.members.count)
                     )
                 }
                 .buttonStyle(.plain)
@@ -59,102 +61,6 @@ struct ProgramMemberManagementSection: View {
                 .stroke(Color(.systemGray4).opacity(0.5), lineWidth: 1)
         )
         .adaptiveShadow(radius: 8, y: 4)
-    }
-}
-
-struct ProgramMembersListView: View {
-    @EnvironmentObject var programContext: ProgramContext
-    @State private var searchText = ""
-
-    // Only global_admin can view member details
-    private var canViewMemberDetails: Bool {
-        programContext.isGlobalAdmin
-    }
-
-    private var filteredMembers: [APIClient.MembershipDetailDTO] {
-        if searchText.isEmpty {
-            return programContext.membershipDetails
-        }
-        return programContext.membershipDetails.filter {
-            $0.member_name.localizedCaseInsensitiveContains(searchText)
-        }
-    }
-
-    var body: some View {
-        List {
-            ForEach(filteredMembers) { member in
-                // Only global_admin can tap into member details
-                if canViewMemberDetails {
-                    NavigationLink {
-                        MemberDetailEditView(membership: member)
-                    } label: {
-                        memberRow(member: member, showChevron: true)
-                    }
-                } else {
-                    memberRow(member: member, showChevron: false)
-                }
-            }
-        }
-        // Container cap (large-screen column rules) + a matching backdrop so the area beside the
-        // capped List doesn't show a mismatched color on iPad/Mac.
-        .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
-        .frame(maxWidth: .infinity)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
-        .searchable(text: $searchText, prompt: "Search members")
-        .navigationTitle("Members")
-        .navigationBarTitleDisplayMode(.inline)
-        .refreshable {
-            await programContext.loadMembershipDetails()
-        }
-    }
-
-    private func memberRow(member: APIClient.MembershipDetailDTO, showChevron: Bool) -> some View {
-        HStack(spacing: 12) {
-            ZStack {
-                Circle()
-                    .fill(member.program_role == "admin" ? Color.appOrangeLight : Color(.systemGray5))
-                    .frame(width: 44, height: 44)
-                Text(initials(for: member.member_name))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(member.program_role == "admin" ? .appOrange : Color(.label))
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(member.member_name)
-                        .font(.subheadline.weight(.semibold))
-                    if member.program_role == "admin" {
-                        Image(systemName: "star.fill")
-                            .font(.caption2)
-                            .foregroundColor(.appOrange)
-                    }
-                }
-                Text(member.username ?? "")
-                    .font(.caption)
-                    .foregroundColor(Color(.secondaryLabel))
-            }
-
-            Spacer()
-
-            if !member.is_active {
-                Text("Inactive")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(.appRed)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.appRedLight)
-                    .cornerRadius(6)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func initials(for name: String) -> String {
-        name.split(separator: " ")
-            .compactMap { $0.first }
-            .prefix(2)
-            .map { String($0).uppercased() }
-            .joined()
     }
 }
 

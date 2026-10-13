@@ -22,10 +22,6 @@ struct ProgramPickerView: View {
     @State private var isSearching = false
     @FocusState private var searchFieldFocused: Bool
 
-    private var pendingInvitesCount: Int {
-        programContext.pendingInvites.count
-    }
-
     private var trimmedSearch: String {
         searchText.trimmingCharacters(in: .whitespaces)
     }
@@ -81,10 +77,10 @@ struct ProgramPickerView: View {
         .floatingBanner(bottomInset: 150) { ScreenBanner(banner: pickerBanner) }   // clears the FAB stack (56+14+56+24)
         .task { await load() }
         .onAppear {
-            if programContext.openInvitesRequested { openInvitesInbox() }
+            if let route = programContext.inboxRoute { openInboxRoute(route) }
         }
-        .onChange(of: programContext.openInvitesRequested) { _, requested in
-            if requested { openInvitesInbox() }
+        .onChange(of: programContext.inboxRoute) { _, route in
+            if let route { openInboxRoute(route) }
         }
         .onChange(of: programContext.isOnline) { _, online in
             if online, loadState.error != nil { Task { await load() } }       // D-IOS-KIT-3: refetch on reconnect
@@ -133,6 +129,11 @@ struct ProgramPickerView: View {
                 NotificationsSettingsView()
             case .appleHealth:
                 AppleHealthSettingsView()
+            case .inbox:
+                InboxView(onAcceptedInvite: { accountDestination = nil })
+                    .navigationTitle(InboxCopy.title)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .adaptiveBackground(topLeading: true)
             }
         }
         .alert("Delete Program?", isPresented: $showDeleteConfirmation) {
@@ -324,8 +325,8 @@ struct ProgramPickerView: View {
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .black : .white)
 
-                if pendingInvitesCount > 0 {
-                    Text("\(pendingInvitesCount)")
+                if programContext.inboxBadgeCount > 0 {
+                    Text(programContext.inboxBadgeLabel)
                         .font(.caption2.weight(.bold))
                         .foregroundColor(.white)
                         .padding(5)
@@ -364,7 +365,7 @@ struct ProgramPickerView: View {
     @ViewBuilder
     private func programRow(for program: APIClient.ProgramDTO) -> some View {
         let membershipStatus = program.my_status?.lowercased()
-        let canOpen = programContext.isGlobalAdmin || membershipStatus == nil || membershipStatus == "active"
+        let canOpen = isOpenable(program)
         let canManage = programContext.isGlobalAdmin || (membershipStatus == "active" && program.my_role == "admin")
 
         ProgramCard(
@@ -528,7 +529,8 @@ struct ProgramPickerView: View {
             }
         }
         loadState = loadState.refreshing()
-        let invites = Task<Void, Never> { _ = try? await programContext.loadPendingInvites() }   // the badge — silent on failure
+        let invites = Task<Void, Never> { _ = try? await programContext.loadPendingInvites() }   // the Inbox's invitations
+        let counts = Task<Void, Never> { await programContext.refreshInboxCounts() }           // the "+" badge (D-N4)
         do {
             let programs = try await APIClient.shared.fetchPrograms(token: programContext.authToken ?? "")
             programContext.programs = programs
@@ -539,28 +541,82 @@ struct ProgramPickerView: View {
             }
         }
         await invites.value
+        await counts.value
     }
 
-    /// Amendment U2: an invite push tap opens the invite inbox — the Program actions sheet on its Invites tab.
-    private func openInvitesInbox() {
-        programContext.openInvitesRequested = false
-        programToOpen = nil
-        programToEdit = nil
-        accountDestination = nil
+    /// A target only the picker can open (notifications contract C2; the routing rule — supersedes U2's invite-only
+    /// flag). The picker's sheets (incl. the root Inbox sheet) close at once; every pop waits for the delayed block and
+    /// never happens under a full-screen cover or the visibility notice. `invites` / `inbox` arrive here only when
+    /// something else was presented — the "+" sheet on its Inbox tab (an open program pops, U2's behavior). The program
+    /// already open stays put and only refreshes; `log_workout` opens the form over the current screen (nothing pops,
+    /// so closing it returns there).
+    private func openInboxRoute(_ route: InboxTarget) {
+        programContext.inboxRoute = nil
+        if case .program(let id) = route, programToOpen?.id == id, programContext.programId == id {
+            Task { await programContext.reloadSessionData() }
+            return
+        }
+        programContext.showInboxSheet = false
         showAccountMenu = false
         showProgramActions = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-            // A full-screen cover (widget quick-add, Apple Health review, forced update) would swallow the sheet and
-            // leave `showProgramActions` stuck true — a dead "+" button. Skip it; the badge still shows the invite.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            // ≥ a sheet's dismissal (the "+" / account / root Inbox sheet). A full-screen cover (widget quick-add, Apple
+            // Health review, forced update) or the visibility notice would swallow what opens next — and nothing under it
+            // is discarded. Skip it; the badge still shows what's new.
             guard !isFullScreenCoverUp else { return }
-            programActionsTab = 0
-            showProgramActions = true
+            switch route {
+            case .logWorkout:
+                // Something still presented (a sheet inside the program) would refuse the cover and leave `widgetRoute`
+                // stuck: the item was marked read — that's all.
+                guard !ProgramContext.isPresentingModal else { return }
+                programContext.widgetRouteFromNotification = true                // closing it returns here
+                programContext.widgetRoute = .quickAddWorkout
+            case .invites, .inbox:
+                popPickerScreens {
+                    // A sheet / alert still up would refuse the "+" sheet and leave `showProgramActions` stuck (a dead "+").
+                    guard !isFullScreenCoverUp, !ProgramContext.isPresentingModal else { return }
+                    programActionsTab = 0
+                    showProgramActions = true
+                }
+            case .program(let id):
+                popPickerScreens {
+                    Task {
+                        if !programContext.programs.contains(where: { $0.id == id }) { await load() }   // a cold-launch tap
+                        guard let program = programContext.programs.first(where: { $0.id == id }), isOpenable(program) else { return }
+                        applyProgram(program)
+                        programToOpen = program
+                    }
+                }
+            case .programs:
+                popPickerScreens {}
+            }
         }
     }
 
-    /// AppRootView's full-screen covers — a sheet can't present from under them.
+    /// Pops the picker-pushed screens (an open program, an account page, the editor), then runs `next` once the pop
+    /// finished — at once when nothing was pushed.
+    private func popPickerScreens(then next: @escaping () -> Void) {
+        let pushed = programToOpen != nil || programToEdit != nil || accountDestination != nil
+        programToOpen = nil
+        programToEdit = nil
+        accountDestination = nil
+        if pushed {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: next)
+        } else {
+            next()
+        }
+    }
+
+    /// The card-tap rule: global admins open anything; members open active (or unknown-status) programs.
+    private func isOpenable(_ program: APIClient.ProgramDTO) -> Bool {
+        let status = program.my_status?.lowercased()
+        return programContext.isGlobalAdmin || status == nil || status == "active"
+    }
+
+    /// AppRootView's full-screen covers + the visibility notice — a sheet can't present from under them.
     private var isFullScreenCoverUp: Bool {
         programContext.isUpdateRequired || programContext.widgetRoute != nil || programContext.pendingSyncConfirmation != nil
+            || programContext.showActivityVisibilityNotice
     }
 
     private func handleAccountSelection(_ destination: AccountDestination) {
@@ -584,6 +640,7 @@ private enum AccountDestination: String, Identifiable {
     case appearance
     case notifications
     case appleHealth
+    case inbox
 
     var id: String { rawValue }
 }
@@ -614,6 +671,18 @@ private struct AccountMenuSheet: View {
                                     initials: programContext.loggedInUserInitials,
                                     name: programContext.loggedInUserName ?? "My Profile",
                                     username: programContext.loggedInUsername ?? ""
+                                )
+                            }
+                            .buttonStyle(.plain)
+
+                            Button {
+                                onSelectDestination(.inbox)
+                            } label: {
+                                AccountRow(
+                                    icon: "tray.fill",
+                                    color: .appOrange,
+                                    title: InboxCopy.title,
+                                    subtitle: InboxCopy.rowSubtitle(badge: programContext.inboxBadgeCount)
                                 )
                             }
                             .buttonStyle(.plain)

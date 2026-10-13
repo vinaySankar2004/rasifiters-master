@@ -76,6 +76,9 @@ struct MyProfileView: View {
 
                 signInMethodsSection
 
+                // D-P6 / D-P7: "Hide my activity" — one switch for every program, directly above Sign out everywhere.
+                HideActivitySection()
+
                 // auth §3.1 / amendment U3: "Sign out everywhere" sits above Delete Account (every role).
                 SignOutEverywhereSection()
 

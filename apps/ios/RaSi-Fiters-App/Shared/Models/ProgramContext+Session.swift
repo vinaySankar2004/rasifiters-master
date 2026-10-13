@@ -138,20 +138,26 @@ extension ProgramContext {
         workouts = []
         membershipDetails = []
         pendingInvites = []
-        openInvitesRequested = false
-        acknowledgedNotificationIds = [:]
+        memberCardsOwner = nil                  // the Members-card owner token + the render-time identity tags
+        memberHistoryMemberId = nil
+        memberStreaksMemberId = nil
+        memberRecentMemberId = nil
         stopNotificationStream()
+        resetInboxState()                       // counts, toast, prefs cache, routes, Inbox sheet, notice; app badge → 0
         pendingSyncConfirmation = nil
         deferredSleepConfirmation = nil
         deferredStepsConfirmation = nil
         reloadHealthSyncMirror()
     }
 
-    /// Launch / foreground / sign-in: stream, data reload decoupled from the token (rule 2), event flush, and a
-    /// health-sync run (rule 1). Observers re-register only when the member / active kinds changed.
+    /// Launch / foreground / sign-in: stream, the catch-up (data reload decoupled from the token — rule 2 — plus the
+    /// inbox counts + app-icon badge and invites, ≤ once per 5 s), event flush, and a health-sync run (rule 1).
+    /// Observers re-register only when the member / active kinds changed.
     func sessionDidBecomeActive(_ trigger: HealthSyncEngine.Trigger) {
         startNotificationStreamIfNeeded()
-        Task { await reloadSessionData() }
+        catchUp()
+        Task { await refreshNotificationPreferences() }           // C7.5: the toast's category gate
+        if trigger == .launch { Task { await preparePushOnSessionStart() } }   // D-N12: first signed-in start
         Task { await ClientEventQueue.shared.flush() }
         HealthSyncEngine.shared.registerObservers()
         HealthSyncEngine.shared.trigger(trigger)

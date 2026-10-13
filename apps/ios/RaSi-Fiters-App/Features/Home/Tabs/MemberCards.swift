@@ -2,6 +2,8 @@ import SwiftUI
 
 // MARK: - Member list cards (the inline NavigationLink cards rendered by the Members tabs)
 // Ported faithfully from legacy Features/Home/Detail/MemberCards.swift.
+// polish #32 (people S5): every card takes its load state (MemberCardsState.swift) — a placeholder while loading, "—"
+// when its read failed — never a fake zero or "No workouts logged yet." on a failure (frontend-kit §5; the Summary recipe).
 
 private func formatDuration(_ totalMinutes: Int) -> String {
     let h = totalMinutes / 60
@@ -14,6 +16,7 @@ private func formatDuration(_ totalMinutes: Int) -> String {
 struct MemberHistoryCard: View {
     @EnvironmentObject var programContext: ProgramContext
     let selectedMember: APIClient.MemberDTO?
+    var state: MemberCardState = .loaded
 
     private var memberId: String? {
         selectedMember?.id ?? programContext.selectedMemberOverview?.member_id
@@ -21,6 +24,12 @@ struct MemberHistoryCard: View {
 
     private var memberPoints: [APIClient.ActivityTimelinePoint] {
         memberTimelinePoints(from: programContext.memberHistory)
+    }
+
+    /// Render-time identity: the shared history shows only when it is this card's member's (nil member = signed-in).
+    private var shownState: MemberCardState {
+        state == .loaded && programContext.memberHistoryMemberId != (selectedMember?.id ?? programContext.loggedInUserId)
+            ? .loading : state
     }
 
     var body: some View {
@@ -34,7 +43,29 @@ struct MemberHistoryCard: View {
             .navigationTitle("Workout History")
             .navigationBarTitleDisplayMode(.inline)
         } label: {
-            ActivityTimelineCardSummary(points: memberPoints, showActive: false)
+            if shownState == .loaded {
+                ActivityTimelineCardSummary(points: memberPoints, showActive: false)
+            } else {
+                // The chart card's chrome + height, so nothing jumps when it loads.
+                CardShell(background: Color(.systemBackground).opacity(0.95),
+                          strokeColor: Color(.systemGray4).opacity(0.5), height: 280) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Workout Activity Timeline")
+                                .font(.headline.weight(.semibold))
+                                .foregroundColor(Color(.label))
+                            Text("Workouts")
+                                .font(.subheadline)
+                                .foregroundColor(Color(.secondaryLabel))
+                        }
+                        if shownState == .failed {
+                            MemberCardFailure()
+                        } else {
+                            MemberCardPlaceholder(height: 180)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -42,8 +73,15 @@ struct MemberHistoryCard: View {
 struct MemberStreakCard: View {
     @EnvironmentObject var programContext: ProgramContext
     let selectedMember: APIClient.MemberDTO?
+    var state: MemberCardState = .loaded
 
     private var streaks: APIClient.MemberStreaksResponse? { programContext.memberStreaks }
+
+    /// Render-time identity: the shared streaks show only when they are this card's member's (nil member = signed-in).
+    private var shownState: MemberCardState {
+        state == .loaded && programContext.memberStreaksMemberId != (selectedMember?.id ?? programContext.loggedInUserId)
+            ? .loading : state
+    }
 
     var body: some View {
         NavigationLink {
@@ -66,8 +104,8 @@ struct MemberStreakCard: View {
                 }
 
                 HStack(spacing: 12) {
-                    streakTile(title: "Current", value: streaks?.currentStreakDays ?? 0, icon: "flame.fill", color: .appOrange)
-                    streakTile(title: "Longest", value: streaks?.longestStreakDays ?? 0, icon: "trophy.fill", color: .appYellow)
+                    streakTile(title: "Current", value: streakValue(streaks?.currentStreakDays), icon: "flame.fill", color: .appOrange)
+                    streakTile(title: "Longest", value: streakValue(streaks?.longestStreakDays), icon: "trophy.fill", color: .appYellow)
                 }
             }
             .padding(16)
@@ -84,7 +122,16 @@ struct MemberStreakCard: View {
         .buttonStyle(.plain)
     }
 
-    private func streakTile(title: String, value: Int, icon: String, color: Color) -> some View {
+    /// "…" while loading, "—" when the read failed or has no value (the Summary recipe) — never a fake "0 days".
+    private func streakValue(_ days: Int?) -> String {
+        switch shownState {
+        case .loading: return "…"
+        case .failed: return "—"
+        case .loaded: return days.map { "\($0) days" } ?? "—"
+        }
+    }
+
+    private func streakTile(title: String, value: String, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Image(systemName: icon)
@@ -94,7 +141,7 @@ struct MemberStreakCard: View {
                     .font(.footnote.weight(.semibold))
                     .foregroundColor(Color(.secondaryLabel))
             }
-            Text("\(value) days")
+            Text(value)
                 .font(.title3.weight(.bold))
                 .foregroundColor(Color(.label))
         }
@@ -108,9 +155,15 @@ struct MemberStreakCard: View {
 struct MemberRecentCard: View {
     @EnvironmentObject var programContext: ProgramContext
     let selectedMember: APIClient.MemberDTO?
+    var state: MemberCardState = .loaded
 
     private var memberId: String? {
         selectedMember?.id ?? programContext.loggedInUserId
+    }
+
+    /// Render-time identity: the shared recent rows show only when they are this card's member's.
+    private var shownState: MemberCardState {
+        state == .loaded && programContext.memberRecentMemberId != memberId ? .loading : state
     }
 
     var body: some View {
@@ -133,28 +186,35 @@ struct MemberRecentCard: View {
                         .foregroundColor(Color(.tertiaryLabel))
                 }
 
-                if programContext.memberRecent.isEmpty {
-                    Text("No workouts logged yet.")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    VStack(spacing: 8) {
-                        ForEach(programContext.memberRecent.prefix(3)) { item in
-                            HStack(spacing: 10) {
-                                Circle()
-                                    .fill(Color.appOrangeLight)
-                                    .frame(width: 10, height: 10)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.workoutType)
+                switch shownState {
+                case .loading:
+                    MemberCardPlaceholder(height: 60)
+                case .failed:
+                    MemberCardFailure()
+                case .loaded:
+                    if programContext.memberRecent.isEmpty {
+                        Text("No workouts logged yet.")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(programContext.memberRecent.prefix(3)) { item in
+                                HStack(spacing: 10) {
+                                    Circle()
+                                        .fill(Color.appOrangeLight)
+                                        .frame(width: 10, height: 10)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.workoutType)
+                                            .font(.subheadline.weight(.semibold))
+                                        Text(item.workoutDate)
+                                            .font(.caption)
+                                            .foregroundColor(Color(.secondaryLabel))
+                                    }
+                                    Spacer()
+                                    Text(formatDuration(item.durationMinutes))
                                         .font(.subheadline.weight(.semibold))
-                                    Text(item.workoutDate)
-                                        .font(.caption)
-                                        .foregroundColor(Color(.secondaryLabel))
                                 }
-                                Spacer()
-                                Text(formatDuration(item.durationMinutes))
-                                    .font(.subheadline.weight(.semibold))
                             }
                         }
                     }
@@ -178,8 +238,13 @@ struct MemberRecentCard: View {
 struct MemberHealthCard: View {
     @EnvironmentObject var programContext: ProgramContext
     let selectedMember: APIClient.MemberDTO?
+    /// Bumped by the host's pull-to-refresh / Retry (polish #32).
+    var refreshToken = 0
 
     @State private var previewLogs: [APIClient.DailyHealthLogItem] = []
+    /// "<program>|<member>" the rows belong to — another program or member blanks them at once.
+    @State private var previewKey: String?
+    @State private var state: MemberCardState = .loading
 
     private var memberId: String? {
         selectedMember?.id ?? programContext.loggedInUserId
@@ -209,26 +274,33 @@ struct MemberHealthCard: View {
                         .foregroundColor(Color(.tertiaryLabel))
                 }
 
-                if previewLogs.isEmpty {
-                    Text("No daily health logs yet.")
-                        .font(.footnote)
-                        .foregroundColor(Color(.secondaryLabel))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    VStack(spacing: 8) {
-                        ForEach(previewLogs.prefix(3)) { item in
-                            HStack(spacing: 10) {
-                                Circle()
-                                    .fill(Color.appBlueLight)
-                                    .frame(width: 10, height: 10)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.logDate)
-                                        .font(.subheadline.weight(.semibold))
-                                    Text("Sleep \(sleepLabel(item.sleepHours)) · Diet \(foodLabel(item.foodQuality)) · Steps \(stepsLabel(item.steps))")
-                                        .font(.caption)
-                                        .foregroundColor(Color(.secondaryLabel))
+                switch state {
+                case .loading:
+                    MemberCardPlaceholder(height: 60)
+                case .failed:
+                    MemberCardFailure()
+                case .loaded:
+                    if previewLogs.isEmpty {
+                        Text("No daily health logs yet.")
+                            .font(.footnote)
+                            .foregroundColor(Color(.secondaryLabel))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        VStack(spacing: 8) {
+                            ForEach(previewLogs.prefix(3)) { item in
+                                HStack(spacing: 10) {
+                                    Circle()
+                                        .fill(Color.appBlueLight)
+                                        .frame(width: 10, height: 10)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.logDate)
+                                            .font(.subheadline.weight(.semibold))
+                                        Text("Sleep \(sleepLabel(item.sleepHours)) · Diet \(foodLabel(item.foodQuality)) · Steps \(stepsLabel(item.steps))")
+                                            .font(.caption)
+                                            .foregroundColor(Color(.secondaryLabel))
+                                    }
+                                    Spacer()
                                 }
-                                Spacer()
                             }
                         }
                     }
@@ -246,10 +318,37 @@ struct MemberHealthCard: View {
             .adaptiveShadow(radius: 8, y: 4)
         }
         .buttonStyle(.plain)
-        .task(id: memberId) {
-            previewLogs = []   // blank instantly on member switch — prevents showing the previous member's rows
-            guard let memberId else { return }   // identity unresolved → preview stays on its existing empty state
-            previewLogs = await programContext.loadMemberHealthLogs(memberId: memberId, limit: 10)
+        .task(id: "\(programContext.programId ?? "")|\(memberId ?? "")|\(refreshToken)") {
+            await loadPreview()
+        }
+        .onChange(of: programContext.isOnline) { _, online in
+            if online, state == .failed { Task { await loadPreview() } }      // D-KIT-13
+        }
+    }
+
+    /// Its own 10-row preview. Another member / program blanks it at once (never the previous rows); a refresh keeps the
+    /// rows; a failure with nothing of its own → "—" (polish #32).
+    private func loadPreview() async {
+        let key = "\(programContext.programId ?? "")|\(memberId ?? "")"
+        if previewKey != key {
+            previewLogs = []
+            state = .loading
+            previewKey = key
+        }
+        guard let memberId, let programId = programContext.programId, let token = programContext.authToken else {
+            state = .loaded                                     // identity unresolved → the existing empty line
+            return
+        }
+        do {
+            let items = try await APIClient.shared.fetchDailyHealthLogs(
+                token: token, programId: programId, memberId: memberId, limit: 10
+            ).items
+            guard previewKey == key else { return }
+            previewLogs = items
+            state = .loaded
+        } catch {
+            guard AppError(error) != nil, previewKey == key else { return }   // cancelled / superseded
+            if previewLogs.isEmpty { state = .failed }
         }
     }
 

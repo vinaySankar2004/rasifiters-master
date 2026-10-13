@@ -1,6 +1,8 @@
 import SwiftUI
 import UserNotifications
 
+/// Notifications settings: this device's permission card (+ Enable / Open Settings) and the per-member preferences
+/// (NotificationPreferencesSection).
 struct NotificationsSettingsView: View {
     @State private var authorizationStatus: UNAuthorizationStatus = .notDetermined
     @Environment(\.openURL) private var openURL
@@ -12,7 +14,7 @@ struct NotificationsSettingsView: View {
                     Text("Notifications")
                         .font(.title2.weight(.bold))
                         .foregroundColor(Color(.label))
-                    Text("Get notified when your program is updated, roles change, or members join or leave.")
+                    Text(NotificationPrefsCopy.screenSubtitle)
                         .font(.subheadline)
                         .foregroundColor(Color(.secondaryLabel))
                 }
@@ -84,6 +86,8 @@ struct NotificationsSettingsView: View {
                     }
                 }
                 .padding(.top, 8)
+
+                NotificationPreferencesSection()
 
                 Spacer()
             }
