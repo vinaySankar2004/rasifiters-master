@@ -64,7 +64,17 @@
        3. 012 runs, then S1 deploys.
        4. Web goes live per pass.
        5. The phones wait for the one store release.
-     - **People** goes live with the store release on all clients (NP-U5).
+     - **People** goes live with the store release on all clients (NP-U5). Web: flip `PEOPLE_LIVE` in
+       `apps/web/src/lib/api/people.ts` on release day.
+     - **Progress (2026-10-13, late):**
+       - Migrations 011 + 012 run by the user on staging and public, both verified read-only.
+       - Backend live on Render at 23:02Z: N-SRV `6224a61` and S1 `d8f8eee`. Smoke and logs clean.
+       - Web Notifications + People `b2ea09b` live on Vercel, with People dark.
+       - Android Track C `d528f75` committed.
+       - iOS Track C reviewed and approved, waiting on the user's ⌘B (uncommitted).
+       - Polish (Wave C): Android and web implementers running. iOS polish starts after the iOS Track C commit.
+       - Docs commit for Waves B/C still owed: feature and page SPECs, the new people SPEC, the registries, with
+         versions and D-IDs assigned in landing order (np-amendments §7).
    - *(Earlier pause, resolved:)* paused by the user (2026-10-13, leaving, would lose connectivity). When the B + C plans land, save them and
      STOP — no building until the user approves.
      - **Resume a run that was cut off** (same session):
