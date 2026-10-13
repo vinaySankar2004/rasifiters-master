@@ -287,7 +287,7 @@ struct ViewWorkoutTypesListView: View {
                         try await programContext.editCustomProgramWorkout(workoutId: workout.id, name: newName)
                         workoutToEdit = nil
                     } catch {
-                        errorMessage = error.localizedDescription
+                        errorMessage = SessionCopy.kitMessage(for: error)
                     }
                 }
             },
@@ -303,7 +303,7 @@ struct ViewWorkoutTypesListView: View {
         do {
             try await programContext.toggleWorkoutVisibility(libraryWorkoutId: libraryId)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
         isProcessing = false
     }
@@ -313,7 +313,7 @@ struct ViewWorkoutTypesListView: View {
         do {
             try await programContext.toggleCustomWorkoutVisibility(workoutId: workout.id)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
         isProcessing = false
     }
@@ -323,7 +323,7 @@ struct ViewWorkoutTypesListView: View {
         do {
             try await programContext.deleteCustomProgramWorkout(workoutId: workout.id)
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
         isProcessing = false
     }
@@ -339,7 +339,7 @@ struct ViewWorkoutTypesListView: View {
             newWorkoutName = ""
             showAddSheet = false
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
         isProcessing = false
     }

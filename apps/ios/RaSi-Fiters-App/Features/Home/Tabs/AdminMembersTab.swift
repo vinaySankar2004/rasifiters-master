@@ -131,11 +131,15 @@ struct AdminMembersTab: View {
     @MainActor
     private func loadMemberData(for member: APIClient.MemberDTO?) async {
         if let m = member {
-            await programContext.loadMemberOverview(memberId: m.id)
-            await programContext.loadMemberHistory(memberId: m.id, period: "week")
-            await programContext.loadMemberStreaks(memberId: m.id)
-            await programContext.loadMemberRecent(memberId: m.id, limit: 10)
-            await programContext.loadMemberHealthLogs(memberId: m.id, limit: 10)
+            // Polish #5: the four tab-level reads in parallel; MemberHealthCard loads its own preview (.task(id:)).
+            let pc = programContext
+            let memberId = m.id
+            await withDiscardingTaskGroup { group in
+                group.addTask { await pc.loadMemberOverview(memberId: memberId) }
+                group.addTask { await pc.loadMemberHistory(memberId: memberId, period: "week") }
+                group.addTask { await pc.loadMemberStreaks(memberId: memberId) }
+                group.addTask { await pc.loadMemberRecent(memberId: memberId, limit: 10) }
+            }
         } else {
             programContext.selectedMemberOverview = nil
             programContext.memberHistory = []

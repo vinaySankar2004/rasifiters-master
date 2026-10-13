@@ -25,6 +25,11 @@ struct MemberMetricsDetailView: View {
     @State private var showFilterSheet = false
     @State private var filters = MetricsFilters()
     @State private var isLoading = false
+    @State private var reloadQueued = false
+    /// The date range of the list on screen (captured right after its load): the CSV filename's S / E. The shared
+    /// `memberMetricsRange*` is also written by the Members tab's overview load, so it can't be read at export time.
+    @State private var listRangeStart: Date?
+    @State private var listRangeEnd: Date?
     @State private var showShare = false
     @State private var shareItem: ShareItem?
 
@@ -49,7 +54,7 @@ struct MemberMetricsDetailView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
-                .disabled(programContext.memberMetrics.isEmpty)
+                .disabled(isLoading || programContext.memberMetrics.isEmpty)
             }
         }
         .sheet(item: $shareItem) { item in
@@ -163,47 +168,81 @@ struct MemberMetricsDetailView: View {
     }
 
     private func loadMetrics() async {
-        guard !isLoading else { return }
+        // Polish #47: a sort / filter / search change during a load is queued, not dropped — the loop re-reads the
+        // controls until they settle, so the list (and the CSV built from it) always matches what the controls show.
+        guard !isLoading else {
+            reloadQueued = true
+            return
+        }
         isLoading = true
-        var filterParams: [String: String] = [:]
-        filters.addTo(&filterParams)
-        await programContext.loadMemberMetrics(
-            search: searchText,
-            sort: sortField.rawValue,
-            direction: sortDirection.rawValue,
-            filters: filterParams,
-            dateRange: (filters.startDate, filters.endDate)
-        )
+        repeat {
+            reloadQueued = false
+            var filterParams: [String: String] = [:]
+            filters.addTo(&filterParams)
+            await programContext.loadMemberMetrics(
+                search: searchText,
+                sort: sortField.rawValue,
+                direction: sortDirection.rawValue,
+                filters: filterParams,
+                dateRange: (filters.startDate, filters.endDate)
+            )
+            listRangeStart = programContext.memberMetricsRangeStart
+            listRangeEnd = programContext.memberMetricsRangeEnd
+        } while reloadQueued
         isLoading = false
     }
 
     private func exportCSV() async {
-        guard !programContext.memberMetrics.isEmpty else { return }
+        let rows = programContext.memberMetrics
+        guard !rows.isEmpty else { return }
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
-
-        let startLabel = (filters.startDate ?? programContext.memberMetricsRangeStart).flatMap { formatter.string(from: $0) } ?? "all"
-        let endLabel = (filters.endDate ?? programContext.memberMetricsRangeEnd).flatMap { formatter.string(from: $0) } ?? "today"
-        let programName = programContext.name.replacingOccurrences(of: " ", with: "")
-        let fileName = "MemberPerformanceMetrics_\(programName)_\(startLabel)_to_\(endLabel).csv"
-
-        var csv = "Name,Workouts,Total Duration,Avg Duration,Avg Sleep,Avg Diet Quality,Avg Steps,Active Days,Workout Types,Current Streak,Longest Streak\n"
-        for m in programContext.memberMetrics {
-            let avgSleep = m.avg_sleep_hours.map { String(format: "%.1f", $0) } ?? ""
-            let avgFood = m.avg_food_quality.map { "\($0)" } ?? ""
-            let avgSteps = m.avg_steps.map { "\($0)" } ?? ""
-            let line = "\"\(m.member_name.replacingOccurrences(of: "\"", with: "\"\""))\",\(m.workouts),\(m.total_duration),\(m.avg_duration),\(avgSleep),\(avgFood),\(avgSteps),\(m.active_days),\(m.workout_types),\(m.current_streak),\(m.longest_streak)\n"
-            csv.append(line)
-        }
-
+        let fileName = Self.csvFileName(
+            programName: programContext.name,
+            start: listRangeStart.map { formatter.string(from: $0) },
+            end: listRangeEnd.map { formatter.string(from: $0) }
+        )
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         do {
-            try csv.write(to: url, atomically: true, encoding: .utf8)
+            try Self.csv(rows).write(to: url, atomically: true, encoding: .utf8)
             shareItem = ShareItem(url: url)
         } catch {
             // silently fail for now
         }
+    }
+
+    // MARK: CSV — member-analytics D-C8 (polish #47): ONE column contract on web, iOS and Android. Rows = the list on
+    // screen, in its order; units live in the headers so cells stay plain numbers; a missing average is an empty cell.
+    private static let csvHeader = "Name,Active Days,Workouts,Total Duration (min),Workout Types,Avg Duration (min),Longest Streak (days),Avg Sleep (hrs),Avg Diet Quality (out of 5),Avg Steps,Current Streak (days)"
+
+    private static func csv(_ rows: [APIClient.MemberMetricsDTO]) -> String {
+        var csv = csvHeader + "\n"
+        for m in rows {
+            let cells: [String] = [
+                "\"" + m.member_name.replacingOccurrences(of: "\"", with: "\"\"") + "\"",
+                "\(m.active_days)",
+                "\(m.workouts)",
+                "\(m.total_duration)",
+                "\(m.workout_types)",
+                "\(m.avg_duration)",
+                "\(m.longest_streak)",
+                m.avg_sleep_hours.map { String(format: "%.1f", $0) } ?? "",
+                m.avg_food_quality.map { "\($0)" } ?? "",
+                m.avg_steps.map { "\($0)" } ?? "",
+                "\(m.current_streak)"
+            ]
+            csv += cells.joined(separator: ",") + "\n"
+        }
+        return csv
+    }
+
+    private static func csvFileName(programName: String, start: String?, end: String?) -> String {
+        // Per scalar, so a decomposed "Cafe\u{301}" keeps "Cafe" (web / Android strip [^A-Za-z0-9] the same way).
+        let cleaned = String(programName.unicodeScalars.filter { $0.isASCII && CharacterSet.alphanumerics.contains($0) })
+        let name = cleaned.isEmpty ? "Program" : cleaned
+        return "MemberPerformanceMetrics_\(name)_\(start ?? "all")_to_\(end ?? "today").csv"
     }
 }
 

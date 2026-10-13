@@ -76,5 +76,6 @@ struct ProgramActionsSheet: View {
                 selectedTab = 1
             }
         }
+        .offlineBanner()
     }
 }

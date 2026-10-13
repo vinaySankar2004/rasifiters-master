@@ -89,7 +89,7 @@ extension ProgramContext {
         do {
             programWorkouts = try await APIClient.shared.fetchProgramWorkouts(token: token, programId: pid)
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 

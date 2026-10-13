@@ -90,7 +90,7 @@ extension ProgramContext {
             activityTimelineDailyAverage = resp.daily_average
             errorMessage = nil  // Clear error on success
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -113,7 +113,7 @@ extension ProgramContext {
             healthTimelineDailyAverageFood = resp.daily_average_food
             healthTimelineDailyAverageSteps = resp.daily_average_steps ?? 0
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -128,7 +128,7 @@ extension ProgramContext {
             let data = try await APIClient.shared.fetchHealthSteps(token: token, programId: pid, memberId: memberId)
             stepsStats = data
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -143,7 +143,7 @@ extension ProgramContext {
             let data = try await APIClient.shared.fetchWorkoutTypes(token: token, programId: pid, memberId: memberId, limit: limit)
             workoutTypes = data
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -158,7 +158,7 @@ extension ProgramContext {
             let data = try await APIClient.shared.fetchWorkoutTypesTotal(token: token, programId: pid, memberId: memberId)
             workoutTypesTotal = data.total_types
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -173,7 +173,7 @@ extension ProgramContext {
             let data = try await APIClient.shared.fetchWorkoutTypeMostPopular(token: token, programId: pid, memberId: memberId)
             workoutTypeMostPopular = data
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -188,7 +188,7 @@ extension ProgramContext {
             let data = try await APIClient.shared.fetchWorkoutTypeLongestDuration(token: token, programId: pid, memberId: memberId)
             workoutTypeLongestDuration = data
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -203,7 +203,7 @@ extension ProgramContext {
             let data = try await APIClient.shared.fetchWorkoutTypeHighestParticipation(token: token, programId: pid, memberId: memberId)
             workoutTypeHighestParticipation = data
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 }

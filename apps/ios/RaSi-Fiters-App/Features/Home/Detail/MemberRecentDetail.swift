@@ -419,7 +419,7 @@ struct MemberRecentDetail: View {
             deleteSuccessMessage = "\"\(item.workoutType)\" deleted."
             showDeleteSuccessAlert = true
         } catch {
-            deleteErrorMessage = error.localizedDescription
+            deleteErrorMessage = SessionCopy.kitMessage(for: error)
             showDeleteErrorAlert = true
         }
     }
@@ -821,7 +821,7 @@ struct WorkoutLogEditSheet: View {
             onSaved(durationValue)
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
             showErrorAlert = true
         }
 

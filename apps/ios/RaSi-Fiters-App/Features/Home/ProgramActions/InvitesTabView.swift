@@ -53,7 +53,7 @@ struct InvitesTabView: View {
                         .padding(.top, 40)
                     } else if let loadError, programContext.pendingInvites.isEmpty {
                         // W7 i10: a failed inbox load is never "No pending invitations".
-                        ErrorStateView(error: loadError, onRetry: { Task { await refreshInvites() } })
+                        ErrorStateView(error: loadError.labeled(online: programContext.isOnline), onRetry: { Task { await refreshInvites() } })
                             .padding(.horizontal, 20)
                             .padding(.top, 20)
                     } else if programContext.pendingInvites.isEmpty {
@@ -69,7 +69,9 @@ struct InvitesTabView: View {
                         }
                     }
 
-                    Spacer(minLength: staleBanner == nil ? 40 : 104)      // A6: the banner never covers the last card
+                    // A6: the banner never covers the last card. Offline, the sheet's banner band (64) is cleared here in the
+                    // page itself — the sheet's safe-area inset isn't relied on to reach a paged TabView's pages (#2).
+                    Spacer(minLength: !programContext.isOnline ? 116 : (staleBanner == nil ? 40 : 104))
                 }
             }
 
@@ -102,10 +104,12 @@ struct InvitesTabView: View {
         } message: {
             Text(errorMessage ?? "")
         }
-        // A sheet covers the root offline banner, so this screen's banner shows on its own here.
-        .floatingBanner {
-            if let staleBanner { staleBanner }
+        .onChange(of: programContext.isOnline) { _, online in
+            // Polish #2: back online after a failed load → reload by itself (the picker's D-KIT-13 rule).
+            if online, loadError != nil { Task { await refreshInvites() } }
         }
+        // Hidden while offline (ScreenBanner) — the sheet's own offline banner (`.offlineBanner()`) wins.
+        .floatingBanner { ScreenBanner(banner: staleBanner) }
     }
 
     /// A failed refresh over a list we still show → "Couldn't refresh" + Retry (frontend-kit §6).

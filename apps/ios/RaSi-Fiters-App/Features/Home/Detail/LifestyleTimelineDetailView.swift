@@ -219,10 +219,7 @@ struct LifestyleTimelineDetailView: View {
                                     sleep: tapped.sleep_hours,
                                     food: tapped.food_quality
                                 )
-                                .position(
-                                    x: clamp(anchorX, min: geo.size.width * 0.15, max: geo.size.width * 0.85),
-                                    y: max(geo[plotFrame].minY + 12, anchorY - 44)
-                                )
+                                .chartCalloutPlacement(anchor: CGPoint(x: anchorX, y: anchorY), in: geo.size)
                             }
                         }
                     }

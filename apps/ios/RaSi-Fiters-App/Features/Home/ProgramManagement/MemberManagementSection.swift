@@ -349,7 +349,7 @@ struct MemberDetailEditView: View {
             )
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
 
         isSaving = false
@@ -363,7 +363,7 @@ struct MemberDetailEditView: View {
             try await programContext.removeMember(memberId: membership.member_id)
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
 
         isSaving = false

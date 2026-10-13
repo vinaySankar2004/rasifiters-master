@@ -196,10 +196,7 @@ struct ActivityTimelineDetailView: View {
                                     active: showActiveSeries ? tapped.active_members : nil,
                                     showActive: showActiveSeries
                                 )
-                                .position(
-                                    x: clamp(anchorX, min: geo.size.width * 0.15, max: geo.size.width * 0.85),
-                                    y: max(geo[plotFrame].minY + 12, anchorY - 44)
-                                )
+                                .chartCalloutPlacement(anchor: CGPoint(x: anchorX, y: anchorY), in: geo.size)
                             }
                         }
                     }

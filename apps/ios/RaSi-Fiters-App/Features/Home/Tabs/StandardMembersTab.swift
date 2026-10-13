@@ -10,6 +10,7 @@ struct StandardMembersTab: View {
     @State private var loggedInUserMetrics: APIClient.MemberMetricsDTO?
     @State private var loggerViewAsMember: APIClient.MemberDTO?
     @State private var showLoggerMemberPicker = false
+    @State private var loadedProgramId: String?
 
     private var isLogger: Bool {
         programContext.loggedInUserProgramRole == "logger"
@@ -154,8 +155,8 @@ struct StandardMembersTab: View {
 
     @MainActor
     private func loadLoggerLogsData(memberId: String) async {
+        // MemberHealthCard loads its own preview (.task(id:)) — only Recent is tab-level state.
         await programContext.loadMemberRecent(memberId: memberId, limit: 10)
-        await programContext.loadMemberHealthLogs(memberId: memberId, limit: 10)
     }
 
     private func loadUserData() async {
@@ -164,32 +165,33 @@ struct StandardMembersTab: View {
             return
         }
 
-        isLoading = true
+        // Polish #5: the spinner shows only while nothing for this program is on screen (first load / program switch);
+        // a tab re-entry keeps the cards and refreshes underneath. Every read runs in parallel.
+        let programId = programContext.programId
+        isLoading = loadedProgramId != programId
         errorMessage = nil
 
-        if isLogger, programContext.members.isEmpty || programContext.membersProgramId != programContext.programId {
-            await programContext.loadLookupData()
+        let pc = programContext
+        let needsLookup = isLogger && (pc.members.isEmpty || pc.membersProgramId != pc.programId)
+        // A logger's Recent card follows the View-as member, so it never shows the logger's own rows under another name.
+        let recentId = (isLogger ? loggerViewAsMember?.id : nil) ?? userId
+        async let overviewLoaded = pc.loadMemberOverview(memberId: userId)      // alongside the group below
+        await withDiscardingTaskGroup { group in
+            if needsLookup { group.addTask { await pc.loadLookupData() } }
+            group.addTask { await pc.loadMemberHistory(memberId: userId, period: "week") }
+            group.addTask { await pc.loadMemberStreaks(memberId: userId) }
+            group.addTask { await pc.loadMemberRecent(memberId: recentId, limit: 10) }
         }
+        let selfOverviewLoaded = await overviewLoaded
+        // A cancelled load never marks this program as loaded (#10): the next visit spins instead of showing old numbers.
+        guard !Task.isCancelled else { return }
 
-        // Load member metrics for the logged-in user
-        await programContext.loadMemberMetrics(
-            search: "",
-            sort: "active_days",
-            direction: "desc",
-            filters: [:],
-            dateRange: (nil, nil)
-        )
-
-        // Find the logged-in user's metrics from the loaded data
-        loggedInUserMetrics = programContext.memberMetrics.first { $0.member_id == userId }
-
-        // Load detailed data for the logged-in user
-        await programContext.loadMemberOverview(memberId: userId)
-        await programContext.loadMemberHistory(memberId: userId, period: "week")
-        await programContext.loadMemberStreaks(memberId: userId)
-        await programContext.loadMemberRecent(memberId: userId, limit: 10)
-        await programContext.loadMemberHealthLogs(memberId: userId, limit: 10)
-
+        // The self metric row IS the overview row (same memberId-scoped /member-metrics DTO) — no all-member download
+        // (member-analytics D-C9). MemberHealthCard loads its own preview, so no tab-level health read either.
+        loggedInUserMetrics = pc.selectedMemberOverview?.member_id == userId ? pc.selectedMemberOverview : nil
+        // Only a self overview that really loaded marks this program loaded (Android parity): after a failed load the
+        // next visit spins again rather than refreshing under the previous program's numbers (#10).
+        if selfOverviewLoaded { loadedProgramId = programId }
         isLoading = false
 
         if isLogger, loggerViewAsMember == nil, let member = loggedInMember {

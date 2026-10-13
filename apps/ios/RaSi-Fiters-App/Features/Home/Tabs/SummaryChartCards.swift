@@ -217,7 +217,7 @@ struct DistributionByDayCard: View {
                                 RuleMark(x: .value("Day", tapped.short))
                                     .lineStyle(.init(lineWidth: 1, dash: [4]))
                                     .foregroundStyle(Color(.tertiaryLabel))
-                                    .annotation(position: .top, spacing: 6) {
+                                    .annotation(position: .top, spacing: 6, overflowResolution: .init(x: .fit(to: .chart), y: .fit(to: .chart))) {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(tapped.label)
                                                 .font(.caption.weight(.semibold))

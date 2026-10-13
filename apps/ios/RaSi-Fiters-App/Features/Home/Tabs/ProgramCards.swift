@@ -89,7 +89,7 @@ private struct LeaveProgramConfirmation: ViewModifier {
             _ = try await programContext.leaveProgram()
             onLeft()
         } catch {
-            leaveError = error.localizedDescription
+            leaveError = SessionCopy.kitMessage(for: error)
         }
         isLeaving = false
     }

@@ -454,7 +454,7 @@ struct MemberHealthDetail: View {
             )
             await loadHealthLogs()
         } catch {
-            deleteErrorMessage = error.localizedDescription
+            deleteErrorMessage = SessionCopy.kitMessage(for: error)
             showDeleteErrorAlert = true
         }
     }
@@ -965,7 +965,7 @@ struct DailyHealthEditSheet: View {
             onSaved()
             dismiss()
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
             showErrorAlert = true
         }
 

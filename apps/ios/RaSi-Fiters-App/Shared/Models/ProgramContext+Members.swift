@@ -41,7 +41,7 @@ extension ProgramContext {
             }
         } catch {
             // Do not fail hard; surface error message
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -80,20 +80,23 @@ extension ProgramContext {
                 memberMetricsRangeEnd = dateRange.end
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
+    /// `true` only when the overview row loaded (false on failure or cancellation) — the Members tab marks a program
+    /// loaded on it (polish #5 / #10, Android parity). Other callers ignore it.
+    @discardableResult
     @MainActor
     func loadMemberOverview(
         memberId: String,
         filters: [String: String] = [:],
         dateRange: (start: Date?, end: Date?) = (nil, nil)
-    ) async {
-        guard let token = authToken, !token.isEmpty else { return }
+    ) async -> Bool {
+        guard let token = authToken, !token.isEmpty else { return false }
         guard let pid = programId else {
             errorMessage = "No program selected for member metrics."
-            return
+            return false
         }
         do {
             let resp = try await APIClient.shared.fetchMemberMetrics(
@@ -113,8 +116,10 @@ extension ProgramContext {
                 memberMetricsRangeStart = dateRange.start
                 memberMetricsRangeEnd = dateRange.end
             }
+            return true
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
+            return false
         }
     }
 
@@ -138,7 +143,7 @@ extension ProgramContext {
             memberHistoryStartDate = Self.dateFromString(resp.start) ?? Date()
             memberHistoryEndDate = Self.dateFromString(resp.end) ?? Date()
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -157,7 +162,7 @@ extension ProgramContext {
             )
             memberStreaks = resp
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -194,7 +199,7 @@ extension ProgramContext {
             )
             memberRecent = resp.items
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 
@@ -244,7 +249,7 @@ extension ProgramContext {
             }
             return resp.items
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
             return []
         }
     }
@@ -271,7 +276,7 @@ extension ProgramContext {
                 persistSession()
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if let message = AppError(error)?.message { errorMessage = message }
         }
     }
 

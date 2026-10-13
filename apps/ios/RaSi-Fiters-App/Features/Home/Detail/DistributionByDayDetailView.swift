@@ -57,23 +57,6 @@ struct DistributionByDayDetailView: View {
                             RuleMark(x: .value("Day", tapped.short))
                                 .lineStyle(.init(lineWidth: 1, dash: [4]))
                                 .foregroundStyle(Color(.tertiaryLabel))
-                                .annotation(position: .top, spacing: 6) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(tapped.label)
-                                            .font(.caption.weight(.semibold))
-                                        HStack {
-                                            Circle().fill(Color.appOrange).frame(width: 6, height: 6)
-                                            Text("Workouts: \(tapped.workouts)")
-                                        }
-                                        .font(.caption2)
-                                    }
-                                    .padding(8)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(Color(.systemBackground))
-                                            .shadow(radius: 4, y: 2)
-                                    )
-                                }
                         }
                     }
                     .chartXAxis {
@@ -107,10 +90,7 @@ struct DistributionByDayDetailView: View {
                                         active: nil,
                                         showActive: false
                                     )
-                                    .position(
-                                        x: clamp(anchorX, min: geo.size.width * 0.15, max: geo.size.width * 0.85),
-                                        y: max(geo[plotFrame].minY + 12, anchorY - 30)
-                                    )
+                                    .chartCalloutPlacement(anchor: CGPoint(x: anchorX, y: anchorY), in: geo.size)
                                 }
                             }
 

@@ -556,10 +556,10 @@ struct QuickAddWorkoutWidgetEntryView: View {
             scheduleSuccessDismiss()
         } catch let error as APIClient.BulkWorkoutError {
             applyRowErrors(error.rowErrors)
-            topErrorMessage = error.message
+            topErrorMessage = SessionCopy.kitMessage(for: error)
             isSaving = false
         } catch {
-            topErrorMessage = error.localizedDescription
+            topErrorMessage = SessionCopy.kitMessage(for: error)
             isSaving = false
         }
     }

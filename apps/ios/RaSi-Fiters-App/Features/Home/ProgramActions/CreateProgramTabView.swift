@@ -123,7 +123,9 @@ struct CreateProgramTabView: View {
                 .buttonStyle(.plain)
                 .disabled(!isFormValid || isSaving)
 
-                Spacer(minLength: 40)
+                // Offline, the sheet's banner band (64) is cleared here in the page itself, so Create Program is never under
+                // it — the sheet's safe-area inset isn't relied on to reach a paged TabView's pages (#2).
+                Spacer(minLength: programContext.isOnline ? 40 : 116)
             }
             .padding(20)
         }
@@ -149,7 +151,7 @@ struct CreateProgramTabView: View {
             )
             showSuccessAlert = true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
 
         isSaving = false

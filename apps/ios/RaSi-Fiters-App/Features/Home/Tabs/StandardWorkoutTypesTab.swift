@@ -9,6 +9,7 @@ struct StandardWorkoutTypesTab: View {
     @EnvironmentObject var programContext: ProgramContext
     @State private var isLoading = false
     @State private var errorMessage: String?
+    @State private var loadedProgramId: String?
 
     var body: some View {
         NavigationStack {
@@ -120,19 +121,27 @@ struct StandardWorkoutTypesTab: View {
             return
         }
 
-        isLoading = true
+        // Polish #5: spinner only while nothing for this program is on screen; the seven reads run in parallel.
+        let programId = programContext.programId
+        isLoading = loadedProgramId != programId
         errorMessage = nil
 
-        // Load workout type data for the logged-in user
-        await programContext.loadWorkoutTypesTotal(memberId: userId)
-        await programContext.loadWorkoutTypeMostPopular(memberId: userId)
-        await programContext.loadWorkoutTypeLongestDuration(memberId: userId)
-        await programContext.loadWorkoutTypeHighestParticipation(memberId: nil)  // Always program-wide
-        await programContext.loadWorkoutTypes(memberId: userId)
-        await programContext.loadHealthTimeline(period: AdminHomeView.Period.week.apiValue, memberId: userId)
-        await programContext.loadStepsStats(memberId: userId)
+        let pc = programContext
+        let week = AdminHomeView.Period.week.apiValue
+        await withDiscardingTaskGroup { group in
+            group.addTask { await pc.loadWorkoutTypesTotal(memberId: userId) }
+            group.addTask { await pc.loadWorkoutTypeMostPopular(memberId: userId) }
+            group.addTask { await pc.loadWorkoutTypeLongestDuration(memberId: userId) }
+            group.addTask { await pc.loadWorkoutTypeHighestParticipation(memberId: nil) }  // Always program-wide
+            group.addTask { await pc.loadWorkoutTypes(memberId: userId) }
+            group.addTask { await pc.loadHealthTimeline(period: week, memberId: userId) }
+            group.addTask { await pc.loadStepsStats(memberId: userId) }
+        }
+        // A cancelled load never marks this program as loaded (#10): the next visit spins instead of showing old numbers.
+        guard !Task.isCancelled else { return }
 
-        errorMessage = programContext.errorMessage
+        errorMessage = pc.errorMessage
+        loadedProgramId = programId
         isLoading = false
     }
 }

@@ -450,7 +450,7 @@ struct MyProfileView: View {
             // After successful deletion, signOut is called automatically,
             // which triggers navigation back to login.
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
             isDeleting = false
         }
     }

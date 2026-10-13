@@ -294,7 +294,7 @@ struct ManageRolesView: View {
                 joinedAt: nil
             )
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
 
         isUpdating = nil

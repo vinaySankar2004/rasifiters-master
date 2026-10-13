@@ -13,6 +13,7 @@ struct AdminWorkoutTypesTab: View {
     @State private var showMemberPicker = false
     @State private var selectedMember: APIClient.MemberDTO?
     @State private var hasUserChosenViewAs = false
+    @State private var reloadQueued = false
     private var canViewAs: Bool { programContext.isProgramAdmin }
 
     private var viewAsLabel: String {
@@ -133,19 +134,36 @@ struct AdminWorkoutTypesTab: View {
     }
 
     private func load() async {
-        guard !isLoading else { return }
+        // Polish #5: the seven reads run in parallel. A View-as change during a load is queued, not dropped — the loop
+        // re-reads the selection until it settles, so the cards always end on the member the label shows.
+        guard !isLoading else {
+            reloadQueued = true
+            return
+        }
         isLoading = true
         errorMessage = nil
-        let memberId = selectedMember?.id
-        await programContext.loadWorkoutTypesTotal(memberId: memberId)
-        await programContext.loadWorkoutTypeMostPopular(memberId: memberId)
-        await programContext.loadWorkoutTypeLongestDuration(memberId: memberId)
-        await programContext.loadWorkoutTypeHighestParticipation(memberId: nil)  // Always program-wide
-        await programContext.loadWorkoutTypes(memberId: memberId)
-        await programContext.loadHealthTimeline(period: AdminHomeView.Period.week.apiValue, memberId: memberId)
-        await programContext.loadStepsStats(memberId: memberId)
-        errorMessage = programContext.errorMessage
+        let pc = programContext
+        let week = AdminHomeView.Period.week.apiValue
+        repeat {
+            reloadQueued = false
+            let memberId = selectedMember?.id
+            await withDiscardingTaskGroup { group in
+                group.addTask { await pc.loadWorkoutTypesTotal(memberId: memberId) }
+                group.addTask { await pc.loadWorkoutTypeMostPopular(memberId: memberId) }
+                group.addTask { await pc.loadWorkoutTypeLongestDuration(memberId: memberId) }
+                group.addTask { await pc.loadWorkoutTypeHighestParticipation(memberId: nil) }  // Always program-wide
+                group.addTask { await pc.loadWorkoutTypes(memberId: memberId) }
+                group.addTask { await pc.loadHealthTimeline(period: week, memberId: memberId) }
+                group.addTask { await pc.loadStepsStats(memberId: memberId) }
+            }
+        } while reloadQueued && !Task.isCancelled
+        errorMessage = pc.errorMessage
         isLoading = false
+        // This load's task was cancelled (the tab's .task on disappear) with a View-as change still queued: run it on
+        // its own, so the change isn't lost.
+        if Task.isCancelled && reloadQueued {
+            Task { await load() }
+        }
     }
 
     private var viewAsSelector: some View {

@@ -220,7 +220,7 @@ struct EditProgramInfoView: View {
             )
             showSuccessAlert = true
         } catch {
-            errorMessage = error.localizedDescription
+            errorMessage = SessionCopy.kitMessage(for: error)
         }
 
         isSaving = false

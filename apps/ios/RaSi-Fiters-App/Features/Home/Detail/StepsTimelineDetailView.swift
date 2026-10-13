@@ -168,10 +168,7 @@ struct StepsTimelineDetailView: View {
                                     label: calloutTitle(dateString: tapped.date, label: tapped.label, period: period),
                                     steps: Int((tapped.steps ?? 0).rounded())
                                 )
-                                .position(
-                                    x: clamp(anchorX, min: geo.size.width * 0.15, max: geo.size.width * 0.85),
-                                    y: max(geo[plotFrame].minY + 12, anchorY - 44)
-                                )
+                                .chartCalloutPlacement(anchor: CGPoint(x: anchorX, y: anchorY), in: geo.size)
                             }
                         }
                     }

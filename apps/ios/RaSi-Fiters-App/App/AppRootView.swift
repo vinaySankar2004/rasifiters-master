@@ -4,6 +4,9 @@ import UserNotifications
 struct AppRootView: View {
     @StateObject private var programContext = ProgramContext()
     @Environment(\.scenePhase) private var scenePhase
+    /// The widget form is really on screen (its onAppear / onDisappear) — not merely requested, since iOS refuses the
+    /// cover while another sheet is up. Only then does the update modal move into the form (polish #7).
+    @State private var widgetCoverVisible = false
 
     var body: some View {
         ZStack {
@@ -69,16 +72,12 @@ struct AppRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: PushNotificationTapped.inviteReceived)) { _ in
             Task { try? await programContext.loadPendingInvites() }
         }
-        .onChange(of: programContext.isUpdateRequired) { _, isRequired in
-            if isRequired {
-                programContext.widgetRoute = nil
-            }
-        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                // Polish #7 (app-config D-C8): the version check runs alongside — restore + session work never wait on it.
+                Task { @MainActor in await programContext.checkMinimumSupportedVersion() }
                 Task { @MainActor in
-                    await programContext.checkMinimumSupportedVersion()
                     if programContext.authToken == nil {
                         programContext.restorePersistedSession()      // D-IOS-AUTH-3; a restored token → onChange(authToken)
                         return
@@ -109,14 +108,10 @@ struct AppRootView: View {
         }
         .onOpenURL { url in
             if let route = WidgetRoute(url: url) {
-                Task { @MainActor in
-                    await programContext.checkMinimumSupportedVersion()
-                    if programContext.isUpdateRequired {
-                        programContext.widgetRoute = nil
-                    } else {
-                        programContext.widgetRoute = route
-                    }
-                }
+                // Polish #7 (app-config D-C8): open the form at once; the check runs alongside. An unsupported build gets
+                // the update modal over the form (WidgetCoverView) — never a second cover while this one is up.
+                if !programContext.isUpdateRequired { programContext.widgetRoute = route }
+                Task { @MainActor in await programContext.checkMinimumSupportedVersion() }
             }
         }
         .fullScreenCover(
@@ -125,19 +120,13 @@ struct AppRootView: View {
                 set: { programContext.widgetRoute = $0 }
             )
         ) { route in
-            switch route {
-            case .quickAddWorkout:
-                QuickAddWorkoutWidgetEntryView()
-                    .environmentObject(programContext)
-            case .quickAddHealth:
-                QuickAddHealthWidgetEntryView()
-                    .environmentObject(programContext)
-            }
+            WidgetCoverView(route: route, isVisible: $widgetCoverVisible).environmentObject(programContext)
         }
         .fullScreenCover(
             isPresented: Binding(
-                get: { programContext.isUpdateRequired },
-                set: { programContext.isUpdateRequired = $0 }
+                // While a widget form is up, WidgetCoverView shows the update modal in place (polish #7).
+                get: { programContext.isUpdateRequired && !widgetCoverVisible },
+                set: { _ in }      // blocking: only checkMinimumSupportedVersion changes isUpdateRequired
             )
         ) {
             ForcedUpdateModalView(minimumVersion: programContext.minimumSupportedVersion)
@@ -149,8 +138,7 @@ struct AppRootView: View {
                 set: { programContext.pendingSyncConfirmation = $0 }
             )
         ) { confirmation in
-            HealthSyncConfirmationView(confirmation: confirmation)
-                .environmentObject(programContext)
+            HealthSyncConfirmationView(confirmation: confirmation).offlineBanner().environmentObject(programContext)
         }
     }
 
