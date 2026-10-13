@@ -67,7 +67,9 @@
    not a bug: Sign out everywhere / password change end the OTHER devices only at their next refresh (≤ 1 h — stateless
    JWT check, auth D-C14); the user accepted it ("no p"). Re-check: in airplane mode iOS showed "Couldn't refresh"
    instead of "You're offline" (wiring verified correct — likely the seconds before iOS reports the path change).
-   Android 1.1.0 (5): internal track's first-publish opt-in still propagating + closed testing in review.
+   **Android 1.1.0 (5) on the user's Pixel (internal track, 2026-10-13):** ✅ upgrade · sign out everywhere · invite
+   inbox + tap · offline banner · instant opens · Google button · quick-add widget; Health Connect hand-entry test
+   pending. **No store submission until all of Phase 4 ships (user, 2026-10-13)** — then one big release.
 2. **After adoption:** raise `LATEST_*` then `MIN_*` app-config versions on Render (user-approved env change) to nudge,
    then require, the new builds.
 3. Daily watch (follow-up 1) — now also `app_events` `auth.*` / `sync.run` from the new clients.
