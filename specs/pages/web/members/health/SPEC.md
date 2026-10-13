@@ -1,6 +1,6 @@
 # Page: `members/health` (web) — per-member daily-health log manager (members sub-route 8 of 8 — CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/health?memberId=&name=` — the **View Health** manager for one member, reached by the
 > `/members` landing's "View Health / Daily health logs" card. Sort + filter modal + CSV export over the member's
 > daily-health-log list, each row **editable** (sleep + diet modal) and **deletable**. **8th & LAST** of the eight

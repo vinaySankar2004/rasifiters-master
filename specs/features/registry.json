@@ -1,8 +1,8 @@
 {
-  "$comment": "L4 machine registry — the shared-feature graph for RaSi Fiters. Empty until the first feature is documented via question-asker + committed via git-version. Each feature: { version, spec, status, consumed_by, depends_on, reference_impl: { app, paths } }. consumed_by lists which apps use it: ['web','ios','android'] (all clients), or any subset (e.g. ['ios'] iOS-only, ['android'] Android-only). status: documented|built|deployed|retired. version is a label (semver) tracked here + in the SPEC Changelog + a git tag feature/<name>@vX.Y.Z — there are NO per-version folders. Page/screen specs are tracked separately in specs/pages/REGISTRY.md.",
+  "$comment": "L4 machine registry — the shared-feature graph for RaSi Fiters. Empty until the first feature is documented via question-asker + committed via git-version. Each feature: { version, spec, status, consumed_by, depends_on, reference_impl: { app, paths } }. consumed_by lists which apps use it: ['web','ios','android'] (all clients), or any subset (e.g. ['ios'] iOS-only, ['android'] Android-only). status: documented|built|adopted|deployed|retired (adopted = a client kit used by screens whose store builds aren't all live yet). version is a label (semver) tracked here + in the SPEC Changelog + a git tag feature/<name>@vX.Y.Z — there are NO per-version folders. Page/screen specs are tracked separately in specs/pages/REGISTRY.md.",
   "features": {
     "auth": {
-      "version": "0.13.0",
+      "version": "0.14.0",
       "spec": "specs/features/auth/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -111,7 +111,7 @@
       }
     },
     "notifications": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -146,7 +146,7 @@
       }
     },
     "invites": {
-      "version": "0.2.0",
+      "version": "0.2.1",
       "spec": "specs/features/invites/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -356,11 +356,12 @@
       }
     },
     "app-config": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "spec": "specs/features/app-config/SPEC.md",
       "status": "deployed",
       "consumed_by": [
-        "ios"
+        "ios",
+        "android"
       ],
       "depends_on": [],
       "reference_impl": {
@@ -372,10 +373,14 @@
       }
     },
     "observability": {
-      "version": "0.2.2",
+      "version": "0.3.0",
       "spec": "specs/features/observability/SPEC.md",
       "status": "deployed",
-      "consumed_by": [],
+      "consumed_by": [
+        "web",
+        "ios",
+        "android"
+      ],
       "depends_on": [
         "auth"
       ],
@@ -396,7 +401,7 @@
       }
     },
     "apple-health": {
-      "version": "0.7.0",
+      "version": "0.8.0",
       "spec": "specs/features/apple-health/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -417,12 +422,15 @@
           "RaSi-Fiters-App/Shared/Services/HealthKitService+Sleep.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitService+Steps.swift",
           "RaSi-Fiters-App/Shared/Services/HealthKitWorkoutTypeMap.swift",
-          "RaSi-Fiters-App/Shared/Services/HealthKitAppliedLedger.swift",
-          "RaSi-Fiters-App/Shared/Services/APIClient+DailyHealth.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthSyncEngine.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthSyncPlanner.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthSyncItems.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthSyncUpgrade.swift",
+          "RaSi-Fiters-App/Shared/Services/HealthSyncPrefs.swift",
+          "RaSi-Fiters-App/Shared/Services/APIClient+HealthSync.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKit.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKitSleep.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKitSteps.swift",
-          "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthKitWindows.swift",
           "RaSi-Fiters-App/Shared/Models/ProgramContext+HealthSyncGating.swift",
           "RaSi-Fiters-App/Shared/Models/PendingSyncConfirmation.swift",
           "RaSi-Fiters-App/Shared/Views/HealthSyncConfirmationView.swift",
@@ -431,7 +439,7 @@
       }
     },
     "health-connect": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "spec": "specs/features/health-connect/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -455,15 +463,18 @@
           "app/src/main/java/com/app/rasifiters/health/HealthDates.kt",
           "app/src/main/java/com/app/rasifiters/health/HealthSyncNotifier.kt",
           "app/src/main/java/com/app/rasifiters/health/HealthSyncController.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthSyncRunner.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthSyncItems.kt",
+          "app/src/main/java/com/app/rasifiters/health/HealthSyncUpgrade.kt",
           "app/src/main/java/com/app/rasifiters/ui/health/HealthConnectSettingsScreen.kt",
           "app/src/main/java/com/app/rasifiters/ui/health/HealthSyncConfirmationScreen.kt"
         ]
       }
     },
     "frontend-kit": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/frontend-kit/SPEC.md",
-      "status": "built",
+      "status": "adopted",
       "consumed_by": [
         "web",
         "ios",
@@ -486,10 +497,13 @@
       }
     },
     "health-sync": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/health-sync/SPEC.md",
       "status": "deployed",
-      "consumed_by": [],
+      "consumed_by": [
+        "ios",
+        "android"
+      ],
       "depends_on": [
         "auth",
         "app-config",

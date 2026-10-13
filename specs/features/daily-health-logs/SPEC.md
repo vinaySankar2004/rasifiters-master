@@ -259,11 +259,13 @@ partial-update absent-vs-null semantics, and the error contract.
   features write `sleep_hours` and (0.2.0) `steps` via the single POST→409→PUT upsert idiom.
   As of 0.3.0, [`health-sync`](../health-sync/SPEC.md) (0.1.0) writes `sleep_hours` / `steps` + their `_source` columns
   for NEW builds through `POST /api/health-sync/batch` (raw SQL upsert, no 409 round trip); the live binaries keep the
-  POST→409→PUT idiom here unchanged.
+  POST→409→PUT idiom here unchanged. Since iOS 1.5.0 (58) and Android 1.1.0 (5) (health-sync D-C13g) only the old
+  binaries — iOS ≤ 1.4.x, Android 1.0.0 — still use that sync idiom.
 - **Consumers:** **`web` + `ios` + `android`** — the CRUD quartet used 1:1 by all three clients;
   **`POST /batch` is the unified daily-health write path** for the batched multi-row "Log daily health"
-  form on all three (0.2.0, D-C5). The single `POST /` remains for the steps/sleep sync writers (the
-  iOS quick-add widget now posts to `POST /batch` too — 2026-07-09, D-BATCH).
+  form on all three (0.2.0, D-C5). The single `POST /` remains for the old builds' steps/sleep sync writers
+  (iOS ≤ 1.4.x, Android 1.0.0 — the new builds sync through health-sync; the iOS quick-add widget posts to
+  `POST /batch` too — 2026-07-09, D-BATCH).
   - **web:** `POST /batch` — `lib/api/logs.ts` (`addDailyHealthLogsBatch`), from the batched
     `components/forms/LogDailyHealthForm.tsx` (opened by `summary/page.tsx` desktop modal +
     `summary/log-health/page.tsx` mobile route). `GET /` — `lib/api/members.ts`
@@ -274,8 +276,8 @@ partial-update absent-vs-null semantics, and the error contract.
   - **ios:** `POST /batch` — `APIClient+DailyHealth.swift` (`addDailyHealthLogsBatch`), from the rebuilt
     `AddDailyHealthDetailView` **and the quick-add health widget `QuickAddHealthWidgetEntryView.swift`**
     (2026-07-09, D-BATCH — the widget became the in-app multi-row form). `POST /` —
-    `APIClient+Health.swift` (`addDailyHealthLog`), now only the sleep/steps sync writers
-    (`writeHealthKitSleepLog`/`writeHealthKitStepsLog`, POST→409→PUT). `GET /` —
+    `APIClient+Health.swift` (`addDailyHealthLog`) — through 1.4.x only the sleep/steps sync writers
+    (`writeHealthKitSleepLog`/`writeHealthKitStepsLog`, POST→409→PUT); 1.5.0 removed those writers (health-sync). `GET /` —
     the new `fetchDailyHealthLogs` (steps-aware) via `ProgramContext+Members.swift`
     (`loadMemberHealthLogs`), from `MemberHealthDetail` + the Members-tab health-card preview. `PUT /` —
     `updateDailyHealthLog` (steps overload), via `ProgramContext+WorkoutManagement.swift`, from
@@ -286,7 +288,7 @@ partial-update absent-vs-null semantics, and the error contract.
     `ProgramContext.addDailyHealthLogsBatch`, from the rebuilt `ui/summary/LogHealthScreen.kt`. `GET /` —
     `getMemberHealthLogs` (now with `minSteps`/`maxSteps`), from `MemberHealthDetailScreen` + the Members
     tab health card. `PUT /` — `updateDailyHealthLog` (JsonObject body; explicit null clears steps/diet),
-    from the health edit sheet + the sleep/steps sync writers. `DELETE /` — from
+    from the health edit sheet (+ the sleep/steps sync writers through 1.0.0; 1.1.0 syncs through health-sync). `DELETE /` — from
     `MemberHealthDetailScreen`.
 
 ## 9. Decisions made

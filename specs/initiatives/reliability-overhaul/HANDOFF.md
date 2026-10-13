@@ -9,8 +9,9 @@
 
 - **Phase:** Step 0 → Phase 0 → design board ([`DESIGN_BOARD.md`](DESIGN_BOARD.md), approved 2026-10-11) →
   **Phase 1b ✅** → **Phase 2 ✅** (both live 2026-10-12) → **Phase 3 backend ✅ LIVE 2026-10-13T02:24Z** (the user
-  waived the 10-19 gate: "get this out asap"). **Next: Phase 3 client half** — one bundled release per surface.
-  Phase table: [`BRIEF.md`](BRIEF.md) §7.
+  waived the 10-19 gate: "get this out asap") → **Phase 3 client half: web ✅ LIVE 2026-10-13; iOS 1.5.0 (58) +
+  Android 1.1.0 (5) built + reviewed + compile-clean, awaiting the user's uploads + device tests.** Phase table:
+  [`BRIEF.md`](BRIEF.md) §7.
 - **Live — Phase 1b** ([`plans/phase-1b/`](plans/phase-1b/)): H1 stateless auth proxy (auth 0.10.0) · H3 analytics
   membership gate (analytics 0.4.0 / analytics-v2 0.2.0) · H2 `rate_limit_token_refresh` 1,500 (2026-10-12T19:08:19Z)
   · D-15 reset email via Resend SMTP (`ENV_RUNBOOK.md` §7b).
@@ -32,6 +33,13 @@
   - **Verified:** staging smokes (R1 43/43 · R2 all S-lines + DB rows · R3 24/26 — see follow-up 1) and prod smokes
     (R1 25/25 before and after G3 · R2 all P-lines · R3 26/26); the user's iPhone + Pixel: sign-out on one keeps the
     other; a real invite push arrived on both (`push_deliveries`: ios `sent` + android `sent`).
+- **Phase 3 client release** (`plans/phase-3-c{1-web,2-ios,3-android}/` + the binding
+  [`plans/phase-3-client-amendments.md`](plans/phase-3-client-amendments.md); commits `211d0a9` web · `157578f`
+  Android · iOS + the docs commit): sessions contract + Sign out everywhere (My Profile) · health sync v2 on both
+  phones · device registry + invite inbox (invite tap opens it) · Android Google button · version gate + nudge ·
+  kit adoption + instant opens. Feature versions: auth 0.14.0 · notifications 0.5.0 · invites 0.2.1 · observability
+  0.3.0 · frontend-kit 0.2.0 (adopted) · app-config 0.3.0 · health-sync 0.2.0 · apple-health 0.8.0 · health-connect
+  0.3.0. Supabase refresh-token **reuse window 10 → 60 s** (2026-10-13T06:16:03Z, `ENV_RUNBOOK.md` §7c).
 - **Follow-ups:** ✅ done 2026-10-13 — `TRUST_PROXY_HOPS` (staging 3; observability 0.2.2), R2/R3 log through
   `utils/logError.js`, the doc handoffs (board §2–§4 marked backend-live, pages REGISTRY PUT, invite page SPEC, auth +
   app-config SPECs). Still open:
@@ -45,33 +53,26 @@
 
 ## Next action
 
-1. **Phase 3 client half — plan via `multiplex`:** one bundled release per surface (web, iOS, Android), parallel
-   implementers, built against the contracts now in the SPECs: auth §3.1 (sessions: one token store, refresh only when
-   needed, sign out only on `401 session_invalid`, never auto-retry password writes) · health-sync §8 (catch-up 30 d,
-   upgrade run, review once) · notifications §3.1–3.3 + invites §3.1 (install id, unregister on sign-out, Android
-   invite inbox, SSE re-fetch) · observability §8 (`auth.*` + `sync.run` events) · Android Google button (W5) · kit
-   adoption on touched screens · version-gate UI + soft nudge (app-config) · **instant opens** (board §6.5 / D-9:
-   cached picker + Summary, parallel loads — added by the user 2026-10-13). Kit scope = touched screens + those two
-   launch screens; no other restyle. The user ships the iOS / Android binaries; Android health tests = Health Connect
-   data entered by hand on the Pixel (W4-D2). **Plans in (2026-10-13)** → `plans/phase-3-c{1-web,2-ios,3-android}/`
-   + parity check + [`plans/phase-3-client-amendments.md`](plans/phase-3-client-amendments.md) — **approved
-   2026-10-13** (U1 iOS 1.5.0 (58) / Android 1.1.0 (5) · U2 invite tap opens the inbox · U3 My Profile). **Status:** web C1 ✅ LIVE 2026-10-13 (`211d0a9`, reviewed + 7 fixes) · Android C3 built,
-   in review · iOS C2 built, in review + awaiting the user's ⌘B. **Flow:** three implementers in
-   the main tree (directory-disjoint) → impl-adversary each → compile checks + the user's ⌘B → one docs commit (§5)
-   → web deploy → the user ships the binaries.
-2. Daily watch (follow-up 1).
+1. **The user ships + tests the phones:** iOS **1.5.0 (58)** → TestFlight (then pre-bump the repo to 1.5.1 (59) —
+   one-train-ahead) · Android **1.1.0 (5)** → Play internal testing (then pre-bump versionCode 6). Update `RELEASES.md`
+   as each lands. Test on iPhone + Pixel with the checklists at the end of each track's `plan.md` (sessions, Sign out
+   everywhere, health sync incl. the upgrade from the store build, invite tap → inbox, offline banner, update banner).
+   Then App Store / Play production.
+2. **After adoption:** raise `LATEST_*` then `MIN_*` app-config versions on Render (user-approved env change) to nudge,
+   then require, the new builds.
+3. Daily watch (follow-up 1) — now also `app_events` `auth.*` / `sync.run` from the new clients.
 
 ## Workstream status
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | 🟨 backend ✅ (1b H1 + Phase 3 R1); clients → Phase 3 client half | 🟨 backend live 2026-10-13 |
-| W2 | Push + invites | ✅ | ✅ | 🟨 backend ✅ (R3); clients (Android inbox) → client half | 🟨 backend live 2026-10-13 |
-| W3 | iOS health sync | ✅ | ✅ | 🟨 backend ✅ (R2); iOS client → client half | 🟨 backend live 2026-10-13 |
-| W4 | Android health sync | ✅ | ✅ | 🟨 backend ✅ (R2); Android client → client half | 🟨 backend live 2026-10-13 |
-| W5 | Android Google sign-in | ✅ | ✅ | 🟨 console fix ✅; button code → client half | 🟨 sign-in works on Play build |
-| W6 | Observability + perf | ✅ | ✅ | 🟨 Phase 2 A + R1/R2 events ✅; client senders → client half | 🟨 backend live |
-| W7 | Frontend state / error / design consistency | ✅ | ✅ | 🟨 kits built (frontend-kit 0.1.0); adoption → client half | ⬜ kits unadopted |
+| W1 | Sessions / auth | ✅ | ✅ | ✅ backend + web + iOS + Android | 🟨 backend + web live; phones await upload |
+| W2 | Push + invites | ✅ | ✅ | ✅ backend + all three clients | 🟨 backend + web live; phones await upload |
+| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS 1.5.0 (58) | 🟨 awaits TestFlight |
+| W4 | Android health sync | ✅ | ✅ | ✅ backend + Android 1.1.0 (5) | 🟨 awaits Play upload |
+| W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (1.1.0) | 🟨 awaits Play upload |
+| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web live |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kits adopted on touched screens (frontend-kit 0.2.0) | 🟨 web live |
 
 ## Session log
 
@@ -100,6 +101,11 @@
   merged R1 → R2 → R3, migrations 009 + 010 run by the user on staging then public, one staging deploy + smokes, one
   prod push (02:24Z), prod smokes + phones verified, G3 IP forwarding + G4 90-day inactivity applied. Phase 4 scope
   note: start from the full page / feature / widget inventory (BRIEF §7).
+- **2026-10-13** — Phase 3 client release: scope confirmed with the user (instant opens added; Phase 4 = notifications
+  + People + a polish pass judged on benefit vs effort). 3 parallel plans + a parity check (8 blocking cross-surface
+  mismatches) → one shared amendments file, user-approved (U1–U3). Built by 3 implementers in the main tree,
+  reviewed + fix rounds (web 7 · Android 11 · iOS 10); web live; iOS ⌘B clean twice (new `tools/ios-typecheck.sh`
+  pre-check); Android compile clean. Supabase reuse window 10 → 60 s. Shared docs + tags in one commit.
 
 ## Kickoff prompt — Session 1
 

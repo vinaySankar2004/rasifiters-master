@@ -1,6 +1,6 @@
 # Feature: `notifications` — in-app alerts, real-time SSE delivery & APNs push
 
-> **Status:** 🚀 deployed (`apps/backend/` + the `apps/web`, `apps/ios`, `apps/android` clients) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (`apps/backend/` + the `apps/web`, `apps/ios`, `apps/android` clients) · **Version:** 0.5.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/notifications.js`, `utils/notifications.js`,
 > `utils/notificationStreams.js` (SSE registry), `utils/pushNotifications.js` (APNs),
 > `models/{Notification,NotificationRecipient,MemberPushToken}.js`, `services/authService.js`
@@ -16,7 +16,8 @@
 > **One migration delta** (the rest is faithful): **D-C2** the SSE stream auth swaps symmetric
 > `jwt.verify(JWT_SECRET)` → **Supabase JWKS verify** (the auth D-C2 pattern), still accepting `?token=`.
 > **0.4.0 (reliability overhaul R3):** device registry, `push_deliveries`, unregister without a login, 7-day APNs/FCM
-> TTL + Android channels, SSE plain close on shutdown — D-C11–D-C16; client contracts §3.1–§3.3 (clients pending).
+> TTL + Android channels, SSE plain close on shutdown — D-C11–D-C16; client contracts §3.1–§3.3.
+> **0.5.0 (Phase 3 client release):** web, iOS 1.5.0 (58) and Android 1.1.0 (5) adopt §3.1–§3.3 — D-C17 / D-C18.
 
 ---
 
@@ -109,8 +110,8 @@ and hand-roll status codes (F5).
 
 ### 3.1 Device registry — client contract (0.4.0, D-C11/D-C12)
 
-All under `/api/notifications`. The next web / iOS / Android builds follow this; live binaries keep working unchanged
-(they send no `device_id` and never call `/device/unregister`).
+All under `/api/notifications`. Web, iOS 1.5.0 (58) and Android 1.1.0 (5) follow this (D-C17 / D-C18); the older
+binaries keep working unchanged (they send no `device_id` and never call `/device/unregister`).
 
 **Install id (`device_id`).** Each installation generates a random UUID v4 once, on first launch, and stores it where
 **neither backup/restore nor device-to-device transfer can copy it to another device**:
@@ -153,8 +154,9 @@ devices apart.
 Server effect, one transaction: with a `device_id`, the install's rows holding a different token are deleted (token
 rotation); then an upsert on `push_token` re-binds the row to the caller, applies the `platform` rule, keeps the stored
 `device_id` when none is sent, and sets `updated_at = last_seen_at = now()`. **Call it** after every sign-in, on every
-launch / foreground while signed in with notification permission granted, and on every token rotation (iOS
-`didRegisterForRemoteNotificationsWithDeviceToken`, Android `onNewToken`). Repeats are idempotent. The same
+token rotation (iOS `didRegisterForRemoteNotificationsWithDeviceToken`, Android `onNewToken`) and when notification
+permission is granted again; otherwise at most **once per 12 h** on launch / foreground while signed in with permission
+granted (amended 0.5.0 — A12; well inside the 60-day unseen prune). Repeats are idempotent. The same
 registration rides along on `POST /api/auth/login/app`, `POST /api/auth/login/global` and `POST /api/auth/oauth`
 (body fields `push_token`, `device_id`, `platform` — identical rules).
 
@@ -179,12 +181,14 @@ whose token equals `push_token` **or** whose install id equals `device_id` is de
 | `500` | `{ "error": "Failed to unregister device." }` | DB failure (malformed JSON → `400 { "error": "Invalid request body.", "code": "invalid_body" }` from the global errorHandler — observability D-C11) |
 
 **Call it** on every sign-out path — voluntary and forced (refresh `401 session_invalid`) — and when notification
-permission is revoked, sending both fields. One retry on a network error / 5xx, then drop. **Ordering rule:**
+permission is revoked (once per denial: a memo, re-armed when permission is granted again — A12), sending both fields.
+One retry on a network error / 5xx, then drop. **Ordering rule:**
 unregister and registration go through ONE serial queue per install. A sign-in's login ride-along / `PUT /device`
 starts only after any in-flight unregister has finished (success, or failure after its single retry), and a pending
 retry is dropped the moment a sign-in begins. Never send an unregister after the next registration has started — it
-would delete the new session's row (same token, same install id). Afterwards forget the cached push token and any
-"already registered" memo (e.g. Android's in-memory dedupe), so the next sign-in registers again; keep the install id.
+would delete the new session's row (same token, same install id). Afterwards forget the "already registered" memo, so
+the next sign-in registers again, and the cached push token (iOS keeps its APNs token value — the OS re-issues the same
+token and the login ride-along re-sends it, D-C18); keep the install id.
 (Account deletion needs no call — the member's rows cascade.)
 
 **Pruning.** A row is deleted when APNs answers `410` / `BadDeviceToken` / `Unregistered` / `DeviceTokenNotForTopic`,
@@ -210,11 +214,14 @@ Custom keys are strings; `program_id` is omitted when the notification has none.
 | `rasi_invites` | Invites & membership | `IMPORTANCE_HIGH` | `program.invite_received`, `program.role_changed`, `program.admin_transferred`, `program.member_removed` |
 | `rasi_default` | (existing) | `IMPORTANCE_DEFAULT` | every other type (`program.member_joined`, `program.member_left`, `program.updated`, `program.deleted`, `app.broadcast`, any future type) |
 
-The next Android build creates both channels at startup and keeps `rasi_default` as the manifest default
+Android 1.1.0 (5) creates both channels at startup and keeps `rasi_default` as the manifest default
 (`com.google.firebase.messaging.default_notification_channel_id`). Android 1.0.0 has only `rasi_default`; FCM shows a
 message whose channel id doesn't exist on the device in the manifest default channel, so its invites keep arriving
-there. **Clients (next builds):** a tap reads `notification_id` → `POST /:id/acknowledge` and opens the target
-(`type` + `program_id`); Android shows foreground messages. Push is only a hint — state is always re-fetched.
+there. **Clients (amended 0.5.0 — U2, A5; D-C17):** a tap reads `notification_id` → `POST /:id/acknowledge`; a
+`program.invite_received` tap then opens the invite inbox, any other type re-fetches what it is about (no other
+navigation). A push that arrives while the app is in the foreground is shown once: while the SSE stream is connected
+the in-app modal shows it (Android skips the tray post; iOS `willPresent` returns `[.badge]`), otherwise the system
+banner. Push is only a hint — state is always re-fetched.
 
 **Delivery record:** every attempt is a `push_deliveries` row (§5) — `sent`; `failed` (token kept; `error_code` = the
 APNs reason / FCM code / `timeout` / `send_error` / `provider_error` — APNs credentials present but malformed, so the
@@ -238,10 +245,13 @@ restart (`SIGTERM`) the server ends every stream with a **plain close** — no f
 is shutting down gets `ready` and then the close. `401 { "error": … }` on open = missing / bad / expired token; a JWKS / DB outage answers
 `503 auth_unavailable` + `Retry-After` (auth 0.13.0 D-C15c — F11 resolved).
 
-**Clients (next builds):** keep the stream open only in the foreground; treat every close or error as "reconnect": get
-a fresh access token first (refresh when it expires within 60 s), reconnect with exponential backoff + full jitter
-(values fixed by the client plans), and **after every `ready`** re-fetch `GET /unacknowledged` and merge by `id` (the
-stream never replays). Web re-creates its `EventSource` with a fresh `?token=` on every token refresh.
+**Clients (values fixed 0.5.0 — A4; D-C17):** keep the stream open only in the foreground; treat every close, error or
+**60 s of silence** (the server pings every 25 s) as "reconnect": get a fresh access token first (refresh when it expires
+within 60 s), reconnect with exponential backoff — **1 s base, ×2, 30 s cap, full jitter**, the attempt count reset on
+`ready` — and pause reconnects while offline. On every stream start and **after every `ready`** re-fetch
+`GET /unacknowledged` and merge by `id` (the stream never replays): items acknowledged elsewhere leave the queue, ids this
+device acknowledged moments ago are ignored (a short-lived set), and an invite notification in the result refreshes
+the invite inbox. Web re-creates its `EventSource` with a fresh `?token=` on every token refresh.
 `GET /unacknowledged` is idempotent, per member, oldest-first and unthrottled — safe to call on every (re)connect.
 
 ## 4. Feature list (behaviors to port)
@@ -376,8 +386,8 @@ preserved exactly so both clients' parsers (web `EventSource`, iOS `Notification
 - **Downstream (the unblock):** [`programs`](../programs/SPEC.md),
   [`program-memberships`](../program-memberships/SPEC.md), and the future `invites` + the deferred
   members/auth delete cascades all **emit** through `createNotification` — replacing the stub here makes their
-  alerts fire. Both clients (`web`, `ios`) consume the stream + unacknowledged + acknowledge; iOS also drives
-  the device-token + APNs path.
+  alerts fire. All three clients (`web`, `ios`, `android`) consume the stream + unacknowledged + acknowledge; iOS
+  (APNs) and Android (FCM) also drive the device registry (§3.1).
 
 ## 9. Decisions made
 
@@ -400,6 +410,8 @@ preserved exactly so both clients' parsers (web `EventSource`, iOS `Notification
 | **D-C14** | **Pruning + send timeouts (0.4.0).** Prune on APNs `410` (now compared as a string — apn 2.2.0's node-http2 reports `:status` as `"410"`, so the old numeric check never matched) / `BadDeviceToken` / `Unregistered` / `DeviceTokenNotForTopic`, and FCM `messaging/registration-token-not-registered` (FCM v1 `UNREGISTERED` / `NOT_FOUND`) / `messaging/invalid-registration-token`. **`messaging/invalid-argument` never prunes** — a payload bug, logged at error level (W2 F9). Plus the nightly unseen prune (`pg_cron`, `sql/010`): `last_seen_at` AND `updated_at` both > 60 days — the `updated_at` clause makes a code rollback safe (pre-0.4.0 code bumps only `updated_at`). APNs: one `send()` **per token**, each raced against its own 10 s timer (apn 2.2.0 has no request timeout, and its multi-token `send()` is a `Promise.all` — one hung stream would have failed every token of the notification); a late result is ignored and only that token records `failed`/`timeout`. FCM relies on firebase-admin's built-in 15 s. | DESIGN_BOARD §3.4; W2 F9/F10; `apn/lib/client.js`, `apn/lib/provider.js`; firebase-admin `lib/utils/error.js`; plan-adversary #4 (approval amendment). |
 | **D-C15** | **`push_deliveries` (0.4.0).** `sendPushToMembers` runs ONE token query for both platforms (was one per platform), sends APNs + FCM in parallel, prunes, then writes one row per attempt plus one `no_device` row per recipient with no registered device (was a silent return — W2 F2/E8) in ONE `bulkCreate` (`services/pushDeliveryService.js`; fire-and-forget — a failed insert logs name + pg code and never affects delivery). Schema §5; 90-day `pg_cron` retention like `app_events`; migration `sql/010` (schema-neutral, staging grants). Delivers observability D-C9's deferred `push_deliveries`. | DESIGN_BOARD §3.3 + §7.2; W2 F2/E8; observability D-C9. |
 | **D-C16** | **SSE survives deploys cleanly (0.4.0).** `server.js` handles `SIGTERM`/`SIGINT`: `closeAllNotificationStreams()` ends every stream with a plain `res.end()` (never a frame), streams opened afterwards close right after `ready`, `server.close()` + `closeIdleConnections()`, exit 2 s after the server closes, hard exit at 25 s (Render's grace is 30 s); one JSON log line `{"type":"shutdown",…}`. The ping is skipped once the response has ended; cleanup runs on `req` **or** `res` close. Frames, the 25 s ping, `?token=` and `/unacknowledged` are unchanged; `?token=` was already absent from the request log (observability D-C1 logs the route template only) — verified, no change. | DESIGN_BOARD §3.6; W2 F6; Render SIGTERM grace. |
+| **D-C17** | **Client adoption of §3.1–§3.3 (0.5.0) — web, iOS 1.5.0 (58), Android 1.1.0 (5)** (approval amendments A4, A5, A12, U2 in [`phase-3-client-amendments.md`](../../initiatives/reliability-overhaul/plans/phase-3-client-amendments.md)). (a) **Stream (A4):** 1 s base, ×2, 30 s cap, full jitter, attempt reset on `ready`; 60 s idle timeout; reconnects paused while offline; `/unacknowledged` re-fetched on every start + `ready`, merged by id — items acknowledged elsewhere dropped, this device's recent acks ignored (web + Android 2 min, iOS 5 min), an invite item refreshes the inbox. (b) **Foreground push (A5):** never shown twice — while the stream is connected the in-app modal shows it (Android: no tray post; iOS: `willPresent` → `[.badge]`). (c) **Push tap (U2):** acknowledge; `program.invite_received` opens the invite inbox (iOS: a published flag `ProgramPickerView` consumes to present `ProgramActionsSheet` on its Invites tab; Android: the program picker's actions sheet on My Invites); any other type re-fetches. Supersedes the 0.4.0 §3.2 "opens the target (`type` + `program_id`)". (d) **Registry cadence (A12):** `PUT /device` after every sign-in / token rotation / permission re-grant, else at most once per 12 h; unregister once per denial (a memo re-armed on re-grant); the §3.1 serial queue + install-id storage rules as specified. | Phase 3 client plans C1 / C2 / C3 + approval amendments (2026-10-13). |
+| **D-C18** | **Per-surface realization (0.5.0; platform idiom only).** **Web** (`components/NotificationsGate.tsx`): no native push; foreground = `document.visibilityState`; `EventSource` hides the HTTP status, so after **3 failed opens in a row** one forced session refresh runs (`forceSessionRefresh`, at most once per 5 min — auth D-C16). **iOS** (`App/AppDelegate.swift`, `Shared/Services/{DeviceRegistry,NotificationStreamClient}.swift`, `Shared/Models/ProgramContext+Notifications.swift`): install id = keychain `…ThisDeviceOnly`; the APNs token value is **kept** after sign-out and only the registration memo is forgotten (D-IOS-PUSH-1 — iOS's reading of §3.1: the OS re-issues the same token, the login ride-along re-sends it, and it is safe because the unregister sends the token **and** the install id); a cold-start tap is parked in `PushNotificationTapped.pendingTap` until `AppRootView` handles it; an invite push received in the foreground also refreshes the inbox. **Android** (`push/{DeviceRegistry,RaSiFirebaseMessagingService}.kt`, `App.kt`, `net/NotificationStreamClient.kt`): both channels created at startup (`rasi_invites` high importance for invite / membership types); install id in `noBackupFilesDir/install_id`; registration state + the ask-once flag in `rasi.push` SharedPreferences (excluded from backup, so an unregister-on-revoke survives process death); unregister falls back to the FCM token (2 s wait) so it also matches rows 1.0.0 registered without an install id; the login ride-along is recorded only for the current sign-in; notification permission asked once, after the first sign-in; stream client `readTimeout(60 s)`, `MAX_DELAY_MS = 30_000`. | As-built code (web `211d0a9`, Android `157578f`, iOS 1.5.0 working tree). |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -423,6 +435,7 @@ preserved exactly so both clients' parsers (web `EventSource`, iOS `Notification
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.0 | 2026-10-13 | **Clients adopt §3.1–§3.3 (reliability-overhaul Phase 3 client release — web live, iOS 1.5.0 (58), Android 1.1.0 (5)).** D-C17: SSE reconnect values fixed (1 s ×2, 30 s cap, full jitter, reset on `ready`, 60 s idle, paused offline; `/unacknowledged` on every start + `ready`, acked-elsewhere dropped, recent acks ignored); a foreground push is shown once (A5); push tap → acknowledge, invite → the invite inbox, else re-fetch (U2 — §3.2 amended); `PUT /device` at most every 12 h unless the token / permission changed, unregister once per denial (A12 — §3.1 amended). D-C18: per-surface realization (web 3-failed-opens forced refresh + `visibilityState`; iOS keeps the APNs token value, parks a cold-start tap; Android `rasi_invites` channel, `rasi.push` state, FCM-token unregister fallback, ask-once permission). §8 downstream line corrected (all three clients). No backend change. MINOR (owned client contract amended); dependents unaffected. |
 | 0.4.0 | 2026-10-12 | **Reliability overhaul Phase 3 R3 (backend) — device registry, push delivery records, unregister without a login, delivery settings, SSE shutdown.** D-C11 one row per installation (install id = the existing `device_id`, UUID-only, partial unique index, kept by clients in keychain `…ThisDeviceOnly` / `noBackupFilesDir`; `last_seen_at` on every registration, backfilled from `updated_at`; rotation replaces the install's old rows; an omitted platform keeps an existing row's value; DB errors scrubbed to name + pg code) in new `services/deviceService.js` (authService's push-token helpers delegate). D-C12 `POST /device/unregister` — no login, push token and/or install id, always 200, `400 invalid_body`, 30 / 60 s per client; clients serialize it before the next registration. D-C13 APNs expiry 1 h → 7 d; FCM TTL 7 d + explicit channel (`rasi_invites` / `rasi_default`); `type` + `program_id` custom keys. D-C14 FCM `invalid-argument` no longer prunes; APNs 410 compared as a string; 60-day unseen prune (`last_seen_at` and `updated_at`); APNs send timeout 10 s, raced per token; a malformed APNs credential records `failed`/`provider_error` instead of dropping the whole send's records. D-C15 `push_deliveries` (one token query; one row per attempt + `no_device`; 90-day retention). D-C16 SIGTERM → plain close of every SSE stream, drain, hard exit at 25 s. No new error `code`. Hardening: `PUT /device` answers its existing `400 "push_token is required."` for a token > 512 chars (was a `500`; live clients never send one). New: `utils/push/{apns,fcm}.js`, `services/{deviceService,pushDeliveryService}.js`, `models/PushDelivery.js`, `sql/010_push_deliveries_device_registry.sql`. `depends_on` += `observability` (`routes/notifications.js` imports its `utils/rateLimit`). Client contract §3.1–§3.3 for the bundled web / iOS / Android release. Flagged F9–F13. MINOR — additive for every live binary (`PUT`/`DELETE /device` bodies + responses, SSE frames, the 7-field payload and `/unacknowledged` unchanged); dependents (programs, program-memberships, invites) unaffected — `createNotification`'s signature is unchanged. Deploy order: `sql/010` on staging → public, then the backend. |
 | 0.3.1 | 2026-07-10 | **iOS device-token registration made self-healing (D-C10).** Fixes TestFlight non-delivery for members whose APNs token was pruned server-side (e.g. after the `APNS_PRODUCTION` sandbox→production flip): `registerForRemoteNotifications()` was previously called from a single site (the `.notDetermined`-only "Enable Notifications" button), so an already-`.authorized` member never re-registered and toggling the OS Settings switch didn't help (iOS doesn't auto-register on that toggle). Added an idempotent re-registration on every foreground while authorized in `AppRootView`'s `scenePhase == .active` handler; the `didRegister` callback re-POSTs the token via the unchanged `registerPushTokenIfNeeded` → `PUT /device`. iOS build bumped 50 → 51 (marketing `1.3.1` unchanged, TestFlight iteration). PATCH — iOS-client robustness fix, **no backend/owned-interface/contract change**; dependents unaffected. Also synced `ENV_RUNBOOK.md` (`APNS_PRODUCTION` now `true` for TestFlight, with the sandbox trade-off noted). |
 | 0.3.0 | 2026-07-08 | **Android client ported + FCM push added (D-C9) — `consumed_by` += `android`.** The `android` surface joins the shared consumption (SSE `/stream` via okhttp-sse + Bearer header, `/unacknowledged` backfill, `/:id/acknowledge`, single-notification modal queue), and the backend gains **FCM push** alongside APNs: `utils/pushNotifications.js` now runs a `firebase-admin` sender (`sendEachForMulticast` + invalid-token pruning) that `sendPushToMembers` fires next to APNs; `authService.upsertPushToken` gains a `platform` param (**default `'ios'`** — the LIVE iOS binary, sending none, is byte-for-byte unchanged) threaded from the mobile-login + `PUT /device` routes; the Android client registers `platform:"android"`. Credential = `FIREBASE_SERVICE_ACCOUNT` (base64 service-account JSON) on Render, `sync:false`, graceful-null when unset (the D-C4 APNs-deferral pattern). **No migration** — `member_push_tokens.platform` already existed (default `'ios'`, indexed). F4 resolved (push is now iOS **and** Android; web still SSE-only). MINOR — additive new consumer + backward-compat owned-interface change; dependents (programs/program-memberships/invites) unaffected (they emit through the unchanged `createNotification`). Client detail: `specs/pages/android/notifications-alerts/SPEC.md` (0.2.0). New dep `firebase-admin@^12.7.0`. |

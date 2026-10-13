@@ -1,6 +1,6 @@
 # Feature: `health-sync` — health sync v2 (one batch upload per run, permanent sample ledger, server sync state)
 
-> **Status:** 🚀 deployed (backend, live on Render 2026-10-13; reliability-overhaul Phase 3 R2) · **Version:** 0.1.0 · **Apps (`consumed_by`):** none yet — `[]` until the bundled iOS (HealthKit) + Android (Health Connect) reliability releases adopt §8, then `ios` `android` (web has no health sync)
+> **Status:** 🚀 deployed (backend, live on Render 2026-10-13; reliability-overhaul Phase 3 R2) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `ios` (1.5.0 (58), HealthKit), `android` (1.1.0 (5), Health Connect) — the clients adopt §8 in 0.2.0 (D-C13–D-C15); web has no health sync
 > **Provenance:** **NET-NEW** — no legacy equivalent. Contract: [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md) §4 items 2–9 (approved 2026-10-11; D-6, D-7, D-8); evidence: [`discovery/W3`](../../initiatives/reliability-overhaul/discovery/W3-ios-health-sync.md) (iOS), [`discovery/W4`](../../initiatives/reliability-overhaul/discovery/W4-android-health-sync.md) (Android).
 > **Depends on:** [`auth`](../auth/SPEC.md) (`authenticateToken`) · [`app-config`](../app-config/SPEC.md) (`blockUnversionedAndroid`, applied inside this router — D-C10) · [`observability`](../observability/SPEC.md) (`utils/rateLimit.js`; the `sync.run` event, its §8.1) · [`programs`](../programs/SPEC.md) + [`program-memberships`](../program-memberships/SPEC.md) (the `admin_only_data_entry` lock + membership, via their models) · [`workout-logs`](../workout-logs/SPEC.md) (`resolveProgramWorkout`, `isValidDateString`; writes `workout_logs`) · [`program-workouts`](../program-workouts/SPEC.md) (`resolveProgramWorkout` reads / creates `program_workouts` rows; the legacy lookup reads them) · [`workouts`](../workouts/SPEC.md) (the `workouts_library` name match) · [`daily-health-logs`](../daily-health-logs/SPEC.md) (writes `daily_health_logs` incl. its D-C6 provenance columns).
 > **Supersedes for NEW builds only:** the sync writers' `POST /api/workout-logs` + `on_duplicate:"sum"` (workout-logs D-C9) and the `POST → 409 → PUT /api/daily-health-logs` round trip. Both stay exactly as they are for the live binaries (§7).
@@ -382,7 +382,7 @@ feature's bound.
 2. backend on `rasifiters-api-staging`, then the staging smoke;
 3. `sql/009` on `public`;
 4. backend on prod, then the prod smoke;
-5. later, the bundled iOS + Android releases (`consumed_by` grows then).
+5. the bundled iOS 1.5.0 (58) + Android 1.1.0 (5) releases (`consumed_by` = `[ios, android]` since 0.2.0).
 
 **Live binaries** (iOS 1.4.0–1.4.3, Android 1.0.0 (3)/(4)) see only additive changes:
 - three new routes that no binary calls;
@@ -400,7 +400,8 @@ Both platforms follow the same rules. The only differences are platform idiom, n
    - A run on launch, foreground and pull-to-refresh.
    - iOS background delivery is a best-effort bonus: registered at launch, acknowledged after the work.
    - No Android background sync for now (D-6).
-   - One run in flight per device.
+   - One run in flight per device. User actions (`connect`, `manual`, `pull_to_refresh`) wait for it and then run;
+     automatic triggers fold into it and run at most once a minute (D-C13).
 2. **A run.**
    - Read Health → build items → `POST /batch`. Split at 300 items / 256 kb; on `413`, split the batch in half.
    - Then send `PUT /state` with `sync_success: true` for every selected (program, kind) where all of these hold: the
@@ -425,6 +426,9 @@ Both platforms follow the same rules. The only differences are platform idiom, n
    - No `last_success_at` → the client's first-sync rule (today: workouts from the connect date; sleep/steps the last
      14 days) — **except on a device that held an old-build ledger** (the upgrade marker of rule 9): there, workouts
      are read from today − 30 days and the connect-date rule is **never** used.
+   - **Reconnect floor (0.2.0, H2):** without the upgrade marker, workouts are never read from before the (re)connect
+     date — after a reconnect the read starts at `max(last_success_at − 1 day, the reconnect date)`, so the disconnected
+     period is not imported silently.
    - Health Connect reads every page (`pageToken`).
    - iOS keeps its anchor and Android its changes token across runs, but **not** across the upgrade from the old
      build: the upgrade run always discards the workout anchor / changes token (rule 9). The ledger makes any re-read
@@ -440,11 +444,18 @@ Both platforms follow the same rules. The only differences are platform idiom, n
 6. **Review once.**
    - Before the first upload for a (program, kind), show the first-sync review unless `review_done_at` is set on **any**
      integration's row for that program + kind (`GET /state` returns all of them).
-   - After the user confirms, send `PUT review_done: true` on the current integration.
+   - Send `PUT review_done: true` on the current integration **only after the user confirms a review page** (0.2.0, H1)
+     — plus the rule-9 carry-over. A first sync with 0 rows, and a `last_success_at` on this integration's own row,
+     count as a **local** confirm only (nothing sent), so a reinstall never re-asks. A page's unchecked rows become
+     exclusions only after its upload succeeds.
    - Once done, the review never shows again for that program + kind: not on this device, not after a reinstall, not
      on another device, and not on the other platform (D-C9).
 7. **Sessions.**
-   - Sync stops only on an explicit Disconnect or an explicit sign-out.
+   - Sync stops only on an explicit Disconnect or an explicit sign-out. A sign-out pauses it (the run in flight is
+     cancelled); a run never writes for a member who is no longer signed in.
+   - **Disconnect (0.2.0, H2)** clears that kind's toggle, programs, status, connect date and the workout anchor /
+     changes token (+ the upgrade marker); it keeps exclusions and confirmed reviews and sends nothing to the server.
+     A reconnect shows no review (the server's `review_done_at` is the record) and reads per rule 4's reconnect floor.
    - After any sign-in, call `GET /state`. The **same** member resumes from `last_success_at` (rule 4) with no review
      screen (D-8).
    - Local sync state is stored per member and excluded from Android Auto Backup (board §4.8).
@@ -466,12 +477,14 @@ Both platforms follow the same rules. The only differences are platform idiom, n
      no timestamp and advances `lastSyncDate` even while the anchor is held, so a client can't tell how stale a kept
      anchor is. The old ledger keeps 45 days, so the samples the old build summed in that window are in it, went up as
      `legacy` above, and now come back `duplicate`. **Never** use the connect-date first-sync rule while an old-build
-     ledger existed: before deleting it, set a local upgrade marker (per member + integration) that rule 4 reads.
+     ledger existed: before deleting it, set a local upgrade marker (per member + integration) that rule 4 reads — set
+     **only** when the old build held a ledger, never because workouts are merely enabled (0.2.0, H3).
      Samples older than 30 days that the old build never applied are deliberately dropped — the safe direction
      (nothing is counted twice).
    - **Carry the review over.** Send `PUT /state` with `review_done: true` for every (program, kind) in the old build's
      confirmed lists (iOS `healthkit[.sleep/.steps].confirmedProgramIds`, Android the `hc.*` equivalents), so an
-     upgrading member doesn't see the first-sync review again. The local `excludedKeys` stay on the device and keep
+     upgrading member doesn't see the first-sync review again — confirmed at the client release: both platforms send
+     them (D-C13b; the one `review_done` sent without a review page, H1). The local `excludedKeys` stay on the device and keep
      being honored (rule 3) — the server has no record of exclusions.
    - When every legacy item is final, delete the old ledger (the upgrade marker stays).
 10. **Report** one `sync.run` event per run (observability §8.1) through `POST /api/client-events`.
@@ -494,7 +507,10 @@ Both platforms follow the same rules. The only differences are platform idiom, n
 | **D-C10** | **Transport.** The router is mounted before the global `express.json()` with its own 256 kb parser and a router-local parser-error handler: the global 100 kb parser's 413 reaches `errorHandler` as a 500 and would loop retries (observability F2). The router applies `blockUnversionedAndroid` itself. ≤ 300 items, one program per item. | Q9 |
 | **D-C11** | **Self-only + per-item access + bounded I/O.** `requireDataEntryAllowed` returns a whole-request 403, so it isn't reused; access costs two queries per batch. Every DB call (batch, GET and PUT state) runs in a transaction with `statement_timeout` 10 s. A batch and a `PUT /state` also take the same per-member advisory lock (§4.4), after `SET LOCAL lock_timeout = '2s'`: a lock wait over 2 s rolls back and answers `503 busy` + `Retry-After: 2`, so a queued run doesn't hold a pool connection for the full 10 s. Item dates and instants are bounded before any query (§3.2), so no input can fail the whole batch in Postgres. | Q13; CLAUDE.md (timeouts, no N+1) |
 | **D-C12** | **Per-member limiter:** 60 requests / 10 min (`utils/rateLimit.js` with `keyFn`). | Q12 |
-| **D-REF** | **NET-NEW**, no legacy reference. `consumed_by = []` until the bundled releases. | — |
+| **D-C13** | **Client rules both platforms build (0.2.0 — iOS 1.5.0 (58), Android 1.1.0 (5); approval amendments H1–H4 in [`phase-3-client-amendments.md`](../../initiatives/reliability-overhaul/plans/phase-3-client-amendments.md)).** (a) **Review once (H1):** `review_done` only after the user confirms a page; a 0-row first sync and a same-integration `last_success_at` are local confirms; exclusions recorded only after that page's `PUT` lands (§8 rule 6). (b) **Rule-9 carry-over — decided at the release (orchestrator, 2026-10-13):** the old build's confirmed lists **are** sent as `review_done` on the upgrade run on both platforms (retried until accepted) — the only `review_done` without a review page. (c) **Disconnect / reconnect (H2):** local only; keeps exclusions + confirmed reviews; clears the anchor / changes token and the upgrade marker; the reconnect floor of rule 4. (d) **Upgrade marker (H3):** only when the old build held a ledger. (e) **Run semantics (H4):** user triggers wait for an in-flight run, automatic triggers are spaced ≥ 60 s; `sync_success` per (program, kind) minus held keys; data with no resolvable program window holds the anchor and reports `failed` (faithful to 1.4); nothing to send → `sync.run` outcome `skipped`. (f) Sign-out pauses (the run is cancelled; per-member state kept); a run is pinned to the member it started for. (g) Rule 11 holds: neither build sends `on_duplicate:"sum"` nor POST/PUT `/daily-health-logs` for sync — only iOS ≤ 1.4.x and Android 1.0.0 still do. | Phase 3 client plans C2 / C3 + approval amendments (2026-10-13); orchestrator decision on rule 9. |
+| **D-C14** | **iOS (HealthKit) realization (0.2.0; platform idiom only).** `HealthSyncEngine` is a singleton, not view-owned, so a HealthKit background wake syncs without a scene; observers registered at every launch for the member's active kinds (workouts `.immediate`, sleep / steps `.hourly`), HealthKit's completion handler called only after the work; `beginBackgroundTask` around a run; a background wake is spaced only while the app is active, and only workout changes reload the Summary (H5). The rule-9 upgrade runs before the run's `GET /state`; a review commit = `PUT review_done` + a `manual` run; the success notification counts workouts as applied, sleep / steps as created days. Prefs per member in `UserDefaults` (`HealthSyncPrefs`) — the pre-1.5 global `healthkit.*` keys move once to the member signed in at upgrade; exclusions pruned past the 30-day window. Files: `Shared/Services/{HealthSyncEngine,HealthSyncPlanner,HealthSyncItems,HealthSyncUpgrade,HealthSyncPrefs,APIClient+HealthSync}.swift` ([`apple-health`](../apple-health/SPEC.md) D-V2). | Phase 3 C2 plan + amendment H5; iOS 1.5.0 working tree. |
+| **D-C15** | **Android (Health Connect) realization (0.2.0; platform idiom only).** (a) Every read pages (`pageToken`); deletions come from `DeletionChange.recordId`; a missing / expired changes token is re-minted **before** the window read (nothing between the read and the token is lost). (b) The rule-9 re-read is ONE paged window read (from the oldest ledger day − 1 d) matched by record id; entries Health no longer has are retired; a failed legacy read sends no workout adds that run; entries are retired as their `legacy` items come back final. (c) `rasi.health` keys are per member (`m.<memberId>.*`, excluded from Auto Backup + device transfer); the 1.0.0 un-namespaced keys are adopted once by the member signed in at upgrade, else the first to sign in afterwards (on a shared phone they could attach to another member — accepted). (d) Sleep is read from start − 1 day; only days ≥ start are sent. (e) Pending `review_done`s (page confirms + the carry-over) persist until `PUT /state` accepts them. (f) `sync_success` per (program, kind) only when that whole flow advanced (rule 5 read literally). (g) Sync Now = one run of all flows, each judged by its own outcome. (h) **Recorded deviation from rule 9:** the upgrade run reads workouts from `max(last_success_at − 1 d, today − 30 d)`, not always today − 30 d — a `health_connect` `last_success_at` from another Android device of the same member shortens the window; the ledger's `legacy` items still cover what the old build summed ([`health-connect`](../health-connect/SPEC.md) D-V2; page SPEC D-REL3-6). Files: `health/{HealthSyncController,HealthSyncRunner,HealthSyncItems,HealthSyncUpgrade,HealthStore,HealthConnectManager}.kt`, `net/HealthSyncDtos.kt`. | Phase 3 C3 plan "Docs for the orchestrator" (a)–(h) + amendments; Android `157578f`. |
+| **D-REF** | **NET-NEW**, no legacy reference. ~~`consumed_by = []` until the bundled releases~~ — superseded at v0.2.0 by D-C13 (`[ios, android]`). | — |
 
 ## 10. Flagged characteristics
 
@@ -513,4 +529,5 @@ Both platforms follow the same rules. The only differences are platform idiom, n
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **The clients adopt §8 (reliability-overhaul Phase 3 client release — iOS 1.5.0 (58), Android 1.1.0 (5)).** `consumed_by` [] → `[ios, android]` (header, §7, D-REF, registry). §8 amended: rule 1 (user triggers wait, automatic spaced ≥ 60 s), rule 4 reconnect floor (H2), rule 6 review once (H1 — `review_done` only after a confirmed page; 0-row / same-integration `last_success_at` = local confirm), rule 7 Disconnect local-only + sign-out pauses, rule 9 marker only with an old ledger (H3) + the carry-over confirmed. D-C13 shared client rules (incl. the rule-9 carry-over decision: both platforms send the old confirmed lists); D-C14 iOS realization (engine singleton, observers, H5); D-C15 Android realization (paging, token minted before the read, one paged legacy re-read, per-member store, sleep from start − 1 d, persisted pending reviews, the recorded rule-9 upgrade-window deviation). No backend change. MINOR (`consumed_by` contract change); dependents unaffected. |
 | 0.1.0 | 2026-10-12 | **NET-NEW (reliability-overhaul Phase 3 R2, board §4 items 2–9).** `POST /api/health-sync/batch`, `GET` + `PUT /api/health-sync/state`; permanent workout sample ledger `health_sync_samples` + `health_sync_state` + `daily_health_logs.sleep_source` / `steps_source` (schema-neutral `sql/009`); deletions (atomic per sample — any admin-locked copy → `skipped_locked`, nothing subtracted), overlap rule (different app or integration), 12 h / 24 h bounds (legacy rows uncapped), legacy import (the upgrade run always discards the workout anchor / changes token and reads from today − 30 d, never the connect date, and carries the old review over — §8 rule 9), review-once (across integrations), catch-up anchor, D-LOCK hold, per-member advisory lock on the batch and `PUT /state` with a 2 s `lock_timeout` → `503 busy`; item `date` (2000-01-01 … today + 2 d) and `start_at` / `end_at` (explicit offset, years 2000–2100) bounds; `sync.run` registered in observability §8.1. Backend-only and additive for every live binary; `consumed_by = []` until the bundled iOS + Android releases (§8). D-C1–D-C12, F1–F8. |

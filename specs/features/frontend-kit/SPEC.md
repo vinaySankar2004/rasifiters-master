@@ -1,6 +1,7 @@
 # Feature: `frontend-kit` — shared loading / error / offline / banner kit (web + iOS + Android)
 
-> **Status:** 🏗️ built (kits compile on all three; **no screen adopts them yet**) · **Version:** 0.1.0 ·
+> **Status:** 🧩 adopted (Phase 3 client release: web live; iOS 1.5.0 (58) + Android 1.1.0 (5) built — 🚀 deployed once
+> both store builds are live) · **Version:** 0.2.0 ·
 > **Apps (`consumed_by`):** `web` `ios` `android`
 > **Provenance:** net-new — reliability overhaul Phase 2 track D. Contract = [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md)
 > §6 (W7) + W7-D1 (one palette = web's) + W7-D2 (keep data + "Couldn't refresh — Retry"); evidence =
@@ -15,8 +16,8 @@
 ## 1. What it is
 One small, self-contained kit per surface: a five-state async model, one error vocabulary with one human
 message per kind, a connectivity monitor, a floating banner (offline / stale / error / update-available), an
-error-with-no-data view, and the shared palette tokens. Phase 2 ships the kits only; screens adopt them in
-reliability Phase 3 ("kit adoption on touched screens").
+error-with-no-data view, and the shared palette tokens. Phase 2 shipped the kits only; the Phase 3 client release
+adopts them on the touched screens (0.2.0 — D-KIT-13–15).
 
 ## 2. Why it exists
 Today an error looks like "no data" on all three surfaces, spinners never end, raw server / OS text reaches
@@ -70,9 +71,10 @@ row highlighting (web `BulkRowError[]`, iOS `[APIClient.BulkRowError]`, Android 
 `retryAfter` = whole non-negative seconds from `Retry-After`, at most 2147483647 (Int32 — Android's `Int`
 range; web and iOS clamp to match); an HTTP-date or a larger value → none. The kit **never signs
 anyone out** — sign-out policy is the sessions contract (DESIGN_BOARD §2 client rule 3).
-**Scope rule — credential endpoints:** on login, sign-up, OAuth, link/unlink, set/change password and the
-email re-auth, a 401 means *wrong credentials*, not an ended session — those screens keep the server's own
-text and do **not** route a 401 through `signedOut`.
+**Scope rule — credential endpoints:** ~~on login, sign-up, OAuth, link/unlink, set/change password and the
+email re-auth, a 401 means *wrong credentials* — those screens keep the server's own text and do not route a 401
+through `signedOut`~~ — superseded at v0.2.0 by D-KIT-14: the server's text for 400 / 401 / 409 / 422 only on the
+**public sign-in** routes; on the authenticated credential routes a 401 is the ended session (auth D-C15d) → `signedOut`.
 
 ## 5. Async state + connectivity
 | State | Carries | Meaning | UI at adoption |
@@ -147,6 +149,7 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
 - **D-KIT-1 Kits only, no adoption (0.1.0).** No existing screen, component or token changes. Web
   `components/ui/{ErrorState,LoadingState,EmptyState}`, iOS `appOrange`/`appRed`, Android `AppOrange` / M3
   `primary` are untouched. Adoption = reliability Phase 3, on touched screens (net-new UI must not restyle pages).
+  *(Adoption half superseded at v0.2.0 by D-KIT-13; the existing tokens stay untouched — D-KIT-10.)*
 - **D-KIT-2 One copy table.** §3 is canonical; the three copy files mirror it verbatim; any copy change edits
   all three + §3 in one commit.
 - **D-KIT-3 Vocabulary.** Board §6.3's nine kinds + `updateRequired` (426) + `unavailable` (429/503 with
@@ -162,6 +165,8 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   Android caveat: `ProgramContext.asApiError()` turns `HttpException` into `ApiException`, dropping `Retry-After`,
   and `sendProgramInvite` rethrows an `IOException` as `ApiException(0)` → unknown, not offline — so Phase 3
   adoption maps the raw throwable, or `ApiException` gains `retryAfter`.
+  *(Superseded at v0.2.0 by D-KIT-13: `code` / `Retry-After` are captured on all three — web `ApiError`, iOS
+  `APIHTTPError` (status, `code`, `retryAfter`, `requestId`), Android `ApiException.retryAfter`.)*
 - **D-KIT-6 Five states** (§5); "empty" is a view decision; W7-D2 is encoded in `failing()`; web `fromQuery`
   follows the same transitions (a retry in flight is loaded-refreshing, not stale).
 - **D-KIT-7 Link-level connectivity on all three** (Android: `NET_CAPABILITY_INTERNET`, NOT `VALIDATED`) so
@@ -183,13 +188,59 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   LoadingState/EmptyState), mobile centered stack + the platform primary pill (`AppPrimaryButton` / `PillButton`).
 - **D-KIT-12 Android declares `ACCESS_NETWORK_STATE`** (normal permission, no prompt; previously only
   merged in transitively from Firebase).
+- **D-KIT-13 Adoption (0.2.0) — the same rules on all three** (Phase 3 client release; approval amendments A6, A7,
+  A13, A14 in [`phase-3-client-amendments.md`](../../initiatives/reliability-overhaul/plans/phase-3-client-amendments.md)).
+  - **Offline banner is global (A6):** one connectivity monitor → one floating banner at the app root, lifted above
+    the visible screen's bottom chrome; while it shows, a screen's own stale / error / update banner hides (offline
+    wins) and lists get extra bottom room.
+  - **Launch screens (program picker + Summary)** run on the five states: instant open from the launch cache, then the
+    network; `failed` → ErrorView + Retry; `stale` → content + `Couldn't refresh` · Retry; refetch on reconnect.
+    Partial failures keep the parts that loaded and never show fake zeros (a missing value is `—`); the error view never
+    sits over another program's or zero values (A13). Pull-to-refresh on both screens on iOS + Android; a Summary pull
+    reloads now, syncs health in the background, and reloads again if the sync applied data.
+  - **Launch cache (D-9, A14):** per member — the last good program list + per-program Summary; written only while a
+    session exists (a response that lands after a sign-out is dropped); cleared by the sign-out teardown; invites are
+    never cached (a stale invite would 404 on accept). Web `localStorage` `rasi.fiters.cache.<member>:` (schema v1, Summary
+    entries for the member's 10 most recently loaded programs); iOS `Caches/launch-cache/` (raw 2xx bodies); Android
+    `noBackupFilesDir/launch_cache`.
+  - **15 s request timeout** on all three (web `fetch` abort, iOS `timeoutIntervalForRequest`, Android `callTimeout`).
+    Web `QueryClient` defaults: queries retry at most twice and only on a retryable kind (never a 4xx other than
+    408 / 429), waiting `Retry-After` (≤ 30 s) else exponential to 30 s; mutations never auto-retry.
+  - **Update-available banner:** the program picker only (A7 — [`app-config`](../app-config/SPEC.md) D-C7).
+  - **Capture:** `code` / `Retry-After` on every error (closes D-KIT-5); web `parseRetryAfter` lives in
+    `lib/api/client.ts`, re-exported from `app-error.ts`.
+- **D-KIT-14 Credential-screen messages (0.2.0; supersedes the §4 scope rule).** Public sign-in routes (login,
+  sign-up, `/oauth`, `/oauth/complete`): the server's text for 400 / 401 / 409 / 422, the kit copy otherwise.
+  Authenticated credential routes (link / unlink, set / change password, email re-auth): 400 / 409 / 422 keep the
+  server's text (so the link 409 collision text survives), a 401 is the ended session → `signedOut` (auth D-C15d), the
+  rest the kit copy. No response while offline → the offline copy. Web `credentialErrorMessage(error, "signIn" |
+  "account")`; iOS `SessionCopy.credentialMessage` (sign-in, link / unlink, email — a 401 there shows the server's own
+  "Session expired. Sign in again to …" text) and `kitMessage` (password writes, profile save); Android
+  `toCredentialMessage`. A Google provider failure on web shows the kit `unknown` copy (A8).
+- **D-KIT-15 Per-surface realization (0.2.0; platform idiom only).** **Web:** the offline banner sits in `app/shell.tsx`
+  outside `<main>` + a spacer while offline; pages hide their stale banner while offline; the launch cache is read only
+  in `useLaunchSeed`'s effect (never in render — no hydration mismatch). **iOS:** the root `.floatingBanner(bottomInset:
+  floatingBannerInset)` in `AppRootView` — the visible stack publishes its inset (picker FAB stack 150, AdminHomeView's
+  tab bar 64, pushed screens 0) and a root `safeAreaInset` reserves 76 pt on every screen while it shows; a screen's
+  banner goes through `ScreenBanner` (hidden while offline); picker banner
+  priority = action error > stale > update-available. **Android:** the offline banner in `RootScreen` with per-screen
+  placement + a content reserve (picker list clearance 238 dp + the nav-bar inset); Summary merges a partial failure
+  with `—` placeholders (no longer fails all seven reads); `core/LaunchCache.kt`; the blocking
+  `ui/components/UpdateRequiredScreen.kt`.
 
-## 10. Not in 0.1.0 (deferred to adoption) / open
-Loading skeleton, empty view, toast, pull-to-refresh (board §6.6); spacing/type/radius tokens; Next.js
-`error.tsx`; `QueryClient` defaults; the 15 s timeout; on-device cache (D-9); the blocking update screen. The
-existing iOS "You're offline. We'll reconnect…" alert (`AppRootView.swift`, `ProgramContext+Auth.swift`) stays
-until Phase 3 replaces it with the offline banner (`bannerOffline`).
+## 10. Not in 0.2.0 / open
+Loading skeleton, empty view, toast (board §6.6); spacing/type/radius tokens; Next.js `error.tsx`; web: the TanStack
+query `signal` is not combined with the request's own 15 s abort (the fetchers take no signal). Delivered in 0.2.0
+(D-KIT-13): `QueryClient` defaults, the 15 s timeout, the on-device cache (D-9), the offline banner (it replaced iOS's
+"You're offline. We'll reconnect…" alert), pull-to-refresh on the launch screens (iOS + Android), the Android blocking
+update screen.
 
 ## 11. Changelog
+- **v0.2.0** (2026-10-13) — **adopted** (reliability-overhaul Phase 3 client release — web live, iOS 1.5.0 (58),
+  Android 1.1.0 (5)); status built → adopted. D-KIT-13 adoption rules (global offline banner, launch screens on the five
+  states + partial failures + pull-to-refresh, per-member launch cache written only while signed in, 15 s timeout, web
+  `QueryClient` defaults, picker-only update banner, `code` / `Retry-After` capture — D-KIT-5 closed); D-KIT-14
+  credential-screen messages (§4 scope rule superseded: a 401 on an authenticated credential route is `signedOut`);
+  D-KIT-15 per-surface realization; §10 updated (web TanStack `signal` deferral). No copy-table change.
 - **v0.1.0** (2026-10-12) — kits on web / iOS / Android (async state, error vocabulary, connectivity,
   floating banner, error view, palette tokens); no screen adoption — reliability overhaul Phase 2 track D.

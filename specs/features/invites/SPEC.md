@@ -1,6 +1,6 @@
 # Feature: `invites` — program invitations (send · inbox · accept/decline/revoke · block)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.2.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/invites.js`, `services/inviteService.js`,
 > `models/ProgramInvite.js`, `models/ProgramInviteBlock.js`, `server.js:50` (co-mounted at
 > `/api/program-memberships`).
@@ -12,6 +12,7 @@
 > **Two deliberate cleanups** (the rest is faithful): **D-C3a** drop the vestigial `target_member_id` param;
 > **D-C3b** replace `getAllInvites`' N+1 lookup with a single batched query — §7.
 > **0.2.0 (reliability overhaul R3):** one-transaction send, logged no-op reasons, real 500s, expired invites hidden, one inbox for all three clients — D-C4–D-C8, client contract §3.1.
+> **0.2.1 (Phase 3 client release):** all three clients on §3.1 — swallow removed, card Accept/Decline retired — D-C9.
 
 ---
 
@@ -85,9 +86,9 @@ invalid `action` for role; expired invite), `403` (not program admin on send; no
 ### 3.1 Client contract — one invite inbox for web / iOS / Android (0.2.0, D-C8)
 
 All under `/api/program-memberships`, `Authorization: Bearer <access token>`; `401` / `503` per `authenticateToken`
-(auth D-C11). Web (`lib/api/invites.ts:23,34`, `lib/api/members.ts:214`) and iOS (`APIClient+Invites.swift:54,71,94`)
-already call these; Android adopts them in its next build (no shim for 1.0.0). Errors are `{ "error": message }`;
-the HTTP status decides the frontend-kit error kind.
+(auth D-C11). Callers: web (`lib/api/invites.ts`, `lib/api/members.ts`), iOS (`APIClient+Invites.swift`) and, since
+1.1.0 (5), Android (`net/ApiService.kt`; `ui/programs/{ProgramActionsSheet,InviteInbox}.kt`) — Android 1.0.0 never
+calls the inbox routes (no shim). Errors are `{ "error": message }`; the HTTP status decides the frontend-kit error kind.
 
 **`GET /my-invites`** → `200`, newest first, only `pending` invites that have not expired:
 
@@ -101,10 +102,11 @@ the HTTP status decides the frontend-kit error kind.
 `null`; `expires_at` may be `null`. `500 { "error": "Failed to fetch invites." }`.
 
 **`PUT /invite-response`** — body `{ "invite_id": "uuid", "action": "accept" | "decline", "block_future": true }`
-(`block_future` optional, honoured on `decline`). `200 { "message": "<human text — show it>" }` · `400` (missing field /
-invalid action / `"This invite has expired."`) · `404 "Invite not found or already processed."` · `500 { "error":
-"Failed to process invite response." }`. Global admins also use `GET /all-invites` and `action: "revoke"` (§3 table,
-unchanged).
+(`block_future` optional, honoured on `decline`). `200 { "message": "<human text>" }` — **not shown** (amended 0.2.1,
+A1: the client refreshes the inbox and shows the new state) · `400` (missing field / invalid action / `"This invite has
+expired."`) · `404 "Invite not found or already processed."` · `500 { "error": "Failed to process invite response." }`
+— every error is shown (A10). Global admins also use `GET /all-invites` and `action: "revoke"` (§3 table, unchanged) —
+on all three clients since 0.2.1 (Android: "All Invites" + a Revoke pill).
 
 **`POST /invite`** (program admins) — body `{ "program_id": "uuid", "username": "string" }`.
 
@@ -116,15 +118,14 @@ unchanged).
 | `500` | `{ "error": "Failed to send invitation." }` | the kit's server error |
 | network / timeout | — | the kit's offline / timeout error |
 
-**Remove the client-side swallow (all three client plans).** Every live client treats ANY non-network error from this
-call as success: web `apps/web/src/app/members/invite/page.tsx:37-44`, iOS
-`apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/InviteMemberView.swift:161-170`, Android
-`apps/android/app/src/main/java/com/app/rasifiters/core/ProgramContext.kt:999-1006`. The next builds show "Invitation
-sent" only on `200` and route every other status through the frontend-kit (the server keeps the privacy guarantee —
-F1). Live binaries see **no visible change** from 0.2.0 (a `400` / `500` still shows "sent" there).
+**Client-side swallow removed (0.2.1, D-C9).** Web, iOS 1.5.0 (58) and Android 1.1.0 (5) show `Invitation sent` only on
+`200` and route every other status through the frontend-kit (the server keeps the privacy guarantee — F1). Older
+binaries (iOS ≤ 1.4.x, Android 1.0.0) still treat any non-network error as success — no visible change there.
 
-**Refresh the inbox** on program-picker load / pull-to-refresh, on every SSE or push `program.invite_received`, and after
-every `/invite-response`. Push and SSE are hints only — the inbox is always `GET /my-invites`.
+**Refresh the inbox** on program-picker load / pull-to-refresh, on every SSE or push `program.invite_received` (incl. a
+`/unacknowledged` re-fetch that carries one — notifications D-C17), and after every `/invite-response`, success or not
+(web: the mutation's `onSettled`). Push and SSE are hints only — the inbox is always `GET /my-invites`. A tapped invite
+push opens the inbox (notifications D-C17c).
 
 ## 4. Feature list (behaviors to port)
 
@@ -251,6 +252,7 @@ admin-vs-self message wording, the global-admin accept-on-behalf + revoke powers
 | **D-C6** | **Real errors (0.2.0).** A non-`AppError` throw from `POST /invite` → `500 { error: "Failed to send invitation." }` (it was swallowed into a 200; no `code`, like every backend 500), logged as error name + Postgres code only (observability F8). A non-string `username` or non-UUID `program_id` → `400 "program_id and username are required."`. **Live binaries: no visible change** — web (`members/invite/page.tsx:37-44`), iOS 1.4.2 (`InviteMemberView.swift:161-170`) and Android 1.0.0 (`ProgramContext.kt:999-1006`) all show "Invitation sent" for any non-network error; the three client plans remove that swallow (§3.1). | DESIGN_BOARD §3.2; D-12. |
 | **D-C7** | **The inbox hides expired invites (0.2.0).** `GET /my-invites` adds `expires_at IS NULL OR expires_at > now` (accepting one only returned `400 "This invite has expired."`; 5 prod invites expire ~2026-10-21). `GET /all-invites` is unchanged (admin view). | DESIGN_BOARD §3.1; W2 F12. |
 | **D-C8** | **One invite inbox for web / iOS / Android (0.2.0).** `GET /my-invites` + `PUT /invite-response` (+ `POST /invite`) are THE contract for all three (§3.1). Web (`lib/api/invites.ts:23,34`) and iOS (`APIClient+Invites.swift:71,94`) already use them; Android adopts them in its next build — its 1.0.0 picker reads `invited` membership rows that nothing creates (0 in prod, W2 F1/E2); no shim (board ✅). `consumed_by` += `android` now: Android 1.0.0 already calls `POST /invite` (`ApiService.kt:252`). Web's program-card accept path over `program-memberships` (F3) acts only on those never-created rows — the web client plan retires it. | DESIGN_BOARD §3.1; W2 F1/E2. |
+| **D-C9** | **All three clients on §3.1 (0.2.1 — web live, iOS 1.5.0 (58), Android 1.1.0 (5); approval amendments A1, A10).** (a) The send swallow is gone: `Invitation sent` only on `200`; other statuses through the frontend-kit (web `members/invite/page.tsx`, iOS `InviteMemberView.swift`, Android `MemberManagementScreens.kt`). (b) The `PUT /invite-response` 200 `message` is not shown; accept / decline / revoke errors are (web: a `respondError` line in `InvitesTab` + the decline modal). (c) **Card actions:** the *invited* card's Accept / Decline is retired on all three (the inbox is the one path — completes D-C8 / F3); the *requested* card keeps its Cancel request (program-memberships). (d) Android adopts the inbox incl. the global-admin **All Invites + Revoke** (`fetchAllInvites`, a Revoke pill when `isGlobalAdmin`); `PendingInviteDTO` carries explicit `@SerialName`s. (e) Inbox refresh triggers per §3.1. No backend change. | Phase 3 client plans C1 / C2 / C3 + approval amendments (2026-10-13). |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -258,7 +260,7 @@ admin-vs-self message wording, the global-admin accept-on-behalf + revoke powers
 |----|----------------|-------|----------------------------|
 | **F1** | **`sendInvite` is privacy-safe for every no-op** — missing/deleted program, unknown/blocked/already-member target, existing pending invite (incl. a concurrent duplicate) all return the same `200 { message: "Invitation sent" }`; the reason is logged server-side only (D-C5). **0.2.0:** unexpected failures are no longer swallowed — `500 { error }` (D-C6). | `inviteSendService.js`; `routes/invites.js` | Kept — a security property; the swallow-to-200 half was removed by D-C6. |
 | **F2** | **Global admin can accept/decline on behalf + revoke** any pending invite (`accept`/`decline`/`revoke` allow-list); a normal user is scoped to their own invite (`invited_username = requester.username`). | `inviteService.js:147-188, 292-298` | Kept (faithful) — intended admin power. |
-| **F3** | **Web has a *second* accept/decline path** on program cards that calls `program-memberships` `updateMembership` (status `active`/`removed`), **not** this feature's `/invite-response`. Two UI entry points, two backends; this SPEC owns only `/invite-response`. | web `app/programs/page.tsx:239-244` (program-memberships) | Out of scope (owned by program-memberships) — acts only on `invited` membership rows nothing creates; the web client plan retires it (D-C8). |
+| **F3** | **Web has a *second* accept/decline path** on program cards that calls `program-memberships` `updateMembership` (status `active`/`removed`), **not** this feature's `/invite-response`. Two UI entry points, two backends; this SPEC owns only `/invite-response`. | web `app/programs/page.tsx:239-244` (program-memberships) | **Retired (web, C1)** — 0.2.1 (D-C9c): the `invited` card's Accept/Decline is gone on all three clients; a `requested` card keeps Cancel request (program-memberships). |
 | **F4** | **`invited_by_name`/`invited_member_name` rely on the `Member.member_name` VIRTUAL** — the includes select only `first_name`/`last_name`/`username`; the virtual computes the name. Works because the dependent real columns are selected. | `inviteService.js:84,96,111,132,136`; `models/Member.js` (VIRTUAL) | Kept (faithful) — relies on the virtual's deps being selected. |
 | **F5** | **`program_invites.invited_email` is unused** — the column + model field exist; every code path invites by **username** only. | `models/ProgramInvite.js:30-33`; `inviteService.js` (no read/write) | Kept (faithful) — vestigial column; cleanup candidate. |
 | **F6** | **Expiry (30 days) + `max_uses` (1) are hardcoded** in `sendInvite`, not env/config-driven; `uses_count` increments on accept but `max_uses` is never re-checked (single-use by construction). | `inviteService.js:62-64, 208,232,249` | Kept (faithful) — would be config in a redesign. |
@@ -268,5 +270,6 @@ admin-vs-self message wording, the global-admin accept-on-behalf + revoke powers
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | **Clients on §3.1 (reliability-overhaul Phase 3 client release — web live, iOS 1.5.0 (58), Android 1.1.0 (5)).** D-C9: the send swallow removed on all three (`Invitation sent` only on 200); the `PUT /invite-response` message is not shown (§3.1 amended, A1) and its errors are (A10); inbox refetch after every response (web `onSettled`) and on SSE / push / re-fetch invite hints; the *invited* card's Accept/Decline retired on all three, the *requested* Cancel request kept (F3 → Retired (web, C1)); Android adopts the inbox incl. global-admin All Invites + Revoke. §3.1 caller refs refreshed. No backend change. PATCH. |
 | 0.2.0 | 2026-10-12 | **Reliability overhaul Phase 3 R3 (backend).** D-C4 `sendInvite` moved to new `services/inviteSendService.js`; supersede-expired + create invite + `program.invite_received` notification in ONE managed transaction (push/SSE after commit); a concurrent duplicate (`23505` on `uniq_program_invites_program_username_pending`) = the pending no-op. D-C5 every no-op returns a reason the route logs as `{"type":"invite_noop","request_id","program_id","reason"}` (never the username). D-C6 unexpected failures → `500 { error: "Failed to send invitation." }` (were a false 200); non-string `username` / non-UUID `program_id` → 400; live binaries show no change (they swallow non-network errors — the client plans remove that). D-C7 `GET /my-invites` hides expired invites. D-C8 one inbox for web / iOS / Android (client contract §3.1); `consumed_by` += `android`. MINOR — owned-interface + `consumed_by` change; response shapes unchanged; dependent program-memberships unaffected. |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Read the legacy `routes/invites.js` + `inviteService.js` + the two models in full; fanned 2 `Explore` agents over web + iOS consumption (`consumed_by = [web, ios]`, all 4 routes 1:1, no divergence). Documents the 4 owned `/api/program-memberships` invite routes + `inviteService` + the `ProgramInvite`/`ProgramInviteBlock` tables. Decisions D-C1 (scope; inline accept-path join write) / D-C2 (emits wired **live** — the keystone is ported, no stub) / D-C3a (drop vestigial `target_member_id`) / D-C3b (fix `getAllInvites` N+1) / D-REF (`consumed_by [web, ios]`, gates match) / D-S1 (faithful except the two cleanups). Flagged F1–F7. |

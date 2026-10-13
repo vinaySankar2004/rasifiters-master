@@ -1,6 +1,6 @@
 # Screen: `forgot-password` (android) — request a password reset (auth-recovery, step 1)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`web forgot-password`](../../web/forgot-password/SPEC.md)
 > (the primary reference — web-first recovery) + the iOS realization in [`ios login`](../../ios/login/SPEC.md) D-C2
 > / `ForgotPasswordView`. This file records only the Android realization.

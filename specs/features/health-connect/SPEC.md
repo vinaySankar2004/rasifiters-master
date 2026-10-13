@@ -1,6 +1,6 @@
 # Feature: `health-connect` — Health Connect (Samsung Health) workout + sleep + steps auto-sync (Android)
 
-> **Status:** 🚀 deployed (`apps/android/` + existing backend endpoints) · **Version:** 0.2.0 ·
+> **Status:** 🚀 deployed (`apps/android/` + existing backend endpoints) · **Version:** 0.3.0 ·
 > **Apps (`consumed_by`):** `android`
 > **Provenance:** the Android analog of the iOS [`apple-health`](../apple-health/SPEC.md) feature (0.7.0),
 > re-expressed on **Health Connect** (`androidx.health.connect:connect-client`) instead of HealthKit.
@@ -12,7 +12,9 @@
 > lock), [`workouts`](../workouts/SPEC.md) (the library the map targets — the Apple types seeded by
 > `sql/004`), [`workout-logs`](../workout-logs/SPEC.md) (the write endpoint + `on_duplicate:"sum"`), and —
 > for sleep + steps — [`daily-health-logs`](../daily-health-logs/SPEC.md) **0.2.0** (`sleep_hours` + `steps`
-> columns + its POST/PUT endpoints; steps needs migration `006`).
+> columns + its POST/PUT endpoints; steps needs migration `006`). **Since 0.3.0 (Android 1.1.0 (5))** the sync writes
+> go through [`health-sync`](../health-sync/SPEC.md) (`POST /api/health-sync/batch`, `GET`/`PUT /api/health-sync/state`);
+> the workout-logs / daily-health-logs write paths serve only Android 1.0.0 (D-V2).
 
 ---
 
@@ -39,114 +41,89 @@ already seeded the Apple types + `Other Workout`) and maps each Health Connect
 `ExerciseSessionRecord.exerciseType` to a real `workouts_library` name — **every target is a subset of the
 iOS map's targets** (verified against `sql/004`), so a synced Android log is always library-backed.
 
-## 3. Functionality (1:1 with `apple-health` §3, on Health Connect)
+## 3. Functionality (0.3.0 — Android 1.1.0 (5); contract = [`health-sync`](../health-sync/SPEC.md) §8, D-C13 / D-C15)
 
-- **Connect / disconnect** (`HealthSyncController.enableWorkoutsAfterPermission` / `disconnectWorkouts`) —
-  request Health Connect **read** authorization for `ExerciseSessionRecord` via the Health Connect
-  permission UI (`PermissionController.createRequestPermissionResultContract`, **not** a runtime dialog);
-  persist enabled state, selected program ids, connect date, last-sync date/count, and the **changes token**
-  in `SharedPreferences` (the `UserDefaults` analog — client-side, F3).
-- **Incremental fetch** (`HealthConnectManager.fetchNewWorkouts`) — the **Changes API** (the anchor analog):
-  first sync reads `ExerciseSessionRecord`s **since the connect date** (`readRecords`, no arbitrary
-  backfill) and mints a changes token for the future; later syncs drain `getChanges(token)`; an **expired**
-  token falls back to a full read-from-connect-date + a fresh token. The token is persisted **only after a
-  successful sync** (iOS anchor-integrity, D-FIX).
-- **Aggregation** (`HealthConnectManager.aggregate`) — group by (mapped library name, local calendar day),
-  keeping each contributing session's `(uuid = record.metadata.id, minutes)` so writes can filter
-  already-applied samples (D-SUM). Minutes = `max(round(Σ), 1)`.
-- **Mapping** (`HealthConnectWorkoutTypeMap`) — every `ExerciseSessionRecord.EXERCISE_TYPE_*` → a
-  `workouts_library` name; close equivalents reuse curated rows (Cycling/Rowing/Boxing/Swim/HIIT
-  Intervals/Yoga Flow/Pilates Core/Dance Cardio/Stair Climber/Stretching/Traditional Strength
-  Training/Functional Training/Running/Walking/Hiking/Elliptical), the rest use the Apple Title-Case names
-  seeded by `004`; unmapped/`OTHER_WORKOUT` → `"Other Workout"`.
-- **Sync** (`HealthSyncController.performWorkoutSync`) — per (aggregated workout × selected program) call
-  `POST /api/workout-logs` with **`on_duplicate:"sum"`** (D-SUM); idempotency comes from the
-  **applied-sample ledger** (`HealthStore`, keyed `sampleUUID|programId`, 45-day prune) — each write sends
-  only unapplied samples' minutes. Classify each result (created/summed/duplicate/skipped/retryable);
-  commit the changes token only on success; post a **local notification** on new logs (failures silent —
-  D-SIL). Each workout writes to a program **only if its date ∈ that program's window** (D-S5).
-- **First-sync confirmation gate (D-CONF)** — an **unconfirmed** program's in-window rows are collected into
-  a `PendingSyncConfirmation` and reviewed one program per page in `HealthSyncConfirmationScreen` (tick =
-  commit checked rows + advance); only **confirmed** programs write silently thereafter. The changes token
-  commits only when the whole flow finishes cleanly; dismiss = defer.
-- **Triggers** — app launch, auth change, foreground return (`RootScreen` `ON_RESUME`), and program entry
-  (`AppScaffold`). **Deviation (H-1):** Health Connect has no HealthKit-style *immediate background
-  delivery* observer, so there is **no OS-push background sync** — sync runs on these app triggers. (A
-  future `WorkManager` periodic job could approximate it; deferred.)
+- **Connect / disconnect** (`HealthSyncController.enable{Workouts,Sleep,Steps}AfterPermission` /
+  `disconnect{Workouts,Sleep,Steps}`) — request Health Connect **read** authorization via the Health Connect
+  permission UI (`PermissionController.createRequestPermissionResultContract`, **not** a runtime dialog); state lives
+  **per member** in the `rasi.health` `SharedPreferences` (`HealthStore`, keys `m.<memberId>.*`, excluded from Auto
+  Backup + device transfer). **Disconnect** is local only: it clears the toggle, programs, status, connect date and
+  the changes token (+ the upgrade marker), keeps exclusions + confirmed reviews, sends nothing (H2). **Reconnect
+  state:** the settings re-read the granted permissions on open and after a grant; a connected flow whose permission
+  was revoked shows "Reconnect Health Connect" instead of "will sync automatically".
+- **A run** (`HealthSyncRunner`, planned by `HealthSyncItems`): the rule-9 upgrade (`HealthSyncUpgrade`, once) →
+  `GET /api/health-sync/state` → Health Connect reads → `POST /api/health-sync/batch` (≤ 300 items, halved on 413;
+  old-ledger `legacy` items first) → `PUT /state` → advance or hold (rule 5) → one `sync.run` event. Pinned to the
+  member it started for; the sign-out teardown cancels it. Never signs out.
+- **Workouts** (`HealthConnectManager`) — the **Changes API** with paging (`pageToken`): added
+  `ExerciseSessionRecord`s become one item per **record** × selected program, `DeletionChange.recordId`s become
+  `deleted` items. A missing / expired token mints a fresh token **first**, then reads the rule-4 catch-up window
+  (first sync: the connect date, or today − 30 d with the upgrade marker; never before the reconnect date). No client
+  ledger, no aggregation, no `on_duplicate:"sum"` — the server ledger dedups (health-sync D-C2; D-SUM superseded).
+- **Mapping** (`HealthConnectWorkoutTypeMap`) — every `ExerciseSessionRecord.EXERCISE_TYPE_*` → a `workouts_library`
+  name (targets ⊆ the iOS map's; unmapped / `OTHER_WORKOUT` → `"Other Workout"`) — unchanged.
+- **Filters before sending** — D-S5 window, D-LOCK (a server `skipped_locked` holds like a client-side lock), D-CONF
+  exclusions.
+- **First-sync review (D-CONF, revised by D-V2)** — shown only when no integration's server row has
+  `review_done_at` and there is no local confirm; `review_done` is sent only after a confirmed page (queued until
+  `PUT /state` accepts); unchecked rows become exclusions once that page's upload succeeds. Same UI
+  (`HealthSyncConfirmationScreen`, workouts > sleep > steps; system back = defer).
+- **Triggers** — `launch` (incl. sign-in), `foreground` (`RootScreen` `ON_RESUME`) and `program_entry` (`AppScaffold`)
+  run at most once a minute and skip while a run is in flight; `connect` (after a grant), `manual` (**Sync Now** —
+  one run of all flows, each judged by its own outcome) and `pull_to_refresh` (Summary) wait for an in-flight run,
+  then run. **No OS-push background sync (H-1).**
+- **Android 1.0.0 (3)/(4)** (live until gated) keep the pre-0.3.0 paths: `POST /api/workout-logs` +
+  `on_duplicate:"sum"` behind the client ledger, `POST → 409 → PUT /api/daily-health-logs`, the fixed 14-day
+  sleep / steps window.
 
 ### 3a. Sleep sync
 
-- **Connect / disconnect** (`enableSleepAfterPermission` / `disconnectSleep`) — request read authorization
-  for `SleepSessionRecord`; persist a **separate** `hc.sleep.*` key set. Independent toggle, same screen.
-- **Rolling-window fetch** (`HealthConnectManager.fetchSleepSamples`) — `readRecords` over the last **14
-  days** from the **start of that day** (NOT anchored, NOT connect-date floored — D-S1).
-- **Aggregation** (`aggregateSleep`) — prefer the precise asleep stages (`STAGE_TYPE_SLEEPING/LIGHT/DEEP/
-  REM`), bucket by the local calendar date of each stage's **end** (wake day), sum → hours (2 dp, 0…24).
-  **In-Bed fallback (D-S6):** a session with **no** asleep stages (manual / phone-only) uses its whole
-  in-bed duration (session end − start) instead, so it still syncs; a session with stages never
-  double-counts.
-- **Sync** (`performSleepSync`) — per (night × selected program) `POST /api/daily-health-logs`, on **409**
-  fall back to `PUT` (overwrite `sleep_hours` only). Notify on genuinely new nights (`created`); overwrites
-  silent. Gated by the same D-CONF confirmation and D-LOCK admin-lock skip; sleep needs no ledger (PUT is
-  idempotent) and no token (the 14-day window self-heals).
+- **Connect / disconnect** — `SleepSessionRecord`; its own toggle, programs and status on the same screen.
+- **Window** — the rule-4 catch-up window (first sync: the last 14 days), read from **start − 1 day** so a night that
+  began the evening before is whole; only days ≥ start are sent.
+- **Aggregation** (`aggregateSleep`, unchanged) — the asleep stages bucketed by the local date of each stage's end
+  (wake day), summed to hours (2 dp, 0…24); In-Bed fallback for stage-less sessions (D-S6).
+- **Write** — one `sleep` day-total item per (night × program) in the batch (set semantics) — no `POST → 409 → PUT`.
+  Notify on created days only.
 
-### 3b. Steps sync (0.2.0) — the sleep model verbatim
+### 3b. Steps sync (0.2.0; v2 since 0.3.0) — the sleep model verbatim
 
-- **Connect / disconnect** (`enableStepsAfterPermission` / `disconnectSteps`) — request read authorization
-  for `StepsRecord` (`android.permission.health.READ_STEPS`, added to the manifest); persist a **separate**
-  `hc.steps.*` `SharedPreferences` key set. Independent toggle, same screen (`figure`/`DirectionsWalk` icon,
-  teal `#14b8a6`).
-- **Rolling-window fetch** (`HealthConnectManager.fetchStepsDailyTotals`) — `aggregateGroupByPeriod`
-  (`StepsRecord.COUNT_TOTAL`, `Period.ofDays(1)`) over the last **14 days** from the start of that day
-  (NOT anchored, NOT connect-date floored — D-S1). The aggregate API dedups overlapping sources (the HC
-  analogue of HKStatistics' `.cumulativeSum`); each bucket emits `AggregatedSteps(date, count)` when > 0.
-- **Sync** (`performStepsSync`) — per (day × selected program) `POST /api/daily-health-logs`, on **409** fall
-  back to `PUT` (overwrite `steps` only; sleep + diet untouched). Notify on genuinely new days (`created`);
-  overwrites silent. Gated by the same D-CONF confirmation and D-LOCK admin-lock skip; steps needs no ledger
-  (PUT is idempotent) and no token (the 14-day window self-heals). Confirmation priority is **workouts >
-  sleep > steps** (`deferredSteps`); steps sync skips while its own confirmation is pending/deferred. Success
-  posts `HealthSyncNotifier.notifyStepsSuccess` ("Synced steps for N days from Health Connect.").
+- **Connect / disconnect** — `StepsRecord` (`READ_STEPS`); a third independent section (`DirectionsWalk`, teal).
+- **Window** — the same catch-up window as sleep (first sync: the last 14 days).
+- **Aggregation** (`fetchStepsDailyTotals`, unchanged) — `aggregateGroupByPeriod` (`COUNT_TOTAL`, one-day periods;
+  dedups overlapping sources), emitted when > 0.
+- **Write** — one `steps` day-total item per (day × program) in the batch. Notify on created days only.
 
 ## 4. Data / schema touchpoints
 
 - **`workouts_library`** — already seeded by `apple-health`'s `sql/004`. This feature **adds nothing** —
   the Android map targets a subset of those names.
-- **`workout_logs`** — written via `POST /api/workout-logs`; composite PK keeps one row per type/day, and
-  `on_duplicate:"sum"` (D-SUM) adds minutes to the existing row.
-- **`daily_health_logs`** (sleep) — written via `POST`/`PUT /api/daily-health-logs`; only `sleep_hours` is
-  written (`diet_quality` never touched).
-- **`daily_health_logs`** (steps, 0.2.0) — written via the same `POST`/`PUT /api/daily-health-logs`; only
-  the `steps` column is written (sleep + diet never touched). Requires daily-health-logs 0.2.0's migration
-  `006` (the `steps` column + the recreated at-least-one CHECK) — added there, not here.
-- **No health-connect-owned tables/columns.** All sync state is client-side `SharedPreferences`. The manifest
-  gains `android.permission.health.READ_STEPS` (0.2.0).
+- **`workout_logs`** / **`daily_health_logs`** — since 0.3.0 written by the server's health-sync batch (the
+  `health_sync_samples` ledger; `sleep_source` / `steps_source = health_connect`). Android 1.0.0 still writes through
+  `POST /api/workout-logs` (`on_duplicate:"sum"`) and `POST`/`PUT /api/daily-health-logs`.
+- **No health-connect-owned tables/columns.** Sync state = the per-member `rasi.health` `SharedPreferences` + the
+  server's `health_sync_state`. The manifest carries `android.permission.health.READ_STEPS` (0.2.0).
 
 ## 5. The backend delta
 
-**No new backend code.** Both backend changes Apple Health needed already shipped and are live: the
-409-on-collision + `on_duplicate:"sum"` in `logService.addWorkoutLog`
-([`workout-logs`](../workout-logs/SPEC.md) D-C9), and the POST-then-PUT-on-409 upsert on the existing
-daily-health endpoints. The **only** dependency the 0.2.0 steps sync adds is daily-health-logs 0.2.0's
-`steps` column (migration `006` — run there, not owned here); the upsert reuses the same endpoints verbatim.
-This feature is a **pure client** addition against the already-deployed contract, degrade-safe for the LIVE
-iOS binary.
+**None of its own.** Android 1.1.0 (5) syncs through [`health-sync`](../health-sync/SPEC.md) (a backend feature in its
+own right); Android 1.0.0 keeps the `workout-logs` D-C9 `on_duplicate:"sum"` path and the daily-health
+POST-then-PUT-on-409 upsert (daily-health-logs 0.2.0's `steps` column, migration `006`), both live and unchanged.
 
 ## 6. Error handling & edge cases
 
-- **Token integrity** — the changes token is committed **only after** a successful sync; retryable failures
-  (network/5xx/401-after-refresh) hold the token so the next trigger retries, idempotent via the
-  applied-sample ledger.
-- **Sum-on-conflict (D-SUM)** — a duplicate (type, day) write adds its minutes; a plain 409 is the
-  deploy-skew/delete-race backstop (skipped, ledger not marked). Permanent 400/403/404 skipped without
-  blocking the token.
-- **Silent auto-retry (D-SIL)** — retryable failures never notify; the settings screen shows a passive
-  "will retry automatically" line (persisted `lastSyncFailed`), and the manual **Sync Now** consumes the
-  returned `HealthSyncResult` to show an inline error.
-- **Concurrency** — an `AtomicBoolean` single-flight guard per flow coalesces overlapping triggers.
-- **Availability / permission** — `HealthConnectClient.getSdkStatus` gates the UI (an "isn't available"
-  card when the provider is missing/needs update); denied read auth yields empty fetches (no crash). The
-  401 refresh+retry is transparent (OkHttp `Authenticator`), so a 401 reaching the writer = refresh failed
-  → retryable.
+- **Advance or hold (rule 5)** — the changes token and "Last Synced" advance only when every item came back final and
+  nothing was held (a locked selected program or a server `skipped_locked`); `sync_success` goes out per (program,
+  kind) whose whole flow advanced. Selected programs with data but no resolvable window hold the flow and report
+  `failed` (faithful to 1.4). A run with nothing to send reports `skipped`.
+- **Errors (health-sync rule 8)** — `401` → the sessions contract; `413` → split; `426` → the update screen; one
+  `429` / `503` with `Retry-After` ≤ 5 s waited out, else retried next trigger; 5xx / timeout / offline → retry the
+  same (idempotent) batch later; never a sign-out.
+- **Silent auto-retry (D-SIL, kept)** — no failure notification; passive settings caption; the manual **Sync Now**
+  shows an inline error per flow.
+- **Concurrency** — one run at a time (`runMutex`): user triggers wait for it, automatic ones skip (`tryLock`).
+- **Availability / permission** — `HealthConnectClient.getSdkStatus` gates the UI (an "isn't available" card when
+  the provider is missing / needs an update); a revoked permission shows the Reconnect row.
 
 ## 7. Flags / env
 
@@ -161,32 +138,34 @@ app.
 | ID | Decision | Rests on |
 |----|----------|----------|
 | **D1/D2/D4/D5** | **Additive + map**, targeting the library `apple-health` already seeded (`sql/004`); Android map targets ⊆ iOS map targets (verified). | the Apple Health feature; `sql/004`. |
-| **D-SUM** | **Sum-on-conflict + applied-sample ledger** (`SharedPreferences`, keyed `sampleUUID\|programId`, 45-day prune; marked only on `created`/`summed`). Both write paths (steady-state + page-commit) filter to unapplied samples. | Apple Health D-SUM; backend `workout-logs` D-C9. |
+| **D-SUM** | *(Superseded at v0.3.0 by D-V2 for Android 1.1.0: per-record items into the server ledger; the 1.0.0 ledger is uploaded once as `legacy` items and retired. Still the behavior of 1.0.0.)* **Sum-on-conflict + applied-sample ledger** (`SharedPreferences`, keyed `sampleUUID\|programId`, 45-day prune; marked only on `created`/`summed`). Both write paths (steady-state + page-commit) filter to unapplied samples. | Apple Health D-SUM; backend `workout-logs` D-C9. |
 | **D-S5** | **Per-program date-window scoping** — an item writes to a program only if its date ∈ `[start_date, min(end_date, today)]`. Empty windows (offline) → hold the token / skip, don't dump unscoped data. | Apple Health D-S5. |
-| **D-CONF** | **First-sync confirmation, gated per program** — unconfirmed programs' in-window rows are reviewed one page per program (`HealthSyncConfirmationScreen`); selectable rows (default checked); unchecked rows recorded as excluded; 0-row first sync auto-confirms; dismiss = defer; token commits only after all confirmed cleanly. | Apple Health D-CONF. |
+| **D-CONF** | *(Superseded in part at v0.3.0 by D-V2: the review record is the server's `review_done_at` (any integration / device / platform); a 0-row first sync is a local confirm only; **a reconnect no longer re-gates** (H2); exclusions recorded after the page's upload succeeds. Page UI + defer unchanged.)* **First-sync confirmation, gated per program** — unconfirmed programs' in-window rows are reviewed one page per program (`HealthSyncConfirmationScreen`); selectable rows (default checked); unchecked rows recorded as excluded; 0-row first sync auto-confirms; dismiss = defer; token commits only after all confirmed cleanly. | Apple Health D-CONF. |
 | **D-LOCK** | **Admin-lock skip** — an in-window `admin_only_data_entry`-locked program (viewer not global/program admin) is skipped from writes, confirmation pages, and 0-row auto-confirm; **workouts hold the token** (re-sync on unlock), **sleep** self-heals via its 14-day window. Settings renders locked programs non-selectable + a lock note. | Apple Health D-LOCK; `isDataEntryLocked(programId)`. |
 | **D-SIL** | **Silent auto-retry** — no failure notification; passive settings caption + manual Sync Now inline error; `HealthSyncResult` returned. | Apple Health D-SIL. |
-| **D-S1/D-S2/D-S6** | **Sleep** = rolling 14-day re-query + overwrite (not anchored), time-asleep → `sleep_hours` via POST-then-PUT-on-409, In-Bed fallback for stage-less sessions. | Apple Health sleep decisions. |
-| **D-STEPS** | **Steps auto-sync (0.2.0) = the sleep model verbatim, on `StepsRecord`.** A third independent toggle (`hc.steps.*`) writes each day's cumulative steps into `daily_health_logs.steps` via POST→409→PUT upsert (`writeSteps`; sleep + diet untouched). Rolling 14-day `aggregateGroupByPeriod` (`COUNT_TOTAL`, one-day periods — the aggregate API dedups overlapping sources, the HC analogue of iOS `.cumulativeSum`; not anchored, D-S1), per-program window scoping (D-S5), admin-lock skip (D-LOCK), notify-only-on-new (D-S4), silent auto-retry (D-SIL), first-sync confirmation (D-CONF) with a **workouts > sleep > steps** priority (`deferredSteps`). No ledger/token (PUT + the 14-day window are idempotent/self-healing). Manifest gains `READ_STEPS`. Requires daily-health-logs 0.2.0's `steps` column (migration `006`). | iOS `apple-health` D-STEPS (0.7.0); daily-health-logs 0.2.0 D-C4; steps-tracking plan DC-8/DC-12. |
-| **H-CHG** | **Changes API is the anchor analog** — Health Connect's `getChangesToken`/`getChanges` replaces `HKAnchoredObjectQuery`; first sync uses `readRecords` from the connect date (the Changes token carries no history), then the token drives incrementals; expired token → full re-read + fresh token. | Health Connect API shape. |
+| **D-S1/D-S2/D-S6** | *(The 14-day window and the POST-then-PUT-on-409 write are superseded at v0.3.0 by D-V2 — the catch-up window (first sync 14 d) and a batch day-total item; overwrite semantics + the In-Bed fallback kept.)* **Sleep** = rolling 14-day re-query + overwrite (not anchored), time-asleep → `sleep_hours` via POST-then-PUT-on-409, In-Bed fallback for stage-less sessions. | Apple Health sleep decisions. |
+| **D-STEPS** | *(Window + write superseded at v0.3.0 by D-V2, as for sleep.)* **Steps auto-sync (0.2.0) = the sleep model verbatim, on `StepsRecord`.** A third independent toggle (`hc.steps.*`) writes each day's cumulative steps into `daily_health_logs.steps` via POST→409→PUT upsert (`writeSteps`; sleep + diet untouched). Rolling 14-day `aggregateGroupByPeriod` (`COUNT_TOTAL`, one-day periods — the aggregate API dedups overlapping sources, the HC analogue of iOS `.cumulativeSum`; not anchored, D-S1), per-program window scoping (D-S5), admin-lock skip (D-LOCK), notify-only-on-new (D-S4), silent auto-retry (D-SIL), first-sync confirmation (D-CONF) with a **workouts > sleep > steps** priority (`deferredSteps`). No ledger/token (PUT + the 14-day window are idempotent/self-healing). Manifest gains `READ_STEPS`. Requires daily-health-logs 0.2.0's `steps` column (migration `006`). | iOS `apple-health` D-STEPS (0.7.0); daily-health-logs 0.2.0 D-C4; steps-tracking plan DC-8/DC-12. |
+| **H-CHG** | *(Refined at v0.3.0 by D-V2: every read pages; deletions are synced; an expired / missing token is re-minted before the catch-up window read, not a full re-read from the connect date.)* **Changes API is the anchor analog** — Health Connect's `getChangesToken`/`getChanges` replaces `HKAnchoredObjectQuery`; first sync uses `readRecords` from the connect date (the Changes token carries no history), then the token drives incrementals; expired token → full re-read + fresh token. | Health Connect API shape. |
+| **D-V2** | **Health sync v2 (0.3.0 — Android 1.1.0 (5); reliability-overhaul Phase 3 C3).** The three flows run one `HealthSyncRunner` against [`health-sync`](../health-sync/SPEC.md) §8 (its D-C13 shared client rules + D-C15 Android realization, incl. the recorded rule-9 upgrade-window deviation): per-record workout items with deletions into the server ledger, sleep / steps day totals with set semantics over the 30-day catch-up window, rule-5 advance-or-hold with per-flow `sync_success`, server-remembered review once, the rule-9 upgrade from the 1.0.0 ledger (+ confirmed lists carried over), per-member store, Disconnect local-only with a reconnect floor, the Reconnect row, named triggers (automatic ≥ 60 s apart; user triggers wait), Sync Now = one run judged per flow. Supersedes D-SUM, the D-S1/D-S2 and D-STEPS window + write, D-CONF's reconnect re-gate + storage; refines H-CHG (markers above). Unchanged: D1/D2/D4/D5, D-S5, D-LOCK, D-SIL, D-S6, the screens. `reference_impl` gains `health/{HealthSyncItems,HealthSyncRunner,HealthSyncUpgrade}.kt`. Screen-level detail: page SPEC `android/health-connect` D-REL3-1–6. | Phase 3 C3 plan + approval amendments H1–H4 (2026-10-13); Android `157578f`. |
 
 ## 9. Flagged characteristics kept as-is
 
 | ID | Characteristic | Where | Cleanup candidate? |
 |----|----------------|-------|--------------------|
 | **H-1** | **No OS-push background sync** — Health Connect offers no HealthKit-style immediate background delivery; sync runs on app triggers (launch/auth/foreground/program-entry). | `HealthSyncController.onTrigger` | Kept for v1; a `WorkManager` periodic sync could be added later. |
-| **F1/F2/F3** | Same as Apple Health — reused curated names (no Apple-canonical renames), **duration only** (no distance/energy), **client-persisted** sync state. | `HealthConnectWorkoutTypeMap`, `aggregate`, `HealthStore` | Kept (faithful to the log model + the additive policy). |
+| **F1/F2/F3** | Same as Apple Health — reused curated names (no Apple-canonical renames), **duration only** (no distance/energy), **client-persisted** sync state (since 0.3.0 the review record + last success are server-side). | `HealthConnectWorkoutTypeMap`, `aggregate`, `HealthStore` | Kept (faithful to the log model + the additive policy). |
 | **F5** | **Overwrite is destructive to a manual sleep value** — a night Health Connect also has replaces a web/iOS-entered `sleep_hours` (diet untouched). | `writeSleep` PUT path | Kept (explicit user choice; no provenance column). |
 
 ## 10. Open questions
 
-None blocking. Future: an optional `WorkManager` periodic background sync (H-1); a server-side
-sync-preferences store if multi-device consistency is ever needed; a source/provenance column so synced
-sleep could spare manually-entered nights (F5).
+None blocking. Future: an optional `WorkManager` periodic background sync (H-1). 0.3.0 delivered the server-side
+sync state and the provenance columns (health-sync D-C6/D-C9); sparing manually-entered nights (F5) would still need a
+reader of that provenance.
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **Health sync v2 on Android 1.1.0 (5) (D-V2; reliability-overhaul Phase 3 C3).** One `HealthSyncRunner` runs workouts + sleep + steps against [`health-sync`](../health-sync/SPEC.md) 0.2.0: Changes API with paging + deletions (token minted before the window read), server ledger instead of the client ledger + `on_duplicate:"sum"`, day totals over the 30-day catch-up window (sleep read from start − 1 d) instead of the 14-day `POST → 409 → PUT`, server-side review once, Disconnect local-only (keeps exclusions + reviews) + reconnect floor, the Reconnect row, per-member `rasi.health` store (1.0.0 keys adopted once), rule-9 upgrade with the recorded upgrade-window deviation. Superseded in place: D-SUM, D-S1/D-S2 + D-STEPS window + write, D-CONF re-gate + storage; H-CHG refined. §1 header, §3/§3a/§3b/§4/§5/§6 rewritten (Android 1.0.0 keeps the old paths). `reference_impl` += `HealthSyncItems.kt`, `HealthSyncRunner.kt`, `HealthSyncUpgrade.kt`. Same screens. MINOR (`reference_impl` contract change). |
 | 0.2.0 | 2026-07-09 | **Steps auto-sync (D-STEPS, Android-only) — the sleep model verbatim, on `StepsRecord`.** A third independent "Steps" section on `HealthConnectSettingsScreen` (own `READ_STEPS` permission, program selection, "Days Synced" status, disconnect; `DirectionsWalk` icon, teal `#14b8a6`) reads each day's steps via a rolling 14-day `aggregateGroupByPeriod` (`COUNT_TOTAL`, one-day periods — dedups overlapping sources, D-S1) and writes them to `daily_health_logs.steps` via POST→409→PUT upsert (`writeSteps`; sleep/diet untouched). Full D-S5/D-LOCK/D-S4/D-SIL/D-CONF rule set inherited, confirmation priority extended to **workouts > sleep > steps** (`deferredSteps`). **No new backend code — one schema dependency:** requires daily-health-logs 0.2.0's migration `006` (`steps` column + at-least-one CHECK). Files: `health/{HealthModels,HealthConnectManager,HealthStore,HealthSyncNotifier,HealthSyncController}.kt`, `ui/health/{HealthConnectSettingsScreen,HealthSyncConfirmationScreen}.kt`; `AndroidManifest.xml` gains `READ_STEPS`. Android-only; iOS analog = apple-health 0.7.0. Deploy order: daily-health-logs migration `006` → backend → Android build. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. |
 | 0.1.0 | 2026-07-08 | **Initial SPEC + build (Android Phase H).** Ported the iOS `apple-health` 0.6.0 integration to Health Connect: `health/{HealthConnectManager,HealthConnectWorkoutTypeMap,HealthStore,HealthAppliedLedger(in HealthStore),HealthModels,HealthDates,HealthSyncNotifier,HealthSyncController}.kt` + `ui/health/{HealthConnectSettingsScreen,HealthSyncConfirmationScreen}.kt`. Incremental workouts via the Changes API (anchor analog, H-CHG), rolling 14-day sleep window, the full D-S5/D-CONF/D-LOCK/D-SUM/D-SIL rule set, and status-code-aware writes (new raw `postWorkoutLog`/`postDailyHealthLogRaw`/`putDailyHealthLogRaw` on `ApiService`). `ProgramContext` gained `isDataEntryLocked(programId)` + owns a `HealthSyncController`; account rows (Program tab + picker sheet) + a full-screen confirmation overlay + launch/auth/resume/program-entry triggers wired. No backend change, no migration — reuses the already-live `workout-logs` D-C9 + daily-health upsert. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. |

@@ -1,6 +1,6 @@
 # Page: `lifestyle` (web) — the workout-analytics / health-timeline dashboard (third workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle` — **the third bottom-nav tab** of a program's workspace. NOT a sleep/diet *logging*
 > screen: it is a **read-only** workout-type-analytics + health-timeline overview with the same role-gated
 > **"view as"** picker as the Members tab. The workout-type CRUD (the write path) and the full timeline detail

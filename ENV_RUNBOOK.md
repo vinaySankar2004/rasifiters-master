@@ -254,6 +254,13 @@ Keep the **local** copy fresh: re-download (Firebase → Project Settings → An
 *google-services.json*) whenever fingerprints/clients change. Last refreshed 2026-07-11 — `oauth_client` now
 carries the Web client `client_type: 3`, plus the iOS client in `other_platform_oauth_client`.
 
+**Android release checklist** (added with the Phase 3 client release, Android 1.1.0 (5)):
+- An Android OAuth client exists in Google Cloud (`rasi-fiters`) for every signing key that ships — the Play App
+  Signing key always; the upload key only if a build signed with it is ever installed directly; each dev machine's
+  debug key for its emulator (W5 — the second cause above).
+- Before the 1.1.0 Play rollout, review the Play Console **Data safety** form: the install id (`device_id`) is a device
+  identifier, and `app_events` (auth / sync diagnostics) is app-diagnostics data.
+
 ## 7b. Auth email (password reset) — Resend custom SMTP
 
 **Why:** without custom SMTP, Supabase's built-in sender only delivers to the project's *team* addresses

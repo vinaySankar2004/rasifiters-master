@@ -1,6 +1,6 @@
 # Screen: `member-health-detail` (android) — the per-member daily-Health logs (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios member-health-detail`](../../ios/member-health-detail/SPEC.md)
 > + [`web members/health`](../../web/members/health/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBER_HEALTH` (`MemberHealthDetailScreen`), pushed from
