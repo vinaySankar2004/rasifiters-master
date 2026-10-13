@@ -22,6 +22,7 @@ The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) cons
 - **Added post-parity:** `member_program_order` (per-member program-card order for the picker surfaces;
   migration `sql/005`, `programs` feature 0.2.0 D-N1).
 - **Added (reliability overhaul Phase 2):** `app_events` (observability event trail — `POST /api/client-events`, 90-day `pg_cron` retention; migration `sql/007`, [`observability`](../../specs/features/observability/SPEC.md)).
+- **Added (reliability overhaul Phase 3 R2):** `health_sync_samples` (permanent per-sample health-sync ledger) + `health_sync_state` (review-once + last successful sync per member/program/integration/kind) + `daily_health_logs.sleep_source` / `steps_source` (per-field provenance, not mapped by the `DailyHealthLog` model) — migration `sql/009`, routes `/api/health-sync/{batch,state}` mounted before the global body parser ([`health-sync`](../../specs/features/health-sync/SPEC.md)).
 - Migrations: `sql/` (numbered, idempotent, user-reviewed/run).
 
 ## Auth (see CLAUDE.md + METHODOLOGY.md R1)

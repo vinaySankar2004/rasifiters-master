@@ -931,5 +931,8 @@ module.exports = {
     addDailyHealthLogsBatch,
     getDailyHealthLogs,
     updateDailyHealthLog,
-    deleteDailyHealthLog
+    deleteDailyHealthLog,
+    // health-sync 0.1.0 (workout-logs 0.6.0): shared helpers, exported unchanged.
+    resolveProgramWorkout,
+    isValidDateString
 };

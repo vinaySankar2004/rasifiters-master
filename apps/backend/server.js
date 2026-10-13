@@ -27,6 +27,7 @@ const {
     recentRouter: memberRecentRoutes
 } = require("./routes/memberAnalytics");
 const clientEventRoutes = require("./routes/clientEvents");
+const healthSyncRoutes = require("./routes/healthSync");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
 // documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/.
 
@@ -74,6 +75,11 @@ app.get("/", (req, res) => {
 // global 100 kb parser read first would skip it). Also ahead of app-config's version gate on purpose: telemetry
 // must arrive even from a build the gate blocks.
 app.use("/api/client-events", clientEventRoutes);
+
+// health-sync D-C10: also BEFORE the global express.json() — the batch route carries its own 256 kb parser (a 30-day
+// catch-up exceeds the global 100 kb default). The router applies app-config's blockUnversionedAndroid itself, since this
+// mount sits above the `/api` gate below.
+app.use("/api/health-sync", healthSyncRoutes);
 
 app.use(express.json());
 

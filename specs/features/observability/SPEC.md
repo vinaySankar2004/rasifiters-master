@@ -1,6 +1,6 @@
 # Feature: `observability` — request log, client identity headers, event trail
 
-> **Status:** 🚀 deployed (backend, live on Render 2026-10-12; reliability-overhaul Phase 2 track A) · **Version:** 0.2.0 · **Apps (`consumed_by`):** none yet — `[]` until Phase 3 adds the web / iOS / Android senders
+> **Status:** 🚀 deployed (backend, live on Render 2026-10-12; reliability-overhaul Phase 2 track A) · **Version:** 0.2.1 · **Apps (`consumed_by`):** none yet — `[]` until Phase 3 adds the web / iOS / Android senders
 > **Provenance:** **NET-NEW** — no legacy equivalent (the legacy backend logged SQL only). Contract:
 > [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md) §7 (W6, "observability is free" ✅);
 > evidence: [`discovery/W6`](../../initiatives/reliability-overhaul/discovery/W6-observability-perf.md).
@@ -216,7 +216,7 @@ re-run the file). Staging runs of `007` go over the session pooler / a direct co
   On 400 drop the batch (it will never succeed). On 5xx / network error retry with backoff.
 - `props` never carries tokens, emails, usernames or free text the user typed.
 - Web sends `fetch` with `application/json` (a `text/plain` `sendBeacon` body is not parsed).
-- **Registered event types** (more families — `sync.*`, `client.error` — are registered by the tracks that add them):
+- **Registered event types — `auth.*`** (Phase 3 R1; `sync.*` is in §8.1; further families, e.g. `client.error`, are registered by the tracks that add them):
 
   | `type` | When | `props` (all optional unless marked) |
   |---|---|---|
@@ -225,6 +225,20 @@ re-run the file). Staging runs of `007` go over the session pooler / a direct co
   | `auth.refresh_failed` | `/auth/refresh` failed and the session was KEPT (503 / 429 / 5xx / timeout / offline) | `kind` (**required**, same values as above); `status` (int); `code` |
 
   The backend needs no change for these (auth 0.13.0 / Phase 3 R1): `POST /api/client-events` already accepts them signed-out.
+
+### 8.1 Registered event types — `sync.*` (Phase 3 R2)
+
+| `type` | Sender | `props` (no ids, names, emails or free text) |
+|---|---|---|
+| `sync.run` | iOS + Android health sync — one per run ([`health-sync`](../health-sync/SPEC.md) §8 rule 10) | `integration` (`healthkit` · `health_connect`, required) · `trigger` (`launch` · `foreground` · `pull_to_refresh` · `program_entry` · `background` · `connect` · `manual`) · `outcome` (`success` = every item final, nothing held · `partial` = a (program, kind) was held for the admin lock or a later batch failed · `failed` = nothing uploaded · `skipped` = nothing to sync) · `duration_ms` (integer) · `catch_up_days` (integer — the widest window read) · `batches` (integer) · `error_class` (`null`, a frontend-kit kind — `offline` · `timeout` · `signedOut` · `unavailable` · `server` · `invalidInput` · `updateRequired` · `unknown` — or `health_read_failed` · `permission_missing`) · `workout` / `sleep` / `steps` = `{ sent, applied, unchanged, duplicate, skipped, removed, invalid }` (integers; `applied` = `created` + `updated`, `skipped` = every `skipped_*`; omit a kind that didn't sync) · `legacy_recorded` (integer, upgrade runs only) |
+
+```json
+{ "id": "0b6f2c1e-6a51-4c39-9d8e-3f1a2b4c5d6e", "type": "sync.run", "occurred_at": "2026-10-12T18:04:05.000Z",
+  "props": { "integration": "healthkit", "trigger": "foreground", "outcome": "success", "duration_ms": 1840,
+             "catch_up_days": 2, "batches": 1, "error_class": null,
+             "workout": { "sent": 3, "applied": 1, "duplicate": 2 },
+             "sleep": { "sent": 3, "applied": 1, "unchanged": 2 }, "steps": { "sent": 3, "unchanged": 3 } } }
+```
 
 ## 9. Decisions made
 
@@ -260,6 +274,7 @@ re-run the file). Staging runs of `007` go over the session pooler / a direct co
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-12 | **PATCH — §8.1 registers `sync.run`** (health-sync 0.1.0 §8 rule 10; Phase 3 R2): props `integration`, `trigger`, `outcome`, `duration_ms`, `catch_up_days`, `batches`, `error_class` (incl. `updateRequired` for a 426), per-kind counts, `legacy_recorded`. Docs only — the ingest already accepts any well-formed type; no code change. Lands after R1's 0.2.0. |
 | 0.2.0 | 2026-10-12 | **D-C11 — body-parser 4xx on every route + `logError` (Phase 3 R1).** The global `errorHandler` answers malformed / oversized / mis-encoded bodies with `400`/`415 invalid_body` / `413 payload_too_large` (was 500 — F2 resolved), echoes an `AppError`'s `code` + `Retry-After`, and logs other errors via the new `utils/logError.js` (name / code / status / one-line message / two stack frames; Sequelize → name + Postgres code; never the object — F8 partially resolved). §8 registers `auth.forced_sign_out`, `auth.sign_in_failed`, `auth.refresh_failed`. D-C9: server-side auth events stay unbuilt (client-reported instead). MINOR; ships with auth 0.13.0. |
 | 0.1.1 (deployed 🚀) | 2026-10-12 | Live on Render (`ac52491`). Prod smoke 28/28; `app_events` got exactly the 6 expected rows (signed-in event linked to its member with `access_token`/`email` stripped; replayed id stored once; NUL props → `props_invalid`). `xff_n` = 2 (client XFF **passed through** + appended → 3), `country` **seen** (CA), `X-Request-Id` **echoed**, no `Executing (default)` lines. Limiter key **per-client ✓**: 31 POSTs from a phone hotspot → 30×400 + 1×429; one POST from home Wi-Fi 38 s later → 400. |
 | 0.1.1 | 2026-10-12 | **PATCH — `trust proxy` 1 → 2 (D-C7, plan E6).** Prod measurement: `xff_n` = 2 with no client XFF, 3 with a spoofed one (Cloudflare edge passes client XFF through, Render LB appends). With 1 hop, `req.ip` was the Cloudflare edge address, so every client behind one edge location shared a limiter bucket. Also observed live: custom `X-Request-Id` echoed, `country` populated (CA), no `Executing (default)` lines. |

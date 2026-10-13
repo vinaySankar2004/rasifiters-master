@@ -210,7 +210,7 @@
       }
     },
     "workout-logs": {
-      "version": "0.5.1",
+      "version": "0.6.0",
       "spec": "specs/features/workout-logs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -237,7 +237,7 @@
       }
     },
     "daily-health-logs": {
-      "version": "0.2.1",
+      "version": "0.3.0",
       "spec": "specs/features/daily-health-logs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -258,6 +258,7 @@
           "services/logService.js",
           "models/DailyHealthLog.js",
           "sql/006_add_steps_to_daily_health_logs.sql",
+          "sql/009_health_sync_ledger.sql",
           "server.js"
         ]
       }
@@ -362,7 +363,7 @@
       }
     },
     "observability": {
-      "version": "0.2.0",
+      "version": "0.2.1",
       "spec": "specs/features/observability/SPEC.md",
       "status": "deployed",
       "consumed_by": [],
@@ -472,6 +473,36 @@
           "src/lib/kit/use-online-status.ts",
           "src/components/kit/FloatingBanner.tsx",
           "src/components/kit/ErrorView.tsx"
+        ]
+      }
+    },
+    "health-sync": {
+      "version": "0.1.0",
+      "spec": "specs/features/health-sync/SPEC.md",
+      "status": "built",
+      "consumed_by": [],
+      "depends_on": [
+        "auth",
+        "app-config",
+        "observability",
+        "programs",
+        "program-memberships",
+        "workouts",
+        "program-workouts",
+        "workout-logs",
+        "daily-health-logs"
+      ],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/healthSync.js",
+          "services/healthSyncService.js",
+          "services/healthSyncWorkouts.js",
+          "services/healthSyncDaily.js",
+          "models/HealthSyncSample.js",
+          "models/HealthSyncState.js",
+          "sql/009_health_sync_ledger.sql",
+          "server.js"
         ]
       }
     }
