@@ -1,6 +1,6 @@
 # Screen: `widgets` (android) — quick-add home-screen widgets (workout + daily-health) via Jetpack Glance
 
-> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Jetpack Glance + Compose)
+> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.3 · **App:** `android` (Jetpack Glance + Compose)
 > **Thin port-note.** Parity target = the **current built iOS widgets** (`RaSi-Fiters-App-Widgets/AddWorkoutWidget.swift`
 > + `Features/Widgets/QuickAdd*WidgetEntryView.swift`) for **functionality + deep-links**; the on-screen **tile
 > chrome** is a deliberate Android-only redesign (D-ANDROID-WIDGET-4). This file records the Android realization
@@ -61,6 +61,11 @@
   `onExit` → `clearWidgetRoute()` + `clearActiveProgram()` + navigate `PROGRAM_PICKER` popUpTo-inclusive
   (iOS `returnToMyPrograms`). All health-form R-1 rules (at-least-one-metric, sleep hr/min, diet 1–5, steps,
   in-batch (member,date) duplicate) are lifted verbatim from `LogHealthScreen`.
+- **D-NP1 (0.2.3 — a second entry for the workout form, notifications §3.9 / R14):** a `log_workout` notification
+  (the daily reminder) opens `QuickAddWorkoutWidgetScreen` on the root route `inbox/log-workout` (`RootScreen`) with
+  `onExit = popBackStack` — over wherever the member is; save / back return there and the open program stays (the
+  widget route `widget/log-workout` keeps its exit to My Programs). Both routes are toast form routes. The form itself
+  is unchanged.
 
 ## §9 Decisions (law)
 
@@ -132,5 +137,6 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-13 | **D-NP1** (Phase 4, `d528f75`): the workout quick-add form also opens from a reminder notification on `inbox/log-workout`, returning to the covered screen (no exit to My Programs). Form unchanged. |
 | 0.2.2 | 2026-10-13 | Phase 4 quick wins: the quick-add forms' save errors go through `toAppError()` (row errors kept; #8); the ≤ 3 s version-gate wait is unchanged (the app-config D-C8 divergence). |
 | 0.2.1 | 2026-10-13 | **Reliability Phase 3 C3 — D-ANDROID-WIDGET-5:** version gate (≤ 3 s) before the widget replay; doc fix: widgets hold no token. Tile chrome unchanged (D-ANDROID-WIDGET-4). Compile-checked green (`assembleDebug`). |

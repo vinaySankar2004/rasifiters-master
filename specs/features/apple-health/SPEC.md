@@ -1,6 +1,6 @@
 # Feature: `apple-health` — Apple Health (HealthKit) workout + sleep + steps auto-sync (iOS)
 
-> **Status:** 🚀 deployed (`apps/ios/` + backend touchpoints) · **Version:** 0.8.0 · **Apps (`consumed_by`):** `ios`
+> **Status:** 🚀 deployed (`apps/ios/` + backend touchpoints) · **Version:** 0.8.1 · **Apps (`consumed_by`):** `ios`
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` **PR #4** (`apple-health` branch) —
 > `HealthKitService.swift`, `HealthKitWorkoutTypeMap.swift`, `ProgramContext+HealthKit.swift`,
 > `AppleHealthSettingsView.swift`. Ported to `apps/ios` and **corrected for our stack** (curated library +
@@ -156,6 +156,14 @@ None. HealthKit entitlements (`com.apple.developer.healthkit` + `…background-d
 `fetch`, and the `NSHealth{Share,Update}UsageDescription` strings ship in the app target (see
 `HEALTHKIT_SUBMISSION_CHECKLIST.md`). The Xcode capability toggles + App Store privacy config are user-run.
 
+**People disclosure (0.8.1 — [people](../people/SPEC.md) D-C12, U-1 (b)):** synced workouts are part of program
+activity, so co-members can see them unless the member turns on Hide my activity. `NSHealthShareUsageDescription`
+(Debug + Release, `project.pbxproj`) = `RaSi Fiters reads your workouts, sleep, and steps from Apple Health to log them
+in your programs. Members of your programs can see your workouts unless you turn on Hide my activity.` (also fixes the
+"Fit'ers" typo there; `NSHealthUpdateUsageDescription` is unchanged). `AppleHealthSettingsView` shows the footnote
+`Synced workouts are visible to members of your programs unless you turn on Hide my activity in My Profile.` under the
+program selection. Sleep and steps are never shown to co-members.
+
 ## 8. Decisions made
 
 | ID | Decision | Rests on |
@@ -203,6 +211,7 @@ provenance. Synced preferences across devices remain out of scope.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.8.1 | 2026-10-13 | **People disclosure copy (Phase 4 iOS build).** `NSHealthShareUsageDescription` now says co-members can see synced workouts unless Hide my activity is on (typo fixed); `AppleHealthSettingsView` footnote. §7. PATCH (wording only; sync behaviour unchanged). |
 | 0.8.0 | 2026-10-13 | **Health sync v2 on iOS 1.5.0 (58) (D-V2; reliability-overhaul Phase 3 C2).** One `HealthSyncEngine` runs workouts + sleep + steps against [`health-sync`](../health-sync/SPEC.md) 0.2.0 (`POST /api/health-sync/batch`, `GET`/`PUT /state`): per-sample workouts with deletions (anchored query), server ledger instead of `HealthKitAppliedLedger` + `on_duplicate:"sum"`, sleep / steps day totals over the 30-day catch-up window instead of the 14-day `POST → 409 → PUT` re-query, server-side review once (H1), Disconnect local-only + reconnect floor (H2), per-member prefs, the rule-9 upgrade (legacy items + carried-over reviews). Superseded in place: D-SUM, D-S1 window, D-S2 write, D-STEPS window + write, D-CONF storage + reconnect re-gate; F3 partly. §1/§3/§3a/§3b/§4/§6 rewritten (iOS ≤ 1.4.x keeps the old paths); §5 notes 1.5.0 uses neither backend delta. `reference_impl` paths: − `HealthKitAppliedLedger.swift`, `ProgramContext+HealthKitWindows.swift`, `APIClient+DailyHealth.swift`; + `HealthSync{Engine,Planner,Items,Upgrade,Prefs}.swift`, `APIClient+HealthSync.swift`. Same screens. MINOR (`reference_impl` contract change). |
 | 0.7.0 | 2026-07-09 | **Steps auto-sync (D-STEPS, iOS-only) — the sleep model verbatim.** A third independent "Steps" section on `AppleHealthSettingsView` (own permission for `HKQuantityType(.stepCount)`, program selection, "Days Synced" status, disconnect; `figure.walk`/`.teal`) reads each day's cumulative steps via a rolling 14-day `HKStatisticsCollectionQuery` (`.cumulativeSum`, D-S1) and writes them to `daily_health_logs.steps` via POST→409→PUT upsert (`writeHealthKitStepsLog`; sleep/diet untouched). Full D-S5/D-LOCK/D-S4/D-SIL/D-CONF rule set inherited, with the confirmation priority extended to **workouts > sleep > steps** (`deferredStepsConfirmation`). **No new backend code — one schema dependency:** requires daily-health-logs 0.2.0's migration `006` (`steps` column + the recreated at-least-one CHECK admitting steps-only rows). New files: `HealthKitService+Steps.swift`, `ProgramContext+HealthKitSteps.swift`; extended `ProgramContext(.swift/+Auth/+Analytics/+HealthSyncGating)`, `PendingSyncConfirmation.swift`, `HealthKitSyncNotifier.swift` (`notifyStepsSuccess`), `HealthSyncConfirmationView.swift`, `AppleHealthSettingsView.swift`. iOS-only; role N/A. Android analog = health-connect 0.2.0. Deploy order: daily-health-logs migration `006` → backend → iOS build. |
 | 0.6.0 | 2026-07-05 | **Sum-on-conflict (D-SUM) + silent auto-retry (D-SIL)** — two user-reported fixes. (1) A same-type workout arriving in a **later** sync batch no longer 409-drops: the sync sends `on_duplicate:"sum"` and the backend atomically adds its minutes to the day's row (backend delta D-C9 in `workout-logs` 0.4.0 — the only server change; manual/widget/batch 409-reject unchanged). Idempotent under batch replays via the new **`HealthKitAppliedLedger`** (`healthkit.appliedWorkoutUUIDs`, keyed `sampleUUID\|programId`, 45-day prune; marked only on `.created`/`.summed`); `aggregate` reworked to per-sample `(uuid, minutes)`; both write paths (steady-state + `commitWorkoutPage`) filter to unapplied samples. D3 superseded. (2) The "Apple Health sync failed" banner (fired on any transient blip during automatic syncs, even partial successes) is **removed** (`notifyFailure` deleted); failures surface as a passive settings caption (persisted `healthkit[.sleep].lastSyncFailed`) + an inline error on manual Sync Now (`performHealthKitSync`/`performSleepSync` now return `HealthSyncResult`, `@discardableResult`). D7 revised. Touches: backend `services/logService.js` + `routes/logs.js`; iOS `APIClient+Workouts.swift`, `HealthKitService.swift`, **new** `HealthKitAppliedLedger.swift`, `ProgramContext.swift`, `ProgramContext+HealthKit.swift`, `ProgramContext+HealthKitSleep.swift`, `ProgramContext+HealthSyncGating.swift`, `HealthKitSyncNotifier.swift`, `AppleHealthSettingsView.swift`. |

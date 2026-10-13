@@ -591,7 +591,7 @@ class ProgramContext(
     /** Drop the active program (iOS `returnToMyPrograms`) — used by the widget forms' exit-to-My-Programs. */
     fun clearActiveProgram() { _activeProgram.value = null }
 
-    // ---- Notifications (notifications §3.3–§3.5) — the inbox stream, the unread badge, the toast, push routing ----
+    // ---- Notifications (notifications §3.3–§3.5 + §3.9) — the inbox stream, the unread badge, the toast, push routing ----
     // The SSE stream opens with ?inbox=1 (every type, as an inbox item). [inbox] keeps the unread counts, the paged list,
     // the preference cache that gates the toast, the toast and the pending "open this" — no blocking pop-up.
 

@@ -1,11 +1,11 @@
 # Feature: `programs` — program lifecycle (create / list / update / soft-delete / per-member order)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.2.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/programs.js`, `services/programService.js`,
 > `models/Program.js`, `models/ProgramMembership.js`, `server.js` (`/api/programs` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`; authz via
 > `ProgramMembership` lookup) · `program-memberships` (the `ProgramMembership` join the creator-row + authz
-> read) · `notifications` (the `program.updated`/`program.deleted` emit — **deferred**, §7).
+> read) · `notifications` (the `program.updated`/`program.deleted` emit — deferred until 0.3.0, **live** since D-C3).
 > **One deliberate change** (the rest is faithful): `createProgram` **drops the vestigial `description`
 > field** — see **§7** (decision **D-C2**).
 
@@ -109,11 +109,11 @@ and not `global_admin`), `404` (program not found / already soft-deleted).
   the before-values, then apply only the **present** fields among `name`/`status`/`start_date`/`end_date`/
   `admin_only_data_entry` (the flag coerced via `=== true || === 'true'`, `:139-141`); set `updated_at =
   new Date()` (§10 F3). If any of `name|status|start_date|end_date|admin_only_data_entry` actually changed,
-  **emit `program.updated`** to active members — **deferred** (§7).
+  **emit `program.updated`** to the active members **except the requester** — live since 0.3.0 (D-C3).
 - **Soft-delete** (`programService.js:178-204`) — same admin authz gate **first**, then `404` if no
   non-deleted program, then `program.update({ is_deleted:true, updated_at })`. **No hard cascade** (rows
-  stay; queries filter `is_deleted=false`). Then **emit `program.deleted`** to active members — **deferred**
-  (§7).
+  stay; queries filter `is_deleted=false`). Then **emit `program.deleted`** to the active members **except the
+  requester** — live since 0.3.0 (D-C3).
 
 ## 5. Data / schema touchpoints
 
@@ -135,8 +135,8 @@ Faithful names (R5); schema in `apps/backend/sql/001_schema.sql`.
   written full-replace by `PUT /order`. Soft-deleted programs may leave orphan rows — harmless, they
   never surface (`is_deleted=false` filter); hard deletes cascade. `models/MemberProgramOrder.js`.
 - **Referenced for the notification emit, owned by `notifications`** — `getActiveProgramMemberIds` +
-  `createNotification` (`utils/notifications.js` → `notificationStreams` SSE + `pushNotifications` APNs).
-  **Deferred** (D-C1) — not ported with this feature.
+  `createNotification` (`utils/notifications.js`). ~~**Deferred** (D-C1) — not ported with this feature.~~
+  **Live since 0.3.0 (D-C3).**
 
 ## 6. Flags / env
 
@@ -164,13 +164,14 @@ contract.
   destructuring/persisting/returning `description` in `createProgram`. The **`programs.description` column
   is kept in schema** (faithful R5 — no schema change), just no longer written by this path. All other
   create behavior + the 201 shape (minus that one key) is unchanged.
-- **The `program.updated` / `program.deleted` notification emit is deferred (D-C1 — the deferred
+- ~~**The `program.updated` / `program.deleted` notification emit is deferred (D-C1 — the deferred
   dependency pattern, cf. auth `/account` + members `DELETE /:id`).** `updateProgram` (on a real field
   change) and `deleteProgram` call `createNotification` + `getActiveProgramMemberIds` from
   `utils/notifications`, which pulls in the SSE streams + APNs push of the undocumented `notifications`
   feature. The CRUD ports **fully functional** (200s, soft-delete, flag write all work); only the
   member-alert side-effect is left as a **guarded TODO no-op**, wired when `notifications` is ported. This
-  is a *temporary implementation gap, not a spec change* — faithful behavior is the emit.
+  is a *temporary implementation gap, not a spec change* — faithful behavior is the emit.~~ *(Superseded at
+  0.3.0 by D-C3: the emit is live — every active member except the requester; failures are logged and swallowed.)*
 
 > **Migration note (no auth-table delta here).** Unlike `auth`/`members`, `programs` touches none of the
 > retired credential tables; the only stack delta is `DATABASE_URL` (shared). The two deltas above are the
@@ -182,8 +183,9 @@ contract.
   the service reads `requester.global_role`/`requester.id` for the admin gate.
 - **Sibling (read + one write):** `program-memberships` — owns `program_memberships`; `programs` creates the
   creator's bootstrap row and reads memberships for authz + counts.
-- **Downstream / referenced (deferred):** `notifications` — owns `createNotification` +
-  `getActiveProgramMemberIds`; the `program.updated`/`program.deleted` emits wire up when it lands (D-C1).
+- **Downstream / referenced:** `notifications` — owns `createNotification` + `getActiveProgramMemberIds`; the
+  `program.updated`/`program.deleted` emits are live since 0.3.0 (D-C3; categories / delivery per notifications
+  §3.4).
 - **Consumers:** `web` (programs hub `programs/page.tsx`, edit page `program/edit/page.tsx`,
   `NotificationsGate.tsx` refresh) + `ios` (`ProgramPickerView`, `CreateProgramTabView`,
   `EditProgramInfoView`, `ProgramContext+*`).
@@ -192,12 +194,13 @@ contract.
 
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-C1** | **Scope = the four `/api/programs` routes + `programService`.** The `program.updated`/`program.deleted` notification emit is a **referenced dependency** (owned by `notifications`, which drags in SSE + APNs) → deferred to a guarded TODO no-op; CRUD ports fully functional. Wired when `notifications` lands. Faithful to the auth `/account` + members `DELETE` deferrals. | `programService.js:153-164, 191-201`; `utils/notifications.js`; auth/members SPEC D-C1. |
+| **D-C1** | **Scope = the four `/api/programs` routes + `programService`.** ~~The `program.updated`/`program.deleted` notification emit is a **referenced dependency** (owned by `notifications`, which drags in SSE + APNs) → deferred to a guarded TODO no-op; CRUD ports fully functional. Wired when `notifications` lands.~~ *(The emit deferral is superseded at 0.3.0 by D-C3.)* Faithful to the auth `/account` + members `DELETE` deferrals. | `programService.js:153-164, 191-201`; `utils/notifications.js`; auth/members SPEC D-C1. |
 | **D-C2** | **`createProgram` drops the vestigial `description` field** (stop destructuring/persisting/returning it) — the single deliberate cleanup. No client sends it; update can't change it; list never returns it. The `programs.description` column is kept in schema (R5). | `programService.js:70, 85, 106`; web `programs/page.tsx:104`; iOS `APIClient+Programs.swift:51-68`; user decision. |
 | **D-S2** | **`getPrograms` keeps both raw `sequelize.query` branches verbatim** (global-admin-all vs member-INNER-JOIN), incl. the `progress_percent` CASE + active-member counts — no ORM rewrite (divergence risk on a load-bearing read). | `programService.js:6-68`; user decision. |
 | **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — both clients call all four routes. **Cross-app divergence:** `admin_only_data_entry` is **web-only** (web edit-page toggle reads + writes it; iOS `ProgramDTO` never decodes/sets it). The backend faithfully serves/accepts it for both clients regardless — kept as-is (§10 F1). | Web + iOS consumption sweep (Explore agents); `program/edit/page.tsx:136-151`; `APIClient+Programs.swift:5-17`. |
 | **D-S1** | **Stance = faithful 1:1 except the `description` drop (D-C2).** Routes, authz gates, raw SQL, transaction, response shapes, error contract preserved; remaining oddities kept + flagged (§10), not fixed. | Whole-module review; §7. |
 | **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): per-member program-card ordering.** New `member_program_order` table (dedicated table, NOT a `program_memberships` column — global admins see programs they have no membership row in), new `PUT /order` (full-replace delete-then-insert; trust-and-store ids, FK-backed; last-write-wins across devices), and the `getPrograms` `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC` change in both branches (new/unordered programs land at the bottom by start_date). Response shape unchanged — clients rely purely on array order, which is what makes the order sync cross-platform for free. | Migration `sql/005`; `services/programService.js` (`setProgramOrder` + both `getPrograms` branches); `routes/programs.js` (`PUT /order` above `/:id`); user decisions (grip-handle web / long-press iOS / bottom placement). |
+| **D-C3** | **The program-change emit is live (0.3.0; reliability-overhaul Phase 4 N-SRV, DESIGN D-N13 — supersedes D-C1's deferral).** `emitProgramNotification` now reads `getActiveProgramMemberIds(programId)`, **drops the requester** (the person who edited / deleted the program is never notified about their own change) and calls `createNotification({ type, programId, actorMemberId, title, body, recipientIds })` — `program.updated` on a real field change, `program.deleted` on a soft-delete. It runs **after** the write succeeded, outside any transaction, and a failure is **logged and swallowed** (`logError("[notifications] <type> emit failed:")`), so the response is always the write's. Titles / bodies are the legacy texts. Category `program`; `program.updated` is **not** a legacy type, so live binaries get only a push banner for it, never a pop-up ([notifications](../notifications/SPEC.md) D-C20). No route / status / body change. | `services/programService.js` (`emitProgramNotification`); N-SRV plan step 18; notifications D-C19/D-C20. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -215,6 +218,7 @@ contract.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **D-C3 — the `program.updated` / `program.deleted` emit is live (reliability-overhaul Phase 4 Notifications server).** Every active member except the requester; after the write, outside the transaction; a failure is logged and swallowed. D-C1's emit deferral superseded (§4/§5/§7/§8 updated). MINOR (deferred behaviour now live; routes, statuses and bodies unchanged); dependents unaffected. |
 | 0.2.0 | 2026-07-05 | **Net-new post-parity: per-member program-card ordering (D-N1).** New `member_program_order` table (migration `sql/005`, composite PK, FKs ON DELETE CASCADE) + `models/MemberProgramOrder.js`; new `PUT /api/programs/order` (`setProgramOrder` — validated full-replace, transactional, FK 23503 → 400; mounted above `/:id`); both `getPrograms` branches now `LEFT JOIN member_program_order` and `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC`. Response shapes otherwise unchanged. Consumed by web `/programs` (framer-motion grip-handle drag + search) and iOS `program-picker` (List `.onMove` long-press drag + `.searchable`). |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the four `/api/programs` routes + `programService`. Decisions D-C1 (scope; notification emit deferred to `notifications`, CRUD fully functional) / D-C2 (the one deliberate change — `createProgram` drops the vestigial `description` field) / D-S2 (keep `getPrograms` raw SQL verbatim) / D-REF (`consumed_by [web, ios]`; `admin_only_data_entry` web-only) / D-S1 (faithful except the `description` drop). Flagged F1–F7. |
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — `services/programService.js` (faithful raw-SQL `getPrograms` two branches per D-S2; `createProgram` **without `description`** per D-C2; `updateProgram`/`deleteProgram` soft-delete with the `program.updated`/`program.deleted` emit **deferred** to a guarded `emitProgramNotification` no-op per D-C1), `routes/programs.js` (faithful 1:1), mounted `/api/programs` in `server.js`. Module-load + GET/POST/PUT/DELETE route-stack boot check pass. Status 📄→🏗️ (no semver bump — the port matches the SPEC). |

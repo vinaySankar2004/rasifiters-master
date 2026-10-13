@@ -1,6 +1,6 @@
 # Feature: `health-connect` — Health Connect (Samsung Health) workout + sleep + steps auto-sync (Android)
 
-> **Status:** 🚀 deployed (`apps/android/` + existing backend endpoints) · **Version:** 0.3.0 ·
+> **Status:** 🚀 deployed (`apps/android/` + existing backend endpoints) · **Version:** 0.3.1 ·
 > **Apps (`consumed_by`):** `android`
 > **Provenance:** the Android analog of the iOS [`apple-health`](../apple-health/SPEC.md) feature (0.7.0),
 > re-expressed on **Health Connect** (`androidx.health.connect:connect-client`) instead of HealthKit.
@@ -133,6 +133,12 @@ intent-filters ship in the `AndroidManifest`. Play Console needs a Health Connec
 user-run). Health Connect is built into Android 14+ (API 34); on 13 and lower it is a standalone provider
 app.
 
+**0.3.1 (Phase 4 Android build):** `HealthConnectSettingsScreen` shows the People disclosure footnote `Synced workouts
+are visible to members of your programs unless you turn on Hide my activity in My Profile.` ([people](../people/SPEC.md)
+D-C12, U-1 (b)); `HealthSyncNotifier`'s notification uses the monochrome status-bar icon `ic_stat_notification` (was
+the launcher icon — notifications D-C31), and its id (`HEALTH_NOTIFICATION_ID` 4201) is kept when the Inbox clears
+posted pushes. Sleep and steps are never shown to co-members.
+
 ## 8. Decisions made (inherited from `apple-health`, on Health Connect)
 
 | ID | Decision | Rests on |
@@ -166,6 +172,7 @@ reader of that provenance.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **People disclosure footnote + monochrome notifier icon (Phase 4 Android build).** `HealthConnectSettingsScreen` footnote (synced workouts visible to co-members unless Hide my activity); `HealthSyncNotifier` uses `ic_stat_notification`; its notification survives the Inbox's mark-all tray clear. §7. PATCH. |
 | 0.3.0 | 2026-10-13 | **Health sync v2 on Android 1.1.0 (5) (D-V2; reliability-overhaul Phase 3 C3).** One `HealthSyncRunner` runs workouts + sleep + steps against [`health-sync`](../health-sync/SPEC.md) 0.2.0: Changes API with paging + deletions (token minted before the window read), server ledger instead of the client ledger + `on_duplicate:"sum"`, day totals over the 30-day catch-up window (sleep read from start − 1 d) instead of the 14-day `POST → 409 → PUT`, server-side review once, Disconnect local-only (keeps exclusions + reviews) + reconnect floor, the Reconnect row, per-member `rasi.health` store (1.0.0 keys adopted once), rule-9 upgrade with the recorded upgrade-window deviation. Superseded in place: D-SUM, D-S1/D-S2 + D-STEPS window + write, D-CONF re-gate + storage; H-CHG refined. §1 header, §3/§3a/§3b/§4/§5/§6 rewritten (Android 1.0.0 keeps the old paths). `reference_impl` += `HealthSyncItems.kt`, `HealthSyncRunner.kt`, `HealthSyncUpgrade.kt`. Same screens. MINOR (`reference_impl` contract change). |
 | 0.2.0 | 2026-07-09 | **Steps auto-sync (D-STEPS, Android-only) — the sleep model verbatim, on `StepsRecord`.** A third independent "Steps" section on `HealthConnectSettingsScreen` (own `READ_STEPS` permission, program selection, "Days Synced" status, disconnect; `DirectionsWalk` icon, teal `#14b8a6`) reads each day's steps via a rolling 14-day `aggregateGroupByPeriod` (`COUNT_TOTAL`, one-day periods — dedups overlapping sources, D-S1) and writes them to `daily_health_logs.steps` via POST→409→PUT upsert (`writeSteps`; sleep/diet untouched). Full D-S5/D-LOCK/D-S4/D-SIL/D-CONF rule set inherited, confirmation priority extended to **workouts > sleep > steps** (`deferredSteps`). **No new backend code — one schema dependency:** requires daily-health-logs 0.2.0's migration `006` (`steps` column + at-least-one CHECK). Files: `health/{HealthModels,HealthConnectManager,HealthStore,HealthSyncNotifier,HealthSyncController}.kt`, `ui/health/{HealthConnectSettingsScreen,HealthSyncConfirmationScreen}.kt`; `AndroidManifest.xml` gains `READ_STEPS`. Android-only; iOS analog = apple-health 0.7.0. Deploy order: daily-health-logs migration `006` → backend → Android build. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. |
 | 0.1.0 | 2026-07-08 | **Initial SPEC + build (Android Phase H).** Ported the iOS `apple-health` 0.6.0 integration to Health Connect: `health/{HealthConnectManager,HealthConnectWorkoutTypeMap,HealthStore,HealthAppliedLedger(in HealthStore),HealthModels,HealthDates,HealthSyncNotifier,HealthSyncController}.kt` + `ui/health/{HealthConnectSettingsScreen,HealthSyncConfirmationScreen}.kt`. Incremental workouts via the Changes API (anchor analog, H-CHG), rolling 14-day sleep window, the full D-S5/D-CONF/D-LOCK/D-SUM/D-SIL rule set, and status-code-aware writes (new raw `postWorkoutLog`/`postDailyHealthLogRaw`/`putDailyHealthLogRaw` on `ApiService`). `ProgramContext` gained `isDataEntryLocked(programId)` + owns a `HealthSyncController`; account rows (Program tab + picker sheet) + a full-screen confirmation overlay + launch/auth/resume/program-entry triggers wired. No backend change, no migration — reuses the already-live `workout-logs` D-C9 + daily-health upsert. `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. |

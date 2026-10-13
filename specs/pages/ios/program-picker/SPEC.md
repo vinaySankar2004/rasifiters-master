@@ -1,6 +1,6 @@
 # Screen: `program-picker` (ios) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.4.0 · **App:** `ios` (SwiftUI)
 > **Location:** the root view once `authToken` is set — `AppRootView.swift:11-14` shows `ProgramPickerView()`
 > inside a `NavigationStack`. Both `LoginView` + `CreateAccountView` flip the root here on success.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift`.
@@ -55,7 +55,7 @@ settings.
 | Search (net-new 0.2.0, slimmed 0.2.1, floated 0.2.2, D-N1) | Collapsed by default — a 56pt **floating circle stacked above the "+" button** (magnifier ↔ xmark, same style; a header placement wrapped the title, rejected 0.2.2) toggles a floating `.ultraThinMaterial` capsule (`searchPill`: TextField + clear button, autofocus) under the header; the list's top spacer grows 90→148pt while open. Closing clears the query. Client-side name filter (`localizedCaseInsensitiveContains` on the trimmed query); screen is unchanged while collapsed. | `ProgramPickerView.swift` (`floatingSearchButton`/`toggleSearch`/`searchPill`) |
 | `ProgramCard` | Name + `StatusPill` (status-colored) + date range + (members summary OR "Invitation pending"/"Request pending approval") + a status-colored `ProgressView` + (Accept/Decline capsule buttons when invited/requested). | legacy `:617-740` |
 | Swipe actions | Leading **Edit** (pencil, blue) + trailing **Delete** (trash, destructive) — both only when `canManage`. | legacy `:69-89` |
-| Floating "+" button | Bottom-right circle → `ProgramActionsSheet`; a red badge with `pendingInvitesCount` when > 0. | legacy `:229-253` |
+| Floating "+" button | Bottom-right circle → `ProgramActionsSheet`; a red badge with `pendingInvitesCount` when > 0. **0.4.0 (D-NP1):** the badge is `inboxBadgeCount` / `inboxBadgeLabel` — the server `badge` for every role (`99+` cap), falling back to `isGlobalAdmin ? 0 : pendingInvites.count` until counts load; the picker's `load()` also refreshes the counts. | `ProgramPickerView.swift` |
 | `AccountMenuSheet` (inline) | Sheet: header + Profile / Change Password / Appearance / Notifications rows (→ destinations), Privacy Policy / Support (→ URLs), Sign Out. `.medium`/`.large` detents. | legacy `:370-615` |
 | Delete / Sign-out alerts | Native `Alert`s — "Delete Program?" (confirm destructive) + "Sign Out" (confirm destructive). | legacy `:174-197` |
 | **Error banner** | **WEB-PARITY ADDITION (not in legacy iOS)** — an additive red banner shown whenever `errorMessage != nil` (D-C1). | new `ProgramPickerView.swift` `errorBanner(_:)` |
@@ -126,7 +126,13 @@ downstream log screens, never gating the picker (no data entry on this screen).
   banner instead (AppRootView), whose band is a bottom safe-area inset on the whole stack, so the cards and floating
   buttons sit above it. Back online → refetch. A load that fails while offline (link down or proven offline —
   polish-1) shows the offline error view, a client timeout included.
-- **Invite push tap (D-C3):** pops to the picker and opens the program-actions sheet on its Invites tab.
+- ~~**Invite push tap (D-C3):** pops to the picker and opens the program-actions sheet on its Invites tab.~~
+  *(Superseded at 0.4.0 by D-NP1 — `inboxRoute` targets.)*
+- **Notification targets (0.4.0, D-NP1):** the picker consumes `ProgramContext.inboxRoute` (on appear and on change):
+  the program already open → reload only; otherwise it closes its own sheets, waits 0.5 s, and skips while a
+  full-screen cover is up; `program(id)` → pop + open it (loading the list first if needed); `programs` → pop;
+  `invites` / `inbox` → pop + the "+" sheet on its Inbox tab; `log_workout` → the quick-add workout form (flagged as
+  opened from a notification, so it returns to the covered screen).
 - **Delete / Sign-out:** native confirm `Alert`s before the destructive action.
 - **Forward dependencies (all DEFERRED stubs):** `AdminHomeView`, `ProgramActionsSheet`, `EditProgramInfoView`,
   and the 4 account screens render the `ScaffoldPlaceholder` until ported (F2).
@@ -143,6 +149,7 @@ downstream log screens, never gating the picker (no data entry on this screen).
 | **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): drag-to-reorder + search.** Reorder = native `List` + `ForEach.onMove` press-and-hold lift-and-drag, NO edit mode (Reminders-style; chosen over the `AdminSummaryTab` `.onDrag/.onDrop` grid precedent — that pattern is for grids, this is a real List). The spacer/error/loading/empty rows sit outside the `ForEach`, so they're neither movable nor drop targets. **`.onMove(perform:)` gets `nil` while the search query is non-empty** — reorder only runs when `visiblePrograms` is the unfiltered array, so offsets map 1:1 onto `programContext.programs` and the full display order is what's persisted. Search (0.2.1) = a collapsed header magnifier toggling a floating material capsule — NOT `.searchable` (tried at 0.2.0; its nav-drawer field collided with the custom `pickerHeader` overlay and restyled the screen — user rejected). New programs land at the bottom (server-side `NULLS LAST, start_date`). | programs feature SPEC 0.2.0 (D-N1); web programs SPEC 0.2.1; user decisions (long-press drag · bottom placement · collapsed search, 2026-07-05). |
 | **D-C2** | **Kit adoption + instant open (reliability Phase 3 C2; board §6.5, D-9; frontend-kit §5–§6).** `LoadState<[ProgramDTO]>`; cache-first (`LaunchCache`, per member, cleared on sign-out) then network; programs + invites in parallel; `ErrorStateView` / stale banner / dismissable action-error banner via `ScreenBanner` at `bottomInset: 150`; the app-config "update available" banner shows here only (amendment A7); offline = the app-wide banner, its band reserved as the stack's bottom safe-area inset (A6); a pushed invite request is skipped while a full-screen cover is up (never a dead "+"); refetch on reconnect. **Pull-to-refresh (amendment A13)**: the header's height became a clear top safe-area inset (+ a 6 pt spacer row, min row height 0), so the spinner sits below the header while every card rests exactly where it did. | frontend-kit §5–§6, D-KIT-8/9; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A6 / A7 / A13 / A14. |
 | **D-C3** | **Invites + account (Phase 3 C2).** An invite push tap (`ProgramContext.openInvitesRequested`, amendment U2) opens `ProgramActionsSheet` on its Invites tab. The card's *invited* Accept / Decline is retired — the Invites tab is the one inbox; a *requested* membership keeps "Cancel request" (A10). The account menu's Sign Out runs `SessionTeardown` (this device only, auth D-C14); "Sign out everywhere" is in [My Profile](../my-profile/SPEC.md), not here (U3). | notifications §3.2; invites §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) U2 / U3 / A10. |
+| **D-NP1** | **Inbox badge, Inbox account row, notification routing (0.4.0; notifications D-C31, invites D-C10; NP amendments R4, R5; iOS plan TC10).** The "+" badge = the server `badge` (`inboxBadgeCount`), fallback own pending invites / 0 for global admins, `99+`; `AccountMenuSheet` gains an `Inbox` row (`<n> new` / `99+ new`, else `Invites and notifications`) that pushes `InboxView`; `inboxRoute` replaces U2's `openInvitesRequested` (D-C3's push-tap clause superseded) — routing rules in §8. The visibility notice may be offered from the launch path (people D-C14). | notifications §3.9; iOS plan TC10, TC3. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -160,6 +167,7 @@ downstream log screens, never gating the picker (no data entry on this screen).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **D-NP1 — Phase 4 Notifications (`198407c`).** "+" badge = the server `badge` (fallback own invites, global admins 0); `Inbox` account row; `inboxRoute` notification routing (program / programs / invites / inbox / log_workout) replaces the invite-tap flag (D-C3 clause superseded); counts refresh with the picker load. |
 | 0.3.1 | 2026-10-13 | **Polish 1 (offline detection).** Offline = link down OR proven offline by a failed request (`NetworkMonitor`); with no list, a load that fails while offline → the kit's offline `ErrorStateView` + Retry, a client timeout included (`AppError.labeled(online:)`, rule 6); the offline banner, stale-banner suppression and refetch-on-reconnect follow the combined value. |
 | 0.3.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0).** D-C2: instant open (cache, then network), programs + invites in parallel, kit error view / stale / action-error / update banners (one at a time, `bottomInset: 150`), pull-to-refresh with the header as a top safe-area inset (cards unmoved), refetch on reconnect — D-C1 superseded. D-C3: an invite push tap opens the Invites tab; the card's invited Accept / Decline retired (Cancel request kept). |
 | 0.2.2 | 2026-07-05 | **Search toggle moved out of the header (user feedback):** the 0.2.1 header magnifier circle squeezed the "My Programs" title into wrapping. Now a `floatingSearchButton` stacked above the floating "+" (bottom-right, 14pt gap, identical circle style); header restored to its original layout. Pill/filter semantics unchanged. |

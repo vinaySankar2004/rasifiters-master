@@ -1,6 +1,6 @@
 # Page: `members/list` (web) — active-member roster (members sub-route 1 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/list` — the **roster screen** behind the [`members`](../SPEC.md) landing's "View Members"
 > pill: a searchable, read-only list of the program's **active** members. **1st** of the eight deferred `/members`
 > sub-routes (`list`/`detail`/`invite`/`metrics`/`history`/`streaks`/`workouts`/`health`) and the **entry point to
@@ -10,6 +10,9 @@
 > (`GET /program-memberships/details` — `authenticateToken`; already mounted) via the already-ported
 > `lib/api/programs.ts` `fetchMembershipDetails`; [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard`).
 > **Cross-app:** `consumed_by = [web]` — iOS renders its member roster natively; parity audited at the iOS port.
+> **0.2.0 — the People go-live switch (D-NP1):** `PEOPLE_LIVE` (`lib/api/people.ts`, `false` until the store release)
+> picks `RosterList` (this SPEC's roster, verbatim) or `PeopleList` ([people](../../../../features/people/SPEC.md) —
+> `GET /api/people`). While dark everything below holds unchanged.
 > **Stance:** faithful 1:1 port **+ one tokenize cleanup** (D-C1 — the "Inactive" badge `bg-red-100 text-red-600`
 > → `rf-danger`). **No new dependency, zero backend work, no feature bump.** Oddities flagged §10.
 
@@ -110,6 +113,7 @@ admin redirect** — every role renders the same roster; the only role-condition
 | **D-DEPS** | **No new dependency** — `fetchMembershipDetails`/`MembershipDetail` (ported with the `program` landing run 24 / `program/roles` run 26, already used by 2 live pages), `initials`, and every chrome leaf (`PageShell`/`PageHeader`/`GlassCard`/`LoadingState`/`EmptyState`/`ErrorState`) all already ported. The sweep ports only the page file. | `members/list/page.tsx:3-14`; rebuilt `lib/api/programs.ts:99-145` |
 | **D-S1** | Faithful 1:1 otherwise — same `["members","details",programId]` query + `enabled` gate, the `status==="active"` filter, the client-side name search, the global_admin-only row clickability, and the `MemberRow` markup. | legacy `members/list/page.tsx` |
 | **D-C1** | **Tokenize cleanup** (change-now) — the "Inactive" badge's literal `bg-red-100 text-red-600` → theme-aware `bg-rf-danger/10 text-rf-danger` (the soft-tinted danger pill, matching every other rebuilt page; `--rf-danger` is `#ef4444` light / `#f87171` dark). The only untokenized color on the page; nothing else to tokenize (avatar, star, text all already `rf-*`). | user decision; `members/list/page.tsx:98`; runs 27/31 (selective per-site tokenize) |
+| **D-NP1** | **`PEOPLE_LIVE` picks the roster or People (0.2.0; people D-C13, NP-U1/NP-U5).** `export const PEOPLE_LIVE: boolean = false` (compile-time). **False (today):** `RosterList` = this page verbatim (`fetchMembershipDetails`, ★ for admins, Inactive badge, rows open `/members/detail` only for global admins). **True (release day):** `PeopleList` — `PageHeader` `People` + program name (back → `/members`); an `Invite member` · `Send an invite by username` row on top for program admins and global admins (→ `/members/invite`); `Search people` (name or username); rows with server initials, `You` / `Admin` / `Logger` markers and the status line (`Active today` … `Activity hidden`); every row opens `/members/person?memberId=`; empty `No one in this program yet.` / `No one matches your search.`; kit states (ErrorView + Retry, stale banner, reconnect refetch); the one-time "Who can see your activity" notice on the first open (`localStorage` `rasi.fiters.activityNotice.<memberId>`; skipped when already hidden; no backdrop dismiss). After the release the dark roster (`RosterList`, `MemberRow`) is deleted. | people D-C13; web plan W1, W3, W8. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -138,5 +142,6 @@ admin redirect** — every role renders the same roster; the only role-condition
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **D-NP1 — the People go-live switch** (Phase 4 Pass B, `b2ea09b`): `PEOPLE_LIVE` false → today's roster verbatim (`RosterList`); true → `PeopleList` (Invite row for admins, search by name or username, status lines, profile links, kit states, the activity notice). Dark until the store release. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 39) — the **25th web page spec**, the **active-member roster** (`/members` sub-route 1 of 8). Faithful 1:1 port of the legacy 113-line page: a `PageShell` + `PageHeader` ("Members" / program name / `backHref="/members"`) wrapping a search `GlassCard` + a grid of `MemberRow` cards, over `fetchMembershipDetails` (`GET /program-memberships/details`), client-filtered to `status==="active"` + client name search. **global_admin-only** row clickability → the deferred `/members/detail` editor; read-only for every other role; `admin_only_data_entry` **N/A** (read-only list). Decisions: **D-SCOPE** (this page; 1st of 8, does not close the group) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — `fetchMembershipDetails` + all chrome already ported) · **D-S1** (faithful 1:1) · **D-C1** (tokenize the "Inactive" badge `bg-red-100 text-red-600` → `bg-rf-danger/10 text-rf-danger`). Flagged F1–F5 (global_admin-only clickability + entry-path asymmetry; `status` vs `is_active`; client-only filter/search; forward-nav to deferred `/members/detail`; client JWT-decode role drives display-only clickability). **Zero backend work, NO feature bump** — `GET /program-memberships/details` already mounted (`authenticateToken`). Ported `apps/web/src/app/members/list/page.tsx`. `npm run build` ✓. |

@@ -1,7 +1,7 @@
 # Feature: `frontend-kit` — shared loading / error / offline / banner kit (web + iOS + Android)
 
 > **Status:** 🧩 adopted (Phase 3 client release: web live; iOS 1.5.0 (58) + Android 1.1.0 (5) built — 🚀 deployed once
-> both store builds are live) · **Version:** 0.4.0 ·
+> both store builds are live) · **Version:** 0.5.0 ·
 > **Apps (`consumed_by`):** `web` `ios` `android`
 > **Provenance:** net-new — reliability overhaul Phase 2 track D. Contract = [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md)
 > §6 (W7) + W7-D1 (one palette = web's) + W7-D2 (keep data + "Couldn't refresh — Retry"); evidence =
@@ -17,7 +17,8 @@
 One small, self-contained kit per surface: a five-state async model, one error vocabulary with one human
 message per kind, a connectivity monitor, a floating banner (offline / stale / error / update-available), an
 error-with-no-data view, and the shared palette tokens. Phase 2 shipped the kits only; the Phase 3 client release
-adopts them on the touched screens (0.2.0 — D-KIT-13–15).
+adopts them on the touched screens (0.2.0 — D-KIT-13–15). 0.5.0 adds the notification **toast** (D-KIT-20) and the
+Phase 4 screens to the adoption list.
 
 ## 2. Why it exists
 Today an error looks like "no data" on all three surfaces, spinners never end, raw server / OS text reaches
@@ -124,6 +125,10 @@ bottom-anchored controls**.
   pass `Modifier.navigationBarsPadding()`; inside AppScaffold the innerPadding already clears the
   NavigationBar.
 
+**Toast (D-KIT-20, 0.5.0) — the one exception to the bottom rule.** The notification toast sits at the **top**, under
+the status bar / safe area (the bottom band already holds the nav, FABs and the offline / stale banners): `<title>`
+(blank → `New notification`) · `View` · ×, FloatingBanner chrome, max 520 wide, tap targets ≥ 44pt / 48dp.
+
 ErrorView = `errorViewTitle` + the message + a Retry pill (only if a handler is given and retryable).
 Adoption recipe — web: `const s = fromQuery(q)`; `failed` → `<ErrorView error={s.error} onRetry={() => retryNow(queryClient, key)} />`
 (D-KIT-18 — a bare `refetch()` can't cut a live retryer's backoff short);
@@ -147,6 +152,9 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
 - **ios:** `Shared/Kit/{KitCopy,AppError,LoadState,NetworkMonitor,FloatingBanner,ErrorStateView,OfflineBanner}.swift`, `Shared/Theme/AppPalette.swift`
 - **android:** `core/kit/{KitCopy,AppError,UiState,ConnectivityObserver}.kt`, `ui/components/kit/{FloatingBanner,ErrorView}.kt`,
   `core/theme/Palette.kt`; `AndroidManifest.xml` declares `ACCESS_NETWORK_STATE`
+- **The toast (D-KIT-20, 0.5.0)** lives beside its notifications code on each surface: web
+  `src/components/notifications/NotificationToast.tsx` (gated in `src/components/NotificationsGate.tsx`), iOS
+  `Shared/Views/NotificationToast.swift`, Android `ui/inbox/NotificationToast.kt` (gated in `ui/RootScreen.kt`)
 
 ## 9. Decisions made
 - **D-KIT-1 Kits only, no adoption (0.1.0).** No existing screen, component or token changes. Web
@@ -213,6 +221,11 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   - **Update-available banner:** the program picker only (A7 — [`app-config`](../app-config/SPEC.md) D-C7).
   - **Capture:** `code` / `Retry-After` on every error (closes D-KIT-5); web `parseRetryAfter` lives in
     `lib/api/client.ts`, re-exported from `app-error.ts`.
+  - **Adoption list += the Phase 4 screens (0.5.0):** the Members tab (the S5 recipe — [member-analytics](../member-analytics/SPEC.md)
+    D-C12), the People list and person profile ([people](../people/SPEC.md)), the Inbox, the Notifications settings
+    (and web's composer page) — ErrorView + Retry only when nothing for this screen has loaded, kept data + `Couldn't
+    refresh` · Retry on a failed refresh, `—` for a failed part, reload on reconnect, never another program's or
+    member's values.
 - **D-KIT-14 Credential-screen messages (0.2.0; supersedes the §4 scope rule).** Public sign-in routes (login,
   sign-up, `/oauth`, `/oauth/complete`): the server's text for 400 / 401 / 409 / 422, the kit copy otherwise.
   Authenticated credential routes (link / unlink, set / change password, email re-auth): 400 / 409 / 422 keep the
@@ -247,11 +260,12 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   sits above the app root, so the root banner (D-KIT-13 A6) can't show over it. **iOS:** `.offlineBanner()`
   (`Shared/Kit/OfflineBanner.swift`) applied once at the presented root, inside `.environmentObject(programContext)` —
   the "+" sheet (`ProgramActionsSheet`), the widget covers (`WidgetCoverView`) and the Apple Health review
-  (`HealthSyncConfirmationView`); while offline it reserves the root's 76-pt band (bottom `safeAreaInset`), and the "+"
-  sheet's Invites + Create tabs add offline-only 116-pt bottom spacers (the inset isn't relied on to reach a paged
-  `TabView`'s pages). **Android:** the "+" sheet (`ProgramActionsSheet.kt` — `FloatingBanner` + the tab area gives up
-  `OFFLINE_BANNER_RESERVE`, 76dp) and the Health Connect review overlay (`RootScreen` — `offlineReserve` 76dp + the
-  banner). **Invites reload on reconnect on both** (iOS `InvitesTabView` after a failed load; Android the picker's
+  (`HealthSyncConfirmationView`) — and, since 0.5.0, the root Inbox sheet (`Shared/Views/NotificationToast.swift`); while
+  offline it reserves the root's 76-pt band (bottom `safeAreaInset`), and the "+" sheet's ~~Invites~~ **Inbox** (0.5.0,
+  `InboxView(reservesOfflineBand: true)`) + Create tabs add offline-only 116-pt bottom spacers (the inset isn't relied
+  on to reach a paged `TabView`'s pages). **Android:** the "+" sheet (`ProgramActionsSheet.kt` — `FloatingBanner` + the tab area gives up
+  `OFFLINE_BANNER_RESERVE`, 76dp — the Inbox + Create tabs since 0.5.0) and the Health Connect review overlay
+  (`RootScreen` — `offlineReserve` 76dp + the banner). **Invites reload on reconnect on both** (iOS `InvitesTabView` after a failed load; Android the picker's
   reconnect effect reloads a failed / stale inbox beside the program list), and a failed inbox reads offline while
   offline on all three (polish-1 rule 6). Web has no sheets or widgets, so the banner part is n/a there.
 - **D-KIT-18 Web fails fast; Retry retries (0.4.0; polish #4 + #6).** `fromQuery` returns `failed`
@@ -268,16 +282,37 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   a cancelled load stays silent); Android `toAppError().message` (rethrows `CancellationException`). The server's
   useful text survives for 400 / 422 and row-error batches (D-KIT-3) — no raw OS / "Failed to fetch" text. The
   program-order failure reads "Couldn't save program order. <kit message>" on all three.
+- **D-KIT-20 The notification toast (0.5.0; reliability-overhaul Phase 4 — NP amendments R3; an explicit exception to
+  D-KIT-8's bottom placement, the same answer on all three).** Copy `<title>` (blank → `New notification`) · `View` · ×
+  (labelled `Dismiss`); **top** placement under the status bar / safe area; max 520 wide; FloatingBanner chrome; tap
+  targets ≥ 44pt / 48dp; **5 s**; the newest replaces the previous; `View` marks the item read and routes it
+  (notifications §3.9 rule 8); ×, the timeout (and iOS's swipe up) only hide it — the item stays unread; shown only if
+  `categories[item.category] !== false` (missing preferences or an unknown key → show); **never over a modal / sheet /
+  cover, never while the Inbox is on screen** — a suppressed toast is dropped, not queued; announced politely to screen
+  readers (web `role="status"` + `aria-live="polite"`). Per surface: **web** — top-centre, z-40 outside `<main>`; a modal
+  is any `.modal-surface` or `[aria-modal='true']` element (watched live — the "+" sheet that hosts the Inbox is one);
+  also never on the page-form routes `/program/profile`, `/program/password`, `/program/edit`, `/members/detail`,
+  `/program/announcements` (cleared when one opens). **iOS** — width capped at `formMaxWidth`; suppressed while an
+  `InboxView` is visible or anything is presented (`isPresentingModal`); the one notice presenter on `AppRootView`
+  yields to covers and returns. **Android** — suppressed while `inboxVisible`, while a form is open (`ROOT_FORMS` +
+  `SHELL_FORMS` + a non-blank "+" sheet Create draft) or while a cover is up (a cover counter: the Health Connect
+  review, the account menu, the "+" sheet); not composed during the update screen or the Health Connect review; it
+  sits under `ModalBottomSheet` windows (the item still lands in the Inbox).
 
-## 10. Not in 0.4.0 / open
-Loading skeleton, empty view, toast (board §6.6); spacing/type/radius tokens; Next.js `error.tsx`; web: the TanStack
+## 10. Not in 0.5.0 / open
+Loading skeleton, empty view (board §6.6); spacing/type/radius tokens; Next.js `error.tsx`; web: the TanStack
 query `signal` is not combined with the request's own 15 s abort (the fetchers take no signal); web detail pages are
 not on `fromQuery` yet, so they still wait out the retries before an error (polish #29). Delivered in 0.2.0
 (D-KIT-13): `QueryClient` defaults, the 15 s timeout, the on-device cache (D-9), the offline banner (it replaced iOS's
 "You're offline. We'll reconnect…" alert), pull-to-refresh on the launch screens (iOS + Android), the Android blocking
-update screen.
+update screen. Delivered in 0.5.0 (D-KIT-20): the toast.
 
 ## 11. Changelog
+- **v0.5.0** (2026-10-13) — **D-KIT-20** the notification toast (top — an exception to D-KIT-8; 5 s; `View` marks read +
+  routes; category gate; never over a modal / sheet / cover or the Inbox; per-surface suppression rules); D-KIT-13
+  adoption list += Members tab, People, person profile, Inbox, Notifications settings; D-KIT-17 wording — the "+"
+  sheet's **Inbox** + Create tabs and iOS's root Inbox sheet carry the offline banner; §6 / §8 / §10 updated (the toast
+  leaves the open list). No copy-table change. Reliability-overhaul Phase 4 Notifications + People client builds.
 - **v0.4.0** (2026-10-13) — **D-KIT-17** offline banner on presentations (iOS `.offlineBanner()` on the "+" sheet,
   widget covers and Apple Health review; Android on the "+" sheet and the Health Connect review; invites reload on
   reconnect); **D-KIT-18** web `fromQuery` fails after the first try, `retryNow`, mutations `networkMode: "always"`;

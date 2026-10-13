@@ -1,6 +1,6 @@
 # Feature: `members` — member directory, profiles, and admin lifecycle
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.5.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/members.js`, `services/memberService.js`,
 > `models/Member.js`, `models/MemberEmail.js`, `server.js:47`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken` / `isAdmin`).
@@ -39,24 +39,27 @@ All mounted at **`/api/members`** (legacy `server.js:47`). Handlers in `routes/m
 | # | Route | Legacy handler | Auth | Purpose |
 |---|-------|----------------|------|---------|
 | 1 | `GET /` | `members.js:8-17` → `getAllMembers` | `authenticateToken`; the full list only for a **global admin**, anyone else gets only **their own row** (D-C3) | List members where `global_role = 'standard'`, ordered `first_name ASC`. |
-| 2 | `GET /:id` | `members.js:19-28` → `getMemberById` | `authenticateToken`; `email` only to self or a global admin, anyone else `email: null` (D-C3) | One member's profile (hand-picked fields). 404 if missing. |
+| 2 | `GET /:id` | `members.js:19-28` → `getMemberById` | `authenticateToken`; `email` only to self or a global admin, anyone else `email: null` (D-C3); `hide_activity` (0.5.0) under the same rule, the key absent otherwise (D-C4) | One member's profile (hand-picked fields). 404 if missing. |
 | 3 | `POST /` | `members.js:30-39` → `createMember` (`memberService.js:38-69`) | `authenticateToken` + `isAdmin` | Admin-create a member. **CHANGED** (§7) — now creates a loginable member. 201. |
-| 4 | `PUT /:id` | `members.js:41-50` → `updateMember` (`memberService.js:71-106`) | `authenticateToken` | Update `first_name`/`last_name`/`gender`; own-profile **or** `global_admin` only. |
+| 4 | `PUT /:id` | `members.js:41-50` → `updateMember` (`memberService.js:71-106`) | `authenticateToken` | Update `first_name`/`last_name`/`gender`; own-profile **or** `global_admin` only. `hide_activity` (0.5.0): own profile only (D-C4). |
 | 5 | `DELETE /:id` | `members.js:56-65` → `deleteMember` (`memberService.js:147-179`) | `authenticateToken` + `isAdmin` | Delete member + cross-feature cascade (`cascadeMemberDeletion`) + Supabase auth-user delete. **WIRED** (§7, D-C1). |
 
 ### Response shapes (preserved 1:1, except the auth_user_id exclusion in §7)
 
 - **`GET /`** (`memberService.js:15-20`): a JSON array of **full `members` rows** — but with the
-  migration-added `auth_user_id` column **excluded** to preserve the exact legacy shape (§7).
+  migration-added `auth_user_id` column **excluded** to preserve the exact legacy shape (§7), and (0.5.0)
+  `hide_activity` excluded too (never in the directory, D-C4).
 - **`GET /:id`** (`memberService.js`): `{ id, member_name, username, gender, email, date_joined,
   global_role, created_at, updated_at }` (`member_name`/`date_joined` are model virtuals). **`email`** is the
   primary `member_emails` row (`is_primary`), added so the web profile page can display it — self or global admin
   only since D-C3, `null` for anyone else (read-only here —
-  changing email goes through `PUT /auth/email`, not the `updateMember` whitelist; F6 holds).
+  changing email goes through `PUT /auth/email`, not the `updateMember` whitelist; F6 holds). **0.5.0 (D-C4):**
+  plus `hide_activity` (boolean) under the same rule as `email` (self or a global admin); the key is absent
+  otherwise.
 - **`POST /`** (`memberService.js:56-63`, HTTP 201): `{ id, member_name, username, gender, date_joined,
   global_role }` — **shape preserved**; the change (§7) is internal (it also provisions auth).
 - **`PUT /:id`** (`memberService.js:95-100`): `{ message: "Profile updated successfully.", member_name,
-  first_name, last_name }`.
+  first_name, last_name, hide_activity }` (`hide_activity` added 0.5.0). Accepts `hide_activity` (D-C4).
 - **`DELETE /:id`** (`memberService.js:184`): `{ message: "Member deleted successfully." }` (once
   un-deferred).
 
@@ -83,7 +86,9 @@ block), `404` (member not found).
   `auth_user_id` — mirroring the ported `authService.register` (`apps/backend/services/authService.js:172-233`).
 - **Update member** (`memberService.js:71-106`) — authorize: `requester.id === member.id` **or**
   `requester.global_role === 'global_admin'`, else `403` (`:80-85`). Apply only `first_name` / `last_name`
-  / `gender` (each trimmed) when present; ignore everything else. Transactional.
+  / `gender` (each trimmed) when present; ignore everything else. Transactional. **0.5.0 (D-C4):** also
+  `hide_activity` — a strict JSON boolean, for the member's own profile only (`400 { error: "hide_activity must be
+  true or false." }` / `403 { error: "You can only change your own activity visibility." }`, neither with a `code`).
 - **Delete member (WIRED, §7)** (`memberService.js:147-179`) — block `global_admin` (`403`); then run the
   shared cascade `utils/programMemberships.cascadeMemberDeletion`: destroy `program_invites` referencing the
   member by `invited_by` / `invited_username` / `invited_email ∈ member's emails`; destroy `notifications`
@@ -101,7 +106,8 @@ Faithful names (R5); schema in `apps/backend/sql/001_schema.sql`.
   `last_name`, `gender` (**`varchar(32)`** — widened from legacy `varchar(10)` via migration
   `003_widen_gender_column.sql` so `"Prefer not to say"` fits), `global_role`
   (`'standard'|'global_admin'`), `status`, `created_at`/`updated_at`,
-  and the **migration-added** `auth_user_id uuid UNIQUE → auth.users(id)`. Virtuals: `member_name`
+  and the **migration-added** `auth_user_id uuid UNIQUE → auth.users(id)`, and `hide_activity boolean NOT NULL
+  DEFAULT false` (migration `sql/012`, D-C4 — "Hide my activity", read only by `utils/memberVisibility.js`). Virtuals: `member_name`
   (`first + " " + last`), `date_joined` (`created_at` as `YYYY-MM-DD`) — `models/Member.js`.
 - **`member_emails`** (read by the delete cascade; **written by `createMember`** in the rebuild) — `email`
   (unique, normalized lowercase via the model setter), `is_primary`, `verified_at` (`models/MemberEmail.js`).
@@ -164,6 +170,7 @@ update whitelist, and the `global_admin` delete block.
 | **D-REF** | **Reference impl = legacy `backend`** (`routes/members.js`, `services/memberService.js`, the two models, `server.js:47`). ~~`consumed_by = [web, ios]`~~ → **`[web, ios, android]`** (0.4.0 doc-lag fix: Android reads `GET /:id` + writes `PUT /:id`; only iOS calls `GET /`) for the read + self-update routes; **`POST` and `DELETE` are called by neither client** (vestigial — kept for API parity, §10 F1). | Web + iOS consumption sweep (Explore agents); `members.js`. |
 | **D-S1** | **Stance = faithful 1:1 except `createMember` (D-C2) + the 0.4.0 read gates (D-C3).** Response shapes, gates, filtering/ordering, virtuals preserved; `getAllMembers` excludes the migration-added `auth_user_id` to keep the legacy shape. Other oddities are kept and flagged (§10), not fixed. | Whole-module review; §7. |
 | **D-C3** | **Deliberate change (0.4.0) — privacy gate on the two reads (reliability-overhaul Phase 4 S0 / People D-P8 a).** `GET /` (the full directory) answers the full list only to a **global admin**; anyone else gets **only their own row** (`200`, same array shape). Never 403: live iOS 1.4.x/1.5.0 `loadLookupData` calls it at launch/login with no program open, and a throw would skip its workouts/programs refresh. Own row, not `[]`: if that launch fetch finishes after a program was picked, iOS keeps its result as the program's roster, and the own row keeps `StandardMembersTab.loggedInMember` resolvable (plan-adversary verdict 1; Phase 4 wave-A amendment SA1). Nothing renders that list while no program is open. `GET /:id` returns `email` only to **the member themselves or a global admin**; anyone else gets the same object with **`email: null`** (every client DTO already treats `email` as optional; every live caller passes the viewer's own id). Rule kinds `"directory"` / `"email"` in the shared `utils/memberVisibility.js` (program-memberships D-C5). No 404 for a non-co-member: with the directory and rosters closed, another member's id is only learnable inside a shared program, whose roster already shows the same name/username/gender. | Phase 4 DECISIONS D-P8 (a); DISCOVERY §4 S0 + P-4; wave-A amendment SA1; caller audit: web `program/profile/page.tsx`, iOS `MyProfileView.swift` + `ProgramContext+Members.swift` `loadLookupData` (HEAD and 1.4.2 `6294622`), Android `ProfileScreen.kt` (HEAD and 1.0.0 `cea59a5`). |
+| **D-C4** | **"Hide my activity" (0.5.0, [people](../people/SPEC.md) 0.1.0 / phase-4 D-P6–D-P7; deliberate, additive).** `members.hide_activity` (sql/012). `PUT /:id` accepts it — a strict JSON boolean, for the member's OWN profile only (a global admin can't set it for someone else): non-boolean → `400 { error: "hide_activity must be true or false." }`; another member's profile → `403 { error: "You can only change your own activity visibility." }` (the existing 403 "You can only update your own profile." still comes first for non-admins); absent = unchanged; the response adds `hide_activity`. `GET /:id` returns it under the `email` rule (`canView(…, "email")`: self or global admin), the key absent otherwise; `GET /` excludes it (shape unchanged). What it hides: people SPEC §4–§5. `memberService.js` is ~213 lines (accepted). **Clients (Phase 4 builds):** web (`/program/profile`, behind `PEOPLE_LIVE`), iOS and Android (My Profile, directly above "Sign out everywhere") read it from `GET /:id` and write it with `PUT /:id`; a 200 **without** the `hide_activity` echo counts as a failure on all three (amendment R11). Live binaries never send it and ignore the key. | people D-C3; program-memberships D-C6; phase-4 NP amendments S1-1, R11. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -180,6 +187,7 @@ update whitelist, and the `global_admin` delete block.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.0 | 2026-10-13 | **D-C4 — "Hide my activity" (People S1, people 0.1.0).** `members.hide_activity` (sql/012); `PUT /:id` sets it (own profile only, strict boolean, `400` / `403` texts) and echoes it; `GET /:id` returns it under the email rule; `GET /` excludes it. The three Phase 4 clients read + write it from My Profile (a missing echo = failure). **MINOR** (owned interface, additive); live binaries unaffected. |
 | 0.4.0 | 2026-10-13 | **D-C3 — privacy gate on `GET /` + `GET /:id` (reliability-overhaul Phase 4 S0 / People D-P8 a).** `GET /` lists every standard member only for a global admin (everyone else gets only their own row — wave-A amendment SA1); `GET /:id` returns `email` only to self or a global admin (others `email: null`). Same routes + shapes; rule in the new shared `utils/memberVisibility.js` (program-memberships 0.3.0). Live binaries checked (iOS 1.4.2/1.5.0, Android 1.0.0/1.1.0, web): no screen changes. D-REF `consumed_by` lag fixed → `[web, ios, android]`; header count + D-S1 + §4/§7 wording updated. **MINOR**; backend-only. |
 | 0.3.0 | 2026-06-30 | **`getMemberById` now returns the primary `email`** (resolved from `member_emails`, `is_primary`) so the web profile page can display it — additive read-shape change, backward-compatible (`updateMember` whitelist unchanged; email changes go through `PUT /auth/email`, F6 holds). **`members.gender` widened `varchar(10)`→`varchar(32)`** via migration `apps/backend/sql/003_widen_gender_column.sql` (+ `001_schema.sql` canonical line) so `"Prefer not to say"` (17 chars) stops erroring on save. MINOR (additive; consumers: web profile reads `email`, ios unaffected). Drives `program/profile` page v0.2.0. `node -c` ✓; migration applied by the user. |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the five `/api/members` routes + `memberService`. Decisions D-C1 (scope; `DELETE` cascade deferred → 501, auth `/account` pattern) / D-C2 (the one deliberate change — `createMember` wired to Supabase `createUser`, requires `email`) / D-REF (`consumed_by [web, ios]`; `POST`+`DELETE` called by neither client) / D-S1 (faithful except `createMember`; `getAllMembers` excludes `auth_user_id`). Flagged F1–F6. |

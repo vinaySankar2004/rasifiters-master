@@ -29,7 +29,8 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
 ## Surface (screens, from the legacy app)
 Splash · Login · CreateAccount · ProgramPicker · AdminHome (Summary / Members / Lifestyle / Program tabs,
 admin + standard variants) · member detail/metrics/streaks/history · Settings (profile / password /
-appearance / notifications / **Apple Health**) · widget entry views · notification modal.
+appearance / notifications / **Apple Health**) · widget entry views · ~~notification modal~~ (Phase 4: the Inbox +
+toast — `Features/Home/Inbox/`; People — `Features/Home/People/`; Members-card state `Features/Home/Tabs/MemberCardsState.swift`).
 
 ## Apple Health auto-sync (2026-06-30; health-sync v2 since 1.5.0)
 The [`apple-health`](../../specs/features/apple-health/SPEC.md) feature — iOS-only HealthKit workout / sleep / steps
@@ -75,12 +76,17 @@ Phase 3 C2):
   `transport` and clears on any network answer, the link coming up, or a foreground `GET /app-config` probe (5 s, every 10 s).
   "Sign out everywhere" lives in My Profile above Delete Account. The change-password / email `PUT`s send a one-shot
   body (no silent CFNetwork replay).
-  15 s request timeout; every call sends `X-App-Platform` / `X-App-Version` / `X-App-Build` + a fresh `X-Request-Id`.
+  15 s request timeout; every call sends `X-App-Platform` / `X-App-Version` / `X-App-Build` + a fresh `X-Request-Id`
+  (+ `X-Time-Zone` since Phase 4).
 - **Push (notifications §3.1–3.3):** `DeviceRegistry` = keychain install id + one serial register / unregister
   queue (PUT /device ≤ once per 12 h per token; unregister on every sign-out and once per permission denial, the
   sign-in ride-along then omits `push_token`; sign-out forgets the memo, keeps the token — D-IOS-PUSH-1). The SSE
   stream lives in the foreground only, reconnects with 1 s × 2 / 30 s full-jitter backoff (paused offline) and
   re-fetches `/unacknowledged` on every `ready`. An invite push tap opens the Invites tab; others re-fetch.
+  **Phase 4 (notifications D-C31):** `?inbox=1` + a catch-up instead of `/unacknowledged`; taps / toast `View` route by
+  `target`; `PUT /device` sends `inbox: true`. `UserDefaults` keys: `push.permissionAsked` (permission asked once at the
+  first signed-in start), `push.registeredBuild` (re-register once per build), `people.activityVisibilityNoticeSeen.<memberId>`
+  (the People notice). The app-icon badge (inbox-capable installs only) is written only via `setBadgeCount`.
 
 ## Foundation port (run 50, 2026-06-30)
 
@@ -92,7 +98,8 @@ question-asker — that loop is for screens), get it building green, then port f
 (`RaSi_Fiters_AppApp`, `AppDelegate`, `AppRootView`), `Config/APIConfig`, `Shared/Services/*` (APIClient +
 all 9 category extensions, `KeychainService`, `SessionStore`, `NotificationStreamClient`, `ShareSheet`),
 `Shared/Theme/*`, `Shared/Models/*` (`ProgramContext` + 8 extensions, `AuthResponse`, `AnalyticsSummary`),
-`Shared/Components/*`, `Shared/Views/NotificationModalView` (incl. `ForcedUpdateModalView`), `Assets.xcassets`,
+`Shared/Components/*`, `Shared/Views/NotificationModalView` (incl. `ForcedUpdateModalView` — since Phase 4 the file
+holds only `ForcedUpdateModalView`), `Assets.xcassets`,
 `Info.plist`, `.entitlements` — plus the self-contained `RaSi-Fiters-App-Widgets` extension verbatim.
 
 **Deviations (all migration-justified):**

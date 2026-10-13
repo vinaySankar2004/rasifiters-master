@@ -93,7 +93,7 @@ export function NotificationsGate() {
     await queryClient.invalidateQueries({ queryKey: ["lifestyle"] });
   };
 
-  // D-C2 / D-C7: every key below lands on a live query (the broad ["program"] covers the roles cache). The general
+  // notifications D-C7 / D-C30: every key below lands on a live query (the broad ["program"] covers the roles cache). The general
   // program refetches run for program.* types only — a reminder, digest or "everyone" announcement refetches nothing.
   const refreshQueriesFor = async (item: InboxItem) => {
     if (item.type === "activity.kudos_received") await queryClient.invalidateQueries({ queryKey: ["people"] });

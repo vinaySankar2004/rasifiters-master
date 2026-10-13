@@ -1,6 +1,6 @@
 # Screen: `program-picker` (android) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.2 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.4.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-picker`](../../ios/program-picker/SPEC.md)
 > + [`web programs`](../../web/programs/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `SignedInGraph` route `Routes.PROGRAM_PICKER` (`ProgramPickerScreen`) — the
@@ -78,8 +78,24 @@
   Play Store listing via a plain intent; × remembers the dismissal per version) shows **on the picker only** (A7).
   The blocking "Update required" screen is app-wide (`RootScreen`); while it shows, neither nav graph is composed,
   so no sheet or dialog (each its own window) can sit above it.
-- **A-9 (push tap, 0.3.0 — notifications §3.2, U2):** tapping an **invite** push pops back to the picker, which opens
-  the actions sheet **on its invites tab** and reloads; any other push type only acknowledges + re-fetches its data.
+- ~~**A-9 (push tap, 0.3.0 — notifications §3.2, U2):** tapping an **invite** push pops back to the picker, which opens
+  the actions sheet **on its invites tab** and reloads; any other push type only acknowledges + re-fetches its data.~~
+  *(Superseded at 0.4.0 by D-NP1 — routing by `target`, [notifications-alerts](../notifications-alerts/SPEC.md) D-NP3.)*
+- **D-NP1 (Phase 4, 0.4.0 — notifications D-C31, invites D-C10; supersedes A-4 and A-5's tab rules):**
+  - **"+" badge** = the server `badge` for every role (`99+` cap); before counts load, 0 for global admins, else the
+    member's own invite count — **join requests no longer count** (A-4 superseded). The "+" description reads `Create
+    program or open inbox`.
+  - **"+" sheet** tabs **`Inbox` / `Create`** (header `Inbox` · `Invites and notifications`); opens on Inbox when opened
+    for invites (`requestInvitesSheet`, an `invites` target) or when badge > 0, else Create; if counts hadn't loaded, the
+    badge decides once they arrive unless the member already switched tabs. The Inbox tab = `InboxList` —
+    `Invitations` (global admins `All invitations`, sorted by program, + Revoke; join-request rows `Request pending
+    approval` + `Cancel Request`) then `Notifications`; the tab area keeps the 76 dp offline reserve (D-KIT-17). A
+    non-blank Create name counts as an open form for the toast guard; the sheet counts as a cover.
+  - **Account sheet:** an **`Inbox`** row after the profile row (`<n> new`, else `Invites and notifications`) → the
+    Inbox screen; the sheet is a toast cover.
+  - **Answering an invite** (accept / decline, not revoke) marks that program's loaded unread invite items read
+    (`{ids}`), else just recounts.
+  - The one-time visibility notice can show here (only when workout sync is on — [people](../people/SPEC.md) D-C14).
 - **F-kept (from iOS/web):** client-side role gating is UI-only (the backend re-authorizes every call); the pick
   currently hydrates only the active `ProgramDTO` into `ProgramContext` (membership/lookup hydration lands with
   the downstream screens).
@@ -97,7 +113,9 @@
 - **`GET /program-memberships/my-invites`** (global admins **`/all-invites`**) → `List<PendingInviteDTO>` — `loadInvites()`
   on entry, pull-to-refresh, an invite SSE/push, and after every response.
 - **`PUT /program-memberships/invite-response`** (`{ invite_id, action, block_future? }`) — `respondToInvite()`, then
-  inbox + programs reload in parallel.
+  inbox + programs reload in parallel; 0.4.0 + `POST /notifications/inbox/read {ids}` for that program's invite items.
+- **`GET /notifications/inbox/unread-count`** / **`GET /notifications/inbox`** / **`POST /notifications/inbox/read`**
+  (0.4.0) — the badge, the Inbox tab, mark-read (notifications §3.5).
 - **`PUT /program-memberships`** (`{ program_id, member_id, status: "removed" }`) — `cancelJoinRequest()` (a
   "requested" card's Cancel Request), then reloads the list.
 
@@ -105,6 +123,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **D-NP1 — Phase 4 Notifications (`d528f75`).** "+" badge = the server `badge` (join requests no longer count; global admins own invites only); the sheet's tabs are `Inbox` / `Create` (invitations then notifications) with the deferred default; the account sheet's `Inbox` row; answering an invite marks its notifications read; A-4, A-5 tab rules and A-9 superseded. |
 | 0.3.2 | 2026-10-13 | Phase 4 quick wins: the "+" sheet carries the offline banner (its tab area gives up the 76dp band) and its invites tab reads offline while offline; back online, a failed / stale invite inbox reloads beside the program list; invite-response / create / order errors go through `toAppError()` — "Couldn't save program order. …" (frontend-kit D-KIT-17/19, #2/#8). |
 | 0.3.1 | 2026-10-13 | **Polish 1 (offline detection).** No data while offline (link down OR proven offline by a failed request) → the kit's offline `ErrorView` + Retry, never the spinner (rule 6); the offline banner now follows the combined monitor; back online, a failed / stale list reloads itself (D-KIT-13). Compile-checked green (`assembleDebug`). |
 | 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3.** Invites move to the ONE inbox (`/my-invites`; global admins `/all-invites` + Revoke) answered via `/invite-response` with the decline "Block future invites" dialog; inline invited Accept/Decline retired, requested Cancel Request kept (A-4/A-5 rewritten, A10). Kit adoption: cached list first, parallel loads, `ErrorView`, one floating offline / stale / update banner above the FABs with list padding, pull to refresh (A-7). Update-available banner + withheld sheets under the blocking update screen (A-8). Invite push tap opens the invites tab (A-9). D-C1 narrowed to reorder / delete / cancel failures. Compile-checked green (`assembleDebug`). |

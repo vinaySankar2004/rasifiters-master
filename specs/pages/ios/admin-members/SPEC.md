@@ -6,7 +6,7 @@
 > `Detail/MemberMetricsViews.swift (MemberMetricsPreviewCard)`; `GlassButton` from `Detail/ActivityTimelineViews.swift:153`)
 > **Web sibling (co-equal reference):** `/members` landing — `specs/pages/web/members/SPEC.md`
 > **Ported to:** `apps/ios/RaSi-Fiters-App/Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,MemberOverviewPicker}.swift`
-> + `Shared/Components/GlassButton.swift` · **Run:** 55 (2026-06-30) · **v0.4.0** (2026-10-13)
+> + `Shared/Components/GlassButton.swift` (+ `Tabs/MemberCardsState.swift`, 0.5.0) · **Run:** 55 (2026-06-30) · **v0.5.0** (2026-10-13)
 
 ## 1. What it is + who uses it
 The **Members tab** — Tab 2 of `AdminHomeView`, the iOS analogue of the web `/members` landing. A **per-member
@@ -32,7 +32,7 @@ adapted to native idioms (a view-as **sheet** + `NavigationLink` push detail vie
 ### `AdminMembersTab` (program admin + global_admin) — legacy `AdminOtherTabs.swift:5-153`
 | Block | Reference `file:line` | Notes |
 |---|---|---|
-| Header (title "Members" · program name · **Invite** `GlassButton`) | `AdminOtherTabs.swift:25-40` | Invite → `InviteMemberView` (a deferred stub at port time; since ported) |
+| Header (title "Members" · program name · **Invite** `GlassButton`) | `AdminOtherTabs.swift:25-40` | Invite → `InviteMemberView` (a deferred stub at port time; since ported). **0.5.0 (D-NP1):** the button is `person.2` → `PeopleListView` (a swap of `envelope.badge.person.crop`, not a new button — NP-U1); Invite moves to People's `Invite member` row and stays on the Program tab. |
 | **Member Metrics preview** card (`NavigationLink` → `MemberMetricsDetailView`) | `:43-48` | `MemberMetricsPreviewCard` — fetches the leaderboard, shows top member (web F5) |
 | **View as** selector (`canViewAs = isProgramAdmin`) → `MemberPickerView` sheet | `:50-51, 87-118` | global_admin gets the "None" option; program admin defaults to self |
 | `MemberOverviewCard` · `MemberHistoryCard` · `MemberStreakCard` · `MemberRecentCard` · `MemberHealthCard` (when a member is selected) | `:52-58` | each card is a `NavigationLink` to a detail view (deferred at port time; all since ported) |
@@ -40,7 +40,7 @@ adapted to native idioms (a view-as **sheet** + `NavigationLink` push detail vie
 ### `StandardMembersTab` (logger + member) — legacy `StandardMembersTab.swift:5-199`
 | Block | Reference `file:line` | Notes |
 |---|---|---|
-| Header (title · program name · **View Members** `GlassButton`) | `StandardMembersTab.swift:31-47` | View Members → `ProgramMembersListView` (a deferred stub at port time; since ported) |
+| Header (title · program name · **View Members** `GlassButton`) | `StandardMembersTab.swift:31-47` | View Members → `ProgramMembersListView` (a deferred stub at port time; since ported). **0.5.0 (D-NP1):** `person.2` → `PeopleListView` (the roster is retired). |
 | `MemberOverviewCard` (self) | `:55-57` | |
 | `MemberMetricsCard(metric:, hero: .active_days)` (self — D-C7 primary-stat swap) | `:60-62` | the member-self metrics card |
 | `MemberHistoryCard` · `MemberStreakCard` (self) | `:65-68` | |
@@ -64,10 +64,10 @@ All endpoints already mounted + every fn ported in the foundation (run 50) — *
 ## 7. Role-based view rules
 | Role | Variant | Sees / can do |
 |---|---|---|
-| **global_admin** | `AdminMembersTab` | Invite · metrics preview · **View as any** member (incl. "None") · the 5 member cards. |
+| **global_admin** | `AdminMembersTab` | ~~Invite~~ People (0.5.0) · metrics preview · **View as any** member (incl. "None") · the 5 member cards. |
 | **program admin** (`my_role==admin`) | `AdminMembersTab` | Same, but picker has **no "None"** and **auto-selects self** on load (`AdminOtherTabs.swift:145-152`). |
-| **logger** (`my_role==logger`) | `StandardMembersTab` | Own Overview/Metrics/History/Streak + a **logs-only** view-as picker scoping Recent + Health; View Members pill. |
-| **member** | `StandardMembersTab` | Own Overview/Metrics/History/Streak/Recent/Health; View Members pill. No view-as, no invite. |
+| **logger** (`my_role==logger`) | `StandardMembersTab` | Own Overview/Metrics/History/Streak + a **logs-only** view-as picker scoping Recent + Health; ~~View Members~~ People pill (0.5.0). |
+| **member** | `StandardMembersTab` | Own Overview/Metrics/History/Streak/Recent/Health; ~~View Members~~ People pill (0.5.0). No view-as, no invite. |
 
 **`admin_only_data_entry`: N/A** — the Members tab performs **no data entry** (every card is a read or a
 `NavigationLink`; no log forms — unlike the Summary tab, run 54). The lock governs the deferred log/edit detail
@@ -78,8 +78,11 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
   member is selected (default-selected to self for non-global-admins).
 - **Empty:** Overview "No workouts logged yet."; Recent "No workouts logged yet."; Health "No daily health logs
   yet."; metrics preview "No members to display".
-- **Error:** **swallowed** — load errors surface nowhere (matches the web landing, which also surfaces none).
-  `StandardMembersTab.errorMessage` is set ("Unable to identify logged-in user.") but **never rendered** (F1).
+- **Error:** ~~**swallowed** — load errors surface nowhere (matches the web landing, which also surfaces none).
+  `StandardMembersTab.errorMessage` is set ("Unable to identify logged-in user.") but **never rendered** (F1).~~
+  **0.5.0 (D-NP2, the S5 recipe):** every card failed → `ErrorStateView` + Retry; a partial failure or a failure over
+  kept data → the floating `Couldn't refresh` · Retry banner; a failed card shows `—` (streak tiles `…` while loading);
+  pull-to-refresh and reconnect reload.
 - **Unauth:** handled upstream (`AppRootView` `authToken` bifurcation); the tab is only reachable post-auth.
 
 ## 9. Decisions made
@@ -91,6 +94,8 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
 | **D-S1** | **Faithful 1:1** — no behavioral deviation. **No web-parity ADD this run** (the run-53 shape): both web and legacy iOS swallow load errors, so unlike run 52's ProgramPicker there is no swallow-vs-surface gap. | web `/members` landing surfaces no errors; `StandardMembersTab.swift:163` |
 | **D-STUB** | Extend the existing `ActivityTimelineDetailView` stub to accept `memberId: String? = nil` + `showActiveSeries: Bool = true` (defaults keep the run-54 Summary call site `ActivityTimelineDetailView(initialPeriod:)` compiling) — `MemberHistoryCard` passes all three. New stubs: `MemberMetricsDetailView`, `InviteMemberView`, `ProgramMembersListView`, `MemberStreakDetail`, `MemberRecentDetail(memberId:memberName:)`, `MemberHealthDetail(memberId:memberName:)`. | `MemberCards.swift:26-31, 115, 189`; `AdminOtherTabs.swift:36, 44`; `StandardMembersTab.swift:43` |
 | **D-C1** | **Invite entry (reliability Phase 3 C2).** The Invite nav target (`InviteMemberView`) shows "Invitation sent" only on a 200 and every other status through the kit — see [program-member-management](../program-member-management/SPEC.md) D-C4. | invites §3.1. |
+| **D-NP1** | **People from the header, every role (0.5.0; NP-U1 — supersedes iOS UA-1; people D-C14).** Both tabs' header `GlassButton` is `person.2` → `PeopleListView`: on `AdminMembersTab` it replaces the `envelope.badge.person.crop` Invite button (a swap, never a second header button — the custom-header rule), on `StandardMembersTab` it replaces the roster push. | NP amendments NP-U1; iOS plan TC1. |
+| **D-NP2** | **The S5 recipe with owner tokens + render-time identity (0.5.0; member-analytics D-C12; iOS plan TC5/TC12, verdict #1).** `MemberCardState` per card (`Tabs/MemberCardsState.swift`); `ProgramContext.memberCardsOwner` (`members-tab`, or a `MemberFullStatsView` UUID) — a tab that finds another owner resets the cards to placeholders and reloads its own member, and both tabs skip their reconnect / `members.count` reloads while another owner holds them; the render-time identity tags `memberHistoryMemberId` / `memberStreaksMemberId` / `memberRecentMemberId` make a card show a placeholder unless the data is its member's; the Metrics preview keeps its own `loadedProgramId` (`.task(id: program\|refresh)`) so another program's rows never show. Accepted: placeholders flash once when returning from Workout History / View Workouts (they load without the owner flag). `loadMemberOverview` returns `AppError?`. | member-analytics D-C12; NP amendments R13. |
 
 ## 10. Flagged characteristics kept as-is
 - **F1** — `StandardMembersTab.errorMessage` is set (`:163`) but **never rendered**; load errors are swallowed
@@ -110,6 +115,11 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
   `/members/{metrics,invite,list,streaks,workouts,health}` sub-routes; each a later run. Forward-nav (web F2).
 
 ## 11. Changelog
+- **v0.5.0** (2026-10-13, Phase 4 Notifications + People, `198407c`) — D-NP1: the header button is `person.2` → People on
+  both tabs (admin swap of the Invite button); D-NP2: the S5 recipe — ErrorView only when every card failed, `—` per
+  failed card, `Couldn't refresh · Retry`, pull-to-refresh + reconnect reload, `memberCardsOwner` tokens and the
+  render-time identity tags (another member's / program's numbers never show; a one-time placeholder flash after
+  History / View Workouts is accepted). New `Tabs/MemberCardsState.swift`.
 - **v0.4.1** (2026-10-13, Phase 4 quick wins) — tab reads run in parallel and `MemberHealthCard` loads its own
   preview; the standard tab spins only for a program's first load, takes its self card from the memberId-scoped
   overview (no all-member download — member-analytics D-C10), and a logger's Recent follows View-as (#5).

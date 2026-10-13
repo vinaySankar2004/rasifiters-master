@@ -1,6 +1,6 @@
 # Page: `program` (web) — the program settings hub (fourth & last workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/program` — **the fourth (last) bottom-nav tab** of a program's workspace. The settings hub:
 > a role-gated menu of settings entries (program info/edit · members/invite · role management · workout types ·
 > leave program · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins.
@@ -63,13 +63,13 @@ shared sign-out/account section + the leave-confirm dialog.
 | Header | "Program" + active program name + a user-initials avatar pill. | program/page.tsx:90-98 |
 | Error banner | `ErrorState` shown only on a failed leave mutation. | program/page.tsx:100 |
 | **Admin variant** — Program Info | Select Program (→ `/programs`) · Edit Program Details (→ `/program/edit`, subtitle = status + date range). | program/page.tsx:104-138 |
-| Admin — Members | View Members (→ `/members/list`, subtitle = active count) · Invite Member (`canInvite` → `/members/invite`). | program/page.tsx:140-176 |
+| Admin — Members | View Members (→ `/members/list`, subtitle = active count) · Invite Member (`canInvite` → `/members/invite`). **0.2.0 (D-NP1):** behind `PEOPLE_LIVE` the first row reads **`People`** · `<n> enrolled` (dark today: `View Members` · `<n> active`). | program/page.tsx (Members section) |
 | Admin — Role Management | `canManageRoles`-only; live **Admins** + **Loggers** lists (`RoleList`, from membership details) + Manage Roles (→ `/program/roles`). | program/page.tsx:178-217 |
 | Admin — Workout Types | Count (`{visible} available, {custom} custom`) → `/lifestyle/workouts`. | program/page.tsx:219-242 |
 | **Non-admin variant** — Program Info card | Read-only `GlassCard`: Name · Status (`StatusBadge`) · Duration · a **client-computed progress bar** (`computeProgramProgress`, %/elapsed/remaining) · Active Members. | program/page.tsx:265-315 |
 | Non-admin — Switch Program | → `/programs`. | program/page.tsx:317-330 |
 | Leave Program | `canLeaveProgram`-only (both variants) → opens the leave-confirm dialog. Extracted to one `LeaveProgramButton` (D-C2). | program/page.tsx:244-259, 332-347 |
-| My Account | Profile (→ `/program/profile`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · Privacy Policy (→ `/program/privacy`) · **Sign Out** (live `signOut()`). | program/page.tsx:455-540 |
+| My Account | Profile (→ `/program/profile`) · **`Inbox`** (0.2.0: `<n> new` + a count pill, else `Invites and notifications` → `/programs?open=inbox`) · **`Notifications`** (0.2.0 → `/program/notifications`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · **`Announcements`** (0.2.0, global admins → `/program/announcements`) · Privacy Policy (→ `/program/privacy`) · **Sign Out** (live `signOut()`). | program/page.tsx (`MyAccountSection`) |
 | Leave-confirm dialog | `ConfirmDialog` (danger) — runs `leaveMutation`; on success clears the active program, invalidates `["programs"]`, → `/programs`. | program/page.tsx:354-362 |
 
 **Data flow.** `membershipQuery` (`fetchMembershipDetails`) → active members (`is_active`) → the active count +
@@ -146,6 +146,7 @@ and is not gated by the lock.)
 | **D-C1** | **Read the appearance label via `getStoredTheme()`** (from `lib/theme.ts`) instead of the raw `localStorage.getItem("rf:appearance")` + manual mapping in `MyAccountSection` (legacy `page.tsx:459-463`). Single-sources the storage key (`THEME_KEY`) + valid values; behavior-identical (still a post-mount `useEffect` to avoid hydration mismatch). | `program/page.tsx:459-463`; `lib/theme.ts:1-12`; user answer (pinned cleanup). |
 | **D-C2** | **Extract the duplicated Leave Program button** into one local `LeaveProgramButton` component. The button markup was byte-identical in both role branches (legacy `page.tsx:244-259` & `332-347`), both gated by `canLeaveProgram`; a single component is behavior-preserving. | `program/page.tsx:244-259`, 332-347; user answer (pinned cleanup). |
 | **D-C3** | **Keep `computeProgramProgress` local (no change).** It is **client-computed** from `program.start_date`/`end_date`, semantically distinct from the summary tab's `ProgramProgressCard` which uses the **server-derived** `progress_percent`/`elapsed_days` (run-11 "client copy vs server copy"). Single-use here; not hoisted. Flagged §10 (F4). | `program/page.tsx:434-453`; `summary/page.tsx:338-347`; user answer (confirm, no change). |
+| **D-NP1** | **Phase 4 account rows + the People label (0.2.0; notifications D-C30, people D-C13).** `MyAccountSection` gains `Inbox` (the unread `badge`: `<n> new` + a red count pill — W18; opens `/programs?open=inbox`), `Notifications` (`Choose what you're notified about` → `/program/notifications`) and, for global admins, `Announcements` (→ `/program/announcements`). The Members section's first row reads `People` · `<n> enrolled` only when `PEOPLE_LIVE` (release day); dark it keeps `View Members` · `<n> active`. | NP amendments R7, R8, NP-U1; web plan W5, W18. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -162,5 +163,6 @@ and is not gated by the lock.)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`b2ea09b`).** My Account rows `Inbox` (count), `Notifications`, `Announcements` (global admins); the Members row label `People` · `<n> enrolled` behind `PEOPLE_LIVE` (dark: unchanged). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error goes through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 24) — the **ninth web page spec**, the program workspace **Program** tab (fourth & last bottom-nav tab; all four tabs now resolve). The **settings hub**: a role-gated menu (program info/edit · members/invite · role management · workout types · leave · my account) for admins, or a read-only program-info card + switch/leave for non-admins. Only **Leave Program** + **Sign Out** are live actions on the landing; everything else is forward-nav. Read-only-ish → `admin_only_data_entry` **N/A** here. Consumes `program-memberships` (`fetchMembershipDetails` + `leaveProgram`) + `program-workouts` (`fetchProgramWorkouts`) + `auth`; **all endpoints already mounted, no new deps, no feature bump**. Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings tab mirrors later) · **D-SCOPE** (landing only; the 6 `/program/*` sub-routes deferred) · **D-S1** (faithful 1:1) · **D-C1** (appearance label via `getStoredTheme()` instead of raw localStorage) · **D-C2** (extract the duplicated `LeaveProgramButton`, behavior-preserving) · **D-C3** (keep `computeProgramProgress` local — client-computed, distinct from summary's server-derived progress). Flagged F1–F6 (client JWT-decode role; forward-nav to unbuilt routes; global_admin can't leave; client-computed progress; raw `rf:appearance` write contract; no client throttle). Ported `apps/web/src/app/program/page.tsx`. `npm run build` ✓ (`/program` prerendered, 4.36 kB — no Recharts; Middleware 27.3 kB active). |

@@ -13,11 +13,11 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
   308→apex); also at
   `https://rasifiters.vercel.app`. Domain cutover done 2026-06-29.
 
-## Surface (~33 routes, from the legacy app)
+## Surface (~36 routes — the legacy app's + Phase 4's three)
 - **Public:** `/`, `/splash`, `/login`, `/create-account`, `/privacy-policy`, `/support`
-- **Programs:** `/programs`, `/program`, `/program/{profile,password,appearance,privacy,roles,edit}`
+- **Programs:** `/programs`, `/program`, `/program/{profile,password,appearance,privacy,roles,edit}`, `/program/{notifications,announcements}` (Phase 4)
 - **Summary (analytics):** `/summary`, `/summary/{activity,distribution,workout-types,log-workout,log-health,bulk-log-workout}`
-- **Members:** `/members`, `/members/{list,detail,invite,metrics,health,history,workouts,streaks}`
+- **Members:** `/members`, `/members/{list,detail,invite,metrics,health,history,workouts,streaks}`, `/members/person` (Phase 4, dark)
 - **Lifestyle:** `/lifestyle`, `/lifestyle/{timeline,workouts}`
 
 Each page becomes a page spec in `specs/pages/web/<page>/SPEC.md` via the `question-asker` loop (with
@@ -69,10 +69,11 @@ Reliability Phase 3 C1 (auth §3.1, notifications §3.3, observability §4.1/§8
 - **Instant opens** (`lib/cache/launch-cache.ts`): picker (`["programs"]` only — invites stay live) + the 8 Summary
   reads; per member; schema v1; Summary entries kept for the member's 10 most recently loaded programs (LRU index);
   seeded after bootstrap, written only while signed in, cleared by the teardown.
-- **SSE** (`NotificationsGate`): foreground only (`visibilitychange`) and paused while offline; fetches
-  `/unacknowledged` on every start and every `ready` (a re-fetch drops queued items acknowledged elsewhere; a
-  just-acknowledged id is ignored for 2 min); backoff 1 s ×2, capped at 30 s, full jitter; a 60 s idle timeout
-  (server pings every 25 s); one forced refresh after 3 failed opens.
+- **SSE** (`NotificationsGate` + `lib/notifications/stream.ts`): foreground only (`visibilitychange`) and paused while
+  offline; `?inbox=1` (every type as an inbox item — no `/unacknowledged`, no legacy feed since Phase 4); a catch-up on
+  every start and every `ready` (the inbox + unread count; programs, invites and the active program at most once per
+  5 s); backoff 1 s ×2, capped at 30 s, full jitter; a 60 s idle timeout (server pings every 25 s); one forced refresh
+  after 3 failed opens. Every request also sends `X-Time-Zone` (`lib/api/client.ts`). Rules: notifications §3.9, D-C30.
 - **Connectivity (polish-1, `lib/kit/use-online-status.ts`)**: online = `navigator.onLine` && not proven offline (an API fetch
   rejected with a `TypeError`, never our timeout); cleared by any HTTP answer (not `/app-config`), a link down→up, or a probe
   (`GET /app-config` no-store, 5 s, right away then every 10 s while visible) — banner, stale-banner hiding, SSE pause, refresh-backoff reset,
@@ -151,8 +152,12 @@ the legacy app (`rasifiters-webapp`), all justified by the migration:
 - **Prod API default** — `src/lib/config.ts` `prodBase` fallback → `https://rasifiters-api.onrender.com/api`
   (our Render service; legacy pointed at the old `rasi-fiters-api` host). Env-overridable.
 - **`NotificationsGate` was a deferred stub at foundation time; it is now the full port**
-  (`src/components/NotificationsGate.tsx`) — opens the SSE stream, hydrates the active program, and renders
-  the notification modal, exactly like the legacy gate. No stub remains.
+  (`src/components/NotificationsGate.tsx`) — opens the SSE stream and hydrates the active program. Since Phase 4 it
+  renders the **toast** (`components/notifications/NotificationToast.tsx`, frontend-kit D-KIT-20), not a modal
+  (`NotificationModal.tsx` deleted); the Inbox lives in the `/programs` "+" sheet.
+- **`PEOPLE_LIVE`** (`src/lib/api/people.ts`) — a compile-time `false` keeping People dark (today's roster on
+  `/members/list`, `/members/person` redirects, the Hide toggle hidden); flip to `true` on the store-release day, then
+  delete the dark roster. See [`people`](../../specs/features/people/SPEC.md) D-C13.
 - **`src/middleware.ts` = decode + expiry only (RESOLVED 2026-06-29, option b)** — the faithful HS256 port
   couldn't validate Supabase **ES256** (asymmetric) tokens (would redirect-loop every real session). Resolved
   with the `programs` page port (its D-C1): the edge middleware is a **UX redirect gate**, not the security

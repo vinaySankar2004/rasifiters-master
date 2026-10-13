@@ -1,6 +1,6 @@
 # Feature: `analytics-v2` — the v2 analytics aggregates (participation + workout-type stats)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.2.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v2Router`** half only — the
 > file is shared with [`analytics`](../analytics/SPEC.md) v1, §7/D-C1), `services/analyticsService.js` (the
 > **v2** functions; the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` already
@@ -15,7 +15,8 @@
 > `getSummaryV2` (both clients use the v1 summary — the mirror of v1's D-C2) · **D-C3** (0.2.0) every route
 > requires an ACTIVE membership in `programId` or global admin (reliability-overhaul D-3). The 5 live routes' aggregations
 > + response shapes are ported verbatim.
-> **D-C4** (0.2.1, Phase 4 S0): the `/workouts/types/*` `memberId` passes the shared `utils/memberVisibility.js` `"workouts"` check. Behavior-neutral now; it is the People S1 hook.
+> **D-C4** (0.2.1, Phase 4 S0): the `/workouts/types/*` `memberId` passes the shared `utils/memberVisibility.js` `"workouts"` check. Behavior-neutral now; it is the People S1 hook. *(superseded at 0.3.0 by D-C5.)*
+> **D-C5** (0.3.0, People S1): a hidden member viewed by a plain co-member → `403 activity_hidden`; a malformed `memberId` → `400 invalid_request`.
 
 ---
 
@@ -65,7 +66,7 @@ member of `programId` or a global admin (was: any signed-in member, §10 F2).
 All mounted at **`/api/analytics-v2`** (legacy `routes/analytics.js` `v2Router`). Handlers are thin
 try/catch wrappers (`routes/analytics.js`); logic in the v2 functions of `services/analyticsService.js`.
 Every route is `authenticateToken` → `requireProgramAccess` (D-C3); the 4 `/workouts/types/*` routes then run the
-behavior-neutral `"workouts"` guard (D-C4).
+`"workouts"` guard (D-C4; since 0.3.0 the "Hide my activity" rule, D-C5).
 
 | # | Route | Legacy handler | Purpose |
 |---|-------|----------------|---------|
@@ -205,7 +206,8 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 | **D-C1** | **Scope = the v2 half** — `v2Router` (5 routes after D-C2) + the 5 v2 functions, **appended** to the shared `routes/analytics.js` + `services/analyticsService.js` (reusing the date/bucket helpers + the two utils, both landed with v1). Change the route export to `{ v1Router, v2Router }`; mount `/api/analytics-v2`. `member-analytics` is separate. | `analytics.js:6-7,124-195` (v2Router); `analyticsService.js:473-692` (v2 fns) / `:5` (shared util imports); v1 SPEC D-C1; COVERAGE L24/L25. |
 | **D-C2** | **Drop the dead `GET /summary` (v2) route + `getSummaryV2`** — called by neither client (both use the v1 summary). The mirror of v1's D-C2; distinct (not a byte-dup) but superseded-and-unused. Removes the only UTC-bucketing site in the v2 half. | `analytics.js:126-138`, `analyticsService.js:473-561`; web sweep (`summary.ts:104-107` → v1) + iOS sweep (`AdminSummaryTab.swift:80` → v1). |
 | **D-C3** | **Deliberate change (0.2.0) — program-membership read gate (reliability-overhaul D-3; closes §10 F2).** The 5 v2 routes run the same local `requireProgramAccess` as v1 (analytics D-C8; one guard in the shared `routes/analytics.js`): global admin passes; otherwise an ACTIVE `program_memberships` row for `?programId` (any role) or `403 { error: "Access denied. Program membership required." }`; missing `programId` → the fn's `400`; non-string `programId` → 403; DB errors → `next(err)`. One authorization contract for the whole analytics surface. Live-binary safe (clients open only active-membership programs; global admins bypass). | analytics D-C8; `routes/analytics.js` `requireProgramAccess`; DESIGN_BOARD D-3. |
-| **D-C4** | **Behavior-neutral hook (0.2.1, reliability-overhaul Phase 4 S0).** The 4 `/workouts/types/*` routes run the shared `requireMemberView("workouts", "Access denied. Program membership required.")` from `utils/memberVisibility.js` after `requireProgramAccess` (which now delegates to the same module, analytics D-C9). In S0 every caller that passed the program gate passes it, so responses are unchanged; it is where People S1's "Hide my activity" takes effect. | Phase 4 DECISIONS D-P7; analytics D-C9; program-memberships D-C5. |
+| **D-C4** | **Behavior-neutral hook (0.2.1, reliability-overhaul Phase 4 S0).** The 4 `/workouts/types/*` routes run the shared `requireMemberView("workouts", "Access denied. Program membership required.")` from `utils/memberVisibility.js` after `requireProgramAccess` (which now delegates to the same module, analytics D-C9). In S0 every caller that passed the program gate passes it, so responses are unchanged; it is where People S1's "Hide my activity" takes effect. *(superseded at 0.3.0 by D-C5)* | Phase 4 DECISIONS D-P7; analytics D-C9; program-memberships D-C5. |
+| **D-C5** | **Hide my activity (0.3.0, [people](../people/SPEC.md) 0.1.0; deliberate).** The 4 `/workouts/types/{total,most-popular,longest-duration,highest-participation}` routes keep `requireWorkoutsView` as their only member guard, now `requireMemberView("workouts", "This member keeps their activity private.", "activity_hidden")`: a hidden member viewed by a plain co-member → `403 { error, code: "activity_hidden" }`; a memberId that isn't one well-formed id → `400 invalid_request`. `/participation/mtd` and memberId-less calls unchanged. | analytics D-C10; program-memberships D-C6. |
 | **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios, android]`** (android added 0.2.0 — doc↔code lag fix; registry.json already listed it) — the 5 live routes used 1:1 by all three clients, no divergence (optional `memberId` varies per call site, but the route is identical; `highest-participation` is program-wide on both). | Web sweep (`summary/page.tsx` + `lifestyle/page.tsx` + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`AdminSummaryTab` + `StandardWorkoutTypesTab` + `ProgramContext+Analytics.swift`); Explore agents. |
 | **D-S1** | **Stance = faithful 1:1 verbatim except D-C2 and D-C3 (plus the behavior-neutral D-C4 hook).** Every aggregation query, the MTD window scheme, all response shapes, and the error contract are ported exactly for the 5 live fns; remaining oddities flagged (§10). | Whole v2-half review; §7. |
 
@@ -224,6 +226,7 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **D-C5 — Hide my activity (People S1)** on the 4 `/workouts/types/*` routes (403 `activity_hidden`, 400 `invalid_request`). **MINOR**; backend-only. |
 | 0.2.1 | 2026-10-13 | **D-C4 — `/workouts/types/*` `memberId` routed through the shared `utils/memberVisibility.js` `"workouts"` check (reliability-overhaul Phase 4 S0).** Behavior-neutral in S0 (every program member passes); the People S1 hook. `requireProgramAccess` delegates to the same module (analytics 0.5.0). §3 "every route is" line updated. **PATCH**; backend-only. |
 | 0.2.0 | 2026-10-11 | **D-C3 — program-membership read gate (reliability-overhaul Phase 1b, H3 / board D-3).** The 5 v2 routes mount the shared local `requireProgramAccess` after `authenticateToken` (analytics 0.4.0 / D-C8): new `403 { error: "Access denied. Program membership required." }`; missing `programId` still 400s; closes F2. Fixed the header / §8 / D-REF `consumed_by` lag → `[web, ios, android]`. `services/analyticsService.js` unchanged. **MINOR**; no dependents. Backend-only. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker`. Documents the v2 analytics read API (`/api/analytics-v2`) — the `v2Router` half of the shared `routes/analytics.js` + the v2 functions of `services/analyticsService.js` (the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` landed with v1). Decisions: **D-C1** (scope = v2 half appended to the shared file pair; reuse helpers/utils; `member-analytics` separate) · **D-C2** (drop the dead `GET /summary` v2 route + `getSummaryV2` — both clients use the v1 summary; the mirror of v1's D-C2) · **D-REF** (`consumed_by = [web, ios]`, 5 routes 1:1, no divergence) · **D-S1** (faithful verbatim otherwise — every aggregation + shape ported exactly). Flagged F1–F6 (the participation-fn byte-dup; no per-program authz; the dead summary; the dead member-scoped highest-participation branch; the MTD server-local boundary; the COUNT idioms). No auth/stack migration delta (read-only; models + schema + helpers + utils pre-ported). |

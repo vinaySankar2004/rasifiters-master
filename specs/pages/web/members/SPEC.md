@@ -1,6 +1,6 @@
 # Page: `members` (web) — the member-overview / "view-as" dashboard (second workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members` — **the second bottom-nav tab** of a program's workspace. NOT a roster-management
 > screen: it is a per-member performance dashboard with a role-gated **"view as"** picker. The actual roster,
 > invite form, full metrics table, and per-member detail/log views are **sub-routes, deferred** (see §3).
@@ -53,7 +53,7 @@ fans out to the roster (`/members/list`), the invite form (`/members/invite`), t
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "Members" + active program name; a **View Members** pill (→ `/members/list`, shown only when `!canViewAs`) and an **Invite** mail button (→ `/members/invite`, shown when `canInvite`). | members/page.tsx:225-251 |
+| Header | "Members" + active program name; a **View Members** pill (→ `/members/list`, shown only when `!canViewAs`) and an **Invite** mail button (→ `/members/invite`, shown when `canInvite`). **0.4.0 (D-NP1):** with `PEOPLE_LIVE` the pill reads **`People`** and shows for every role, and the Invite button is gone (it moves to the People list's `Invite member` row); dark (today) it is unchanged. | members/page.tsx (header) |
 | Metrics preview | `isProgramAdmin`-only card → `/members/metrics`; shows member count + the top member's `MemberMetricsPreview` (avatar, **Active Days hero** — D-C7 primary-stat swap, "Workouts N" subtitle, 6 metric pills led by Active days, an **Avg Steps** tile + current-streak chip on a 2-col grid row — member-analytics 0.4.0 `avg_steps`). | members/page.tsx:253-282, 454-505 |
 | View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "None"). | members/page.tsx:284-294 |
 | Empty hint | `canViewAs` + no selection → "Select a member to view their performance cards." | members/page.tsx:296-300 |
@@ -65,6 +65,10 @@ fans out to the roster (`/members/list`), the invite form (`/members/invite`), t
 | Daily Health card | Clickable → `/members/health`; top 3 recent health logs — DC-10 two-line rows (logDate semibold; muted `Sleep … · Diet … · Steps …` with `—` for missing, steps thousands-grouped). | members/page.tsx:327-330, 737-765 |
 | View-as picker (logger) | `canViewAsLogger`-only second picker — scopes the **logs** cards (recent/health) to a chosen member while the overview/history/streak stay self. | members/page.tsx:358-366 |
 | Member Picker modal | `Modal` + search-filtered member list (+ optional "None"); single render driven by `activePicker` (D-C3). | members/page.tsx:767-833 |
+
+**0.4.0:** the card components (Overview, Workout Activity, Streak Stats, Recent Workouts, Daily Health, the metrics
+preview pieces) moved to `components/members/MemberDashboardCards.tsx` (a shared `LinkCard` helper);
+`MemberMetricsSingleCard` stays in the page.
 
 **Data flow.** `membersQuery` (`fetchProgramMembers`) feeds the view-as picker. The signed-in/selected member
 drives six React-Query reads keyed under `["members", …]`: a metrics **preview** (admin only,
@@ -125,8 +129,11 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 
 ## 8. States & edge cases
 
-- **Loading:** the metrics preview shows "Loading metrics…"; cards render zeros / empty hints until their query
-  resolves.
+- **Loading (0.4.0, D-NP2):** a card shows a placeholder (`…` / `Loading...`) until its read resolves — never zeros;
+  the empty hints show only after a successful read.
+- **Errors (0.4.0, D-NP2):** nothing loaded and nothing still loading → kit `ErrorView` + Retry (the offline copy while
+  offline); a failed card shows `—`; any stale read (or data + a failure) → the floating `Couldn't refresh` · Retry
+  banner while online; failed reads refetch on reconnect.
 - **Empty:** Overview → "No workouts logged yet."; Recent → "No workouts logged yet."; Health → "No daily
   health logs yet."; admin with a member who has no data → metric zeros.
 - **No selection (admin/global_admin):** the "Select a member…" hint shows until a member is picked.
@@ -148,6 +155,8 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 | **D-C1** | **Port the whole `lib/api/members.ts` module verbatim** even though the landing uses only 5 of its functions — `fetchMemberProfile` / `updateMemberProfile` / `sendProgramInvite` serve the deferred detail/invite sub-routes (the run-20/21 "port whole shared api modules; later pages reuse them" pattern). | `lib/api/members.ts:1-211`; user answer ("Whole module verbatim"). |
 | **D-C2** | **Hoist `formatDuration` into `lib/format.ts`** (from the page-local copy at legacy `page.tsx:699-705`) alongside `initials` / `sleepLabel` / `dietLabel`. Pure function, behavior-identical; single-sources it so the deferred `/members/workouts` + `/history` sub-routes reuse it. | `members/page.tsx:699-705`; `lib/format.ts`; user answer (pinned cleanup). |
 | **D-C3** | **De-dup the two `MemberPickerModal` render blocks** (legacy `page.tsx:419-449`) into one render driven by an `activePicker` discriminant — preserving the exact per-picker differences (`allowNone` = `isGlobalAdmin` vs `false`; the admin path stores `member ? id : "none"`, the logger path stores only on a member; distinct `onClose` setters). The two pickers are mutually exclusive (admin vs logger branch), so a single render is behavior-identical. | `members/page.tsx:419-449`; user answer (pinned cleanup). |
+| **D-NP1** | **People entry (0.4.0; NP-U1, people D-C13).** Behind `PEOPLE_LIVE`: the header pill reads `People` for every role and the admin Invite button is removed (Invite moves to the People list's top row and stays on the Program tab); dark (today) the header is unchanged. | NP amendments NP-U1; web plan W1, B10(d). |
+| **D-NP2** | **The S5 kit recipe (0.4.0; member-analytics D-C12, NP amendments R13).** `dashboardError` = no card has data **and** no read is still loading → `ErrorView` + Retry (offline copy while offline); the members list counts toward it only when `canViewAs \|\| canViewAsLogger`; a failed card shows `—`; the stale banner (`Couldn't refresh` · Retry) when any read is stale or data + a failure, while online; never another program's or member's values. Cards moved to `components/members/MemberDashboardCards.tsx`. Polish #32. | member-analytics D-C12; web plan B10. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -166,6 +175,7 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **Phase 4 Pass B (`b2ea09b`).** D-NP1 People pill (behind `PEOPLE_LIVE`; the admin Invite button moves to People); D-NP2 the S5 kit recipe (placeholders, ErrorView only when nothing loaded, `—` per failed card, stale banner, reconnect refetch); cards moved to `components/members/MemberDashboardCards.tsx`. |
 | 0.3.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — Active Days is the primary stat: metrics-preview fetch sort=active_days (star/top member = top-by-active-days), preview + single-card hero = Active Days, subtitle = "Workouts N", first grid tile = Active days (in-place swap, tile count unchanged). MTD Workouts line untouched. |
 | 0.2.0 | 2026-07-09 | **Steps in the overview grid + View Health preview.** Both `MemberMetricsPreview` (admin preview) and `MemberMetricsSingleCard` (member-self) replace their trailing streak badge with a 2-col grid row 5: an **Avg Steps** metric tile (`stepsLabel(metric.avg_steps)`, thousands-grouped, `—` when null — member-analytics 0.2.0) beside the current-streak chip. `MemberHealthCard`'s 3-row preview → the DC-10 two-line format (`logDate` semibold; muted `Sleep {…} · Diet {…} · Steps {…}`). New helper `stepsLabel` in `lib/format.ts`; `MemberMetrics` type gains `avg_steps`, `MemberHealthItem` gains `steps`. `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 22) — the **eighth web page spec**, the program workspace **Members** tab (second bottom-nav tab). NOT a roster-management screen: a per-member overview dashboard with a role-gated **"view as"** picker (admin/global-admin view-as any member with optional "None"; logger own cards + a logs-scoped view-as; member own cards incl. a Metrics-single card). Read-only — every other control is forward-nav to a deferred sub-route, so `admin_only_data_entry` is **N/A** here. Consumes `member-analytics` (metrics/history/streaks/recent) + `daily-health-logs` (health card) + `program-memberships` (`fetchProgramMembers`) + `auth`; all endpoints already mounted. Decisions: **D-REF** (`consumed_by=[web]`; iOS Members tab mirrors later) · **D-SCOPE** (landing page only; the 8 sub-routes deferred) · **D-S1** (faithful 1:1) · **D-C1** (port whole `lib/api/members.ts` verbatim) · **D-C2** (hoist `formatDuration` → `lib/format.ts`) · **D-C3** (de-dup the two `MemberPickerModal` blocks via an `activePicker` discriminant, behavior-preserving). Flagged F1–F7 (client JWT-decode role; forward-nav to unbuilt routes; `sessionStorage` view-as + 4 parallel effects; vestigial-here api fns; over-fetched metrics preview; two near-duplicate metric renderers; no client throttle). Ported `apps/web/src/app/members/page.tsx` + `lib/api/members.ts`; added `formatDuration` to `lib/format.ts`. `npm run build` ✓ (`/members` prerendered, 7.78 kB — Recharts; Middleware 27.3 kB active). |

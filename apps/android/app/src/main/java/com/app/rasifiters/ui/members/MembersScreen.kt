@@ -451,7 +451,7 @@ private fun membersWant(programContext: ProgramContext, programId: String?, view
 private class CardsReload(val tick: Int, val onSettled: () -> Unit, val onRetry: () -> Unit)
 
 /** S5: nothing of this program / member to show yet — everything failed or offline → the kit ErrorView + Retry (the
- *  offline copy while offline: never an endless spinner, D-KIT-18), else a spinner. */
+ *  offline copy while offline: never an endless spinner, D-KIT-16), else a spinner. */
 @Composable
 internal fun MemberCardsEmpty(view: MemberCardsView, online: Boolean, onRetry: () -> Unit) {
     if (view.allFailed || !online) {

@@ -1,6 +1,6 @@
 # Feature: `invites` — program invitations (send · inbox · accept/decline/revoke · block)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.2.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/invites.js`, `services/inviteService.js`,
 > `models/ProgramInvite.js`, `models/ProgramInviteBlock.js`, `server.js:50` (co-mounted at
 > `/api/program-memberships`).
@@ -13,6 +13,8 @@
 > **D-C3b** replace `getAllInvites`' N+1 lookup with a single batched query — §7.
 > **0.2.0 (reliability overhaul R3):** one-transaction send, logged no-op reasons, real 500s, expired invites hidden, one inbox for all three clients — D-C4–D-C8, client contract §3.1.
 > **0.2.1 (Phase 3 client release):** all three clients on §3.1 — swallow removed, card Accept/Decline retired — D-C9.
+> **0.3.0 (Phase 4 Notifications):** invitations live inside the Inbox (the "+" sheet's `Inbox` tab), the "+" badge is the
+> server badge (a global admin's counts only their own invites), answering marks the invite's notification read — D-C10.
 
 ---
 
@@ -126,6 +128,19 @@ binaries (iOS ≤ 1.4.x, Android 1.0.0) still treat any non-network error as suc
 `/unacknowledged` re-fetch that carries one — notifications D-C17), and after every `/invite-response`, success or not
 (web: the mutation's `onSettled`). Push and SSE are hints only — the inbox is always `GET /my-invites`. A tapped invite
 push opens the inbox (notifications D-C17c).
+
+**0.3.0 — the Phase 4 client builds (D-C10; notifications 0.6.0):** the invite list is the **Invitations** section at the top of the
+notifications Inbox — the "+" sheet's tab 0, now labelled `Inbox` for every role (was `My Invites` / `All Invites`),
+followed by `Notifications`; global admins see `All invitations` (every pending invite, with Revoke). The refresh
+triggers become the stream catch-up (every `ready` + foreground, notifications §3.9 rule 6) instead of the
+`/unacknowledged` re-fetch, plus every `program.invite_received` item; an `invites` target (push tap / toast `View`)
+opens the "+" sheet on that tab. **After a successful accept or decline** (not revoke), the client marks that program's
+unread `program.invite_received` notifications read (`POST /notifications/inbox/read {ids}` with the loaded items — the
+server also accepts `{ "type": "program.invite_received", "program_id": "<uuid>" }`). **Badge:** the "+" badge is the
+notifications `badge` (§3.5 there) for every role — for a **global admin it counts only their own pending invites**,
+while the tab still lists every invitation with Revoke (a deliberate change for global admins, who previously saw the
+all-invites count); until counts load, the member's own pending invites (global admins 0); pending join requests no
+longer count.
 
 ## 4. Feature list (behaviors to port)
 
@@ -253,6 +268,7 @@ admin-vs-self message wording, the global-admin accept-on-behalf + revoke powers
 | **D-C7** | **The inbox hides expired invites (0.2.0).** `GET /my-invites` adds `expires_at IS NULL OR expires_at > now` (accepting one only returned `400 "This invite has expired."`; 5 prod invites expire ~2026-10-21). `GET /all-invites` is unchanged (admin view). | DESIGN_BOARD §3.1; W2 F12. |
 | **D-C8** | **One invite inbox for web / iOS / Android (0.2.0).** `GET /my-invites` + `PUT /invite-response` (+ `POST /invite`) are THE contract for all three (§3.1). Web (`lib/api/invites.ts:23,34`) and iOS (`APIClient+Invites.swift:71,94`) already use them; Android adopts them in its next build — its 1.0.0 picker reads `invited` membership rows that nothing creates (0 in prod, W2 F1/E2); no shim (board ✅). `consumed_by` += `android` now: Android 1.0.0 already calls `POST /invite` (`ApiService.kt:252`). Web's program-card accept path over `program-memberships` (F3) acts only on those never-created rows — the web client plan retires it. | DESIGN_BOARD §3.1; W2 F1/E2. |
 | **D-C9** | **All three clients on §3.1 (0.2.1 — web live, iOS 1.5.0 (58), Android 1.1.0 (5); approval amendments A1, A10).** (a) The send swallow is gone: `Invitation sent` only on `200`; other statuses through the frontend-kit (web `members/invite/page.tsx`, iOS `InviteMemberView.swift`, Android `MemberManagementScreens.kt`). (b) The `PUT /invite-response` 200 `message` is not shown; accept / decline / revoke errors are (web: a `respondError` line in `InvitesTab` + the decline modal). (c) **Card actions:** the *invited* card's Accept / Decline is retired on all three (the inbox is the one path — completes D-C8 / F3); the *requested* card keeps its Cancel request (program-memberships). (d) Android adopts the inbox incl. the global-admin **All Invites + Revoke** (`fetchAllInvites`, a Revoke pill when `isGlobalAdmin`); `PendingInviteDTO` carries explicit `@SerialName`s. (e) Inbox refresh triggers per §3.1. No backend change. | Phase 3 client plans C1 / C2 / C3 + approval amendments (2026-10-13). |
+| **D-C10** | **Invitations live inside the Inbox (0.3.0; reliability-overhaul Phase 4 — notifications D-C30/D-C31, NP amendments R4, C7.7).** The invite inbox becomes the `Invitations` section (global admins `All invitations` + Revoke) at the top of the "+" sheet's `Inbox` tab, followed by the notification list, on all three (web `programs/page.tsx` `InvitesTab` + `InboxList`; iOS `InvitesTabView` inside `InboxView`; Android `InboxList`). The tab is picked when the sheet opens: Inbox if badge > 0 or opened by an `invites` / `inbox` target, else Create. **Badge** = the server `badge` for every role (capped `99+`), so a **global admin's badge counts only their own invites** while the list shows them all; fallback before counts = own pending invites (global admins 0); Android's join requests no longer count. **After answering** (accept / decline, not revoke) the client marks that program's unread `program.invite_received` items read (web / iOS / Android send `{ids}` from the loaded items; the server's `{type, program_id}` form does it server-side); iOS closes the host on accept before the mark. Refresh on catch-up (replaces the `/unacknowledged` re-fetch of D-C9 (e)). Push tap / toast `View` on an invite routes to this tab. No backend change in this feature (the badge and the read form are notifications'). | notifications §3.5 + §3.9; NP amendments R4; web plan W4/W13; iOS plan TC3; Android plan TC-2. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -270,6 +286,7 @@ admin-vs-self message wording, the global-admin accept-on-behalf + revoke powers
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **D-C10 — invitations live inside the Inbox (reliability-overhaul Phase 4 client builds: web live, iOS / Android built).** The "+" sheet's tab 0 is `Inbox` for every role (Invitations first, then notifications; global admins `All invitations` + Revoke); the "+" badge is the notifications `badge` — a global admin's counts only their own invites (deliberate change); answering an invite marks its notifications read (C7.7); refresh on the stream catch-up. §3.1 amended. MINOR (newly documented client behaviour on the owned inbox contract); no backend change. |
 | 0.2.1 | 2026-10-13 | **Clients on §3.1 (reliability-overhaul Phase 3 client release — web live, iOS 1.5.0 (58), Android 1.1.0 (5)).** D-C9: the send swallow removed on all three (`Invitation sent` only on 200); the `PUT /invite-response` message is not shown (§3.1 amended, A1) and its errors are (A10); inbox refetch after every response (web `onSettled`) and on SSE / push / re-fetch invite hints; the *invited* card's Accept/Decline retired on all three, the *requested* Cancel request kept (F3 → Retired (web, C1)); Android adopts the inbox incl. global-admin All Invites + Revoke. §3.1 caller refs refreshed. No backend change. PATCH. |
 | 0.2.0 | 2026-10-12 | **Reliability overhaul Phase 3 R3 (backend).** D-C4 `sendInvite` moved to new `services/inviteSendService.js`; supersede-expired + create invite + `program.invite_received` notification in ONE managed transaction (push/SSE after commit); a concurrent duplicate (`23505` on `uniq_program_invites_program_username_pending`) = the pending no-op. D-C5 every no-op returns a reason the route logs as `{"type":"invite_noop","request_id","program_id","reason"}` (never the username). D-C6 unexpected failures → `500 { error: "Failed to send invitation." }` (were a false 200); non-string `username` / non-UUID `program_id` → 400; live binaries show no change (they swallow non-network errors — the client plans remove that). D-C7 `GET /my-invites` hides expired invites. D-C8 one inbox for web / iOS / Android (client contract §3.1); `consumed_by` += `android`. MINOR — owned-interface + `consumed_by` change; response shapes unchanged; dependent program-memberships unaffected. |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Read the legacy `routes/invites.js` + `inviteService.js` + the two models in full; fanned 2 `Explore` agents over web + iOS consumption (`consumed_by = [web, ios]`, all 4 routes 1:1, no divergence). Documents the 4 owned `/api/program-memberships` invite routes + `inviteService` + the `ProgramInvite`/`ProgramInviteBlock` tables. Decisions D-C1 (scope; inline accept-path join write) / D-C2 (emits wired **live** — the keystone is ported, no stub) / D-C3a (drop vestigial `target_member_id`) / D-C3b (fix `getAllInvites` N+1) / D-REF (`consumed_by [web, ios]`, gates match) / D-S1 (faithful except the two cleanups). Flagged F1–F7. |

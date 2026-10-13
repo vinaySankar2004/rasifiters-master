@@ -13,17 +13,19 @@ HealthKit, FCM vs APNs) and are recorded per-screen in `specs/pages/android/<scr
   `ProgramContext` ObservableObject / web `AuthProvider`. Manual DI via `core/AppContainer`.
 - Networking: **Retrofit + OkHttp + kotlinx.serialization**. Every client (main, refresh, SSE) sends the
   observability §4.1 headers (`X-App-Platform: android`, `X-App-Version`, `X-App-Build`) + a fresh `X-Request-Id`
-  (`net/ClientHeaders.kt`). Requests time out at **15 s end to end** (`callTimeout`). Bearer from the one token store
+  + `X-Time-Zone` (Phase 4) (`net/ClientHeaders.kt`). Requests time out at **15 s end to end** (`callTimeout`). Bearer from the one token store
   with a proactive + single-flight refresh (`net/TokenRefresher.kt`); a 426 opens the blocking update screen.
 - Storage: tokens + identity in **EncryptedSharedPreferences** `rasi.fiters.session` = the ONE token store
   (`core/Session.kt`, a `StateFlow`; rotation is compare-and-set; only keyset / decrypt corruption resets it →
   `token_store_unreadable` + the sign-out notice; a transient failure keeps the file and the session is absent for that
   process).
-  Appearance + the version-gate dismissal: `rasi.fiters.prefs`. Push registration + the one-time permission flag:
-  `rasi.push`. Health Connect state: `rasi.health`, **per member** (`m.<memberId>.*`). `noBackupFilesDir`: `install_id`,
+  Appearance + the version-gate dismissal: `rasi.fiters.prefs`. Push registration + the one-time permission flag
+  (+ the `inbox_registered_token` memo, Phase 4): `rasi.push`. The per-member People notice flag: `rasi.people`. Health Connect state: `rasi.health`, **per member** (`m.<memberId>.*`). `noBackupFilesDir`: `install_id`,
   `client_events.json` (observability queue), `launch_cache/` (instant opens). Auto Backup / device transfer exclude
   session, health and push (`res/xml/backup_rules.xml`, `data_extraction_rules.xml`). DataStore is declared but unused.
-- Real-time: SSE (okhttp-sse). Push: **FCM** (channels `rasi_default` + high-importance `rasi_invites`).
+- Real-time: SSE (okhttp-sse). Push: **FCM** — six channels since Phase 4 (`rasi_default`, high-importance
+  `rasi_invites`, `rasi_activity`, `rasi_reminders`, `rasi_digest`, `rasi_announcements`), created in `App.onCreate` before
+  the container; the monochrome `ic_stat_notification` small icon.
 - applicationId / package: `com.app.rasifiters` (matches the iOS bundle-id root). URL scheme `rasifiters://`.
 - Version: the next-out version is whatever `app/build.gradle.kts` says (`versionName` / `versionCode`);
   what is **live per channel** is tracked in `RELEASES.md` (the SoT — don't restate numbers here).
@@ -54,7 +56,8 @@ Splash · Login · CreateAccount · ForgotPassword · ProgramPicker (signed-in h
 (**Summary / Members / Lifestyle / Program**, admin + standard variants) · summary details (activity /
 distribution / workout-types / log-workout / log-health) · member details (list/detail/metrics/history/
 recent/health/streaks/invite) · lifestyle (timeline/workouts) · program settings (edit/roles/profile/
-password/appearance/privacy + Health Connect settings) · two quick-add Glance widgets (`specs/pages/android/widgets/`).
+password/appearance/privacy + Health Connect settings) · two quick-add Glance widgets (`specs/pages/android/widgets/`) ·
+Phase 4: the Inbox (`ui/inbox/`), People list + person profile + full stats (`ui/people/`, `MemberFullStatsScreen`).
 
 ## Auth (client side)
 Supabase-Auth-proxied through the Express backend — **no Supabase SDK on the client** (same as web + iOS).
@@ -103,6 +106,11 @@ Connect". **No background sync** (H-1 / D-6). Code: `health/*` + `ui/health/*`.
 - SSE (`net/NotificationStreamClient`): foreground only (ON_START / ON_STOP); reconnect on every close / error with
   1 s × 2 backoff, 30 s cap, full jitter, paused while offline; 60 s idle timeout; `ready` resets the backoff and
   re-fetches `/unacknowledged` (recent acks filtered; an invite among them reloads the inbox).
+- **Phase 4 (notifications D-C31):** `?inbox=1` + a catch-up on `ready` / foreground (≤ once per 5 s, reconciling the
+  open program) instead of `/unacknowledged`; `NotificationModal.kt` is gone — the top toast (`ui/inbox/NotificationToast.kt`,
+  guarded in `RootScreen` by `ROOT_FORMS` + `SHELL_FORMS` + the "+" sheet draft and a cover counter) and the Inbox;
+  taps / `View` route by `target`; every `PUT /device` sends `inbox: true`. Details: the
+  [notifications-alerts](../../specs/pages/android/notifications-alerts/SPEC.md) page SPEC.
 - Invites: the ONE inbox is `GET /my-invites` (global admins `GET /all-invites` + Revoke), answered via
   `PUT /invite-response` (decline offers "Block future invites"); program cards no longer accept inline.
 
@@ -183,7 +191,8 @@ gained a `firebase-admin` FCM sender fired alongside APNs by `sendPushToMembers`
 unchanged); `FIREBASE_SERVICE_ACCOUNT` (base64) already on Render `sync:false`; **no migration** (the
 `platform` column pre-existed). `./gradlew :app:assembleDebug` = BUILD SUCCESSFUL. **I-a below.**
 
-🟢 **Phase I-a (2026-07-08, Run 10): in-app real-time notifications (SSE + modal queue).** The in-app half of
+🟢 **Phase I-a (2026-07-08, Run 10): in-app real-time notifications (SSE + modal queue)** *(the modal queue was
+replaced by the toast + Inbox in Phase 4 — see §Push + real-time)*. The in-app half of
 the `notifications` feature. New `net/NotificationStreamClient.kt` (okhttp-sse `EventSource`,
 `GET /notifications/stream`, Bearer header, `readTimeout(0)`; restart-on-resume recovery, no internal
 reconnect loop — iOS parity) + `ui/components/NotificationModal.kt` (Compose `Dialog`, neutral surface +

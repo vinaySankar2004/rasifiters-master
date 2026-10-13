@@ -1,6 +1,6 @@
 # Screen: `members` (android) — the per-member performance dashboard (second bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-members`](../../ios/admin-members/SPEC.md)
 > + [`web members`](../../web/members/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBERS` (`MembersScreen`) — Tab 2 of the per-program
@@ -8,7 +8,8 @@
 > **Consumes:** the Members reads via `ProgramContext` — `loadProgramMembers` (`GET /program-memberships/members`),
 > `loadMemberMetrics` (`GET /member-metrics`), `loadMemberOverview`, `loadMemberHistory`, `loadMemberStreaks`,
 > `loadMemberRecent`, `loadMemberHealthLogs`. Read-only tab (no write here).
-> **Files:** `ui/members/{MembersScreen,MemberCards}.kt` (+ the 8 detail screens it pushes into).
+> **Files:** `ui/members/{MembersScreen,MemberCards}.kt` (+ the 8 detail screens it pushes into; `MemberFullStatsScreen`
+> in `MemberManagementScreens.kt` renders the same cards, 0.3.0).
 
 ## Parity + Android-idiom deviations
 
@@ -22,14 +23,16 @@
     (hero = Active Days — D-C7) + **History** + **Streak**, then **Recent + Health**. A **logger** additionally gets a
     **logs-only "View as"** that re-scopes only Recent + Health (`LaunchedEffect(loggerViewAsId)`); a plain member
     has no picker.
-- **Read-only tab (iOS F1):** every loader's error is swallowed — a failed read just leaves the empty/placeholder
-  card ("No workouts logged yet." / "No daily health logs yet." / "No members to display"); no error banner.
+- ~~**Read-only tab (iOS F1):** every loader's error is swallowed — a failed read just leaves the empty/placeholder
+  card ("No workouts logged yet." / "No daily health logs yet." / "No members to display"); no error banner.~~
+  *(Superseded at 0.3.0 by D-NP2 — the S5 recipe.)*
 - **"View as" picker sheet (iOS `MemberPickerView`):** a `ModalBottomSheet` — searchable ("Search member",
   substring, case-insensitive), a ✓ + orange text on the selected row, and (global-admin only) a leading **"None"**
   row that clears the selection.
 - **`GlassIconButton` (iOS `GlassButton` analog):** a 52dp circular **orange→AppOrangeGradientEnd** gradient icon
-  button — `MailOutline` "Invite member" for admins (→ `MEMBER_INVITE`), `Group` "View members" for the standard
-  body (→ `MEMBER_ROSTER`).
+  button — ~~`MailOutline` "Invite member" for admins (→ `MEMBER_INVITE`), `Group` "View members" for the standard
+  body (→ `MEMBER_ROSTER`)~~ **0.3.0 (D-NP1):** `Group` **`People`** for every role (→ `MEMBER_ROSTER` = the People
+  list); Invite moved to People's `Invite member` row (and stays on the Program tab).
 - **Deviation A-1 (flat card vs iOS glass):** the inline cards render in a flat Material `SummaryCard` (the
   established Android substitution for iOS's glassy `CardShell`); same content, order, labels, empty copy. Each
   card is a chevron-header drill-down (`DrillCard` = the Compose analogue of an iOS `NavigationLink` push).
@@ -63,10 +66,24 @@
 The admin body re-loads the 5 reads on `LaunchedEffect(selectedId)`; the standard body loads self once per program
 and re-scopes logs on the logger view-as change.
 
+## Phase 4 (0.3.0)
+
+- **D-NP1 (NP-U1):** one header button for every role — `People` (Group icon) → the [`people`](../people/SPEC.md) list.
+- **D-NP2 (the S5 recipe — member-analytics D-C12, TC-13):** `ProgramContext.memberCardsHeld` (whose program + member
+  each shared flow holds; written by every successful loader) + `memberCardsLoad` (per part: the requested key and
+  whether it failed); `loadMemberCards` loads the five parts in parallel and records nothing when cancelled. A card
+  renders its flow only when the held key equals its own key — else a grey placeholder (`PENDING`) or `—`
+  (`UNAVAILABLE`, failed); nothing to show + everything failed or offline → `ErrorView` (offline copy), else a spinner; a
+  failed refresh keeps the values and shows the stale banner (`Couldn't refresh` · Retry); reload on reconnect.
+  `membersSelfLoadedFor` is gone; `ensureMembersLoaded()` runs inside the `reload.tick` effect; a logger's View-as pick
+  reloads all five parts. Every screen that reads the shared flows renders through `MemberCardsView` (this tab +
+  `MemberFullStatsScreen`). Delivers polish #32 (+ the badge half of #40).
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **Phase 4 (`d528f75`).** D-NP1 the header button is `People` for every role (Invite moved to People); D-NP2 the S5 recipe (held-key cards, placeholder / `—`, ErrorView only with nothing to show, stale banner, reconnect reload; `membersSelfLoadedFor` removed). |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: reads run in parallel; the standard body spins only for a program's first load (`membersSelfLoadedFor`) and a program switch re-spins and re-defaults View-as; the self card comes from the memberId-scoped overview (no all-member download — member-analytics D-C10); Recent / Health follow View-as (#5). |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — Active Days primary: self card hero ACTIVE_DAYS + load sort=active_days; metric-card subtitle = "Workouts N" + grid row 1 = [Active Days, Workouts]; preview load sort=active_days (top member = top-by-active-days), hardcoded hero = activeDays/"Active Days", mini tiles [Active Days, Workouts, Types]. MTD Workouts untouched. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E — the Members **tab body**). Role bifurcation on `isProgramAdmin`; Invite `GlassIconButton`; `MemberMetricsPreviewCard`; searchable "View as" picker (global-admin "None" / program-admin auto-self / logger logs-only); the 5 inline cards. Read-only (iOS F1). Deviations A-1 (flat SummaryCard) + A-2 (focusMember-at-click, no navArgs). All 8 detail targets are real screens this phase. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

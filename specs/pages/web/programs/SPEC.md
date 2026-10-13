@@ -1,6 +1,6 @@
 # Page: `programs` (web) — the post-login programs hub
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/programs` — **the first protected route after login** (every auth page redirects here on
 > success). **Not** a bottom-nav tab; it's the program-selector hub you land on before entering a program's
 > tabbed workspace (`/summary` …).
@@ -10,6 +10,7 @@
 > **Consumes (features):** [`programs`](../../../features/programs/SPEC.md) (`fetchPrograms`, `createProgram`,
 > `updateProgram`, `deleteProgram`, `updateMembership`), [`program-memberships`](../../../features/program-memberships/SPEC.md)
 > + [`invites`](../../../features/invites/SPEC.md) (`fetchMyInvites` / `fetchAllInvites` / `respondToInvite`),
+> [`notifications`](../../../features/notifications/SPEC.md) 0.6.0 (the Inbox, unread counts, mark-read — D-NP1),
 > [`auth`](../../../features/auth/SPEC.md) (the foundation `useAuth` + `useAuthGuard`), and `saveActiveProgram`
 > (`lib/storage.ts`).
 > **Cross-app:** iOS program-picker / admin-home (`Features/Home/` — `Onboarding/`) renders the same hub
@@ -23,8 +24,8 @@
 
 The **programs hub** — the authenticated landing page (`My Programs`) where a member sees every program they
 belong to (or, for a global admin, every program), picks one to enter its workspace, manages pending program
-**invites**, **creates** a new program, and opens an **account** menu (profile / password / appearance /
-privacy / sign-out). Used by **every authenticated user**; what's listed and which controls appear vary by
+**invites** and **notifications** in the **Inbox** (0.4.0), **creates** a new program, and opens an **account** menu
+(profile / Inbox / notifications / password / appearance / announcements for global admins / privacy / sign-out). Used by **every authenticated user**; what's listed and which controls appear vary by
 role (§7). It is the first route the edge `middleware.ts` actually gates.
 
 ## 2. Why it exists
@@ -43,28 +44,30 @@ chosen.
 - **Reached via:** post-login / post-register / post-splash redirect (all auth pages route here), or the
   `useAuthGuard({ requireProgram: true })` bounce from a workspace page with no active program.
 - **Leaves to:** `/summary` (selecting an openable program — sets the active program first) · `/program/profile`
-  · `/program/password` · `/program/appearance` · `/program/privacy` (Account modal rows) · `/login` (Sign Out).
+  · `/program/notifications` · `/program/password` · `/program/appearance` · `/program/announcements` (global admins)
+  · `/program/privacy` (Account modal rows) · `/login` (Sign Out). **Reached also via** `/programs?open=inbox` (opens the
+  Inbox, then `router.replace("/programs")`) and the `rf:open-inbox` event when already here (D-NP1).
   All `/summary` + `/program/*` targets were **forward dependencies** at port time (since ported — F2).
 
 ## 4. Contents / sections
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "My Programs" / "Manage your fitness programs" + two FAB buttons (Account, Program actions). The actions FAB shows a **pending-invites count badge**. | programs/page.tsx:172-202 |
+| Header | "My Programs" / "Manage your fitness programs" + two FAB buttons (Account, Program actions). The actions FAB shows the **server `badge`** (0.4.0, D-NP1 — was the pending-invites count), `99+` above 99; aria `Program actions, <n> new`. | programs/page.tsx (header) |
 | Search (net-new 0.2.0, slimmed 0.2.1, D-N1) | Collapsed by default — a third `fab-button` circle (SearchIcon) in the header toggles an animated floating `input-shell` pill ("Search programs", autofocus, Esc closes) between the header and the list; closing clears the query. Client-side name filter (trimmed, case-insensitive `.includes`); page layout is unchanged while collapsed. No-match filter shows "No programs match your search"; an order-save error renders as a red line below. | programs/page.tsx (header search button + `AnimatePresence` pill + `visiblePrograms`) |
 | Programs list | Loading / error / empty (`No programs yet`) states, then a `Reorder.Group` (framer-motion) of `ReorderableProgramRow`s — **drag-to-reorder by grip handle**, persisted per-member (D-N1). | programs/page.tsx (list section) |
 | `ProgramCard` | Name + date range + **grip handle (net-new 0.2.0)** + `StatusBadge` (handle sits left of the badge, top-right); either invite/request status text (a `requested` card keeps its **Cancel request** button; an `invited` card has no actions — D-REL5), or `active/total members` + a progress bar; **Edit/Delete** when `canManage`. Whole card clickable → select (when `canOpen`); drag ONLY by the handle. | programs/page.tsx (`ReorderableProgramRow` + `ProgramCard`) |
-| Program Actions modal | A `Modal` with a segmented control: **Invites tab** (`All Invites` for global admin, else `My Invites`) + **Create tab**. Opens to invites if any pending, else create. | programs/page.tsx:252-319 |
-| `InvitesTab` / `InviteCard` | Loading / error (kit `ErrorView` + Retry, D-REL1) / empty; for global admin invites are **grouped by program** with the invitee name + a **Revoke** button; for members a flat list (Accept / Decline only). A failed Accept / Decline / Revoke shows its kit message as a red line above the list (D-REL3). | programs/page.tsx:642-797 |
+| Program Actions modal | A `Modal` ("Program Actions" · `Done`) with a segmented control: **`Inbox`** + **`Create`** (0.4.0, D-NP1 — was Invites / Create). Opens on Inbox if the badge > 0, else Create; picked when counts settle if they hadn't, unless the member already tapped a tab. | programs/page.tsx (actions modal) |
+| Inbox tab (0.4.0) | `InvitesTab` first — `Invitations` (global admins `All invitations`, grouped by program with `To: …` + **Revoke**); an empty invite list renders nothing (the old empty box is gone) — then `InboxList` (`Notifications`: rows with an unread dot per visit, `Load more` / `Loading…`, empty `No notifications yet` · `Program updates, kudos, reminders and announcements show up here.`, relative times). The invites ErrorView is hidden while the list itself failed (one ErrorView). A failed Accept / Decline / Revoke shows its kit message as a red line above the list (D-REL3). | programs/page.tsx (`InvitesTab`) + `components/notifications/InboxList.tsx` |
 | `CreateProgramTab` | Name input + status `Select` (planned/active/completed) + start/end date inputs (defaults today / +3 months) → `Create Program`. | programs/page.tsx:799-882 |
-| Account modal | 5 `AccountRow`s → `/program/profile`, `/program/password`, `/program/appearance`, `/program/privacy`, and **Sign Out** (opens confirm). | programs/page.tsx:321-391 |
+| Account modal | `AccountRow`s → `/program/profile`, **`Inbox`** (0.4.0: `<n> new` or `Invites and notifications`, a red count pill — opens the Inbox tab), **`Notifications`** (`/program/notifications`), `/program/password`, `/program/appearance`, **`Announcements`** (global admins, `/program/announcements`), `/program/privacy`, and **Sign Out** (opens confirm). | programs/page.tsx (account modal) |
 | `EditProgramModal` | Name / status / start / end → `Save` (`updateProgram`). Admin-only entry (Edit on a manageable card). | programs/page.tsx:393-409, 884-981 |
 | Delete-program confirm | `ConfirmDialog` "Delete Program?" → `deleteProgram` (soft-delete). | programs/page.tsx:411-426 |
 | Sign-out confirm | `ConfirmDialog` "Sign Out" → `signOut()` → `/login`. | programs/page.tsx:428-439 |
 | Decline-invite modal | "Decline Invitation" + a **Block future invites** checkbox → `respondToInvite(..., decline, block_future)`. A failed decline keeps the modal open with the kit message as a red line (D-REL3). | programs/page.tsx:441-493 |
 
 **Data flow.** `programsQuery` (`fetchPrograms`) + `invitesQuery` (`fetchAllInvites` if global admin, else
-`fetchMyInvites`) load on mount (`enabled: !!token`); `["programs"]` is first seeded from the per-member launch
+`fetchMyInvites`) + (0.4.0) the unread counts (`["notifications","unread"]`) load on mount (`enabled: !!token`); `["programs"]` is first seeded from the per-member launch
 cache (D-REL2). Mutations (`updateMembership`, `createProgram`, `updateProgram`, `deleteProgram`) invalidate
 `["programs"]` on success; `respondToInvite` refreshes `["invites", isGlobalAdmin]` after every attempt (and
 `["programs"]` after a successful accept — D-REL3). Selecting a card calls `saveActiveProgram({...})` then `router.push("/summary")`
@@ -89,7 +92,8 @@ cache (D-REL2). Mutations (`updateMembership`, `createProgram`, `updateProgram`,
 | `fetchPrograms(token)` | `GET /api/programs` | Returns the per-user shape (`my_role`, `my_status`, `total_members`, `active_members`, `progress_percent`, `admin_only_data_entry`). **Global admins get all programs; members get only their `active`/`invited`/`requested` ones** (backend filters — programs SPEC). |
 | `fetchMyInvites(token)` / `fetchAllInvites(token)` | `GET /api/program-memberships/my-invites` · `/all-invites` | All-invites is **global-admin-only** server-side; the page picks by `isGlobalAdmin`. |
 | `updateMembership(token, {program_id, member_id, status})` | `PUT /api/program-memberships` | Card **Cancel request** (`removed`) on a `requested` card only. The card Accept / Decline for `invited` rows is retired (D-REL5). |
-| `respondToInvite(token, {invite_id, action, block_future?})` | `PUT /api/program-memberships/invite-response` | Modal Accept / Decline / Revoke of `ProgramInvite` records. |
+| `respondToInvite(token, {invite_id, action, block_future?})` | `PUT /api/program-memberships/invite-response` | Modal Accept / Decline / Revoke of `ProgramInvite` records. After a successful accept / decline (not revoke) the page marks that program's cached unread `program.invite_received` items read (`POST /notifications/inbox/read {ids}`, ≤ 100), else re-reads the counts (D-NP1). |
+| `fetchUnreadCounts` / `fetchInbox` / `markInboxRead` (0.4.0) | `GET /api/notifications/inbox/unread-count` · `GET /inbox?limit&before` · `POST /inbox/read` | The badge + account-row count; the Inbox list (marks all read once its first fresh page shows; later arrivals by id) — notifications §3.5 / §3.9. |
 | `createProgram` / `updateProgram` / `deleteProgram` | `POST` / `PUT /:id` / `DELETE /:id` `/api/programs` | Create auto-enrolls creator as program admin; update/delete require program-admin (or global admin) server-side. |
 | `saveProgramOrder(token, programIds)` (net-new 0.2.0) | `PUT /api/programs/order` | Sends the full display order (`{ program_ids }`) on drag end. Optimistic local order; on error an inline red line + `invalidateQueries(["programs"])` reverts to server order. `GET /api/programs` comes back in saved order (unordered programs trailing by start_date) — that's the whole cross-platform sync. |
 
@@ -105,10 +109,10 @@ Roles derive from `session.user.globalRole` (client JWT, F1) + each program's `m
 
 | Role | Sees | Can do |
 |------|------|--------|
-| **global_admin** | **All** programs; invites tab = **"All Invites"** grouped by program, showing the invitee name. | Open any card; **Edit/Delete any** program; **Revoke** any invite; create programs; account menu. |
-| **program admin** (`my_role=="admin"`, active) | Their programs; **"My Invites"**. | Open + **Edit/Delete their own** program; Accept/Decline own invites; create programs; account menu. |
-| **logger / member** (active) | Their programs; **"My Invites"**. | Open active programs; Accept/Decline/Cancel own invites; create programs; account menu. **No Edit/Delete.** |
-| **invited / requested** (not yet active) | The pending card (status text, no member counts). | Status text only; a `requested` card keeps **Cancel request**, an `invited` one is answered in Program Actions → My Invites (D-REL5). The card isn't openable (`canOpen=false`, dimmed) unless global admin. |
+| **global_admin** | **All** programs; Inbox tab = **"All invitations"** grouped by program, showing the invitee name, then their own notifications. **Badge = their own invites + unread notifications only** (0.4.0 — deliberate change; was every system invite). The `Announcements` account row. | Open any card; **Edit/Delete any** program; **Revoke** any invite; create programs; account menu. |
+| **program admin** (`my_role=="admin"`, active) | Their programs; Inbox (**"Invitations"** + notifications). | Open + **Edit/Delete their own** program; Accept/Decline own invites; create programs; account menu. |
+| **logger / member** (active) | Their programs; Inbox (**"Invitations"** + notifications). | Open active programs; Accept/Decline/Cancel own invites; create programs; account menu. **No Edit/Delete.** |
+| **invited / requested** (not yet active) | The pending card (status text, no member counts). | Status text only; a `requested` card keeps **Cancel request**, an `invited` one is answered in Program Actions → Inbox (D-REL5). The card isn't openable (`canOpen=false`, dimmed) unless global admin. |
 
 **`admin_only_data_entry`:** **not enforced on this page** — it's read from `GET /api/programs` and stored
 into the active program (`saveActiveProgram`) so the *downstream* log pages can lock data entry for
@@ -151,6 +155,7 @@ non-admins (`isDataEntryLocked`). The hub shows/creates/edits programs regardles
 | **D-REL5** | **F3 card actions retired for `invited` (invites D-C8).** An `invited` card shows its status text, dimmed, with no actions — invites are answered only in Program Actions → My Invites. A `requested` card keeps its **Cancel request** (`updateMembership` → `removed`), the same on all three surfaces. Invisible in prod (no such rows exist; nothing creates them). | invites D-C8; amendments A10. |
 | **D-REL6** | **Offline = link + reachability (polish-1).** With nothing to show while offline (`useOnlineStatus` = `navigator.onLine` && not proven offline), the list shows the kit's offline `ErrorView` + Retry — never "Loading programs…", and a timeout reads offline. When the combined value comes back, failed reads (programs + invites) refetch (`useRefetchOnReconnect`). | polish-1 rules 5–6; frontend-kit D-KIT-13. |
 | **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): drag-to-reorder + search.** Reorder via **framer-motion `Reorder.Group`/`Reorder.Item`** (already a dependency — no new package) with `dragListener={false}` + per-item `useDragControls`: drag ONLY by a ≡ grip handle (top-right, left of the StatusBadge; `touch-action: none` so mobile Safari drags instead of scrolling; pointer-down stopPropagation keeps card-tap intact). Order state is optimistic; `PUT /programs/order` fires on drag end with the full id list; error → inline message + invalidate (revert). Search is a client-side name filter; **reorder is disabled while searching** (handle hidden + `onReorder` guard) so filtered indices can never corrupt the full order. New programs land at the bottom (server: `NULLS LAST, start_date`). Cross-platform order sync is free — the server returns the saved order and clients render array order as-is. | programs feature SPEC 0.2.0 (D-N1); user decisions (grip handle · bottom placement). |
+| **D-NP1** | **The Inbox replaces the invites tab (0.4.0; reliability-overhaul Phase 4 Pass A — notifications D-C30, invites D-C10).** Tabs `Inbox` / `Create`; the Inbox = invitations first (empty → nothing), then `InboxList`; one ErrorView when the list failed (R12). **Badge** = `unreadQuery.data?.badge ?? (isGlobalAdmin ? 0 : invites.length)` for every role, `99+` cap (W4 — a **deliberate change for global admins**, whose badge counted every system invite). Tab picked at open (W13): Inbox if badge > 0, else Create; deferred until the badge settles unless the member already tapped a tab. `?open=inbox` / `rf:open-inbox` open the Inbox (W5; the push / toast / Program-tab Inbox target). After answering an invite its notifications are marked read (C7.7). Account rows: `Inbox` with `<n> new` + count pill (W18), `Notifications`, `Announcements` (global admins). | notifications §3.5 / §3.9; NP amendments R1, R4, R7, R12; web plan W4, W5, W9, W13, W18. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -167,6 +172,7 @@ non-admins (`isDataEntryLocked`). The hub shows/creates/edits programs regardles
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **D-NP1 — Phase 4 Notifications (Pass A, `b2ea09b`, live).** The Program Actions modal's tabs are `Inbox` / `Create` (invitations first, then the notification list; the empty-invites box removed); the FAB badge is the server `badge` for every role (deliberate change for global admins) with the deferred tab pick; `?open=inbox` / `rf:open-inbox`; answering an invite marks its notifications read; account rows `Inbox` (count), `Notifications`, `Announcements` (global admins). §1/§3/§4/§6/§7 updated. |
 | 0.3.2 | 2026-10-13 | Phase 4 quick wins: the list fails after the first try and Retry (list + invites tab) uses the kit `retryNow`, so it works mid-retry (D-KIT-18, #6); the invites tab reads offline while offline; create / edit / order errors go through `toAppError` — "Couldn't save program order. <kit message>" (D-KIT-19, #8). |
 | 0.3.1 | 2026-10-13 | Polish-1 — D-REL6 (offline with no data → kit offline `ErrorView`, never a spinner; failed reads refetch when the combined online value returns). |
 | 0.3.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 (kit states: `ErrorView`, stale banner, offline wins, "No programs yet" only on loaded data, invites tab `ErrorView`) · D-REL2 (instant open from the per-member launch cache; invites live) · D-REL3 (invite responses refresh the inbox `onSettled`; accept / decline / revoke errors shown) · D-REL4 (Sign Out = teardown + `/auth/logout` this device) · D-REL5 (F3 retired for `invited` cards; `requested` keeps Cancel request). §4/§6/§7/§8 updated; F3 marked retired. |

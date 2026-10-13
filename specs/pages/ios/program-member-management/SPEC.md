@@ -1,6 +1,6 @@
 # Screen: `program-member-management` (ios) — the Program tab's Member Management section
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
 > **Location:** `AdminProgramTab.swift:30` (`ProgramMemberManagementSection()`, always shown). The section
 > is a card with two nav rows: **View Members** (everyone → `ProgramMembersListView` → global-admin-only
 > `MemberDetailEditView`) + **Invite Member** (`canEditProgramData` → `InviteMemberView`).
@@ -12,6 +12,10 @@
 > [`web members/detail`](../../web/members/detail/SPEC.md) (editor) · [`web members/invite`](../../web/members/invite/SPEC.md) (invite).
 > **Consumes (features):** [`program-memberships`](../../../features/program-memberships/SPEC.md) (`fetchMembershipDetails`,
 > `updateMembership`, `removeMember`) · [`invites`](../../../features/invites/SPEC.md) (`sendProgramInvite`).
+> **0.3.0 (D-NP1, Phase 4 People):** the roster is **retired** — the section's first row is now `People` · `<n> enrolled`
+> → `PeopleListView` ([people](../people/SPEC.md)); `ProgramMembersListView` (and its global-admin tap into the
+> editor) is deleted; global admins reach `MemberDetailEditView` from a person's profile (`Edit membership`, people
+> D-C14 / R6). `MemberDetailEditView` + `InviteMemberView` stay (People's `Invite member` row pushes the latter).
 > **Stance:** faithful 1:1 port of legacy iOS **+ 2 cross-platform cleanups** (clear-stale-error-on-edit, tokenize
 > bare colors). The global-admin-only detail gate + invite privacy-swallow match BOTH legacy iOS **and** web.
 
@@ -103,6 +107,7 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 | **D-C2** | **Clear stale error on edit** — `MemberDetailEditView` clears the error `.onChange` of `joinedAt`/`isActive`; `InviteMemberView` clears `.onChange` of `username`. Matches web members/detail D-C3 + members/invite D-C2. | web SPECs |
 | **D-C3** | **Full-pill tap target on Send Invitation** — the CTA's `.frame/.padding/.background/.cornerRadius` now live INSIDE the `Button` label closure with `.contentShape(RoundedRectangle(cornerRadius: 14))` + `.buttonStyle(.plain)`, so the whole orange pill is tappable (not just the icon+text). Matches the `AppPrimaryButton` reference pattern. No behavior/contract change. | `InviteMemberView.swift`; `AppButton.swift` |
 | **D-C4** | **Invite send = server-side privacy (invites §3.1 0.2.0, reliability Phase 3 C2).** "Invitation sent" (was "Invite sent") shows ONLY on a 200 — the server already answers 200 for unknown / blocked / already-member usernames; every other status goes through the kit (`AppError`) in the existing error line. The client-side always-success swallow is removed (F3 resolved). | invites §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A1. |
+| **D-NP1** | **The roster is retired; People replaces it (0.3.0; NP-U1, iOS plan TC9; people D-C14).** The section's first row reads `People` · `<n> enrolled` and pushes `PeopleListView`; the whole `ProgramMembersListView` struct (search roster + the global-admin row tap) is removed. `MemberDetailEditView` is reached from `PersonProfileView`'s `Edit membership` (global admins, only after that screen's own membership-details load for the profile's program); a remove from there pops back to People. `Invite Member` (this section) and People's `Invite member` row both push `InviteMemberView`. | NP amendments NP-U1, R6; iOS plan TC9. |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -122,6 +127,8 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 
 ## 11. Changelog
 
+- **0.3.0** (2026-10-13, Phase 4 People, `198407c`) — D-NP1: the roster row becomes `People` · `<n> enrolled` →
+  `PeopleListView`; `ProgramMembersListView` deleted (global admins edit from a profile's `Edit membership`).
 - **0.2.1** (2026-10-13, Phase 4 quick wins) — member save / remove errors use `SessionCopy.kitMessage` (server text
   kept for 400/422 and row errors — frontend-kit D-KIT-19, #8).
 - **0.2.0** (2026-10-13, reliability Phase 3 C2) — D-C4: "Invitation sent" only on 200; the invite swallow is

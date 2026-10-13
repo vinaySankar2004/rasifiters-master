@@ -1,12 +1,14 @@
-# Screen: `notifications-alerts` (android) — real-time alerts (in-app SSE + modal queue) + FCM push
+# Screen: `notifications-alerts` (android) — real-time alerts (in-app SSE + toast; was the modal queue) + FCM push
 
-> **Status:** 🏗️ built (in-app SSE + FCM push) · **Version:** 0.3.0 · **App:** `android`
+> **Status:** 🏗️ built (in-app SSE + FCM push) · **Version:** 0.4.0 · **App:** `android`
 > (Compose) · **Thin port-note.**
 > Full behavior = the [`notifications`](../../../features/notifications/SPEC.md) feature (backend contract)
 > + iOS `Shared/Services/NotificationStreamClient.swift`, `Shared/Models/ProgramContext+Notifications.swift`,
 > `Shared/Views/NotificationModalView.swift`, mounted in `App/AppRootView.swift`.
 > **Location:** `ui/RootScreen.kt` (the app-root overlay + stream lifecycle).
-> **Files:** `net/NotificationStreamClient.kt`, `ui/components/NotificationModal.kt`;
+> **Files:** `net/NotificationStreamClient.kt`, ~~`ui/components/NotificationModal.kt`~~ (deleted 0.4.0) →
+> `ui/inbox/NotificationToast.kt` + `core/NotificationInbox.kt` (0.4.0); `push/{DeviceRegistry,RaSiFirebaseMessagingService}.kt`,
+> `App.kt`, `MainActivity.kt`, `res/drawable/ic_stat_notification.xml`, `res/values/strings.xml`;
 > `core/ProgramContext.kt` (notification state + `start/stopNotificationStream`,
 > `loadUnacknowledgedNotifications`, `acknowledgeNotification`); `net/{ApiService,Dtos}.kt`
 > (`NotificationDTO` + `GET /notifications/unacknowledged` + `POST /notifications/{id}/acknowledge`).
@@ -106,10 +108,42 @@ These supersede the "no internal reconnect loop", `ON_RESUME` restart, `readTime
   sign-in (flag in `rasi.push`); the answer re-runs the registration. The settings fallback is the
   [`notifications`](../notifications/SPEC.md) screen.
 
+## Phase 4 decisions (0.4.0 — notifications §3.4–§3.9, D-C30 / D-C31; supersede the modal queue, D-REL3-1's
+`/unacknowledged` re-fetch and D-REL3-3's tap rule)
+
+- **D-NP1 (inbox stream + catch-up):** the stream opens `notifications/stream?inbox=1` with `X-Time-Zone`; each item is an
+  inbox item for `NotificationInbox` (no `/unacknowledged`, no `NotificationModal` — deleted). On every `ready` and every
+  foreground (`onForeground`), at most once per 5 s: counts, the inbox (marked read when visible), invites, programs →
+  `reconcileActiveProgram`, and membership details when a program is open; a role change replaces the open program and
+  resets View-as; a program gone (or no longer active for a non-global-admin) → the picker, then the active program is
+  cleared (the form guard applies).
+- **D-NP2 (the toast, frontend-kit D-KIT-20):** top-centre under the status bar, ≤ 520 wide, `<title>` (blank → `New
+  notification`) · `View` · ×, **5 s** (was 4 s in the plan), the newest replaces the previous; shown only when the
+  item's category is on; suppressed while the Inbox is visible (`inboxVisible`), a form is open (`ROOT_FORMS`:
+  `widget/log-workout`, `widget/log-health`, `inbox/log-workout`, `program/profile`, `program/password`; `SHELL_FORMS`:
+  `summary/log-workout`, `summary/log-health`, `program/edit`, `program/profile`, `program/password`, `members/invite`,
+  `members/edit`; or a non-blank "+" sheet Create draft) or a cover is up (the cover counter: Health Connect review,
+  account menu, "+" sheet); not composed during the update screen or the Health Connect review.
+- **D-NP3 (routing by `target`, NP-U2):** a tap / `View` marks the item read, then — unless a form is open —
+  `invites` → the picker's "+" sheet on Inbox; `programs` → the picker (clearing the active program if it matches);
+  `inbox` → `Routes.INBOX`; `log_workout` → `inbox/log-workout` (`QuickAddWorkoutWidgetScreen` with `onExit =
+  popBackStack`, so the member returns where they were); `program` → open it (stay when it is already showing). Legacy
+  pushes without a target: invite → invites, else the inbox. `MainActivity` passes `notification_id`, `type`, `target`,
+  `program_id` (cold start + `onNewIntent`).
+- **D-NP4 (push):** **six channels**, created in `App.onCreate` **before** the container (a `PUT /device {inbox:true}`
+  lets the server name them): `rasi_default` (General), `rasi_invites` (Invites & membership, HIGH), `rasi_activity`,
+  `rasi_reminders`, `rasi_digest` (LOW), `rasi_announcements`; a channel per category does not stack per category.
+  The monochrome **`ic_stat_notification`** is the manifest `default_notification_icon` and the icon of our own posts
+  (and the health-sync notifier). Every `PUT /device` sends `inbox: true`; the memo `inbox_registered_token` (in
+  `rasi.push`) re-registers once when it lands. Foreground push: skipped while the stream is connected; otherwise the
+  inbox / counts refresh and the post goes to the message's channel (a `tag` replaces reminders / digest). A successful
+  mark-all cancels every posted push except the Health Connect one. Launcher dots only, no count.
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **Phase 4 Notifications (`d528f75`).** D-NP1 `?inbox=1` + catch-up with open-program reconciliation (no `/unacknowledged`; `NotificationModal.kt` deleted); D-NP2 the top toast (5 s, ×, category gate, form guard + cover counter); D-NP3 routing by `target` incl. `inbox/log-workout`; D-NP4 six channels before the container, monochrome `ic_stat_notification`, `inbox: true` memo, tray cleared on mark-all. Supersedes D-REL3-1's re-fetch clause and D-REL3-3. |
 | 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3.** D-REL3-1 foreground-only SSE with backoff + jitter + idle timeout + re-fetch on `ready`; D-REL3-2 foreground FCM posted only while the stream is disconnected, `rasi_invites` channel; D-REL3-3 tap → acknowledge + route; D-REL3-4 `DeviceRegistry` (install id, 12 h re-PUT, `/device/unregister`); D-REL3-5 permission asked once. Compile-checked green (`assembleDebug`). |
 | 0.2.0 | 2026-07-08 | FCM push (Phase I-b). |
 | 0.1.0 | 2026-07-08 | In-app SSE + modal queue (Phase I-a). |

@@ -33,7 +33,7 @@
       }
     },
     "members": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/members/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -57,7 +57,7 @@
       }
     },
     "programs": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "spec": "specs/features/programs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -84,7 +84,7 @@
       }
     },
     "program-memberships": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/program-memberships/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -112,7 +112,7 @@
       }
     },
     "notifications": {
-      "version": "0.5.0",
+      "version": "0.6.0",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -142,12 +142,32 @@
           "models/MemberPushToken.js",
           "models/PushDelivery.js",
           "sql/010_push_deliveries_device_registry.sql",
+          "routes/notificationInbox.js",
+          "routes/notificationPreferences.js",
+          "routes/announcements.js",
+          "services/notificationInboxService.js",
+          "services/notificationPreferenceService.js",
+          "services/notificationScheduler.js",
+          "services/dailyReminderJob.js",
+          "services/weeklyDigestJob.js",
+          "services/memberActivityStats.js",
+          "services/announcementRequest.js",
+          "services/announcementService.js",
+          "services/announcementDelivery.js",
+          "utils/notificationCategories.js",
+          "utils/notificationTemplates.js",
+          "utils/notificationChannels.js",
+          "utils/localTime.js",
+          "models/NotificationPreference.js",
+          "models/NotificationSendKey.js",
+          "models/NotificationAnnouncement.js",
+          "sql/011_notifications_inbox_prefs_scheduler.sql",
           "server.js"
         ]
       }
     },
     "invites": {
-      "version": "0.2.1",
+      "version": "0.3.0",
       "spec": "specs/features/invites/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -274,7 +294,7 @@
       }
     },
     "analytics": {
-      "version": "0.5.0",
+      "version": "0.6.0",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -303,7 +323,7 @@
       }
     },
     "analytics-v2": {
-      "version": "0.2.1",
+      "version": "0.3.0",
       "spec": "specs/features/analytics-v2/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -328,7 +348,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.6.0",
+      "version": "0.7.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -374,7 +394,7 @@
       }
     },
     "observability": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/observability/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -402,7 +422,7 @@
       }
     },
     "apple-health": {
-      "version": "0.8.0",
+      "version": "0.8.1",
       "spec": "specs/features/apple-health/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -440,7 +460,7 @@
       }
     },
     "health-connect": {
-      "version": "0.3.0",
+      "version": "0.3.1",
       "spec": "specs/features/health-connect/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -473,7 +493,7 @@
       }
     },
     "frontend-kit": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/frontend-kit/SPEC.md",
       "status": "adopted",
       "consumed_by": [
@@ -526,6 +546,38 @@
           "models/HealthSyncSample.js",
           "models/HealthSyncState.js",
           "sql/009_health_sync_ledger.sql",
+          "server.js"
+        ]
+      }
+    },
+    "people": {
+      "version": "0.1.0",
+      "spec": "specs/features/people/SPEC.md",
+      "status": "deployed",
+      "consumed_by": [
+        "web",
+        "ios",
+        "android"
+      ],
+      "depends_on": [
+        "auth",
+        "members",
+        "programs",
+        "program-memberships",
+        "program-workouts",
+        "workout-logs",
+        "member-analytics",
+        "notifications",
+        "observability"
+      ],
+      "reference_impl": {
+        "app": "backend",
+        "paths": [
+          "routes/people.js",
+          "services/peopleService.js",
+          "services/kudosService.js",
+          "models/Kudos.js",
+          "sql/012_people_hide_activity_kudos.sql",
           "server.js"
         ]
       }

@@ -1,6 +1,6 @@
 # Screen: `my-profile` (android) — account profile editor
 
-> **Status:** 🏗️ built · **Version:** 0.2.1 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.3.0 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = iOS `Features/Home/Settings/MyProfileView.swift` + web `/program/profile`.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.PROGRAM_PROFILE` (`MyProfileScreen`).
 > **Files:** `ui/program/ProfileScreen.kt`.
@@ -42,10 +42,19 @@
   kit copy otherwise — a 401 on these authenticated routes is the session, never "Invalid token."; profile-save errors
   map through the kit.
 
+## Phase 4 (0.3.0)
+
+- **D-NP1 (Hide my activity — people D-C13/D-C14, R11):** `ui/program/HideActivitySection.kt`, placed directly above
+  "Sign out everywhere" in `ProfileScreen.kt`: a switch `Hide my activity` · `Hides your workouts, streaks and kudos from
+  other members of your programs. Program admins and loggers still see them.`; disabled until `GET /members/:id`
+  answers; `PUT /members/:id { hide_activity }`; a 200 without the echo is a failure (`AppErrorKind.SERVER`) — the switch
+  rolls back and shows the error. Every role. The screen is a toast form route (`program/profile`, both graphs).
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 People, `d528f75`): `HideActivitySection` above Sign out everywhere; missing echo = failure with rollback. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the Sign-out-everywhere and Delete Account errors go through `toAppError()` (frontend-kit D-KIT-19, #8). |
 | 0.2.0 | 2026-10-13 | **Reliability Phase 3 C3.** D-REL3-1 Sign out everywhere (every role, above Delete Account); D-REL3-2 link nonce + mapped errors; D-REL3-3 set-password rule 6 + 401 re-send + success copy; D-REL3-4 credential / kit error mapping. Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase G). |
