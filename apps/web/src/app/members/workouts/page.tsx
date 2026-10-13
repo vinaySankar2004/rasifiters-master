@@ -19,7 +19,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { LoadingState } from "@/components/ui/LoadingState";
+import { QueryView } from "@/components/kit/QueryView";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 const SORT_FIELDS = [
@@ -38,7 +38,7 @@ export default function MemberWorkoutsPage() {
   const params = useClientSearchParams();
   const memberId = params.get("memberId") ?? "";
   const memberName = params.get("name") ?? "Member";
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
   const queryClient = useQueryClient();
 
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
@@ -66,14 +66,17 @@ export default function MemberWorkoutsPage() {
   const [deleteTarget, setDeleteTarget] = useState<MemberRecentItem | null>(null);
   const [editHours, setEditHours] = useState("");
   const [editMinutes, setEditMinutes] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // polish #9: each error shows where the user is looking, inside the edit pop-up or the delete dialog.
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (!memberId) return;
     if (!canViewAny && memberId !== loggedInUserId) {
       router.push("/members");
     }
-  }, [memberId, canViewAny, loggedInUserId, router]);
+  }, [isBootstrapping, session, memberId, canViewAny, loggedInUserId, router]);
 
   const programWorkoutsQuery = useQuery({
     queryKey: ["program-workouts", programId],
@@ -102,20 +105,21 @@ export default function MemberWorkoutsPage() {
     return hasInput && total > 0 ? total : undefined;
   }, [maxDurationHours, maxDurationMinutes]);
 
+  const workoutsKey = [
+    "members",
+    "workouts",
+    programId,
+    memberId,
+    sortField,
+    sortDir,
+    startDate,
+    endDate,
+    workoutType,
+    minDurationNum,
+    maxDurationNum
+  ];
   const workoutsQuery = useQuery({
-    queryKey: [
-      "members",
-      "workouts",
-      programId,
-      memberId,
-      sortField,
-      sortDir,
-      startDate,
-      endDate,
-      workoutType,
-      minDurationNum,
-      maxDurationNum
-    ],
+    queryKey: workoutsKey,
     queryFn: () =>
       fetchMemberRecentWorkouts(token, programId, memberId, {
         limit: 0,
@@ -138,11 +142,12 @@ export default function MemberWorkoutsPage() {
         workout_name: item.workoutType,
         date: item.workoutDate
       }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["members", "workouts", programId, memberId] });
+    onSuccess: () => {
+      setDeleteTarget(null);
+      void queryClient.invalidateQueries({ queryKey: ["members", "workouts", programId, memberId] });
     },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setDeleteError(toAppError(error).message);
     }
   });
 
@@ -160,7 +165,7 @@ export default function MemberWorkoutsPage() {
       setEditTarget(null);
     },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setEditError(toAppError(error).message);
     }
   });
 
@@ -195,16 +200,17 @@ export default function MemberWorkoutsPage() {
     setEditTarget(item);
     setEditHours(String(Math.floor(item.durationMinutes / 60)));
     setEditMinutes(String(item.durationMinutes % 60));
-    setErrorMessage(null);
+    setEditError(null);
   };
 
   const submitEdit = () => {
     if (!editTarget) return;
     const durationValue = (Number(editHours) || 0) * 60 + (Number(editMinutes) || 0);
     if (durationValue <= 0) {
-      setErrorMessage("Enter a valid duration before saving.");
+      setEditError("Enter a valid duration before saving.");
       return;
     }
+    setEditError(null);
     updateMutation.mutate(durationValue);
   };
 
@@ -219,7 +225,7 @@ export default function MemberWorkoutsPage() {
             type="button"
             onClick={handleExport}
             disabled={!workoutsQuery.data || workoutsQuery.data.items.length === 0}
-            className="pill-button rounded-full px-4 py-2 text-xs font-semibold transition disabled:opacity-40"
+            className="pill-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold transition disabled:opacity-40"
           >
             Export CSV
           </button>
@@ -245,9 +251,7 @@ export default function MemberWorkoutsPage() {
         </div>
       </GlassCard>
 
-      {errorMessage && <p className="text-sm font-semibold text-rf-danger">{errorMessage}</p>}
-
-      {workoutsQuery.isLoading && <LoadingState message="Loading workouts..." />}
+      <QueryView query={workoutsQuery} queryKey={workoutsKey} loadingMessage="Loading workouts...">
 
       {workoutsQuery.data && workoutsQuery.data.items.length === 0 && (
         <EmptyState message="No workouts found." />
@@ -271,14 +275,17 @@ export default function MemberWorkoutsPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(item)}
-                    className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+                    className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDeleteTarget(item)}
-                    className="rounded-full bg-rf-danger/10 px-3 py-1 text-xs font-semibold text-rf-danger"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setDeleteTarget(item);
+                    }}
+                    className="danger-pill inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
                   >
                     Delete
                   </button>
@@ -288,6 +295,7 @@ export default function MemberWorkoutsPage() {
           ))}
         </div>
       )}
+      </QueryView>
 
       <Modal open={showFilter} onClose={() => setShowFilter(false)}>
         <div className="modal-surface w-full max-w-md rounded-3xl p-6">
@@ -296,7 +304,7 @@ export default function MemberWorkoutsPage() {
             <button
               type="button"
               onClick={() => setShowFilter(false)}
-              className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
             >
               Done
             </button>
@@ -389,7 +397,7 @@ export default function MemberWorkoutsPage() {
                 setMaxDurationHours("");
                 setMaxDurationMinutes("");
               }}
-              className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
             >
               Clear all filters
             </button>
@@ -405,7 +413,7 @@ export default function MemberWorkoutsPage() {
               <button
                 type="button"
                 onClick={() => setEditTarget(null)}
-                className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+                className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
               >
                 Close
               </button>
@@ -454,11 +462,12 @@ export default function MemberWorkoutsPage() {
                 </div>
               </div>
             </div>
+            {editError && <p role="alert" className="mt-4 text-sm font-semibold text-rf-danger">{editError}</p>}
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setEditTarget(null)}
-                className="rounded-full bg-rf-surface-muted px-4 py-2 text-xs font-semibold text-rf-text-muted"
+                className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
               >
                 Cancel
               </button>
@@ -466,7 +475,7 @@ export default function MemberWorkoutsPage() {
                 type="button"
                 onClick={submitEdit}
                 disabled={updateMutation.isPending}
-                className="button-primary rounded-full px-5 py-2 text-xs font-semibold"
+                className="button-primary inline-flex min-h-[44px] items-center rounded-full px-5 text-sm font-semibold"
               >
                 Save
               </button>
@@ -482,10 +491,17 @@ export default function MemberWorkoutsPage() {
         confirmLabel="Delete"
         danger
         loading={deleteMutation.isPending}
+        loadingLabel="Deleting…"
+        errorMessage={deleteError}
+        closeOnConfirm={false}
         onConfirm={() => {
+          setDeleteError(null);
           if (deleteTarget) deleteMutation.mutate(deleteTarget);
         }}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => {
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
       />
     </PageShell>
   );

@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 
 export default function InviteMemberPage() {
   const router = useRouter();
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
   const isProgramAdmin = program?.my_role === "admin" || session?.user.globalRole === "global_admin";
 
   const [username, setUsername] = useState("");
@@ -19,10 +19,11 @@ export default function InviteMemberPage() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (!isProgramAdmin) {
       router.push("/members");
     }
-  }, [isProgramAdmin, router]);
+  }, [isBootstrapping, session, isProgramAdmin, router]);
 
   const canSubmit = username.trim().length > 0 && !!programId;
 

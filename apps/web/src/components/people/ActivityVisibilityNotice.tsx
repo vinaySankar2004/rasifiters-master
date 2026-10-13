@@ -60,12 +60,8 @@ export function ActivityVisibilityNotice({ token, memberId }: { token: string; m
 
   return (
     <Modal open={open} onClose={() => undefined}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="activity-notice-title"
-        className="modal-surface w-full max-w-md rounded-3xl p-6"
-      >
+      {/* Modal supplies role="dialog" + aria-modal and labels itself by this panel's first heading. */}
+      <div className="modal-surface w-full max-w-md rounded-3xl p-6">
         <h3 id="activity-notice-title" className="text-lg font-semibold text-rf-text">
           {PEOPLE_COPY.noticeTitle}
         </h3>

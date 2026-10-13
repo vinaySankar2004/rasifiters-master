@@ -10,13 +10,12 @@ import { toAppError } from "@/lib/kit/app-error";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 
 export default function ManageRolesPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
 
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const isProgramAdmin = program?.my_role === "admin" || isGlobalAdmin;
@@ -27,10 +26,11 @@ export default function ManageRolesPage() {
   const rolesQueryKey = useMemo(() => ["program", "roles", programId] as const, [programId]);
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (program?.id && !isProgramAdmin) {
       router.push("/program");
     }
-  }, [program?.id, isProgramAdmin, router]);
+  }, [isBootstrapping, session, program?.id, isProgramAdmin, router]);
 
   const membersQuery = useQuery({
     queryKey: rolesQueryKey,
@@ -96,10 +96,7 @@ export default function ManageRolesPage() {
 
       {errorMessage && <p className="text-sm font-semibold text-rf-danger">{errorMessage}</p>}
 
-      {membersQuery.isLoading && <LoadingState message="Loading roles..." />}
-
-      {membersQuery.isError && <ErrorState message={toAppError(membersQuery.error).message} />}
-
+      <QueryView query={membersQuery} queryKey={rolesQueryKey} loadingMessage="Loading roles...">
       {membersQuery.data && (
         <div className="space-y-4">
           {activeMembers.map((member) => {
@@ -160,6 +157,7 @@ export default function ManageRolesPage() {
           })}
         </div>
       )}
+      </QueryView>
     </PageShell>
   );
 }
@@ -196,7 +194,8 @@ function RoleButton({
       type="button"
       onClick={onClick}
       disabled={active || disabled || pending}
-      className={`rounded-full border px-4 py-2 text-xs font-semibold transition ${
+      aria-pressed={active}
+      className={`inline-flex min-h-[44px] items-center justify-center rounded-full border px-4 text-sm font-semibold transition ${
         active ? toneConfig.activeClass : `bg-rf-surface-muted text-rf-text-muted ${toneConfig.borderClass}`
       } ${disabled && !active ? "opacity-50" : ""}`}
     >

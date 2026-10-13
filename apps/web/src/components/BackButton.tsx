@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 export function BackButton({
   fallbackHref = "/",
   label = "Back",
-  className = "back-button inline-flex rounded-full px-3 py-1 text-xs font-semibold text-rf-text-muted transition"
+  className = "back-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold text-rf-text-muted transition"
 }: {
   fallbackHref?: string;
   label?: string;

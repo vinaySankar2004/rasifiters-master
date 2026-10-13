@@ -147,10 +147,8 @@ export default function LoginPage() {
 
         {showSessionMessage && (
           <div
-            className={`mt-6 w-full rounded-2xl border px-4 py-3 text-sm font-semibold ${
-              passwordWasReset
-                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                : "border-amber-200 bg-amber-50 text-amber-700"
+            className={`mt-6 w-full rounded-2xl px-4 py-3 text-sm font-semibold ${
+              passwordWasReset ? "success-banner" : "warning-banner"
             }`}
           >
             {sessionMessage}
@@ -186,14 +184,15 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="-my-3 inline-flex min-h-[44px] items-center px-2 text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
             >
               {showPassword ? "Hide" : "Show"}
             </button>
           </label>
 
           {errorMessage && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+            <div className="error-banner rounded-2xl px-4 py-3 text-sm font-semibold">
               {errorMessage}
             </div>
           )}

@@ -22,14 +22,14 @@ import {
   PendingInvite,
   respondToInvite
 } from "@/lib/api/invites";
-import { formatDateRange, formatInviteDate } from "@/lib/format";
+import { formatDateRange, formatInviteDate, initials } from "@/lib/format";
 import { saveActiveProgram } from "@/lib/storage";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
-import { IconUser, IconLock, IconPalette, IconDocument, IconLogout, IconMail, IconSettings, IconUsers, SearchIcon } from "@/components/icons";
+import { IconUser, IconLock, IconPalette, IconDocument, IconHelp, IconLogout, IconMail, IconSettings, IconUsers, SearchIcon } from "@/components/icons";
 import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import { appError, toAppError, type AppError } from "@/lib/kit/app-error";
@@ -66,6 +66,8 @@ export default function ProgramsPage() {
   const [editTarget, setEditTarget] = useState<Program | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
   const [showSignOut, setShowSignOut] = useState(false);
+  // polish #22: one error banner for card actions (delete program, cancel request), as on iPhone.
+  const [actionError, setActionError] = useState<AppError | null>(null);
 
   const [declineInviteTarget, setDeclineInviteTarget] = useState<PendingInvite | null>(null);
   const [blockFutureInvites, setBlockFutureInvites] = useState(false);
@@ -119,6 +121,8 @@ export default function ProgramsPage() {
         status: payload.status
       });
     },
+    onMutate: () => setActionError(null),
+    onError: (error) => setActionError(toAppError(error)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["programs"] });
     }
@@ -193,10 +197,19 @@ export default function ProgramsPage() {
       }
       return deleteProgram(token, programId);
     },
+    onMutate: () => setActionError(null),
+    onError: (error) => setActionError(toAppError(error)),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["programs"] });
     }
   });
+
+  // polish #22: which invite button is mid-request ("Accepting…" / "Declining…" / "Revoking…").
+  const respondPending =
+    respondInviteMutation.isPending && respondInviteMutation.variables
+      ? { inviteId: respondInviteMutation.variables.inviteId, action: respondInviteMutation.variables.action }
+      : null;
+  const accountInitials = initials(session?.user.memberName || session?.user.username || "");
 
   // Server order is the source of truth; local state exists so dragging is optimistic.
   useEffect(() => {
@@ -305,7 +318,7 @@ export default function ProgramsPage() {
       type="button"
       onClick={() => openActions()}
       className="fab-button relative flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
-      aria-label={badge > 0 ? `Program actions, ${badge} waiting` : "Program actions"}
+      aria-label={badge > 0 ? `Program actions, ${badge} new` : "Program actions"}
     >
       <span className="text-xl font-semibold">+</span>
       {badge > 0 && (
@@ -438,12 +451,20 @@ export default function ProgramsPage() {
       </PageShell>
 
       {/* Kit stale state (the cached list stays): hidden while the global offline banner shows (offline wins); the
-          spacer keeps the list's end scrollable above the banner. */}
-      {programsState.status === "stale" && online && (
+          spacer keeps the list's end scrollable above the banner. Priority: action error (polish #22) > stale. */}
+      {actionError && online ? (
         <>
           <div aria-hidden="true" className="h-36" />
-          <FloatingBanner variant="stale" onRetry={() => void programsQuery.refetch()} />
+          <FloatingBanner variant="error" error={actionError} onDismiss={() => setActionError(null)} />
         </>
+      ) : (
+        programsState.status === "stale" &&
+        online && (
+          <>
+            <div aria-hidden="true" className="h-36" />
+            <FloatingBanner variant="stale" onRetry={() => void programsQuery.refetch()} />
+          </>
+        )
       )}
 
       <Modal open={showActions} onClose={() => setShowActions(false)}>
@@ -451,7 +472,8 @@ export default function ProgramsPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-rf-text">Program Actions</h2>
             <button
-              className="text-sm font-semibold text-rf-text-muted"
+              type="button"
+              className="inline-flex min-h-[44px] items-center px-2 text-sm font-semibold text-rf-text-muted"
               onClick={() => setShowActions(false)}
             >
               Done
@@ -489,6 +511,7 @@ export default function ProgramsPage() {
                   }
                   onRetry={() => void retryNow(queryClient, ["invites", isGlobalAdmin])}
                   respondError={respondError}
+                  pending={respondPending}
                   onAccept={async (invite) => {
                     try {
                       await respondInviteMutation.mutateAsync({
@@ -557,17 +580,24 @@ export default function ProgramsPage() {
             <button
               type="button"
               onClick={() => setShowAccount(false)}
-              className="pill-button rounded-full px-3 py-1 text-xs font-semibold"
+              className="pill-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
             >
               Done
             </button>
           </div>
 
           <div className="mt-6 space-y-3">
+            {/* polish #41: the profile row names the member (iOS ProfileRow parity). */}
             <AccountRow
-              title="My Profile"
-              subtitle="Update your personal info"
-              icon={<IconUser className="h-5 w-5" />}
+              title={session?.user.memberName || "My Profile"}
+              subtitle={session?.user.username ? `@${session.user.username}` : "Update your personal info"}
+              icon={
+                accountInitials ? (
+                  <span className="text-sm font-semibold">{accountInitials}</span>
+                ) : (
+                  <IconUser className="h-5 w-5" />
+                )
+              }
               onClick={() => {
                 setShowAccount(false);
                 router.push("/program/profile");
@@ -631,6 +661,16 @@ export default function ProgramsPage() {
               }}
             />
             <AccountRow
+              title="Support"
+              subtitle="Get help or contact us"
+              icon={<IconHelp className="h-5 w-5" />}
+              onClick={() => {
+                setShowAccount(false);
+                // polish #41: /support is a public page with no in-app back; open it beside the app, as the phones do.
+                window.open("/support", "_blank", "noopener");
+              }}
+            />
+            <AccountRow
               title="Sign Out"
               subtitle="Log out of your account"
               icon={<IconLogout className="h-5 w-5" />}
@@ -652,11 +692,12 @@ export default function ProgramsPage() {
             errorMessage={updateProgramMutation.isError ? toAppError(updateProgramMutation.error).message : null}
             onCancel={() => setEditTarget(null)}
             onSave={async (payload) => {
-              await updateProgramMutation.mutateAsync({
-                programId: editTarget.id,
-                ...payload
-              });
-              setEditTarget(null);
+              try {
+                await updateProgramMutation.mutateAsync({ programId: editTarget.id, ...payload });
+                setEditTarget(null);
+              } catch {
+                // errorMessage shows in the modal
+              }
             }}
           />
         )}
@@ -673,9 +714,9 @@ export default function ProgramsPage() {
         confirmLabel="Delete"
         danger
         onClose={() => setDeleteTarget(null)}
-        onConfirm={async () => {
-          if (!deleteTarget) return;
-          await deleteProgramMutation.mutateAsync(deleteTarget.id);
+        onConfirm={() => {
+          // polish #22: a failure shows in the action-error banner (mutation onError), never unhandled.
+          if (deleteTarget) deleteProgramMutation.mutate(deleteTarget.id);
         }}
       />
 
@@ -744,9 +785,10 @@ export default function ProgramsPage() {
                   // respondError shows in this modal
                 }
               }}
-              className="danger-pill rounded-2xl px-4 py-3 text-sm font-semibold"
+              disabled={respondInviteMutation.isPending}
+              className="danger-pill rounded-2xl px-4 py-3 text-sm font-semibold disabled:opacity-60"
             >
-              Decline
+              {respondInviteMutation.isPending ? "Declining…" : "Decline"}
             </button>
           </div>
         </div>
@@ -795,7 +837,7 @@ function ReorderableProgramRow({
             <button
               type="button"
               aria-label={`Reorder ${program.name}`}
-              className="cursor-grab touch-none p-1 text-rf-text-muted hover:text-rf-text active:cursor-grabbing"
+              className="flex h-11 w-11 cursor-grab touch-none items-center justify-center rounded-full text-rf-text-muted hover:text-rf-text active:cursor-grabbing"
               onPointerDown={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
@@ -846,7 +888,21 @@ function ProgramCard({
     >
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold text-rf-text">{program.name}</h3>
+          <h3 className="text-lg font-semibold text-rf-text">
+            {/* polish #37: the keyboard / screen-reader way in. A real button (the card's inner Edit / Delete / Cancel
+                stay separately reachable); stopPropagation so the card's own click doesn't open it twice. */}
+            <button
+              type="button"
+              disabled={!canOpen}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect();
+              }}
+              className="rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-rf-accent disabled:cursor-default"
+            >
+              {program.name}
+            </button>
+          </h3>
           <p className="mt-2 text-sm text-rf-text-muted">{formatDateRange(program.start_date, program.end_date)}</p>
         </div>
         <div className="flex items-center gap-2">
@@ -884,7 +940,7 @@ function ProgramCard({
               event.stopPropagation();
               onCancelRequest();
             }}
-            className="rounded-full bg-rf-surface-muted px-4 py-2 text-sm font-semibold text-rf-text"
+            className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text disabled:opacity-60"
             disabled={isUpdating}
           >
             Cancel request
@@ -900,7 +956,7 @@ function ProgramCard({
               event.stopPropagation();
               onEdit();
             }}
-            className="font-semibold text-rf-text-muted hover:text-rf-text"
+            className="inline-flex min-h-[44px] items-center px-1 font-semibold text-rf-text-muted hover:text-rf-text"
           >
             Edit
           </button>
@@ -910,7 +966,7 @@ function ProgramCard({
               event.stopPropagation();
               onDelete();
             }}
-            className="font-semibold text-rf-danger"
+            className="inline-flex min-h-[44px] items-center px-1 font-semibold text-rf-danger"
           >
             Delete
           </button>
@@ -936,7 +992,8 @@ function TabButton({ active, onClick, label }: { active: boolean; onClick: () =>
     <button
       type="button"
       data-active={active}
-      className="flex-1 rounded-full px-4 py-2 text-sm font-semibold transition"
+      aria-pressed={active}
+      className="flex min-h-[44px] flex-1 items-center justify-center rounded-full px-4 text-sm font-semibold transition"
       onClick={onClick}
     >
       {label}
@@ -951,6 +1008,7 @@ function InvitesTab({
   error,
   onRetry,
   respondError,
+  pending,
   onAccept,
   onDecline,
   onRevoke
@@ -962,6 +1020,8 @@ function InvitesTab({
   onRetry: () => void;
   /** The last accept / decline / revoke failure (kit message). */
   respondError: string | null;
+  /** The invite button mid-request (polish #22); every invite button is disabled while one runs. */
+  pending: { inviteId: string; action: "accept" | "decline" | "revoke" } | null;
   onAccept: (invite: PendingInvite) => void;
   onDecline: (invite: PendingInvite) => void;
   onRevoke: (invite: PendingInvite) => void;
@@ -1000,6 +1060,8 @@ function InvitesTab({
                   key={invite.invite_id}
                   invite={invite}
                   isAdmin
+                  pendingAction={pending && pending.inviteId === invite.invite_id ? pending.action : null}
+                  busy={pending !== null}
                   onAccept={() => onAccept(invite)}
                   onDecline={() => onDecline(invite)}
                   onRevoke={() => onRevoke(invite)}
@@ -1021,6 +1083,8 @@ function InvitesTab({
           key={invite.invite_id}
           invite={invite}
           isAdmin={false}
+          pendingAction={pending && pending.inviteId === invite.invite_id ? pending.action : null}
+          busy={pending !== null}
           onAccept={() => onAccept(invite)}
           onDecline={() => onDecline(invite)}
           onRevoke={null}
@@ -1033,12 +1097,16 @@ function InvitesTab({
 function InviteCard({
   invite,
   isAdmin,
+  pendingAction,
+  busy,
   onAccept,
   onDecline,
   onRevoke
 }: {
   invite: PendingInvite;
   isAdmin: boolean;
+  pendingAction: "accept" | "decline" | "revoke" | null;
+  busy: boolean;
   onAccept: () => void;
   onDecline: () => void;
   onRevoke: (() => void) | null;
@@ -1078,23 +1146,29 @@ function InviteCard({
 
       <div className="mt-4 flex flex-wrap gap-2">
         <button
-          className="rounded-full bg-rf-accent px-4 py-2 text-xs font-semibold text-black"
+          type="button"
+          disabled={busy}
+          className="inline-flex min-h-[44px] items-center rounded-full bg-rf-accent px-4 text-sm font-semibold text-black disabled:opacity-60"
           onClick={onAccept}
         >
-          Accept
+          {pendingAction === "accept" ? "Accepting…" : "Accept"}
         </button>
         <button
-          className="rounded-full bg-rf-surface-muted px-4 py-2 text-xs font-semibold text-rf-text"
+          type="button"
+          disabled={busy}
+          className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text disabled:opacity-60"
           onClick={onDecline}
         >
-          Decline
+          {pendingAction === "decline" ? "Declining…" : "Decline"}
         </button>
         {isAdmin && onRevoke && (
           <button
-            className="rounded-full border border-rf-danger px-4 py-2 text-xs font-semibold text-rf-danger"
+            type="button"
+            disabled={busy}
+            className="inline-flex min-h-[44px] items-center rounded-full border border-rf-danger px-4 text-sm font-semibold text-rf-danger disabled:opacity-60"
             onClick={onRevoke}
           >
-            Revoke
+            {pendingAction === "revoke" ? "Revoking…" : "Revoke"}
           </button>
         )}
       </div>
@@ -1121,13 +1195,17 @@ function CreateProgramTab({
   const [startDate, setStartDate] = useState(today);
   const [endDate, setEndDate] = useState(defaultEnd);
 
-  const isValid = name.trim().length > 0;
+  // polish #38 (programs: create date guard): the Edit rule. Start must be strictly before end (the server enforces
+  // it too).
+  const datesInvalid = startDate !== "" && endDate !== "" && startDate >= endDate;
+  const isValid = name.trim().length > 0 && !datesInvalid;
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-semibold text-rf-text">Program name</label>
+        <label htmlFor="create-program-name" className="text-sm font-semibold text-rf-text">Program name</label>
         <input
+          id="create-program-name"
           value={name}
           onChange={(event) => setName(event.target.value)}
           className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
@@ -1148,8 +1226,9 @@ function CreateProgramTab({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="min-w-0">
-          <label className="text-sm font-semibold text-rf-text">Start date</label>
+          <label htmlFor="create-program-start" className="text-sm font-semibold text-rf-text">Start date</label>
           <input
+            id="create-program-start"
             type="date"
             value={startDate}
             onChange={(event) => setStartDate(event.target.value)}
@@ -1157,8 +1236,9 @@ function CreateProgramTab({
           />
         </div>
         <div className="min-w-0">
-          <label className="text-sm font-semibold text-rf-text">End date</label>
+          <label htmlFor="create-program-end" className="text-sm font-semibold text-rf-text">End date</label>
           <input
+            id="create-program-end"
             type="date"
             value={endDate}
             onChange={(event) => setEndDate(event.target.value)}
@@ -1166,6 +1246,7 @@ function CreateProgramTab({
           />
         </div>
       </div>
+      {datesInvalid && <p className="text-xs font-semibold text-rf-danger">End date must be after the start date.</p>}
 
       {errorMessage && <p className="text-sm font-semibold text-rf-danger">{errorMessage}</p>}
 
@@ -1180,7 +1261,7 @@ function CreateProgramTab({
             end_date: endDate
           })
         }
-        className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black"
+        className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
       >
         {isSaving ? "Creating…" : "Create Program"}
       </button>
@@ -1205,20 +1286,26 @@ function EditProgramModal({
   const [status, setStatus] = useState((program.status ?? "planned").toLowerCase());
   const [startDate, setStartDate] = useState(program.start_date ?? "");
   const [endDate, setEndDate] = useState(program.end_date ?? "");
+  const datesInvalid = startDate !== "" && endDate !== "" && startDate >= endDate; // polish #38
 
   return (
     <div className="modal-surface w-full max-w-lg rounded-3xl p-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-rf-text">Edit Program</h2>
-        <button onClick={onCancel} className="pill-button rounded-full px-3 py-1 text-xs font-semibold">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="pill-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
+        >
           Close
         </button>
       </div>
 
       <div className="mt-4 space-y-4">
         <div>
-          <label className="text-sm font-semibold text-rf-text">Program name</label>
+          <label htmlFor="edit-program-name" className="text-sm font-semibold text-rf-text">Program name</label>
           <input
+            id="edit-program-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
@@ -1238,8 +1325,9 @@ function EditProgramModal({
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="min-w-0">
-            <label className="text-sm font-semibold text-rf-text">Start date</label>
+            <label htmlFor="edit-program-start" className="text-sm font-semibold text-rf-text">Start date</label>
             <input
+              id="edit-program-start"
               type="date"
               value={startDate ?? ""}
               onChange={(event) => setStartDate(event.target.value)}
@@ -1247,8 +1335,9 @@ function EditProgramModal({
             />
           </div>
           <div className="min-w-0">
-            <label className="text-sm font-semibold text-rf-text">End date</label>
+            <label htmlFor="edit-program-end" className="text-sm font-semibold text-rf-text">End date</label>
             <input
+              id="edit-program-end"
               type="date"
               value={endDate ?? ""}
               onChange={(event) => setEndDate(event.target.value)}
@@ -1256,6 +1345,7 @@ function EditProgramModal({
             />
           </div>
         </div>
+        {datesInvalid && <p className="text-xs font-semibold text-rf-danger">End date must be after the start date.</p>}
 
         {errorMessage && <p className="text-sm font-semibold text-rf-danger">{errorMessage}</p>}
 
@@ -1263,13 +1353,13 @@ function EditProgramModal({
           <button
             type="button"
             onClick={onCancel}
-            className="pill-button rounded-full px-4 py-2 text-sm font-semibold"
+            className="pill-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
           >
             Cancel
           </button>
           <button
             type="button"
-            disabled={isSaving}
+            disabled={isSaving || datesInvalid}
             onClick={() =>
               onSave({
                 name: name.trim(),
@@ -1278,7 +1368,7 @@ function EditProgramModal({
                 end_date: endDate || undefined
               })
             }
-            className="rounded-full bg-rf-accent px-5 py-2 text-sm font-semibold text-black"
+            className="inline-flex min-h-[44px] items-center rounded-full bg-rf-accent px-5 text-sm font-semibold text-black disabled:opacity-50"
           >
             {isSaving ? "Saving…" : "Save"}
           </button>
@@ -1315,15 +1405,15 @@ function AccountRow({
       }`}
     >
       <span
-        className={`flex h-10 w-10 items-center justify-center rounded-full ${
+        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
           isDanger ? "danger-icon" : "metric-pill text-rf-text"
         }`}
       >
         {icon}
       </span>
-      <div className="flex-1">
-        <p className={isDanger ? "text-rf-danger" : "text-rf-text"}>{title}</p>
-        <p className="text-xs text-rf-text-muted">{subtitle}</p>
+      <div className="min-w-0 flex-1">
+        <p className={`truncate ${isDanger ? "text-rf-danger" : "text-rf-text"}`}>{title}</p>
+        <p className="truncate text-xs text-rf-text-muted">{subtitle}</p>
       </div>
       {count ? (
         <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rf-danger px-1.5 text-[11px] font-semibold text-white">

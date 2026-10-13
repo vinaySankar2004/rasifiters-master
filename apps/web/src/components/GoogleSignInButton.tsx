@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GOOGLE_WEB_CLIENT_ID } from "@/lib/config";
+import { subscribeReconnect } from "@/lib/kit/use-online-status";
 
 // "Continue with Google" — OUR OWN button (not Google's branded widget). Uses the GSI auth-CODE flow
 // (google.accounts.oauth2.initCodeClient, popup ux): on click we open Google's account popup and get a
@@ -35,7 +36,10 @@ function loadGsi(): Promise<void> {
     script.async = true;
     script.defer = true;
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("gsi load failed"));
+    script.onerror = () => {
+      script.remove(); // polish #23: a failed tag must not stay behind; every later attempt would wait on it forever
+      reject(new Error("gsi load failed"));
+    };
     document.head.appendChild(script);
   });
 }
@@ -81,11 +85,19 @@ export function GoogleSignInButton({
   const codeClientRef = useRef<any>(null);
   const onProviderErrorRef = useRef(onProviderError);
   onProviderErrorRef.current = onProviderError;
+  // A ref, so a parent re-render with a new onCode never re-runs the GSI load / init.
+  const onCodeRef = useRef(onCode);
+  onCodeRef.current = onCode;
   const [ready, setReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (!GOOGLE_WEB_CLIENT_ID) return;
     let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
+    const retry = () => {
+      if (!cancelled) setAttempt((n) => n + 1);
+    };
 
     loadGsi()
       .then(() => {
@@ -95,7 +107,7 @@ export function GoogleSignInButton({
           scope: "openid email profile",
           ux_mode: "popup",
           callback: (response: { code?: string; error?: string }) => {
-            if (response?.code) onCode(response.code);
+            if (response?.code) onCodeRef.current(response.code);
             else if (response?.error && response.error !== "access_denied") onProviderErrorRef.current?.(response.error);
           },
           error_callback: (error: { type?: string }) => {
@@ -105,13 +117,18 @@ export function GoogleSignInButton({
         setReady(true);
       })
       .catch(() => {
-        // GSI unavailable (offline/blocked) — button stays disabled.
+        if (cancelled) return;
+        // polish #23: GSI unavailable (offline/blocked). Try again when the connection comes back or the tab regains focus.
+        unsubscribe = subscribeReconnect(retry);
+        window.addEventListener("focus", retry, { once: true });
       });
 
     return () => {
       cancelled = true;
+      unsubscribe?.();
+      window.removeEventListener("focus", retry);
     };
-  }, [onCode]);
+  }, [attempt]);
 
   const handleClick = useCallback(() => {
     codeClientRef.current?.requestCode();

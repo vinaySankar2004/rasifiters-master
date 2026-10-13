@@ -4,18 +4,17 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMemberMetrics, type MemberMetrics } from "@/lib/api/members";
-import { initials, downloadCsv } from "@/lib/format";
+import { initials, downloadCsv, stepsLabel } from "@/lib/format";
 import { metricsCsv, metricsCsvFilename } from "@/lib/metrics-csv";
-import { toAppError } from "@/lib/kit/app-error";
+import { fromQuery } from "@/lib/kit/async-state";
 import { FlameIcon, SearchIcon } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
-import { LoadingState } from "@/components/ui/LoadingState";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 
 const SORT_OPTIONS = [
   { value: "workouts", label: "Workouts" },
@@ -120,8 +119,9 @@ export default function MemberMetricsPage() {
     return params;
   }, [filters]);
 
+  const metricsKey = ["members", "metrics", programId, search, sortField, direction, JSON.stringify(filterParams)];
   const metricsQuery = useQuery({
-    queryKey: ["members", "metrics", programId, search, sortField, direction, JSON.stringify(filterParams)],
+    queryKey: metricsKey,
     queryFn: () =>
       fetchMemberMetrics(token, programId, {
         search,
@@ -143,7 +143,13 @@ export default function MemberMetricsPage() {
     <PageShell>
       <PageHeader
         title="Member Performance Metrics"
-        subtitle={metricsQuery.data ? `${metricsQuery.data.filtered} members` : "Loading metrics..."}
+        subtitle={
+          metricsQuery.data
+            ? `${metricsQuery.data.filtered} members`
+            : fromQuery(metricsQuery).status === "failed"
+              ? undefined
+              : "Loading metrics..."
+        }
         backHref="/members"
         actions={
           <button
@@ -180,10 +186,7 @@ export default function MemberMetricsPage() {
         </div>
       </GlassCard>
 
-      {metricsQuery.isLoading && <LoadingState message="Loading metrics..." />}
-
-      {metricsQuery.isError && <ErrorState message={toAppError(metricsQuery.error).message} />}
-
+      <QueryView query={metricsQuery} queryKey={metricsKey} loadingMessage="Loading metrics...">
       {metricsQuery.data && metricsQuery.data.members.length === 0 && (
         <EmptyState message="No members to display." />
       )}
@@ -195,6 +198,7 @@ export default function MemberMetricsPage() {
           ))}
         </div>
       )}
+      </QueryView>
 
       <Modal open={showFilters} onClose={() => setShowFilters(false)}>
         <MetricsFilterModal
@@ -227,6 +231,9 @@ function MemberMetricsCard({ metric, hero }: { metric: MemberMetrics; hero: stri
         return `${metric.longest_streak}`;
       case "avg_food_quality":
         return metric.avg_food_quality?.toFixed(1) ?? "—";
+      case "avg_steps":
+        // polish #39: Avg Steps sorts the list, so it is the big number; "—" when missing or hidden (S0 nulls it).
+        return metric.avg_steps == null ? "—" : stepsLabel(Math.round(metric.avg_steps));
       default:
         return `${metric.workouts}`;
     }

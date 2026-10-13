@@ -148,6 +148,16 @@ export function IconDocument({ className }: IconProps) {
   );
 }
 
+export function IconHelp({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <circle cx="10" cy="10" r="8" />
+      <path d="M7.8 7.6a2.3 2.3 0 0 1 4.4.9c0 1.5-2.2 1.9-2.2 3.2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="10" cy="14.2" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 export function IconLogout({ className }: IconProps) {
   return (
     <svg className={className} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">

@@ -3,13 +3,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchDistributionByDay } from "@/lib/api/summary";
-import { toAppError } from "@/lib/kit/app-error";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 import {
   CHART_COLORS,
   CHART_TOOLTIP_CONTENT_STYLE,
@@ -20,8 +18,9 @@ import {
 export default function DistributionPage() {
   const { token, programId } = useAuthGuard();
 
+  const distributionKey = ["summary", "distribution", programId];
   const distributionQuery = useQuery({
-    queryKey: ["summary", "distribution", programId],
+    queryKey: distributionKey,
     queryFn: () => fetchDistributionByDay(token, programId),
     enabled: !!token && !!programId
   });
@@ -46,14 +45,7 @@ export default function DistributionPage() {
     <PageShell maxWidth="4xl">
         <PageHeader title="Workout Distribution by Day" subtitle="Workouts" backHref="/summary" />
 
-        {distributionQuery.isLoading && (
-          <LoadingState message="Loading distribution..." />
-        )}
-
-        {distributionQuery.isError && (
-          <ErrorState message={toAppError(distributionQuery.error).message} />
-        )}
-
+        <QueryView query={distributionQuery} queryKey={distributionKey} loadingMessage="Loading distribution...">
         {distributionQuery.data && (
           <GlassCard padding="lg">
             {isEmpty ? (
@@ -79,6 +71,7 @@ export default function DistributionPage() {
             )}
           </GlassCard>
         )}
+        </QueryView>
     </PageShell>
   );
 }

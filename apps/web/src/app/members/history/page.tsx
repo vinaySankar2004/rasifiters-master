@@ -8,14 +8,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMemberHistory } from "@/lib/api/members";
-import { toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PeriodSelector, type PeriodKey } from "@/components/ui/PeriodSelector";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 import {
   CHART_COLORS,
   CHART_TOOLTIP_CONTENT_STYLE,
@@ -29,21 +27,23 @@ export default function MemberHistoryPage() {
   const params = useClientSearchParams();
   const memberId = params.get("memberId") ?? "";
   const memberName = params.get("name") ?? "Member";
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const canViewAny = isGlobalAdmin || program?.my_role === "admin" || program?.my_role === "logger";
   const loggedInUserId = session?.user.id;
   const [period, setPeriod] = useState<PeriodKey>("week");
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (!memberId) return;
     if (!canViewAny && memberId !== loggedInUserId) {
       router.push("/members");
     }
-  }, [memberId, canViewAny, loggedInUserId, router]);
+  }, [isBootstrapping, session, memberId, canViewAny, loggedInUserId, router]);
 
+  const historyKey = ["members", "history", programId, memberId, period];
   const historyQuery = useQuery({
-    queryKey: ["members", "history", programId, memberId, period],
+    queryKey: historyKey,
     queryFn: () => fetchMemberHistory(token, programId, memberId, period),
     enabled: !!token && !!programId && !!memberId
   });
@@ -56,10 +56,7 @@ export default function MemberHistoryPage() {
 
       <PeriodSelector value={period} onChange={setPeriod} />
 
-      {historyQuery.isLoading && <LoadingState message="Loading timeline..." />}
-
-      {historyQuery.isError && <ErrorState message={toAppError(historyQuery.error).message} />}
-
+      <QueryView query={historyQuery} queryKey={historyKey} loadingMessage="Loading timeline...">
       {historyQuery.data && (
         <GlassCard padding="lg">
           <div className="flex items-center justify-between">
@@ -97,6 +94,7 @@ export default function MemberHistoryPage() {
           )}
         </GlassCard>
       )}
+      </QueryView>
     </PageShell>
   );
 }

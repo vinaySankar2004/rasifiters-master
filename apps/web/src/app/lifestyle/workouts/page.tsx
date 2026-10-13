@@ -12,17 +12,20 @@ import {
   type ProgramWorkout
 } from "@/lib/api/program-workouts";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
-import { toAppError } from "@/lib/kit/app-error";
+import { toAppError, type AppError } from "@/lib/kit/app-error";
+import { useOnlineStatus } from "@/lib/kit/use-online-status";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { LoadingState } from "@/components/ui/LoadingState";
+import { QueryView } from "@/components/kit/QueryView";
+import { FloatingBanner } from "@/components/kit/FloatingBanner";
 
 export default function LifestyleWorkoutsPage() {
   const { session, program, token, programId } = useAuthGuard();
   const queryClient = useQueryClient();
+  const online = useOnlineStatus();
 
   const globalRole = session?.user.globalRole ?? "standard";
   const isGlobalAdmin = globalRole === "global_admin";
@@ -34,7 +37,12 @@ export default function LifestyleWorkoutsPage() {
   const [deleteTarget, setDeleteTarget] = useState<ProgramWorkout | null>(null);
   const [newWorkoutName, setNewWorkoutName] = useState("");
   const [editWorkoutName, setEditWorkoutName] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // polish #9: add / edit / delete errors show inside their own pop-up; a Hide/Show failure shows in the floating
+  // error banner (visible wherever the list is scrolled, as the programs card actions).
+  const [toggleError, setToggleError] = useState<AppError | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (editTarget) {
@@ -42,14 +50,15 @@ export default function LifestyleWorkoutsPage() {
     }
   }, [editTarget]);
 
+  const workoutsKey = ["lifestyle", "workouts", programId];
   const workoutsQuery = useQuery({
-    queryKey: ["lifestyle", "workouts", programId],
+    queryKey: workoutsKey,
     queryFn: () => fetchProgramWorkouts(token, programId),
     enabled: !!token && !!programId
   });
 
   const refreshWorkouts = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["lifestyle", "workouts", programId] });
+    await queryClient.invalidateQueries({ queryKey: workoutsKey });
   };
 
   const toggleGlobalMutation = useMutation({
@@ -58,17 +67,19 @@ export default function LifestyleWorkoutsPage() {
         program_id: programId,
         library_workout_id: workout.library_workout_id ?? ""
       }),
+    onMutate: () => setToggleError(null),
     onSuccess: refreshWorkouts,
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setToggleError(toAppError(error));
     }
   });
 
   const toggleCustomMutation = useMutation({
     mutationFn: (workout: ProgramWorkout) => toggleCustomWorkoutVisibility(token, workout.id),
+    onMutate: () => setToggleError(null),
     onSuccess: refreshWorkouts,
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setToggleError(toAppError(error));
     }
   });
 
@@ -80,7 +91,7 @@ export default function LifestyleWorkoutsPage() {
       setNewWorkoutName("");
     },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setAddError(toAppError(error).message);
     }
   });
 
@@ -92,15 +103,18 @@ export default function LifestyleWorkoutsPage() {
       setEditWorkoutName("");
     },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setEditError(toAppError(error).message);
     }
   });
 
   const deleteCustomMutation = useMutation({
     mutationFn: (id: string) => deleteCustomProgramWorkout(token, id),
-    onSuccess: refreshWorkouts,
+    onSuccess: () => {
+      setDeleteTarget(null);
+      void refreshWorkouts();
+    },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setDeleteError(toAppError(error).message);
     }
   });
 
@@ -125,10 +139,11 @@ export default function LifestyleWorkoutsPage() {
               <button
                 type="button"
                 onClick={() => {
-                  setErrorMessage(null);
+                  setToggleError(null);
+                  setAddError(null);
                   setShowAdd(true);
                 }}
-                className="rounded-full bg-rf-accent px-4 py-2 text-xs font-semibold text-black shadow"
+                className="inline-flex min-h-[44px] items-center rounded-full bg-rf-accent px-4 text-sm font-semibold text-black shadow"
               >
                 + Add workout
               </button>
@@ -145,18 +160,17 @@ export default function LifestyleWorkoutsPage() {
           />
         </GlassCard>
 
-        {errorMessage && <p className="text-sm font-semibold text-rf-danger">{errorMessage}</p>}
-
-        {workoutsQuery.isLoading && <LoadingState message="Loading workout types..." />}
-
+        <QueryView query={workoutsQuery} queryKey={workoutsKey} loadingMessage="Loading workout types...">
         {workoutsQuery.data && (
           <div className="space-y-6">
             <WorkoutSection
               title={`Available (${visibleWorkouts.length})`}
               workouts={visibleWorkouts}
+              searchActive={search.trim().length > 0}
               canManage={canManage}
               onEdit={(workout) => {
-                setErrorMessage(null);
+                setToggleError(null);
+                setEditError(null);
                 setEditTarget(workout);
               }}
               onToggle={(workout) =>
@@ -164,16 +178,21 @@ export default function LifestyleWorkoutsPage() {
                   ? toggleGlobalMutation.mutate(workout)
                   : toggleCustomMutation.mutate(workout)
               }
-              onDelete={(workout) => setDeleteTarget(workout)}
+              onDelete={(workout) => {
+                setDeleteError(null);
+                setDeleteTarget(workout);
+              }}
             />
 
             {canManage && hiddenWorkouts.length > 0 && (
               <WorkoutSection
                 title={`Hidden (${hiddenWorkouts.length})`}
                 workouts={hiddenWorkouts}
+                searchActive={search.trim().length > 0}
                 canManage={canManage}
                 onEdit={(workout) => {
-                  setErrorMessage(null);
+                  setToggleError(null);
+                  setEditError(null);
                   setEditTarget(workout);
                 }}
                 onToggle={(workout) =>
@@ -181,11 +200,15 @@ export default function LifestyleWorkoutsPage() {
                     ? toggleGlobalMutation.mutate(workout)
                     : toggleCustomMutation.mutate(workout)
                 }
-                onDelete={(workout) => setDeleteTarget(workout)}
+                onDelete={(workout) => {
+                  setDeleteError(null);
+                  setDeleteTarget(workout);
+                }}
               />
             )}
           </div>
         )}
+        </QueryView>
 
       <Modal open={showAdd} onClose={() => setShowAdd(false)}>
         <div className="modal-surface w-full max-w-md rounded-3xl p-6">
@@ -194,7 +217,7 @@ export default function LifestyleWorkoutsPage() {
             <button
               type="button"
               onClick={() => setShowAdd(false)}
-              className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
             >
               Close
             </button>
@@ -210,9 +233,13 @@ export default function LifestyleWorkoutsPage() {
                 autoCapitalize="words"
               />
             </div>
+            {addError && <p role="alert" className="text-sm font-semibold text-rf-danger">{addError}</p>}
             <button
               type="button"
-              onClick={() => addCustomMutation.mutate(newWorkoutName.trim())}
+              onClick={() => {
+                setAddError(null);
+                addCustomMutation.mutate(newWorkoutName.trim());
+              }}
               disabled={newWorkoutName.trim().length === 0 || addCustomMutation.isPending}
               className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
             >
@@ -230,7 +257,7 @@ export default function LifestyleWorkoutsPage() {
               <button
                 type="button"
                 onClick={() => setEditTarget(null)}
-                className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+                className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
               >
                 Close
               </button>
@@ -245,9 +272,13 @@ export default function LifestyleWorkoutsPage() {
                   autoCapitalize="words"
                 />
               </div>
+              {editError && <p role="alert" className="text-sm font-semibold text-rf-danger">{editError}</p>}
               <button
                 type="button"
-                onClick={() => editCustomMutation.mutate({ id: editTarget.id, name: editWorkoutName.trim() })}
+                onClick={() => {
+                  setEditError(null);
+                  editCustomMutation.mutate({ id: editTarget.id, name: editWorkoutName.trim() });
+                }}
                 disabled={editWorkoutName.trim().length === 0 || editCustomMutation.isPending}
                 className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
               >
@@ -265,11 +296,26 @@ export default function LifestyleWorkoutsPage() {
         confirmLabel="Delete"
         danger
         loading={deleteCustomMutation.isPending}
+        loadingLabel="Deleting…"
+        errorMessage={deleteError}
+        closeOnConfirm={false}
         onConfirm={() => {
+          setDeleteError(null);
           if (deleteTarget) deleteCustomMutation.mutate(deleteTarget.id);
         }}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => {
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
       />
+
+      {/* Hidden while the global offline banner shows (A6); the spacer keeps the list's end above the banner. */}
+      {toggleError && online && (
+        <>
+          <div aria-hidden="true" className="h-36" />
+          <FloatingBanner variant="error" error={toggleError} onDismiss={() => setToggleError(null)} />
+        </>
+      )}
     </PageShell>
   );
 }
@@ -277,6 +323,7 @@ export default function LifestyleWorkoutsPage() {
 function WorkoutSection({
   title,
   workouts,
+  searchActive,
   canManage,
   onEdit,
   onToggle,
@@ -284,6 +331,8 @@ function WorkoutSection({
 }: {
   title: string;
   workouts: ProgramWorkout[];
+  /** The list is filtered by a search (picks the honest empty line). */
+  searchActive: boolean;
   canManage: boolean;
   onEdit: (workout: ProgramWorkout) => void;
   onToggle: (workout: ProgramWorkout) => void;
@@ -293,7 +342,9 @@ function WorkoutSection({
     <GlassCard padding="md">
       <h2 className="text-sm font-semibold text-rf-text-muted">{title}</h2>
       {workouts.length === 0 ? (
-        <p className="mt-4 text-sm text-rf-text-muted">No workouts to show.</p>
+        <p className="mt-4 text-sm text-rf-text-muted">
+          {searchActive ? "No workout types match your search." : "No workout types yet."}
+        </p>
       ) : (
         <div className="mt-4 space-y-3">
           {workouts.map((workout) => {
@@ -319,7 +370,7 @@ function WorkoutSection({
                         <button
                           type="button"
                           onClick={() => onEdit(workout)}
-                          className="pill-button rounded-full px-3 py-1 text-xs font-semibold"
+                          className="pill-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
                         >
                           Edit
                         </button>
@@ -327,7 +378,7 @@ function WorkoutSection({
                       <button
                         type="button"
                         onClick={() => onToggle(workout)}
-                        className="pill-button rounded-full px-3 py-1 text-xs font-semibold"
+                        className="pill-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
                       >
                         {workout.is_hidden ? "Show" : "Hide"}
                       </button>
@@ -335,7 +386,7 @@ function WorkoutSection({
                         <button
                           type="button"
                           onClick={() => onDelete(workout)}
-                          className="danger-pill rounded-full px-3 py-1 text-xs font-semibold"
+                          className="danger-pill inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
                         >
                           Delete
                         </button>

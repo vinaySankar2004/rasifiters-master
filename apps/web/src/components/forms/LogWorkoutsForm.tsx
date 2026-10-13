@@ -1,13 +1,14 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { fetchProgramMembers, fetchPrograms, type Program } from "@/lib/api/programs";
-import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
+import type { Program } from "@/lib/api/programs";
 import type { BulkRowError, BulkWorkoutEntry } from "@/lib/api/logs";
 import { Select } from "@/components/Select";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { IconLock } from "@/components/icons";
+import { InlineLoadError } from "@/components/kit/QueryView";
+import { useLogLookups } from "@/lib/hooks/use-log-lookups";
 
 const MAX_ROWS = 200;
 
@@ -117,11 +118,10 @@ export function LogWorkoutsForm({
   rowErrors?: BulkRowError[] | null;
   variant?: "modal" | "page";
 }) {
-  const [members, setMembers] = useState<{ id: string; member_name: string }[]>([]);
-  const [workouts, setWorkouts] = useState<{ workout_name: string }[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
+  // polish #16: lookups load with an error state + reload on reconnect (lib/hooks/use-log-lookups.ts).
+  const lookups = useLogLookups(token, programId, true);
+  const { members, workouts, programs } = lookups;
   const [selectedProgramIds, setSelectedProgramIds] = useState<Set<string>>(new Set([programId]));
-  const [lookupsLoaded, setLookupsLoaded] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [submittedOrder, setSubmittedOrder] = useState<number[]>([]);
   const nextUid = useRef(0);
@@ -139,32 +139,6 @@ export function LogWorkoutsForm({
   // (a stale/unhealed session), submitting would send member_id:"" and the backend rejects with a confusing
   // "You can only log workouts for yourself." Block the save and tell the user how to recover instead.
   const identityMissing = ignoreMember && !(selfMemberId && selfMemberId.trim());
-
-  useEffect(() => {
-    let active = true;
-    const loadLookups = async () => {
-      if (!token || !programId) return;
-      try {
-        const [membersData, workoutsData, programsData] = await Promise.all([
-          fetchProgramMembers(token, programId),
-          fetchProgramWorkouts(token, programId),
-          fetchPrograms(token)
-        ]);
-        if (!active) return;
-        setMembers(membersData);
-        setWorkouts(workoutsData.filter((workout) => !workout.is_hidden));
-        setPrograms(programsData);
-      } catch {
-        // Leave lists empty; the empty-state hint covers this.
-      } finally {
-        if (active) setLookupsLoaded(true);
-      }
-    };
-    loadLookups();
-    return () => {
-      active = false;
-    };
-  }, [token, programId]);
 
   // When a non-privileged program joins the selection, every row falls back to self.
   useEffect(() => {
@@ -292,8 +266,8 @@ export function LogWorkoutsForm({
     );
   };
 
-  const noWorkouts = lookupsLoaded && workoutOptions.length === 0;
-  const noMembers = lookupsLoaded && effectiveCanSelectAny && memberOptions.length === 0;
+  const noWorkouts = lookups.loaded && workoutOptions.length === 0;
+  const noMembers = lookups.loaded && effectiveCanSelectAny && memberOptions.length === 0;
   const noLookups = noWorkouts || noMembers;
   const atMax = rows.length >= MAX_ROWS;
   const columnCount = effectiveCanSelectAny ? 5 : 4;
@@ -312,6 +286,7 @@ export function LogWorkoutsForm({
           You&apos;re not an admin or logger in every selected program — logging for yourself only.
         </p>
       )}
+      {lookups.error && <InlineLoadError error={lookups.error} onRetry={lookups.reload} />}
       {noLookups && (
         <p className="rounded-2xl bg-rf-surface-muted px-4 py-3 text-sm text-rf-text-muted">
           {noMembers
@@ -339,7 +314,7 @@ export function LogWorkoutsForm({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {rows.map((r, index) => {
                   const errs = errorsForRow(r);
                   const rowLevelError = backendRowLevelByUid.get(r.uid);
                   return (
@@ -393,7 +368,7 @@ export function LogWorkoutsForm({
                         <button
                           type="button"
                           onClick={() => removeRow(r.uid)}
-                          aria-label="Remove row"
+                          aria-label={`Remove entry ${index + 1}`}
                           className="mt-2 flex h-9 w-9 items-center justify-center rounded-full bg-rf-surface-muted text-rf-text-muted transition hover:bg-rf-surface hover:text-rf-danger"
                         >
                           ✕
@@ -434,7 +409,7 @@ export function LogWorkoutsForm({
                   <button
                     type="button"
                     onClick={() => removeRow(r.uid)}
-                    className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted transition hover:bg-rf-surface hover:text-rf-danger"
+                    className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted transition hover:bg-rf-surface hover:text-rf-danger"
                   >
                     Remove
                   </button>

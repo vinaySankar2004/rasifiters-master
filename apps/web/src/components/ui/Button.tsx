@@ -11,7 +11,7 @@ const variantClasses = {
 } as const;
 
 const sizeClasses = {
-  sm: "rounded-full px-3 py-1 text-xs font-semibold",
+  sm: "rounded-full px-4 min-h-[44px] text-sm font-semibold",
   md: "rounded-2xl px-4 py-3 text-sm font-semibold",
   lg: "rounded-full px-8 min-h-[50px] text-base font-semibold"
 } as const;

@@ -10,7 +10,9 @@ import { fetchMembershipDetails, leaveProgram, type MembershipDetail } from "@/l
 import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
 import { formatDateRange, initials } from "@/lib/format";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
-import { toAppError } from "@/lib/kit/app-error";
+import { appError, toAppError } from "@/lib/kit/app-error";
+import { fromQuery, retryNow } from "@/lib/kit/async-state";
+import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { NOTIFICATION_COPY } from "@/lib/api/notifications";
 import { useUnreadCount } from "@/lib/notifications/queries";
 import { INBOX_HREF } from "@/lib/notifications/targets";
@@ -18,6 +20,8 @@ import { PEOPLE_COPY, PEOPLE_LIVE } from "@/lib/api/people";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { ErrorView } from "@/components/kit/ErrorView";
+import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
 import {
@@ -31,6 +35,7 @@ import {
   IconLock,
   IconPalette,
   IconDocument,
+  IconHelp,
   IconLogout
 } from "@/components/icons";
 
@@ -48,18 +53,44 @@ export default function ProgramPage() {
   const canLeaveProgram = !isGlobalAdmin;
 
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showSignOut, setShowSignOut] = useState(false);
 
+  const membershipKey = ["program", "membership-details", programId];
+  const workoutsKey = ["program", "workouts", programId];
   const membershipQuery = useQuery({
-    queryKey: ["program", "membership-details", programId],
+    queryKey: membershipKey,
     queryFn: () => fetchMembershipDetails(token, programId),
     enabled: !!token && !!programId
   });
 
   const workoutsQuery = useQuery({
-    queryKey: ["program", "workouts", programId],
+    queryKey: workoutsKey,
     queryFn: () => fetchProgramWorkouts(token, programId),
     enabled: !!token && !!programId
   });
+
+  // polish #33 (the Summary recipe): spinner → ErrorView + Retry → honest lines; never "0 active" for a failed read.
+  // The workout types only count on the admin view (the member view never shows them).
+  const online = useOnlineStatus();
+  const membershipState = fromQuery(membershipQuery);
+  const workoutsState = fromQuery(workoutsQuery);
+  const membersPending = membershipState.status === "loading" || membershipState.status === "idle";
+  const membersFailed = membershipState.status === "failed";
+  const workoutsPending = workoutsState.status === "loading" || workoutsState.status === "idle";
+  const workoutsFailed = workoutsState.status === "failed";
+  const loadError =
+    membershipState.status === "failed"
+      ? membershipState.error
+      : isProgramAdmin && workoutsState.status === "failed"
+        ? workoutsState.error
+        : null;
+  const loadStale =
+    !loadError && (membershipState.status === "stale" || (isProgramAdmin && workoutsState.status === "stale"));
+  const retryLoads = () => {
+    if (membershipQuery.isError || membershipQuery.failureCount > 0) void retryNow(queryClient, membershipKey);
+    if (workoutsQuery.isError || workoutsQuery.failureCount > 0) void retryNow(queryClient, workoutsKey);
+  };
+  useRefetchOnReconnect([membershipQuery, workoutsQuery]);
 
   const leaveMutation = useMutation({
     mutationFn: () => leaveProgram(token, programId),
@@ -105,6 +136,7 @@ export default function ProgramPage() {
         </header>
 
         {errorMessage && <ErrorState message={errorMessage} />}
+        {loadError && <ErrorView error={online ? loadError : appError("offline")} onRetry={retryLoads} />}
 
         {isProgramAdmin ? (
           <div className="space-y-5">
@@ -157,9 +189,11 @@ export default function ProgramPage() {
                   <div>
                     <p>{PEOPLE_LIVE ? PEOPLE_COPY.title : "View Members"}</p>
                     <p className="text-xs text-rf-text-muted">
-                      {membershipQuery.isLoading
+                      {membersPending
                         ? "Loading..."
-                        : PEOPLE_LIVE
+                        : membersFailed
+                          ? "—"
+                          : PEOPLE_LIVE
                           ? PEOPLE_COPY.enrolled(activeMembers)
                           : `${activeMembers} active`}
                     </p>
@@ -189,13 +223,13 @@ export default function ProgramPage() {
             {canManageRoles && (
               <SectionCard title="Role Management" icon={<IconKey className="h-4 w-4" />}>
                 <div className="space-y-4">
-                  {membershipQuery.isLoading && (
+                  {membersPending && (
                     <div className="rounded-2xl bg-rf-surface-muted px-4 py-3 text-sm text-rf-text-muted">
                       Loading roles...
                     </div>
                   )}
 
-                  {!membershipQuery.isLoading && admins.length === 0 && loggers.length === 0 && (
+                  {!membersPending && !membersFailed && admins.length === 0 && loggers.length === 0 && (
                     <div className="rounded-2xl bg-rf-surface-muted px-4 py-3 text-sm text-rf-text-muted">
                       No admins or loggers assigned.
                     </div>
@@ -240,9 +274,11 @@ export default function ProgramPage() {
                   <div>
                     <p>Workout Types</p>
                     <p className="text-xs text-rf-text-muted">
-                      {workoutsQuery.isLoading
+                      {workoutsPending
                         ? "Loading..."
-                        : customWorkouts.length > 0
+                        : workoutsFailed
+                          ? "—"
+                          : customWorkouts.length > 0
                           ? `${visibleWorkouts.length} available, ${customWorkouts.length} custom`
                           : `${visibleWorkouts.length} types available`}
                     </p>
@@ -254,7 +290,13 @@ export default function ProgramPage() {
 
             {canLeaveProgram && <LeaveProgramButton onClick={() => setShowLeaveConfirm(true)} />}
 
-            <MyAccountSection onSignOut={signOut} isGlobalAdmin={isGlobalAdmin} inboxBadge={inboxBadge} />
+            <MyAccountSection
+              name={session?.user.memberName ?? ""}
+              username={session?.user.username ?? ""}
+              onSignOut={() => setShowSignOut(true)}
+              isGlobalAdmin={isGlobalAdmin}
+              inboxBadge={inboxBadge}
+            />
           </div>
         ) : (
           <div className="space-y-5">
@@ -304,7 +346,7 @@ export default function ProgramPage() {
                 <Divider />
                 <InfoRow
                   label="Active Members"
-                  value={membershipQuery.isLoading ? "—" : `${activeMembers}`}
+                  value={membersPending || membersFailed ? "—" : `${activeMembers}`}
                   alignEnd
                 />
               </div>
@@ -327,7 +369,13 @@ export default function ProgramPage() {
 
             {canLeaveProgram && <LeaveProgramButton onClick={() => setShowLeaveConfirm(true)} />}
 
-            <MyAccountSection onSignOut={signOut} isGlobalAdmin={isGlobalAdmin} inboxBadge={inboxBadge} />
+            <MyAccountSection
+              name={session?.user.memberName ?? ""}
+              username={session?.user.username ?? ""}
+              onSignOut={() => setShowSignOut(true)}
+              isGlobalAdmin={isGlobalAdmin}
+              inboxBadge={inboxBadge}
+            />
           </div>
         )}
       </PageShell>
@@ -341,6 +389,27 @@ export default function ProgramPage() {
         onConfirm={() => leaveMutation.mutate()}
         onClose={() => setShowLeaveConfirm(false)}
       />
+
+      {/* polish #41: the Program tab's Sign Out confirms first (the picker keeps its own "Sign Out" title). */}
+      <ConfirmDialog
+        open={showSignOut}
+        title="Sign Out?"
+        description="Are you sure you want to sign out?"
+        confirmLabel="Sign Out"
+        danger
+        onClose={() => setShowSignOut(false)}
+        onConfirm={async () => {
+          await signOut();
+          router.push("/login");
+        }}
+      />
+
+      {loadStale && online && (
+        <>
+          <div aria-hidden="true" className="h-36" />
+          <FloatingBanner variant="stale" onRetry={retryLoads} />
+        </>
+      )}
     </>
   );
 }
@@ -453,11 +522,15 @@ function computeProgramProgress(startDate: string | null, endDate: string | null
 }
 
 function MyAccountSection({
+  name,
+  username,
   onSignOut,
   isGlobalAdmin,
   inboxBadge
 }: {
-  onSignOut: () => Promise<void>;
+  name: string;
+  username: string;
+  onSignOut: () => void;
   isGlobalAdmin: boolean;
   inboxBadge: number;
 }) {
@@ -476,12 +549,13 @@ function MyAccountSection({
           onClick={() => router.push("/program/profile")}
           className="flex w-full items-center gap-4 rounded-2xl border border-rf-border bg-rf-surface-muted px-4 py-3 text-left text-sm font-semibold text-rf-text shadow-sm transition hover:border-rf-text"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600">
-            <IconUser className="h-5 w-5" />
+          {/* polish #41: the profile row names the member (iOS ProfileRow parity). */}
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-semibold text-amber-600">
+            {initials(name || username) || <IconUser className="h-5 w-5" />}
           </span>
-          <div>
-            <p>My Profile</p>
-            <p className="text-xs text-rf-text-muted">Update your personal info</p>
+          <div className="min-w-0">
+            <p className="truncate">{name || "My Profile"}</p>
+            <p className="truncate text-xs text-rf-text-muted">{username ? `@${username}` : "Update your personal info"}</p>
           </div>
           <span className="ml-auto text-rf-text-muted">›</span>
         </button>
@@ -557,9 +631,18 @@ function MyAccountSection({
           <span className="ml-auto text-rf-text-muted">›</span>
         </button>
 
+        {/* polish #41: /support is a public page with no in-app back; open it beside the app, as the phones do. */}
+        <AccountLinkRow
+          title="Support"
+          subtitle="Get help or contact us"
+          icon={<IconHelp className="h-5 w-5" />}
+          iconClass="bg-amber-100 text-amber-600"
+          onClick={() => window.open("/support", "_blank", "noopener")}
+        />
+
         <button
           type="button"
-          onClick={() => onSignOut()}
+          onClick={onSignOut}
           className="danger-row flex w-full items-center gap-4 rounded-2xl px-4 py-3 text-left text-sm font-semibold shadow-sm"
         >
           <span className="danger-icon flex h-10 w-10 items-center justify-center rounded-full">

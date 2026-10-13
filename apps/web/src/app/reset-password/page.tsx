@@ -133,12 +133,12 @@ export default function ResetPasswordPage() {
         </div>
 
         {submitted ? (
-          <div className="mt-10 w-full rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm font-semibold text-emerald-700 sm:text-base">
+          <div className="success-banner mt-10 w-full rounded-2xl px-4 py-4 text-sm font-semibold sm:text-base">
             Your password has been reset. Redirecting you to login…
           </div>
         ) : linkError ? (
           <div className="mt-10 w-full">
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm font-semibold text-amber-700 sm:text-base">
+            <div className="warning-banner rounded-2xl px-4 py-4 text-sm font-semibold sm:text-base">
               {linkError}
             </div>
             <div className="mt-6 text-center text-sm sm:text-base">
@@ -167,7 +167,8 @@ export default function ResetPasswordPage() {
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
-                className="text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="-my-3 inline-flex min-h-[44px] items-center px-2 text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
               >
                 {showPassword ? "Hide" : "Show"}
               </button>
@@ -197,7 +198,7 @@ export default function ResetPasswordPage() {
             )}
 
             {errorMessage && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+              <div className="error-banner rounded-2xl px-4 py-3 text-sm font-semibold">
                 {errorMessage}
               </div>
             )}

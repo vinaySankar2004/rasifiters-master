@@ -22,6 +22,7 @@ import { decodeJwtPayload, resolveGlobalRole, type DecodedAuthToken } from "@/li
 import { GOOGLE_WEB_CLIENT_ID, PRIVACY_POLICY_URL } from "@/lib/config";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { credentialErrorMessage } from "@/lib/kit/app-error";
+import { ApiError } from "@/lib/api/client";
 import { KIT_COPY } from "@/lib/kit/copy";
 import { reportProviderFailure, reportSignInFailure } from "@/lib/events/client-events";
 
@@ -34,6 +35,14 @@ import { reportProviderFailure, reportSignInFailure } from "@/lib/events/client-
 
 // Inline email-format validation — same loose, deliberately-permissive regex as forgot-password (D-C1).
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// polish #17: the server's 400 "Username already exists" / "Email already exists" belongs to the username step.
+function isTakenError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 400 && /already exists/i.test(error.message);
+}
+
+// polish #17 (auth: the sign-up retry rule): a sign-in that fails right after a successful register.
+const ACCOUNT_CREATED_SIGN_IN = "Account created. Please sign in.";
 
 export default function CreateAccountPage() {
   const router = useRouter();
@@ -57,6 +66,10 @@ export default function CreateAccountPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // polish #17 (auth: the sign-up retry rule): once register succeeded, a retry only signs in with the registered
+  // credentials (a second register would answer "already exists"), and Back is hidden: the account exists, earlier
+  // steps can't change it. A register whose reply was lost is a recorded known limit. Memory only; never persisted.
+  const [registeredAs, setRegisteredAs] = useState<{ username: string; password: string } | null>(null);
 
   // Consistent with splash/login/forgot/reset: an already-authenticated visitor is sent to /programs (D-C2).
   useEffect(() => {
@@ -183,23 +196,32 @@ export default function CreateAccountPage() {
   const submitEmail = async () => {
     setIsLoading(true);
     setErrorMessage(null);
-    let registered = false;
+    let registered = registeredAs !== null;
+    const credentials = registeredAs ?? { username: username.trim(), password };
     try {
-      await registerAccount({
-        first_name: firstName.trim(),
-        last_name: lastName.trim(),
-        username: username.trim(),
-        email: trimmedEmail,
-        password,
-        ...(gender.trim().length > 0 ? { gender: gender.trim() } : {})
-      });
-      registered = true;
+      if (!registeredAs) {
+        await registerAccount({
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          username: credentials.username,
+          email: trimmedEmail,
+          password: credentials.password,
+          ...(gender.trim().length > 0 ? { gender: gender.trim() } : {})
+        });
+        registered = true;
+        setRegisteredAs(credentials);
+      }
       // register returns no session token (auth SPEC §3) — sign in immediately (faithful auto-login).
-      const response = await login(username.trim(), password);
+      const response = await login(credentials.username, credentials.password);
       applyLogin(response);
     } catch (error) {
-      if (registered) reportSignInFailure("password", error);
-      setErrorMessage(credentialErrorMessage(error));
+      if (registered) {
+        reportSignInFailure("password", error);
+        setErrorMessage(ACCOUNT_CREATED_SIGN_IN);
+      } else {
+        if (isTakenError(error)) setStep(2); // polish #17: show it on the username/email step
+        setErrorMessage(credentialErrorMessage(error));
+      }
     } finally {
       setIsLoading(false);
     }
@@ -391,7 +413,8 @@ export default function CreateAccountPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((prev) => !prev)}
-                  className="text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="-my-3 inline-flex min-h-[44px] items-center px-2 text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -409,7 +432,8 @@ export default function CreateAccountPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  className="-my-3 inline-flex min-h-[44px] items-center px-2 text-xs font-semibold text-rf-text-muted transition hover:text-rf-text sm:text-sm"
                 >
                   {showConfirmPassword ? "Hide" : "Show"}
                 </button>
@@ -434,13 +458,13 @@ export default function CreateAccountPage() {
           )}
 
           {errorMessage && (
-            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+            <div className="error-banner rounded-2xl px-4 py-3 text-sm font-semibold">
               {errorMessage}
             </div>
           )}
 
           <div className="mt-2 flex items-center gap-3">
-            {step > 1 && (
+            {step > 1 && !registeredAs && (
               <button
                 type="button"
                 onClick={goBack}

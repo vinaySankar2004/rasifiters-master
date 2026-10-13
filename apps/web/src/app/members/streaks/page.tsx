@@ -7,33 +7,33 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMemberStreaks } from "@/lib/api/members";
-import { toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 
 export default function MemberStreaksPage() {
   const router = useRouter();
   const params = useClientSearchParams();
   const memberId = params.get("memberId") ?? "";
   const memberName = params.get("name") ?? "Member";
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const canViewAny = isGlobalAdmin || program?.my_role === "admin" || program?.my_role === "logger";
   const loggedInUserId = session?.user.id;
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (!memberId) return;
     if (!canViewAny && memberId !== loggedInUserId) {
       router.push("/members");
     }
-  }, [memberId, canViewAny, loggedInUserId, router]);
+  }, [isBootstrapping, session, memberId, canViewAny, loggedInUserId, router]);
 
+  const streaksKey = ["members", "streaks", programId, memberId];
   const streaksQuery = useQuery({
-    queryKey: ["members", "streaks", programId, memberId],
+    queryKey: streaksKey,
     queryFn: () => fetchMemberStreaks(token, programId, memberId),
     enabled: !!token && !!programId && !!memberId
   });
@@ -42,10 +42,7 @@ export default function MemberStreaksPage() {
     <PageShell maxWidth="3xl">
       <PageHeader title="Streak Stats" subtitle={memberName} backHref="/members" />
 
-      {streaksQuery.isLoading && <LoadingState message="Loading streaks..." />}
-
-      {streaksQuery.isError && <ErrorState message={toAppError(streaksQuery.error).message} />}
-
+      <QueryView query={streaksQuery} queryKey={streaksKey} loadingMessage="Loading streaks...">
       {streaksQuery.data && (
         <GlassCard padding="lg">
           <div className="grid gap-4 md:grid-cols-2">
@@ -83,6 +80,7 @@ export default function MemberStreaksPage() {
           </div>
         </GlassCard>
       )}
+      </QueryView>
     </PageShell>
   );
 }

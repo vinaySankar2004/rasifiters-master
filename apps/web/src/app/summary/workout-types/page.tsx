@@ -3,14 +3,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchWorkoutTypes } from "@/lib/api/summary";
-import { toAppError } from "@/lib/kit/app-error";
 import { workoutTypeColor } from "@/lib/workout-colors";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 import { formatTotalDuration } from "@/lib/format";
 import {
   CHART_TOOLTIP_CONTENT_STYLE,
@@ -21,8 +19,9 @@ import {
 export default function WorkoutTypesPage() {
   const { token, programId } = useAuthGuard();
 
+  const typesKey = ["summary", "workoutTypes", programId];
   const typesQuery = useQuery({
-    queryKey: ["summary", "workoutTypes", programId],
+    queryKey: typesKey,
     queryFn: () => fetchWorkoutTypes(token, programId, 100),
     enabled: !!token && !!programId
   });
@@ -33,14 +32,7 @@ export default function WorkoutTypesPage() {
     <PageShell maxWidth="4xl">
         <PageHeader title="Workout Types" subtitle="Program to date" backHref="/summary" />
 
-        {typesQuery.isLoading && (
-          <LoadingState message="Loading workout types..." />
-        )}
-
-        {typesQuery.isError && (
-          <ErrorState message={toAppError(typesQuery.error).message} />
-        )}
-
+        <QueryView query={typesQuery} queryKey={typesKey} loadingMessage="Loading workout types...">
         {typesQuery.data && (
           <GlassCard padding="lg">
             {data.length === 0 ? (
@@ -95,6 +87,7 @@ export default function WorkoutTypesPage() {
             )}
           </GlassCard>
         )}
+        </QueryView>
     </PageShell>
   );
 }

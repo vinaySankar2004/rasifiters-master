@@ -7,37 +7,41 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMembershipDetails, removeMembership, updateMembership } from "@/lib/api/programs";
-import { toAppError } from "@/lib/kit/app-error";
+import { appError, toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { initials } from "@/lib/format";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { ErrorView } from "@/components/kit/ErrorView";
+import { QueryView } from "@/components/kit/QueryView";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 export default function MemberDetailPage() {
   const router = useRouter();
   const searchParams = useClientSearchParams();
   const memberId = searchParams.get("memberId") ?? "";
-  const { session, token, programId } = useAuthGuard();
+  // The search params are empty on the first render (and in the static HTML): judge "no member id" only after mount.
+  const [paramsReady, setParamsReady] = useState(false);
+  useEffect(() => setParamsReady(true), []);
+  const { session, token, programId, isBootstrapping } = useAuthGuard();
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
 
   const [joinedAt, setJoinedAt] = useState("");
-  const [isActive, setIsActive] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (!isGlobalAdmin) {
       router.push("/members");
     }
-  }, [isGlobalAdmin, router]);
+  }, [isBootstrapping, session, isGlobalAdmin, router]);
 
+  const detailsKey = ["members", "details", programId];
   const membersQuery = useQuery({
-    queryKey: ["members", "details", programId],
+    queryKey: detailsKey,
     queryFn: () => fetchMembershipDetails(token, programId),
     enabled: !!token && !!programId && !!memberId
   });
@@ -51,7 +55,6 @@ export default function MemberDetailPage() {
   useEffect(() => {
     if (!member) return;
     setJoinedAt(member.joined_at ?? "");
-    setIsActive(member.is_active ?? true);
   }, [member]);
 
   const handleSave = async () => {
@@ -62,8 +65,9 @@ export default function MemberDetailPage() {
       await updateMembership(token, {
         program_id: programId,
         member_id: member.member_id,
-        joined_at: joinedAt || null,
-        is_active: isActive
+        // polish #11 (program-memberships: Active toggle retired): only joined_at; the server still accepts
+        // is_active from live binaries.
+        joined_at: joinedAt || null
       });
       router.push("/members/list");
     } catch (error) {
@@ -92,11 +96,10 @@ export default function MemberDetailPage() {
     <PageShell maxWidth="3xl">
       <PageHeader title="Member Details" backHref="/members/list" />
 
-      {membersQuery.isLoading && <LoadingState message="Loading member..." />}
+      {paramsReady && !memberId && <ErrorView error={appError("notFound")} />}
 
-      {membersQuery.isError && <ErrorState message={toAppError(membersQuery.error).message} />}
-
-      {member && (
+      <QueryView query={membersQuery} queryKey={detailsKey} loadingMessage="Loading member...">
+        {member ? (
         <GlassCard padding="lg">
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rf-surface-muted text-lg font-semibold">
@@ -129,18 +132,6 @@ export default function MemberDetailPage() {
                 className="input-shell mt-2 w-full rounded-2xl px-4 py-3 text-sm font-medium"
               />
             </div>
-
-            <label className="flex items-center gap-3 text-sm font-semibold text-rf-text">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(event) => {
-                  setIsActive(event.target.checked);
-                  if (errorMessage) setErrorMessage(null);
-                }}
-              />
-              Active Membership
-            </label>
           </div>
 
           {errorMessage && <p className="mt-4 text-sm font-semibold text-rf-danger">{errorMessage}</p>}
@@ -164,7 +155,10 @@ export default function MemberDetailPage() {
             </button>
           </div>
         </GlassCard>
-      )}
+        ) : memberId ? (
+          <ErrorView error={appError("notFound")} />
+        ) : null}
+      </QueryView>
 
       <ConfirmDialog
         open={showRemoveConfirm}

@@ -18,7 +18,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { LoadingState } from "@/components/ui/LoadingState";
+import { QueryView } from "@/components/kit/QueryView";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 const SORT_FIELDS = [
@@ -53,7 +53,7 @@ export default function MemberHealthPage() {
   const params = useClientSearchParams();
   const memberId = params.get("memberId") ?? "";
   const memberName = params.get("name") ?? "Member";
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
   const queryClient = useQueryClient();
 
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
@@ -81,14 +81,17 @@ export default function MemberHealthPage() {
   const [editSleepMinutes, setEditSleepMinutes] = useState("");
   const [editDiet, setEditDiet] = useState("");
   const [editSteps, setEditSteps] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // polish #9: each error shows where the user is looking, inside the edit pop-up or the delete dialog.
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (!memberId) return;
     if (!canViewAny && memberId !== loggedInUserId) {
       router.push("/members");
     }
-  }, [memberId, canViewAny, loggedInUserId, router]);
+  }, [isBootstrapping, session, memberId, canViewAny, loggedInUserId, router]);
 
   const minSleepHoursNum = useMemo(() => {
     const total = (Number(minSleepHours) || 0) + (Number(minSleepMinutes) || 0) / 60;
@@ -117,23 +120,24 @@ export default function MemberHealthPage() {
     return maxSteps.trim() !== "" && !Number.isNaN(n) && n >= 0 ? n : undefined;
   }, [maxSteps]);
 
+  const healthKey = [
+    "members",
+    "health",
+    programId,
+    memberId,
+    sortField,
+    sortDir,
+    startDate,
+    endDate,
+    minSleepHoursNum,
+    maxSleepHoursNum,
+    minDietNum,
+    maxDietNum,
+    minStepsNum,
+    maxStepsNum
+  ];
   const healthQuery = useQuery({
-    queryKey: [
-      "members",
-      "health",
-      programId,
-      memberId,
-      sortField,
-      sortDir,
-      startDate,
-      endDate,
-      minSleepHoursNum,
-      maxSleepHoursNum,
-      minDietNum,
-      maxDietNum,
-      minStepsNum,
-      maxStepsNum
-    ],
+    queryKey: healthKey,
     queryFn: () =>
       fetchMemberHealthLogs(token, programId, memberId, {
         limit: 0,
@@ -164,7 +168,7 @@ export default function MemberHealthPage() {
       setEditTarget(null);
     },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setEditError(toAppError(error).message);
     }
   });
 
@@ -175,11 +179,12 @@ export default function MemberHealthPage() {
         member_id: memberId,
         log_date: item.logDate
       }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["members", "health", programId, memberId] });
+    onSuccess: () => {
+      setDeleteTarget(null);
+      void queryClient.invalidateQueries({ queryKey: ["members", "health", programId, memberId] });
     },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setDeleteError(toAppError(error).message);
     }
   });
 
@@ -252,7 +257,7 @@ export default function MemberHealthPage() {
     setEditSleepMinutes(split.minutes);
     setEditDiet(item.foodQuality !== null && item.foodQuality !== undefined ? String(item.foodQuality) : "");
     setEditSteps(item.steps !== null && item.steps !== undefined ? String(item.steps) : "");
-    setErrorMessage(null);
+    setEditError(null);
   };
 
   const submitEdit = () => {
@@ -260,17 +265,18 @@ export default function MemberHealthPage() {
     const dietValue = editDiet.trim() === "" ? null : Number(editDiet);
     const stepsValue = editSteps.trim() === "" ? null : Number(editSteps.trim());
     if (!sleepInput.isValid) {
-      setErrorMessage("Sleep time must be between 0:00 and 24:00.");
+      setEditError("Sleep time must be between 0:00 and 24:00.");
       return;
     }
     if (stepsValue !== null && (!Number.isInteger(stepsValue) || stepsValue < 0)) {
-      setErrorMessage("Steps must be a non-negative whole number.");
+      setEditError("Steps must be a non-negative whole number.");
       return;
     }
     if (!sleepInput.hasInput && (dietValue === null || Number.isNaN(dietValue)) && stepsValue === null) {
-      setErrorMessage("Provide sleep time, diet quality, or steps before saving.");
+      setEditError("Provide sleep time, diet quality, or steps before saving.");
       return;
     }
+    setEditError(null);
     updateMutation.mutate({
       sleep_hours: sleepInput.sleepValue,
       food_quality: Number.isNaN(dietValue) ? null : dietValue,
@@ -289,7 +295,7 @@ export default function MemberHealthPage() {
             type="button"
             onClick={handleExport}
             disabled={!healthQuery.data || healthQuery.data.items.length === 0}
-            className="pill-button rounded-full px-4 py-2 text-xs font-semibold transition disabled:opacity-40"
+            className="pill-button inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold transition disabled:opacity-40"
           >
             Export CSV
           </button>
@@ -315,9 +321,7 @@ export default function MemberHealthPage() {
         </div>
       </GlassCard>
 
-      {errorMessage && <p className="text-sm font-semibold text-rf-danger">{errorMessage}</p>}
-
-      {healthQuery.isLoading && <LoadingState message="Loading daily health logs..." />}
+      <QueryView query={healthQuery} queryKey={healthKey} loadingMessage="Loading daily health logs...">
 
       {healthQuery.data && healthQuery.data.items.length === 0 && (
         <EmptyState message="No daily health logs found." />
@@ -341,14 +345,17 @@ export default function MemberHealthPage() {
                   <button
                     type="button"
                     onClick={() => openEdit(item)}
-                    className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+                    className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
                   >
                     Edit
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDeleteTarget(item)}
-                    className="rounded-full bg-rf-danger/10 px-3 py-1 text-xs font-semibold text-rf-danger"
+                    onClick={() => {
+                      setDeleteError(null);
+                      setDeleteTarget(item);
+                    }}
+                    className="danger-pill inline-flex min-h-[44px] items-center rounded-full px-4 text-sm font-semibold"
                   >
                     Delete
                   </button>
@@ -358,6 +365,7 @@ export default function MemberHealthPage() {
           ))}
         </div>
       )}
+      </QueryView>
 
       <Modal open={showFilter} onClose={() => setShowFilter(false)}>
         <div className="modal-surface w-full max-w-md rounded-3xl p-6">
@@ -366,7 +374,7 @@ export default function MemberHealthPage() {
             <button
               type="button"
               onClick={() => setShowFilter(false)}
-              className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
             >
               Done
             </button>
@@ -494,7 +502,7 @@ export default function MemberHealthPage() {
                 setMinSteps("");
                 setMaxSteps("");
               }}
-              className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+              className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
             >
               Clear all filters
             </button>
@@ -510,7 +518,7 @@ export default function MemberHealthPage() {
               <button
                 type="button"
                 onClick={() => setEditTarget(null)}
-                className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
+                className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
               >
                 Close
               </button>
@@ -572,11 +580,12 @@ export default function MemberHealthPage() {
                 />
               </div>
             </div>
+            {editError && <p role="alert" className="mt-4 text-sm font-semibold text-rf-danger">{editError}</p>}
             <div className="mt-6 flex items-center justify-end gap-3">
               <button
                 type="button"
                 onClick={() => setEditTarget(null)}
-                className="rounded-full bg-rf-surface-muted px-4 py-2 text-xs font-semibold text-rf-text-muted"
+                className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted"
               >
                 Cancel
               </button>
@@ -584,7 +593,7 @@ export default function MemberHealthPage() {
                 type="button"
                 onClick={submitEdit}
                 disabled={updateMutation.isPending}
-                className="button-primary rounded-full px-5 py-2 text-xs font-semibold"
+                className="button-primary inline-flex min-h-[44px] items-center rounded-full px-5 text-sm font-semibold"
               >
                 Save
               </button>
@@ -600,10 +609,17 @@ export default function MemberHealthPage() {
         confirmLabel="Delete"
         danger
         loading={deleteMutation.isPending}
+        loadingLabel="Deleting…"
+        errorMessage={deleteError}
+        closeOnConfirm={false}
         onConfirm={() => {
+          setDeleteError(null);
           if (deleteTarget) deleteMutation.mutate(deleteTarget);
         }}
-        onClose={() => setDeleteTarget(null)}
+        onClose={() => {
+          setDeleteTarget(null);
+          setDeleteError(null);
+        }}
       />
     </PageShell>
   );

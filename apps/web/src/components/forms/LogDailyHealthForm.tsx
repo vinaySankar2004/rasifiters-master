@@ -1,12 +1,14 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { fetchProgramMembers, fetchPrograms, type Program } from "@/lib/api/programs";
+import type { Program } from "@/lib/api/programs";
 import type { BulkHealthEntry, BulkRowError } from "@/lib/api/logs";
 import { Select } from "@/components/Select";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { ProgramMultiSelect } from "@/components/forms/LogWorkoutsForm";
+import { InlineLoadError } from "@/components/kit/QueryView";
+import { useLogLookups } from "@/lib/hooks/use-log-lookups";
 
 const MAX_ROWS = 200;
 
@@ -140,10 +142,10 @@ export function LogDailyHealthForm({
   rowErrors?: BulkRowError[] | null;
   variant?: "modal" | "page";
 }) {
-  const [members, setMembers] = useState<{ id: string; member_name: string }[]>([]);
-  const [programs, setPrograms] = useState<Program[]>([]);
+  // polish #16: lookups load with an error state + reload on reconnect (lib/hooks/use-log-lookups.ts).
+  const lookups = useLogLookups(token, programId, false);
+  const { members, programs } = lookups;
   const [selectedProgramIds, setSelectedProgramIds] = useState<Set<string>>(new Set([programId]));
-  const [lookupsLoaded, setLookupsLoaded] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [submittedOrder, setSubmittedOrder] = useState<number[]>([]);
   const nextUid = useRef(0);
@@ -158,30 +160,6 @@ export function LogDailyHealthForm({
   const effectiveCanSelectAny = canSelectAnyMember && !memberLocked;
   const ignoreMember = !effectiveCanSelectAny;
   const identityMissing = ignoreMember && !(userId && userId.trim());
-
-  useEffect(() => {
-    let active = true;
-    const loadLookups = async () => {
-      if (!token || !programId) return;
-      try {
-        const [membersData, programsData] = await Promise.all([
-          fetchProgramMembers(token, programId),
-          fetchPrograms(token)
-        ]);
-        if (!active) return;
-        setMembers(membersData);
-        setPrograms(programsData);
-      } catch {
-        // Leave lists empty; the empty-state hint covers this.
-      } finally {
-        if (active) setLookupsLoaded(true);
-      }
-    };
-    loadLookups();
-    return () => {
-      active = false;
-    };
-  }, [token, programId]);
 
   // When a non-privileged program joins the selection, every row falls back to self.
   useEffect(() => {
@@ -345,7 +323,7 @@ export function LogDailyHealthForm({
     );
   };
 
-  const noMembers = lookupsLoaded && effectiveCanSelectAny && memberOptions.length === 0;
+  const noMembers = lookups.loaded && effectiveCanSelectAny && memberOptions.length === 0;
   const atMax = rows.length >= MAX_ROWS;
   const columnCount = effectiveCanSelectAny ? 6 : 5;
 
@@ -363,6 +341,7 @@ export function LogDailyHealthForm({
           You&apos;re not an admin or logger in every selected program — logging for yourself only.
         </p>
       )}
+      {lookups.error && <InlineLoadError error={lookups.error} onRetry={lookups.reload} />}
       {noMembers && (
         <p className="rounded-2xl bg-rf-surface-muted px-4 py-3 text-sm text-rf-text-muted">
           No active members in this program yet.
@@ -389,7 +368,7 @@ export function LogDailyHealthForm({
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
+                {rows.map((r, index) => {
                   const errs = errorsForRow(r);
                   const rowLevelError = rowLevelErrorFor(r);
                   return (
@@ -452,7 +431,7 @@ export function LogDailyHealthForm({
                         <button
                           type="button"
                           onClick={() => removeRow(r.uid)}
-                          aria-label="Remove row"
+                          aria-label={`Remove entry ${index + 1}`}
                           className="mt-2 flex h-9 w-9 items-center justify-center rounded-full bg-rf-surface-muted text-rf-text-muted transition hover:bg-rf-surface hover:text-rf-danger"
                         >
                           ✕
@@ -493,7 +472,7 @@ export function LogDailyHealthForm({
                   <button
                     type="button"
                     onClick={() => removeRow(r.uid)}
-                    className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted transition hover:bg-rf-surface hover:text-rf-danger"
+                    className="inline-flex min-h-[44px] items-center rounded-full bg-rf-surface-muted px-4 text-sm font-semibold text-rf-text-muted transition hover:bg-rf-surface hover:text-rf-danger"
                   >
                     Remove
                   </button>

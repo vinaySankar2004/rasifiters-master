@@ -15,7 +15,7 @@ import { LogDailyHealthForm } from "@/components/forms/LogDailyHealthForm";
 export default function LogHealthPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
 
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const canLogForAny =
@@ -25,10 +25,11 @@ export default function LogHealthPage() {
   const dataEntryLocked = isDataEntryLocked(session, program);
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (program?.id && dataEntryLocked) {
       router.replace("/summary");
     }
-  }, [program?.id, dataEntryLocked, router]);
+  }, [isBootstrapping, session, program?.id, dataEntryLocked, router]);
 
   const dailyHealthMutation = useMutation({
     mutationFn: ({ entries, programIds }: { entries: BulkHealthEntry[]; programIds: string[] }) =>

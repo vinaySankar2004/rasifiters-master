@@ -21,7 +21,7 @@ const STATUS_OPTIONS = [
 export default function ProgramEditPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { session, program, token, programId } = useAuthGuard();
+  const { session, program, token, programId, isBootstrapping } = useAuthGuard();
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const isProgramAdmin = program?.my_role === "admin" || isGlobalAdmin;
 
@@ -33,10 +33,11 @@ export default function ProgramEditPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isBootstrapping || !session) return; // polish #19: judge roles only once the session is restored
     if (program?.id && !isProgramAdmin) {
       router.push("/program");
     }
-  }, [program?.id, isProgramAdmin, router]);
+  }, [isBootstrapping, session, program?.id, isProgramAdmin, router]);
 
   useEffect(() => {
     if (!program) return;

@@ -6,15 +6,13 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, CartesianGrid, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchHealthTimeline } from "@/lib/api/lifestyle";
-import { toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { PeriodSelector, type PeriodKey } from "@/components/ui/PeriodSelector";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 import {
   CHART_TOOLTIP_CONTENT_STYLE,
   CHART_TOOLTIP_LABEL_STYLE,
@@ -43,8 +41,9 @@ export default function StepsTimelinePage() {
     return session?.user.id;
   }, [memberIdParam, canViewAs, session?.user.id]);
 
+  const timelineKey = ["lifestyle", "steps-timeline", programId, resolvedMemberId ?? "program", period];
   const timelineQuery = useQuery({
-    queryKey: ["lifestyle", "steps-timeline", programId, resolvedMemberId ?? "program", period],
+    queryKey: timelineKey,
     queryFn: () => fetchHealthTimeline(token, period, programId, resolvedMemberId),
     enabled: !!token && !!programId && (!!resolvedMemberId || canViewAs)
   });
@@ -62,12 +61,7 @@ export default function StepsTimelinePage() {
 
         <PeriodSelector value={period} onChange={setPeriod} />
 
-        {timelineQuery.isLoading && <LoadingState message="Loading timeline..." />}
-
-        {timelineQuery.isError && (
-          <ErrorState message={toAppError(timelineQuery.error).message} />
-        )}
-
+        <QueryView query={timelineQuery} queryKey={timelineKey} loadingMessage="Loading timeline...">
         {timelineQuery.data && (
           <GlassCard padding="lg">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -112,6 +106,7 @@ export default function StepsTimelinePage() {
             </div>
           </GlassCard>
         )}
+        </QueryView>
     </PageShell>
   );
 }

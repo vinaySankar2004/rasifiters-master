@@ -4,13 +4,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchActivityTimeline } from "@/lib/api/summary";
-import { toAppError } from "@/lib/kit/app-error";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { LoadingState } from "@/components/ui/LoadingState";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { QueryView } from "@/components/kit/QueryView";
 import { PeriodSelector, type PeriodKey } from "@/components/ui/PeriodSelector";
 import {
   CHART_COLORS,
@@ -23,8 +21,9 @@ export default function ActivityTimelinePage() {
   const { token, programId } = useAuthGuard();
   const [period, setPeriod] = useState<PeriodKey>("week");
 
+  const timelineKey = ["summary", "timeline", programId, period];
   const timelineQuery = useQuery({
-    queryKey: ["summary", "timeline", programId, period],
+    queryKey: timelineKey,
     queryFn: () => fetchActivityTimeline(token, period, programId),
     enabled: !!token && !!programId
   });
@@ -37,14 +36,7 @@ export default function ActivityTimelinePage() {
 
         <PeriodSelector value={period} onChange={setPeriod} />
 
-        {timelineQuery.isLoading && (
-          <LoadingState message="Loading timeline..." />
-        )}
-
-        {timelineQuery.isError && (
-          <ErrorState message={toAppError(timelineQuery.error).message} />
-        )}
-
+        <QueryView query={timelineQuery} queryKey={timelineKey} loadingMessage="Loading timeline...">
         {timelineQuery.data && (
           <GlassCard padding="lg">
             <div className="flex items-center justify-between">
@@ -85,6 +77,7 @@ export default function ActivityTimelinePage() {
             </div>
           </GlassCard>
         )}
+        </QueryView>
     </PageShell>
   );
 }

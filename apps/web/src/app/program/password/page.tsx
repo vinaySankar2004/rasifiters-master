@@ -75,9 +75,10 @@ export default function ChangePasswordPage() {
 
       <GlassCard padding="lg" className="space-y-5">
         <div>
-          <label className="text-sm font-semibold text-rf-text">New password</label>
+          <label htmlFor="password-new" className="text-sm font-semibold text-rf-text">New password</label>
           <div className="input-shell mt-2 flex items-center gap-2 rounded-2xl px-4 py-3">
             <input
+              id="password-new"
               type={showPassword ? "text" : "password"}
               value={newPassword}
               onChange={(event) => {
@@ -90,7 +91,8 @@ export default function ChangePasswordPage() {
             <button
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
-              className="text-xs font-semibold text-rf-text-muted"
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="-my-3 inline-flex min-h-[44px] items-center px-2 text-xs font-semibold text-rf-text-muted"
             >
               {showPassword ? "Hide" : "Show"}
             </button>
@@ -98,8 +100,9 @@ export default function ChangePasswordPage() {
         </div>
 
         <div>
-          <label className="text-sm font-semibold text-rf-text">Confirm password</label>
+          <label htmlFor="password-confirm" className="text-sm font-semibold text-rf-text">Confirm password</label>
           <input
+            id="password-confirm"
             type="password"
             value={confirmPassword}
             onChange={(event) => {

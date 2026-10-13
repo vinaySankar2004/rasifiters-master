@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bar, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchProgramMembers, type Member } from "@/lib/api/programs";
 import {
@@ -21,9 +21,14 @@ import { stepsLabel } from "@/lib/format";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { Modal } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { IconDumbbell as DumbbellIcon, IconSteps } from "@/components/icons";
+import { ErrorView } from "@/components/kit/ErrorView";
+import { FloatingBanner } from "@/components/kit/FloatingBanner";
+import { MemberPickerModal } from "@/components/MemberPickerModal";
+import { appError } from "@/lib/kit/app-error";
+import { fromQuery, retryNow, type QueryLike } from "@/lib/kit/async-state";
+import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import {
   CHART_COLORS,
   CHART_TOOLTIP_CONTENT_STYLE,
@@ -46,9 +51,34 @@ const POPULARITY_METRICS: PopularityMetric[] = [
   { key: "avgMinutes", title: "Avg Minutes", axisLabel: "Avg mins" }
 ];
 
+type CardStatus = "loading" | "failed" | "ready";
+
+/** polish #31: "…" while a card's read is in flight (or waiting for the session), "—" when it failed. */
+function cardStatus(query: QueryLike<unknown>): CardStatus {
+  if (query.data !== undefined) return "ready";
+  return fromQuery(query).status === "failed" ? "failed" : "loading";
+}
+
+function missingText(status: CardStatus, loadingText: string): string {
+  return status === "failed" ? "—" : loadingText;
+}
+
+type AccentTone = { tint: string; text: string };
+// polish #43: the bright hue tints the chip; text uses a dark-aware shade (globals.css --rf-accent-*) that passes
+// contrast on light cards and keeps the bright hue in dark mode.
+const ACCENTS: Record<"amber" | "violet" | "red" | "green" | "teal", AccentTone> = {
+  amber: { tint: "#f59e0b", text: "var(--rf-accent-amber)" },
+  violet: { tint: "#8b5cf6", text: "var(--rf-accent-violet)" },
+  red: { tint: "#ef4444", text: "var(--rf-accent-red)" },
+  green: { tint: "#22c55e", text: "var(--rf-accent-green)" },
+  teal: { tint: "#14b8a6", text: "var(--rf-accent-teal)" }
+};
+
 export default function LifestylePage() {
   const router = useRouter();
   const { session, program, token, programId } = useAuthGuard();
+  const queryClient = useQueryClient();
+  const online = useOnlineStatus();
   const loggedInUserId = session?.user.id;
 
   const globalRole = session?.user.globalRole ?? "standard";
@@ -72,8 +102,9 @@ export default function LifestylePage() {
     setHasUserChosenViewAs(false);
   }, [programId, loggedInUserId]);
 
+  const membersKey = ["lifestyle", "members", programId];
   const membersQuery = useQuery({
-    queryKey: ["lifestyle", "members", programId],
+    queryKey: membersKey,
     queryFn: () => fetchProgramMembers(token, programId),
     enabled: !!token && !!programId && canViewAs
   });
@@ -120,48 +151,94 @@ export default function LifestylePage() {
 
   const memberIdForMetrics = canViewAs ? adminSelectedMember?.id : loggedInUserId;
   const hasMemberContext = canViewAs || !!loggedInUserId;
+  const metricKey = memberIdForMetrics ?? "program";
+  const keys = {
+    total: ["lifestyle", "workoutTypes", "total", programId, metricKey],
+    mostPopular: ["lifestyle", "workoutTypes", "mostPopular", programId, metricKey],
+    longest: ["lifestyle", "workoutTypes", "longest", programId, metricKey],
+    participation: ["lifestyle", "workoutTypes", "participation", programId],
+    popularity: ["lifestyle", "workoutTypes", "popularity", programId, metricKey],
+    timeline: ["lifestyle", "healthTimeline", programId, metricKey, "week"],
+    steps: ["lifestyle", "steps", programId, metricKey]
+  };
 
   const workoutTypesTotalQuery = useQuery({
-    queryKey: ["lifestyle", "workoutTypes", "total", programId, memberIdForMetrics ?? "program"],
+    queryKey: keys.total,
     queryFn: () => fetchWorkoutTypesTotal(token, programId, memberIdForMetrics),
     enabled: !!token && !!programId && hasMemberContext
   });
 
   const workoutTypeMostPopularQuery = useQuery({
-    queryKey: ["lifestyle", "workoutTypes", "mostPopular", programId, memberIdForMetrics ?? "program"],
+    queryKey: keys.mostPopular,
     queryFn: () => fetchWorkoutTypeMostPopular(token, programId, memberIdForMetrics),
     enabled: !!token && !!programId && hasMemberContext
   });
 
   const workoutTypeLongestDurationQuery = useQuery({
-    queryKey: ["lifestyle", "workoutTypes", "longest", programId, memberIdForMetrics ?? "program"],
+    queryKey: keys.longest,
     queryFn: () => fetchWorkoutTypeLongestDuration(token, programId, memberIdForMetrics),
     enabled: !!token && !!programId && hasMemberContext
   });
 
   const workoutTypeHighestParticipationQuery = useQuery({
-    queryKey: ["lifestyle", "workoutTypes", "participation", programId],
+    queryKey: keys.participation,
     queryFn: () => fetchWorkoutTypeHighestParticipation(token, programId),
     enabled: !!token && !!programId
   });
 
   const workoutTypePopularityQuery = useQuery({
-    queryKey: ["lifestyle", "workoutTypes", "popularity", programId, memberIdForMetrics ?? "program"],
+    queryKey: keys.popularity,
     queryFn: () => fetchWorkoutTypePopularity(token, programId, { memberId: memberIdForMetrics, limit: 120 }),
     enabled: !!token && !!programId && hasMemberContext
   });
 
   const healthTimelineQuery = useQuery({
-    queryKey: ["lifestyle", "healthTimeline", programId, memberIdForMetrics ?? "program", "week"],
+    queryKey: keys.timeline,
     queryFn: () => fetchHealthTimeline(token, "week", programId, memberIdForMetrics),
     enabled: !!token && !!programId && hasMemberContext
   });
 
   const stepsStatsQuery = useQuery({
-    queryKey: ["lifestyle", "steps", programId, memberIdForMetrics ?? "program"],
+    queryKey: keys.steps,
     queryFn: () => fetchStepsStats(token, programId, memberIdForMetrics),
     enabled: !!token && !!programId && hasMemberContext
   });
+
+  // polish #31: the Summary recipe. One ErrorView + Retry when a read fails with nothing to show, the stale banner
+  // when a reload fails over shown data, refetch on reconnect; cards show "…" while loading and "—" on failure.
+  const lifestyleQueries = [
+    membersQuery,
+    workoutTypesTotalQuery,
+    workoutTypeMostPopularQuery,
+    workoutTypeLongestDurationQuery,
+    workoutTypeHighestParticipationQuery,
+    workoutTypePopularityQuery,
+    healthTimelineQuery,
+    stepsStatsQuery
+  ];
+  const lifestyleKeys = [
+    membersKey,
+    keys.total,
+    keys.mostPopular,
+    keys.longest,
+    keys.participation,
+    keys.popularity,
+    keys.timeline,
+    keys.steps
+  ]; // same order as lifestyleQueries
+  const lifestyleStates = lifestyleQueries.map((query) => fromQuery<unknown>(query));
+  const failedState = lifestyleStates.find((state) => state.status === "failed");
+  const lifestyleError = failedState?.status === "failed" ? failedState.error : null;
+  const lifestyleStale = lifestyleStates.some((state) => state.status === "stale");
+  const retryLifestyle = () =>
+    lifestyleQueries.forEach((query, index) => {
+      if (query.isError || query.failureCount > 0) void retryNow(queryClient, lifestyleKeys[index]);
+    });
+  useRefetchOnReconnect(lifestyleQueries);
+  const totalStatus = cardStatus(workoutTypesTotalQuery);
+  const mostPopularStatus = cardStatus(workoutTypeMostPopularQuery);
+  const longestStatus = cardStatus(workoutTypeLongestDurationQuery);
+  const participationStatus = cardStatus(workoutTypeHighestParticipationQuery);
 
   const viewAsLabel = useMemo(() => {
     if (!canViewAs) return "";
@@ -184,7 +261,7 @@ export default function LifestylePage() {
             <button
               type="button"
               onClick={() => router.push("/lifestyle/workouts")}
-              className="ml-auto inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-2 text-xs font-semibold text-black shadow-lg"
+              className="ml-auto inline-flex min-h-[44px] items-center gap-2 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 px-4 py-2 text-xs font-semibold text-black shadow-lg"
               aria-label={canAddWorkouts ? "View and add workout types" : "View workout types"}
             >
               <DumbbellIcon className="h-5 w-5 text-black" />
@@ -209,41 +286,35 @@ export default function LifestylePage() {
           <EmptyState message="Unable to identify the logged-in member." />
         )}
 
+        {/* polish-1 rule 6: a read that failed while offline shows the kit's offline view. */}
+        {lifestyleError && <ErrorView error={online ? lifestyleError : appError("offline")} onRetry={retryLifestyle} />}
+
         <div className="grid gap-5">
           <div className="grid gap-5 md:grid-cols-2">
             <WorkoutStatCard
               title="Total workout types"
-              accent="#f59e0b"
+              accent={ACCENTS.amber}
               chipLabel="Program to date"
               value={
                 workoutTypesTotalQuery.data
                   ? String(workoutTypesTotalQuery.data.total_types)
-                  : workoutTypesTotalQuery.isLoading
-                    ? "…"
-                    : "—"
+                  : missingText(totalStatus, "…")
               }
-              subtitle={
-                workoutTypesTotalQuery.data
-                  ? "different exercises"
-                  : workoutTypesTotalQuery.isLoading
-                    ? "Loading"
-                    : "No data"
-              }
+              subtitle={workoutTypesTotalQuery.data ? "different exercises" : missingText(totalStatus, "Loading")}
             />
             <WorkoutStatCard
               title="Most popular"
-              accent="#8b5cf6"
+              accent={ACCENTS.violet}
               chipLabel="Program to date"
               value={
-                workoutTypeMostPopularQuery.data?.workout_name ??
-                (workoutTypeMostPopularQuery.isLoading ? "…" : "N/A")
+                workoutTypeMostPopularQuery.data
+                  ? workoutTypeMostPopularQuery.data.workout_name ?? "N/A"
+                  : missingText(mostPopularStatus, "…")
               }
               subtitle={
                 workoutTypeMostPopularQuery.data
                   ? `${workoutTypeMostPopularQuery.data.sessions} workouts`
-                  : workoutTypeMostPopularQuery.isLoading
-                    ? "Loading"
-                    : "No data"
+                  : missingText(mostPopularStatus, "Loading")
               }
             />
           </div>
@@ -251,48 +322,46 @@ export default function LifestylePage() {
           <div className="grid gap-5 md:grid-cols-2">
             <WorkoutStatCard
               title="Longest duration"
-              accent="#ef4444"
+              accent={ACCENTS.red}
               chipLabel="Program to date"
               value={
-                workoutTypeLongestDurationQuery.data?.workout_name ??
-                (workoutTypeLongestDurationQuery.isLoading ? "…" : "N/A")
+                workoutTypeLongestDurationQuery.data
+                  ? workoutTypeLongestDurationQuery.data.workout_name ?? "N/A"
+                  : missingText(longestStatus, "…")
               }
               subtitle={
                 workoutTypeLongestDurationQuery.data
                   ? `${workoutTypeLongestDurationQuery.data.avg_minutes} mins avg`
-                  : workoutTypeLongestDurationQuery.isLoading
-                    ? "Loading"
-                    : "No data"
+                  : missingText(longestStatus, "Loading")
               }
             />
             <WorkoutStatCard
               title="Highest participation"
-              accent="#22c55e"
+              accent={ACCENTS.green}
               chipLabel="Program to date"
               value={
-                workoutTypeHighestParticipationQuery.data?.workout_name ??
-                (workoutTypeHighestParticipationQuery.isLoading ? "…" : "N/A")
+                workoutTypeHighestParticipationQuery.data
+                  ? workoutTypeHighestParticipationQuery.data.workout_name ?? "N/A"
+                  : missingText(participationStatus, "…")
               }
               subtitle={
                 workoutTypeHighestParticipationQuery.data
                   ? `${workoutTypeHighestParticipationQuery.data.participation_pct.toFixed(1)}% of members`
-                  : workoutTypeHighestParticipationQuery.isLoading
-                    ? "Loading"
-                    : "No data"
+                  : missingText(participationStatus, "Loading")
               }
             />
           </div>
 
-          <StepsStatsCard stats={stepsStatsQuery.data} isLoading={stepsStatsQuery.isLoading} />
+          <StepsStatsCard stats={stepsStatsQuery.data} status={cardStatus(stepsStatsQuery)} />
 
           <WorkoutTypePopularityCard
             types={workoutTypePopularityQuery.data ?? []}
-            isLoading={workoutTypePopularityQuery.isLoading}
+            status={cardStatus(workoutTypePopularityQuery)}
           />
 
           <LifestyleTimelineCard
             points={timelinePoints}
-            isLoading={healthTimelineQuery.isLoading}
+            status={cardStatus(healthTimelineQuery)}
             onClick={() => {
               const params = memberIdForMetrics ? `?memberId=${memberIdForMetrics}` : "";
               router.push(`/lifestyle/timeline${params}`);
@@ -301,7 +370,7 @@ export default function LifestylePage() {
 
           <StepsTimelineCard
             points={timelinePoints}
-            isLoading={healthTimelineQuery.isLoading}
+            status={cardStatus(healthTimelineQuery)}
             onClick={() => {
               const params = memberIdForMetrics ? `?memberId=${memberIdForMetrics}` : "";
               router.push(`/lifestyle/steps-timeline${params}`);
@@ -325,6 +394,13 @@ export default function LifestylePage() {
           }
         }}
       />
+
+      {lifestyleStale && !lifestyleError && online && (
+        <>
+          <div aria-hidden="true" className="h-36" />
+          <FloatingBanner variant="stale" onRetry={retryLifestyle} />
+        </>
+      )}
     </PageShell>
   );
 }
@@ -337,7 +413,7 @@ function WorkoutStatCard({
   subtitle
 }: {
   title: string;
-  accent: string;
+  accent: AccentTone;
   chipLabel: string;
   value: string;
   subtitle: string;
@@ -348,7 +424,7 @@ function WorkoutStatCard({
       <div className="mt-2">
         <AccentChip label={chipLabel} accent={accent} />
       </div>
-      <p className="mt-4 text-2xl font-bold" style={{ color: accent }}>
+      <p className="mt-4 text-2xl font-bold" style={{ color: accent.text }}>
         {value}
       </p>
       <p className="mt-2 text-xs font-semibold text-rf-text-muted">{subtitle}</p>
@@ -356,11 +432,11 @@ function WorkoutStatCard({
   );
 }
 
-function AccentChip({ label, accent }: { label: string; accent: string }) {
+function AccentChip({ label, accent }: { label: string; accent: AccentTone }) {
   return (
     <span
       className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold"
-      style={{ backgroundColor: `${accent}22`, color: accent }}
+      style={{ backgroundColor: `${accent.tint}22`, color: accent.text }}
     >
       {label}
     </span>
@@ -369,11 +445,11 @@ function AccentChip({ label, accent }: { label: string; accent: string }) {
 
 function LifestyleTimelineCard({
   points,
-  isLoading,
+  status,
   onClick
 }: {
   points: HealthTimelinePoint[];
-  isLoading: boolean;
+  status: CardStatus;
   onClick: () => void;
 }) {
   const trimmed = useMemo(() => points.slice(-10), [points]);
@@ -394,19 +470,23 @@ function LifestyleTimelineCard({
         <span className="text-sm font-semibold text-rf-text-muted opacity-60 transition group-hover:opacity-100">›</span>
       </div>
 
-      {isLoading && (
+      {status === "loading" && (
         <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">
           Loading timeline...
         </div>
       )}
 
-      {!isLoading && trimmed.length === 0 && (
+      {status === "failed" && (
+        <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">—</div>
+      )}
+
+      {status === "ready" && trimmed.length === 0 && (
         <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">
           No data yet.
         </div>
       )}
 
-      {!isLoading && trimmed.length > 0 && (
+      {status === "ready" && trimmed.length > 0 && (
         <div className="mt-4 h-44">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={trimmed}>
@@ -433,25 +513,27 @@ function LifestyleTimelineCard({
 
 const STEPS_ACCENT = "#14b8a6";
 
-function StepsStatsCard({ stats, isLoading }: { stats?: StepsStats; isLoading: boolean }) {
+function StepsStatsCard({ stats, status }: { stats?: StepsStats; status: CardStatus }) {
   return (
     <GlassCard padding="md">
       <div className="flex items-center gap-2">
-        <IconSteps className="h-5 w-5 text-[#14b8a6]" />
+        <span className="inline-flex" style={{ color: ACCENTS.teal.text }}>
+          <IconSteps className="h-5 w-5" />
+        </span>
         <p className="text-sm font-semibold text-rf-text-muted">Steps</p>
-        <AccentChip label="Program to date" accent={STEPS_ACCENT} />
+        <AccentChip label="Program to date" accent={ACCENTS.teal} />
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3">
         <div>
           <p className="text-xs font-semibold text-rf-text-muted">Total steps</p>
-          <p className="mt-1 text-2xl font-bold" style={{ color: STEPS_ACCENT }}>
-            {stats ? stepsLabel(stats.total_steps) : isLoading ? "…" : "—"}
+          <p className="mt-1 text-2xl font-bold" style={{ color: ACCENTS.teal.text }}>
+            {stats ? stepsLabel(stats.total_steps) : missingText(status, "…")}
           </p>
         </div>
         <div>
           <p className="text-xs font-semibold text-rf-text-muted">Avg steps/day</p>
-          <p className="mt-1 text-2xl font-bold" style={{ color: STEPS_ACCENT }}>
-            {stats ? stepsLabel(stats.avg_steps_per_day) : isLoading ? "…" : "—"}
+          <p className="mt-1 text-2xl font-bold" style={{ color: ACCENTS.teal.text }}>
+            {stats ? stepsLabel(stats.avg_steps_per_day) : missingText(status, "…")}
           </p>
         </div>
       </div>
@@ -461,11 +543,11 @@ function StepsStatsCard({ stats, isLoading }: { stats?: StepsStats; isLoading: b
 
 function StepsTimelineCard({
   points,
-  isLoading,
+  status,
   onClick
 }: {
   points: HealthTimelinePoint[];
-  isLoading: boolean;
+  status: CardStatus;
   onClick: () => void;
 }) {
   const trimmed = useMemo(() => points.slice(-10), [points]);
@@ -486,19 +568,23 @@ function StepsTimelineCard({
         <span className="text-sm font-semibold text-rf-text-muted opacity-60 transition group-hover:opacity-100">›</span>
       </div>
 
-      {isLoading && (
+      {status === "loading" && (
         <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">
           Loading timeline...
         </div>
       )}
 
-      {!isLoading && trimmed.length === 0 && (
+      {status === "failed" && (
+        <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">—</div>
+      )}
+
+      {status === "ready" && trimmed.length === 0 && (
         <div className="mt-6 rounded-2xl bg-rf-surface-muted px-4 py-8 text-center text-sm text-rf-text-muted">
           No data yet.
         </div>
       )}
 
-      {!isLoading && trimmed.length > 0 && (
+      {status === "ready" && trimmed.length > 0 && (
         <div className="mt-4 h-44">
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={trimmed}>
@@ -521,10 +607,10 @@ function StepsTimelineCard({
 
 function WorkoutTypePopularityCard({
   types,
-  isLoading
+  status
 }: {
   types: WorkoutTypePopularity[];
-  isLoading: boolean;
+  status: CardStatus;
 }) {
   const [metric, setMetric] = useState<PopularityMetricKey>("count");
   const [showAll, setShowAll] = useState(false);
@@ -551,17 +637,19 @@ function WorkoutTypePopularityCard({
         </div>
       </div>
 
-      {isLoading && (
+      {status === "loading" && (
         <div className="mt-4 rounded-2xl bg-rf-surface-muted px-4 py-6 text-sm text-rf-text-muted">
           Loading workout types...
         </div>
       )}
 
-      {!isLoading && displayTypes.length === 0 && (
+      {status === "failed" && <p className="mt-4 text-sm text-rf-text-muted">—</p>}
+
+      {status === "ready" && displayTypes.length === 0 && (
         <p className="mt-4 text-sm text-rf-text-muted">No workouts logged yet.</p>
       )}
 
-      {!isLoading && displayTypes.length > 0 && (
+      {status === "ready" && displayTypes.length > 0 && (
         <>
           <div className="segmented-control mt-4 flex rounded-full p-1">
             {POPULARITY_METRICS.map((item) => (
@@ -570,7 +658,8 @@ function WorkoutTypePopularityCard({
                 type="button"
                 onClick={() => setMetric(item.key)}
                 data-active={metric === item.key}
-                className="flex-1 rounded-full px-3 py-2 text-xs font-semibold transition"
+                aria-pressed={metric === item.key}
+                className="flex min-h-[44px] flex-1 items-center justify-center rounded-full px-3 text-xs font-semibold transition"
               >
                 {item.title}
               </button>
@@ -604,7 +693,7 @@ function WorkoutTypePopularityCard({
             <button
               type="button"
               onClick={() => setShowAll((prev) => !prev)}
-              className="mt-4 text-sm font-semibold text-rf-accent"
+              className="mt-4 inline-flex min-h-[44px] items-center text-sm font-semibold text-rf-accent"
             >
               {showAll ? "Show top 10" : "Show all"}
             </button>
@@ -612,78 +701,6 @@ function WorkoutTypePopularityCard({
         </>
       )}
     </GlassCard>
-  );
-}
-
-function MemberPickerModal({
-  open,
-  members,
-  selected,
-  allowNone,
-  noneLabel,
-  onClose,
-  onSelect
-}: {
-  open: boolean;
-  members: Member[];
-  selected: Member | null;
-  allowNone: boolean;
-  noneLabel: string;
-  onClose: () => void;
-  onSelect: (member: Member | null) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const filtered = members.filter((member) =>
-    member.member_name.toLowerCase().includes(search.trim().toLowerCase())
-  );
-
-  return (
-    <Modal open={open} onClose={onClose}>
-      <div className="modal-surface w-full max-w-lg rounded-3xl p-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-rf-text">View as</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full bg-rf-surface-muted px-3 py-1 text-xs font-semibold text-rf-text-muted"
-          >
-            Done
-          </button>
-        </div>
-        <div className="mt-4">
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search member"
-            className="input-shell w-full rounded-2xl px-4 py-3 text-sm font-medium"
-          />
-        </div>
-        <div className="mt-4 max-h-[min(70vh,20rem)] overflow-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch", touchAction: "pan-y" }}>
-          {allowNone && (
-            <button
-              type="button"
-              onClick={() => onSelect(null)}
-              className={`flex w-full items-center justify-between px-3 py-2 text-left text-sm font-semibold ${
-                selected === null ? "text-rf-text" : "text-rf-text-muted"
-              }`}
-            >
-              {noneLabel}
-            </button>
-          )}
-          {filtered.map((member) => (
-            <button
-              key={member.id}
-              type="button"
-              onClick={() => onSelect(member)}
-              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-semibold text-rf-text"
-            >
-              <span>{member.member_name}</span>
-              {selected?.id === member.id && <span className="text-rf-accent">✓</span>}
-            </button>
-          ))}
-        </div>
-      </div>
-    </Modal>
   );
 }
 

@@ -38,7 +38,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import { appError, toAppError } from "@/lib/kit/app-error";
-import { fromQuery, retryNow } from "@/lib/kit/async-state";
+import { fromQuery, retryNow, type QueryLike } from "@/lib/kit/async-state";
 import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
@@ -234,14 +234,17 @@ export default function SummaryPage() {
           <div className="grid gap-5 md:grid-cols-2">
             <ProgramProgressCard
               summary={analyticsQuery.data}
+              loading={stillLoading(analyticsQuery)}
               unavailable={fromQuery(analyticsQuery).status === "failed"}
             />
             <ActivityTimelineCard
               label={activityTimelineQuery.data?.label ?? "Activity"}
               dailyAverage={
-                fromQuery(activityTimelineQuery).status === "failed"
-                  ? null
-                  : activityTimelineQuery.data?.daily_average ?? 0
+                activityTimelineQuery.data
+                  ? activityTimelineQuery.data.daily_average
+                  : stillLoading(activityTimelineQuery)
+                    ? undefined
+                    : null
               }
               points={activityData}
               onClick={() => router.push("/summary/activity")}
@@ -272,7 +275,9 @@ export default function SummaryPage() {
               value={
                 mtdParticipationQuery.data
                   ? `${mtdParticipationQuery.data.participation_pct.toFixed(1)}%`
-                  : "—"
+                  : stillLoading(mtdParticipationQuery)
+                    ? "…"
+                    : "—"
               }
               subtitle={
                 mtdParticipationQuery.data
@@ -285,7 +290,13 @@ export default function SummaryPage() {
             />
             <StatCard
               title="Total Workouts"
-              value={totalWorkoutsQuery.data ? `${totalWorkoutsQuery.data.total_workouts}` : "—"}
+              value={
+                totalWorkoutsQuery.data
+                  ? `${totalWorkoutsQuery.data.total_workouts}`
+                  : stillLoading(totalWorkoutsQuery)
+                    ? "…"
+                    : "—"
+              }
               subtitle="Month to date"
               delta={totalWorkoutsQuery.data?.change_pct}
             />
@@ -294,14 +305,22 @@ export default function SummaryPage() {
               value={
                 totalDurationQuery.data
                   ? `${(totalDurationQuery.data.total_minutes / 60).toFixed(1)} hrs`
-                  : "—"
+                  : stillLoading(totalDurationQuery)
+                    ? "…"
+                    : "—"
               }
               subtitle="Month to date"
               delta={totalDurationQuery.data?.change_pct}
             />
             <StatCard
               title="Avg Duration"
-              value={avgDurationQuery.data ? `${avgDurationQuery.data.avg_minutes} min` : "—"}
+              value={
+                avgDurationQuery.data
+                  ? `${avgDurationQuery.data.avg_minutes} min`
+                  : stillLoading(avgDurationQuery)
+                    ? "…"
+                    : "—"
+              }
               subtitle="Month to date"
               delta={avgDurationQuery.data?.change_pct}
             />
@@ -309,11 +328,16 @@ export default function SummaryPage() {
 
           <div className="grid gap-5 md:grid-cols-2">
             <DistributionCard points={distributionPoints} onClick={() => router.push("/summary/distribution")} />
-            <WorkoutTypesCard types={topWorkoutTypes} onClick={() => router.push("/summary/workout-types")} />
+            <WorkoutTypesCard
+              types={topWorkoutTypes}
+              status={workoutTypesQuery.data ? "ready" : stillLoading(workoutTypesQuery) ? "loading" : "failed"}
+              onClick={() => router.push("/summary/workout-types")}
+            />
           </div>
         </div>
 
-        <Modal open={showWorkoutsForm} onClose={() => setShowWorkoutsForm(false)}>
+        {/* polish #37: Escape must never wipe a half-filled bulk log (the form has many rows); Close/backdrop still close it. */}
+        <Modal open={showWorkoutsForm} onClose={() => setShowWorkoutsForm(false)} closeOnEscape={false}>
           <LogWorkoutsForm
             canSelectAnyMember={canLogForAny}
             selfMemberId={session?.user.id}
@@ -332,7 +356,7 @@ export default function SummaryPage() {
           />
         </Modal>
 
-        <Modal open={showHealthForm} onClose={() => setShowHealthForm(false)}>
+        <Modal open={showHealthForm} onClose={() => setShowHealthForm(false)} closeOnEscape={false}>
           <LogDailyHealthForm
             canSelectAnyMember={canLogForAny}
             programId={programId}
@@ -367,6 +391,12 @@ async function refreshSummaryQueries(queryClient: ReturnType<typeof useQueryClie
   await queryClient.invalidateQueries({ queryKey: ["summary"] });
 }
 
+/** polish #30: a read with nothing to show yet ("…", never a fake 0); idle = waiting for the session. */
+function stillLoading(query: QueryLike<unknown>): boolean {
+  const status = fromQuery(query).status;
+  return status === "loading" || status === "idle";
+}
+
 function SummaryHeader({
   title,
   subtitle,
@@ -392,8 +422,17 @@ function SummaryHeader({
 }
 
 // `unavailable` = its query failed with nothing to show: "—", never fake zeros under the ErrorView (frontend-kit §6).
-function ProgramProgressCard({ summary, unavailable = false }: { summary?: AnalyticsSummary; unavailable?: boolean }) {
-  const shown = (text: string) => (unavailable ? "—" : text);
+// `loading` = nothing to show yet: "…" (polish #30), never a fake 0%.
+function ProgramProgressCard({
+  summary,
+  loading = false,
+  unavailable = false
+}: {
+  summary?: AnalyticsSummary;
+  loading?: boolean;
+  unavailable?: boolean;
+}) {
+  const shown = (text: string) => (loading ? "…" : unavailable ? "—" : text);
   const progress = summary?.program_progress;
   const percent = progress?.progress_percent ?? 0;
   const elapsed = progress?.elapsed_days ?? 0;
@@ -438,7 +477,9 @@ function ProgramProgressCard({ summary, unavailable = false }: { summary?: Analy
             </p>
           </div>
         </div>
-        <StatusBadge variant={programStatusVariant(progress?.status ?? "active")}>{progress?.status ?? "active"}</StatusBadge>
+        {progress && (
+          <StatusBadge variant={programStatusVariant(progress.status ?? "active")}>{progress.status ?? "active"}</StatusBadge>
+        )}
         <div className="flex flex-wrap items-center justify-center gap-6">
           <div>
             <p className="text-sm text-rf-text-muted">Elapsed</p>
@@ -481,14 +522,14 @@ function AddHealthCard({ onClick, disabled }: { onClick: () => void; disabled?: 
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="h-full rounded-3xl bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 p-6 text-left text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+      className="h-full rounded-3xl bg-gradient-to-br from-sky-700 to-blue-700 p-6 text-left text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
     >
       <div className="flex items-center justify-between">
         <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/25 text-lg font-bold">✦</div>
         <span className="text-sm font-semibold">›</span>
       </div>
       <h3 className="mt-4 text-xl font-bold">Log daily health</h3>
-      <p className="mt-2 text-sm text-white/80">Track sleep, diet quality, and steps for the day.</p>
+      <p className="mt-2 text-sm text-white">Track sleep, diet quality, and steps for the day.</p>
       <div className="mt-6 inline-flex items-center rounded-full bg-white/20 px-4 py-2 text-sm font-semibold">
         Log day
       </div>
@@ -531,8 +572,8 @@ function ActivityTimelineCard({
   onClick
 }: {
   label: string;
-  /** null = its query failed with nothing to show ("—", never a fake zero). */
-  dailyAverage: number | null;
+  /** undefined = loading ("…"), null = its read failed ("—"); never a fake zero. */
+  dailyAverage: number | null | undefined;
   points: ActivityTimelinePoint[];
   onClick: () => void;
 }) {
@@ -551,7 +592,7 @@ function ActivityTimelineCard({
         <div className="text-right">
           <span className="text-lg font-semibold text-rf-text-muted">&gt;</span>
           <p className="mt-1 text-xs text-rf-text-muted">Daily avg</p>
-          <p className="text-base font-semibold text-rf-text">{dailyAverage === null ? "—" : dailyAverage.toFixed(1)}</p>
+          <p className="text-base font-semibold text-rf-text">{dailyAverage === undefined ? "…" : dailyAverage === null ? "—" : dailyAverage.toFixed(1)}</p>
         </div>
       </div>
       <div className="mt-4 h-40">
@@ -614,7 +655,15 @@ function DistributionCard({
   );
 }
 
-function WorkoutTypesCard({ types, onClick }: { types: WorkoutType[]; onClick: () => void }) {
+function WorkoutTypesCard({
+  types,
+  status,
+  onClick
+}: {
+  types: WorkoutType[];
+  status: "loading" | "failed" | "ready";
+  onClick: () => void;
+}) {
   return (
     <button
       type="button"
@@ -626,7 +675,9 @@ function WorkoutTypesCard({ types, onClick }: { types: WorkoutType[]; onClick: (
         <p className="text-sm font-semibold text-rf-text-muted">Workout Types</p>
         <span className="text-sm font-semibold text-rf-text-muted opacity-60 transition group-hover:opacity-100">›</span>
       </div>
-      {types.length === 0 ? (
+      {status !== "ready" ? (
+        <p className="mt-4 text-sm text-rf-text-muted">{status === "loading" ? "Loading…" : "—"}</p>
+      ) : types.length === 0 ? (
         <p className="mt-4 text-sm text-rf-text-muted">No workouts logged yet.</p>
       ) : (
         <ul className="mt-4 space-y-2 text-sm">

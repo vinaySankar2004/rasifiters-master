@@ -17,6 +17,8 @@ import {
   type IdentitiesResponse
 } from "@/lib/api/auth";
 import { credentialErrorMessage, toAppError } from "@/lib/kit/app-error";
+import { fromQuery, retryNow } from "@/lib/kit/async-state";
+import { useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { fetchMemberProfile, updateMemberProfile, type MemberProfile } from "@/lib/api/members";
 import { initials } from "@/lib/format";
 import { GENDER_OPTIONS } from "@/lib/genders";
@@ -25,6 +27,7 @@ import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { InlineLoadError } from "@/components/kit/QueryView";
 import { Select } from "@/components/Select";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
 import { HideActivityToggle } from "@/components/people/HideActivityToggle";
@@ -52,6 +55,7 @@ export default function ProfilePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const normalizedGender = gender.trim();
 
   // Email change (net-new): direct, password-confirmed. Its own state + messages so it doesn't collide
@@ -83,6 +87,8 @@ export default function ProfilePage() {
     queryFn: () => listIdentities(token),
     enabled: !!token && !!session?.user.id
   });
+  // polish #18: a failed profile / sign-in-methods read reloads by itself when the connection comes back.
+  useRefetchOnReconnect([profileQuery, identitiesQuery]);
 
   const applyIdentities = (data: IdentitiesResponse) => {
     if (session?.user.id) {
@@ -134,6 +140,18 @@ export default function ProfilePage() {
       setPwError(credentialErrorMessage(e, "account"));
     }
   });
+
+  // polish #18: the name fields start from the session (never blank while the profile loads or fails); the profile
+  // overwrites them when it arrives.
+  const seededFromSession = useRef(false);
+  useEffect(() => {
+    const name = session?.user.memberName;
+    if (seededFromSession.current || profileQuery.data || !name) return;
+    seededFromSession.current = true;
+    const parts = name.split(" ").filter(Boolean);
+    setFirstName(parts[0] ?? "");
+    setLastName(parts.slice(1).join(" "));
+  }, [session?.user.memberName, profileQuery.data]);
 
   useEffect(() => {
     if (!profileQuery.data) return;
@@ -209,7 +227,7 @@ export default function ProfilePage() {
       router.push("/login");
     },
     onError: (error) => {
-      setErrorMessage(toAppError(error).message);
+      setDeleteError(toAppError(error).message); // polish #15: right under the button
     }
   });
 
@@ -224,13 +242,20 @@ export default function ProfilePage() {
     return initials(name);
   }, [firstName, lastName, session?.user.memberName, session?.user.username]);
 
-  const canSave = firstName.trim().length > 0 && lastName.trim().length > 0 && !updateMutation.isPending;
+  // polish #18: Save waits for the profile (an unloaded gender would otherwise be saved as cleared).
+  const profileLoaded = profileQuery.data !== undefined;
+  const canSave =
+    profileLoaded && firstName.trim().length > 0 && lastName.trim().length > 0 && !updateMutation.isPending;
   const canSubmitEmail =
     EMAIL_RE.test(newEmail.trim()) && emailPassword.length > 0 && !emailMutation.isPending;
 
+  const identitiesLoaded = identitiesQuery.data !== undefined;
   const identities = identitiesQuery.data?.identities ?? [];
   const hasGoogle = identities.some((i) => i.provider === "google");
-  const hasPassword = identitiesQuery.data?.has_password ?? true;
+  // polish #18: unknown until loaded; never assume "has a password" / "Google not linked" while loading or offline.
+  const hasPassword = identitiesQuery.data?.has_password ?? false;
+  const profileState = fromQuery(profileQuery);
+  const identitiesState = fromQuery(identitiesQuery);
   const PW_RE = /^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}$/;
   const canSubmitPassword = PW_RE.test(newPassword) && !setPasswordMutation.isPending;
 
@@ -253,10 +278,18 @@ export default function ProfilePage() {
             </div>
           </div>
 
+          {profileState.status === "failed" && (
+            <InlineLoadError
+              error={profileState.error}
+              onRetry={() => void retryNow(queryClient, ["account", "profile", session?.user.id])}
+            />
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-sm font-semibold text-rf-text">First name</label>
+              <label htmlFor="profile-first-name" className="text-sm font-semibold text-rf-text">First name</label>
               <input
+                id="profile-first-name"
                 value={firstName}
                 onChange={(event) => {
                   setFirstName(event.target.value);
@@ -269,8 +302,9 @@ export default function ProfilePage() {
               />
             </div>
             <div>
-              <label className="text-sm font-semibold text-rf-text">Last name</label>
+              <label htmlFor="profile-last-name" className="text-sm font-semibold text-rf-text">Last name</label>
               <input
+                id="profile-last-name"
                 value={lastName}
                 onChange={(event) => {
                   setLastName(event.target.value);
@@ -345,8 +379,9 @@ export default function ProfilePage() {
             {showEmailForm && (
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm font-semibold text-rf-text">New email</label>
+                  <label htmlFor="profile-new-email" className="text-sm font-semibold text-rf-text">New email</label>
                   <input
+                    id="profile-new-email"
                     type="email"
                     value={newEmail}
                     onChange={(event) => {
@@ -362,8 +397,11 @@ export default function ProfilePage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-rf-text">Current password</label>
+                  <label htmlFor="profile-email-password" className="text-sm font-semibold text-rf-text">
+                    Current password
+                  </label>
                   <input
+                    id="profile-email-password"
                     type="password"
                     value={emailPassword}
                     onChange={(event) => {
@@ -396,12 +434,22 @@ export default function ProfilePage() {
 
           <div className="space-y-3 border-t border-rf-border pt-4">
             <p className="text-sm font-semibold text-rf-text">Sign-in methods</p>
+            {identitiesState.status === "failed" && (
+              <InlineLoadError
+                error={identitiesState.error}
+                onRetry={() => void retryNow(queryClient, ["account", "identities", session?.user.id])}
+              />
+            )}
 
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-rf-text">Google</p>
                 <p className="truncate text-sm text-rf-text-muted">
-                  {hasGoogle ? (identities.find((i) => i.provider === "google")?.email ?? "Linked") : "Not linked"}
+                  {!identitiesLoaded
+                    ? "—"
+                    : hasGoogle
+                      ? (identities.find((i) => i.provider === "google")?.email ?? "Linked")
+                      : "Not linked"}
                 </p>
               </div>
               {hasGoogle ? (
@@ -416,7 +464,7 @@ export default function ProfilePage() {
               ) : (
                 <GoogleSignInButton
                   compact
-                  disabled={linkGoogleMutation.isPending}
+                  disabled={!identitiesLoaded || linkGoogleMutation.isPending}
                   onCode={(code) => { setLinkError(null); linkGoogleMutation.mutate(code); }}
                 />
               )}
@@ -425,9 +473,11 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-rf-text">Password</p>
-                <p className="truncate text-sm text-rf-text-muted">{hasPassword ? "Enabled" : "Not set"}</p>
+                <p className="truncate text-sm text-rf-text-muted">
+                  {!identitiesLoaded ? "—" : hasPassword ? "Enabled" : "Not set"}
+                </p>
               </div>
-              {!hasPassword && (
+              {identitiesLoaded && !hasPassword && (
                 <button
                   type="button"
                   onClick={() => { setShowPwForm((p) => !p); setPwError(null); setPwSuccess(false); setNewPassword(""); }}
@@ -438,7 +488,7 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {showPwForm && !hasPassword && (
+            {showPwForm && identitiesLoaded && !hasPassword && (
               <div className="space-y-3">
                 <input
                   type="password"
@@ -484,11 +534,17 @@ export default function ProfilePage() {
             <div className="pt-4 border-t border-rf-border">
               <button
                 type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full rounded-2xl border border-rf-danger px-4 py-3 text-sm font-semibold text-rf-danger"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  setDeleteError(null);
+                  setShowDeleteConfirm(true);
+                }}
+                className="w-full rounded-2xl border border-rf-danger px-4 py-3 text-sm font-semibold text-rf-danger disabled:opacity-60"
               >
-                Delete Account
+                {deleteMutation.isPending ? "Deleting…" : "Delete Account"}
               </button>
+              {/* polish #15: the failure sits right under the button, above the caption. */}
+              {deleteError && <p role="alert" className="mt-2 text-sm font-semibold text-rf-danger">{deleteError}</p>}
               <p className="mt-2 text-xs text-rf-text-muted">
                 This will permanently delete your account and all associated data.
               </p>
@@ -501,9 +557,12 @@ export default function ProfilePage() {
         open={showDeleteConfirm}
         title="Delete Account?"
         description="This action cannot be undone. All your data, including workout logs, health logs, and program memberships will be permanently deleted."
-        confirmLabel={deleteMutation.isPending ? "Deleting..." : "Delete"}
+        confirmLabel="Delete"
         danger
-        onConfirm={() => deleteMutation.mutate()}
+        onConfirm={() => {
+          setDeleteError(null);
+          deleteMutation.mutate();
+        }}
         onClose={() => setShowDeleteConfirm(false)}
       />
 
