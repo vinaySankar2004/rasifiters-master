@@ -34,8 +34,9 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > **Status 2026-10-13:** design board approved · **Phase 1b ✅** (auth hotfix, analytics membership gate, refresh
 > rate limit, Resend reset email) · **Phase 2 ✅** (version gate, observability, frontend kits, opt-in staging) ·
 > **Phase 3 backend ✅** (R1 sessions / per-user rate limits, R2 health sync v2, R3 invites + push + device registry)
-> · **Phase 3 clients:** web ✅ live; iOS 1.5.0 (58) + Android 1.1.0 (5) built + reviewed. **Next:** the user uploads
-> + tests the phone builds, then store release; then Phase 4.
+> · **Phase 3 clients ✅** (web live; iOS 1.5.0 (58) TestFlight + Android 1.1.0 (5) Play internal, device-tested) ·
+> **Polish 1 ✅** (real offline detection). **Next:** plan + build Phase 4 (decided — notifications, People, 47 polish
+> fixes), then ONE iOS + Android store release.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
