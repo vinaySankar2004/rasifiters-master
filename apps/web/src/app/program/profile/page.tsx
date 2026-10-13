@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth/auth-provider";
 import {
+  AUTH_COPY,
   deleteAccount as deleteAccountApi,
   changeEmail as changeEmailApi,
+  isPasswordWriteUnconfirmed,
+  isSamePasswordError,
   listIdentities,
   linkGoogle as linkGoogleApi,
   unlinkProvider as unlinkProviderApi,
   setPassword as setPasswordApi,
   type IdentitiesResponse
 } from "@/lib/api/auth";
+import { credentialErrorMessage, toAppError } from "@/lib/kit/app-error";
 import { fetchMemberProfile, updateMemberProfile, type MemberProfile } from "@/lib/api/members";
 import { initials } from "@/lib/format";
 import { GENDER_OPTIONS } from "@/lib/genders";
@@ -30,7 +34,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export default function ProfilePage() {
   const router = useRouter();
   const { session, program, token } = useAuthGuard({ requireProgram: false });
-  const { setSession, signOut } = useAuth();
+  const { updateUser, signOut, signOutEverywhere } = useAuth();
   const queryClient = useQueryClient();
 
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
@@ -61,14 +65,16 @@ export default function ProfilePage() {
   const [showPwForm, setShowPwForm] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
+  const pwUnconfirmedRef = useRef<string | null>(null);
+  const [showSignOutAll, setShowSignOutAll] = useState(false);
+  const [signOutAllError, setSignOutAllError] = useState<string | null>(null);
 
   const profileQuery = useQuery({
     queryKey: ["account", "profile", session?.user.id],
     queryFn: () => fetchMemberProfile(token, session?.user.id ?? ""),
     enabled: !!token && !!session?.user.id
   });
-
-  const hasRefreshToken = !!session?.refreshToken;
 
   const identitiesQuery = useQuery({
     queryKey: ["account", "identities", session?.user.id],
@@ -85,21 +91,46 @@ export default function ProfilePage() {
   };
 
   const linkGoogleMutation = useMutation({
-    mutationFn: (code: string) => linkGoogleApi(token, code, session?.refreshToken ?? ""),
+    mutationFn: (code: string) => linkGoogleApi(token, code),
     onSuccess: (data) => { setLinkError(null); applyIdentities(data); },
-    onError: (e) => setLinkError(e instanceof Error ? e.message : "Unable to link account.")
+    onError: (e) => setLinkError(credentialErrorMessage(e, "account"))
   });
 
   const unlinkMutation = useMutation({
-    mutationFn: (provider: string) => unlinkProviderApi(token, provider, session?.refreshToken ?? ""),
+    mutationFn: (provider: string) => unlinkProviderApi(token, provider),
     onSuccess: (data) => { setLinkError(null); applyIdentities(data); },
-    onError: (e) => setLinkError(e instanceof Error ? e.message : "Unable to unlink account.")
+    onError: (e) => setLinkError(credentialErrorMessage(e, "account"))
   });
 
+  // auth §3.1 rules 4 + 6 (same handling as /program/password).
+  const passwordSetDone = () => {
+    pwUnconfirmedRef.current = null;
+    setPwError(null);
+    setShowPwForm(false);
+    setNewPassword("");
+    setPwSuccess(true);
+  };
+
   const setPasswordMutation = useMutation({
-    mutationFn: () => setPasswordApi(token, newPassword),
-    onSuccess: (data) => { setPwError(null); setShowPwForm(false); setNewPassword(""); applyIdentities(data); },
-    onError: (e) => setPwError(e instanceof Error ? e.message : "Unable to set password.")
+    mutationFn: (password: string) => setPasswordApi(token, password),
+    onSuccess: (data) => { passwordSetDone(); applyIdentities(data); },
+    onError: (e, password) => {
+      if (pwUnconfirmedRef.current === password && isSamePasswordError(e)) {
+        passwordSetDone();
+        void identitiesQuery.refetch();
+        return;
+      }
+      if (isPasswordWriteUnconfirmed(e)) {
+        pwUnconfirmedRef.current = password;
+        setPwError(AUTH_COPY.passwordUnconfirmed);
+        // The refetch can prove it landed (has_password) — then the form closes and the success copy shows.
+        void identitiesQuery.refetch().then((result) => {
+          if (result.data?.has_password && pwUnconfirmedRef.current === password) passwordSetDone();
+        });
+        return;
+      }
+      setPwError(credentialErrorMessage(e, "account"));
+    }
   });
 
   useEffect(() => {
@@ -142,17 +173,11 @@ export default function ProfilePage() {
                 }
               : previous
         );
-        setSession({
-          ...session,
-          user: {
-            ...session.user,
-            memberName: updatedName
-          }
-        });
+        updateUser({ memberName: updatedName });
       }
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to save changes.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 
@@ -168,10 +193,11 @@ export default function ProfilePage() {
       }
     },
     onError: (error) => {
-      setEmailError(error instanceof Error ? error.message : "Unable to update email.");
+      setEmailError(credentialErrorMessage(error, "account"));
     }
   });
 
+  // Delete keeps signOut(): the full teardown (its best-effort /logout is ignored).
   const deleteMutation = useMutation({
     mutationFn: () => deleteAccountApi(token),
     onSuccess: async () => {
@@ -179,8 +205,14 @@ export default function ProfilePage() {
       router.push("/login");
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to delete account.");
+      setErrorMessage(toAppError(error).message);
     }
+  });
+
+  const signOutAllMutation = useMutation({
+    mutationFn: () => signOutEverywhere(),
+    onSuccess: () => router.push("/login"),
+    onError: (error) => setSignOutAllError(toAppError(error).message)
   });
 
   const userInitials = useMemo(() => {
@@ -371,7 +403,7 @@ export default function ProfilePage() {
               {hasGoogle ? (
                 <button
                   type="button"
-                  disabled={!hasRefreshToken || identities.length <= 1 || unlinkMutation.isPending}
+                  disabled={identities.length <= 1 || unlinkMutation.isPending}
                   onClick={() => { setLinkError(null); unlinkMutation.mutate("google"); }}
                   className="shrink-0 rounded-2xl border border-rf-border px-4 py-2 text-sm font-semibold text-rf-text disabled:opacity-50"
                 >
@@ -380,7 +412,7 @@ export default function ProfilePage() {
               ) : (
                 <GoogleSignInButton
                   compact
-                  disabled={!hasRefreshToken || linkGoogleMutation.isPending}
+                  disabled={linkGoogleMutation.isPending}
                   onCode={(code) => { setLinkError(null); linkGoogleMutation.mutate(code); }}
                 />
               )}
@@ -394,7 +426,7 @@ export default function ProfilePage() {
               {!hasPassword && (
                 <button
                   type="button"
-                  onClick={() => { setShowPwForm((p) => !p); setPwError(null); setNewPassword(""); }}
+                  onClick={() => { setShowPwForm((p) => !p); setPwError(null); setPwSuccess(false); setNewPassword(""); }}
                   className="shrink-0 rounded-2xl border border-rf-border px-4 py-2 text-sm font-semibold text-rf-text"
                 >
                   {showPwForm ? "Cancel" : "Add password"}
@@ -416,7 +448,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   disabled={!canSubmitPassword}
-                  onClick={() => { setPwError(null); setPasswordMutation.mutate(); }}
+                  onClick={() => { setPwError(null); setPasswordMutation.mutate(newPassword); }}
                   className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
                 >
                   {setPasswordMutation.isPending ? "Saving..." : "Save password"}
@@ -424,11 +456,22 @@ export default function ProfilePage() {
               </div>
             )}
 
-            {!hasRefreshToken && (
-              <p className="text-xs text-rf-text-muted">Sign out and back in to manage linked accounts.</p>
-            )}
             {linkError && <p className="text-sm font-semibold text-rf-danger">{linkError}</p>}
             {pwError && <p className="text-sm font-semibold text-rf-danger">{pwError}</p>}
+            {pwSuccess && <p className="text-sm font-semibold text-rf-success">{AUTH_COPY.passwordSet}</p>}
+          </div>
+
+          <div className="border-t border-rf-border pt-4">
+            <button
+              type="button"
+              disabled={signOutAllMutation.isPending}
+              onClick={() => { setSignOutAllError(null); setShowSignOutAll(true); }}
+              className="w-full rounded-2xl border border-rf-border px-4 py-3 text-sm font-semibold text-rf-text disabled:opacity-50"
+            >
+              {signOutAllMutation.isPending ? AUTH_COPY.signingOut : AUTH_COPY.signOutEverywhere}
+            </button>
+            <p className="mt-2 text-xs text-rf-text-muted">{AUTH_COPY.signOutEverywhereHint}</p>
+            {signOutAllError && <p className="mt-2 text-sm font-semibold text-rf-danger">{signOutAllError}</p>}
           </div>
 
           {!isGlobalAdmin && (
@@ -456,6 +499,16 @@ export default function ProfilePage() {
         danger
         onConfirm={() => deleteMutation.mutate()}
         onClose={() => setShowDeleteConfirm(false)}
+      />
+
+      <ConfirmDialog
+        open={showSignOutAll}
+        title={AUTH_COPY.signOutEverywhereTitle}
+        description={AUTH_COPY.signOutEverywhereBody}
+        confirmLabel={AUTH_COPY.signOutEverywhere}
+        danger
+        onConfirm={() => signOutAllMutation.mutate()}
+        onClose={() => setShowSignOutAll(false)}
       />
     </>
   );

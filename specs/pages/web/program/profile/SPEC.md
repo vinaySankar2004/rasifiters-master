@@ -1,6 +1,6 @@
 # Page: `program/profile` (web) — my profile (program-settings sub-route 3 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/profile` — the logged-in user's **own "My Profile" account page** (first/last name +
 > gender + **email view/change** + Delete Account), the third of the six deferred `/program/*` settings sub-routes (reached from the
 > [`program`](../SPEC.md) hub's "My Account" row). **Despite living under `/program/*` it is NOT a
@@ -63,6 +63,8 @@ best-effort Supabase `admin.deleteUser`).
 | Error / success | Inline `rf-danger` error line; **`rf-success`** "Profile updated successfully." (D-C1). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Save | "Save changes" (`bg-rf-accent text-black`); disabled unless both names present + not pending. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Account email (D-EMAIL) | Current email + **Change email** toggle → new-email + current-password inputs → "Update email" (`PUT /auth/email`). Inline `rf-danger`/`rf-success`. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
+| Sign-in methods | Google row (Link via the compact `GoogleSignInButton` / Unlink, disabled when it is the only method) + Password row ("Add password" form for a social-only member → `POST /auth/set-password`). Errors as `rf-danger` lines; a set password shows the `passwordSet` copy (D-REL2). No `refresh_token` gate (D-REL3). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
+| Sign out everywhere (D-REL1) | Every role. Outlined button "Sign out everywhere" + hint "Signs you out on every device, including this one." → `ConfirmDialog` ("Sign out everywhere?" / "You'll be signed out on all your devices, including this one.") → `POST /auth/logout-all`. Kit message in red under the button on failure. Sits just above Delete Account. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Delete Account | **Hidden for global_admin.** Danger-outline button → `ConfirmDialog`. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 
 ## 5. Components + consumed features
@@ -70,8 +72,8 @@ best-effort Supabase `admin.deleteUser`).
 - **Shared UI:** `PageShell`, `PageHeader`, `GlassCard`, `ConfirmDialog`, **`Select`** (gender, D-GENDER) — all
   already ported. `roleLabel`/`userInitials` derivations stay co-located; the gender options are the shared
   `GENDER_OPTIONS` (`lib/genders.ts`, also consumed by create-account).
-- **Hooks/state:** `useAuthGuard({ requireProgram: false })` (session/program/token); `useAuth` (`setSession`,
-  `signOut`); `useQuery`/`useMutation`/`useQueryClient` (React Query); `initials` (`lib/format.ts`).
+- **Hooks/state:** `useAuthGuard({ requireProgram: false })` (session/program/token); `useAuth` (`updateUser`,
+  `signOut`, `signOutEverywhere` — D-REL1/D-REL4); `useQuery`/`useMutation`/`useQueryClient` (React Query); `initials` (`lib/format.ts`).
 - **Consumed features:** [`members`](../../../../features/members/SPEC.md) (`fetchMemberProfile`,
   `updateMemberProfile`, `MemberProfile`), [`auth`](../../../../features/auth/SPEC.md) (`deleteAccount`,
   `useAuthGuard`, `setSession`, `signOut`).
@@ -93,7 +95,12 @@ best-effort Supabase `admin.deleteUser`).
   ([lib/api/auth.ts:91](../../../../../../apps/web/src/lib/api/auth.ts#L91)). **Already mounted**
   ([apps/backend/routes/auth.js:112](../../../../../../apps/backend/routes/auth.js#L112)) — runs the
   single-sourced `utils/programMemberships.cascadeMemberDeletion` + best-effort Supabase `admin.deleteUser`.
-  On success the page `signOut()`s and routes to `/login`.
+  On success the page `signOut()`s (the full teardown) and routes to `/login`.
+- **`POST /auth/logout-all`** (D-REL1) via `signOutEverywhere()` → `logoutAll(token)` — every session of the
+  account ends, this one included; on 200 the teardown runs and the page routes to `/login`.
+- **`POST /auth/link` / `/auth/unlink` / `/auth/set-password`** via `linkGoogle(token, code)` /
+  `unlinkProvider(token, provider)` / `setPassword(token, password)` — no `refresh_token` in the body (ignored
+  server-side since auth 0.13.0, D-C14; D-REL3).
 - **`PUT /auth/email`** (net-new, D-EMAIL) via `changeEmail(token, newEmail, password)`
   ([lib/api/auth.ts](../../../../../../apps/web/src/lib/api/auth.ts)). Mounted at
   [apps/backend/routes/auth.js](../../../../../../apps/backend/routes/auth.js) → `authService.changeEmail`:
@@ -129,7 +136,17 @@ best-effort Supabase `admin.deleteUser`).
 - **Save disabled:** when either name is blank or a save is in flight (`canSave`).
 - **Save success:** `rf-success` "Profile updated successfully." line; the identity card + session name update
   in place. The message is **cleared when the user next edits a field** (D-C2; legacy left it lingering).
-- **Save error:** inline `rf-danger` line (`error.message` or fallback); also cleared on next field edit (D-C2).
+- **Save error:** inline `rf-danger` line (the kit message — D-REL4); also cleared on next field edit (D-C2).
+- **Credential errors (D-REL4):** email change, link / unlink and set-password show the server text for 400 /
+  409 / 422 and the kit copy otherwise; a 401 there means the session ended → the kit `signedOut` copy (never
+  "Invalid token.").
+- **Set password (D-REL2, auth §3.1 rule 6):** a 401 is refreshed and re-sent once by the client (the write never
+  ran); after a sent 5xx / 408 / timeout / dropped connection (not while offline — that reads the kit offline copy)
+  → "We couldn't confirm your password change. It may have gone through, so try signing in with your new
+  password." and the identities are re-fetched — if they show
+  a password, the form closes with the success copy. A manual retry of the SAME password answered with the
+  same-password 400 also counts as done. Success → "Password set. Your other devices will be signed out."
+- **Sign out everywhere failure:** the kit message in red under the button; the session is kept.
 - **Delete:** `ConfirmDialog` (danger) → `DELETE /auth/account` → `signOut()` → `/login`; an error surfaces in
   the same `rf-danger` line and the dialog can be retried/closed.
 - **Single-word name:** the split yields an empty last name → Save stays disabled until a last name is entered
@@ -147,6 +164,10 @@ best-effort Supabase `admin.deleteUser`).
 | **D-C1** | **Tokenize the success color** — `text-emerald-600` → `text-rf-success` (`#2fb861` light / `#36c56f` dark) so the success line is theme-aware and symmetric with the `rf-danger` error line. (The **avatar chip** `bg-amber-100`/`text-amber-600` + the amber role label have **no clean `rf` token** — amber-100 has no tint token and amber-600 ≠ `rf-accent`/`rf-warning` — so they stay faithful + flagged, F2.) | profile/page.tsx:167; `globals.css` `--rf-success` |
 | **D-C2** | **Clear the stale success/error message on field edit** — reset `showSuccess`/`errorMessage` when First name / Last name / Gender changes, so a prior "Profile updated successfully." doesn't linger over freshly-edited-but-unsaved fields. Legacy only cleared them at the *next* Save click (profile/page.tsx:35,166,173-176). | legacy lingering `showSuccess` |
 | **D-GENDER** | **Gender uses the shared `Select` + a shared `GENDER_OPTIONS`** (`lib/genders.ts`, also adopted by create-account so the two pages can't drift), replacing the faithful native `<select>`. The user reported it "looked wrong" — the native control clashed with the styled inputs. Backed by **widening `members.gender` `varchar(10)` → `varchar(32)`** (migration 003): the legacy column couldn't store `"Prefer not to say"` (17 chars), so that option errored on save — a genuine latent bug fixed here. | user request; [Select.tsx](../../../../../../apps/web/src/components/Select.tsx); `sql/003_widen_gender_column.sql` |
+| **D-REL1** | **"Sign out everywhere"** (reliability Phase 3 C1, auth §3.1; placement U3, copy A1 — same on iOS + Android): My Profile, just above Delete Account, for **every** role, behind a `ConfirmDialog`; the existing outlined-button idiom (nothing else restyled). Calls `POST /auth/logout-all`; 200 → teardown → `/login`; failure → the kit message in red under the button. Strings live in `AUTH_COPY` (`lib/api/auth.ts`). | auth §3.1; amendments U3 / A1. |
+| **D-REL2** | **Set-password rule 6.** No auto-retry by TanStack (mutations `retry:false`); a 401 is re-sent once after a refresh (the write never ran — A9); "couldn't confirm" only after a SENT 5xx / 408 / timeout / dropped connection (then the identities refetch, and `has_password` closes the form as done — C1#3); a same-password 400 counts as done only for the same value. Success copy `AUTH_COPY.passwordSet`. | auth §3.1 rules 4 + 6; amendments A1 / A9 / §4 C1. |
+| **D-REL3** | **Link / unlink no longer send `refresh_token`** (auth D-C14 — ignored since 0.13.0). The `hasRefreshToken` gate and its "Sign out and back in to manage linked accounts." hint are removed. | auth D-C14; C1 step 13. |
+| **D-REL4** | **Errors.** Credential calls (email, link / unlink, set-password) use `credentialErrorMessage(error, "account")` (server text for 400 / 409 / 422; a 401 → kit `signedOut`; else the kit copy); profile save and delete use the kit (`toAppError`). Profile save updates only `user.memberName` through `updateUser` (tokens always come from the live session, never a React snapshot). | frontend-kit §4 scope rule; amendments A8. |
 | **D-EMAIL** | **Net-new email view + change** — has no legacy equivalent (email was fixed at registration). Chosen model: **direct** change (applies immediately, `email_confirm:true` — consistent with register/createMember; email delivery is limited per the auth-recovery work) and **password-confirmed** (re-auth the current password — a safeguard for a sensitive change). `getMemberById` returns the primary email; `PUT /auth/email` keeps Supabase `auth.users` + `member_emails` in sync. iOS `MyProfileView` port is a follow-up. | user request; [authService.changeEmail](../../../../../../apps/backend/services/authService.js); auth SPEC |
 
 ## 10. Flagged characteristics (kept as-is)
@@ -174,5 +195,6 @@ best-effort Supabase `admin.deleteUser`).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 ("Sign out everywhere" above Delete Account, every role, `POST /auth/logout-all`) · D-REL2 (set-password rule 6 + `passwordSet` copy; `has_password` refetch closes the form) · D-REL3 (no `refresh_token` on link/unlink; gate + hint removed) · D-REL4 (credential errors via `credentialErrorMessage(…, "account")`, save/delete via the kit; save uses `updateUser`). §4/§5/§6/§8 updated (incl. the sign-in-methods block). |
 | 0.2.0 | 2026-06-30 | **Gender fix + net-new email view/change.** **D-GENDER**: gender now uses the shared `Select` + a shared `GENDER_OPTIONS` (`lib/genders.ts`, also adopted by create-account), replacing the native `<select>` that "looked wrong"; backed by widening `members.gender` `varchar(10)`→`varchar(32)` (migration `003`) so `"Prefer not to say"` (17 chars) stops erroring on save. **D-EMAIL**: net-new Account email block — `getMemberById` returns the primary email; password-confirmed **direct** `PUT /auth/email` (`authService.changeEmail`) keeps Supabase `auth.users` + `member_emails` in sync (`email_confirm:true`, no verification email, session stays valid). Backend bumps `members` + `auth` via `git-version`. iOS My Profile email-change port deferred. `npx tsc --noEmit` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 27) — the **thirteenth web page spec**, the **third of the six deferred `/program/*` settings sub-routes**. The signed-in user's **own "My Profile" account page** (first/last name + gender + Delete Account) — **not** a program-admin setting (no admin redirect; available to every role; only Delete is hidden from global_admin). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → My Profile mirrors later) · **D-SCOPE** (this page only; other 3 `/program/*` sub-routes deferred) · **D-DEPS** (no new dependency — purest shape, every dep already ported) · **D-S1** (faithful 1:1) · **D-C1** (tokenize success color → `rf-success`; avatar amber kept, F2) · **D-C2** (clear stale success/error on field edit). Flagged F1–F5 (client JWT-decode role label + delete gate; literal-amber avatar; name-split heuristic; client-only delete gate; no client throttle). Consumes `members` (`fetchMemberProfile`/`updateMemberProfile`) + `auth` (`deleteAccount`/`useAuthGuard`); **all endpoints already mounted, api modules already ported, no feature bump.** Ported `apps/web/src/app/program/profile/page.tsx`. `npm run build` ✓. |

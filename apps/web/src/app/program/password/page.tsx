@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { changePassword } from "@/lib/api/auth";
+import { AUTH_COPY, changePassword, isPasswordWriteUnconfirmed, isSamePasswordError } from "@/lib/api/auth";
+import { credentialErrorMessage } from "@/lib/kit/app-error";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -27,22 +28,35 @@ export default function ChangePasswordPage() {
   const validation = useMemo(() => validatePassword(newPassword, confirmPassword), [newPassword, confirmPassword]);
 
   // D-C3: clear a stale success/error message as soon as the user edits a field, so a prior
-  // "Password updated successfully." doesn't linger over the cleared fields. Legacy only cleared
+  // success message doesn't linger over the cleared fields. Legacy only cleared
   // these at the next Update click.
   const markEdited = () => {
     if (successMessage) setSuccessMessage(null);
     if (errorMessage) setErrorMessage(null);
   };
 
+  // auth §3.1 rules 4 + 6: this device stays signed in; the others end at their next refresh. Re-sent only after a 401
+  // (never ran — client.ts), never by TanStack (mutations retry:false). After a 5xx / timeout / dropped connection the
+  // change may have landed: a manual retry of the SAME password answered with the same-password 400 counts as done.
+  const unconfirmedRef = useRef<string | null>(null);
+  const showChanged = () => {
+    unconfirmedRef.current = null;
+    setSuccessMessage(AUTH_COPY.passwordChanged);
+    setNewPassword("");
+    setConfirmPassword("");
+  };
+
   const mutation = useMutation({
-    mutationFn: () => changePassword(token, newPassword),
-    onSuccess: () => {
-      setSuccessMessage("Password updated successfully.");
-      setNewPassword("");
-      setConfirmPassword("");
-    },
-    onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update password.");
+    mutationFn: (password: string) => changePassword(token, password),
+    onSuccess: () => showChanged(),
+    onError: (error, password) => {
+      if (unconfirmedRef.current === password && isSamePasswordError(error)) return showChanged();
+      if (isPasswordWriteUnconfirmed(error)) {
+        unconfirmedRef.current = password;
+        setErrorMessage(AUTH_COPY.passwordUnconfirmed);
+        return;
+      }
+      setErrorMessage(credentialErrorMessage(error, "account"));
     }
   });
 
@@ -115,7 +129,7 @@ export default function ChangePasswordPage() {
           onClick={() => {
             setErrorMessage(null);
             setSuccessMessage(null);
-            mutation.mutate();
+            mutation.mutate(newPassword);
           }}
           className="w-full rounded-2xl bg-rf-accent px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
         >

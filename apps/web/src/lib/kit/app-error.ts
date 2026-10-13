@@ -7,7 +7,8 @@ import { KIT_COPY } from "@/lib/kit/copy";
 // anyone out (sign-out policy is the sessions contract, DESIGN_BOARD §2).
 // Scope rule — credential endpoints (SPEC §4): on login, sign-up, OAuth, link/unlink, set/change password and
 // the email re-auth a 401 means wrong credentials, not an ended session. Those screens must NOT pass a 401
-// through toAppError / fromHttp (it would read "signedOut"); they show the ApiError's own server text.
+// through toAppError / fromHttp (it would read "signedOut"); they show the ApiError's own server text — use
+// `credentialErrorMessage`.
 
 export type AppErrorKind =
   | "offline"
@@ -109,13 +110,7 @@ export function fromHttp(
   });
 }
 
-/** Retry-After → whole seconds within Int32 (Android's range); anything else (incl. an HTTP-date) → undefined. */
-export function parseRetryAfter(value: string | null | undefined): number | undefined {
-  const text = value?.trim() ?? "";
-  if (!/^\d+$/.test(text)) return undefined;
-  const n = Number(text);
-  return Number.isSafeInteger(n) && n <= 2147483647 ? n : undefined;
-}
+export { parseRetryAfter } from "@/lib/api/client";
 
 function isAppError(value: unknown): value is AppError {
   return typeof value === "object" && value !== null && "kind" in value && "message" in value && "retryable" in value;
@@ -131,12 +126,10 @@ function errorName(value: unknown): string | undefined {
 export function toAppError(error: unknown): AppError {
   if (isAppError(error)) return error;
   if (error instanceof ApiError) {
-    // `code` / `retryAfter` are read defensively: ApiError gains them in Phase 3 sessions (D-KIT-5).
-    const extra = error as ApiError & { code?: unknown; retryAfter?: unknown };
     return fromHttp(
       error.status,
-      typeof extra.code === "string" ? extra.code : undefined,
-      typeof extra.retryAfter === "number" ? extra.retryAfter : undefined,
+      error.code,
+      error.retryAfter,
       error.message,
       Array.isArray(error.details) ? (error.details as BulkRowError[]) : undefined
     );
@@ -145,4 +138,27 @@ export function toAppError(error: unknown): AppError {
   if (name === "TimeoutError" || name === "AbortError") return appError("timeout");
   if (error instanceof TypeError && NETWORK_FAILURE.test(error.message)) return appError("offline");
   return appError("unknown");
+}
+
+const CREDENTIAL_TEXT_STATUSES: ReadonlySet<number> = new Set([400, 401, 409, 422]);
+
+/**
+ * Credential screens (scope rule above; the same rule on iOS + Android): the server's own text for 400 / 401 / 409 /
+ * 422 (wrong credentials, validation, the collision text); the kit copy for everything else (403, 404, offline,
+ * timeout, 408, 426, 429, 5xx). `scope: "account"` = an authenticated credential route (link / unlink, set / change
+ * password, email re-auth): a 401 there means the session ended, never the credentials, so it reads `signedOut`.
+ */
+export function credentialErrorMessage(error: unknown, scope: "signIn" | "account" = "signIn"): string {
+  // No response while the browser reports offline (incl. a timeout or a dropped connection) = offline.
+  if (!(error instanceof ApiError) && typeof navigator !== "undefined" && navigator.onLine === false) {
+    return KIT_COPY.errors.offline;
+  }
+  if (
+    error instanceof ApiError &&
+    CREDENTIAL_TEXT_STATUSES.has(error.status) &&
+    !(scope === "account" && error.status === 401)
+  ) {
+    return serverText(error.message) ?? toAppError(error).message;
+  }
+  return toAppError(error).message;
 }

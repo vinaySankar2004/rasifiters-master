@@ -65,10 +65,13 @@ function GoogleGlyph() {
 
 export function GoogleSignInButton({
   onCode,
+  onProviderError,
   disabled,
   compact = false
 }: {
   onCode: (code: string) => void;
+  /** GSI failed for a reason other than the user cancelling. */
+  onProviderError?: (code: string) => void;
   disabled?: boolean;
   // Opt-in settings-row variant: a small pill sized like the sibling text-buttons (Unlink / Add password),
   // instead of the full-width login pill. Default stays full-width so LoginView's usage is unchanged.
@@ -76,6 +79,8 @@ export function GoogleSignInButton({
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const codeClientRef = useRef<any>(null);
+  const onProviderErrorRef = useRef(onProviderError);
+  onProviderErrorRef.current = onProviderError;
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -89,8 +94,12 @@ export function GoogleSignInButton({
           client_id: GOOGLE_WEB_CLIENT_ID,
           scope: "openid email profile",
           ux_mode: "popup",
-          callback: (response: { code?: string }) => {
+          callback: (response: { code?: string; error?: string }) => {
             if (response?.code) onCode(response.code);
+            else if (response?.error && response.error !== "access_denied") onProviderErrorRef.current?.(response.error);
+          },
+          error_callback: (error: { type?: string }) => {
+            if (error?.type !== "popup_closed") onProviderErrorRef.current?.(error?.type ?? "unknown");
           }
         });
         setReady(true);

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { API_BASE_URL } from "@/lib/config";
+import { forceSessionRefresh, freshSessionToken } from "@/lib/api/client";
 import {
   acknowledgeNotification,
   fetchUnacknowledgedNotifications,
@@ -18,6 +19,7 @@ import {
   saveActiveProgram
 } from "@/lib/storage";
 import { broadcastActiveProgramUpdate } from "@/lib/use-active-program";
+import { useOnlineStatus } from "@/lib/kit/use-online-status";
 
 const sortByCreatedAt = (items: NotificationItem[]) =>
   [...items].sort((a, b) => {
@@ -26,14 +28,37 @@ const sortByCreatedAt = (items: NotificationItem[]) =>
     return aTime - bTime;
   });
 
+// SSE reconnect (notifications SPEC §3.3; values identical on iOS + Android): exponential backoff with full jitter,
+// a 60 s idle timeout (the server pings every 25 s), no reconnects while offline.
+const SSE_BASE_DELAY_MS = 1_000;
+const SSE_MAX_DELAY_MS = 30_000;
+const SSE_IDLE_TIMEOUT_MS = 60_000;
+const SSE_FAILURES_BEFORE_REFRESH = 3;
+// A just-acknowledged id is ignored by re-fetches for a while: a fetch sent before the acknowledge landed lists it.
+const ACKED_TTL_MS = 2 * 60_000;
+
+function useDocumentVisible(): boolean {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const update = () => setVisible(document.visibilityState === "visible");
+    update();
+    document.addEventListener("visibilitychange", update);
+    return () => document.removeEventListener("visibilitychange", update);
+  }, []);
+  return visible;
+}
+
 export function NotificationsGate() {
   const { session, isBootstrapping } = useAuth();
   const token = session?.token ?? "";
   const pathname = usePathname();
   const queryClient = useQueryClient();
+  const visible = useDocumentVisible();
+  const online = useOnlineStatus();
   const [queue, setQueue] = useState<NotificationItem[]>([]);
   const idsRef = useRef(new Set<string>());
-  const sourceRef = useRef<EventSource | null>(null);
+  const ackedRef = useRef(new Map<string, number>());
+  const epochRef = useRef(0); // +1 whenever the gate stops (sign-out / auth route): late fetches are discarded
 
   const currentNotification = queue[0];
   // D-C1: reconcile the legacy auth-route list with the rebuild's two net-new
@@ -114,12 +139,21 @@ export function NotificationsGate() {
     }
   };
 
+  const recentlyAcknowledged = (id: string) => {
+    const at = ackedRef.current.get(id);
+    if (at === undefined) return false;
+    if (Date.now() - at < ACKED_TTL_MS) return true;
+    ackedRef.current.delete(id);
+    return false;
+  };
+
+  // New items only; each one refreshes its queries (an invite refreshes the invite inbox).
   const addNotifications = (incoming: NotificationItem[]) => {
     if (incoming.length === 0) return;
     setQueue((prev) => {
       const next = [...prev];
       incoming.forEach((item) => {
-        if (idsRef.current.has(item.id)) return;
+        if (idsRef.current.has(item.id) || recentlyAcknowledged(item.id)) return;
         idsRef.current.add(item.id);
         next.push(item);
         void refreshQueriesForNotification(item);
@@ -128,72 +162,129 @@ export function NotificationsGate() {
     });
   };
 
+  // /unacknowledged is authoritative for what was queued before it was sent: a queued item it no longer lists was
+  // acknowledged elsewhere and is dropped; items the stream added meanwhile stay.
+  const fetchPending = () => {
+    const epoch = epochRef.current;
+    const queuedBefore = new Set(idsRef.current);
+    fetchUnacknowledgedNotifications(token)
+      .then((items) => {
+        if (epochRef.current !== epoch) return;
+        const listed = new Set(items.map((item) => item.id));
+        setQueue((prev) =>
+          prev.filter((item) => {
+            const keep = listed.has(item.id) || !queuedBefore.has(item.id);
+            if (!keep) idsRef.current.delete(item.id);
+            return keep;
+          })
+        );
+        addNotifications(items);
+      })
+      .catch(() => undefined);
+  };
+
   useEffect(() => {
     if (!shouldRun) {
+      epochRef.current += 1;
       setQueue([]);
       idsRef.current.clear();
-      return;
+      ackedRef.current.clear();
     }
+  }, [shouldRun]);
 
-    fetchUnacknowledgedNotifications(token)
-      .then((items) => addNotifications(items))
-      .catch(() => {
-        // Silent fail; will retry via stream or next navigation
-      });
-  }, [token, shouldRun]);
-
+  // Foreground-only stream (§3.3). /unacknowledged is fetched on every start (independent of the stream, so pending
+  // modals still pop when it can't open) and on every `ready` (the stream never replays). Every close, error or 60 s
+  // of silence = reconnect with a fresh token (a deploy ends streams with a plain close; a 401 leaves EventSource
+  // CLOSED for good). EventSource hides the status, so after 3 failed opens in a row one session refresh runs
+  // (rate-limited in client.ts) in case the server already treats the token as expired. Re-created on every token
+  // change; paused while hidden or offline (the `online` event restarts it).
   useEffect(() => {
-    if (!shouldRun) {
-      if (sourceRef.current) {
-        sourceRef.current.close();
-        sourceRef.current = null;
+    if (!shouldRun || !visible || !online) return;
+    let cancelled = false;
+    let attempt = 0;
+    let failuresSinceReady = 0;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let source: EventSource | null = null;
+
+    const drop = (stream: EventSource) => {
+      if (idleTimer) clearTimeout(idleTimer);
+      stream.close();
+      if (source === stream) source = null;
+    };
+
+    const scheduleReconnect = () => {
+      if (cancelled) return;
+      failuresSinceReady += 1;
+      if (failuresSinceReady === SSE_FAILURES_BEFORE_REFRESH) void forceSessionRefresh().catch(() => undefined);
+      const cap = Math.min(SSE_MAX_DELAY_MS, SSE_BASE_DELAY_MS * 2 ** attempt);
+      attempt += 1;
+      retryTimer = setTimeout(() => void connect(), Math.random() * cap);
+    };
+
+    // Any event (ready / ping / notification) proves the stream alive; 60 s without one = half-open → reconnect.
+    const armIdle = (stream: EventSource) => {
+      if (idleTimer) clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => {
+        drop(stream);
+        scheduleReconnect();
+      }, SSE_IDLE_TIMEOUT_MS);
+    };
+
+    async function connect() {
+      const fresh = await freshSessionToken().catch(() => null);
+      if (cancelled) return;
+      if (!fresh) {
+        scheduleReconnect();
+        return;
       }
-      return;
+      const stream = new EventSource(`${API_BASE_URL}/notifications/stream?token=${encodeURIComponent(fresh)}`);
+      source = stream;
+      armIdle(stream);
+      stream.addEventListener("ready", () => {
+        attempt = 0;
+        failuresSinceReady = 0;
+        armIdle(stream);
+        fetchPending();
+      });
+      stream.addEventListener("ping", () => armIdle(stream));
+      stream.addEventListener("notification", (event: MessageEvent<string>) => {
+        armIdle(stream);
+        try {
+          const parsed = JSON.parse(event.data) as NotificationItem;
+          if (parsed?.id) addNotifications([parsed]);
+        } catch {
+          // ignore malformed events
+        }
+      });
+      stream.onerror = () => {
+        drop(stream);
+        scheduleReconnect();
+      };
     }
 
-    const streamUrl = `${API_BASE_URL}/notifications/stream?token=${encodeURIComponent(token)}`;
-    const eventSource = new EventSource(streamUrl);
-    sourceRef.current = eventSource;
-
-    const onNotification = (event: MessageEvent<string>) => {
-      try {
-        const parsed = JSON.parse(event.data) as NotificationItem;
-        if (parsed?.id) {
-          addNotifications([parsed]);
-        }
-      } catch {
-        // ignore malformed events
-      }
-    };
-
-    eventSource.addEventListener("notification", onNotification);
-    eventSource.onerror = () => {
-      // Let the browser auto-retry; keep existing queue
-    };
-
+    fetchPending();
+    void connect();
     return () => {
-      eventSource.removeEventListener("notification", onNotification);
-      eventSource.close();
-      sourceRef.current = null;
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      if (idleTimer) clearTimeout(idleTimer);
+      source?.close();
     };
-  }, [token, shouldRun]);
+  }, [token, shouldRun, visible, online]);
 
   const handleAcknowledge = async () => {
     if (!currentNotification || !shouldRun) return;
     const notificationId = currentNotification.id;
+    ackedRef.current.set(notificationId, Date.now());
     setQueue((prev) => prev.filter((item) => item.id !== notificationId));
     idsRef.current.delete(notificationId);
     try {
       await acknowledgeNotification(token, notificationId);
     } catch {
-      // If acknowledge fails, refresh queue on next tick
-      fetchUnacknowledgedNotifications(token)
-        .then((items) => {
-          idsRef.current.clear();
-          setQueue(sortByCreatedAt(items));
-          items.forEach((item) => idsRef.current.add(item.id));
-        })
-        .catch(() => {});
+      // Not acknowledged: the re-fetch brings it back.
+      ackedRef.current.delete(notificationId);
+      fetchPending();
     }
   };
 

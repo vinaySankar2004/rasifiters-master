@@ -12,15 +12,15 @@ export type UseAuthGuardOptions = {
 
 export function useAuthGuard(options?: UseAuthGuardOptions) {
   const router = useRouter();
-  const { session, isBootstrapping } = useAuth();
+  const { session, isBootstrapping, signOutReason } = useAuth();
   const program = useActiveProgram();
   const requireProgram = options?.requireProgram !== false;
 
   useEffect(() => {
     if (!isBootstrapping && !session?.token) {
-      router.push("/login");
+      router.push(signOutReason ? `/login?reason=${signOutReason}` : "/login");
     }
-  }, [isBootstrapping, session?.token, router]);
+  }, [isBootstrapping, session?.token, signOutReason, router]);
 
   useEffect(() => {
     if (requireProgram && !program?.id) {

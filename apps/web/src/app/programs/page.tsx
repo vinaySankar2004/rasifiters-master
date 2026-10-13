@@ -30,8 +30,15 @@ import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
 import { IconUser, IconLock, IconPalette, IconDocument, IconLogout, SearchIcon } from "@/components/icons";
+import { ErrorView } from "@/components/kit/ErrorView";
+import { FloatingBanner } from "@/components/kit/FloatingBanner";
+import { toAppError, type AppError } from "@/lib/kit/app-error";
+import { fromQuery } from "@/lib/kit/async-state";
+import { useOnlineStatus } from "@/lib/kit/use-online-status";
+import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
 
 const STATUS_OPTIONS = ["planned", "active", "completed"] as const;
+const PROGRAMS_KEY = ["programs"];
 
 export default function ProgramsPage() {
   const router = useRouter();
@@ -53,6 +60,7 @@ export default function ProgramsPage() {
 
   const [declineInviteTarget, setDeclineInviteTarget] = useState<PendingInvite | null>(null);
   const [blockFutureInvites, setBlockFutureInvites] = useState(false);
+  const [respondError, setRespondError] = useState<string | null>(null);
 
   const [search, setSearch] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -62,17 +70,23 @@ export default function ProgramsPage() {
   // onDragEnd yet — the ref always holds the latest order at drag end.
   const orderedRef = useRef<Program[]>([]);
 
+  // Instant open (D-9): the picker list is seeded from the per-member launch cache after bootstrap, then refreshed.
   const programsQuery = useQuery({
-    queryKey: ["programs"],
-    queryFn: () => fetchPrograms(token ?? ""),
+    queryKey: PROGRAMS_KEY,
+    queryFn: cachedQueryFn(memberId, PROGRAMS_KEY, () => fetchPrograms(token ?? "")),
     enabled: !!token
   });
+  useLaunchSeed(memberId, [PROGRAMS_KEY]);
 
   const invitesQuery = useQuery({
     queryKey: ["invites", isGlobalAdmin],
     queryFn: () => (isGlobalAdmin ? fetchAllInvites(token ?? "") : fetchMyInvites(token ?? "")),
     enabled: !!token
   });
+
+  const programsState = fromQuery(programsQuery);
+  const invitesState = fromQuery(invitesQuery);
+  const online = useOnlineStatus();
 
   const updateMembershipMutation = useMutation({
     mutationFn: (payload: { programId: string; status: string }) => {
@@ -101,9 +115,12 @@ export default function ProgramsPage() {
         block_future: payload.blockFuture
       });
     },
-    onSuccess: async (_data, variables) => {
+    // invites §3.1 (A10): a failed accept / decline / revoke shows the kit message; cleared on the next attempt.
+    onMutate: () => setRespondError(null),
+    onError: (error) => setRespondError(toAppError(error).message),
+    onSettled: async (_data, error, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["invites", isGlobalAdmin] });
-      if (variables.action === "accept") {
+      if (!error && variables.action === "accept") {
         await queryClient.invalidateQueries({ queryKey: ["programs"] });
       }
     }
@@ -204,6 +221,7 @@ export default function ProgramsPage() {
     const query = search.trim().toLowerCase();
     return orderedPrograms.filter((p) => p.name.toLowerCase().includes(query));
   }, [orderedPrograms, search, searchActive]);
+  const programsLoaded = programsState.status === "loaded" || programsState.status === "stale";
   const canReorder = !searchActive && visiblePrograms.length > 1;
 
   const renderSearchButton = () => (
@@ -225,7 +243,10 @@ export default function ProgramsPage() {
   const renderAddButton = () => (
     <button
       type="button"
-      onClick={() => setShowActions(true)}
+      onClick={() => {
+        setRespondError(null);
+        setShowActions(true);
+      }}
       className="fab-button relative flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
       aria-label="Program actions"
     >
@@ -293,23 +314,21 @@ export default function ProgramsPage() {
         )}
 
         <section className="space-y-6 pb-28 sm:pb-0">
-          {programsQuery.isLoading && (
+          {programsState.status === "loading" && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center text-rf-text-muted">
               Loading programs…
             </div>
           )}
-          {programsQuery.isError && (
-            <div className="glass-card rounded-3xl px-6 py-8 text-center text-rf-danger">
-              {(programsQuery.error as Error).message}
-            </div>
+          {programsState.status === "failed" && (
+            <ErrorView error={programsState.error} onRetry={() => void programsQuery.refetch()} />
           )}
-          {!programsQuery.isLoading && programs.length === 0 && (
+          {programsLoaded && programs.length === 0 && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center">
               <p className="text-lg font-semibold text-rf-text">No programs yet</p>
               <p className="mt-2 text-sm text-rf-text-muted">Create a program to get started.</p>
             </div>
           )}
-          {!programsQuery.isLoading && programs.length > 0 && searchActive && visiblePrograms.length === 0 && (
+          {programsLoaded && programs.length > 0 && searchActive && visiblePrograms.length === 0 && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center">
               <p className="text-lg font-semibold text-rf-text">No programs match your search</p>
               <p className="mt-2 text-sm text-rf-text-muted">Try a different name.</p>
@@ -346,10 +365,7 @@ export default function ProgramsPage() {
                   onSelect={() => canOpen && handleProgramSelect(program)}
                   onEdit={() => setEditTarget(program)}
                   onDelete={() => setDeleteTarget(program)}
-                  onAcceptInvite={() =>
-                    updateMembershipMutation.mutate({ programId: program.id, status: "active" })
-                  }
-                  onDeclineInvite={() =>
+                  onCancelRequest={() =>
                     updateMembershipMutation.mutate({ programId: program.id, status: "removed" })
                   }
                   isUpdating={updateMembershipMutation.isPending}
@@ -365,6 +381,15 @@ export default function ProgramsPage() {
           {renderAddButton()}
         </div>
       </PageShell>
+
+      {/* Kit stale state (the cached list stays): hidden while the global offline banner shows (offline wins); the
+          spacer keeps the list's end scrollable above the banner. */}
+      {programsState.status === "stale" && online && (
+        <>
+          <div aria-hidden="true" className="h-36" />
+          <FloatingBanner variant="stale" onRetry={() => void programsQuery.refetch()} />
+        </>
+      )}
 
       <Modal open={showActions} onClose={() => setShowActions(false)}>
         <div className="modal-surface flex w-full max-w-2xl max-h-[90dvh] flex-col overflow-hidden rounded-3xl p-6">
@@ -395,9 +420,11 @@ export default function ProgramsPage() {
             {actionsTab === "invites" ? (
               <InvitesTab
                 invites={invitesQuery.data ?? []}
-                isLoading={invitesQuery.isLoading}
+                isLoading={invitesState.status === "loading"}
                 isGlobalAdmin={isGlobalAdmin}
-                errorMessage={invitesQuery.isError ? (invitesQuery.error as Error).message : null}
+                error={invitesState.status === "failed" ? invitesState.error : null}
+                onRetry={() => void invitesQuery.refetch()}
+                respondError={respondError}
                 onAccept={async (invite) => {
                   try {
                     await respondInviteMutation.mutateAsync({
@@ -410,6 +437,7 @@ export default function ProgramsPage() {
                   }
                 }}
                 onDecline={(invite) => {
+                  setRespondError(null);
                   setDeclineInviteTarget(invite);
                   setBlockFutureInvites(false);
                 }}
@@ -578,6 +606,7 @@ export default function ProgramsPage() {
             />
             Block future invites from this program
           </label>
+          {respondError && <p className="mt-4 text-sm font-semibold text-rf-danger">{respondError}</p>}
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <button
               type="button"
@@ -593,13 +622,17 @@ export default function ProgramsPage() {
               type="button"
               onClick={async () => {
                 if (!declineInviteTarget) return;
-                await respondInviteMutation.mutateAsync({
-                  inviteId: declineInviteTarget.invite_id,
-                  action: "decline",
-                  blockFuture: blockFutureInvites
-                });
-                setDeclineInviteTarget(null);
-                setBlockFutureInvites(false);
+                try {
+                  await respondInviteMutation.mutateAsync({
+                    inviteId: declineInviteTarget.invite_id,
+                    action: "decline",
+                    blockFuture: blockFutureInvites
+                  });
+                  setDeclineInviteTarget(null);
+                  setBlockFutureInvites(false);
+                } catch {
+                  // respondError shows in this modal
+                }
               }}
               className="danger-pill rounded-2xl px-4 py-3 text-sm font-semibold"
             >
@@ -620,8 +653,7 @@ type ProgramCardProps = {
   onSelect: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onAcceptInvite: () => void;
-  onDeclineInvite: () => void;
+  onCancelRequest: () => void;
   isUpdating: boolean;
   dragHandle?: React.ReactNode;
 };
@@ -685,8 +717,7 @@ function ProgramCard({
   onSelect,
   onEdit,
   onDelete,
-  onAcceptInvite,
-  onDeclineInvite,
+  onCancelRequest,
   isUpdating,
   dragHandle
 }: ProgramCardProps) {
@@ -733,31 +764,20 @@ function ProgramCard({
         />
       </div>
 
-      {(isInvited || isRequested) && (
+      {/* invites D-C8: an `invited` card has no actions (the My Invites inbox is the one path); `requested` keeps
+          its Cancel request. */}
+      {isRequested && (
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          {isInvited && (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onAcceptInvite();
-              }}
-              className="rounded-full bg-rf-accent px-4 py-2 text-sm font-semibold text-black"
-              disabled={isUpdating}
-            >
-              Accept
-            </button>
-          )}
           <button
             type="button"
             onClick={(event) => {
               event.stopPropagation();
-              onDeclineInvite();
+              onCancelRequest();
             }}
             className="rounded-full bg-rf-surface-muted px-4 py-2 text-sm font-semibold text-rf-text"
             disabled={isUpdating}
           >
-            {isRequested ? "Cancel request" : "Decline"}
+            Cancel request
           </button>
         </div>
       )}
@@ -818,7 +838,9 @@ function InvitesTab({
   invites,
   isLoading,
   isGlobalAdmin,
-  errorMessage,
+  error,
+  onRetry,
+  respondError,
   onAccept,
   onDecline,
   onRevoke
@@ -826,7 +848,10 @@ function InvitesTab({
   invites: PendingInvite[];
   isLoading: boolean;
   isGlobalAdmin: boolean;
-  errorMessage: string | null;
+  error: AppError | null;
+  onRetry: () => void;
+  /** The last accept / decline / revoke failure (kit message). */
+  respondError: string | null;
   onAccept: (invite: PendingInvite) => void;
   onDecline: (invite: PendingInvite) => void;
   onRevoke: (invite: PendingInvite) => void;
@@ -835,19 +860,24 @@ function InvitesTab({
     return <div className="text-center text-sm text-rf-text-muted">Loading invites…</div>;
   }
 
-  if (errorMessage) {
-    return <div className="text-center text-sm text-rf-danger">{errorMessage}</div>;
-  }
+  if (error) return <ErrorView error={error} onRetry={onRetry} />;
+
+  const respondLine = respondError ? (
+    <p className="text-sm font-semibold text-rf-danger">{respondError}</p>
+  ) : null;
 
   if (invites.length === 0) {
     return (
-      <div className="rounded-2xl bg-rf-surface-muted px-6 py-10 text-center">
-        <p className="text-base font-semibold text-rf-text">No pending invitations</p>
-        <p className="mt-2 text-sm text-rf-text-muted">
-          {isGlobalAdmin
-            ? "There are no pending invites in the system."
-            : "You don't have any program invitations right now."}
-        </p>
+      <div className="space-y-3">
+        {respondLine}
+        <div className="rounded-2xl bg-rf-surface-muted px-6 py-10 text-center">
+          <p className="text-base font-semibold text-rf-text">No pending invitations</p>
+          <p className="mt-2 text-sm text-rf-text-muted">
+            {isGlobalAdmin
+              ? "There are no pending invites in the system."
+              : "You don't have any program invitations right now."}
+          </p>
+        </div>
       </div>
     );
   }
@@ -862,6 +892,7 @@ function InvitesTab({
 
     return (
       <div className="space-y-6">
+        {respondLine}
         {Object.keys(grouped).map((programName) => (
           <div key={programName} className="space-y-3">
             <h3 className="text-sm font-semibold text-rf-text">{programName}</h3>
@@ -885,6 +916,7 @@ function InvitesTab({
 
   return (
     <div className="space-y-3">
+      {respondLine}
       {invites.map((invite) => (
         <InviteCard
           key={invite.invite_id}

@@ -13,6 +13,9 @@ import { useAuth } from "@/lib/auth/auth-provider";
 import { decodeJwtPayload, resolveGlobalRole, type DecodedAuthToken } from "@/lib/auth/jwt";
 import { GOOGLE_WEB_CLIENT_ID, PRIVACY_POLICY_URL } from "@/lib/config";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
+import { credentialErrorMessage } from "@/lib/kit/app-error";
+import { KIT_COPY } from "@/lib/kit/copy";
+import { reportProviderFailure, reportSignInFailure } from "@/lib/events/client-events";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,7 +40,7 @@ export default function LoginPage() {
     redirectReason === "expired" || redirectReason === "invalid" || passwordWasReset;
   const sessionMessage =
     redirectReason === "expired"
-      ? "Your session expired. Please sign in again."
+      ? KIT_COPY.errors.signedOut
       : redirectReason === "invalid"
         ? "We could not verify your session. Please sign in again."
         : "Your password has been reset. Sign in with your new password.";
@@ -83,9 +86,8 @@ export default function LoginPage() {
       const response = await login(identifier.trim(), password);
       applyLogin(response);
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "Unable to login. Try again.";
-      setErrorMessage(message);
+      reportSignInFailure("password", error);
+      setErrorMessage(credentialErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -117,7 +119,8 @@ export default function LoginPage() {
           applyLogin(r);
         }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Google sign-in failed. Try again.");
+        reportSignInFailure("google", error);
+        setErrorMessage(credentialErrorMessage(error));
       } finally {
         setIsLoading(false);
       }
@@ -211,7 +214,14 @@ export default function LoginPage() {
                 <span>or</span>
                 <span className="h-px flex-1 bg-rf-text-muted/25" />
               </div>
-              <GoogleSignInButton onCode={handleGoogle} disabled={isLoading} />
+              <GoogleSignInButton
+                onCode={handleGoogle}
+                onProviderError={(code) => {
+                  reportProviderFailure("google", code);
+                  setErrorMessage(KIT_COPY.errors.unknown);
+                }}
+                disabled={isLoading}
+              />
             </>
           )}
         </form>

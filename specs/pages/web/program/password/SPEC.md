@@ -1,6 +1,6 @@
 # Page: `program/password` (web) — change password (program-settings sub-route 4 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/password` — the logged-in user's **own change-password page** (new + confirm password
 > with a live policy checklist → `PUT /auth/change-password`), the fourth of the six deferred `/program/*`
 > settings sub-routes (reached from the [`program`](../SPEC.md) hub's account menu).
@@ -59,7 +59,7 @@ sign-up paths share (single-sourced).
 | New password | `input-shell` field (`type` flips with `showPassword`) + a Show/Hide toggle button. | password/page.tsx:55-76 |
 | Confirm password | `input-shell` field, always `type="password"`. | password/page.tsx:78-88 |
 | Policy checklist | 5 `<p>` rows, each gaining **`text-rf-success`** when its rule is met (D-C1). | password/page.tsx:90-96 |
-| Error / success | Inline `rf-danger` error line; **`rf-success`** "Password updated successfully." (D-C1). | password/page.tsx:98-99 |
+| Error / success | Inline `rf-danger` error line; **`rf-success`** "Password updated. Your other devices will be signed out." (D-C1, D-REL1). | password/page.tsx (message lines) |
 | Update | "Update Password" (`bg-rf-accent text-black`); disabled unless `validation.isValid` + not pending; clears both messages then mutates. | password/page.tsx:101-114 |
 
 ## 5. Components + consumed features
@@ -104,11 +104,17 @@ sign-up paths share (single-sourced).
 
 - **Update disabled:** until the live `validation.isValid` passes (all 5 rules) **and** no mutation is in flight
   (`canSubmit`).
-- **Update success:** `rf-success` "Password updated successfully." line; both password fields clear. The message
-  is **cleared when the user next edits a field** (D-C3; legacy left it lingering with the empty fields until the
-  next submit).
-- **Update error:** inline `rf-danger` line (`error.message` — e.g. the backend 400 policy message — or the
-  "Unable to update password." fallback); also cleared on next field edit (D-C3) and on the next submit click.
+- **Update success:** `rf-success` "Password updated. Your other devices will be signed out." line; both password
+  fields clear; this device stays signed in (auth §3.1 rule 4). The message is **cleared when the user next edits
+  a field** (D-C3; legacy left it lingering with the empty fields until the next submit).
+- **Update error (D-REL1):** inline `rf-danger` line via `credentialErrorMessage(error, "account")` — the server
+  text for 400 / 409 / 422 (e.g. the policy message), the kit `signedOut` copy for a 401, the kit copy otherwise;
+  also cleared on next field edit (D-C3) and on the next submit click.
+- **Unknown outcome (D-REL1, rule 6):** a 401 is refreshed and re-sent once by the client (the write never ran);
+  after a SENT 5xx / 408 / timeout / dropped connection the page shows "We couldn't confirm your password change.
+  It may have gone through, so try signing in with your new password." and keeps the fields. A failure with no
+  response while the browser is offline shows the kit offline copy instead. A manual retry of the SAME password
+  answered with the same-password 400 counts as done (success copy).
 - **Show/Hide:** toggles only the **New password** field's `type`; Confirm stays masked (faithful, F3).
 - **Unauthenticated:** the `useAuthGuard` redirect (and the edge `middleware.ts`) send a tokenless visitor to
   `/login`.
@@ -126,6 +132,8 @@ sign-up paths share (single-sourced).
 | **D-C2** | **Reuse `useAuthGuard({ requireProgram: false })`** instead of the inline `useAuth` + manual `useEffect(() => !session?.token && router.push("/login"))` redirect — matches sibling [`profile`](../profile/SPEC.md) exactly; the hook subsumes the inline redirect (and provides `program` for the back-href + `token` for the mutation). Legacy predated the foundation hook. | password/page.tsx:14-29; [use-auth-guard.ts](../../../../../../apps/web/src/lib/hooks/use-auth-guard.ts) |
 | **D-C3** | **Clear the stale success/error message on field edit** — reset `successMessage`/`errorMessage` when New password / Confirm changes, so a prior "Password updated successfully." doesn't linger over the cleared fields. Legacy only cleared them at the *next* Update click (password/page.tsx:36,103-110). Mirrors `profile` D-C2. | legacy lingering `successMessage` |
 
+| **D-REL1** | **Reliability Phase 3 C1 (auth §3.1 rules 4 + 6).** Success copy `AUTH_COPY.passwordChanged` ("Password updated. Your other devices will be signed out." — the same string on iOS + Android). No TanStack auto-retry; the client re-sends once only after a 401 (never ran); "couldn't confirm" (`AUTH_COPY.passwordUnconfirmed`) only after a sent 5xx / 408 / timeout / dropped connection; a same-password 400 after a manual retry of the same value = done. Errors via `credentialErrorMessage(…, "account")`. | auth §3.1; amendments A1 / A8 / A9. |
+
 ## 10. Flagged characteristics (kept as-is)
 
 - **F1 — client `validatePassword` duplicates the server policy** (password/page.tsx:117-134;
@@ -139,7 +147,8 @@ sign-up paths share (single-sourced).
 - **F3 — Show/Hide reveals only the New password field** (password/page.tsx:63-72).
   Confirm stays `type="password"` with no toggle, so a Show'd new password can't be visually diffed against a
   masked confirm. Faithful; minor UX nit, rebuild-cleanup candidate.
-- **F4 — `changePassword` does not re-issue the session JWT** ([lib/api/auth.ts:83](../../../../../../apps/web/src/lib/api/auth.ts#L83);
+- **F4 — `changePassword` does not re-issue the session JWT** (since auth 0.13.0 the OTHER devices' sessions end at
+  their next refresh; this one stays valid) ([lib/api/auth.ts:83](../../../../../../apps/web/src/lib/api/auth.ts#L83);
   [auth.js:101](../../../../../../apps/backend/routes/auth.js#L101)). The bearer that authorized the change stays
   valid (it is not bound to the old password); the page makes no session/cache mutation on success. Faithful —
   matches legacy; the next natural refresh re-issues normally.
@@ -148,4 +157,5 @@ sign-up paths share (single-sourced).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1: success copy "Password updated. Your other devices will be signed out."; auth §3.1 rule 6 (401 re-sent once after a refresh; "couldn't confirm" after a sent 5xx / 408 / timeout; same-password 400 on a same-value retry = done); errors via `credentialErrorMessage(…, "account")`. §4/§8 updated. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 28) — the **fourteenth web page spec**, the **fourth of the six deferred `/program/*` settings sub-routes**. The signed-in user's **own change-password page** (new + confirm + live policy checklist → `PUT /auth/change-password`) — **not** a program-admin setting (no admin redirect; available to every role; no role-conditional UI at all). A near-twin of the built `reset-password` form (minus the URL-fragment recovery token) and a sibling of `profile`. Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Change Password mirrors later) · **D-SCOPE** (this page only; appearance/privacy still deferred) · **D-DEPS** (no new dependency — purest shape) · **D-S1** (faithful 1:1) · **D-C1** (tokenize success/checklist color → `rf-success` at all 6 sites) · **D-C2** (reuse `useAuthGuard({ requireProgram: false })` over the inline redirect) · **D-C3** (clear stale success/error on field edit). Flagged F1–F4 (client policy mirror; no client throttle; Show toggles New only; no JWT re-issue on change). Consumes `auth` (`changePassword`/`useAuthGuard`); **route + api fn + shared policy already shipped, no feature bump.** Ported `apps/web/src/app/program/password/page.tsx`. `npm run build` ✓. |

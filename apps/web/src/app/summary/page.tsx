@@ -35,7 +35,11 @@ import { useIsMobile } from "@/lib/hooks/use-is-mobile";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
-import { ErrorState } from "@/components/ui/ErrorState";
+import { ErrorView } from "@/components/kit/ErrorView";
+import { FloatingBanner } from "@/components/kit/FloatingBanner";
+import { fromQuery } from "@/lib/kit/async-state";
+import { useOnlineStatus } from "@/lib/kit/use-online-status";
+import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
 import {
   CHART_COLORS,
@@ -61,54 +65,107 @@ export default function SummaryPage() {
     program?.my_role === "admin" ||
     program?.my_role === "logger";
   const dataEntryLocked = isDataEntryLocked(session, program);
+  const memberId = session?.user.id;
+  const online = useOnlineStatus();
+  // Instant open (D-9): the 8 independent queries (already parallel) are seeded from the per-member launch cache after
+  // bootstrap, then refreshed. Key VALUES are unchanged so the summary sub-pages keep sharing them.
+  const keys = {
+    analytics: ["summary", programId, summaryPeriod],
+    mtd: ["summary", "mtdParticipation", programId],
+    totalWorkouts: ["summary", "totalWorkouts", programId],
+    totalDuration: ["summary", "totalDuration", programId],
+    avgDuration: ["summary", "avgDuration", programId],
+    timeline: ["summary", "timeline", programId, summaryPeriod],
+    distribution: ["summary", "distribution", programId],
+    workoutTypes: ["summary", "workoutTypes", programId]
+  };
+  useLaunchSeed(memberId, programId ? Object.values(keys) : [], programId);
 
   const analyticsQuery = useQuery({
-    queryKey: ["summary", programId, summaryPeriod],
-    queryFn: () => fetchAnalyticsSummary(token, summaryPeriod, programId),
+    queryKey: keys.analytics,
+    queryFn: cachedQueryFn(
+      memberId,
+      keys.analytics,
+      () => fetchAnalyticsSummary(token, summaryPeriod, programId),
+      programId
+    ),
     enabled: !!token && !!programId
   });
 
   const mtdParticipationQuery = useQuery({
-    queryKey: ["summary", "mtdParticipation", programId],
-    queryFn: () => fetchMTDParticipation(token, programId),
+    queryKey: keys.mtd,
+    queryFn: cachedQueryFn(memberId, keys.mtd, () => fetchMTDParticipation(token, programId), programId),
     enabled: !!token && !!programId
   });
 
   const totalWorkoutsQuery = useQuery({
-    queryKey: ["summary", "totalWorkouts", programId],
-    queryFn: () => fetchTotalWorkoutsMTD(token, programId),
+    queryKey: keys.totalWorkouts,
+    queryFn: cachedQueryFn(
+      memberId,
+      keys.totalWorkouts,
+      () => fetchTotalWorkoutsMTD(token, programId),
+      programId
+    ),
     enabled: !!token && !!programId
   });
 
   const totalDurationQuery = useQuery({
-    queryKey: ["summary", "totalDuration", programId],
-    queryFn: () => fetchTotalDurationMTD(token, programId),
+    queryKey: keys.totalDuration,
+    queryFn: cachedQueryFn(
+      memberId,
+      keys.totalDuration,
+      () => fetchTotalDurationMTD(token, programId),
+      programId
+    ),
     enabled: !!token && !!programId
   });
 
   const avgDurationQuery = useQuery({
-    queryKey: ["summary", "avgDuration", programId],
-    queryFn: () => fetchAvgDurationMTD(token, programId),
+    queryKey: keys.avgDuration,
+    queryFn: cachedQueryFn(memberId, keys.avgDuration, () => fetchAvgDurationMTD(token, programId), programId),
     enabled: !!token && !!programId
   });
 
   const activityTimelineQuery = useQuery({
-    queryKey: ["summary", "timeline", programId, summaryPeriod],
-    queryFn: () => fetchActivityTimeline(token, summaryPeriod, programId),
+    queryKey: keys.timeline,
+    queryFn: cachedQueryFn(
+      memberId,
+      keys.timeline,
+      () => fetchActivityTimeline(token, summaryPeriod, programId),
+      programId
+    ),
     enabled: !!token && !!programId
   });
 
   const distributionQuery = useQuery({
-    queryKey: ["summary", "distribution", programId],
-    queryFn: () => fetchDistributionByDay(token, programId),
+    queryKey: keys.distribution,
+    queryFn: cachedQueryFn(
+      memberId,
+      keys.distribution,
+      () => fetchDistributionByDay(token, programId),
+      programId
+    ),
     enabled: !!token && !!programId
   });
 
   const workoutTypesQuery = useQuery({
-    queryKey: ["summary", "workoutTypes", programId],
-    queryFn: () => fetchWorkoutTypes(token, programId, 50),
+    queryKey: keys.workoutTypes,
+    queryFn: cachedQueryFn(
+      memberId,
+      keys.workoutTypes,
+      () => fetchWorkoutTypes(token, programId, 50),
+      programId
+    ),
     enabled: !!token && !!programId
   });
+
+  const summaryQueries = [analyticsQuery, mtdParticipationQuery, totalWorkoutsQuery, totalDurationQuery,
+    avgDurationQuery, activityTimelineQuery, distributionQuery, workoutTypesQuery];
+  const summaryStates = summaryQueries.map((query) => fromQuery<unknown>(query));
+  const failedState = summaryStates.find((state) => state.status === "failed");
+  const summaryError = failedState?.status === "failed" ? failedState.error : null;
+  const summaryStale = summaryStates.some((state) => state.status === "stale");
+  const retrySummary = () => summaryQueries.forEach((query) => { if (query.isError) void query.refetch(); });
 
   const workoutsMutation = useMutation({
     mutationFn: ({ entries, programIds }: { entries: BulkWorkoutEntry[]; programIds: string[] }) =>
@@ -162,16 +219,21 @@ export default function SummaryPage() {
     <PageShell>
         <SummaryHeader title="Summary" subtitle={program?.name ?? "Program"} initials={userInitials || "RF"} />
 
-        {analyticsQuery.isError && (
-          <ErrorState message={(analyticsQuery.error as Error).message} />
-        )}
+        {summaryError && <ErrorView error={summaryError} onRetry={retrySummary} />}
 
         <div className="grid gap-5">
           <div className="grid gap-5 md:grid-cols-2">
-            <ProgramProgressCard summary={analyticsQuery.data} />
+            <ProgramProgressCard
+              summary={analyticsQuery.data}
+              unavailable={fromQuery(analyticsQuery).status === "failed"}
+            />
             <ActivityTimelineCard
               label={activityTimelineQuery.data?.label ?? "Activity"}
-              dailyAverage={activityTimelineQuery.data?.daily_average ?? 0}
+              dailyAverage={
+                fromQuery(activityTimelineQuery).status === "failed"
+                  ? null
+                  : activityTimelineQuery.data?.daily_average ?? 0
+              }
               points={activityData}
               onClick={() => router.push("/summary/activity")}
             />
@@ -206,7 +268,9 @@ export default function SummaryPage() {
               subtitle={
                 mtdParticipationQuery.data
                   ? `${mtdParticipationQuery.data.active_members} / ${mtdParticipationQuery.data.total_members} members`
-                  : "Loading..."
+                  : fromQuery(mtdParticipationQuery).status === "loading"
+                    ? "Loading..."
+                    : "—"
               }
               delta={mtdParticipationQuery.data?.change_pct}
             />
@@ -277,6 +341,15 @@ export default function SummaryPage() {
             }
           />
         </Modal>
+
+        {/* Kit stale state (cached cards stay): hidden while the global offline banner shows (offline wins); the
+            spacer keeps the page end scrollable above the banner. */}
+        {summaryStale && !summaryError && online && (
+          <>
+            <div aria-hidden="true" className="h-36" />
+            <FloatingBanner variant="stale" onRetry={retrySummary} />
+          </>
+        )}
     </PageShell>
   );
 }
@@ -309,7 +382,9 @@ function SummaryHeader({
   );
 }
 
-function ProgramProgressCard({ summary }: { summary?: AnalyticsSummary }) {
+// `unavailable` = its query failed with nothing to show: "—", never fake zeros under the ErrorView (frontend-kit §6).
+function ProgramProgressCard({ summary, unavailable = false }: { summary?: AnalyticsSummary; unavailable?: boolean }) {
+  const shown = (text: string) => (unavailable ? "—" : text);
   const progress = summary?.program_progress;
   const percent = progress?.progress_percent ?? 0;
   const elapsed = progress?.elapsed_days ?? 0;
@@ -348,9 +423,9 @@ function ProgramProgressCard({ summary }: { summary?: AnalyticsSummary }) {
             />
           </svg>
           <div className="relative z-10 text-center">
-            <p className="text-2xl font-bold">{percent}%</p>
+            <p className="text-2xl font-bold">{shown(`${percent}%`)}</p>
             <p className="text-xs text-rf-text-muted">
-              {elapsed}/{total} days
+              {shown(`${elapsed}/${total} days`)}
             </p>
           </div>
         </div>
@@ -358,11 +433,11 @@ function ProgramProgressCard({ summary }: { summary?: AnalyticsSummary }) {
         <div className="flex flex-wrap items-center justify-center gap-6">
           <div>
             <p className="text-sm text-rf-text-muted">Elapsed</p>
-            <p className="text-lg font-semibold text-rf-text">{elapsed} days</p>
+            <p className="text-lg font-semibold text-rf-text">{shown(`${elapsed} days`)}</p>
           </div>
           <div>
             <p className="text-sm text-rf-text-muted">Remaining</p>
-            <p className="text-lg font-semibold text-rf-text">{progress?.remaining_days ?? 0} days</p>
+            <p className="text-lg font-semibold text-rf-text">{shown(`${progress?.remaining_days ?? 0} days`)}</p>
           </div>
         </div>
       </div>
@@ -447,7 +522,8 @@ function ActivityTimelineCard({
   onClick
 }: {
   label: string;
-  dailyAverage: number;
+  /** null = its query failed with nothing to show ("—", never a fake zero). */
+  dailyAverage: number | null;
   points: ActivityTimelinePoint[];
   onClick: () => void;
 }) {
@@ -466,7 +542,7 @@ function ActivityTimelineCard({
         <div className="text-right">
           <span className="text-lg font-semibold text-rf-text-muted">&gt;</span>
           <p className="mt-1 text-xs text-rf-text-muted">Daily avg</p>
-          <p className="text-base font-semibold text-rf-text">{dailyAverage.toFixed(1)}</p>
+          <p className="text-base font-semibold text-rf-text">{dailyAverage === null ? "—" : dailyAverage.toFixed(1)}</p>
         </div>
       </div>
       <div className="mt-4 h-40">

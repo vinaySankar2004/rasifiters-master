@@ -5,11 +5,14 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { NotificationsGate } from "@/components/NotificationsGate";
 import { SummaryIcon, MembersIcon, LifestyleIcon, ProgramIcon } from "@/components/icons";
+import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import { useDismissKeyboard } from "@/lib/hooks/use-dismiss-keyboard";
+import { useOnlineStatus } from "@/lib/kit/use-online-status";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   useDismissKeyboard();
+  const online = useOnlineStatus();
   const showNav = ["/summary", "/members", "/lifestyle", "/program"].includes(pathname);
 
   useEffect(() => {
@@ -50,9 +53,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <main className={`relative z-10 min-h-screen ${showNav ? "pb-28" : ""}`}>
         {children}
+        {/* frontend-kit (A6): extra scroll room while the offline banner floats, so it never covers the page end. */}
+        {!online && <div aria-hidden="true" className="h-36" />}
       </main>
 
       <NotificationsGate />
+
+      {/* frontend-kit D-KIT-8: ONE global offline banner, outside <main> and the backdrop-blur nav. Pages hide
+          their own stale banner while it shows (offline wins). */}
+      {!online && <FloatingBanner variant="offline" />}
 
       {showNav && (
         <nav className="bottom-nav fixed left-1/2 z-20 w-[min(92vw,520px)] -translate-x-1/2 rounded-3xl bg-white/90 px-4 py-3 shadow-2xl backdrop-blur bottom-[max(1.5rem,env(safe-area-inset-bottom))]">

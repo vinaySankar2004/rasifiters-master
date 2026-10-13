@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api/client";
+import { ApiError, apiRequest, wasNeverSent } from "@/lib/api/client";
 import { AUTH_LOGIN_PATH } from "@/lib/config";
 
 export type LoginResponse = {
@@ -78,7 +78,12 @@ export async function completeSocialRegistration(
   pendingToken: string,
   payload: { username: string; gender?: string; first_name?: string; last_name?: string; refresh_token?: string }
 ) {
-  return apiRequest<LoginResponse>("/auth/oauth/complete", { method: "POST", token: pendingToken, body: payload });
+  return apiRequest<LoginResponse>("/auth/oauth/complete", {
+    method: "POST",
+    token: pendingToken,
+    bearer: "explicit",
+    body: payload
+  });
 }
 
 export type RefreshResponse = {
@@ -94,11 +99,20 @@ export async function refreshSession(refreshToken: string) {
   });
 }
 
-export async function logout(refreshToken: string) {
+// /auth/logout ends THIS device's session only (auth §3.1). Explicit Bearer + refresh_token (either alone works);
+// the caller ignores the outcome.
+export async function logout(token: string, refreshToken?: string) {
   return apiRequest<{ message?: string }>("/auth/logout", {
     method: "POST",
-    body: { refresh_token: refreshToken }
+    token,
+    bearer: "explicit",
+    body: refreshToken ? { refresh_token: refreshToken } : undefined
   });
+}
+
+// "Sign out everywhere" (auth §3.1): every session ends, this device's included. No body.
+export async function logoutAll(token: string) {
+  return apiRequest<{ message?: string }>("/auth/logout-all", { method: "POST", token });
 }
 
 // Self-service password recovery — request step. Privacy-safe: the backend always returns a generic
@@ -118,6 +132,7 @@ export async function resetPassword(accessToken: string, newPassword: string) {
   return apiRequest<{ message?: string }>("/auth/reset-password", {
     method: "POST",
     token: accessToken,
+    bearer: "explicit",
     body: { new_password: newPassword }
   });
 }
@@ -155,19 +170,13 @@ export async function listIdentities(token: string) {
   return apiRequest<IdentitiesResponse>("/auth/identities", { token });
 }
 
-// Link Google via the web custom-button auth `code`. refreshToken is threaded so the backend can bind the
-// caller's own Supabase session server-side (linkIdentityIdToken) — R1 preserved.
-export async function linkGoogle(token: string, code: string, refreshToken: string) {
-  return apiRequest<IdentitiesResponse>("/auth/link", {
-    method: "POST", token, body: { provider: "google", code, refresh_token: refreshToken }
-  });
+// Link Google via the web custom-button auth `code`. refresh_token is no longer sent (ignored since 0.13.0, D-C14).
+export async function linkGoogle(token: string, code: string) {
+  return apiRequest<IdentitiesResponse>("/auth/link", { method: "POST", token, body: { provider: "google", code } });
 }
 
-// Unlink a provider (refresh_token bound server-side, same as link).
-export async function unlinkProvider(token: string, provider: string, refreshToken: string) {
-  return apiRequest<IdentitiesResponse>("/auth/unlink", {
-    method: "POST", token, body: { provider, refresh_token: refreshToken }
-  });
+export async function unlinkProvider(token: string, provider: string) {
+  return apiRequest<IdentitiesResponse>("/auth/unlink", { method: "POST", token, body: { provider } });
 }
 
 // Social-only member adds an email/password credential.
@@ -175,4 +184,34 @@ export async function setPassword(token: string, newPassword: string) {
   return apiRequest<IdentitiesResponse>("/auth/set-password", {
     method: "POST", token, body: { new_password: newPassword }
   });
+}
+
+// Copy shared 1:1 with iOS + Android (auth §3.1 rules 4 + 6; "Sign out everywhere").
+export const AUTH_COPY = {
+  passwordChanged: "Password updated. Your other devices will be signed out.",
+  passwordSet: "Password set. Your other devices will be signed out.",
+  passwordUnconfirmed:
+    "We couldn't confirm your password change. It may have gone through, so try signing in with your new password.",
+  signOutEverywhere: "Sign out everywhere",
+  signOutEverywhereHint: "Signs you out on every device, including this one.",
+  signOutEverywhereTitle: "Sign out everywhere?",
+  signOutEverywhereBody: "You'll be signed out on all your devices, including this one.",
+  signingOut: "Signing out..."
+} as const;
+
+const SAME_PASSWORD_ERROR = "New password must be different from your current password.";
+
+/**
+ * Rule 6: the write was sent and its outcome is unknown (5xx / 408 / timeout / dropped connection). A failure with no
+ * response while the browser reports offline is "offline" (the kit offline copy), not "couldn't confirm".
+ */
+export function isPasswordWriteUnconfirmed(error: unknown): boolean {
+  if (wasNeverSent(error)) return false;
+  if (error instanceof ApiError) return error.status >= 500 || error.status === 408;
+  return !(typeof navigator !== "undefined" && navigator.onLine === false);
+}
+
+/** Rule 6: a manual retry of the same password answered with the same-password 400 = the earlier attempt landed. */
+export function isSamePasswordError(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 400 && error.message === SAME_PASSWORD_ERROR;
 }

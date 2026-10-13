@@ -1,6 +1,6 @@
 # Page: `create-account` (web) — the public sign-up screen
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/create-account` (reached from the login page's "New here? Create an account" link, or from
 > `/login` with `?social=1` for a brand-new Google user finishing their profile).
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/create-account/page.tsx`
@@ -57,7 +57,7 @@ register-then-auto-login is faithful to legacy.
 | Confirm-password input + toggle | Second password input with its own Show/Hide. | create-account/page.tsx:197-213 |
 | **Live password checklist** | **REPLACES the legacy static hint line (D-C3)** — a ✓/○ list (≥8 chars · uppercase · lowercase · number) that appears once the user starts typing and turns green per satisfied rule. | legacy static line: create-account/page.tsx:215-218; `apps/web` `PolicyItem` |
 | Confirm-mismatch hint (conditional) | **Muted "Passwords don't match." (D-C4)** — was legacy's red text; aligned to reset-password's styling. | legacy red: create-account/page.tsx:219-221 |
-| Error banner (conditional) | Red box with the caught error message (default "Unable to create account. Try again."). | create-account/page.tsx:224-228 |
+| Error banner (conditional) | Red box: `credentialErrorMessage(error)` — the server text for 400 / 401 / 409 / 422, the kit copy otherwise (D-REL2); the kit `unknown` copy when the Google popup fails (not a cancel). | `apps/web/src/app/create-account/page.tsx` (error block) |
 | Submit button | "Create Account" / "Creating account..." (when `isLoading`); disabled while `!canSubmit \|\| isLoading`. | create-account/page.tsx:230-236 |
 | Sign-in link | "Already have an account? **Sign in**" → `/login`. | create-account/page.tsx:239-247 |
 | Footer | "By creating an account, you accept our **Privacy Policy**" → `PRIVACY_POLICY_URL`. | create-account/page.tsx:249-257 |
@@ -81,7 +81,8 @@ exists…") surfaces in the red error banner. On-mount, `?social=1` adopts a pen
 page in `sessionStorage["rf_pending_social"]` (then clears it). Renders nothing (no divider/button) until
 `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` is configured, so the page builds/deploys before the id is set.
 
-Errors caught → red banner; `finally` clears `isLoading`.
+Errors caught → red banner (`credentialErrorMessage`); a failed sign-in leg also queues an `auth.sign_in_failed`
+client event (D-REL1); `finally` clears `isLoading`.
 
 ## 5. Components + features consumed
 
@@ -125,8 +126,13 @@ after a program is selected).
 - **Validation:** the submit button is disabled until all required fields are filled, the email is
   format-valid (D-C1), the password meets policy (live checklist, D-C3), and the two passwords match. The
   email hint and password checklist appear only after the user starts typing (no flash of errors on a blank form).
-- **Register/login error:** caught → red banner with `error.message` (e.g. "Username already exists",
-  "Email already exists", a password-policy message, or the default "Unable to create account. Try again.").
+- **Register/login error (D-REL2):** caught → red banner via `credentialErrorMessage` — the server text for 400 /
+  401 / 409 / 422 (e.g. "Username already exists", "Email already exists", a password-policy message); the kit
+  copy for offline / timeout / 429 / 503 / 5xx / 403 / 404.
+- **Sign-in failure events (D-REL1):** the Google exchange (`/auth/oauth`), the post-register auto-login and
+  `/auth/oauth/complete` failures queue `auth.sign_in_failed` (`method` `google` / `password` / `google`); a
+  failed **register** is not a sign-in and is not reported. A GSI provider failure (not `popup_closed` /
+  `access_denied`) queues `kind: "provider"` and shows the kit `unknown` copy.
 - **Auto-login after register:** if `register` succeeds but `login` fails (rare — same just-created
   credentials), the catch surfaces the login error and the user can sign in manually via `/login` (the
   account already exists). Flagged F2.
@@ -149,6 +155,9 @@ after a program is selected).
 | **D-C7** | **Google social sign-up branch** — a 2-step variant (`mode="social"`: name → username, **no password**, **read-only locked email**) for a brand-new federated user. Entered either inline after `socialSignIn` returns `needs_profile`, or on-mount via `?social=1` + `sessionStorage["rf_pending_social"]` (stashed by the login page). Finishes with `completeSocialRegistration()` → build session → `/programs`. | Approved plan (web §Step 4); auth `POST /auth/oauth` + `/auth/oauth/complete` contract. |
 | **D-C8** | **"Continue with Google" button** (`GoogleSignInButton`, GSI lazy-loaded) under the step-1 name fields with an "or" divider. Client id = `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` (public, non-secret); when unset the button **and its divider render nothing** so the page still builds/deploys. A 409 (email already on a password account) surfaces in the error banner. | Approved plan (web §Step 3/4); `config.ts` `GOOGLE_WEB_CLIENT_ID`; `GoogleSignInButton.tsx`. |
 
+| **D-REL1** | **`auth.sign_in_failed` events (reliability Phase 3 C1, observability §8)** for the Google exchange, the post-register login and `oauth/complete`, plus GSI provider failures (`kind: "provider"`). A register failure is not reported. | observability §8; C1 step 11. |
+| **D-REL2** | **Errors via `credentialErrorMessage`** (server text for 400 / 401 / 409 / 422, kit copy otherwise); a Google provider failure shows the kit `unknown` copy. The pending social token on `oauth/complete` is an explicit Bearer — never swapped or refresh-retried by the client. | frontend-kit §4; amendments A8; C1 step 6. |
+
 ## 10. Flagged characteristics kept as-is
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
@@ -164,6 +173,7 @@ after a program is selected).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 (`auth.sign_in_failed` for the Google exchange, post-register login, `oauth/complete` and GSI provider failures; register failures not reported) · D-REL2 (errors via `credentialErrorMessage`; Google provider failure → kit `unknown`; `oauth/complete` Bearer explicit). §4/§8 updated. |
 | 0.2.1 | 2026-07-10 | **Custom dark-pill Google button (auth v0.8.0).** Replaced Google's branded GSI widget with our OWN dark pill (input-surface fill, hairline border, multicolor "G", "Continue with Google") via the GSI **auth-code** flow (`initCodeClient`, popup → one-time `code` → `/auth/oauth` server-side exchange). Also reordered step-2 to Username → Gender → Email and memoized `handleGoogle` (stable GSI init). Same design now on iOS/Android. Visual + flow only; wizard/session handling unchanged. `npm run build` ✓. |
 | 0.2.0 | 2026-07-10 | **Federated sign-in + 3-step wizard (auth v0.7.0).** The single form became a **local 3-step state machine** (name → username/email/gender → password/confirm) with a progress-dot row, per-step Continue gates + Back, no new lib; the email submit path is unchanged (register-then-auto-login). Added a **"Continue with Google" button** (`GoogleSignInButton`, GSI) under step 1 and a **2-step social sign-up branch** (`mode="social"`: prefilled editable names → username + read-only locked email, no password) finishing via `completeSocialRegistration()`. On-mount `?social=1` adopts a pending session stashed by the login page; a 409 (email already on a password account) surfaces in the error banner. The Google button + divider render nothing until `NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID` is set (page still builds/deploys). New decisions **D-C6** (3-step wizard) · **D-C7** (social branch) · **D-C8** (Google button); consumes `socialSignIn()` `POST /auth/oauth` + `completeSocialRegistration()` `POST /auth/oauth/complete`. `npm run build` ✓ (`/create-account` prerendered, 5.99 kB). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 19) — the **fifth web page spec** (closing the public/auth path: splash → login → forgot → reset → create-account). Documents the public `/create-account` sign-up screen: first/last name + username + email + optional gender (`Select`) + password + confirm, register-then-auto-login → `/programs`, sign-in + Privacy links. Consumes `auth` (`registerAccount()` `POST /auth/register` + `login()`, `useAuth`, jwt helpers). Decisions: **D-REF** (`consumed_by=[web]`; iOS `CreateAccountView` mirrors later) · **D-S1** (faithful port + 5 deviations) · **D-C1** (inline email-format validation — D-PLAN item 3, mirrors forgot-password regex) · **D-C2** (already-authed → `/programs` redirect — legacy had none) · **D-C3** (live password-policy checklist replacing the static hint) · **D-C4** (muted confirm-mismatch hint) · **D-C5** (autoFocus First Name). Flagged F1–F6 (client JWT decode; register-then-login no-rollback; bootstrap form flash; no client rate-limit; no client username rules; cleanups web-first / iOS gap). Ported `apps/web/src/app/create-account/page.tsx` + the `Select`/`SelectMobile` dependency; `npm run build` ✓ (`/create-account` prerendered, 6.25 kB). |

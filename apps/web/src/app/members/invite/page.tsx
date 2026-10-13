@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { sendProgramInvite } from "@/lib/api/members";
+import { toAppError } from "@/lib/kit/app-error";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 
@@ -35,13 +36,8 @@ export default function InviteMemberPage() {
       setShowSuccess(true);
       setUsername("");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unable to send invite.";
-      if (message.toLowerCase().includes("network")) {
-        setErrorMessage("Network error. Please try again.");
-      } else {
-        setShowSuccess(true);
-        setUsername("");
-      }
+      // invites SPEC §3.1: "Invitation sent" only on 2xx; every other outcome goes through the kit (400 = server text).
+      setErrorMessage(toAppError(error).message);
     } finally {
       setIsSending(false);
     }
@@ -82,7 +78,7 @@ export default function InviteMemberPage() {
 
         {showSuccess && (
           <div className="mt-4 rounded-2xl bg-rf-success/10 px-4 py-3 text-sm font-semibold text-rf-success">
-            Invitation sent.
+            Invitation sent
           </div>
         )}
 

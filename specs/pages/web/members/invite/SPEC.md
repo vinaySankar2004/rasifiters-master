@@ -1,6 +1,6 @@
 # Page: `members/invite` (web) — program-admin invite-by-username form (members sub-route 3 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/invite` — the **invite-a-member form** reached by the `/members` landing's "Invite Member"
 > pill (program-admin / global_admin only). A single `@`-prefixed username `<input>` + privacy info-banner →
 > `sendProgramInvite`. **3rd** of the eight deferred `/members` sub-routes
@@ -11,8 +11,9 @@
 > `lib/api/members.ts` `sendProgramInvite`; [`auth`](../../../../features/auth/SPEC.md) (`useAuthGuard`).
 > **Cross-app:** `consumed_by = [web]` — iOS sends invites natively; parity audited at the iOS port.
 > **Stance:** faithful 1:1 port **+ 2 cleanups** (D-C1 tokenize the success box color; D-C2 clear stale error on
-> field edit). **No new dependency, zero backend work, no feature bump.** The privacy-safe **swallow-errors-as-
-> success** behavior is kept (load-bearing intent) and flagged §10. Oddities flagged §10.
+> field edit). **No new dependency, zero backend work, no feature bump.** Since 0.2.0 the client-side
+> **swallow-errors-as-success** is removed (D-REL1): the privacy no-ops stay server-side 200s, every real failure
+> is shown. Oddities flagged §10.
 
 ---
 
@@ -50,9 +51,10 @@ program invitation (the invitee later accepts via their own pending-invites surf
      (`:59-71`).
    - **Privacy info-banner** (`info-banner`, `:73-76`) — "The user must already have an account. Invitations are
      privacy-safe, so we won't confirm whether a username exists."
-   - **Error line** — `errorMessage` in `text-rf-danger` (only network errors reach here, F1) (`:78`).
-   - **Success box** (`:80-84`) — "Invitation sent." — **D-C1** tokenized `bg-rf-success/10 text-rf-success`
-     (legacy `bg-green-50 text-green-600`).
+   - **Error line** — `errorMessage` in `text-rf-danger`: the kit message for every non-2xx / network outcome
+     (D-REL1).
+   - **Success box** — "Invitation sent" (A1 copy, no period) — **D-C1** tokenized `bg-rf-success/10
+     text-rf-success` (legacy `bg-green-50 text-green-600`). Only after a 2xx.
    - **Send Invitation** button (`bg-rf-accent`, `disabled` while `!canSubmit || isSending`) → `handleSend`
      (`:86-93`).
 
@@ -104,14 +106,12 @@ axis: the lock follows whether the page does *logging*, not whether it writes).
   !!programId`).
 - **Sending** — `isSending` true: button reads "Sending…" and is `disabled`; re-entrancy guarded
   (`if (!canSubmit || isSending) return`).
-- **Success** — `showSuccess` true: the green "Invitation sent." box shows; `username` cleared. Stays on the page
-  (no nav).
-- **Network error** — only an error message containing "network" surfaces "Network error. Please try again."
-  (`:39-40`).
-- **Any other error → shown as SUCCESS (F1)** — a 403, a 400 or (since invites 0.2.0 D-C6) a real 500 is
-  **swallowed and rendered as "Invitation sent."** with the field cleared (`:42-43`). Unknown / already-member /
-  already-invited / blocked usernames never reach the catch: the server answers them 200 "Invitation sent"
-  (invites D-C5). Deliberate privacy-safety (matches the info-banner) — kept faithful.
+- **Success** — only on a 2xx: the green "Invitation sent" box shows; `username` cleared. Stays on the page (no
+  nav). Unknown / already-member / already-invited / blocked usernames are server-side 200 "Invitation sent"
+  (invites D-C5) — privacy-safety lives on the server.
+- **Any failure (D-REL1)** — `toAppError(error).message` in the error line, the field kept: a 400 shows the
+  server text; 403 / 5xx / 429 / offline / timeout show the kit copy (e.g. offline → "Can't connect. Check your
+  internet connection and try again."). Never a false "Invitation sent".
 - **Stale error** — cleared on field edit (D-C2) or the next send.
 - **Non-admin** — redirected to `/members` before the form is usable (F2).
 
@@ -125,16 +125,15 @@ axis: the lock follows whether the page does *logging*, not whether it writes).
 | **D-S1** | **Faithful otherwise** — same `isProgramAdmin` gate + mount redirect, same `canSubmit`, same imperative `handleSend` (local state, no React Query), same privacy-safe catch (F1), same markup/`globals.css` classes. | `members/invite/page.tsx:13-93` |
 | **D-C1** | **Tokenize the success box** — `bg-green-50 text-green-600` → `bg-rf-success/10 text-rf-success` (the lone untokenized color; the error line already uses `rf-danger`). Theme-aware; matches `members/list` run-39 D-C1 / `members/detail` run-40 D-C2 selective-tokenize. | `members/invite/page.tsx:81`; `tailwind.config.ts:20` |
 | **D-C2** | **Clear stale error on field edit** — the `onChange` clears `showSuccess` but not `errorMessage`; also clear `errorMessage` so a prior network error doesn't linger until the next send (matches runs 27/28/40 D-C3). | `members/invite/page.tsx:64-67` |
+| **D-REL1** | **Swallow removed (reliability Phase 3 C1; invites §3.1, board §3.2 / D-12).** "Invitation sent" only on 2xx; every other outcome goes through the kit (`toAppError` — a 400 shows the server text). Copy "Invitation sent" (A1, the same string on iOS + Android). Resolves F1. | invites §3.1; amendments A1. |
 | **D-STANCE** | Faithful 1:1 **+ D-C1, D-C2**. No backend work, no feature bump (route + api fn already shipped). | user, this run |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
-- **F1 — swallow-errors-as-success (load-bearing privacy intent).** The catch block (`:37-44`) surfaces an error
-  **only** when the message contains "network"; **every other failure** (a 403, a 400, a 500) is silently rendered
-  as "Invitation sent." with the field cleared. The privacy no-ops (username not found, already a member, already
-  invited, blocked) are server-side 200s (invites D-C5), so the page won't confirm whether a username exists (the
-  info-banner states it). Since invites 0.2.0 (D-C6) the server returns a real 500 on failure; showing it as an
-  error is the Phase 3 client half (board §3.2 / D-12) — pending.
+- ~~**F1 — swallow-errors-as-success.**~~ **RESOLVED (0.2.0, D-REL1).** The catch used to surface an error only
+  for a "network" message and render every other failure (403 / 400 / 500) as "Invitation sent.". The privacy
+  no-ops (username not found, already a member, already invited, blocked) were always server-side 200s (invites
+  D-C5), so removing the client swallow keeps the privacy posture and shows real failures.
 - **F2 — client redirect is the only client gate.** The program-admin / global_admin redirect (`:20-24`) is a
   client JWT-decode + `program.my_role` check; the backend `inviteSendService.sendInvite` independently enforces the
   403 "Admin privileges required for this program." (`inviteSendService.js:28-34`) — the real authorization boundary.
@@ -152,4 +151,5 @@ axis: the lock follows whether the page does *logging*, not whether it writes).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1: the swallow is removed — "Invitation sent" (A1 copy, no period) only on 2xx; every other outcome shows the kit message (a 400 shows the server text). F1 resolved; §4/§8 updated. |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/invite` (members sub-route 3 of 8) — invite-by-username form + privacy-safe send; D-C1 tokenize success box, D-C2 clear stale error on edit. No new dependency, zero backend work, no feature bump. |

@@ -25,8 +25,58 @@ role-based view rules), then ported faithfully from the legacy app. Cross-cuttin
 analytics, notifications) are `specs/features/` it consumes.
 
 ## Auth (client side)
-- Calls the backend `/auth/*` proxy (login/refresh/logout); stores the Supabase-issued session
-  (token + refresh) and attaches the access token to API calls. Middleware-guarded protected routes.
+Reliability Phase 3 C1 (auth §3.1, notifications §3.3, observability §4.1/§8, frontend-kit §10):
+- **One token store**: localStorage `rasi.fiters.session`, plus the non-HttpOnly cookie mirror `rasi.fiters.token`
+  for `middleware.ts`. `saveSession`/`clearSession` keep them in sync. `loadSession` tells absent from corrupt
+  (corrupt → forced sign-out, reason `token_store_unreadable`).
+- **Sessions** (`lib/api/client.ts` + `lib/auth/auth-provider.tsx`):
+  - Requests read the current token at send time through the session bridge.
+  - A refresh runs when the token expires within 60 s (with a 5-min clock-skew guard) or on a 401, and is
+    coalesced. Before refreshing, another tab's pair for the same account (`sub`) with a LATER `exp` is adopted
+    from localStorage (and refreshed with its refresh token if it is itself near expiry) — never a replay of an
+    already-rotated refresh token. Display-field writes (`updateUser`, `/me` heal) also start from that newer pair.
+  - A 401 sent with an outdated token retries with the current one, else once after one refresh (a 401 means the
+    call never ran — safe for the password writes too). An explicit Bearer (recovery link, pending sign-up, logout,
+    events) is never swapped or refresh-retried.
+  - Sign-out happens only on refresh `401 session_invalid` or an unreadable store (`auth.forced_sign_out`; the guard
+    redirects to `/login?reason=expired` → the kit `signedOut` copy). Other failures keep the session: a quick retry
+    `min(Retry-After ?? 2, 5)` s, then 30/60/120/300 s backoff; `auth.refresh_failed` once per failure cycle (after
+    the quick retry). Worst case, a request waiting on a failing refresh takes ~35 s before failing (15 + 5 + 15);
+    during backoff it fails at once.
+  - Bootstrap doesn't wait for `/auth/me`: pages render with the stored identity, and `/me` heals it.
+  - Only the user's own **Sign out** calls `/auth/logout` (this device only, outcome ignored); a forced sign-out and
+    "Sign out everywhere" (`/auth/logout-all`) don't. Every sign-out path then runs the teardown: clear the store
+    and the active program (skipped when the shared store already holds ANOTHER account — a stale tab never wipes
+    it), the launch cache, the refresh state; `queryClient.clear()`; the SSE stops (null token).
+  - A refreshed pair is held in memory first, then persisted (`saveSession` never throws on a storage-quota error).
+    The 401 re-send only ever uses a token of the same account (`sub`). Going back online clears the refresh backoff.
+    A sign-in is never bounced on the device clock.
+  - "Sign out everywhere" (`POST /auth/logout-all`) lives in My Profile above Delete Account. Profile edits use
+    `updateUser` (tokens never come from a React snapshot).
+- **Every request**: 15 s timeout (one `AbortController` + `setTimeout` — no `AbortSignal.any/timeout`, old iOS
+  Safari); `X-App-Platform: web`; `X-App-Version` = the short Vercel commit SHA (`NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA`,
+  `dev` locally; no `X-App-Build`); a fresh `X-Request-Id`; `ApiError` carries `code` / `retryAfter` / `requestId`.
+- **TanStack's abort `signal` is not wired** (the fetchers don't take one) — deferred. QueryClient defaults: queries
+  retry ≤ 2 only on a retryable kit kind (never a 4xx other than 408/429), honouring Retry-After; mutations never
+  auto-retry.
+- **Credential errors** (`credentialErrorMessage`, `lib/kit/app-error.ts`): the server text for 400/401/409/422, the
+  kit copy otherwise; on authenticated credential routes (password, link/unlink, email) a 401 reads `signedOut`; a
+  failure with no response while `navigator.onLine` is false reads the kit offline copy (a password write that
+  failed offline is never "couldn't confirm").
+- **Events** (`lib/events/client-events.ts`): the `auth.*` queue (localStorage `rasi.fiters.events`) survives
+  sign-out and first flushes after bootstrap; batches ≤ 25; 429 waits Retry-After, 413 halves, other 4xx drop,
+  5xx/network back off.
+- **Instant opens** (`lib/cache/launch-cache.ts`): picker (`["programs"]` only — invites stay live) + the 8 Summary
+  reads; per member; schema v1; Summary entries kept for the member's 10 most recently loaded programs (LRU index);
+  seeded after bootstrap, written only while signed in, cleared by the teardown.
+- **SSE** (`NotificationsGate`): foreground only (`visibilitychange`) and paused while offline; fetches
+  `/unacknowledged` on every start and every `ready` (a re-fetch drops queued items acknowledged elsewhere; a
+  just-acknowledged id is ignored for 2 min); backoff 1 s ×2, capped at 30 s, full jitter; a 60 s idle timeout
+  (server pings every 25 s); one forced refresh after 3 failed opens.
+- **Kit adoption scope**: QueryClient defaults; the global offline banner (`shell.tsx`, with bottom scroll room while
+  it shows); `/programs`, `/summary`, `/program/profile`, `/program/password`, `/members/invite`, `/login`,
+  `/create-account`.
+- No health sync and no version gate on web.
 - Roles drive UI: `global_admin`, per-program `admin` / `logger` / `member`; `admin_only_data_entry`
   disables logging UI for non-admins.
 

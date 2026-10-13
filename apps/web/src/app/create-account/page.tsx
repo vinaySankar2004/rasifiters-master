@@ -21,6 +21,9 @@ import { useAuth } from "@/lib/auth/auth-provider";
 import { decodeJwtPayload, resolveGlobalRole, type DecodedAuthToken } from "@/lib/auth/jwt";
 import { GOOGLE_WEB_CLIENT_ID, PRIVACY_POLICY_URL } from "@/lib/config";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
+import { credentialErrorMessage } from "@/lib/kit/app-error";
+import { KIT_COPY } from "@/lib/kit/copy";
+import { reportProviderFailure, reportSignInFailure } from "@/lib/events/client-events";
 
 // Faithful port of the legacy web create-account page with the auth-recovery deviations, plus the
 // federated-sign-in restructure (auth v0.7.0): the single form becomes a local 3-step wizard, and a
@@ -168,7 +171,8 @@ export default function CreateAccountPage() {
           applyLogin(r);
         }
       } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Google sign-in failed. Try again.");
+        reportSignInFailure("google", error);
+        setErrorMessage(credentialErrorMessage(error));
       } finally {
         setIsLoading(false);
       }
@@ -179,6 +183,7 @@ export default function CreateAccountPage() {
   const submitEmail = async () => {
     setIsLoading(true);
     setErrorMessage(null);
+    let registered = false;
     try {
       await registerAccount({
         first_name: firstName.trim(),
@@ -188,11 +193,13 @@ export default function CreateAccountPage() {
         password,
         ...(gender.trim().length > 0 ? { gender: gender.trim() } : {})
       });
+      registered = true;
       // register returns no session token (auth SPEC §3) — sign in immediately (faithful auto-login).
       const response = await login(username.trim(), password);
       applyLogin(response);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to create account. Try again.");
+      if (registered) reportSignInFailure("password", error);
+      setErrorMessage(credentialErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -211,7 +218,8 @@ export default function CreateAccountPage() {
       });
       applyLogin(response);
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to finish sign-up. Try again.");
+      reportSignInFailure("google", error);
+      setErrorMessage(credentialErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -305,7 +313,14 @@ export default function CreateAccountPage() {
                     <span>or</span>
                     <span className="h-px flex-1 bg-rf-text-muted/25" />
                   </div>
-                  <GoogleSignInButton onCode={handleGoogle} disabled={isLoading} />
+                  <GoogleSignInButton
+                    onCode={handleGoogle}
+                    onProviderError={(code) => {
+                      reportProviderFailure("google", code);
+                      setErrorMessage(KIT_COPY.errors.unknown);
+                    }}
+                    disabled={isLoading}
+                  />
                 </>
               )}
             </>
