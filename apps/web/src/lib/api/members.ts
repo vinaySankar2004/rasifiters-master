@@ -84,6 +84,7 @@ export type MemberProfile = {
   date_joined?: string | null;
   global_role?: string | null;
   created_at?: string | null;
+  hide_activity?: boolean; // Hide my activity — returned only to the member themself / a global admin
 };
 
 export async function fetchMemberProfile(token: string, memberId: string) {
@@ -93,9 +94,9 @@ export async function fetchMemberProfile(token: string, memberId: string) {
 export async function updateMemberProfile(
   token: string,
   memberId: string,
-  payload: { first_name?: string; last_name?: string; gender?: string | null }
+  payload: { first_name?: string; last_name?: string; gender?: string | null; hide_activity?: boolean }
 ) {
-  return apiRequest<{ message?: string; member_name?: string }>(`/members/${memberId}`, {
+  return apiRequest<{ message?: string; member_name?: string; hide_activity?: boolean }>(`/members/${memberId}`, {
     method: "PUT",
     token,
     body: payload

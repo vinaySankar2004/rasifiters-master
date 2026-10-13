@@ -29,13 +29,18 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
-import { IconUser, IconLock, IconPalette, IconDocument, IconLogout, SearchIcon } from "@/components/icons";
+import { IconUser, IconLock, IconPalette, IconDocument, IconLogout, IconMail, IconSettings, IconUsers, SearchIcon } from "@/components/icons";
 import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import { appError, toAppError, type AppError } from "@/lib/kit/app-error";
 import { fromQuery, retryNow } from "@/lib/kit/async-state";
 import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
+import { useClientSearchParams } from "@/lib/use-client-search-params";
+import { NOTIFICATION_COPY } from "@/lib/api/notifications";
+import { markInviteItemsRead, useUnreadCount } from "@/lib/notifications/queries";
+import { OPEN_INBOX_EVENT, openNotificationTarget, opensInbox } from "@/lib/notifications/targets";
+import { InboxList } from "@/components/notifications/InboxList";
 
 const STATUS_OPTIONS = ["planned", "active", "completed"] as const;
 const PROGRAMS_KEY = ["programs"];
@@ -53,7 +58,11 @@ export default function ProgramsPage() {
 
   const [showActions, setShowActions] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
-  const [actionsTab, setActionsTab] = useState<"invites" | "create">("invites");
+  const [actionsTab, setActionsTab] = useState<"inbox" | "create">("inbox");
+  // The badge rule: a sheet opened before the unread count loaded picks its tab once the count arrives, unless the
+  // member already switched tabs.
+  const [tabPickPending, setTabPickPending] = useState(false);
+  const [inboxFailed, setInboxFailed] = useState(false);
   const [editTarget, setEditTarget] = useState<Program | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Program | null>(null);
   const [showSignOut, setShowSignOut] = useState(false);
@@ -84,6 +93,13 @@ export default function ProgramsPage() {
     enabled: !!token
   });
 
+  // D-N4 / the badge rule: the "+" badge = the server's count (`badge`: unread notifications other than invite items +
+  // the member's own pending invites) for every role — global admins included (was: every pending invite in the
+  // system). Until it loads (or if it fails) a member falls back to their pending-invite count — today's badge.
+  const unreadQuery = useUnreadCount(token);
+  const badge = unreadQuery.data?.badge ?? (isGlobalAdmin ? 0 : invitesQuery.data?.length ?? 0);
+  const searchParams = useClientSearchParams();
+
   const programsState = fromQuery(programsQuery);
   const invitesState = fromQuery(invitesQuery);
   const online = useOnlineStatus();
@@ -109,7 +125,13 @@ export default function ProgramsPage() {
   });
 
   const respondInviteMutation = useMutation({
-    mutationFn: (payload: { inviteId: string; action: "accept" | "decline" | "revoke"; blockFuture?: boolean }) => {
+    mutationFn: (payload: {
+      inviteId: string;
+      action: "accept" | "decline" | "revoke";
+      blockFuture?: boolean;
+      /** The invite's program — its unread invite items are marked read after an accept / decline. */
+      programId?: string;
+    }) => {
       if (!token) {
         return Promise.reject(new Error("Missing session."));
       }
@@ -126,6 +148,11 @@ export default function ProgramsPage() {
       await queryClient.invalidateQueries({ queryKey: ["invites", isGlobalAdmin] });
       if (!error && variables.action === "accept") {
         await queryClient.invalidateQueries({ queryKey: ["programs"] });
+      }
+      // The contract's invite-answer rule: the answered invite's unread items are marked read; the badge's pending
+      // count drops.
+      if (!error && variables.action !== "revoke" && variables.programId) {
+        await markInviteItemsRead(queryClient, token, variables.programId);
       }
     }
   });
@@ -196,13 +223,42 @@ export default function ProgramsPage() {
     saveOrderMutation.mutate(orderedRef.current.map((p) => p.id));
   };
 
-  const pendingInvitesCount = invitesQuery.data?.length ?? 0;
+  // D-N4 / the badge rule: the sheet opens on the Inbox when something is waiting (badge > 0), else on Create — picked
+  // when it opens, never while it's open (reading the inbox lowers the badge). Opened before the unread count loaded:
+  // picked once it arrives, unless the member already switched tabs. `?open=inbox` (notification targets, the Program
+  // tab's Inbox row) and OPEN_INBOX_EVENT (a toast's View while this page shows) open it on the Inbox.
+  // The count is known — or it failed and the invites (the fallback badge) have settled.
+  const badgeSettled = unreadQuery.data !== undefined || (unreadQuery.isError && !invitesQuery.isPending);
+
+  const openActions = (tab?: "inbox" | "create") => {
+    setRespondError(null);
+    setActionsTab(tab ?? (badge > 0 ? "inbox" : "create"));
+    setTabPickPending(!tab && !badgeSettled);
+    setShowActions(true);
+  };
+
+  const chooseTab = (tab: "inbox" | "create") => {
+    setTabPickPending(false);
+    setActionsTab(tab);
+  };
 
   useEffect(() => {
-    if (showActions) {
-      setActionsTab(pendingInvitesCount > 0 ? "invites" : "create");
-    }
-  }, [showActions, pendingInvitesCount]);
+    if (!tabPickPending || !showActions || !badgeSettled) return;
+    setTabPickPending(false);
+    setActionsTab(badge > 0 ? "inbox" : "create");
+  }, [tabPickPending, showActions, badgeSettled, badge]);
+
+  useEffect(() => {
+    if (searchParams.get("open") !== "inbox") return;
+    openActions("inbox");
+    router.replace("/programs");
+  }, [searchParams]);
+
+  useEffect(() => {
+    const openInboxHere = () => openActions("inbox");
+    window.addEventListener(OPEN_INBOX_EVENT, openInboxHere);
+    return () => window.removeEventListener(OPEN_INBOX_EVENT, openInboxHere);
+  }, []);
 
   const handleProgramSelect = (program: Program) => {
     saveActiveProgram({
@@ -247,17 +303,14 @@ export default function ProgramsPage() {
   const renderAddButton = () => (
     <button
       type="button"
-      onClick={() => {
-        setRespondError(null);
-        setShowActions(true);
-      }}
+      onClick={() => openActions()}
       className="fab-button relative flex h-12 w-12 items-center justify-center rounded-full shadow-rf-pill"
-      aria-label="Program actions"
+      aria-label={badge > 0 ? `Program actions, ${badge} waiting` : "Program actions"}
     >
       <span className="text-xl font-semibold">+</span>
-      {pendingInvitesCount > 0 && (
+      {badge > 0 && (
         <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rf-danger px-1 text-[11px] font-semibold text-white">
-          {pendingInvitesCount}
+          {badge > 99 ? "99+" : badge}
         </span>
       )}
     </button>
@@ -407,46 +460,70 @@ export default function ProgramsPage() {
 
           <div className="segmented-control mt-4 flex rounded-full p-1">
             <TabButton
-              active={actionsTab === "invites"}
-              onClick={() => setActionsTab("invites")}
-              label={isGlobalAdmin ? "All Invites" : "My Invites"}
+              active={actionsTab === "inbox"}
+              onClick={() => chooseTab("inbox")}
+              label={NOTIFICATION_COPY.inbox}
             />
             <TabButton
               active={actionsTab === "create"}
-              onClick={() => setActionsTab("create")}
+              onClick={() => chooseTab("create")}
               label="Create"
             />
           </div>
 
           <div className="mt-6 flex-1 overflow-y-auto pr-1">
-            {actionsTab === "invites" ? (
-              <InvitesTab
-                invites={invitesQuery.data ?? []}
-                isLoading={invitesState.status === "loading"}
-                isGlobalAdmin={isGlobalAdmin}
-                error={invitesState.status === "failed" ? (online ? invitesState.error : appError("offline")) : null}
-                onRetry={() => void retryNow(queryClient, ["invites", isGlobalAdmin])}
-                respondError={respondError}
-                onAccept={async (invite) => {
-                  try {
-                    await respondInviteMutation.mutateAsync({
-                      inviteId: invite.invite_id,
-                      action: "accept"
-                    });
-                    setShowActions(false);
-                  } catch {
-                    // keep modal open on error
+            {actionsTab === "inbox" ? (
+              <div className="space-y-6">
+                {/* The inbox-states rule: while the notification list has failed, its ErrorView is the only one shown
+                    (its Retry re-reads the invitations too). */}
+                <InvitesTab
+                  invites={invitesQuery.data ?? []}
+                  isLoading={invitesState.status === "loading"}
+                  isGlobalAdmin={isGlobalAdmin}
+                  error={
+                    invitesState.status === "failed" && !inboxFailed
+                      ? online
+                        ? invitesState.error
+                        : appError("offline")
+                      : null
                   }
-                }}
-                onDecline={(invite) => {
-                  setRespondError(null);
-                  setDeclineInviteTarget(invite);
-                  setBlockFutureInvites(false);
-                }}
-                onRevoke={(invite) =>
-                  respondInviteMutation.mutate({ inviteId: invite.invite_id, action: "revoke" })
-                }
-              />
+                  onRetry={() => void retryNow(queryClient, ["invites", isGlobalAdmin])}
+                  respondError={respondError}
+                  onAccept={async (invite) => {
+                    try {
+                      await respondInviteMutation.mutateAsync({
+                        inviteId: invite.invite_id,
+                        action: "accept",
+                        programId: invite.program_id
+                      });
+                      setShowActions(false);
+                    } catch {
+                      // keep modal open on error
+                    }
+                  }}
+                  onDecline={(invite) => {
+                    setRespondError(null);
+                    setDeclineInviteTarget(invite);
+                    setBlockFutureInvites(false);
+                  }}
+                  onRevoke={(invite) =>
+                    respondInviteMutation.mutate({ inviteId: invite.invite_id, action: "revoke" })
+                  }
+                />
+                {/* D-N4: the inbox under the pending invites; a row whose target is the inbox itself stays here. */}
+                <InboxList
+                  token={token}
+                  onFailedChange={setInboxFailed}
+                  onRetry={() => {
+                    if (invitesState.status === "failed") void retryNow(queryClient, ["invites", isGlobalAdmin]);
+                  }}
+                  onOpenItem={(item) => {
+                    if (opensInbox(item.target)) return;
+                    setShowActions(false);
+                    void openNotificationTarget(item, router, token);
+                  }}
+                />
+              </div>
             ) : (
               <CreateProgramTab
                 isSaving={createProgramMutation.isPending}
@@ -497,6 +574,25 @@ export default function ProgramsPage() {
               }}
             />
             <AccountRow
+              title={NOTIFICATION_COPY.inbox}
+              subtitle={NOTIFICATION_COPY.inboxRowSubtitle(badge)}
+              icon={<IconMail className="h-5 w-5" />}
+              count={badge}
+              onClick={() => {
+                setShowAccount(false);
+                openActions("inbox");
+              }}
+            />
+            <AccountRow
+              title={NOTIFICATION_COPY.settingsRow}
+              subtitle={NOTIFICATION_COPY.settingsRowSubtitle}
+              icon={<IconSettings className="h-5 w-5" />}
+              onClick={() => {
+                setShowAccount(false);
+                router.push("/program/notifications");
+              }}
+            />
+            <AccountRow
               title="Change Password"
               subtitle="Update your account password"
               icon={<IconLock className="h-5 w-5" />}
@@ -514,6 +610,17 @@ export default function ProgramsPage() {
                 router.push("/program/appearance");
               }}
             />
+            {isGlobalAdmin && (
+              <AccountRow
+                title={NOTIFICATION_COPY.announcementsRow}
+                subtitle={NOTIFICATION_COPY.announcementsRowSubtitle}
+                icon={<IconUsers className="h-5 w-5" />}
+                onClick={() => {
+                  setShowAccount(false);
+                  router.push("/program/announcements");
+                }}
+              />
+            )}
             <AccountRow
               title="Privacy Policy"
               subtitle="Learn how we handle your data"
@@ -628,7 +735,8 @@ export default function ProgramsPage() {
                   await respondInviteMutation.mutateAsync({
                     inviteId: declineInviteTarget.invite_id,
                     action: "decline",
-                    blockFuture: blockFutureInvites
+                    blockFuture: blockFutureInvites,
+                    programId: declineInviteTarget.program_id
                   });
                   setDeclineInviteTarget(null);
                   setBlockFutureInvites(false);
@@ -868,21 +976,8 @@ function InvitesTab({
     <p className="text-sm font-semibold text-rf-danger">{respondError}</p>
   ) : null;
 
-  if (invites.length === 0) {
-    return (
-      <div className="space-y-3">
-        {respondLine}
-        <div className="rounded-2xl bg-rf-surface-muted px-6 py-10 text-center">
-          <p className="text-base font-semibold text-rf-text">No pending invitations</p>
-          <p className="mt-2 text-sm text-rf-text-muted">
-            {isGlobalAdmin
-              ? "There are no pending invites in the system."
-              : "You don't have any program invitations right now."}
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // D-N4: inside the Inbox an empty invite list renders nothing (the notifications' own empty state follows).
+  if (invites.length === 0) return respondLine;
 
   if (isGlobalAdmin) {
     const grouped = invites.reduce<Record<string, PendingInvite[]>>((acc, invite) => {
@@ -894,6 +989,7 @@ function InvitesTab({
 
     return (
       <div className="space-y-6">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-rf-text-muted">{NOTIFICATION_COPY.allInvitesHeading}</h3>
         {respondLine}
         {Object.keys(grouped).map((programName) => (
           <div key={programName} className="space-y-3">
@@ -918,6 +1014,7 @@ function InvitesTab({
 
   return (
     <div className="space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-rf-text-muted">{NOTIFICATION_COPY.invitationsHeading}</h3>
       {respondLine}
       {invites.map((invite) => (
         <InviteCard
@@ -1196,13 +1293,15 @@ function AccountRow({
   subtitle,
   icon,
   onClick,
-  tone = "default"
+  tone = "default",
+  count
 }: {
   title: string;
   subtitle: string;
   icon: React.ReactNode;
   onClick: () => void;
   tone?: "default" | "danger";
+  count?: number;
 }) {
   const isDanger = tone === "danger";
   return (
@@ -1226,6 +1325,11 @@ function AccountRow({
         <p className={isDanger ? "text-rf-danger" : "text-rf-text"}>{title}</p>
         <p className="text-xs text-rf-text-muted">{subtitle}</p>
       </div>
+      {count ? (
+        <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rf-danger px-1.5 text-[11px] font-semibold text-white">
+          {count > 99 ? "99+" : count}
+        </span>
+      ) : null}
       <span className={isDanger ? "text-rf-danger" : "text-rf-text-muted"}>›</span>
     </button>
   );

@@ -2,16 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis
-} from "recharts";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchProgramMembers, type Member } from "@/lib/api/programs";
 import {
@@ -20,26 +11,32 @@ import {
   fetchMemberMetrics,
   fetchMemberRecentWorkouts,
   fetchMemberStreaks,
-  type MemberHealthItem,
-  type MemberHistoryPoint,
-  type MemberMetrics,
-  type MemberRecentItem
+  type MemberMetrics
 } from "@/lib/api/members";
-import { formatShortDate, formatDuration, initials, sleepLabel, dietLabel, stepsLabel } from "@/lib/format";
+import { PEOPLE_COPY, PEOPLE_LIVE } from "@/lib/api/people";
+import { initials, stepsLabel } from "@/lib/format";
+import { appError } from "@/lib/kit/app-error";
+import { fromQuery, retryNow, type QueryLike } from "@/lib/kit/async-state";
+import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { FlameIcon, IconMail as MailIcon } from "@/components/icons";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
+import { ErrorView } from "@/components/kit/ErrorView";
+import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import {
-  CHART_COLORS,
-  CHART_TOOLTIP_CONTENT_STYLE,
-  CHART_TOOLTIP_LABEL_STYLE,
-  CHART_GRID_PROPS,
-  CHART_AXIS_TICK
-} from "@/lib/chart-theme";
+  MemberHealthCard,
+  MemberHistoryCard,
+  MemberOverviewCard,
+  MemberRecentCard,
+  MemberStreakCard,
+  toCardStatus
+} from "@/components/members/MemberDashboardCards";
 
 export default function MembersPage() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const online = useOnlineStatus();
   const { session, program, token, programId } = useAuthGuard();
 
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
@@ -199,6 +196,36 @@ export default function MembersPage() {
 
   const memberOverview = memberOverviewQuery.data?.members?.[0];
 
+  // The Members-tab card-state rule (the frontend-kit recipe): the ErrorView + Retry only when NOTHING for this program
+  // or member has loaded; on a partial failure the loaded cards stay, the failed ones read "—" and the "Couldn't
+  // refresh" banner offers Retry. Never a fake 0 or "No workouts logged yet" on a failure; every read is keyed by this
+  // program + member, so no other program's or member's numbers can show. The "View as" member list counts only for
+  // the roles that have a picker. Failed reads reload when the connection returns (web: no pull-to-refresh).
+  const dashboardReads = [
+    { query: membersQuery, key: ["members", "list", programId], counted: canViewAs || canViewAsLogger },
+    { query: metricsPreviewQuery, key: ["members", "metrics", programId, "preview"], counted: true },
+    { query: memberOverviewQuery, key: ["members", "overview", programId, overviewMemberId], counted: true },
+    { query: memberHistoryQuery, key: ["members", "history", programId, overviewMemberId], counted: true },
+    { query: memberStreakQuery, key: ["members", "streaks", programId, overviewMemberId], counted: true },
+    { query: memberRecentQuery, key: ["members", "recent", programId, logsMemberId], counted: true },
+    { query: memberHealthQuery, key: ["members", "health", programId, logsMemberId], counted: true }
+  ].filter((read) => read.counted); // each key = that read's useQuery key above
+  const dashboardStates = dashboardReads.map((read) => fromQuery<unknown>(read.query));
+  const dashboardHasData = dashboardStates.some((state) => state.status === "loaded" || state.status === "stale");
+  const failedState = dashboardStates.find((state) => state.status === "failed");
+  const dashboardFailure = failedState?.status === "failed" ? failedState.error : null;
+  // Only once every read has settled: a failure while others are still loading never flashes the page ErrorView.
+  const settled = dashboardStates.every((state) => state.status !== "loading");
+  const dashboardError = !dashboardHasData && settled ? dashboardFailure : null;
+  const dashboardStale =
+    dashboardStates.some((state) => state.status === "stale") || (dashboardHasData && dashboardFailure !== null);
+  const retryDashboard = () =>
+    dashboardReads.forEach((read) => {
+      if (read.query.isError || read.query.failureCount > 0) void retryNow(queryClient, read.key);
+    });
+  useRefetchOnReconnect(dashboardReads.map((read) => read.query));
+  const statusOf = (query: QueryLike<unknown>) => toCardStatus(fromQuery(query));
+
   const viewAsLabel = useMemo(() => {
     if (!canViewAs) return "";
     if (adminSelectedMember) return adminSelectedMember.member_name;
@@ -256,16 +283,18 @@ export default function MembersPage() {
           <p className="mt-1 text-sm font-semibold text-rf-text-muted">{program?.name ?? "Program"}</p>
         </div>
         <div className="ml-auto flex items-center gap-3">
-          {!canViewAs && (
+          {/* The People go-live rule: once live, one People pill for every role, and the admin Invite pill moves to
+              the "Invite member" row on top of People (it also stays on the Program tab). */}
+          {(PEOPLE_LIVE || !canViewAs) && (
             <button
               type="button"
               onClick={() => router.push("/members/list")}
-            className="pill-button rounded-full px-4 py-2 text-xs font-semibold transition"
+              className="pill-button rounded-full px-4 py-2 text-xs font-semibold transition"
             >
-              View Members
+              {PEOPLE_LIVE ? PEOPLE_COPY.title : "View Members"}
             </button>
           )}
-          {canInvite && (
+          {canInvite && !PEOPLE_LIVE && (
             <button
               type="button"
               onClick={() => router.push("/members/invite")}
@@ -278,6 +307,8 @@ export default function MembersPage() {
         </div>
       </header>
 
+      {dashboardError && <ErrorView error={online ? dashboardError : appError("offline")} onRetry={retryDashboard} />}
+
       {isProgramAdmin && (
         <button
           type="button"
@@ -288,17 +319,22 @@ export default function MembersPage() {
             <div>
               <p className="text-sm font-semibold text-rf-text-muted">Member Performance Metrics</p>
               <p className="text-xs font-semibold text-rf-text-muted">
-                {metricsPreviewQuery.data ? `${metricsPreviewQuery.data.total} members` : "Loading..."}
+                {metricsPreviewQuery.data
+                  ? `${metricsPreviewQuery.data.total} members`
+                  : statusOf(metricsPreviewQuery) === "failed"
+                    ? "—"
+                    : "Loading..."}
               </p>
             </div>
             <span className="text-sm font-semibold text-rf-text-muted">›</span>
           </div>
           <div className="mt-4">
-            {metricsPreviewQuery.isLoading && (
+            {statusOf(metricsPreviewQuery) === "loading" && (
               <div className="rounded-2xl bg-rf-surface-muted px-4 py-6 text-sm text-rf-text-muted">
                 Loading metrics...
               </div>
             )}
+            {statusOf(metricsPreviewQuery) === "failed" && <p className="text-sm text-rf-text-muted">—</p>}
             {metricsPreviewQuery.data && metricsPreviewQuery.data.members.length > 0 && (
               <MemberMetricsPreview metric={metricsPreviewQuery.data.members[0]} />
             )}
@@ -331,18 +367,21 @@ export default function MembersPage() {
         <div className="grid gap-5">
           <MemberOverviewCard
             metric={memberOverview}
+            status={statusOf(memberOverviewQuery)}
             programStart={program?.start_date}
             programEnd={program?.end_date}
           />
           <div className="grid gap-5 md:grid-cols-2">
             <MemberHistoryCard
               points={memberHistoryQuery.data?.buckets ?? []}
+              status={statusOf(memberHistoryQuery)}
               label={memberHistoryQuery.data?.label ?? ""}
               dailyAverage={memberHistoryQuery.data?.daily_average ?? 0}
               onClick={() => router.push(`/members/history?memberId=${selectedMemberId}&name=${encodeURIComponent(selectedMember?.member_name ?? "")}`)}
             />
             <MemberStreakCard
               current={memberStreakQuery.data?.currentStreakDays ?? 0}
+              status={statusOf(memberStreakQuery)}
               longest={memberStreakQuery.data?.longestStreakDays ?? 0}
               onClick={() => router.push(`/members/streaks?memberId=${selectedMemberId}&name=${encodeURIComponent(selectedMember?.member_name ?? "")}`)}
             />
@@ -350,10 +389,12 @@ export default function MembersPage() {
           <div className="grid gap-5 md:grid-cols-2">
             <MemberRecentCard
               items={memberRecentQuery.data?.items ?? []}
+              status={statusOf(memberRecentQuery)}
               onClick={() => router.push(`/members/workouts?memberId=${selectedMemberId}&name=${encodeURIComponent(selectedMember?.member_name ?? "")}`)}
             />
             <MemberHealthCard
               items={memberHealthQuery.data?.items ?? []}
+              status={statusOf(memberHealthQuery)}
               onClick={() => router.push(`/members/health?memberId=${selectedMemberId}&name=${encodeURIComponent(selectedMember?.member_name ?? "")}`)}
             />
           </div>
@@ -365,18 +406,21 @@ export default function MembersPage() {
           <div className="grid gap-5">
             <MemberOverviewCard
               metric={memberOverview}
+              status={statusOf(memberOverviewQuery)}
               programStart={program?.start_date}
               programEnd={program?.end_date}
             />
             <div className="grid gap-5 md:grid-cols-2">
               <MemberHistoryCard
                 points={memberHistoryQuery.data?.buckets ?? []}
+                status={statusOf(memberHistoryQuery)}
                 label={memberHistoryQuery.data?.label ?? ""}
                 dailyAverage={memberHistoryQuery.data?.daily_average ?? 0}
                 onClick={() => router.push(`/members/history?memberId=${overviewMemberId}&name=${encodeURIComponent(session?.user.memberName ?? "")}`)}
               />
               <MemberStreakCard
                 current={memberStreakQuery.data?.currentStreakDays ?? 0}
+                status={statusOf(memberStreakQuery)}
                 longest={memberStreakQuery.data?.longestStreakDays ?? 0}
                 onClick={() => router.push(`/members/streaks?memberId=${overviewMemberId}&name=${encodeURIComponent(session?.user.memberName ?? "")}`)}
               />
@@ -397,10 +441,12 @@ export default function MembersPage() {
             <div className="grid gap-5 md:grid-cols-2">
               <MemberRecentCard
                 items={memberRecentQuery.data?.items ?? []}
+                status={statusOf(memberRecentQuery)}
                 onClick={() => router.push(`/members/workouts?memberId=${logsMemberId}&name=${encodeURIComponent(logsSelectedMember?.member_name ?? "")}`)}
               />
               <MemberHealthCard
                 items={memberHealthQuery.data?.items ?? []}
+                status={statusOf(memberHealthQuery)}
                 onClick={() => router.push(`/members/health?memberId=${logsMemberId}&name=${encodeURIComponent(logsSelectedMember?.member_name ?? "")}`)}
               />
             </div>
@@ -413,6 +459,7 @@ export default function MembersPage() {
           <div className="grid gap-5 md:grid-cols-2">
             <MemberOverviewCard
               metric={memberOverview}
+              status={statusOf(memberOverviewQuery)}
               programStart={program?.start_date}
               programEnd={program?.end_date}
             />
@@ -421,12 +468,14 @@ export default function MembersPage() {
           <div className="grid gap-5 md:grid-cols-2">
             <MemberHistoryCard
               points={memberHistoryQuery.data?.buckets ?? []}
+              status={statusOf(memberHistoryQuery)}
               label={memberHistoryQuery.data?.label ?? ""}
               dailyAverage={memberHistoryQuery.data?.daily_average ?? 0}
               onClick={() => router.push(`/members/history?memberId=${overviewMemberId}&name=${encodeURIComponent(session?.user.memberName ?? "")}`)}
             />
             <MemberStreakCard
               current={memberStreakQuery.data?.currentStreakDays ?? 0}
+              status={statusOf(memberStreakQuery)}
               longest={memberStreakQuery.data?.longestStreakDays ?? 0}
               onClick={() => router.push(`/members/streaks?memberId=${overviewMemberId}&name=${encodeURIComponent(session?.user.memberName ?? "")}`)}
             />
@@ -434,10 +483,12 @@ export default function MembersPage() {
           <div className="grid gap-5 md:grid-cols-2">
             <MemberRecentCard
               items={memberRecentQuery.data?.items ?? []}
+              status={statusOf(memberRecentQuery)}
               onClick={() => router.push(`/members/workouts?memberId=${logsMemberId}&name=${encodeURIComponent(logsSelectedMember?.member_name ?? "")}`)}
             />
             <MemberHealthCard
               items={memberHealthQuery.data?.items ?? []}
+              status={statusOf(memberHealthQuery)}
               onClick={() => router.push(`/members/health?memberId=${logsMemberId}&name=${encodeURIComponent(logsSelectedMember?.member_name ?? "")}`)}
             />
           </div>
@@ -452,6 +503,15 @@ export default function MembersPage() {
           onClose={activePicker.onClose}
           onSelect={activePicker.onSelect}
         />
+      )}
+
+      {/* Kit stale / partial state (loaded cards stay): hidden while the global offline banner shows; the spacer keeps
+          the page end scrollable above the banner. */}
+      {dashboardStale && !dashboardError && online && (
+        <>
+          <div aria-hidden="true" className="h-36" />
+          <FloatingBanner variant="stale" onRetry={retryDashboard} />
+        </>
       )}
     </PageShell>
   );
@@ -514,75 +574,6 @@ function MemberMetricsPreview({ metric }: { metric: MemberMetrics }) {
   );
 }
 
-function MemberOverviewCard({
-  metric,
-  programStart,
-  programEnd
-}: {
-  metric?: MemberMetrics;
-  programStart?: string | null;
-  programEnd?: string | null;
-}) {
-  const totalDays = useMemo(() => {
-    if (!programStart || !programEnd) return 0;
-    const start = new Date(programStart);
-    const end = new Date(programEnd);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-    const days = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1);
-    return days;
-  }, [programStart, programEnd]);
-
-  const progressPct = metric && totalDays ? Math.round((metric.active_days / totalDays) * 100) : 0;
-
-  return (
-    <GlassCard>
-      <p className="text-sm font-semibold text-rf-text-muted">Member Overview</p>
-      {metric ? (
-        <>
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="metric-pill flex h-12 w-12 items-center justify-center rounded-full text-sm font-semibold text-rf-text">
-                {initials(metric.member_name)}
-              </div>
-              <div>
-                <p className="text-base font-semibold text-rf-text">{metric.member_name}</p>
-                <p className="text-xs text-rf-text-muted">MTD Workouts: {metric.mtd_workouts ?? 0}</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xl font-bold text-rf-accent">{progressPct}%</p>
-              <p className="text-xs text-rf-text-muted">PTD MP %</p>
-            </div>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-                <div className="metric-pill rounded-2xl px-3 py-2">
-                  <p className="text-xs text-rf-text-muted">Total Time</p>
-                  <p className="text-sm font-semibold text-rf-text">
-                    {metric.total_hours ?? Math.round(metric.total_duration / 60)} hrs
-                  </p>
-                </div>
-                <div className="metric-pill rounded-2xl px-3 py-2">
-                  <p className="text-xs text-rf-text-muted">Favorite</p>
-                  <p className="text-sm font-semibold text-rf-text">{metric.favorite_workout ?? "—"}</p>
-                </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-xs font-semibold text-rf-text-muted">PTD - Member Progress</p>
-            <div className="progress-track mt-2 h-2 w-full overflow-hidden rounded-full">
-              <div className="h-full rounded-full bg-rf-accent" style={{ width: `${progressPct}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-rf-text-muted">
-              {metric.active_days} / {totalDays} days
-            </p>
-          </div>
-        </>
-      ) : (
-        <p className="mt-3 text-sm text-rf-text-muted">No workouts logged yet.</p>
-      )}
-    </GlassCard>
-  );
-}
-
 function MemberMetricsSingleCard({ metric }: { metric: MemberMetrics }) {
   return (
     <GlassCard>
@@ -633,139 +624,6 @@ function MemberMetricsSingleCard({ metric }: { metric: MemberMetrics }) {
         </span>
       </div>
     </GlassCard>
-  );
-}
-
-function MemberHistoryCard({
-  points,
-  label,
-  dailyAverage,
-  onClick
-}: {
-  points: MemberHistoryPoint[];
-  label: string;
-  dailyAverage: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="glass-card group rounded-3xl p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-rf-text-muted">Workout Activity</p>
-          <p className="text-lg font-semibold text-rf-text">{label || "Last 7 days"}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-rf-text-muted">Daily avg</p>
-          <p className="text-base font-semibold text-rf-text">{dailyAverage.toFixed(1)}</p>
-        </div>
-      </div>
-      <div className="mt-4 h-36">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={points}>
-            <CartesianGrid {...CHART_GRID_PROPS} />
-            <XAxis dataKey="label" tick={CHART_AXIS_TICK} />
-            <YAxis hide />
-            <Tooltip
-              contentStyle={CHART_TOOLTIP_CONTENT_STYLE}
-              labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-              formatter={(value: number) => [value, "Workouts"]}
-            />
-            <Bar dataKey="workouts" fill={CHART_COLORS[0]} radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </button>
-  );
-}
-
-function MemberStreakCard({ current, longest, onClick }: { current: number; longest: number; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="glass-card group rounded-3xl px-5 pb-5 pt-3 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
-    >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm font-semibold text-rf-text-muted">Streak Stats</p>
-          <p className="text-lg font-semibold text-rf-text">Current and longest</p>
-        </div>
-        <span className="text-sm font-semibold text-rf-text-muted">›</span>
-      </div>
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="metric-pill rounded-2xl px-3 py-3">
-          <p className="text-xs text-rf-text-muted">Current</p>
-          <p className="text-base font-semibold text-rf-text">{current} days</p>
-        </div>
-        <div className="metric-pill rounded-2xl px-3 py-3">
-          <p className="text-xs text-rf-text-muted">Longest</p>
-          <p className="text-base font-semibold text-rf-text">{longest} days</p>
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function MemberRecentCard({ items, onClick }: { items: MemberRecentItem[]; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="glass-card group rounded-3xl p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-rf-text-muted">View Workouts</p>
-          <p className="text-lg font-semibold text-rf-text">All workouts</p>
-        </div>
-        <span className="text-sm font-semibold text-rf-text-muted">›</span>
-      </div>
-      <div className="mt-4 space-y-2 text-sm">
-        {items.length === 0 && <p className="text-sm text-rf-text-muted">No workouts logged yet.</p>}
-        {items.slice(0, 3).map((item) => (
-          <div key={item.id} className="flex items-center justify-between">
-            <div>
-              <p className="font-semibold text-rf-text">{item.workoutType}</p>
-              <p className="text-xs text-rf-text-muted">{formatShortDate(item.workoutDate) ?? item.workoutDate}</p>
-            </div>
-            <p className="font-semibold text-rf-text">{formatDuration(item.durationMinutes)}</p>
-          </div>
-        ))}
-      </div>
-    </button>
-  );
-}
-
-function MemberHealthCard({ items, onClick }: { items: MemberHealthItem[]; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="glass-card group rounded-3xl p-5 text-left transition hover:-translate-y-0.5 hover:shadow-lg"
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-rf-text-muted">View Health</p>
-          <p className="text-lg font-semibold text-rf-text">Daily health logs</p>
-        </div>
-        <span className="text-sm font-semibold text-rf-text-muted">›</span>
-      </div>
-      <div className="mt-4 space-y-2 text-sm">
-        {items.length === 0 && <p className="text-sm text-rf-text-muted">No daily health logs yet.</p>}
-        {items.slice(0, 3).map((item) => (
-          <div key={item.id}>
-            <p className="font-semibold text-rf-text">{item.logDate}</p>
-            <p className="text-xs text-rf-text-muted">
-              Sleep {sleepLabel(item.sleepHours)} · Diet {dietLabel(item.foodQuality)} · Steps {stepsLabel(item.steps)}
-            </p>
-          </div>
-        ))}
-      </div>
-    </button>
   );
 }
 

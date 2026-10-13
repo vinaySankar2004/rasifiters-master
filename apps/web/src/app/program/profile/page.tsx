@@ -27,6 +27,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Select } from "@/components/Select";
 import { GoogleSignInButton } from "@/components/GoogleSignInButton";
+import { HideActivityToggle } from "@/components/people/HideActivityToggle";
+import { PEOPLE_LIVE } from "@/lib/api/people";
 
 // Same loose, deliberately-permissive email regex as the create-account / forgot-password pages.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -140,7 +142,9 @@ export default function ProfilePage() {
     setFirstName(parts[0] ?? "");
     setLastName(parts.slice(1).join(" ") ?? "");
     setGender(profileQuery.data.gender ?? "");
-  }, [profileQuery.data, session?.user.memberName]);
+    // Keyed on the seeded fields only: a cache patch of another field (Hide my activity) must not wipe unsaved edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profileQuery.data?.member_name, profileQuery.data?.gender, session?.user.memberName]);
 
   // D-C2: clear a stale success/error message as soon as the user edits a field, so a prior
   // "Profile updated successfully." doesn't linger over freshly-edited-but-unsaved fields.
@@ -460,6 +464,8 @@ export default function ProfilePage() {
             {pwError && <p className="text-sm font-semibold text-rf-danger">{pwError}</p>}
             {pwSuccess && <p className="text-sm font-semibold text-rf-success">{AUTH_COPY.passwordSet}</p>}
           </div>
+
+          {PEOPLE_LIVE && session?.user.id && <HideActivityToggle token={token} memberId={session.user.id} />}
 
           <div className="border-t border-rf-border pt-4">
             <button

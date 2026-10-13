@@ -11,6 +11,10 @@ import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
 import { formatDateRange, initials } from "@/lib/format";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { toAppError } from "@/lib/kit/app-error";
+import { NOTIFICATION_COPY } from "@/lib/api/notifications";
+import { useUnreadCount } from "@/lib/notifications/queries";
+import { INBOX_HREF } from "@/lib/notifications/targets";
+import { PEOPLE_COPY, PEOPLE_LIVE } from "@/lib/api/people";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -35,6 +39,7 @@ export default function ProgramPage() {
   const queryClient = useQueryClient();
   const { session, program, token, programId } = useAuthGuard();
   const { signOut } = useAuth();
+  const inboxBadge = useUnreadCount(token).data?.badge ?? 0; // the Inbox row's count, as on /programs
 
   const isGlobalAdmin = session?.user.globalRole === "global_admin";
   const isProgramAdmin = program?.my_role === "admin" || isGlobalAdmin;
@@ -150,9 +155,13 @@ export default function ProgramPage() {
                       <IconUser className="h-5 w-5" />
                     </span>
                   <div>
-                    <p>View Members</p>
+                    <p>{PEOPLE_LIVE ? PEOPLE_COPY.title : "View Members"}</p>
                     <p className="text-xs text-rf-text-muted">
-                      {membershipQuery.isLoading ? "Loading..." : `${activeMembers} active`}
+                      {membershipQuery.isLoading
+                        ? "Loading..."
+                        : PEOPLE_LIVE
+                          ? PEOPLE_COPY.enrolled(activeMembers)
+                          : `${activeMembers} active`}
                     </p>
                   </div>
                   <span className="ml-auto text-rf-text-muted">›</span>
@@ -245,7 +254,7 @@ export default function ProgramPage() {
 
             {canLeaveProgram && <LeaveProgramButton onClick={() => setShowLeaveConfirm(true)} />}
 
-            <MyAccountSection onSignOut={signOut} />
+            <MyAccountSection onSignOut={signOut} isGlobalAdmin={isGlobalAdmin} inboxBadge={inboxBadge} />
           </div>
         ) : (
           <div className="space-y-5">
@@ -318,7 +327,7 @@ export default function ProgramPage() {
 
             {canLeaveProgram && <LeaveProgramButton onClick={() => setShowLeaveConfirm(true)} />}
 
-            <MyAccountSection onSignOut={signOut} />
+            <MyAccountSection onSignOut={signOut} isGlobalAdmin={isGlobalAdmin} inboxBadge={inboxBadge} />
           </div>
         )}
       </PageShell>
@@ -443,7 +452,15 @@ function computeProgramProgress(startDate: string | null, endDate: string | null
   return { totalDays, elapsedDays, remainingDays, percent };
 }
 
-function MyAccountSection({ onSignOut }: { onSignOut: () => Promise<void> }) {
+function MyAccountSection({
+  onSignOut,
+  isGlobalAdmin,
+  inboxBadge
+}: {
+  onSignOut: () => Promise<void>;
+  isGlobalAdmin: boolean;
+  inboxBadge: number;
+}) {
   const router = useRouter();
   const [appearance, setAppearance] = useState("System");
 
@@ -468,6 +485,22 @@ function MyAccountSection({ onSignOut }: { onSignOut: () => Promise<void> }) {
           </div>
           <span className="ml-auto text-rf-text-muted">›</span>
         </button>
+
+        <AccountLinkRow
+          title={NOTIFICATION_COPY.inbox}
+          subtitle={NOTIFICATION_COPY.inboxRowSubtitle(inboxBadge)}
+          icon={<IconMail className="h-5 w-5" />}
+          iconClass="bg-blue-100 text-blue-600"
+          count={inboxBadge}
+          onClick={() => router.push(INBOX_HREF)}
+        />
+        <AccountLinkRow
+          title={NOTIFICATION_COPY.settingsRow}
+          subtitle={NOTIFICATION_COPY.settingsRowSubtitle}
+          icon={<IconSettings className="h-5 w-5" />}
+          iconClass="bg-emerald-100 text-emerald-600"
+          onClick={() => router.push("/program/notifications")}
+        />
 
         <button
           type="button"
@@ -499,6 +532,16 @@ function MyAccountSection({ onSignOut }: { onSignOut: () => Promise<void> }) {
           <span className="ml-auto text-rf-text-muted">›</span>
         </button>
 
+        {isGlobalAdmin && (
+          <AccountLinkRow
+            title={NOTIFICATION_COPY.announcementsRow}
+            subtitle={NOTIFICATION_COPY.announcementsRowSubtitle}
+            icon={<IconUsers className="h-5 w-5" />}
+            iconClass="bg-amber-100 text-amber-600"
+            onClick={() => router.push("/program/announcements")}
+          />
+        )}
+
         <button
           type="button"
           onClick={() => router.push("/program/privacy")}
@@ -526,5 +569,41 @@ function MyAccountSection({ onSignOut }: { onSignOut: () => Promise<void> }) {
         </button>
       </div>
     </SectionCard>
+  );
+}
+
+function AccountLinkRow({
+  title,
+  subtitle,
+  icon,
+  iconClass,
+  count,
+  onClick
+}: {
+  title: string;
+  subtitle: string;
+  icon: React.ReactNode;
+  iconClass: string;
+  count?: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-4 rounded-2xl border border-rf-border bg-rf-surface-muted px-4 py-3 text-left text-sm font-semibold text-rf-text shadow-sm transition hover:border-rf-text"
+    >
+      <span className={`flex h-10 w-10 items-center justify-center rounded-full ${iconClass}`}>{icon}</span>
+      <div>
+        <p>{title}</p>
+        <p className="text-xs text-rf-text-muted">{subtitle}</p>
+      </div>
+      {count ? (
+        <span className="ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rf-danger px-1.5 text-[11px] font-semibold text-white">
+          {count > 99 ? "99+" : count}
+        </span>
+      ) : null}
+      <span className={`${count ? "" : "ml-auto "}text-rf-text-muted`}>›</span>
+    </button>
   );
 }

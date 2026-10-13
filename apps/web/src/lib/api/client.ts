@@ -9,7 +9,8 @@ import { reportHttpResponse, reportNoConnection } from "@/lib/kit/use-online-sta
 // retried once with the current one, otherwise once after one coalesced refresh — a 401 means the call never ran,
 // so this is safe for the password writes too (auth rule 6 forbids re-sending only after an unknown outcome).
 // bearer:"explicit" tokens (recovery link, pending social sign-up, logout, client events) are sent exactly as given:
-// never swapped, never refreshed. Every request: 15 s timeout, X-App-Platform / X-App-Version, a fresh X-Request-Id.
+// never swapped, never refreshed. Every request: 15 s timeout, X-App-Platform / X-App-Version, a fresh X-Request-Id and
+// the browser's X-Time-Zone (the notifications time-zone header — reminders, the digest and local-time announcements).
 
 export class ApiError extends Error {
   status: number;
@@ -79,6 +80,16 @@ export function uuid(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
+/** The browser's IANA time zone (the notifications X-Time-Zone header); undefined when Intl can't tell (header omitted). */
+export function browserTimeZone(): string | undefined {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return typeof zone === "string" && zone.length > 0 ? zone : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Retry-After → whole seconds within Int32 (Android's range); anything else (incl. an HTTP-date) → undefined. */
 export function parseRetryAfter(value: string | null | undefined): number | undefined {
   const text = value?.trim() ?? "";
@@ -143,6 +154,7 @@ function timeoutError(): Error {
 // AbortSignal.timeout / AbortSignal.any are missing on older iOS Safari: one controller + setTimeout instead.
 async function send(path: string, options: ApiRequestOptions, token: string | null): Promise<RawResponse> {
   const sentId = uuid();
+  const timeZone = browserTimeZone();
   const controller = new AbortController();
   let timedOut = false;
   const timer = setTimeout(() => {
@@ -157,6 +169,7 @@ async function send(path: string, options: ApiRequestOptions, token: string | nu
         "X-App-Platform": "web",
         "X-App-Version": APP_VERSION,
         "X-Request-Id": sentId,
+        ...(timeZone ? { "X-Time-Zone": timeZone } : {}),
         ...(options.body ? { "Content-Type": "application/json" } : {}),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers

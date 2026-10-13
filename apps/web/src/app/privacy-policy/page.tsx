@@ -14,7 +14,7 @@ export default function PublicPrivacyPolicyPage() {
       </div>
       <PageHeader
         title="Privacy Policy"
-        subtitle="Effective date: 2026-07-10"
+        subtitle="Effective date: 2026-10-13"
         actions={
           <Link
             href="/support"
@@ -43,6 +43,7 @@ export default function PublicPrivacyPolicyPage() {
             <li>Connected health data (mobile apps only): if you connect Apple Health on iOS or Health Connect on Android, the app reads workout, sleep, and step data from it to log activity automatically on your behalf.</li>
             <li>Usage data: app interactions, feature usage, and diagnostic logs.</li>
             <li>Device and network data: device type, OS version, and IP address.</li>
+            <li>Time zone: your device or browser time zone (for example America/Vancouver), sent automatically so reminders and the weekly summary arrive at your local time.</li>
             <li>Push notification data (mobile apps only): if you enable push notifications on the iOS or Android app, we collect and store a device token (and optionally a device identifier) so we can send you notifications. This is linked to your account.</li>
           </ul>
         </div>
@@ -55,7 +56,8 @@ export default function PublicPrivacyPolicyPage() {
             <li>Automatically log workouts, sleep, and steps from Apple Health (iOS) or Health Connect (Android) when you enable that feature in the mobile app.</li>
             <li>Monitor performance, fix bugs, and maintain security.</li>
             <li>Communicate with you about your account or support requests.</li>
-            <li>Deliver push and in-app notifications (for example program updates, membership or role changes). We use Apple&apos;s Push Notification service (APNs) on iOS and Firebase Cloud Messaging (FCM) on Android to send notifications to your device when the app is not in the foreground.</li>
+            <li>Deliver push and in-app notifications (for example program updates, membership or role changes, and kudos from other members). We use Apple&apos;s Push Notification service (APNs) on iOS and Firebase Cloud Messaging (FCM) on Android to send notifications to your device when the app is not in the foreground.</li>
+            <li>Send a daily workout reminder and a weekly summary only if you turn them on in your notification settings, and show announcements from the RaSi Fiters team in your Inbox.</li>
           </ul>
         </div>
 
@@ -66,6 +68,7 @@ export default function PublicPrivacyPolicyPage() {
             <li>With your permission, the iOS app reads from Apple Health (HealthKit) and the Android app reads from Health Connect to automatically create workout, sleep, and step logs in your RaSi Fiters program.</li>
             <li>Access is read-only. The apps do not write any data back to Apple Health or Health Connect.</li>
             <li>We use data read from Apple Health or Health Connect only to provide the automatic logging described above. We never use it for advertising or marketing, and we never sell it or share it with third parties for their own purposes.</li>
+            <li>Workouts created from Apple Health or Health Connect are part of your program activity: other members of your programs can see them, along with your streaks and active days, unless you turn on Hide my activity in My Profile. Sleep and steps are never shown to other members — only you, your program&apos;s admins and loggers, and RaSi Fiters administrators can see them.</li>
             <li>You can turn health sync on or off in the app (My Account → Apple Health on iOS, My Account → Health Connect on Android). You can revoke access at any time: on iOS in Settings → Privacy &amp; Security → Health, and on Android in the Health Connect app (Settings → Security &amp; privacy → Health Connect). Turning it off stops any further reading of your health data.</li>
           </ul>
         </div>
@@ -73,6 +76,7 @@ export default function PublicPrivacyPolicyPage() {
         <div>
           <p className="text-base font-semibold text-rf-text">Sharing of information</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
+            <li>Other members of your programs: members of a program you belong to can see your name, username, gender, program role, and when you joined RaSi Fiters and the program. They can also see your workouts, workout stats (such as streaks and active days) and the kudos you receive — including workouts synced from Apple Health or Health Connect — unless you turn on Hide my activity in My Profile. Program admins and loggers can always see your activity in their programs. Your sleep, diet and steps are visible only to you, your program&apos;s admins and loggers, and RaSi Fiters administrators. Your email address is never shown to other members.</li>
             <li>
               Service providers: we may share data with vendors who help us operate the app
               (for example, hosting and analytics). They are required to protect your information.
@@ -112,6 +116,7 @@ export default function PublicPrivacyPolicyPage() {
           <p className="text-base font-semibold text-rf-text">Your choices</p>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Access or update your information in the app.</li>
+            <li>Turn on Hide my activity (My Profile) to hide your workouts, workout stats and kudos from other members of your programs. You stay on your programs&apos; member lists by name, program admins and loggers still see your activity, and program totals still include it.</li>
             <li>
               Enable or disable push notifications in the app (My Account → Notifications) or in
               your device Settings; disabling or unregistering stops us from sending push and we
