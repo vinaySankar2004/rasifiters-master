@@ -2,27 +2,24 @@ const { Op } = require("sequelize");
 const { WorkoutLog, Member, Program, ProgramMembership, ProgramWorkout, DailyHealthLog } = require("../models");
 const { AppError } = require("../utils/response");
 const { resolveTimelineWindow, buildBuckets, bucketKey } = require("./analyticsService");
-
-const ensureProgramAccess = async (userId, globalRole, programId) => {
-    if (globalRole === "global_admin") return true;
-    if (!userId) return false;
-    const membership = await ProgramMembership.findOne({
-        where: { program_id: programId, member_id: userId, status: "active" }
-    });
-    return Boolean(membership);
-};
+const { loadViewer, hasProgramAccess, canView, redactMetricsRow } = require("../utils/memberVisibility");
 
 // D-C3 — shared requester-access + target-enrolled prelude for the single-member routes
 // (history / streaks / recent). Faithful: every 400/403/404 status + message preserved 1:1.
-// getMemberMetrics keeps its own inline checks (different shape + 403 message).
+// D-C8 — the access rule comes from utils/memberVisibility (global admin, or an ACTIVE membership — was the local
+// ensureProgramAccess), and the target passes canView(…, "workouts"): always true in Phase 4 S0, it is where People
+// S1's "Hide my activity" takes effect. getMemberMetrics keeps its own inline checks (different shape + 403 message).
 const assertMemberAccess = async (programId, memberId, user) => {
     if (!programId || !memberId) throw new AppError(400, "programId and memberId are required.");
-    const hasAccess = await ensureProgramAccess(user.id, user.global_role, programId);
-    if (!hasAccess) throw new AppError(403, "Access denied. Active program membership required.");
+    const viewer = await loadViewer(user, programId);
+    if (!hasProgramAccess(viewer)) throw new AppError(403, "Access denied. Active program membership required.");
     const targetMembership = await ProgramMembership.findOne({
         where: { program_id: programId, member_id: memberId, status: "active" }
     });
     if (!targetMembership) throw new AppError(404, "Member is not enrolled in this program.");
+    if (!canView(viewer, memberId, "workouts")) {
+        throw new AppError(403, "Access denied. Active program membership required.");
+    }
 };
 
 const computeStreaks = (dateStrings) => {
@@ -72,8 +69,8 @@ async function getMemberMetrics({
 }, user) {
     if (!programId) throw new AppError(400, "programId is required");
 
-    const hasAccess = await ensureProgramAccess(user.id, user.global_role, programId);
-    if (!hasAccess) throw new AppError(403, "Access denied. Program membership required.");
+    const viewer = await loadViewer(user, programId);
+    if (!hasProgramAccess(viewer)) throw new AppError(403, "Access denied. Program membership required.");
 
     const sortField = SORTABLE_FIELDS.has(sort) ? sort : "active_days";
     const dir = direction === "asc" ? "asc" : "desc";
@@ -219,6 +216,11 @@ async function getMemberMetrics({
         const stc = perMemberStepsCount.get(mid) || 0;
         if (stc > 0) entry.avg_steps = Math.round((perMemberStepsSum.get(mid) || 0) / stc);
     }
+
+    // D-C8 (Phase 4 S0 / People D-P8 a): a plain member sees only their OWN sleep / diet / steps averages; staff (an
+    // ACTIVE program admin or logger) and global admins see everyone's. Redacted BEFORE search / filter / sort so
+    // neither the order nor a range filter can reveal a co-member's value.
+    for (const entry of metricsMap.values()) redactMetricsRow(viewer, entry);
 
     let result = Array.from(metricsMap.values());
 

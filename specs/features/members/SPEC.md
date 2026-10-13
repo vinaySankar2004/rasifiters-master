@@ -1,11 +1,11 @@
 # Feature: `members` — member directory, profiles, and admin lifecycle
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/members.js`, `services/memberService.js`,
 > `models/Member.js`, `models/MemberEmail.js`, `server.js:47`.
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken` / `isAdmin`).
-> **One deliberate change** (the rest is faithful): `createMember` now creates a **loginable** member via
-> Supabase Auth — see **§7** (decision **D-C2**).
+> **Two deliberate changes** (the rest is faithful): `createMember` now creates a **loginable** member via
+> Supabase Auth — see **§7** (decision **D-C2**); **D-C3** (0.4.0, Phase 4 S0) the full directory is global-admin-only (everyone else gets only their own row) and `email` goes only to self or a global admin (same shapes).
 
 ---
 
@@ -15,7 +15,7 @@ The **member directory + profile + admin lifecycle** of RaSi Fiters — the five
 the `members` table (the FK-anchor entity for everything else). Three of the five are the live surface both
 clients use; two are vestigial admin routes:
 
-1. **Read the directory** — `GET /api/members` (list standard members), `GET /api/members/:id` (one
+1. **Read the directory** — `GET /api/members` (list standard members; the full list for global admins only since 0.4.0, everyone else gets their own row, D-C3), `GET /api/members/:id` (one
    member's public profile). Used by both clients.
 2. **Edit your own profile** — `PUT /api/members/:id` (`first_name` / `last_name` / `gender`), gated to
    the member themselves or a `global_admin`. Used by both clients (web profile page · iOS `MyProfileView`).
@@ -38,8 +38,8 @@ All mounted at **`/api/members`** (legacy `server.js:47`). Handlers in `routes/m
 
 | # | Route | Legacy handler | Auth | Purpose |
 |---|-------|----------------|------|---------|
-| 1 | `GET /` | `members.js:8-17` → `getAllMembers` (`memberService.js:15-20`) | `authenticateToken` | List members where `global_role = 'standard'`, ordered `first_name ASC`. |
-| 2 | `GET /:id` | `members.js:19-28` → `getMemberById` (`memberService.js:22-36`) | `authenticateToken` | One member's profile (hand-picked fields). 404 if missing. |
+| 1 | `GET /` | `members.js:8-17` → `getAllMembers` | `authenticateToken`; the full list only for a **global admin**, anyone else gets only **their own row** (D-C3) | List members where `global_role = 'standard'`, ordered `first_name ASC`. |
+| 2 | `GET /:id` | `members.js:19-28` → `getMemberById` | `authenticateToken`; `email` only to self or a global admin, anyone else `email: null` (D-C3) | One member's profile (hand-picked fields). 404 if missing. |
 | 3 | `POST /` | `members.js:30-39` → `createMember` (`memberService.js:38-69`) | `authenticateToken` + `isAdmin` | Admin-create a member. **CHANGED** (§7) — now creates a loginable member. 201. |
 | 4 | `PUT /:id` | `members.js:41-50` → `updateMember` (`memberService.js:71-106`) | `authenticateToken` | Update `first_name`/`last_name`/`gender`; own-profile **or** `global_admin` only. |
 | 5 | `DELETE /:id` | `members.js:56-65` → `deleteMember` (`memberService.js:147-179`) | `authenticateToken` + `isAdmin` | Delete member + cross-feature cascade (`cascadeMemberDeletion`) + Supabase auth-user delete. **WIRED** (§7, D-C1). |
@@ -50,7 +50,8 @@ All mounted at **`/api/members`** (legacy `server.js:47`). Handlers in `routes/m
   migration-added `auth_user_id` column **excluded** to preserve the exact legacy shape (§7).
 - **`GET /:id`** (`memberService.js`): `{ id, member_name, username, gender, email, date_joined,
   global_role, created_at, updated_at }` (`member_name`/`date_joined` are model virtuals). **`email`** is the
-  primary `member_emails` row (`is_primary`), added so the web profile page can display it (read-only here —
+  primary `member_emails` row (`is_primary`), added so the web profile page can display it — self or global admin
+  only since D-C3, `null` for anyone else (read-only here —
   changing email goes through `PUT /auth/email`, not the `updateMember` whitelist; F6 holds).
 - **`POST /`** (`memberService.js:56-63`, HTTP 201): `{ id, member_name, username, gender, date_joined,
   global_role }` — **shape preserved**; the change (§7) is internal (it also provisions auth).
@@ -70,7 +71,8 @@ block), `404` (member not found).
 
 - **List standard members** — `Member.findAll({ where: { global_role: 'standard' }, order: [["first_name",
   "ASC"]] })` (`memberService.js:16-19`). Global admins are excluded from the directory. **Excludes
-  `auth_user_id`** in the rebuild (§7).
+  `auth_user_id`** in the rebuild (§7). **D-C3:** only a global admin gets the full list; anyone else's query
+  is narrowed to their own row.
 - **Member detail** — hand-picked field projection (`memberService.js:26-35`); `404` if no row.
 - **Create member (CHANGED — the one deliberate change, §7/D-C2)** — legacy (`memberService.js:38-69`):
   require `member_name` + `password`; derive `username = member_name.toLowerCase().replace(/\s+/g, '')`
@@ -116,9 +118,9 @@ No members-specific env. Inherits the shared Supabase values from `auth`: **`SUP
 **`SUPABASE_SERVICE_ROLE_KEY`** (the admin API for `createMember`'s `createUser` and, when un-deferred,
 `deleteMember`'s `deleteUser`). DB access via the shared `DATABASE_URL` (`config/database.js`).
 
-## 7. The migration delta + the one deliberate change — the load-bearing part
+## 7. The migration delta + the deliberate changes — the load-bearing part
 
-**What stays (faithful 1:1):** all five route paths + their auth gates, the response shapes, the error
+**What stays (faithful 1:1):** all five route paths + their auth gates (the two reads add the D-C3 privacy gate below), the response shapes, the error
 contract, the `global_role = 'standard'` directory filter + `first_name ASC` ordering, the hand-picked
 `getMemberById` projection, the own-profile-or-global-admin update gate, the `first_name`/`last_name`/`gender`
 update whitelist, and the `global_admin` delete block.
@@ -141,6 +143,7 @@ update whitelist, and the `global_admin` delete block.
 - **`DELETE /:id` is WIRED** (D-C1) now that `program-memberships` / `invites` / `notifications` are ported.
   The cross-feature cascade is single-sourced in `utils/programMemberships.cascadeMemberDeletion` and shared
   with `DELETE /api/auth/account`; it additionally deletes the Supabase auth user (admin API) after commit.
+- **Privacy gate on the reads (D-C3, 0.4.0)** — the full directory answers only a global admin (everyone else gets only their own row); `email` only to self / a global admin (`null` otherwise).
 
 ## 8. Dependencies
 
@@ -158,8 +161,9 @@ update whitelist, and the `global_admin` delete block.
 |----|----------|----------|
 | **D-C1** | **Scope = the five `/api/members` routes + `memberService`.** The `deleteMember` cross-feature cascade (invites / notifications / membership-exit) is single-sourced in `utils/programMemberships.cascadeMemberDeletion` (owned by `program-memberships`) and **WIRED** now those features are ported; `DELETE /:id` additionally deletes the Supabase auth user after commit. Shared verbatim with the auth `/account` cascade. | `memberService.js:147-179`; `utils/programMemberships.js:cascadeMemberDeletion`; auth SPEC D-C1. |
 | **D-C2** | **`createMember` is wired to Supabase `createUser` + requires an explicit `email`** so admin-created members can log in — the single deliberate change. Mirrors the ported `authService.register`. | `memberService.js:38-69` (legacy gap); `apps/backend/services/authService.js:172-233`; user decision. |
-| **D-REF** | **Reference impl = legacy `backend`** (`routes/members.js`, `services/memberService.js`, the two models, `server.js:47`). **`consumed_by = [web, ios]`** for the read + self-update routes; **`POST` and `DELETE` are called by neither client** (vestigial — kept for API parity, §10 F1). | Web + iOS consumption sweep (Explore agents); `members.js`. |
-| **D-S1** | **Stance = faithful 1:1 except `createMember`.** Response shapes, gates, filtering/ordering, virtuals preserved; `getAllMembers` excludes the migration-added `auth_user_id` to keep the legacy shape. Other oddities are kept and flagged (§10), not fixed. | Whole-module review; §7. |
+| **D-REF** | **Reference impl = legacy `backend`** (`routes/members.js`, `services/memberService.js`, the two models, `server.js:47`). ~~`consumed_by = [web, ios]`~~ → **`[web, ios, android]`** (0.4.0 doc-lag fix: Android reads `GET /:id` + writes `PUT /:id`; only iOS calls `GET /`) for the read + self-update routes; **`POST` and `DELETE` are called by neither client** (vestigial — kept for API parity, §10 F1). | Web + iOS consumption sweep (Explore agents); `members.js`. |
+| **D-S1** | **Stance = faithful 1:1 except `createMember` (D-C2) + the 0.4.0 read gates (D-C3).** Response shapes, gates, filtering/ordering, virtuals preserved; `getAllMembers` excludes the migration-added `auth_user_id` to keep the legacy shape. Other oddities are kept and flagged (§10), not fixed. | Whole-module review; §7. |
+| **D-C3** | **Deliberate change (0.4.0) — privacy gate on the two reads (reliability-overhaul Phase 4 S0 / People D-P8 a).** `GET /` (the full directory) answers the full list only to a **global admin**; anyone else gets **only their own row** (`200`, same array shape). Never 403: live iOS 1.4.x/1.5.0 `loadLookupData` calls it at launch/login with no program open, and a throw would skip its workouts/programs refresh. Own row, not `[]`: if that launch fetch finishes after a program was picked, iOS keeps its result as the program's roster, and the own row keeps `StandardMembersTab.loggedInMember` resolvable (plan-adversary verdict 1; Phase 4 wave-A amendment SA1). Nothing renders that list while no program is open. `GET /:id` returns `email` only to **the member themselves or a global admin**; anyone else gets the same object with **`email: null`** (every client DTO already treats `email` as optional; every live caller passes the viewer's own id). Rule kinds `"directory"` / `"email"` in the shared `utils/memberVisibility.js` (program-memberships D-C5). No 404 for a non-co-member: with the directory and rosters closed, another member's id is only learnable inside a shared program, whose roster already shows the same name/username/gender. | Phase 4 DECISIONS D-P8 (a); DISCOVERY §4 S0 + P-4; wave-A amendment SA1; caller audit: web `program/profile/page.tsx`, iOS `MyProfileView.swift` + `ProgramContext+Members.swift` `loadLookupData` (HEAD and 1.4.2 `6294622`), Android `ProfileScreen.kt` (HEAD and 1.0.0 `cea59a5`). |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -176,6 +180,7 @@ update whitelist, and the `global_admin` delete block.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **D-C3 — privacy gate on `GET /` + `GET /:id` (reliability-overhaul Phase 4 S0 / People D-P8 a).** `GET /` lists every standard member only for a global admin (everyone else gets only their own row — wave-A amendment SA1); `GET /:id` returns `email` only to self or a global admin (others `email: null`). Same routes + shapes; rule in the new shared `utils/memberVisibility.js` (program-memberships 0.3.0). Live binaries checked (iOS 1.4.2/1.5.0, Android 1.0.0/1.1.0, web): no screen changes. D-REF `consumed_by` lag fixed → `[web, ios, android]`; header count + D-S1 + §4/§7 wording updated. **MINOR**; backend-only. |
 | 0.3.0 | 2026-06-30 | **`getMemberById` now returns the primary `email`** (resolved from `member_emails`, `is_primary`) so the web profile page can display it — additive read-shape change, backward-compatible (`updateMember` whitelist unchanged; email changes go through `PUT /auth/email`, F6 holds). **`members.gender` widened `varchar(10)`→`varchar(32)`** via migration `apps/backend/sql/003_widen_gender_column.sql` (+ `001_schema.sql` canonical line) so `"Prefer not to say"` (17 chars) stops erroring on save. MINOR (additive; consumers: web profile reads `email`, ios unaffected). Drives `program/profile` page v0.2.0. `node -c` ✓; migration applied by the user. |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the five `/api/members` routes + `memberService`. Decisions D-C1 (scope; `DELETE` cascade deferred → 501, auth `/account` pattern) / D-C2 (the one deliberate change — `createMember` wired to Supabase `createUser`, requires `email`) / D-REF (`consumed_by [web, ios]`; `POST`+`DELETE` called by neither client) / D-S1 (faithful except `createMember`; `getAllMembers` excludes `auth_user_id`). Flagged F1–F6. |
 | 0.1.0 (built) | 2026-06-28 | **Ported to `apps/backend/`** — `services/memberService.js` (faithful `getAllMembers` w/ `auth_user_id` excluded, `getMemberById`, `updateMember`; **`createMember` wired to Supabase `admin.createUser` + requires `email`** per D-C2, reusing `authService.validatePassword`/`normalizeEmail`; `deleteMember`→501 per D-C1), `routes/members.js` (faithful 1:1), mounted `/api/members` in `server.js`. Module-load + route-stack boot check pass. Status 📄→🏗️ (no semver bump — the port matches the SPEC). |

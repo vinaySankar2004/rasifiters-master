@@ -12,25 +12,33 @@ const { supabaseAdmin } = require("../config/supabase");
 const { validatePassword, normalizeEmail } = require("./authService");
 const { cascadeMemberDeletion } = require("../utils/programMemberships");
 const { AppError } = require("../utils/response");
+const { loadViewer, canView } = require("../utils/memberVisibility");
 
-async function getAllMembers() {
+// D-C3 (0.4.0, Phase 4 S0): the full directory is global-admin-only; everyone else gets only their OWN row (200, same
+// shape, never 403 — live iOS loadLookupData calls this with no program open and may keep the result as the roster:
+// the own row keeps StandardMembersTab's loggedInMember, and a throw would skip its workouts/programs refresh).
+async function getAllMembers(user) {
+    const viewer = await loadViewer(user);
+    const ownRowOnly = canView(viewer, null, "directory") ? {} : { id: viewer.id };
     return Member.findAll({
-        where: { global_role: "standard" },
+        where: { global_role: "standard", ...ownRowOnly },
         order: [["first_name", "ASC"]],
         // exclude the migration-added auth_user_id so the response matches the legacy shape (D-S1).
         attributes: { exclude: ["auth_user_id"] }
     });
 }
 
-async function getMemberById(memberId) {
+async function getMemberById(memberId, user) {
     const member = await Member.findByPk(memberId);
     if (!member) throw new AppError(404, "Member not found.");
 
     // Surface the primary email (read-only here; changing it goes through PUT /auth/email, not the
     // updateMember whitelist — SPEC members F6). Email lives in member_emails, not the members row.
-    const primaryEmail = await MemberEmail.findOne({
-        where: { member_id: memberId, is_primary: true }
-    });
+    // D-C3: only to the member themselves or a global admin; others get email: null (same shape, optional in all DTOs).
+    const showEmail = canView(await loadViewer(user), member.id, "email");
+    const primaryEmail = showEmail
+        ? await MemberEmail.findOne({ where: { member_id: memberId, is_primary: true } })
+        : null;
 
     return {
         id: member.id,

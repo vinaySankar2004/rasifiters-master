@@ -2,6 +2,7 @@ const { Op, UniqueConstraintError } = require("sequelize");
 const { sequelize } = require("../config/database");
 const { WorkoutLog, Member, ProgramWorkout, ProgramMembership, Workout, Program, DailyHealthLog } = require("../models");
 const { AppError } = require("../utils/response");
+const { loadViewer, canView } = require("../utils/memberVisibility");
 
 const MAX_BATCH_SIZE = 200;
 const MAX_BATCH_PROGRAMS = 20;
@@ -40,9 +41,10 @@ function normalizeProgramIds(program_ids, program_id) {
 
 // ── Authorization helpers (shared by the workout-log and daily-health-log halves) ──
 
-/** True if the requester may act on ANY member in the program (program admin/logger, or global admin).
+/** True if the requester may act on ANY member in the program (an ACTIVE program admin/logger, or global admin).
  *  Throws 403 if the requester is not enrolled. The boolean drives per-member branching in the callers,
- *  so it stays inline in the service (not a route gate). */
+ *  so it stays inline in the service (not a route gate). daily-health-logs D-C7 (0.4.0, Phase 4 S0): an
+ *  admin/logger whose row is not "active" (removed incl. left / invited / requested) keeps self-only rights. */
 async function resolveLogPermissions(program_id, requester) {
     if (requester?.global_role === "global_admin") return true;
 
@@ -51,17 +53,17 @@ async function resolveLogPermissions(program_id, requester) {
     });
     if (!membership) throw new AppError(403, "You are not enrolled in this program.");
 
-    return ["admin", "logger"].includes(membership.role);
+    return membership.status === "active" && ["admin", "logger"].includes(membership.role);
 }
 
-/** True if the requester is a program admin (or a global admin). Used by the `requireDataEntryAllowed`
- *  route middleware (the hoisted admin_only_data_entry lock, D-C5). */
+/** True if the requester is an ACTIVE program admin (or a global admin). Used by the `requireDataEntryAllowed`
+ *  route middleware (the hoisted admin_only_data_entry lock, D-C5). D-C7: a non-active admin is not exempt. */
 async function isProgramAdmin(program_id, requester) {
     if (requester?.global_role === "global_admin") return true;
     const membership = await ProgramMembership.findOne({
         where: { program_id, member_id: requester?.id }
     });
-    return membership?.role === "admin";
+    return membership?.status === "active" && membership?.role === "admin";
 }
 
 /** Resolve display name "First Last" to a Member. member_name is virtual (first_name + last_name), not a DB column. */
@@ -140,7 +142,9 @@ async function addWorkoutLog({ member_name, member_id: bodyMemberId, workout_nam
         });
         if (!requesterMembership) throw new AppError(403, "You are not enrolled in this program.");
     }
-    const canLogForAny = isGlobalAdmin || ["admin", "logger"].includes(requesterMembership.role);
+    // workout-logs D-C11 (0.7.0): rights over others need an ACTIVE admin/logger row (as in resolveLogPermissions).
+    const canLogForAny = isGlobalAdmin
+        || (requesterMembership.status === "active" && ["admin", "logger"].includes(requesterMembership.role));
 
     let member_id = requester.id;
     if (bodyMemberId) {
@@ -732,8 +736,12 @@ async function getDailyHealthLogs({
 }, requester) {
     if (!programId || !memberId) throw new AppError(400, "programId and memberId are required.");
 
-    const canLogForAny = await resolveLogPermissions(programId, requester);
-    if (!canLogForAny && memberId !== requester?.id) {
+    // daily-health-logs D-C7 (0.4.0, Phase 4 S0 / People D-P8 a): the read rule is utils/memberVisibility "health" —
+    // self, an ACTIVE program admin/logger, or a global admin. Both 403 messages kept 1:1; the write paths apply the
+    // same ACTIVE-staff rule through resolveLogPermissions.
+    const viewer = await loadViewer(requester, programId);
+    if (!viewer.isGlobalAdmin && !viewer.programRole) throw new AppError(403, "You are not enrolled in this program.");
+    if (!canView(viewer, memberId, "health")) {
         throw new AppError(403, "You can only view your own daily health logs.");
     }
 

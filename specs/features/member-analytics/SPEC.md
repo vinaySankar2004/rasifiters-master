@@ -1,6 +1,6 @@
 # Feature: `member-analytics` — per-member analytics (metrics · history · streaks · recent)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.5.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/memberAnalytics.js` (the 4 routers),
 > `services/memberAnalyticsService.js` (the 4 fns + helpers), `services/analyticsService.js` (re-export the 3
 > shared timeline helpers it imports — D-C2), `server.js` (the 4 `/api/member-*` mounts).
@@ -8,7 +8,7 @@
 > [`analytics`](../analytics/SPEC.md) (imports `resolveTimelineWindow`/`buildBuckets`/`bucketKey` from
 > `analyticsService.js`) · [`workout-logs`](../workout-logs/SPEC.md) + [`daily-health-logs`](../daily-health-logs/SPEC.md)
 > (the `workout_logs` + `daily_health_logs` fact tables it aggregates) ·
-> [`program-memberships`](../program-memberships/SPEC.md) (`ensureProgramAccess` + the active-membership roster) ·
+> [`program-memberships`](../program-memberships/SPEC.md) (`utils/memberVisibility.js` access + visibility rules + the active-membership roster) ·
 > [`programs`](../programs/SPEC.md) (`start_date` window anchor) ·
 > [`program-workouts`](../program-workouts/SPEC.md) (`ProgramWorkout.workout_name` for type rollups) ·
 > [`members`](../members/SPEC.md) (member names/usernames).
@@ -17,6 +17,7 @@
 > (statuses preserved 1:1); **D-C4** guard a null `program.start_date` in `getMemberStreaks` (mirrors
 > `getMemberMetrics`' existing guard); **D-C5** (0.2.0) the metrics rollup gains `avg_steps` (average over a
 > member's steps-bearing days, rounded int — mirrors `avg_sleep_hours`).
+> **Deliberate change D-C8** (0.5.0, Phase 4 S0): co-members' sleep / diet / steps averages are nulled for plain members; access checks come from the shared `utils/memberVisibility.js`.
 
 ---
 
@@ -54,7 +55,7 @@ The program dashboards ([`analytics`](../analytics/SPEC.md)) answer *"how is the
 `member-analytics` answers *"how is **this member** doing?"* — the leaderboard that ranks/filters members and
 the per-member detail cards (timeline, streaks, recent workouts). Both clients render the same four surfaces
 (members tab + member detail), so `consumed_by = [web, ios]`, all 4 routes 1:1. Like the program analytics
-(v1/v2, since analytics D-C8 0.4.0 / analytics-v2 D-C3 0.2.0), **this feature enforces per-program read authz** (`ensureProgramAccess`: global-admin OR an active
+(v1/v2, since analytics D-C8 0.4.0 / analytics-v2 D-C3 0.2.0), **this feature enforces per-program read authz** (`utils/memberVisibility.js` `hasProgramAccess` since D-C8: global-admin OR an active
 membership in the program) on every route (§10 F1) — it's the gated read surface. Numbers must match legacy
 1:1 → the port is verbatim apart from the two pinned cleanups.
 
@@ -76,25 +77,25 @@ lives in `services/memberAnalyticsService.js`. Every route is `GET /` + `authent
 `AppError(statusCode, message)` → `res.status(code).json({ error: message })`; any other throw → `500` with a
 route-specific generic (one of "Failed to fetch member metrics/workout history/streaks/recent workouts.").
 The `AppError`s thrown: `400` (missing required query param — `programId`, or `programId`+`memberId`), `403`
-("Access denied…" from `ensureProgramAccess`), `404` ("Member is not enrolled in this program." /
+("Access denied…" from the program-access check (`utils/memberVisibility.js` since D-C8)), `404` ("Member is not enrolled in this program." /
 "Program not found."), and metrics' `400 "Invalid date range."`. Status codes preserved 1:1.
 
 ## 4. Feature list (behaviors to port — verbatim aggregation)
 
-- **`getMemberMetrics(query, user)`** (`:51-259`) — `400` if no `programId`; `ensureProgramAccess` → `403`;
+- **`getMemberMetrics(query, user)`** (`:51-259`) — `400` if no `programId`; `loadViewer` + `hasProgramAccess` → `403`;
   `Program.findOne({is_deleted:false})` → `404`. Clamp the `[startDate,endDate]` window to
   `[program.start_date, today]` (UTC; `400 "Invalid date range."` if end < start). Load active memberships
   (optionally one `memberId`) + their `workout_logs` (with `ProgramWorkout.workout_name`) + `daily_health_logs`
   within the window. **In-memory rollup per member**: workouts, total/avg duration, total hours, active days
   (distinct `log_date`), distinct workout types, current/longest streak (`computeStreaks`), MTD workouts
   (`isInCurrentMonth`), favorite workout (max session count), avg sleep, avg food quality, **avg steps**
-  (rounded average over the member's steps-bearing days, `null` when none — D-C5, mirrors avg sleep). Then
+  (rounded average over the member's steps-bearing days, `null` when none — D-C5, mirrors avg sleep). **D-C8:** the three averages are then nulled on every row except the viewer's own unless the viewer is staff or a global admin. Then
   **search** (name/username substring), **16 range filters** (`within` min/max; null sleep/food treated as
   `0`, §10 F5 — `avg_steps` is **not** added to `SORTABLE_FIELDS` or the filter set this run, §10 F8),
   **sort** (one of `SORTABLE_FIELDS`, default `active_days` — D-C7, 0.4.0; was `workouts` pre-0.4.0; dir default `desc`). Returns `{ program_id, total,
   filtered, sort, direction, date_range:{start,end}, members:[…] }` (each member gains `avg_steps`).
 - **`getMemberHistory(query, user)`** (`:261-301`) — `400` if no `programId`+`memberId`; access prelude
-  (`ensureProgramAccess` `403` + target-membership `404 "not enrolled"`). `resolveTimelineWindow(period, programId)`
+  (`hasProgramAccess` `403` + target-membership `404 "not enrolled"` + `canView(…, "workouts")`, D-C8). `resolveTimelineWindow(period, programId)`
   → `buildBuckets` → fill from the member's `workout_logs` via `bucketKey`. Returns `{ period, label,
   daily_average, buckets:[{date,label,workouts}], start, end }`.
 - **`getMemberStreaks(query, user)`** (`:303-337`) — `400` if no `programId`+`memberId`; access prelude;
@@ -109,8 +110,7 @@ The `AppError`s thrown: `400` (missing required query param — `programId`, or 
 
 ### Local helpers (owned by this service)
 
-- **`ensureProgramAccess(userId, globalRole, programId)`** (`:6-13`) — `global_admin` OR an active
-  `ProgramMembership` for the requester → boolean. The per-program read gate (§10 F1).
+- **~~`ensureProgramAccess(userId, globalRole, programId)`~~** — retired at D-C8 (0.5.0): the same rule (`global_admin` OR an active `ProgramMembership`) is now `loadViewer` + `hasProgramAccess` in the shared `utils/memberVisibility.js` (program-memberships D-C5). The per-program read gate (§10 F1).
 - **`computeStreaks(dateStrings)`** (`:15-35`) — longest + current run of consecutive UTC days. **`current`
   counts back from the most-recent logged day, not anchored to today** (§10 F2).
 - **`isInCurrentMonth(dateString)`** (`:37-41`) — UTC year+month equality vs the server clock (`new Date()`).
@@ -133,7 +133,7 @@ delta** (read-only; no schema change; no new tables). Read-only — no writes.
 - **`daily_health_logs`** (read, owned by [`daily-health-logs`](../daily-health-logs/SPEC.md)) — `sleep_hours` +
   `food_quality` + (0.2.0) `steps` for the metrics rollup only.
 - **`program_memberships`** (read, owned by [`program-memberships`](../program-memberships/SPEC.md)) — the
-  active roster (metrics) + `ensureProgramAccess` + target-enrolled `404` checks.
+  active roster (metrics) + the viewer's membership (`utils/memberVisibility.js` `loadViewer`, D-C8) + target-enrolled `404` checks.
 - **`program_workouts`** (read, owned by [`program-workouts`](../program-workouts/SPEC.md)) — `workout_name`
   (favorite/type rollups, recent list, recent sort/filter by type).
 - **`programs`** (read, owned by [`programs`](../programs/SPEC.md)) — `start_date` (window anchor) + `is_deleted`.
@@ -164,7 +164,7 @@ cleanups (D-C3/D-C4) + one additive rollup field (D-C5, 0.2.0)**:
   feature (a tiny, additive, non-behavioral export change → patch bump on `analytics`).
 - **D-C3 — extract the shared access prelude (cleanup C1).** `getMemberHistory`/`getMemberStreaks`/
   `getMemberRecentWorkouts` repeat the *identical* prelude: validate `programId`+`memberId` (`400`) →
-  `ensureProgramAccess` (`403`) → target-membership `findOne` (`404 "not enrolled"`). Factor into one helper
+  `ensureProgramAccess` (`403`; `utils/memberVisibility.js` since D-C8) → target-membership `findOne` (`404 "not enrolled"`). Factor into one helper
   `assertMemberAccess(programId, memberId, user)`. **Pure refactor — every 400/403/404 status + message
   preserved 1:1**; `getMemberStreaks` keeps its additional `Program.findOne` `404` after. Not applied to
   `getMemberMetrics` (different shape: program-wide, optional `memberId`, its own `Program.findOne`).
@@ -223,14 +223,15 @@ are already UTC-correct (`T00:00:00Z` parsing + `getUTC*`), unlike analytics v1.
 | **D-C4** | **Cleanup C2 — guard null `program.start_date` in `getMemberStreaks`** (mirror `getMemberMetrics`' `:70` guard; fall back to epoch lower bound). Only the null-`start_date` edge changes (was a 500 via Invalid-Date `.toISOString()`); happy-path numbers identical. | `memberAnalyticsService.js:317` (unguarded) vs `:70` (guarded). User pinned C2. |
 | **D-C5** | **Additive `avg_steps` in the metrics rollup (0.2.0).** Round the average `steps` over each member's steps-bearing days (`null` when none), mirroring `avg_sleep_hours`; adds the `steps` attribute to the `daily_health_logs` fetch. **Not** added to `SORTABLE_FIELDS` / the filter set (out of the steps-task scope — overview grid only; §10 F8). Additive response field; live binaries unaffected. | User approval 2026-07-09 (steps-tracking plan, DC-1 + brief item 4); `memberAnalyticsService.js:122,138,170-206`; daily-health-logs 0.2.0 D-C4. |
 | **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios, android]`** — all 4 routes used 1:1 by all clients, **no divergence**, no dead routes (`member-recent` is the shared workout-history read). `avg_steps` (D-C5) feeds the members-tab overview grid on all three. | Web sweep (`members/{page,metrics,history,streaks,workouts}.tsx`) + iOS sweep (`APIClient+Members.swift` + `ProgramContext+Members.swift` + the member tabs) + Android port; Explore agents. |
-| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2/D-C3/D-C4 + the additive D-C5.** Every aggregation, the in-memory rollup/search/filter/sort, `computeStreaks`, the MTD/streak math, the synthetic recent-`id`, and the error contract ported exactly; D-C5 only ADDS `avg_steps` to the rollup (no sort/filter change); no UTC cleanup (dates already UTC-correct). Remaining oddities flagged (§10). | Whole-service review; §7. |
+| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2/D-C3/D-C4 + the additive D-C5 + the D-C8 health-average redaction (0.5.0).** Every aggregation, the in-memory rollup/search/filter/sort, `computeStreaks`, the MTD/streak math, the synthetic recent-`id`, and the error contract ported exactly; D-C5 only ADDS `avg_steps` to the rollup (no sort/filter change); no UTC cleanup (dates already UTC-correct). Remaining oddities flagged (§10). | Whole-service review; §7. |
 | **D-C7** | **Active Days is the PRIMARY member-metrics stat (0.4.0, deliberate user-requested change — NOT faithful-as-is).** Backend: `getMemberMetrics` default `sort` = `active_days` (param default + `SORTABLE_FIELDS` fallback). All three clients: (a) Member Performance Metrics screens default their sort to Active Days (workouts stays a sort OPTION; the option-list order is unchanged); (b) the member metric card's hero (big orange number) leads with Active Days and the subtitle under the name shows `Workouts N` (swap of the pre-0.4.0 layout); (c) iOS/Android metric-card grid row 1 = [Active Days, Workouts]; (d) the admin metrics-preview card's hardcoded hero + top-performer become Active Days and its mini tiles reorder to [Active Days, Workouts, Types]. **Web nuance:** web cards carry the secondary stat in the subtitle (no dual tile), so the first grid tile's label/value becomes "Active days" replacing the Workouts tile — tile count unchanged (exact positional swap; visual-fit preserved). Member Overview's "MTD Workouts" line, CSV column order, filters, and response shape are untouched. **Back-compatible:** every shipped binary sends `sort` explicitly, so live clients keep workouts-first until updated. | User request 2026-07-15; `memberAnalyticsService.js:65,78`; web `members/page.tsx` + `members/metrics/page.tsx`; iOS `MemberOverviewPicker.swift`/`MemberMetricsDetailView.swift`/`StandardMembersTab.swift`; Android `MemberCards.kt`/`MemberMetricsDetailScreen.kt`/`MembersScreen.kt`. |
+| **D-C8** | **Deliberate change (0.5.0) — co-members' health averages hidden (reliability-overhaul Phase 4 S0 / People D-P8 a).** `getMemberMetrics` nulls `avg_sleep_hours` / `avg_food_quality` / `avg_steps` on every row except the viewer's own unless the viewer is staff (an ACTIVE program admin or logger) or a global admin (`redactMetricsRow`, shared `utils/memberVisibility.js`). Redacted right after the averages are computed and **before** search / range filters / sort, so a sort or filter on those fields cannot reveal a co-member's value (F5's `?? 0` then treats them as 0). Workout fields untouched. `ensureProgramAccess` is replaced by the module's `loadViewer` + `hasProgramAccess` (same rule, statuses and messages; a repeated `?programId` from a non-admin is now refused, like analytics D-C8); history / streaks / recent also pass `canView(…, "workouts")`, always true in S0 and the People S1 "Hide my activity" hook. Same response shape; every client DTO already types the three fields nullable; plain-member apps (iOS `StandardMembersTab`, Android `MembersScreen`, web own-id call) read only their own row. | Phase 4 DECISIONS D-P8; DISCOVERY P-5; nullable fields in iOS `APIClient+Members.swift` / Android `Dtos.kt` / web `lib/api/members.ts`; same call paths in iOS 1.4.2 `6294622` + Android 1.0.0 `cea59a5`. |
 
 ## 10. Flagged characteristics kept as-is
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **Per-program read authz IS enforced here** (`ensureProgramAccess`: global-admin OR active membership) — analytics v1/v2 were `authenticateToken`-only (their F2) and now also require an ACTIVE membership or global admin (analytics D-C8 0.4.0 / analytics-v2 D-C3 0.2.0). Noted as the *secure* characteristic; kept as-is. | `memberAnalyticsService.js:6-13` (called by all 4 fns) | Kept (faithful) — already the stricter behavior; no change needed. |
+| **F1** | **Per-program read authz IS enforced here** (`utils/memberVisibility.js` `hasProgramAccess`: global-admin OR active membership; was `ensureProgramAccess` until D-C8) — analytics v1/v2 were `authenticateToken`-only (their F2) and now also require an ACTIVE membership or global admin (analytics D-C8 0.4.0 / analytics-v2 D-C3 0.2.0). Noted as the *secure* characteristic; kept as-is. | `utils/memberVisibility.js` (called by all 4 fns) | Kept (faithful) — already the stricter behavior; no change needed. |
 | **F2** | **`computeStreaks` `current` is not anchored to today** — it counts the most recent consecutive run from the latest *logged* day, so a member with a gap to today still reports their last run as "current" (it doesn't reset to 0 for the gap). | `memberAnalyticsService.js:29-33` | Kept (faithful) — changing it would alter every member's current-streak number. |
 | **F3** | **`getMemberMetrics` aggregates + filters/sorts/searches ALL active members in-memory (JS), not SQL**, with no pagination (returns every matching member). Faithful; fine for program-sized rosters. | `memberAnalyticsService.js:198-258` | Kept (faithful) — a rebuild could push filter/sort/paginate into SQL. |
 | **F4** | **The metrics rollup computes rich fields some clients may not render** (`mtd_workouts`, `total_hours`, `favorite_workout`) — ported verbatim regardless of consumption. | `memberAnalyticsService.js:123-124,190` | Kept (faithful) — trim only if a parity audit confirms both clients ignore them. |
@@ -243,6 +244,7 @@ are already UTC-correct (`T00:00:00Z` parsing + `getUTC*`), unlike analytics v1.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.0 | 2026-10-13 | **D-C8 — co-members' health averages hidden from plain members (reliability-overhaul Phase 4 S0 / People D-P8 a).** `GET /api/member-metrics` nulls `avg_sleep_hours`/`avg_food_quality`/`avg_steps` on co-members' rows unless the viewer is an ACTIVE program admin/logger or a global admin; applied before search/filter/sort. Access checks now come from the shared `utils/memberVisibility.js` (program-memberships 0.3.0) with every status + message kept; `ensureProgramAccess` retired (§4/§5/§7/F1 refs updated); history/streaks/recent route through `canView("workouts")` (no change in S0; People S1 hook). Same shape; live binaries checked. **MINOR**; backend-only. |
 | 0.4.0 | 2026-07-15 | **D-C7 — Active Days becomes the PRIMARY member-metrics stat (deliberate user-requested swap with Workouts).** Backend default `sort` for `GET /api/member-metrics` flips `workouts` → `active_days` (param default `:65` + allowlist fallback `:78`); no shape/param change, purely a semantic default (all shipped clients pass `sort` explicitly → live binaries unaffected; backend deploys first). All three clients swap the primary/secondary slots: metric-card hero = Active Days, subtitle = "Workouts N", grid/mini-tile order leads with Active Days, Member Performance Metrics default sort = Active Days (top performer = `members[0]` → now top-by-active-days). Sort option lists, filters, CSV columns, Member Overview "MTD Workouts" unchanged. Web `members/page.tsx` + `members/metrics/page.tsx`; iOS `MemberOverviewPicker.swift` + `MemberMetricsDetailView.swift` + `StandardMembersTab.swift`; Android `MemberCards.kt` + `MemberMetricsDetailScreen.kt` + `MembersScreen.kt`. |
 | 0.3.1 | 2026-07-09 | **D-C6 (cont.) — Avg Steps column in the Member Performance Metrics CSV export, all three clients.** Adds an `Avg Steps` column after `Avg Diet Quality` in the exported CSV header + each row (empty when `null`, matching the `Avg Sleep`/`Avg Diet Quality` cells), completing the steps parity started in 0.3.0. Client-only, additive (no backend/contract change; the CSV is generated client-side). Web `apps/web/src/app/members/metrics/page.tsx`; iOS `MemberMetricsDetailView.swift`; Android `MemberMetricsDetailScreen.kt` (`metricsCsv`). F8 fully resolved (no remaining CSV gap). |
 | 0.3.0 | 2026-07-09 | **D-C6 — promote `avg_steps` into the metrics sort + filter set (resolves the F8 follow-up).** `getMemberMetrics` now accepts `sort=avg_steps` (added to `SORTABLE_FIELDS`) and `avgStepsMin`/`avgStepsMax` range params (added to the filter map + the in-memory `within` check, with the F5-style `?? 0` null-coercion), mirroring `avg_food_quality`. All three clients gain the matching sort option + filter range row on the Member Performance Metrics screen (web `SORT_OPTIONS`/`MetricsFilters`/filter modal; iOS `SortField` + both `heroValue` switches + `MetricsFilters`/FilterSheet; Android `MetricSortField`/`heroValue` + `MetricsFilters`/FilterSheet). **Purely additive + backward-compatible** (new accepted input tokens only; response shape unchanged — `avg_steps` already shipped in 0.2.0) → live iOS/Android binaries unaffected; older clients simply don't send the new params. F8 resolved. Backend `services/memberAnalyticsService.js`; web `apps/web/src/app/members/metrics/page.tsx`; iOS `MemberOverviewPicker.swift` + `MemberMetricsDetailView.swift`; Android `MemberCards.kt` + `MemberMetricsDetailScreen.kt`. |

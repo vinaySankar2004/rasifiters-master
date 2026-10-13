@@ -33,7 +33,7 @@
       }
     },
     "members": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/members/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -84,7 +84,7 @@
       }
     },
     "program-memberships": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "spec": "specs/features/program-memberships/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -105,6 +105,7 @@
           "routes/memberships.js",
           "services/membershipService.js",
           "utils/programMemberships.js",
+          "utils/memberVisibility.js",
           "models/ProgramMembership.js",
           "server.js"
         ]
@@ -219,7 +220,7 @@
       }
     },
     "workout-logs": {
-      "version": "0.6.0",
+      "version": "0.7.0",
       "spec": "specs/features/workout-logs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -246,7 +247,7 @@
       }
     },
     "daily-health-logs": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/daily-health-logs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -273,7 +274,7 @@
       }
     },
     "analytics": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -302,7 +303,7 @@
       }
     },
     "analytics-v2": {
-      "version": "0.2.0",
+      "version": "0.2.1",
       "spec": "specs/features/analytics-v2/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -327,7 +328,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [

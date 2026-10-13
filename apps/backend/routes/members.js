@@ -1,5 +1,6 @@
 // /api/members routes — faithful 1:1 to legacy routes/members.js (specs/features/members/SPEC.md §3).
-// GET / + GET /:id: any authenticated member. POST / + DELETE /:id: admin only. PUT /:id: the
+// GET / + GET /:id: any authenticated member, but the full list is global-admin-only (others get their own row) and
+// `email` self-or-global-admin (members D-C3, utils/memberVisibility). POST / + DELETE /:id: admin only. PUT /:id: the
 // own-profile-or-global-admin gate lives in memberService.updateMember (SPEC §10 F4). The createMember
 // behavior change (D-C2) is entirely inside the service — the route just forwards req.body.
 const express = require("express");
@@ -11,7 +12,7 @@ const router = express.Router();
 
 router.get("/", authenticateToken, async (req, res) => {
     try {
-        const members = await memberService.getAllMembers();
+        const members = await memberService.getAllMembers(req.user);
         res.json(members);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
@@ -22,7 +23,7 @@ router.get("/", authenticateToken, async (req, res) => {
 
 router.get("/:id", authenticateToken, async (req, res) => {
     try {
-        const member = await memberService.getMemberById(req.params.id);
+        const member = await memberService.getMemberById(req.params.id, req.user);
         res.json(member);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });

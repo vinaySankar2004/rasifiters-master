@@ -16,6 +16,7 @@ const { validatePassword, normalizeEmail } = require("./authService");
 const { AppError } = require("../utils/response");
 const { handleMemberExit } = require("../utils/programMemberships");
 const { createNotification, getActiveProgramMemberIds } = require("../utils/notifications");
+const { loadViewer, canView } = require("../utils/memberVisibility");
 
 const generateUniqueUsername = async (baseName, transaction) => {
     const slug = (baseName || "")
@@ -119,8 +120,12 @@ async function createMemberAndEnroll({ member_name, password, email, program_id,
     }
 }
 
-async function getProgramMembers(programId) {
+// D-C5 (0.3.0, Phase 4 S0 / People D-P8 a): a roster only for the program's ACTIVE members + global admins. Anyone
+// else gets [] (200, same shape) — a 403 would strand a removed member inside the program on live iOS (loadLookupData
+// resets programId only after this call succeeds) and wipe web LogWorkoutsForm's Promise.all.
+async function getProgramMembers(programId, user) {
     if (!programId) throw new AppError(400, "programId is required");
+    if (!canView(await loadViewer(user, programId), null, "roster")) return [];
 
     const memberships = await ProgramMembership.findAll({
         where: { program_id: programId, status: "active" },
@@ -143,8 +148,10 @@ async function getProgramMembers(programId) {
         }));
 }
 
-async function getMembershipDetails(programId) {
+// D-C5: same roster rule as getProgramMembers.
+async function getMembershipDetails(programId, user) {
     if (!programId) throw new AppError(400, "programId is required");
+    if (!canView(await loadViewer(user, programId), null, "roster")) return [];
 
     const memberships = await ProgramMembership.findAll({
         where: { program_id: programId, status: "active" },

@@ -23,7 +23,7 @@ router.post("/", authenticateToken, async (req, res) => {
 
 router.get("/members", authenticateToken, async (req, res) => {
     try {
-        const members = await membershipService.getProgramMembers(req.query.programId);
+        const members = await membershipService.getProgramMembers(req.query.programId, req.user);
         res.json(members);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
@@ -34,7 +34,7 @@ router.get("/members", authenticateToken, async (req, res) => {
 
 router.get("/details", authenticateToken, async (req, res) => {
     try {
-        const details = await membershipService.getMembershipDetails(req.query.programId);
+        const details = await membershipService.getMembershipDetails(req.query.programId, req.user);
         res.json(details);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });

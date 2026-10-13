@@ -31,6 +31,9 @@ The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) cons
   minimally. Login resolves username→email server-side (privacy-safe), then signs in via Supabase.
 - Middleware **verifies Supabase JWTs** (JWKS), reads `sub`, loads the member via `auth_user_id`.
 - Authorization (global_role, per-program admin/logger checks) stays in Express, unchanged from legacy.
+- **Who sees whose data** (a member's email, the all-members list, program rosters, sleep / diet / steps, workouts) is
+  one shared rule: `utils/memberVisibility.js` (`loadViewer` → `canView(viewer, target, kind)`). Contract + kinds:
+  [`program-memberships`](../../specs/features/program-memberships/SPEC.md) D-C5.
 
 ## Endpoints
 ~13 route groups (auth, members, programs, program-memberships, invites, workouts, program-workouts,
