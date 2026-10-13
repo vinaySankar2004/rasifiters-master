@@ -72,10 +72,10 @@ program invitation (the invitee later accepts via their own pending-invites surf
 - **`POST /api/program-memberships/invite`** ← `sendProgramInvite(token, programId, username.trim())`, body
   `{ program_id, username }` (`members.ts:204-210`). No React Query — a one-shot imperative call inside `handleSend`
   with local `isSending`/`errorMessage`/`showSuccess` state (no mutation hook — faithful).
-- **Zero backend work, NO feature bump** — the route is already mounted (`server.js:69`, `authenticateToken`-only)
+- **Zero backend work, NO feature bump** — the route is already mounted (`server.js`, `authenticateToken`-only)
   and the program-admin / global_admin / self authz + the live `program.invite` notification emit live in
-  `inviteService.sendInvite` (`:16-26`), shipped with [`invites`](../../../../features/invites/SPEC.md). The api fn
-  already ported.
+  `inviteSendService.sendInvite` (`inviteSendService.js:23-37`; one transaction since invites 0.2.0 D-C4), shipped
+  with [`invites`](../../../../features/invites/SPEC.md). The api fn already ported.
 
 ## 7. Role-based view rules
 
@@ -108,9 +108,10 @@ axis: the lock follows whether the page does *logging*, not whether it writes).
   (no nav).
 - **Network error** — only an error message containing "network" surfaces "Network error. Please try again."
   (`:39-40`).
-- **Any other error → shown as SUCCESS (F1)** — a 4xx/5xx (username not found, already invited, blocked, 403) is
-  **swallowed and rendered as "Invitation sent."** with the field cleared (`:42-43`). Deliberate privacy-safety
-  (matches the info-banner) — kept faithful.
+- **Any other error → shown as SUCCESS (F1)** — a 403, a 400 or (since invites 0.2.0 D-C6) a real 500 is
+  **swallowed and rendered as "Invitation sent."** with the field cleared (`:42-43`). Unknown / already-member /
+  already-invited / blocked usernames never reach the catch: the server answers them 200 "Invitation sent"
+  (invites D-C5). Deliberate privacy-safety (matches the info-banner) — kept faithful.
 - **Stale error** — cleared on field edit (D-C2) or the next send.
 - **Non-admin** — redirected to `/members` before the form is usable (F2).
 
@@ -129,13 +130,14 @@ axis: the lock follows whether the page does *logging*, not whether it writes).
 ## 10. Open questions / flagged characteristics (kept as-is)
 
 - **F1 — swallow-errors-as-success (load-bearing privacy intent).** The catch block (`:37-44`) surfaces an error
-  **only** when the message contains "network"; **every other failure** (username not found, already a member,
-  already invited, blocked, a 403) is silently rendered as "Invitation sent." with the field cleared. This is
-  deliberate — the page won't confirm whether a username exists (the info-banner states it). Kept faithful; a
-  rebuild-cleanup candidate only if the privacy guarantee is ever relaxed.
+  **only** when the message contains "network"; **every other failure** (a 403, a 400, a 500) is silently rendered
+  as "Invitation sent." with the field cleared. The privacy no-ops (username not found, already a member, already
+  invited, blocked) are server-side 200s (invites D-C5), so the page won't confirm whether a username exists (the
+  info-banner states it). Since invites 0.2.0 (D-C6) the server returns a real 500 on failure; showing it as an
+  error is the Phase 3 client half (board §3.2 / D-12) — pending.
 - **F2 — client redirect is the only client gate.** The program-admin / global_admin redirect (`:20-24`) is a
-  client JWT-decode + `program.my_role` check; the backend `inviteService.sendInvite` independently enforces the
-  403 "Admin privileges required for this program." (`inviteService.js:21-26`) — the real authorization boundary.
+  client JWT-decode + `program.my_role` check; the backend `inviteSendService.sendInvite` independently enforces the
+  403 "Admin privileges required for this program." (`inviteSendService.js:28-34`) — the real authorization boundary.
   Faithful.
 - **F3 — no inline username validation / no existence check.** The only client gate on send is non-empty +
   `programId` present; format/existence are not checked client-side (by design — F1's privacy posture). Faithful.

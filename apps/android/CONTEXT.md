@@ -22,7 +22,7 @@ HealthKit, FCM vs APNs) and are recorded per-screen in `specs/pages/android/<scr
   Beta convention: bump `versionCode` per push; `versionName` moves only for production submissions.
 
 ## Build & toolchain
-- **Pure-CLI build** (no MCP needed, unlike iOS). Compile-check: `cd apps/android && ./gradlew
+- **Pure-CLI build** (Claude runs it; iOS builds are the user's ⌘B in Xcode). Compile-check: `cd apps/android && ./gradlew
   :app:assembleDebug`. Install to a running emulator/device: `./gradlew :app:installDebug`. See the
   **`android-build`** skill for the loop.
 - Toolchain already present on this Mac (2026-07-08): Android Studio, SDK (platform **android-36**,
@@ -46,7 +46,7 @@ Splash · Login · CreateAccount · ForgotPassword · ProgramPicker (signed-in h
 (**Summary / Members / Lifestyle / Program**, admin + standard variants) · summary details (activity /
 distribution / workout-types / log-workout / log-health) · member details (list/detail/metrics/history/
 recent/health/streaks/invite) · lifestyle (timeline/workouts) · program settings (edit/roles/profile/
-password/appearance/privacy + Health Connect settings). Widgets (Glance) deferred.
+password/appearance/privacy + Health Connect settings) · two quick-add Glance widgets (`specs/pages/android/widgets/`).
 
 ## Auth (client side)
 Supabase-Auth-proxied through the Express backend — **no Supabase SDK on the client** (same as web + iOS).

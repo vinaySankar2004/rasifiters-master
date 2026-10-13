@@ -139,7 +139,7 @@ idiom deviations (Material 3, `POST /auth/login/app`, root-gate swap) over the s
 | edit-program | 🏗️ v0.1.0 | `programs` (`PUT /programs/:id`; admin program editor) | [edit-program SPEC](android/edit-program/SPEC.md) |
 | manage-roles | 🏗️ v0.1.0 | `program-memberships` (`GET /program-memberships/details` + `PUT /program-memberships`; role assignment) | [manage-roles SPEC](android/manage-roles/SPEC.md) |
 | my-profile | 🏗️ v0.1.0 | `members` (`PUT /members/:id`; account profile editor) + `auth` | [my-profile SPEC](android/my-profile/SPEC.md) |
-| change-password | 🏗️ v0.1.0 | `auth` (`POST /auth/change-password`; account password change) | [change-password SPEC](android/change-password/SPEC.md) |
+| change-password | 🏗️ v0.1.0 | `auth` (`PUT /auth/change-password`; account password change) | [change-password SPEC](android/change-password/SPEC.md) |
 | appearance | 🏗️ v0.1.0 | none — local `ThemeManager` light/dark/system chooser; no API | [appearance SPEC](android/appearance/SPEC.md) |
 | notifications | 🏗️ v0.1.0 | `notifications` (push-notification status/settings; device registration) | [notifications SPEC](android/notifications/SPEC.md) |
 | notifications-alerts | 🏗️ v0.2.0 | `notifications` (in-app SSE modal queue + FCM push: `GET /notifications/unacknowledged` + `POST /{id}/acknowledge` + `PUT`/`DELETE /notifications/device`) | [notifications-alerts SPEC](android/notifications-alerts/SPEC.md) |

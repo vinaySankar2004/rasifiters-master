@@ -51,14 +51,15 @@ re-sends a refresh token for up to 30 s, which can itself trigger the reuse kill
    only honors IP forwarding with secret keys — not anon or legacy service-role), sends the user's IP
    (from Render's `X-Forwarded-For`, with Express `trust proxy`) as `Sb-Forwarded-For`, and IP forwarding is
    enabled in Auth settings. **Immediate mitigation:** raise `rate_limit_token_refresh` (150 → 1,500 per
-   5 min ◆) — one admin-token call, approved per call ✅. **Done 2026-10-12T19:08:19Z** (Phase 1b H2).
+   5 min ◆) — one admin-token call, approved per call ✅. **Done 2026-10-12T19:08:19Z** (Phase 1b H2). Per-user
+   limits **done 2026-10-13** (Phase 3 R1); IP forwarding on **2026-10-13T02:32:21Z**.
 4. **Logout = this device only ✅** (`scope:'local'`). **Password change signs out your *other* devices**
    (`scope:'others'` — today it revokes nothing). "Sign out everywhere" is an explicit action in account
-   settings (`scope:'others'` + this device).
+   settings (`scope:'others'` + this device). **Done 2026-10-13** (Phase 3 R1; `POST /auth/logout-all`).
 5. **Inactivity limit ✅:** Supabase `sessions_inactivity_timeout` = **90 days** ◆ (a session unused for 90 days
-   ends; any app open or background sync counts as use).
+   ends; any app open or background sync counts as use). **Done 2026-10-13T02:32:28Z** (Phase 3 R1).
 
-**Contract — every client (web / iOS / Android)**
+**Contract — every client (web / iOS / Android)** — pending (Phase 3 client half)
 1. **One token store, one refresh in flight.** Requests read the current token at send time; a 401 with an
    outdated token retries with the current one instead of refreshing again.
 2. **Refresh only when needed:** when the access token expires within 60 s, or on a 401. Never on every
@@ -84,7 +85,7 @@ refresh (accepted ✅) — fewer failures (no shared client, no replays, per-use
 that 404s) — the reported bug (Prasad, Phase 3). Pushes are fire-and-forget with no record; 32/59 members
 have no device; signed-out phones keep receiving pushes; the live stream dies silently on background/deploy.
 
-**Contract**
+**Contract** — backend **done 2026-10-13** (Phase 3 R3); clients pending (Phase 3 client half)
 1. **One invite inbox for all three:** `GET /my-invites` (expired invites hidden) + `PUT /invite-response`
    (Android adopts them — new build; no shim for 1.0.0 ✅). Invite + its notification are written in **one
    transaction**.
@@ -115,7 +116,7 @@ stay; `/unacknowledged` stays; web `?token=` stays accepted.
 prod (111 rows summed at once); sleep/steps re-send 14 days every run (the 300–1,200 daily 409s). Android has
 no background sync, so >14 days unopened loses sleep/steps days for good; permission loss is invisible.
 
-**Contract**
+**Contract** — backend **done 2026-10-13** (Phase 3 R2); iOS + Android clients pending (Phase 3 client half)
 1. **Freshness ✅: up to date when the app opens.** Triggers: launch, foreground, pull-to-refresh. iOS keeps
    HealthKit background delivery as a **best-effort bonus**, done Apple's way (registered at launch,
    acknowledged after the work inside a background task). **Android background sync: not now ◆.**

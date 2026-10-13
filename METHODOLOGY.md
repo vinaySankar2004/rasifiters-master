@@ -235,4 +235,6 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   reliability before new features. **Staging** uses the same Supabase project ("staging tables" — mechanism
   set on that initiative's design board; a separate schema with identical names would honor R5), not a
   second project. Once staging exists it supersedes the multiplex "no staging — user tests on prod" gate
-  for experiments. (R1–R7 stand unchanged.)
+  for experiments. (R1–R7 stand unchanged.) _(Amended 2026-10-12 — as built, staging is **opt-in** for risky
+  changes only (migrations, auth/session); day-to-day testing stays on prod — auth D-C13. Live status of the
+  initiative: its `BRIEF.md` §7.)_

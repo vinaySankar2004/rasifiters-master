@@ -15,6 +15,8 @@
 > APNs). Every deferred emit across programs/memberships starts firing — **the call sites are unchanged**.
 > **One migration delta** (the rest is faithful): **D-C2** the SSE stream auth swaps symmetric
 > `jwt.verify(JWT_SECRET)` → **Supabase JWKS verify** (the auth D-C2 pattern), still accepting `?token=`.
+> **0.4.0 (reliability overhaul R3):** device registry, `push_deliveries`, unregister without a login, 7-day APNs/FCM
+> TTL + Android channels, SSE plain close on shutdown — D-C11–D-C16; client contracts §3.1–§3.3 (clients pending).
 
 ---
 

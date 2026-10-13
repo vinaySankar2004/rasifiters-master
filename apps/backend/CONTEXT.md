@@ -8,7 +8,7 @@ The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) cons
 ## Stack
 - Node 18 · Express 4 · Sequelize 6 · `pg`
 - bcrypt (legacy hashing — hashes are imported into Supabase Auth, then bcrypt leaves the app)
-- `apn` (Apple Push Notifications) · Server-Sent Events for the notification stream
+- `apn` (APNs) + `firebase-admin` (FCM) · Server-Sent Events for the notification stream
 - Host: **Render** web service `rasifiters-api` (`srv-d90tgmv7f7vs73cudptg`) via Blueprint `render.yaml`,
   live at `https://rasifiters-api.onrender.com`
 
@@ -33,16 +33,16 @@ The shared API for RaSi Fiters. All three clients (`web`, `ios`, `android`) cons
 - Authorization (global_role, per-program admin/logger checks) stays in Express, unchanged from legacy.
 
 ## Endpoints
-~11 route groups (auth, members, programs, program-memberships, invites, workouts, program-workouts,
-workout-logs, daily-health-logs, notifications, analytics v1+v2, member-analytics). Documented
+~13 route groups (auth, members, programs, program-memberships, invites, workouts, program-workouts,
+workout-logs, daily-health-logs, health-sync, notifications, client-events, analytics v1+v2, member-analytics). Documented
 feature-by-feature in `specs/features/` as they're rebuilt; cross-checked against the legacy routes.
 
 ## Deploy
 **LIVE** on Render — web service `rasifiters-api` (`srv-d90tgmv7f7vs73cudptg`),
 `https://rasifiters-api.onrender.com`. Defined as IaC in `render.yaml` (`rootDir: apps/backend`,
 `buildFilter.paths: [apps/backend/**]`, `autoDeployTrigger: commit`, `healthCheckPath: /`); GitHub
-auto-deploy on push to `main` touching `apps/backend/**`. The 3 secrets (`DATABASE_URL`,
-`SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) are dashboard-entered `sync: false` Blueprint vars. Env
+auto-deploy on push to `main` touching `apps/backend/**`. Every `sync: false` key in
+`render.yaml` is dashboard-entered; the inventory is `ENV_RUNBOOK.md`. Env
 per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 
 ## Staging (reliability-overhaul Phase 2 B — DESIGN_BOARD §8, auth SPEC D-C13)
@@ -77,14 +77,14 @@ per `ENV_RUNBOOK.md`. See the `deploy` skill (Render runbook).
 - **Logs:** Render keeps **app logs only** (7 days; no `http_latency` metric — `http_request_count` by status
   works). The app writes **one JSON line per request** (`"type":"request"`) and **SQL logging is off**
   (`DB_LOG_SQL=true` re-enables it locally); every response except the Render health check (`GET`/`HEAD /`,
-  not logged) carries `X-Request-Id`. `trust proxy` = 2 hops (Cloudflare edge + Render LB; observability 0.1.1). The global `errorHandler` never prints a request
+  not logged) carries `X-Request-Id`. `trust proxy` = `TRUST_PROXY_HOPS` (default 2 = prod: Cloudflare edge + Render LB; staging sets 3; observability D-C7). The global `errorHandler` never prints a request
   body. Event trail: `app_events` via `POST /api/client-events`. Contract + fields:
   [`observability`](../../specs/features/observability/SPEC.md).
 - Live binaries hard-code `https://rasifiters-api.onrender.com/api` (iOS `Config/APIConfig.swift`, Android
   `app/build.gradle.kts`) — a host/domain change needs an app release + adoption window first.
 
 ## Status
-🚀 **Feature-complete + LIVE on Render.** All ~11 route groups (see §Endpoints) are mounted and serving
+🚀 **Feature-complete + LIVE on Render.** All ~13 route groups (see §Endpoints) are mounted and serving
 all three clients + the public store binaries; backend feature coverage is complete — every feature except
 the two client-only health integrations (`apple-health`, `health-connect`) has a backend half; the canonical
 list is `specs/features/registry.json` (don't restate the count here).

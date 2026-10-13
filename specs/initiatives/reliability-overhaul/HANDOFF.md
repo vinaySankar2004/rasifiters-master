@@ -32,16 +32,12 @@
   - **Verified:** staging smokes (R1 43/43 · R2 all S-lines + DB rows · R3 24/26 — see follow-up 1) and prod smokes
     (R1 25/25 before and after G3 · R2 all P-lines · R3 26/26); the user's iPhone + Pixel: sign-out on one keeps the
     other; a real invite push arrived on both (`push_deliveries`: ios `sent` + android `sent`).
-- **Follow-ups (small, not blocking):**
-  1. Staging has **3** proxy hops (`xff_n` 3) vs prod's 2, so on staging `req.ip` is a proxy and per-client limits /
-     `Sb-Forwarded-For` are wrong there. Fix: `trust proxy` from an env var (`TRUST_PROXY_HOPS`, default 2; staging 3).
-  2. Doc handoffs: R1 H2 (`DESIGN_BOARD.md:55-57`), H3 (`specs/pages/REGISTRY.md:142` → PUT; key in
-     `apps/backend/CONTEXT.md:43`), the `versionGate.js:8` comment; R3 #5 docs outside its fence (web members/invite
-     page SPEC, auth SPEC :167, app-config SPEC :145-146 + F1); R3 #6 no-bump notes for `server.js`'s features.
-  3. R2/R3 code adopts `utils/logError.js` (observability §4).
-  4. Watch: keep the E8 queries daily (filter Render on the `[refresh]` tag) + R3's 24 h `push_deliveries` check
-     (revert trigger: Android 0 `sent` with ≥ 1 `messaging/invalid-argument`) + G3's distinct-`remote_addr` count.
-  5. Legacy `RaSi_Fiters_API` (suspended 2026-10-11, D-16): delete ~2026-11-11.
+- **Follow-ups:** ✅ done 2026-10-13 — `TRUST_PROXY_HOPS` (staging 3; observability 0.2.2), R2/R3 log through
+  `utils/logError.js`, the doc handoffs (board §2–§4 marked backend-live, pages REGISTRY PUT, invite page SPEC, auth +
+  app-config SPECs). Still open:
+  1. Watch: the E8 queries daily (filter Render on the `[refresh]` tag) + R3's 24 h `push_deliveries` check (revert
+     trigger: Android 0 `sent` with ≥ 1 `messaging/invalid-argument`) + G3's distinct-`remote_addr` count.
+  2. Legacy `RaSi_Fiters_API` (suspended 2026-10-11, D-16): delete ~2026-11-11.
 - **Standing preferences (memory):** `staging-use-sparingly` · `keep-disk-lean` · `dont-over-engineer` ·
   `ios-user-verifies-builds-visually` (the user presses ⌘B — never the `xcode` MCP build) · no shims for old binaries.
   Walkthrough decisions on the board (✅); factual answers in [`discovery/README.md`](discovery/README.md).
@@ -56,8 +52,7 @@
    invite inbox, SSE re-fetch) · observability §8 (`auth.*` + `sync.run` events) · Android Google button (W5) · kit
    adoption on touched screens · version-gate UI + soft nudge (app-config). The user ships the iOS / Android binaries;
    Android health tests = Health Connect data entered by hand on the Pixel (W4-D2).
-2. Follow-ups 1–3 above (one small backend + docs commit; follow-up 1 needs a staging env var → user OK).
-3. Daily watch (follow-up 4).
+2. Daily watch (follow-up 1).
 
 ## Workstream status
 

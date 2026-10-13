@@ -1,8 +1,8 @@
 # Reliability overhaul — initiative brief
 
 > **Status:** scoped 2026-10-10 · Step 0 + Phase 0 + **design board approved 2026-10-11** · **Phase 1b + Phase 2
-> done 2026-10-12** (all live) · **Next:** Phase 3 reliability (§7), once the Phase 1b log watch ends clean
-> (2026-10-19). The approved board is the decision record: [`DESIGN_BOARD.md`](DESIGN_BOARD.md).
+> done 2026-10-12** · **Phase 3 backend live 2026-10-13** (gate waived by the user) · **Next:** the Phase 3
+> client half (§7). The approved board is the decision record: [`DESIGN_BOARD.md`](DESIGN_BOARD.md).
 > Rolling state lives in [`HANDOFF.md`](HANDOFF.md) (read it first when resuming). Decision record: R8 in
 > `METHODOLOGY.md`. Durable outcomes graduate into feature SPEC §9 D-rules as each workstream lands.
 
@@ -86,7 +86,7 @@ logs API); no client crash/error reporting on any surface. (Infra facts: `apps/b
 - **No direct DB writes** — schema/data changes only as numbered migrations in `apps/backend/sql/`.
 - **Testing:** the user now owns a real **Pixel 7** (Android 17, USB-debug authorized for this Mac — read-only
   `adb logcat` / `dumpsys` diagnostics are fair game) plus an iPhone, and tests live behavior; compile-checks
-  stay the automated gate (`ios-build`, `android-build`, web `npm run build`).
+  stay the gate (`ios-build` = the user's ⌘B, `android-build`, web `npm run build`).
 
 ## 6. Decisions already made
 
@@ -107,7 +107,7 @@ logs API); no client crash/error reporting on any surface. (Infra facts: `apps/b
   infra) and **every use must prompt the user** (a PreToolUse hook — built in Step 0). Data/schema writes still
   go only through user-run migrations in `apps/backend/sql/`. Tokens can't separate prod from staging inside one
   project, so **prod-vs-staging separation lives at the Postgres-role level**: a staging role granted writes on
-  the staging tables only, created by a user-run migration (designed with the staging mechanism).
+  the staging tables only, created by a user-run migration (`sql/008`, live 2026-10-12).
 - **API host is hard-coded in live binaries** (`rasifiters-api.onrender.com`, iOS `APIConfig.swift`, Android
   `build.gradle.kts`) — any host/domain change needs an app release + adoption window first.
 - **Worldwide = one region + fewer round trips + on-device caching.** Revisit region only with real

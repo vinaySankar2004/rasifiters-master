@@ -36,8 +36,9 @@ Vercel project **`rasifiters`** (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team **`pe
 `https://rasifiters.com`** (canonical host = apex; `www.rasifiters.com` 308→apex; cutover done 2026-06-29 by moving the domain
 off the OLD legacy Vercel project `rasi-fiters` → this `rasifiters` project); also reachable at
 `https://rasifiters.vercel.app`. **Git auto-deploy is WIRED**: repo `vinaySankar2004/rasifiters-master`,
-production branch `main`, Root Directory `apps/web`, monorepo ignore-step `git diff --quiet HEAD^ HEAD -- .`
-(only `apps/web/**` commits build; unrelated commits record a 0s Canceled skip). A push to `main` touching
+production branch `main`, Root Directory `apps/web`, monorepo ignore-step diffing against the last successful
+deploy (`VERCEL_GIT_PREVIOUS_SHA`, board D-17; exact command in the `deploy` skill) — only `apps/web/**` changes
+build; unrelated pushes record a 0s Canceled skip. A push to `main` touching
 the web subtree rebuilds + deploys; **the canonical local link lives at the REPO ROOT** (`.vercel/` there,
 gitignored), so a manual deploy = `vercel deploy --prod --scope personal-vinayak` **from the repo root**
 (rootDirectory is `apps/web`, so a CLI deploy from `apps/web` cwd — or from an unlinked dir — would

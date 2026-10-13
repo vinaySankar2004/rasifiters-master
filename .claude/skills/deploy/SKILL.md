@@ -64,8 +64,8 @@ Each app is a subfolder, so set the **Root Directory** per project/service:
      `autoDeployTrigger: commit`, and `buildFilter.paths: [apps/backend/**]` so only backend commits deploy.
    - **Provision (one-time, in the Render Dashboard):** New → **Blueprint** → connect the GitHub repo →
      set the Blueprint file to **`apps/backend/render.yaml`** → Apply. Render reads the YAML, creates the
-     `rasifiters-api` web service, and **prompts for each `sync: false` secret** (`DATABASE_URL`,
-     `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) — paste them there (values per §Env discipline; the
+     `rasifiters-api` web service, and **prompts for each `sync: false` secret** (every `sync: false` key in
+     `render.yaml`; inventory in `ENV_RUNBOOK.md`) — paste them there (values per §Env discipline; the
      user owns them). Non-secret vars (`SUPABASE_URL`, `MIN_IOS_VERSION`) are baked into the YAML.
    - **After provision, env edits** go in the Dashboard (Service → Environment), bulk **Add from .env**, or
      the REST API: `PUT https://api.render.com/v1/services/{serviceId}/env-vars` (replace-all) /

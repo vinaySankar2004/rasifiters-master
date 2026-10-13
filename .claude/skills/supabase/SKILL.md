@@ -64,8 +64,8 @@ via `members.auth_user_id`.
    Handy meta-commands (catalog reads, inherently safe): `\dt public.*` to list tables, `\d <table>`
    to inspect a table.
 2. **MCP secondary.** Use `mcp__supabase-rasifiters__execute_sql` only when psql is unavailable or the
-   user explicitly says "use the MCP". It's `read_only=true`; if it's stuck authenticating it may need a
-   one-time `claude /mcp` login in a standalone Terminal.
+   user explicitly says "use the MCP". It's `read_only=true` and authenticates with the `SUPABASE_ACCESS_TOKEN`
+   header — never an OAuth login (`CLAUDE.md` §MCP Servers).
 3. **Writes → STOP.** Never run inline `INSERT/UPDATE/DELETE/DDL` (the hook blocks it anyway). Author a
    numbered migration in `apps/backend/sql/` mirroring the existing `NNN_*.sql`
    files (idempotent `IF NOT EXISTS` / `ON CONFLICT DO NOTHING`), flag the blast radius, and let the
@@ -84,4 +84,5 @@ via `members.auth_user_id`.
   layer (Supavisor drops libpq startup `options`) — it leaves the session read-write, so it's false
   comfort. Always use `BEGIN TRANSACTION READ ONLY … COMMIT` for the DB-level guarantee.
 - **No table prefixes** — query bare names in the `public` schema (faithful legacy schema). Don't
-  prepend an env prefix; there is none.
+  prepend an env prefix; there is none. Staging is a separate `staging` schema with the same names
+  (`apps/backend/CONTEXT.md` §Staging).
