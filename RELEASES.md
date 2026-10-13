@@ -36,7 +36,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 |---|---|---|---|---|
 | App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** Train closed. Repo pre-bumped to 1.4.3 (57) — one-train-ahead satisfied. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
 | TestFlight — external ("Beta Testers") | 1.4.3 (57) | Testing → **expires ~2026-10-15** | 2026-07-20 | Ahead-train (same code as the live 1.4.2 (56)). 8 invited / 6 installs (read 2026-10-11). **User decision 2026-10-11: let it lapse** — testers fall back to App Store 1.4.2; the next TestFlight build is the reliability release |
-| TestFlight — internal ("Internal") | 1.4.1 (54) | Uploaded | 2026-07-16 | Stale internal build, superseded publicly by 1.4.2 (56). Prior builds (≤53) removed/expired |
+| TestFlight — internal ("Internal") | **1.5.0 (58)** | **Testing — in the Internal group** (uploaded 2026-10-13T06:57Z; external "Ready to Submit" skipped per one-train-ahead) | 2026-10-13 | **The reliability release** (Phase 3 client: sessions, HealthKit sync v2, invite inbox, version gate) — App-Store-bound candidate; the user tests it on their iPhone first. Repo pre-bumped to **1.5.1 (59)** (one-train-ahead). Replaces the stale 1.4.1 (54) internal build |
 
 ### Android
 
@@ -45,12 +45,14 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Play Store (production) | 1.0.0 (4) | **LIVE — public on Google Play** | 2026-08-06 | **Current public release** — 100% rollout, 176 countries + rest of world. Repo pre-bumped to versionCode 5, so the next upload must be ≥5 (the Android analog of one-train-ahead). Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
 | Play Console — closed testing ("Alpha") | 1.0.0 (4) | Available (same build as production) | 2026-07-16 | Testers auto-update. Some may still be on (3) — the backend must stay compatible with it |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
-| Play Console — internal testing | (skipped) | not used | — | went straight to closed testing (no personal Android device to run internal builds) |
+| Play Console — internal testing | **1.1.0 (5)** | **Available to internal testers** (released 2026-10-13 00:05 local) | 2026-10-13 | **The reliability release** (Phase 3 client). Testers = the "RaSi Fiters closed testers" list (the user's account); opt-in link https://play.google.com/apps/internaltest/4701584098902409817. Built by `./gradlew :app:bundleRelease` with the upload key (`keystore.properties`). Repo pre-bumped to **versionCode 6** |
 
 ## Release log (append-only, newest first)
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-13 | Android | 1.1.0 (5) | Play — internal testing | AAB built from the CLI + uploaded by the user; Claude set testers + notes + published (the user's yes) | **Available to internal testers** — first use of the internal track; repo pre-bumped to versionCode 6 |
+| 2026-10-13 | iOS | 1.5.0 (58) | TestFlight — internal | uploaded from Xcode | **Processed → in the Internal group** (Ready to Submit for external — skipped). Reliability overhaul Phase 3 client release; repo pre-bumped to 1.5.1 (59) |
 | 2026-08-15 | Android | (no binary) | (repo) | pre-bump for the next train | **versionCode 4 → 5** (`apps/android/app/build.gradle.kts:41`; `versionName` stays `1.0.0` until the next release ships). The live production build consumed (4), so Play rejects any future upload at 4 — the Android analog of the iOS one-train-ahead convention |
 | 2026-08-06 | Android | 1.0.0 (4) | Play — production | **approved / released** | **LIVE — public on Google Play** (release date per Play Console; user-announced 2026-08-15). The FIRST Android production release: 100% rollout, 176 countries + rest of world, managed publishing off so it went live automatically on approval. **All four surfaces are now public** (web + backend live, iOS on the App Store, Android on Play) |
 | 2026-08-03 | Android | 1.0.0 (4) | Play — production | **FIRST production release submitted** | **In review** — closed-testing build 4 promoted from the library (no new upload), release name "4 (1.0.0)", full 100% rollout, countries = 176 + rest of world. Submitted via Publishing overview (countries changes in review, release submitted after Play's quick checks). Managed publishing off → live automatically on approval |

@@ -187,6 +187,17 @@ Blueprint / Vercel App), done once per repo in the dashboard; everything else is
   to boot (auth D-C13 keeps prod's boot path unchanged) — it only logs `[staging-guard] DATABASE_URL logs in as the
   staging role…`, so grep the prod logs for `[staging` after any `DATABASE_URL` change.
 
+### D. Mobile binaries (the user ships; Claude can prepare)
+- **iOS:** the user archives + uploads from Xcode; Claude reads App Store Connect (built-in browser) for processing
+  status and pre-bumps per the one-train-ahead rule. A build in the Internal group installs from TestFlight at once —
+  "Ready to Submit" is only the external Beta App Review.
+- **Android (no Android Studio needed):** `cd apps/android && ./gradlew :app:bundleRelease` signs with the upload key
+  via the gitignored `keystore.properties` (never read it) → `app/build/outputs/bundle/release/app-release.aab`;
+  check `keytool -printcert -jarfile` shows the RaSi Fiters key. Reveal it in Finder; the user drags it into Play
+  Console (the browser tools can't upload files). Claude then fills the release with the user's yes per step —
+  internal testing = no review, testers = the existing "RaSi Fiters closed testers" list. The release-notes box is
+  prefilled with a template: set it with `form_input` (typing appends). Pre-bump `versionCode` right after.
+
 ### Result
 Push to `main` touching `apps/web/**` → Vercel rebuilds + deploys; touching `apps/backend/**` →
 Render rebuilds + deploys; unrelated commits skip both. Manual deploys still work (`vercel deploy --prod
