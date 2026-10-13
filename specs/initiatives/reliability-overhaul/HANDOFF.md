@@ -50,8 +50,10 @@
    needed, sign out only on `401 session_invalid`, never auto-retry password writes) · health-sync §8 (catch-up 30 d,
    upgrade run, review once) · notifications §3.1–3.3 + invites §3.1 (install id, unregister on sign-out, Android
    invite inbox, SSE re-fetch) · observability §8 (`auth.*` + `sync.run` events) · Android Google button (W5) · kit
-   adoption on touched screens · version-gate UI + soft nudge (app-config). The user ships the iOS / Android binaries;
-   Android health tests = Health Connect data entered by hand on the Pixel (W4-D2).
+   adoption on touched screens · version-gate UI + soft nudge (app-config) · **instant opens** (board §6.5 / D-9:
+   cached picker + Summary, parallel loads — added by the user 2026-10-13). Kit scope = touched screens + those two
+   launch screens; no other restyle. The user ships the iOS / Android binaries; Android health tests = Health Connect
+   data entered by hand on the Pixel (W4-D2). Plans → `plans/phase-3-c{1-web,2-ios,3-android}/`.
 2. Daily watch (follow-up 1).
 
 ## Workstream status

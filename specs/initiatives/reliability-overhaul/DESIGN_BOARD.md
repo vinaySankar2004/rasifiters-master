@@ -227,8 +227,8 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
   activity + kudos) — no strangers, no new graph. *Later:* follows across programs.
 - **Privacy defaults:** visible only to people in your programs; per-member switch to hide activity; no public
   profiles; blocking (exists for invites) extends to People.
-- **Layout:** the Members tab grows into People on all three surfaces — a page redesign, done after the W7 kit
-  exists so it's built once.
+- **Layout:** the Members tab grows into People on all three surfaces, built with the W7 kit. The other pages
+  and widgets get the Phase 4 polish pass (`BRIEF.md` §7).
 
 ## 11. Decisions (✅ all answered 2026-10-11 — accepted as recommended unless noted)
 
