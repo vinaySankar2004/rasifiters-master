@@ -106,6 +106,13 @@ async function createProgram({ name, status, start_date, end_date }, requester) 
     const validStatuses = ["planned", "active", "completed"];
     const programStatus = status && validStatuses.includes(status) ? status : "planned";
 
+    // Polish #38 (programs: create date guard): start must be strictly before end when both are given, the rule every
+    // edit screen already enforces (a start >= end program sits at 0% forever). Checked BEFORE the transaction: the
+    // catch below turns every error into a 500. Compares the yyyy-MM-dd prefix every client sends.
+    if (start_date && end_date && String(start_date).slice(0, 10) >= String(end_date).slice(0, 10)) {
+        throw new AppError(400, "End date must be after the start date.");
+    }
+
     const transaction = await sequelize.transaction();
     try {
         const program = await Program.create({
