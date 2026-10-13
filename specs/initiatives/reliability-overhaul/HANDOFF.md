@@ -8,8 +8,9 @@
 ## Now (2026-10-12)
 
 - **Phase:** Step 0 → Phase 0 → design board ([`DESIGN_BOARD.md`](DESIGN_BOARD.md), approved 2026-10-11) →
-  **Phase 1b ✅** → **Phase 2 ✅ COMPLETE** (both 2026-10-12, all live). **Phase 3 is gated** on the Phase 1b log
-  watch ending clean on **2026-10-19** (board §12). Phase table: [`BRIEF.md`](BRIEF.md) §7.
+  **Phase 1b ✅** → **Phase 2 ✅ COMPLETE** (both 2026-10-12, all live) → **Phase 3 planning** (backend R1–R3, started
+  2026-10-12). The Phase 3 **build** is gated on the Phase 1b log watch ending clean on **2026-10-19** (board §12).
+  Phase table: [`BRIEF.md`](BRIEF.md) §7.
 - **Live — Phase 1b** ([`plans/phase-1b/`](plans/phase-1b/)):
   - H1 stateless auth proxy + classified refresh 401 / 503 — auth 0.10.0 / D-C11.
   - H3 analytics membership gate — analytics 0.4.0 / D-C8 · analytics-v2 0.2.0 / D-C3.
@@ -33,8 +34,10 @@
   `[refresh] auth_unavailable|session_invalid` + `[auth] token verification unavailable` + `[auth] password reset
   request failed`, cross-user token pairs < 200 ms (baseline 59 / 30 d). **Day 0** (10-12 06:25–19:10Z): 296 × 200
   refreshes · 1 × 400 `validation_failed` (the smoke's garbage token) · **0** reuse kills · **0** × 429 ·
-  **0** cross-user pairs / 300 tokens. **Through ~23:00Z:** 323 × 200 · same single smoke 400 · **0** reuse · **0** × 429 ·
-  **0** cross-user pairs / 365 tokens.
+  **0** cross-user pairs / 300 tokens. **Day 0 final** (UTC 10-12, checked 23:36Z): 425 × 200 · 2 × 400
+  `validation_failed` (both smoke runs, 07:18 + 19:04Z) · **0** reuse · **0** × 429 (any auth path) · **0** cross-user pairs
+  / 365 post-H1 tokens (the 7-day query's 17 are all pre-H1 — run it from 06:25Z 10-12) · Render: 0 `auth_unavailable`, 0
+  token-verify-unavailable, 1 password-reset failure at 06:57Z (pre-D-15 SMTP).
 - **Pending:**
   - ✅ **D-4 done 2026-10-12** — `SUPABASE_SECRET_KEY` (`sb_secret_…`) on prod + staging Render (ENV_RUNBOOK); unused until Phase 3 R1.
   - Follow-ups → Phase 3: auth F12–F15 · observability F2 + F8 · kit adoption on the screens Phase 3 touches.
@@ -52,10 +55,21 @@
 
 1. **Until 2026-10-19:** run the E8 watch queries once a day and add that day's counts to the watch line above.
    Any reuse kill, 429 burst or cross-user pair → investigate before Phase 3.
-2. ~~D-4~~ done (secret key on both Render services).
-3. **On a clean watch:** mark Phase 1b closed (BRIEF §7 + here) → **Phase 3 planning** via `multiplex`
-   (`plan-pipeline` per backend track R1 / R2 / R3 in parallel, BRIEF §7) → user approves → backend first, then one
-   bundled client release per surface. Staging only for the risky parts (R1 sessions/auth, R2 migrations).
+2. **Phase 3 backend plans — written, awaiting user approval (2026-10-12).** `plans/phase-3-r1-sessions/` (no
+   migration; auth 0.13.0, observability 0.2.0) · `phase-3-r2-sync/` (migration 009; new health-sync 0.1.0,
+   daily-health-logs 0.3.0, workout-logs 0.6.0, observability 0.2.1) · `phase-3-r3-push/` (migration 010; notifications
+   0.4.0, invites 0.2.0). Each has `brief.md` / `plan.md` / `verdict.md`, revised once. **One blocking objection per plan
+   remains, fixed at approval:**
+   - **R1:** a bad prod secret key would sign out every Android 1.0.0 user. Before prod, confirm the key matches on
+     prod and staging, add a STOP rule, and pre-write the rollback (unset `SUPABASE_SECRET_KEY`).
+   - **R2:** the upgrade run reads from today − 30 d and never uses the connect-date rule (otherwise old minutes are
+     counted twice).
+   - **R3:** the worktree compile check needs a literal path, symlinked `node_modules` and a placeholder `DATABASE_URL`.
+   Orchestrator choices: build in parallel worktrees, then land and deploy one track at a time, R1 → R2 → R3
+   (staging holds one track at a time). Verified: `security_sb_forwarded_for_enabled` (false) and
+   `sessions_inactivity_timeout` (0) exist in config/auth; Android 1.0.0 falls back to `rasi_default` for the new
+   channel. After the backend: plan + build one bundled client release per surface against the approved contracts.
+3. **On a clean watch (10-19):** mark Phase 1b closed (BRIEF §7 + here) and start the backend build.
 
 ## Workstream status
 
