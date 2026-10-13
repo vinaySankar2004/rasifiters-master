@@ -2025,3 +2025,28 @@ Relevant files:
 - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/specs/features/registry.json
 - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/specs/features/REGISTRY.md
 - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/ENV_RUNBOOK.md
+
+## Approval amendments (user-approved 2026-10-12 — binding; they override the plan text above)
+
+- **Gate waived (user):** no wait for the 2026-10-19 watch. Live steps run as soon as staging passes. Landing order across
+  tracks: **R1 → R2 → R3**, one at a time (staging is one branch).
+- **Verdict #1 (BLOCKING) — fixed.**
+  - Delete every claim that "a key fault is never a sign-out". The SPEC must say that Android 1.0.0 signs out on any
+    non-2xx refresh, so a rejected secret key would sign out every live Android user.
+  - G2 gains a **STOP** rule: the prod smoke's refresh step must pass within 5 minutes of the deploy going live, otherwise
+    run the rollback immediately.
+  - The rollback is pre-written: unset `SUPABASE_SECRET_KEY` on the prod service (user-approved), then redeploy.
+  - Before G2, the orchestrator confirms that the prod and staging services hold the same `SUPABASE_SECRET_KEY` (prefix +
+    length + sha256 compare, never printed).
+- **Verdict #2 — decided against:** forward the **full** client IP in `Sb-Forwarded-For`. That header is defined as the
+  client IP; `/64` bucketing is our own limiter's rule. Record this as a one-line D-rule note.
+- **Verdict #3, #5, #7, #8 — apply as the verdict describes:**
+  - #3: superseded markers on D-C5 / D-C10 / D-C11 and §4.
+  - #5: revoke the link grant session and the `PUT /email` re-auth session (best effort, `scope:local`).
+  - #7: `logError` keeps one error on one line.
+  - #8: move `resetPassword` + `revertAuthEmail` into `authSessionService.js`.
+  - The `versionGate.js:8` comment handoff is the orchestrator's.
+- **Verdict #6 — apply the verdict's fix.** No fire-and-forget revert that can race the timed-out update.
+- **Verdict #4 — the orchestrator reconciles at merge;** the implementer does nothing for it.
+- **Decisions A1–A3 accepted as recommended.** If the plan tier refuses the 90-day timeout, record D-5 as deferred.
+- **Version:** auth 0.12.1 → **0.13.0**, observability 0.1.1 → **0.2.0** (R1 lands first).

@@ -1956,3 +1956,24 @@ Not re-versioned (FYI): analytics, analytics-v2, member-analytics and frontend-k
 **Doc mismatches carried to the client bumps**
 - The apple-health / health-connect §3–§4 and §10 staleness, and apple-health §3b's steps-trigger claim, are fixed in the client releases.
 - The scout's `HealthKitService.swift:76` should be `:77`.
+
+## Approval amendments (user-approved 2026-10-12 — binding; they override the plan text above)
+
+- **Gate waived (user):** staging, then prod, as soon as each passes. Landing order **R1 → R2 → R3**, so R2 merges on top of
+  R1.
+- **Verdict #1 (BLOCKING) — fixed as the verdict says.** The upgrade run reads from today − 30 d and never uses the
+  connect-date rule while an old-build ledger exists (§8 rules 4 + 9).
+- **Verdict #2 — apply.** The upgrade run PUTs `review_done` for the old `confirmedProgramIds` and keeps honoring the local
+  `excludedKeys` (client contract §8).
+- **Verdict #3 — apply.** Take the same per-member advisory lock in `putState`.
+- **Verdict #4 — apply.** E1 expects 8 new + 9 modified files.
+- **Verdict #5 — apply.** `health-sync.depends_on` adds `workouts` + `program-workouts`.
+- **Verdict #6 — resolved.** The implementer works in its own isolated git worktree. The compile/boot check symlinks
+  `apps/backend/node_modules` from the main checkout and uses a placeholder `DATABASE_URL`.
+- **Verdict #7 — apply inside the fence:**
+  - add `updateRequired` to `sync.run` `error_class`;
+  - add a smoke step P9b that resets `review_done:false`;
+  - record stale provenance after a manual edit as an F-row unless the fix is a one-liner in `logService.js`.
+- **Decisions D-C9 (review once per program + kind) and D-C6 (integration-only provenance) accepted.**
+- **Versions:** health-sync **0.1.0** (new), daily-health-logs **0.3.0**, workout-logs **0.6.0**, observability **0.2.1**
+  (R1 takes 0.2.0).

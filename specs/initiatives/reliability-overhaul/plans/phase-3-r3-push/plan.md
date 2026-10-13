@@ -1706,3 +1706,21 @@ Tags: `feature/notifications@v0.4.0` and `feature/invites@v0.2.0`, on the commit
 - **No DB statement timeout exists** (pre-existing, outside this track). The new I/O timeouts are APNs at 10 s and FCM's built-in 15 s.
 - **Rate limit:** the unregister limit is per IP. A carrier NAT shares 30 per minute, which is ample at one call per sign-out.
 - **Simulator APNs:** a remote push to the iOS simulator needs an Apple-silicon Mac on macOS 13+ with an iOS 16+ simulator. If the simulator gets no banner but `push_deliveries` shows `lucas.b | ios | sent`, APNs accepted it; that is enough for the staging gate.
+
+## Approval amendments (user-approved 2026-10-12 — binding; they override the plan text above)
+
+- **Gate waived (user):** staging, then prod, as soon as each passes. Landing order **R1 → R2 → R3**, so R3 merges on top of
+  R1 + R2. Migration 010 runs after 009.
+- **Verdict #1 (BLOCKING) — fixed.** The compile/boot check runs inside the implementer's own worktree at its literal
+  path. It symlinks `apps/backend/node_modules` from the main checkout and sets a placeholder `DATABASE_URL`.
+- **Verdict #2 — apply.** `notifications.depends_on` adds `observability`.
+- **Verdict #3 — apply.** Decline the Android 1.0.0 account's invite on web or iOS.
+- **Verdict #4 — apply.** Race the 10 s APNs timeout per token, so one hung stream fails only its own token.
+- **Verdict #7 — apply.**
+- **Orchestrator follow-ups (not the implementer):**
+  - #5: docs outside the fence;
+  - #6: no-bump notes for `server.js`'s 15 features;
+  - the pre-flight read of `member_push_tokens.id`'s default;
+  - merge conflicts with R1/R2.
+- **Q1–Q12 accepted as written.**
+- **Versions:** notifications **0.4.0**, invites **0.2.0**.
