@@ -488,7 +488,7 @@
     "health-sync": {
       "version": "0.1.0",
       "spec": "specs/features/health-sync/SPEC.md",
-      "status": "built",
+      "status": "deployed",
       "consumed_by": [],
       "depends_on": [
         "auth",

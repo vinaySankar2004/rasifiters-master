@@ -5,89 +5,71 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-12)
+## Now (2026-10-13)
 
 - **Phase:** Step 0 → Phase 0 → design board ([`DESIGN_BOARD.md`](DESIGN_BOARD.md), approved 2026-10-11) →
-  **Phase 1b ✅** → **Phase 2 ✅ COMPLETE** (both 2026-10-12, all live) → **Phase 3 planning** (backend R1–R3, started
-  2026-10-12). **The user waived the 10-19 build gate (2026-10-12).** The watch keeps running daily as monitoring;
-  counts after R1's deploy reflect R1.
+  **Phase 1b ✅** → **Phase 2 ✅** (both live 2026-10-12) → **Phase 3 backend ✅ LIVE 2026-10-13T02:24Z** (the user
+  waived the 10-19 gate: "get this out asap"). **Next: Phase 3 client half** — one bundled release per surface.
   Phase table: [`BRIEF.md`](BRIEF.md) §7.
-- **Live — Phase 1b** ([`plans/phase-1b/`](plans/phase-1b/)):
-  - H1 stateless auth proxy + classified refresh 401 / 503 — auth 0.10.0 / D-C11.
-  - H3 analytics membership gate — analytics 0.4.0 / D-C8 · analytics-v2 0.2.0 / D-C3.
-  - H2 Supabase `rate_limit_token_refresh` 150 → 1,500 at 2026-10-12T19:08:19Z (revert = the same admin-token
-    call with 150).
-  - D-15 password-reset email via Resend SMTP (`ENV_RUNBOOK.md` §7b).
-- **Live — Phase 2** (all four plans user-approved; `plans/phase-2{a,b,c,d}-*/`):
-  - C version gate — app-config 0.2.0 (gate fields; `BLOCK_UNVERSIONED_ANDROID` off).
-  - A observability — observability 0.1.1 🚀: request log, `app_events` (migration 007) + `POST /api/client-events`,
-    SQL logging off, `errorHandler` password-logging fix, `trust proxy` 2; prod smoke 28/28, per-client limiter verified.
-  - D frontend kits — frontend-kit 0.1.0, built on web / iOS / Android, **unadopted** (adoption = Phase 3).
-  - B staging — auth 0.12.0 / D-C13: `staging` schema + `rasifiters_staging` role (migration 008), Render
-    `rasifiters-api-staging` (free), Vercel `staging` branch preview, 7 `+stg` testbed accounts; the user verified
-    web + iOS simulator. Setup: `ENV_RUNBOOK.md` §Staging.
-- **Staging is opt-in (user, 2026-10-12):** only for risky changes (migrations, auth/session); default testing stays
-  on prod + the user's own devices. Clients: iOS `RaSi-Fiters-App-Staging` scheme · Android `staging` build type
-  (`./gradlew :app:assembleStaging` — compiles; `debug` → prod since `9ca67ca`; not yet run on a device) · web = the
-  `staging` branch preview.
-- **Watch to 2026-10-19** (plan-1b E8 queries, once a day): `refresh_token_already_used`/day (baseline ≈ 1.6),
-  429 `over_request_rate_limit`/day (≈ 1.3; counts after 19:08:19Z reflect the new limit), Render
-  `[refresh] auth_unavailable|session_invalid` + `[auth] token verification unavailable` + `[auth] password reset
-  request failed`, cross-user token pairs < 200 ms (baseline 59 / 30 d). **Day 0** (10-12 06:25–19:10Z): 296 × 200
-  refreshes · 1 × 400 `validation_failed` (the smoke's garbage token) · **0** reuse kills · **0** × 429 ·
-  **0** cross-user pairs / 300 tokens. **Day 0 final** (UTC 10-12, checked 23:36Z): 425 × 200 · 2 × 400
-  `validation_failed` (both smoke runs, 07:18 + 19:04Z) · **0** reuse · **0** × 429 (any auth path) · **0** cross-user pairs
-  / 365 post-H1 tokens (the 7-day query's 17 are all pre-H1 — run it from 06:25Z 10-12) · Render: 0 `auth_unavailable`, 0
-  token-verify-unavailable, 1 password-reset failure at 06:57Z (pre-D-15 SMTP).
-- **Pending:**
-  - ✅ **D-4 done 2026-10-12** — `SUPABASE_SECRET_KEY` (`sb_secret_…`) on prod + staging Render (ENV_RUNBOOK); unused until Phase 3 R1.
-  - Follow-ups → Phase 3: auth F12–F15 · observability F2 + F8 · kit adoption on the screens Phase 3 touches.
-  - Phase 3 Android sync testing: the user enters Health Connect test data by hand on the Pixel (no Android
-    wearable — walkthrough W4-D2).
-  - Legacy `RaSi_Fiters_API` (suspended 2026-10-11, D-16): delete after a quiet month (~2026-11-11).
+- **Live — Phase 1b** ([`plans/phase-1b/`](plans/phase-1b/)): H1 stateless auth proxy (auth 0.10.0) · H3 analytics
+  membership gate (analytics 0.4.0 / analytics-v2 0.2.0) · H2 `rate_limit_token_refresh` 1,500 (2026-10-12T19:08:19Z)
+  · D-15 reset email via Resend SMTP (`ENV_RUNBOOK.md` §7b).
+- **Live — Phase 2** (`plans/phase-2{a,b,c,d}-*/`): C version gate (app-config 0.2.0) · A observability (request log,
+  `app_events` + `POST /api/client-events`, `trust proxy` 2) · D frontend kits (frontend-kit 0.1.0, **unadopted**) ·
+  B staging (`staging` schema, `rasifiters-api-staging`, Vercel `staging` preview; setup `ENV_RUNBOOK.md` §Staging).
+- **Live — Phase 3 backend** (`plans/phase-3-r{1-sessions,2-sync,3-push}/`; commits `2f19e01` R1 · `f7863b5` R2 ·
+  `79a3067` R3; migrations 009 + 010 run on staging + public, verified):
+  - **R1** auth 0.13.0 + observability 0.2.0: per-user Supabase rate limits (`SUPABASE_SECRET_KEY` + `Sb-Forwarded-For`),
+    logout = this device, password change ends OTHER devices, `POST /auth/logout-all`, classified 503s, body-parser
+    400s, `utils/logError.js`. Supabase **IP forwarding ON 02:32:21Z** (G3; client IPs now reach Supabase — verified)
+    and **90-day inactivity 02:32:28Z** (G4).
+  - **R2** health-sync 0.1.0 (new) + daily-health-logs 0.3.0 + workout-logs 0.6.0 + observability 0.2.1:
+    `POST /api/health-sync/batch` + `GET|PUT /state`, permanent sample ledger, provenance, bounds. No client calls it
+    yet.
+  - **R3** notifications 0.4.0 + invites 0.2.0: device registry (`last_seen_at`, install id), `push_deliveries`,
+    `POST /device/unregister` (no login), APNs/FCM 7-day TTL + `rasi_invites` channel, SSE plain close on SIGTERM,
+    invite transaction.
+  - **Verified:** staging smokes (R1 43/43 · R2 all S-lines + DB rows · R3 24/26 — see follow-up 1) and prod smokes
+    (R1 25/25 before and after G3 · R2 all P-lines · R3 26/26); the user's iPhone + Pixel: sign-out on one keeps the
+    other; a real invite push arrived on both (`push_deliveries`: ios `sent` + android `sent`).
+- **Follow-ups (small, not blocking):**
+  1. Staging has **3** proxy hops (`xff_n` 3) vs prod's 2, so on staging `req.ip` is a proxy and per-client limits /
+     `Sb-Forwarded-For` are wrong there. Fix: `trust proxy` from an env var (`TRUST_PROXY_HOPS`, default 2; staging 3).
+  2. Doc handoffs: R1 H2 (`DESIGN_BOARD.md:55-57`), H3 (`specs/pages/REGISTRY.md:142` → PUT; key in
+     `apps/backend/CONTEXT.md:43`), the `versionGate.js:8` comment; R3 #5 docs outside its fence (web members/invite
+     page SPEC, auth SPEC :167, app-config SPEC :145-146 + F1); R3 #6 no-bump notes for `server.js`'s features.
+  3. R2/R3 code adopts `utils/logError.js` (observability §4).
+  4. Watch: keep the E8 queries daily (filter Render on the `[refresh]` tag) + R3's 24 h `push_deliveries` check
+     (revert trigger: Android 0 `sent` with ≥ 1 `messaging/invalid-argument`) + G3's distinct-`remote_addr` count.
+  5. Legacy `RaSi_Fiters_API` (suspended 2026-10-11, D-16): delete ~2026-11-11.
 - **Standing preferences (memory):** `staging-use-sparingly` · `keep-disk-lean` · `dont-over-engineer` ·
-  `ios-user-verifies-builds-visually` (iOS: the user presses ⌘B — never call the `xcode` MCP build) · no shims for
-  old binaries (board §0). Walkthrough decisions live on the board (✅ marks); factual answers in
-  [`discovery/README.md`](discovery/README.md).
-- **Board artifact:** https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private; `db` store collection `board`,
-  doc `answers`). HTML source only in Session 1's scratchpad — `Artifact read` before republishing.
+  `ios-user-verifies-builds-visually` (the user presses ⌘B — never the `xcode` MCP build) · no shims for old binaries.
+  Walkthrough decisions on the board (✅); factual answers in [`discovery/README.md`](discovery/README.md).
+- **Board artifact:** https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x (private; `db` store `board`/`answers`).
 
 ## Next action
 
-1. **Until 2026-10-19:** run the E8 watch queries once a day and add that day's counts to the watch line above.
-   Any reuse kill, 429 burst or cross-user pair → investigate before Phase 3.
-2. **Phase 3 backend — plans APPROVED + gate WAIVED by the user (2026-10-12, "get this out asap"); BUILD RUNNING.**
-   Three `implementer` agents in parallel, each in its own worktree from `c6c8b67`, one commit each, no push. Next:
-   `impl-adversary` per track → merge + land **R1 → R2 → R3**, one at a time (staging → user-run migration / smoke →
-   prod with the user's OK). The fixes are the "Approval amendments" at the end of each `plan.md`. Pre-flight done:
-   prod and staging have the same `SUPABASE_SECRET_KEY` (sha256 match); `member_push_tokens.id` defaults to
-   `gen_random_uuid()` on both schemas; 0 `device_id`s set, so 010's unique index is safe. Plans as approved: `plans/phase-3-r1-sessions/` (no
-   migration; auth 0.13.0, observability 0.2.0) · `phase-3-r2-sync/` (migration 009; new health-sync 0.1.0,
-   daily-health-logs 0.3.0, workout-logs 0.6.0, observability 0.2.1) · `phase-3-r3-push/` (migration 010; notifications
-   0.4.0, invites 0.2.0). Each has `brief.md` / `plan.md` / `verdict.md`, revised once. **One blocking objection per plan
-   remains, fixed at approval:**
-   - **R1:** a bad prod secret key would sign out every Android 1.0.0 user. Before prod, confirm the key matches on
-     prod and staging, add a STOP rule, and pre-write the rollback (unset `SUPABASE_SECRET_KEY`).
-   - **R2:** the upgrade run reads from today − 30 d and never uses the connect-date rule (otherwise old minutes are
-     counted twice).
-   - **R3:** the worktree compile check needs a literal path, symlinked `node_modules` and a placeholder `DATABASE_URL`.
-   Orchestrator choices: build in parallel worktrees, then land and deploy one track at a time, R1 → R2 → R3
-   (staging holds one track at a time). Verified: `security_sb_forwarded_for_enabled` (false) and
-   `sessions_inactivity_timeout` (0) exist in config/auth; Android 1.0.0 falls back to `rasi_default` for the new
-   channel. After the backend: plan + build one bundled client release per surface against the approved contracts.
-3. **On a clean watch (10-19):** mark Phase 1b closed (BRIEF §7 + here) and start the backend build.
+1. **Phase 3 client half — plan via `multiplex`:** one bundled release per surface (web, iOS, Android), parallel
+   implementers, built against the contracts now in the SPECs: auth §3.1 (sessions: one token store, refresh only when
+   needed, sign out only on `401 session_invalid`, never auto-retry password writes) · health-sync §8 (catch-up 30 d,
+   upgrade run, review once) · notifications §3.1–3.3 + invites §3.1 (install id, unregister on sign-out, Android
+   invite inbox, SSE re-fetch) · observability §8 (`auth.*` + `sync.run` events) · Android Google button (W5) · kit
+   adoption on touched screens · version-gate UI + soft nudge (app-config). The user ships the iOS / Android binaries;
+   Android health tests = Health Connect data entered by hand on the Pixel (W4-D2).
+2. Follow-ups 1–3 above (one small backend + docs commit; follow-up 1 needs a staging env var → user OK).
+3. Daily watch (follow-up 4).
 
 ## Workstream status
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | 🟨 1b H1 ✅ (+ H2); R1 + sessions contract → Phase 3 | 🟨 partial — H1 live 2026-10-12 |
-| W2 | Push + invites | ✅ | ✅ | ⬜ Phase 3 R3 | ⬜ |
-| W3 | iOS health sync | ✅ | ✅ | ⬜ Phase 3 R2 | ⬜ |
-| W4 | Android health sync | ✅ | ✅ | ⬜ Phase 3 R2 | ⬜ |
-| W5 | Android Google sign-in | ✅ | ✅ | 🟨 console fix ✅; button code → Phase 3 | 🟨 sign-in works on Play build |
-| W6 | Observability + perf | ✅ | ✅ | 🟨 Phase 2 A ✅; client senders + query pack → Phase 3 (observability D-C9) | 🟨 partial — observability 0.1.1 live 2026-10-12 |
-| W7 | Frontend state / error / design consistency | ✅ | ✅ | 🟨 Phase 2 D ✅ kits built (frontend-kit 0.1.0); adoption → Phase 3 | ⬜ kits unadopted |
+| W1 | Sessions / auth | ✅ | ✅ | 🟨 backend ✅ (1b H1 + Phase 3 R1); clients → Phase 3 client half | 🟨 backend live 2026-10-13 |
+| W2 | Push + invites | ✅ | ✅ | 🟨 backend ✅ (R3); clients (Android inbox) → client half | 🟨 backend live 2026-10-13 |
+| W3 | iOS health sync | ✅ | ✅ | 🟨 backend ✅ (R2); iOS client → client half | 🟨 backend live 2026-10-13 |
+| W4 | Android health sync | ✅ | ✅ | 🟨 backend ✅ (R2); Android client → client half | 🟨 backend live 2026-10-13 |
+| W5 | Android Google sign-in | ✅ | ✅ | 🟨 console fix ✅; button code → client half | 🟨 sign-in works on Play build |
+| W6 | Observability + perf | ✅ | ✅ | 🟨 Phase 2 A + R1/R2 events ✅; client senders → client half | 🟨 backend live |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | 🟨 kits built (frontend-kit 0.1.0); adoption → client half | ⬜ kits unadopted |
 
 ## Session log
 
@@ -111,6 +93,11 @@
   B staging (auth 0.12.0, migration 008, `rasifiters-api-staging`, Vercel `staging` preview; web + iOS verified).
   User preferences: staging opt-in for risky changes only (Android `debug` → prod, opt-in `staging` build type),
   keep disk lean, iOS builds = the user's ⌘B.
+- **2026-10-12/13** — Watch day 0 clean. Phase 3 backend planned (3 parallel `plan-pipeline` tracks), user-approved
+  with amendments + gate waived ("asap"), built in 3 worktrees, impl-adversary'd (0 blocking; fix rounds folded in),
+  merged R1 → R2 → R3, migrations 009 + 010 run by the user on staging then public, one staging deploy + smokes, one
+  prod push (02:24Z), prod smokes + phones verified, G3 IP forwarding + G4 90-day inactivity applied. Phase 4 scope
+  note: start from the full page / feature / widget inventory (BRIEF §7).
 
 ## Kickoff prompt — Session 1
 

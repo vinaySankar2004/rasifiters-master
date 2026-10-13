@@ -31,10 +31,10 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (current state, what's live with versions, next action) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
 > (scope + phase plan §7).
 >
-> **Status 2026-10-12:** design board approved · **Phase 1b ✅** (auth hotfix, analytics membership gate, refresh
+> **Status 2026-10-13:** design board approved · **Phase 1b ✅** (auth hotfix, analytics membership gate, refresh
 > rate limit, Resend reset email) · **Phase 2 ✅** (version gate, observability, frontend kits — unadopted, opt-in
-> staging) — all live. **Next:** the Phase 1b Supabase-log watch runs to **2026-10-19**; a clean watch opens
-> **Phase 3** (reliability) planning. Meanwhile the user creates the Supabase secret API key (board D-4).
+> staging) · **Phase 3 backend ✅** (R1 sessions / per-user rate limits, R2 health sync v2, R3 invites + push +
+> device registry) — all live. **Next:** the Phase 3 client half — one bundled web / iOS / Android release.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
