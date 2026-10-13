@@ -10,6 +10,7 @@ const { authenticateToken } = require("../middleware/auth");
 const inviteService = require("../services/inviteService");
 const { sendInvite } = require("../services/inviteSendService");
 const { AppError } = require("../utils/response");
+const { logError } = require("../utils/logError");
 
 const router = express.Router();
 
@@ -27,8 +28,7 @@ router.post("/invite", authenticateToken, async (req, res) => {
         res.json({ message: "Invitation sent" });
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
-        // Name + Postgres error code only — a Sequelize error message can echo the username (observability F8).
-        console.error("[invites] send failed: %s %s", err.name, err.parent?.code || "");
+        logError("[invites] send failed:", err); // never the username (observability F8)
         res.status(500).json({ error: "Failed to send invitation." });
     }
 });
@@ -39,7 +39,7 @@ router.get("/my-invites", authenticateToken, async (req, res) => {
         res.json(result);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
-        console.error("Error fetching user invites:", err);
+        logError("Error fetching user invites:", err);
         res.status(500).json({ error: "Failed to fetch invites." });
     }
 });
@@ -50,7 +50,7 @@ router.get("/all-invites", authenticateToken, async (req, res) => {
         res.json(result);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
-        console.error("Error fetching all invites:", err);
+        logError("Error fetching all invites:", err);
         res.status(500).json({ error: "Failed to fetch invites." });
     }
 });
@@ -61,7 +61,7 @@ router.put("/invite-response", authenticateToken, async (req, res) => {
         res.json(result);
     } catch (err) {
         if (err instanceof AppError) return res.status(err.statusCode).json({ error: err.message });
-        console.error("Error responding to invite:", err);
+        logError("Error responding to invite:", err);
         res.status(500).json({ error: "Failed to process invite response." });
     }
 });

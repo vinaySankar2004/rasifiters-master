@@ -33,11 +33,12 @@ const healthSyncRoutes = require("./routes/healthSync");
 
 const app = express();
 
-// observability D-C7: trust exactly TWO proxy hops (Cloudflare edge → Render load balancer; measured on prod
-// 2026-10-12: a request with no X-Forwarded-For logs xff_n=2, a spoofed one xff_n=3), so req.ip is the address
-// Cloudflare saw and client-supplied entries stay ignored. Only the client-events per-client limiters read it
-// today. Re-verify the hop count after any infra change with the request log's `xff_n` (observability SPEC §6).
-app.set("trust proxy", 2);
+// observability D-C7: trust exactly the proxy hops in front of us, so req.ip is the client address the outermost proxy
+// saw and client-supplied X-Forwarded-For entries stay ignored. TRUST_PROXY_HOPS = an integer 1–5; unset / anything
+// else → 2 = prod (Cloudflare edge → Render LB; organic requests log xff_n=2). Staging (Render free) has one more hop
+// → 3. Re-verify with the request log's `xff_n` after any infra change (observability SPEC §6).
+const trustProxyHops = (raw) => (/^[1-5]$/.test(String(raw ?? "").trim()) ? Number(String(raw).trim()) : 2);
+app.set("trust proxy", trustProxyHops(process.env.TRUST_PROXY_HOPS));
 
 // observability D-C1: structured request log + X-Request-Id. FIRST, so CORS preflights (and every later
 // middleware's responses, incl. app-config's version-gate 426s) are logged too.

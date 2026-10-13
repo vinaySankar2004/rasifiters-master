@@ -9,6 +9,7 @@ const { authenticateToken } = require("../middleware/auth");
 const { blockUnversionedAndroid } = require("../middleware/versionGate");
 const { rateLimit } = require("../utils/rateLimit");
 const { AppError } = require("../utils/response");
+const { logError } = require("../utils/logError");
 const healthSyncService = require("../services/healthSyncService");
 
 const router = express.Router();
@@ -27,8 +28,7 @@ const handle = (tag, fallback, run) => async (req, res) => {
             if (err.retryAfter) res.set("Retry-After", String(err.retryAfter)); // 503 "busy" (lock wait > 2 s)
             return res.status(err.statusCode).json({ error: err.message, code: err.code });
         }
-        // Name + Postgres error code only — a Sequelize error message can echo inserted values.
-        console.error("[health-sync] %s failed: %s %s", tag, err.name, err.parent?.code || "");
+        logError(`[health-sync] ${tag} failed:`, err);
         return res.status(500).json({ error: fallback, code: "server_error" });
     }
 };

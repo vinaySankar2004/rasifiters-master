@@ -11,6 +11,7 @@ const authService = require("../services/authService");
 const deviceService = require("../services/deviceService");
 const { rateLimit } = require("../utils/rateLimit");
 const { AppError } = require("../utils/response");
+const { logError } = require("../utils/logError");
 const { registerNotificationStream, removeNotificationStream } = require("../utils/notificationStreams");
 const { createNotification, getMemberIdsWithPushTokens } = require("../utils/notifications");
 
@@ -46,7 +47,7 @@ router.get("/unacknowledged", authenticateToken, async (req, res) => {
 
         res.json(result);
     } catch (error) {
-        console.error("Error fetching notifications:", error);
+        logError("Error fetching notifications:", error);
         res.status(500).json({ error: "Failed to fetch notifications." });
     }
 });
@@ -66,8 +67,7 @@ router.put("/device", authenticateToken, async (req, res) => {
         });
         res.json({ message: "Device registered for push notifications." });
     } catch (error) {
-        // Name + Postgres code only — never the push token (observability F8).
-        console.error("[push] device register failed: %s %s", error.name, error.parent?.code || "");
+        logError("[push] device register failed:", error); // never the push token (observability F8)
         res.status(500).json({ error: "Failed to register device." });
     }
 });
@@ -78,7 +78,7 @@ router.delete("/device", authenticateToken, async (req, res) => {
         await authService.removePushToken(req.user.id, pushToken);
         res.json({ message: "Device unregistered from push notifications." });
     } catch (error) {
-        console.error("Error unregistering device:", error);
+        logError("Error unregistering device:", error);
         res.status(500).json({ error: "Failed to unregister device." });
     }
 });
@@ -96,7 +96,7 @@ router.post("/device/unregister", limitUnregister, async (req, res) => {
         if (error instanceof AppError) {
             return res.status(error.statusCode).json({ error: error.message, code: error.code });
         }
-        console.error("[push] device unregister failed: %s %s", error.name, error.parent?.code || "");
+        logError("[push] device unregister failed:", error);
         res.status(500).json({ error: "Failed to unregister device." });
     }
 });
@@ -132,7 +132,7 @@ router.post("/broadcast", authenticateToken, async (req, res) => {
             recipient_count: memberIds.length
         });
     } catch (error) {
-        console.error("Error sending broadcast:", error);
+        logError("Error sending broadcast:", error);
         res.status(500).json({ error: "Failed to send broadcast." });
     }
 });
@@ -154,7 +154,7 @@ router.post("/:id/acknowledge", authenticateToken, async (req, res) => {
         await recipient.update({ acknowledged_at: new Date() });
         res.json({ message: "Notification acknowledged." });
     } catch (error) {
-        console.error("Error acknowledging notification:", error);
+        logError("Error acknowledging notification:", error);
         res.status(500).json({ error: "Failed to acknowledge notification." });
     }
 });

@@ -55,7 +55,7 @@ const secretKey = () => (process.env.SUPABASE_SECRET_KEY || "").trim();
 const userAuthKey = () => secretKey() || process.env.SUPABASE_ANON_KEY;
 
 // D-C14: { "Sb-Forwarded-For": <end-user IP> } — only with the secret key and only for a valid IP literal. `ip` =
-// req.ip (Express `trust proxy` 2 — the address Render's edge saw, observability D-C7). An IPv4-mapped IPv6 address
+// req.ip (Express `trust proxy` = TRUST_PROXY_HOPS, default 2 — the address Render's edge saw, observability D-C7). An IPv4-mapped IPv6 address
 // (::ffff:a.b.c.d) is sent as plain IPv4; any other address is sent whole (not utils/rateLimit.js's IPv6 /64 — the
 // header is defined as the client IP). Anything else → {} (header omitted).
 const forwardedForHeaders = (ip) => {

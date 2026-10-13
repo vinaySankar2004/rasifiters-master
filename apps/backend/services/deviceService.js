@@ -42,14 +42,14 @@ ON CONFLICT (device_token) DO UPDATE SET
 
 const isUniqueViolation = (err) => err?.parent?.code === "23505";
 
-// Raw SQL inlines its replacements (push token, member id) into err.sql, and callers log errors whole
-// (routes/auth.js, DELETE /device) — so a DB error leaves this module scrubbed: name + Postgres code only
-// (observability F8). The callers' status codes and response bodies are unchanged (still a non-AppError → 500).
+// Raw SQL inlines its replacements (push token, member id) into err.sql — so a DB error leaves this module scrubbed:
+// name + Postgres code only (observability F8), whoever logs or inspects it. The callers' status codes and response
+// bodies are unchanged (still a non-AppError → 500).
 const scrubbed = (err) => {
     const clean = new Error("Device registry write failed.");
     clean.name = `DeviceRegistryError(${err?.name || "Error"})`;
     clean.parent = { code: err?.parent?.code || null };
-    clean.code = err?.parent?.code || null; // for loggers that read err.code (R1's logError)
+    clean.code = err?.parent?.code || null; // logError prints err.code
     return clean;
 };
 

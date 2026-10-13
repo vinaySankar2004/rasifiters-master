@@ -9,6 +9,7 @@ const { MemberPushToken } = require("../models");
 const { getProvider, sendApns } = require("./push/apns");
 const { getFcmApp, sendFcm } = require("./push/fcm");
 const { recordDeliveries } = require("../services/pushDeliveryService");
+const { logError } = require("./logError");
 
 // APNs apns-expiration and FCM android.ttl (D-C13): 7 days (APNs was 1 h; FCM had none = its 4-week default).
 const PUSH_TTL_SECONDS = 7 * 24 * 60 * 60;
@@ -26,7 +27,7 @@ const pruneTokens = async (ids) => {
     try {
         await MemberPushToken.destroy({ where: { id: ids } });
     } catch (err) {
-        console.error("[push] token prune failed: %s %s", err.name, err.parent?.code || "");
+        logError("[push] token prune failed:", err);
     }
 };
 
@@ -84,7 +85,7 @@ async function sendPushToMembers(memberIds, payload) {
         }
         await recordDeliveries(rows);
     } catch (err) {
-        console.error("[push] sendPushToMembers failed: %s %s", err.name, err.parent?.code || err.code || "");
+        logError("[push] sendPushToMembers failed:", err);
     }
 }
 

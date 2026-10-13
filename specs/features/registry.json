@@ -372,7 +372,7 @@
       }
     },
     "observability": {
-      "version": "0.2.1",
+      "version": "0.2.2",
       "spec": "specs/features/observability/SPEC.md",
       "status": "deployed",
       "consumed_by": [],

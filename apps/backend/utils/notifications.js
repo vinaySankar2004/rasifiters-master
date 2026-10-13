@@ -10,6 +10,7 @@ const {
 } = require("../models");
 const { sendNotificationToMember } = require("./notificationStreams");
 const { sendPushToMembers } = require("./pushNotifications");
+const { logError } = require("./logError");
 
 const buildNotificationPayload = (notification) => ({
     id: notification.id,
@@ -80,7 +81,7 @@ const createNotification = async ({
             body: payload.body,
             type: payload.type,
             programId: payload.program_id
-        }).catch((err) => console.error("[push] sendPushToMembers error:", err));
+        }).catch((err) => logError("[push] sendPushToMembers error:", err));
     };
 
     // When emitted inside a DB transaction, defer the alert until commit — no notification for a

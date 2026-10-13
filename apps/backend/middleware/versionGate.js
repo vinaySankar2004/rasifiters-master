@@ -4,8 +4,8 @@
 //                             (D-C3, D-C4). Clients compare + act; the server never 426s a versioned client.
 //   blockUnversionedAndroid → the ONE server-side 426: header-less Android (1.0.0 builds send only
 //                             `User-Agent: okhttp/x`, never X-App-Version), and only while
-//                             BLOCK_UNVERSIONED_ANDROID=true (default off) (D-C5). Replies directly —
-//                             errorHandler.js would drop `code`.
+//                             BLOCK_UNVERSIONED_ANDROID=true (default off) (D-C5). Replies directly
+//                             with `{ error, code: "update_required" }` — it never throws to errorHandler.js.
 // process.env is read on every request (no module-level copy), but on Render it is fixed when the process
 // starts — an env change takes effect only after a redeploy.
 
@@ -13,7 +13,7 @@ const UPDATE_REQUIRED_MESSAGE = "Please update RaSi Fiters from the Play Store";
 
 // Never gated, even with the switch on: client telemetry ingest (observability, Phase 2 track A) must
 // always land. Matched on method + full path, trailing slashes stripped + lower-cased (Express routing is
-// non-strict + case-insensitive); entries stay lower-case. Harmless until that route exists.
+// non-strict + case-insensitive); entries stay lower-case.
 const UNGATED_ROUTES = new Set(["POST /api/client-events"]);
 
 // iOS marketing version ("1.4.2"): trimmed, dot-separated integers only — the format the iOS

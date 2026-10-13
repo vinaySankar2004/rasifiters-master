@@ -5,6 +5,7 @@
 // bug — logged at error level, token kept (D-C14). Returns one attempt per token —
 // { token, outcome: "sent" | "failed" | "pruned" | "not_configured", errorCode } — and never throws.
 const admin = require("firebase-admin");
+const { logError } = require("../logError");
 
 const CHANNEL_DEFAULT = "rasi_default"; // the live Android 1.0.0 channel + its manifest default
 const CHANNEL_INVITES = "rasi_invites"; // "Invites & membership", IMPORTANCE_HIGH — created by the next Android build
@@ -36,7 +37,7 @@ function getFcmApp() {
         const text = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
         serviceAccount = JSON.parse(text);
     } catch (err) {
-        console.warn("[push] FIREBASE_SERVICE_ACCOUNT could not be parsed:", err.message);
+        console.warn("[push] FIREBASE_SERVICE_ACCOUNT could not be parsed: %s", err.name); // never the message — JSON.parse quotes the input
         return null;
     }
 
@@ -75,7 +76,7 @@ async function sendFcm(tokens, message) {
             }
         });
     } catch (err) {
-        console.error("[push] FCM send error: %s", err.code || err.name);
+        logError("[push] FCM send error:", err);
         return tokens.map((token) => ({ token, outcome: "failed", errorCode: err.code || "send_error" }));
     }
 
@@ -84,7 +85,7 @@ async function sendFcm(tokens, message) {
         if (r.success) return { token, outcome: "sent", errorCode: null };
         const code = r.error?.code || "unknown";
         if (code === "messaging/invalid-argument") {
-            console.error("[push] FCM invalid-argument — payload bug, token kept: %s", r.error?.message);
+            logError("[push] FCM invalid-argument — payload bug, token kept:", r.error);
         } else {
             console.warn("[push] FCM delivery failed: %s", code);
         }

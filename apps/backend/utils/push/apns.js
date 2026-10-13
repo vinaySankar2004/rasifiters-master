@@ -5,6 +5,7 @@
 // Returns one attempt per token — { token, outcome: "sent" | "failed" | "pruned" | "not_configured", errorCode } —
 // and never throws.
 const apn = require("apn");
+const { logError } = require("../logError");
 
 const APNS_SEND_TIMEOUT_MS = 10000;
 // Dead-token answers (D-C14). apn 2.2.0 (node-http2) reports :status as a STRING ("410"), so compare as strings —
@@ -70,7 +71,7 @@ async function sendOne(apnProvider, note, token) {
     try {
         result = await withTimeout(apnProvider.send(note, token.device_token), APNS_SEND_TIMEOUT_MS);
     } catch (err) {
-        console.error("[push] APNs send error: %s", err.name);
+        logError("[push] APNs send error:", err);
         return { token, outcome: "failed", errorCode: "send_error" };
     }
     if (!result) return { token, outcome: "failed", errorCode: "timeout" };
@@ -94,6 +95,7 @@ async function sendApns(tokens, message) {
     try {
         apnProvider = getProvider();
     } catch (err) {
+        // Name only, not logError: a malformed-key message can echo key material.
         console.error("[push] APNs provider init failed: %s", err.name);
         return tokens.map((token) => ({ token, outcome: "failed", errorCode: "provider_error" }));
     }
