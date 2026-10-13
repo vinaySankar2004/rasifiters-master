@@ -9,7 +9,7 @@
 - **Order (D-0 a):** polish quick wins #1–#8 → privacy fix (S0 / D-P8) → Notifications N1–N8 → People S1–S6 → the
   rest of the polish alongside. #1 (offline detection) is DONE (frontend-kit 0.3.0; web live, phones next build).
 
-## Polish — all 45 picked, plus two new
+## Polish — all 45 picked, plus three new
 All rows #1–#45 of DISCOVERY §2. New from the user's device testing:
 - **#46 iOS chart tooltip clipped at the top** — on a tall bar the tooltip's date/title is cut off by the chart's top
   edge (Workout Activity Timeline; fine on a short bar; fine on Android). Fix: keep the tooltip inside the chart
@@ -17,6 +17,9 @@ All rows #1–#45 of DISCOVERY §2. New from the user's device testing:
 - **#47 Member Performance Metrics CSV export must match the page** — the user's mother shares it in WhatsApp groups.
   The export uses the page's current sort, filter and search, in the same order, and the most relevant fields first
   (Active Days, Workouts, Total Duration, …, matching the cards); identical on web, iOS and Android.
+- **#48 RaSi brand mark on the public info pages** — web `/privacy-policy`, `/support` and `/delete-account` lack the
+  `BrandMark` that login, create-account, forgot/reset password and the landing page show. The phones' Privacy /
+  Support rows open these web pages, so one web change covers all three. Quick win.
 
 ## Notifications — as recommended, except D-N1
 | # | Decision |

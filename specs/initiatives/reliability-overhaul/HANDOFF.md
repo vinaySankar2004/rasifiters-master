@@ -29,7 +29,7 @@
 ## Next action
 
 1. **Plan Phase 4 via `multiplex`** against [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md) + [`DISCOVERY.md`](phase-4/DISCOVERY.md)
-   (evidence appendix + `discovery-raw.json`), in the decided order: polish quick wins #2–#8 + #46/#47 → privacy fix
+   (evidence appendix + `discovery-raw.json`), in the decided order: polish quick wins #2–#8 + #46/#47/#48 → privacy fix
    (S0 / D-P8, server-only) → Notifications N1–N8 (all four categories, send-anytime composer D-N16, personalized
    templates D-N17) → People S1–S6 → polish #9–#45 alongside. Backend parts deploy as ready; web as reviewed.
 2. Build → the user tests (iPhone ⌘R/TestFlight, Pixel internal) → ONE store release → raise `LATEST_*` then `MIN_*`.
