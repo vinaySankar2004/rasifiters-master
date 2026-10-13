@@ -46,7 +46,26 @@
        · page SPEC patches).
    - **Wave B:** the Notifications server (migration 011) and the People server S1 (migration 012). Then web, iOS and
      Android client plans written against those two contracts, then a parity check.
-   - **Wave C**, once Wave A is approved: polish #9–#45 (#32 is People S5), planned per surface on top of the quick wins.
+   - **Wave C:** polish #9–#45 (#32 is People S5), planned per surface on top of the quick wins. Web owns every
+     backend change any row needs.
+   - **PAUSED by the user (2026-10-13, leaving, will lose connectivity).** When the B + C plans land, save them and
+     STOP — no building until the user approves.
+     - **Resume a run that was cut off** (same session):
+       `Workflow({scriptPath, resumeFromRunId})`. Finished agents replay from cache.
+       - Wave B: `wf_1a579fb4-116`, script
+         `~/.claude/projects/-Users-vinayaksankaranarayanan-Developer-rasifiters-master/9597ef9d-…/workflows/scripts/phase-4-plan-b-wf_1a579fb4-116.js`
+       - Wave C: `wf_bc12534e-92f`, script under the `…-rasifiters-master-specs-initiatives-reliability-overhaul-plans/9597ef9d-…/`
+         project dir, `phase-4-plan-c-wf_bc12534e-92f.js`
+     - **From a new session:** every finished agent's output is in
+       `…/9597ef9d-…/subagents/workflows/<run id>/journal.jsonl`, one `"type":"result"` line per agent. Rebuild
+       the plans from there.
+     - **Save the plans to:**
+       - Wave B: `plans/phase-4-n-server/`, `plans/phase-4-p-server/`, `plans/phase-4-c-{web,ios,android}/`
+         (brief / plan / verdict)
+       - Wave C: `plans/phase-4-polish-{web,ios,android}/`
+       - The parity reports go in `plans/phase-4-{np,polish}-parity.md`. The amendments become the binding files,
+         drafted the same way as `phase-3-client-amendments.md`.
+     - Then present both waves to the user for approval.
 
    Orchestrator calls: five categories (program · activity · reminders · digest · announcements). With the switch off,
    program and announcements skip the push but still reach the inbox; activity, reminders and the digest are never
