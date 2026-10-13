@@ -23,8 +23,9 @@ async function getAllMembers(user) {
     return Member.findAll({
         where: { global_role: "standard", ...ownRowOnly },
         order: [["first_name", "ASC"]],
-        // exclude the migration-added auth_user_id so the response matches the legacy shape (D-S1).
-        attributes: { exclude: ["auth_user_id"] }
+        // exclude the migration-added auth_user_id so the response matches the legacy shape (D-S1), and People S1's
+        // hide_activity (the "Hide my activity" rule — never in the directory).
+        attributes: { exclude: ["auth_user_id", "hide_activity"] }
     });
 }
 
@@ -49,7 +50,9 @@ async function getMemberById(memberId, user) {
         date_joined: member.date_joined,
         global_role: member.global_role,
         created_at: member.created_at,
-        updated_at: member.updated_at
+        updated_at: member.updated_at,
+        // People S1 ("Hide my activity" rule): the flag under the email rule — self or a global admin only.
+        ...(showEmail ? { hide_activity: member.hide_activity } : {})
     };
 }
 
@@ -117,7 +120,7 @@ async function createMember({ member_name, gender, email, password }) {
     }
 }
 
-async function updateMember(memberId, { first_name, last_name, gender }, requester) {
+async function updateMember(memberId, { first_name, last_name, gender, hide_activity }, requester) {
     const transaction = await sequelize.transaction();
     try {
         const member = await Member.findByPk(memberId, { transaction });
@@ -132,11 +135,20 @@ async function updateMember(memberId, { first_name, last_name, gender }, request
             await transaction.rollback();
             throw new AppError(403, "You can only update your own profile.");
         }
+        // People S1 ("Hide my activity" rule): the member's own switch only (never a global admin for someone else), a
+        // strict JSON boolean; absent = unchanged (live binaries never send it).
+        if (hide_activity !== undefined && (!isOwnProfile || typeof hide_activity !== "boolean")) {
+            await transaction.rollback();
+            throw isOwnProfile
+                ? new AppError(400, "hide_activity must be true or false.")
+                : new AppError(403, "You can only change your own activity visibility.");
+        }
 
         const updateData = {};
         if (first_name !== undefined) updateData.first_name = first_name.trim();
         if (last_name !== undefined) updateData.last_name = last_name.trim();
         if (gender !== undefined) updateData.gender = gender;
+        if (hide_activity !== undefined) updateData.hide_activity = hide_activity;
 
         await member.update(updateData, { transaction });
         await transaction.commit();
@@ -145,7 +157,8 @@ async function updateMember(memberId, { first_name, last_name, gender }, request
             message: "Profile updated successfully.",
             member_name: member.member_name,
             first_name: member.first_name,
-            last_name: member.last_name
+            last_name: member.last_name,
+            hide_activity: member.hide_activity
         };
     } catch (err) {
         if (err instanceof AppError) throw err;

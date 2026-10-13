@@ -3,6 +3,7 @@ const { DailyHealthLog, WorkoutLog, Member, Program, ProgramMembership, ProgramW
 const { AppError } = require("../utils/response");
 const { getPeriodRange } = require("../utils/dateRange");
 const { activeMembershipInclude, percentChange, buildMTDDateRanges } = require("../utils/queryHelpers");
+const { canView } = require("../utils/memberVisibility");
 
 const toUTCDate = (isoDate) => {
     if (!isoDate) return null;
@@ -115,7 +116,10 @@ const dayDiff = (startISO, endISO) => {
 
 // ── V1 Analytics ──
 
-async function getSummary(period, programId) {
+// People S1 ("Hide my activity" rule): `viewer` = utils/memberVisibility loadViewer's result (the route passes
+// req.viewer). top_performers drops members the viewer may not see under canView(…, "workouts"); every other field
+// counts everyone. No viewer → no top performers (fails closed).
+async function getSummary(period, programId, viewer) {
     if (!programId) throw new AppError(400, "programId is required");
 
     const { current, previous, label } = getPeriodRange(period);
@@ -250,7 +254,7 @@ async function getSummary(period, programId) {
         members: { total: totalMembers, active: activeMembers, at_risk: atRiskMembers },
         timeline: timelineSeries,
         distribution_by_day: distributionByDay,
-        top_performers: topPerformersFormatted,
+        top_performers: topPerformersFormatted.filter((row) => canView(viewer, row.member_id, "workouts")),
         top_workout_types: topWorkoutTypesFormatted
     };
 }

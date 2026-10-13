@@ -1,31 +1,44 @@
 // utils/memberVisibility.js — the ONE rule for who may see which member's data.
-// program-memberships D-C5 (0.3.0) · reliability-overhaul Phase 4 S0 (People D-P8 a). Every per-person read asks
-// canView(viewer, targetMemberId, kind); the routes keep their own status codes + messages.
+// program-memberships D-C5 (0.3.0, Phase 4 S0 / People D-P8 a) + People S1's "Hide my activity" rule.
+// Every per-person read asks canView(viewer, targetMemberId, kind); the routes keep their own status codes + messages.
 //
 //   staff        = an ACTIVE program_memberships row with role "admin" or "logger"
 //   global admin = members.global_role === "global_admin" — passes every kind
 //
 //   kind         who may see it (besides a global admin)
-//   "email"      the member themselves                       (GET /api/members/:id)
+//   "email"      the member themselves                       (GET /api/members/:id — email and hide_activity)
 //   "directory"  nobody (the rest get only their own row)    (GET /api/members)
 //   "roster"     an ACTIVE member of the program             (GET /api/program-memberships/{members,details})
 //   "health"     the member themselves, or program staff     (sleep / diet / steps — averages + daily rows)
-//   "workouts"   the member themselves, staff, or an ACTIVE  (workouts / streaks / history / recent / types)
-//                co-member the target hasn't hidden from
+//   "workouts"   the member themselves, staff, or an ACTIVE  (workouts, workout stats, kudos — every output in
+//                co-member the target hasn't hidden from      specs/features/people/SPEC.md §5)
 //
-// People S1 ("Hide my activity", migration 012) plugs in HERE for every read that already routes through this module:
-// loadViewer fills hiddenMemberIds with the program's hidden members (one query, skipped for staff + global admins)
-// and redactMetricsRow adds the workout-field redaction. NOT routed through here: /analytics/summary top_performers /
-// at_risk (analyticsService.js) — if S1 decides (Phase 4 Q4) to drop hidden members there, that service changes too.
-// In S0 nobody can hide, so "workouts" = any active member (every caller already passed that gate).
-const { ProgramMembership } = require("../models");
+// People S1 (migration 012): loadViewer fills hiddenMemberIds with the program's ACTIVE members who turned on
+// "Hide my activity" — one query, only for a plain ACTIVE member. Callers OMIT what "workouts" refuses, never redact
+// or zero it: member-metrics rows and /analytics/summary top_performers entries are dropped, history / streaks /
+// recent and the ?memberId analytics routes answer 403, People hides stats / recent workouts / kudos.
+// Ids compare in canonical form (canonicalId): PostgreSQL reads upper case, braces or missing hyphens as the same
+// uuid, so any non-canonical spelling is never "self" and never a visible co-member (fails closed).
+const { Member, ProgramMembership } = require("../models");
 
 const STAFF_ROLES = new Set(["admin", "logger"]);
 const HEALTH_FIELDS = ["avg_sleep_hours", "avg_food_quality", "avg_steps"];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const ACTIVITY_HIDDEN_MESSAGE = "This member keeps their activity private.";
+
+/** The canonical (lowercase 8-4-4-4-12) form of an id, or null for anything else — an array included. */
+const canonicalId = (id) => {
+    if (typeof id !== "string") return null;
+    const lower = id.toLowerCase();
+    return UUID_RE.test(lower) ? lower : null;
+};
 
 /** The viewer's context for one program. One composite-PK lookup — none for a global admin, or when programId is
  *  missing / not a single string (a repeated ?programId is never a membership). programRole is the role on a row
- *  of ANY status (null = no row); isActiveMember / isStaff require status "active". */
+ *  of ANY status (null = no row); isActiveMember / isStaff require status "active". hiddenMemberIds (People S1): the
+ *  program's ACTIVE members whose members.hide_activity is true (every "workouts" output is active-only already);
+ *  one more query, only for a plain active member (staff and global admins see everyone; a non-member sees no
+ *  co-member anyway). */
 async function loadViewer(user, programId) {
     const viewer = {
         id: user?.id || null,
@@ -33,7 +46,7 @@ async function loadViewer(user, programId) {
         programRole: null,
         isActiveMember: false,
         isStaff: false,
-        hiddenMemberIds: new Set() // People S1 fills this; always empty in S0
+        hiddenMemberIds: new Set()
     };
     if (viewer.isGlobalAdmin || !viewer.id || typeof programId !== "string" || !programId) return viewer;
 
@@ -46,6 +59,14 @@ async function loadViewer(user, programId) {
     viewer.programRole = membership.role;
     viewer.isActiveMember = membership.status === "active";
     viewer.isStaff = viewer.isActiveMember && STAFF_ROLES.has(membership.role);
+    if (viewer.isActiveMember && !viewer.isStaff) {
+        const hidden = await ProgramMembership.findAll({
+            where: { program_id: programId, status: "active" },
+            attributes: ["member_id"],
+            include: [{ model: Member, attributes: [], where: { hide_activity: true } }]
+        });
+        viewer.hiddenMemberIds = new Set(hidden.map((row) => String(row.member_id).toLowerCase()));
+    }
     return viewer;
 }
 
@@ -56,14 +77,16 @@ const hasProgramAccess = (viewer) => Boolean(viewer && (viewer.isGlobalAdmin || 
 function canView(viewer, targetMemberId, kind) {
     if (!viewer) return false;
     if (viewer.isGlobalAdmin) return true;
-    const isSelf = typeof targetMemberId === "string" && targetMemberId === viewer.id;
+    const target = canonicalId(targetMemberId);
+    const isSelf = target !== null && target === canonicalId(viewer.id);
     switch (kind) {
         case "email": return isSelf;
         case "directory": return false;
         case "roster": return viewer.isActiveMember;
         case "health": return isSelf || viewer.isStaff;
         case "workouts":
-            return isSelf || viewer.isStaff || (viewer.isActiveMember && !viewer.hiddenMemberIds.has(targetMemberId));
+            return isSelf || viewer.isStaff ||
+                (viewer.isActiveMember && target !== null && !viewer.hiddenMemberIds.has(target));
         default:
             throw new Error(`memberVisibility: unknown kind "${kind}"`);
     }
@@ -76,19 +99,33 @@ function redactHealth(row) {
     return row;
 }
 
-/** Every per-kind redaction for one member-metrics row (row.member_id = the target), in place. */
+/** Every per-kind redaction for one member-metrics row (row.member_id = the target), in place. Health only — rows
+ *  "workouts" refuses are omitted by getMemberMetrics, never redacted (the "Hide my activity" rule). */
 function redactMetricsRow(viewer, row) {
     if (!canView(viewer, row.member_id, "health")) redactHealth(row);
     return row;
 }
 
 /** Express guard for a ?memberId read. Must run after a middleware that sets req.viewer (analytics'
- *  requireProgramAccess). No programId or no memberId → pass (the service's native 400 / the program aggregate). */
-const requireMemberView = (kind, message) => (req, res, next) => {
+ *  requireProgramAccess). No programId or no memberId → pass (the service's native 400 / the program aggregate).
+ *  A memberId that isn't one well-formed id → 400 invalid_request. `code` (optional) rides on the 403. */
+const requireMemberView = (kind, message, code) => (req, res, next) => {
     const { programId, memberId } = req.query;
     if (!programId || !memberId) return next();
+    if (canonicalId(memberId) === null) {
+        return res.status(400).json({ error: "memberId must be a valid id.", code: "invalid_request" });
+    }
     if (canView(req.viewer, memberId, kind)) return next();
-    return res.status(403).json({ error: message });
+    return res.status(403).json(code ? { error: message, code } : { error: message });
 };
 
-module.exports = { loadViewer, hasProgramAccess, canView, redactHealth, redactMetricsRow, requireMemberView };
+module.exports = {
+    loadViewer,
+    hasProgramAccess,
+    canView,
+    canonicalId,
+    redactHealth,
+    redactMetricsRow,
+    requireMemberView,
+    ACTIVITY_HIDDEN_MESSAGE
+};

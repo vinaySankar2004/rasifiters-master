@@ -2,7 +2,7 @@ const express = require("express");
 const { authenticateToken } = require("../middleware/auth");
 const analyticsService = require("../services/analyticsService");
 const { AppError } = require("../utils/response");
-const { loadViewer, hasProgramAccess, requireMemberView } = require("../utils/memberVisibility");
+const { loadViewer, hasProgramAccess, requireMemberView, ACTIVITY_HIDDEN_MESSAGE } = require("../utils/memberVisibility");
 
 const v1Router = express.Router();
 const v2Router = express.Router();
@@ -28,10 +28,12 @@ const requireProgramAccess = async (req, res, next) => {
 };
 
 // D-C9 (0.5.0, Phase 4 S0 / People D-P8 a): another member's health (?memberId ≠ the viewer) only for staff (an
-// ACTIVE program admin/logger) or a global admin. The "workouts" guard passes every program member in S0 — it is the
-// People S1 "Hide my activity" hook (analytics-v2 D-C4). Both pass through when memberId is absent (program aggregate).
+// ACTIVE program admin/logger) or a global admin. People S1 ("Hide my activity" rule): the "workouts" guard refuses a
+// co-member who turned on "Hide my activity" → 403 { error, code: "activity_hidden" } for a plain viewer.
+// Both pass through when memberId is absent (program aggregate); a memberId that isn't one well-formed id → 400
+// invalid_request (utils/memberVisibility requireMemberView).
 const requireHealthView = requireMemberView("health", "You can only view your own health data.");
-const requireWorkoutsView = requireMemberView("workouts", PROGRAM_ACCESS_DENIED);
+const requireWorkoutsView = requireMemberView("workouts", ACTIVITY_HIDDEN_MESSAGE, "activity_hidden");
 
 // ── V1 Analytics (/api/analytics/*) ──
 // NOTE: legacy's GET /participation/mtd (v1) is dropped — both clients call the v2 variant
@@ -41,7 +43,8 @@ v1Router.get("/summary", authenticateToken, requireProgramAccess, async (req, re
     try {
         const result = await analyticsService.getSummary(
             (req.query.period || "day").toLowerCase(),
-            req.query.programId
+            req.query.programId,
+            req.viewer
         );
         res.json(result);
     } catch (err) {

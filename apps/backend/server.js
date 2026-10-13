@@ -32,6 +32,7 @@ const notificationInboxRoutes = require("./routes/notificationInbox");
 const notificationPreferenceRoutes = require("./routes/notificationPreferences");
 const announcementRoutes = require("./routes/announcements");
 const { startNotificationScheduler, stopNotificationScheduler } = require("./services/notificationScheduler");
+const peopleRoutes = require("./routes/people");
 // NOTE (faithful rebuild, in progress): the remaining route groups are mounted as each feature is
 // documented (question-asker) + ported. Tracked in COVERAGE.md / specs/features/.
 
@@ -124,6 +125,7 @@ app.use("/api/member-metrics", memberMetricsRoutes);
 app.use("/api/member-history", memberHistoryRoutes);
 app.use("/api/member-streaks", memberStreaksRoutes);
 app.use("/api/member-recent", memberRecentRoutes);
+app.use("/api/people", peopleRoutes); // People (phase-4 S1)
 
 app.get("/api/test", (req, res) => {
     res.json({

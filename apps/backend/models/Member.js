@@ -52,6 +52,13 @@ const Member = sequelize.define("Member", {
         allowNull: true,
         unique: true,
     },
+    hide_activity: {
+        // people SPEC "Hide my activity" (phase-4 D-P6/D-P7, migration sql/012). The rule that reads it lives in
+        // utils/memberVisibility.js only (loadViewer → hiddenMemberIds → canView(…, "workouts")).
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+    },
     created_at: {
         type: DataTypes.DATE,
         defaultValue: DataTypes.NOW,
