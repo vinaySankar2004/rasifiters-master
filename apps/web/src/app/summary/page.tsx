@@ -37,8 +37,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
-import { appError } from "@/lib/kit/app-error";
-import { fromQuery } from "@/lib/kit/async-state";
+import { appError, toAppError } from "@/lib/kit/app-error";
+import { fromQuery, retryNow } from "@/lib/kit/async-state";
 import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
@@ -162,11 +162,17 @@ export default function SummaryPage() {
 
   const summaryQueries = [analyticsQuery, mtdParticipationQuery, totalWorkoutsQuery, totalDurationQuery,
     avgDurationQuery, activityTimelineQuery, distributionQuery, workoutTypesQuery];
+  const summaryKeys = [keys.analytics, keys.mtd, keys.totalWorkouts, keys.totalDuration,
+    keys.avgDuration, keys.timeline, keys.distribution, keys.workoutTypes];  // same order as summaryQueries
   const summaryStates = summaryQueries.map((query) => fromQuery<unknown>(query));
   const failedState = summaryStates.find((state) => state.status === "failed");
   const summaryError = failedState?.status === "failed" ? failedState.error : null;
   const summaryStale = summaryStates.some((state) => state.status === "stale");
-  const retrySummary = () => summaryQueries.forEach((query) => { if (query.isError) void query.refetch(); });
+  // isError is false while TanStack retries in the background — a query with failureCount > 0 is failed too (#6).
+  const retrySummary = () =>
+    summaryQueries.forEach((query, index) => {
+      if (query.isError || query.failureCount > 0) void retryNow(queryClient, summaryKeys[index]);
+    });
   useRefetchOnReconnect(summaryQueries);
 
   const workoutsMutation = useMutation({
@@ -317,7 +323,7 @@ export default function SummaryPage() {
             onClose={() => setShowWorkoutsForm(false)}
             onSubmit={(entries, programIds) => workoutsMutation.mutate({ entries, programIds })}
             isSaving={workoutsMutation.isPending}
-            errorMessage={workoutsMutation.isError ? (workoutsMutation.error as Error).message : null}
+            errorMessage={workoutsMutation.isError ? toAppError(workoutsMutation.error).message : null}
             rowErrors={
               workoutsMutation.error instanceof ApiError
                 ? (workoutsMutation.error.details as BulkRowError[] | undefined) ?? null
@@ -336,7 +342,7 @@ export default function SummaryPage() {
             onClose={() => setShowHealthForm(false)}
             onSubmit={(entries, programIds) => dailyHealthMutation.mutate({ entries, programIds })}
             isSaving={dailyHealthMutation.isPending}
-            errorMessage={dailyHealthMutation.isError ? (dailyHealthMutation.error as Error).message : null}
+            errorMessage={dailyHealthMutation.isError ? toAppError(dailyHealthMutation.error).message : null}
             rowErrors={
               dailyHealthMutation.error instanceof ApiError
                 ? (dailyHealthMutation.error.details as BulkRowError[] | undefined) ?? null

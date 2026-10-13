@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMemberStreaks } from "@/lib/api/members";
+import { toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -43,7 +44,7 @@ export default function MemberStreaksPage() {
 
       {streaksQuery.isLoading && <LoadingState message="Loading streaks..." />}
 
-      {streaksQuery.isError && <ErrorState message={(streaksQuery.error as Error).message} />}
+      {streaksQuery.isError && <ErrorState message={toAppError(streaksQuery.error).message} />}
 
       {streaksQuery.data && (
         <GlassCard padding="lg">

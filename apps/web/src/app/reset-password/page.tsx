@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { BrandMark } from "@/components/BrandMark";
 import { resetPassword } from "@/lib/api/auth";
 import { ApiError } from "@/lib/api/client";
+import { credentialErrorMessage } from "@/lib/kit/app-error";
 import { useAuth } from "@/lib/auth/auth-provider";
 
 // NET-NEW page (no legacy reference) — the SECOND step of the Supabase-Auth self-service recovery path,
@@ -102,11 +103,10 @@ export default function ResetPasswordPage() {
         setLinkError(
           "This password reset link has expired or has already been used. Request a new one below."
         );
-      } else if (error instanceof Error && error.message) {
-        // e.g. the server password-policy 400 — surface it inline.
-        setErrorMessage(error.message);
       } else {
-        setErrorMessage("We couldn't reset your password just now. Please try again.");
+        // Polish #8 (D-KIT-14, sign-in scope): the server's text for 400 / 409 / 422 (e.g. the password policy);
+        // offline, timeouts and 5xx read the kit copy — never "Failed to fetch".
+        setErrorMessage(credentialErrorMessage(error));
       }
     } finally {
       setIsLoading(false);

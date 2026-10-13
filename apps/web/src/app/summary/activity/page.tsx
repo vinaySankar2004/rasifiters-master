@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchActivityTimeline } from "@/lib/api/summary";
+import { toAppError } from "@/lib/kit/app-error";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -41,7 +42,7 @@ export default function ActivityTimelinePage() {
         )}
 
         {timelineQuery.isError && (
-          <ErrorState message={(timelineQuery.error as Error).message} />
+          <ErrorState message={toAppError(timelineQuery.error).message} />
         )}
 
         {timelineQuery.data && (

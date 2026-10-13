@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandMark } from "@/components/BrandMark";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -8,6 +9,9 @@ import { GlassCard } from "@/components/ui/GlassCard";
 export default function SupportPage() {
   return (
     <PageShell maxWidth="3xl">
+      <div className="flex justify-center">
+        <BrandMark size={96} />
+      </div>
       <PageHeader
         title="Support"
         actions={

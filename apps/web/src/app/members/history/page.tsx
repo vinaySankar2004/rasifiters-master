@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMemberHistory } from "@/lib/api/members";
+import { toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -57,7 +58,7 @@ export default function MemberHistoryPage() {
 
       {historyQuery.isLoading && <LoadingState message="Loading timeline..." />}
 
-      {historyQuery.isError && <ErrorState message={(historyQuery.error as Error).message} />}
+      {historyQuery.isError && <ErrorState message={toAppError(historyQuery.error).message} />}
 
       {historyQuery.data && (
         <GlassCard padding="lg">

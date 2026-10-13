@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addWorkoutLogsBatch, BulkRowError, BulkWorkoutEntry } from "@/lib/api/logs";
 import { ApiError } from "@/lib/api/client";
+import { toAppError } from "@/lib/kit/app-error";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { isDataEntryLocked } from "@/lib/permissions";
 import { PageShell } from "@/components/ui/PageShell";
@@ -56,7 +57,7 @@ export default function LogWorkoutsPage() {
           onClose={() => router.push("/summary")}
           onSubmit={(entries, programIds) => workoutsMutation.mutate({ entries, programIds })}
           isSaving={workoutsMutation.isPending}
-          errorMessage={workoutsMutation.isError ? (workoutsMutation.error as Error).message : null}
+          errorMessage={workoutsMutation.isError ? toAppError(workoutsMutation.error).message : null}
           rowErrors={
             workoutsMutation.error instanceof ApiError
               ? (workoutsMutation.error.details as BulkRowError[] | undefined) ?? null

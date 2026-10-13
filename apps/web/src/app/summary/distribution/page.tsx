@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchDistributionByDay } from "@/lib/api/summary";
+import { toAppError } from "@/lib/kit/app-error";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -50,7 +51,7 @@ export default function DistributionPage() {
         )}
 
         {distributionQuery.isError && (
-          <ErrorState message={(distributionQuery.error as Error).message} />
+          <ErrorState message={toAppError(distributionQuery.error).message} />
         )}
 
         {distributionQuery.data && (

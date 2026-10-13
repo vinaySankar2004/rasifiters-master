@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMembershipDetails, removeMembership, updateMembership } from "@/lib/api/programs";
+import { toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { initials } from "@/lib/format";
 import { PageShell } from "@/components/ui/PageShell";
@@ -66,7 +67,7 @@ export default function MemberDetailPage() {
       });
       router.push("/members/list");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to save changes.");
+      setErrorMessage(toAppError(error).message);
     } finally {
       setIsSaving(false);
     }
@@ -81,7 +82,7 @@ export default function MemberDetailPage() {
       await removeMembership(token, { program_id: programId, member_id: member.member_id });
       router.push("/members/list");
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to remove member.");
+      setErrorMessage(toAppError(error).message);
     } finally {
       setIsSaving(false);
     }
@@ -93,7 +94,7 @@ export default function MemberDetailPage() {
 
       {membersQuery.isLoading && <LoadingState message="Loading member..." />}
 
-      {membersQuery.isError && <ErrorState message={(membersQuery.error as Error).message} />}
+      {membersQuery.isError && <ErrorState message={toAppError(membersQuery.error).message} />}
 
       {member && (
         <GlassCard padding="lg">

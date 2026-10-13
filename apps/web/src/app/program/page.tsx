@@ -10,6 +10,7 @@ import { fetchMembershipDetails, leaveProgram, type MembershipDetail } from "@/l
 import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
 import { formatDateRange, initials } from "@/lib/format";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
+import { toAppError } from "@/lib/kit/app-error";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -83,7 +84,7 @@ export default function ProgramPage() {
     return computeProgramProgress(program?.start_date ?? null, program?.end_date ?? null);
   }, [program?.start_date, program?.end_date]);
 
-  const errorMessage = leaveMutation.isError ? (leaveMutation.error as Error).message : null;
+  const errorMessage = leaveMutation.isError ? toAppError(leaveMutation.error).message : null;
 
   return (
     <>

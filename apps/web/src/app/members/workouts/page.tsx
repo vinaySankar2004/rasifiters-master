@@ -10,6 +10,7 @@ import { isDataEntryLocked } from "@/lib/permissions";
 import { fetchMemberRecentWorkouts, type MemberRecentItem } from "@/lib/api/members";
 import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
 import { deleteWorkoutLog, updateWorkoutLog } from "@/lib/api/logs";
+import { toAppError } from "@/lib/kit/app-error";
 import { escapeCsv, downloadCsv, formatDuration } from "@/lib/format";
 import { Select } from "@/components/Select";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
@@ -141,7 +142,7 @@ export default function MemberWorkoutsPage() {
       await queryClient.invalidateQueries({ queryKey: ["members", "workouts", programId, memberId] });
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to delete workout.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 
@@ -159,7 +160,7 @@ export default function MemberWorkoutsPage() {
       setEditTarget(null);
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update workout.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 

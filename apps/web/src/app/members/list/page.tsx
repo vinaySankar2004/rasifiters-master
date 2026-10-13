@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMembershipDetails, type MembershipDetail } from "@/lib/api/programs";
+import { toAppError } from "@/lib/kit/app-error";
 import { initials } from "@/lib/format";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -51,7 +52,7 @@ export default function MembersListPage() {
 
       {membersQuery.isLoading && <LoadingState message="Loading members..." />}
 
-      {membersQuery.isError && <ErrorState message={(membersQuery.error as Error).message} />}
+      {membersQuery.isError && <ErrorState message={toAppError(membersQuery.error).message} />}
 
       {membersQuery.data && filtered.length === 0 && <EmptyState message="No members found." />}
 

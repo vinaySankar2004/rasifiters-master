@@ -31,7 +31,9 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: { retry: shouldRetryQuery, retryDelay: queryRetryDelay },
-          mutations: { retry: false }
+          // Polish #4 (D-KIT-18): a save fires even when the browser reports offline, so it fails at once with the kit
+          // offline copy instead of pausing on "Saving…" forever. Mutations never auto-retry.
+          mutations: { retry: false, networkMode: "always" }
         }
       })
   );

@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchMembershipDetails, updateMembership, type MembershipDetail } from "@/lib/api/programs";
 import { initials } from "@/lib/format";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
+import { toAppError } from "@/lib/kit/app-error";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -69,7 +70,7 @@ export default function ManageRolesPage() {
       if (context?.previous) {
         queryClient.setQueryData(rolesQueryKey, context.previous);
       }
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update role.");
+      setErrorMessage(toAppError(error).message);
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: rolesQueryKey });
@@ -97,7 +98,7 @@ export default function ManageRolesPage() {
 
       {membersQuery.isLoading && <LoadingState message="Loading roles..." />}
 
-      {membersQuery.isError && <ErrorState message={(membersQuery.error as Error).message} />}
+      {membersQuery.isError && <ErrorState message={toAppError(membersQuery.error).message} />}
 
       {membersQuery.data && (
         <div className="space-y-4">

@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Bar, CartesianGrid, ComposedChart, Legend, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchHealthTimeline } from "@/lib/api/lifestyle";
+import { toAppError } from "@/lib/kit/app-error";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
@@ -63,7 +64,7 @@ export default function LifestyleTimelinePage() {
         {timelineQuery.isLoading && <LoadingState message="Loading timeline..." />}
 
         {timelineQuery.isError && (
-          <ErrorState message={(timelineQuery.error as Error).message} />
+          <ErrorState message={toAppError(timelineQuery.error).message} />
         )}
 
         {timelineQuery.data && (

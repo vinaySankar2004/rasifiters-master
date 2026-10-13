@@ -12,6 +12,7 @@ import {
   type ProgramWorkout
 } from "@/lib/api/program-workouts";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
+import { toAppError } from "@/lib/kit/app-error";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -59,7 +60,7 @@ export default function LifestyleWorkoutsPage() {
       }),
     onSuccess: refreshWorkouts,
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update workout.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 
@@ -67,7 +68,7 @@ export default function LifestyleWorkoutsPage() {
     mutationFn: (workout: ProgramWorkout) => toggleCustomWorkoutVisibility(token, workout.id),
     onSuccess: refreshWorkouts,
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update workout.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 
@@ -79,7 +80,7 @@ export default function LifestyleWorkoutsPage() {
       setNewWorkoutName("");
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to add workout.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 
@@ -91,7 +92,7 @@ export default function LifestyleWorkoutsPage() {
       setEditWorkoutName("");
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update workout.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 
@@ -99,7 +100,7 @@ export default function LifestyleWorkoutsPage() {
     mutationFn: (id: string) => deleteCustomProgramWorkout(token, id),
     onSuccess: refreshWorkouts,
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to delete workout.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 

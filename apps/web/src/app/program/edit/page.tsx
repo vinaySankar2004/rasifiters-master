@@ -7,6 +7,7 @@ import { saveActiveProgram } from "@/lib/storage";
 import { updateProgram, type ProgramResponse } from "@/lib/api/programs";
 import { Select } from "@/components/Select";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
+import { toAppError } from "@/lib/kit/app-error";
 import { PageShell } from "@/components/ui/PageShell";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -78,7 +79,7 @@ export default function ProgramEditPage() {
       router.push("/program");
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update program.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 

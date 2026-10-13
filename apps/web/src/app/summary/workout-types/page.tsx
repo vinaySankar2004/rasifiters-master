@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { fetchWorkoutTypes } from "@/lib/api/summary";
+import { toAppError } from "@/lib/kit/app-error";
 import { workoutTypeColor } from "@/lib/workout-colors";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { PageShell } from "@/components/ui/PageShell";
@@ -37,7 +38,7 @@ export default function WorkoutTypesPage() {
         )}
 
         {typesQuery.isError && (
-          <ErrorState message={(typesQuery.error as Error).message} />
+          <ErrorState message={toAppError(typesQuery.error).message} />
         )}
 
         {typesQuery.data && (

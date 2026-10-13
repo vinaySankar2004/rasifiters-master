@@ -9,6 +9,7 @@ import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { isDataEntryLocked } from "@/lib/permissions";
 import { fetchMemberHealthLogs, type MemberHealthItem } from "@/lib/api/members";
 import { deleteDailyHealthLog, updateDailyHealthLog } from "@/lib/api/logs";
+import { toAppError } from "@/lib/kit/app-error";
 import { Select } from "@/components/Select";
 import { sleepLabel, dietLabel, stepsLabel, downloadCsv } from "@/lib/format";
 import { useClientSearchParams } from "@/lib/use-client-search-params";
@@ -163,7 +164,7 @@ export default function MemberHealthPage() {
       setEditTarget(null);
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to update daily health log.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 
@@ -178,7 +179,7 @@ export default function MemberHealthPage() {
       await queryClient.invalidateQueries({ queryKey: ["members", "health", programId, memberId] });
     },
     onError: (error) => {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to delete daily health log.");
+      setErrorMessage(toAppError(error).message);
     }
   });
 

@@ -33,7 +33,7 @@ import { IconUser, IconLock, IconPalette, IconDocument, IconLogout, SearchIcon }
 import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import { appError, toAppError, type AppError } from "@/lib/kit/app-error";
-import { fromQuery } from "@/lib/kit/async-state";
+import { fromQuery, retryNow } from "@/lib/kit/async-state";
 import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
 
@@ -187,7 +187,7 @@ export default function ProgramsPage() {
     },
     onSuccess: () => setOrderError(null),
     onError: async (error) => {
-      setOrderError(error instanceof Error ? error.message : "Couldn't save program order.");
+      setOrderError(`Couldn't save program order. ${toAppError(error).message}`);
       await queryClient.invalidateQueries({ queryKey: ["programs"] });
     }
   });
@@ -323,7 +323,7 @@ export default function ProgramsPage() {
               Loading programs…
             </div>
           )}
-          {listError && <ErrorView error={listError} onRetry={() => void programsQuery.refetch()} />}
+          {listError && <ErrorView error={listError} onRetry={() => void retryNow(queryClient, PROGRAMS_KEY)} />}
           {programsLoaded && programs.length === 0 && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center">
               <p className="text-lg font-semibold text-rf-text">No programs yet</p>
@@ -424,8 +424,8 @@ export default function ProgramsPage() {
                 invites={invitesQuery.data ?? []}
                 isLoading={invitesState.status === "loading"}
                 isGlobalAdmin={isGlobalAdmin}
-                error={invitesState.status === "failed" ? invitesState.error : null}
-                onRetry={() => void invitesQuery.refetch()}
+                error={invitesState.status === "failed" ? (online ? invitesState.error : appError("offline")) : null}
+                onRetry={() => void retryNow(queryClient, ["invites", isGlobalAdmin])}
                 respondError={respondError}
                 onAccept={async (invite) => {
                   try {
@@ -450,7 +450,7 @@ export default function ProgramsPage() {
             ) : (
               <CreateProgramTab
                 isSaving={createProgramMutation.isPending}
-                errorMessage={createProgramMutation.isError ? (createProgramMutation.error as Error).message : null}
+                errorMessage={createProgramMutation.isError ? toAppError(createProgramMutation.error).message : null}
                 onCreate={async (payload) => {
                   try {
                     await createProgramMutation.mutateAsync(payload);
@@ -542,7 +542,7 @@ export default function ProgramsPage() {
           <EditProgramModal
             program={editTarget}
             isSaving={updateProgramMutation.isPending}
-            errorMessage={updateProgramMutation.isError ? (updateProgramMutation.error as Error).message : null}
+            errorMessage={updateProgramMutation.isError ? toAppError(updateProgramMutation.error).message : null}
             onCancel={() => setEditTarget(null)}
             onSave={async (payload) => {
               await updateProgramMutation.mutateAsync({

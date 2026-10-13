@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { addDailyHealthLogsBatch, BulkHealthEntry, BulkRowError } from "@/lib/api/logs";
 import { ApiError } from "@/lib/api/client";
+import { toAppError } from "@/lib/kit/app-error";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { isDataEntryLocked } from "@/lib/permissions";
 import { PageShell } from "@/components/ui/PageShell";
@@ -56,7 +57,7 @@ export default function LogHealthPage() {
           onClose={() => router.push("/summary")}
           onSubmit={(entries, programIds) => dailyHealthMutation.mutate({ entries, programIds })}
           isSaving={dailyHealthMutation.isPending}
-          errorMessage={dailyHealthMutation.isError ? (dailyHealthMutation.error as Error).message : null}
+          errorMessage={dailyHealthMutation.isError ? toAppError(dailyHealthMutation.error).message : null}
           rowErrors={
             dailyHealthMutation.error instanceof ApiError
               ? (dailyHealthMutation.error.details as BulkRowError[] | undefined) ?? null

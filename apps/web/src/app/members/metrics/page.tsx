@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMemberMetrics, type MemberMetrics } from "@/lib/api/members";
-import { initials, escapeCsv, downloadCsv } from "@/lib/format";
+import { initials, downloadCsv } from "@/lib/format";
+import { metricsCsv, metricsCsvFilename } from "@/lib/metrics-csv";
+import { toAppError } from "@/lib/kit/app-error";
 import { FlameIcon, SearchIcon } from "@/components/icons";
 import { Select } from "@/components/Select";
 import { PageShell } from "@/components/ui/PageShell";
@@ -131,42 +133,10 @@ export default function MemberMetricsPage() {
   });
 
   const handleExport = () => {
-    if (!metricsQuery.data || metricsQuery.data.members.length === 0) return;
-    const programName = (program?.name || "Program").replace(/\s+/g, "");
-    const rangeStart = metricsQuery.data.date_range?.start || "all";
-    const rangeEnd = metricsQuery.data.date_range?.end || "today";
-    const filename = `MemberPerformanceMetrics_${programName}_${rangeStart}_to_${rangeEnd}.csv`;
-    const headers = [
-      "Name",
-      "Workouts",
-      "Total Duration",
-      "Avg Duration",
-      "Avg Sleep",
-      "Avg Diet Quality",
-      "Avg Steps",
-      "Active Days",
-      "Workout Types",
-      "Current Streak",
-      "Longest Streak"
-    ];
-    let csv = `${headers.join(",")}\n`;
-    metricsQuery.data.members.forEach((m) => {
-      const row = [
-        escapeCsv(m.member_name),
-        m.workouts,
-        m.total_duration,
-        m.avg_duration,
-        m.avg_sleep_hours ?? "",
-        m.avg_food_quality ?? "",
-        m.avg_steps ?? "",
-        m.active_days,
-        m.workout_types,
-        m.current_streak,
-        m.longest_streak
-      ];
-      csv += `${row.join(",")}\n`;
-    });
-    downloadCsv(filename, csv);
+    const data = metricsQuery.data;
+    if (!data || data.members.length === 0) return;
+    // member-analytics D-C8 (polish #47): exactly the list on screen, in its order, under the shared column contract.
+    downloadCsv(metricsCsvFilename(program?.name, data.date_range), metricsCsv(data.members));
   };
 
   return (
@@ -212,7 +182,7 @@ export default function MemberMetricsPage() {
 
       {metricsQuery.isLoading && <LoadingState message="Loading metrics..." />}
 
-      {metricsQuery.isError && <ErrorState message={(metricsQuery.error as Error).message} />}
+      {metricsQuery.isError && <ErrorState message={toAppError(metricsQuery.error).message} />}
 
       {metricsQuery.data && metricsQuery.data.members.length === 0 && (
         <EmptyState message="No members to display." />
