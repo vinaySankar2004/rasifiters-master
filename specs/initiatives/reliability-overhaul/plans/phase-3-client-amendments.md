@@ -1,6 +1,6 @@
 # Phase 3 client release — approval amendments (all three tracks)
 
-> **Status: proposed 2026-10-13 — binding once the user approves.** Implementers apply these ON TOP of their
+> **Status: APPROVED by the user 2026-10-13 (U1–U3 as recommended) — binding.** Implementers apply these ON TOP of their
 > track's `plan.md`; where a plan and this file disagree, this file wins. Evidence:
 > [`phase-3-client-parity.md`](phase-3-client-parity.md) (P#) and each track's `verdict.md` (C1#/C2#/C3#).
 > Shared docs (feature SPECs, registry, REGISTRY, RELEASES) stay orchestrator-owned: one docs commit at landing.
