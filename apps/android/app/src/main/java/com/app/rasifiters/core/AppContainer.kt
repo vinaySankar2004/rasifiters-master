@@ -27,22 +27,25 @@ class AppContainer(context: Context) {
 
     /** App-level light/dark/system appearance override (survives sign-out). */
     val appearanceStore: AppearanceStore = AppearanceStore(appContext)
-    private val connectivity = ConnectivityObserver(appContext)
-    val isOnline: StateFlow<Boolean> = connectivity.onlineState(appScope)
+    // Lambdas below dereference later properties only when they fire (a probe / a real refresh / a 426) — after
+    // construction (the probe needs a request to prove offline first).
+    private val connectivity = ConnectivityObserver(appContext, appScope, probe = { api.getAppConfig() })
+    val isOnline: StateFlow<Boolean> = connectivity.isOnline
 
-    // Lambdas below dereference later properties only when they fire (a real refresh / a 426) — after construction.
     val refresher = TokenRefresher(
-        BuildConfig.API_BASE_URL, session, Network.refreshClient(),
+        BuildConfig.API_BASE_URL, session, Network.refreshClient(connectivity),
         onRefreshFailed = { kind, status, code -> events.refreshFailed(kind, status, code) },
         onSessionInvalid = { programContext.onSessionInvalid() },
     )
-    val api: ApiService = Network.build(BuildConfig.API_BASE_URL, session, refresher, onUpgradeRequired = { versionGate.markRequired() })
+    val api: ApiService = Network.build(
+        BuildConfig.API_BASE_URL, session, refresher, connectivity, onUpgradeRequired = { versionGate.markRequired() },
+    )
     val events = ClientEventQueue(appContext, api, appScope)
     val versionGate = VersionGate(appContext, api)
     val deviceRegistry = DeviceRegistry(appContext, api, session, appScope)
     val launchCache = LaunchCache(appContext)
     val programContext: ProgramContext = ProgramContext(
-        api, session, BuildConfig.API_BASE_URL, appContext, refresher, events, deviceRegistry, launchCache, isOnline,
+        api, session, BuildConfig.API_BASE_URL, appContext, refresher, events, deviceRegistry, launchCache, connectivity,
     )
 
     init {
@@ -50,8 +53,8 @@ class AppContainer(context: Context) {
             events.forcedSignOut("token_store_unreadable")
             programContext.noteForcedSignOut()   // A2: the reset is explained on Login too
         }
-        // A3: a refresh backoff never outlives a lost connection — every offline→online transition clears it. Collecting
-        // here also keeps the ONE connectivity monitor hot for the process (banner + SSE reconnect pause read it).
+        // A3: a refresh backoff never outlives a lost connection — every offline→online transition of the combined
+        // (link + proven-offline) value clears it.
         appScope.launch {
             var wasOnline = isOnline.value
             isOnline.collect { online ->

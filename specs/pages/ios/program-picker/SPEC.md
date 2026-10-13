@@ -1,6 +1,6 @@
 # Screen: `program-picker` (ios) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.1 · **App:** `ios` (SwiftUI)
 > **Location:** the root view once `authToken` is set — `AppRootView.swift:11-14` shows `ProgramPickerView()`
 > inside a `NavigationStack`. Both `LoginView` + `CreateAccountView` flip the root here on success.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift`.
@@ -124,7 +124,8 @@ downstream log screens, never gating the picker (no data entry on this screen).
   dismissable kit error banner. One floating banner at a time (`bottomInset: 150`, above the FAB stack): action
   error > stale > "update available"; the list's bottom spacer grows while one shows. Offline → the app-wide offline
   banner instead (AppRootView), whose band is a bottom safe-area inset on the whole stack, so the cards and floating
-  buttons sit above it. Back online → refetch.
+  buttons sit above it. Back online → refetch. A load that fails while offline (link down or proven offline —
+  polish-1) shows the offline error view, a client timeout included.
 - **Invite push tap (D-C3):** pops to the picker and opens the program-actions sheet on its Invites tab.
 - **Delete / Sign-out:** native confirm `Alert`s before the destructive action.
 - **Forward dependencies (all DEFERRED stubs):** `AdminHomeView`, `ProgramActionsSheet`, `EditProgramInfoView`,
@@ -159,6 +160,7 @@ downstream log screens, never gating the picker (no data entry on this screen).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **Polish 1 (offline detection).** Offline = link down OR proven offline by a failed request (`NetworkMonitor`); with no list, a load that fails while offline → the kit's offline `ErrorStateView` + Retry, a client timeout included (`AppError.labeled(online:)`, rule 6); the offline banner, stale-banner suppression and refetch-on-reconnect follow the combined value. |
 | 0.3.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0).** D-C2: instant open (cache, then network), programs + invites in parallel, kit error view / stale / action-error / update banners (one at a time, `bottomInset: 150`), pull-to-refresh with the header as a top safe-area inset (cards unmoved), refetch on reconnect — D-C1 superseded. D-C3: an invite push tap opens the Invites tab; the card's invited Accept / Decline retired (Cancel request kept). |
 | 0.2.2 | 2026-07-05 | **Search toggle moved out of the header (user feedback):** the 0.2.1 header magnifier circle squeezed the "My Programs" title into wrapping. Now a `floatingSearchButton` stacked above the floating "+" (bottom-right, 14pt gap, identical circle style); header restored to its original layout. Pill/filter semantics unchanged. |
 | 0.2.1 | 2026-07-05 | **Search UI slimmed (user feedback after simulator pass):** dropped `.searchable` (nav-drawer field collided with the custom header + restyled the screen). Now a 56pt header magnifier circle (matching the account button) toggles a floating `.ultraThinMaterial` capsule with autofocus + clear; top spacer animates 90→148pt; closing clears the query. Drag-reorder confirmed working in the simulator; filter/`onMove`-disable semantics unchanged. |

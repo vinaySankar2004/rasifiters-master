@@ -37,8 +37,9 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { Modal } from "@/components/ui/Modal";
 import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
+import { appError } from "@/lib/kit/app-error";
 import { fromQuery } from "@/lib/kit/async-state";
-import { useOnlineStatus } from "@/lib/kit/use-online-status";
+import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
 import {
@@ -166,6 +167,7 @@ export default function SummaryPage() {
   const summaryError = failedState?.status === "failed" ? failedState.error : null;
   const summaryStale = summaryStates.some((state) => state.status === "stale");
   const retrySummary = () => summaryQueries.forEach((query) => { if (query.isError) void query.refetch(); });
+  useRefetchOnReconnect(summaryQueries);
 
   const workoutsMutation = useMutation({
     mutationFn: ({ entries, programIds }: { entries: BulkWorkoutEntry[]; programIds: string[] }) =>
@@ -219,7 +221,8 @@ export default function SummaryPage() {
     <PageShell>
         <SummaryHeader title="Summary" subtitle={program?.name ?? "Program"} initials={userInitials || "RF"} />
 
-        {summaryError && <ErrorView error={summaryError} onRetry={retrySummary} />}
+        {/* polish-1 rule 6: a read that failed while offline shows the kit's offline view (a timeout included). */}
+        {summaryError && <ErrorView error={online ? summaryError : appError("offline")} onRetry={retrySummary} />}
 
         <div className="grid gap-5">
           <div className="grid gap-5 md:grid-cols-2">

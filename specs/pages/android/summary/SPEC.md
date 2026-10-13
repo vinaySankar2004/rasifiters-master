@@ -1,6 +1,6 @@
 # Screen: `summary` (android) — the per-program workspace overview (first bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-summary`](../../ios/admin-summary/SPEC.md)
 > + [`web summary`](../../web/summary/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.SUMMARY` (`SummaryScreen`) — Tab 1 of the per-program
@@ -30,8 +30,9 @@
   `requireDataEntryAllowed` 403 (reached by the deferred log forms) is the real boundary.
 - **D-C3 (frontend kit + instant opens, 0.2.0):** on a program change this member's **cached Summary** for that
   program shows first (`core/LaunchCache`; never another program's values); the **7 reads run in parallel**. With no
-  data yet the analytics area is a **spinner, never zero cards**; a first load that fails entirely → `ErrorView` +
-  Retry. A **partial** failure keeps the parts that loaded (the failed parts keep this program's previous values; with no
+  data yet the analytics area is a **spinner, never zero cards** (while offline — polish-1's link + proven-offline
+  monitor — the kit's **offline** `ErrorView` + Retry instead, never a spinner); a first load that fails entirely →
+  `ErrorView` + Retry. A **partial** failure keeps the parts that loaded (the failed parts keep this program's previous values; with no
   previous value a failed card shows its title + **"—"**, never a fake zero or an empty chart) and shows the floating
   **"Couldn't refresh"** banner + Retry (A13); a response that lands after a sign-out / program switch is dropped; a fully failed reload with data → the same stale
   banner. While it shows, the content gains 84 dp of bottom space. Offline is the app-wide banner above the nav bar
@@ -80,5 +81,6 @@ detail screens). Program progress needs **no** call (read from the `ProgramDTO`)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | **Polish 1 (offline detection).** No data while offline (link down OR proven offline by a failed request) → the kit's offline `ErrorView` + Retry, never the spinner (rule 6); back online, a failed / stale Summary reloads itself (D-KIT-13). Compile-checked green (`assembleDebug`). |
 | 0.2.0 | 2026-10-13 | **Reliability Phase 3 C3 — D-C3.** Cached Summary first, 7 parallel reads with partial-failure merge, spinner (never zero cards), `ErrorView`, floating stale banner (offline = the app-wide banner), pull to refresh with a `pull_to_refresh` health sync. D-C1 superseded. Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase D — the Summary **dashboard landing**). `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`; `ProgramContext` gains `summary`/`summaryLoading`/`summaryError` + `dataEntryLocked` + `loadSummary()`; `net` gains 7 analytics DTOs + `SummaryData` + 7 GET endpoints; theme gains `AppOrangeGradientEnd`/`AppBlue`/`AppPurple`/`AppRed` + `ChartPalette` + `workoutTypePaletteColor`. Faithful to iOS/web incl. D-C1 error banner + D-C2 data-lock; deviations A-1..A-4 (no card reorder, signed-in-user avatar, ProgramDTO progress source, Canvas charts). The 5 forward targets stubbed per D-SCOPE. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

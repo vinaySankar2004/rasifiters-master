@@ -110,7 +110,10 @@ Connect". **No background sync** (H-1 / D-6). Code: `health/*` + `ui/health/*`.
 Program picker + Summary: this member's cached data first (`core/LaunchCache`, `noBackupFilesDir`, written only while
 signed in, cleared by the teardown), then refresh; programs + invites load in parallel; Summary's 7 reads in
 parallel (a partial failure keeps the parts that loaded); a first load that fails with no data → `ErrorView`; pull to
-refresh on both. One app-wide connectivity monitor → one floating offline banner (picker: above the FABs; program
+refresh on both. One app-wide connectivity monitor (`core/kit/ConnectivityObserver`, polish-1: `isOnline = linkUp &&
+!provenOffline` — a no-connection failure on the main / refresh OkHttp clients sets it, any network HTTP response / a link
+down→up / a `GET /app-config` probe — at once, then every 10 s while foregrounded — clears it; back online, a failed / stale
+picker or Summary reloads itself, D-KIT-13) → one floating offline banner (picker: above the FABs; program
 shell: above the nav bar; elsewhere at the bottom — the content gives up its height while it shows); stale →
 "Couldn't refresh"; the picker also shows "update available". `core/VersionGate` reads `GET /app-config` on launch /
 foreground / before a widget replay (≤ 3 s): below `min_android_version_code` or any 426 → the blocking

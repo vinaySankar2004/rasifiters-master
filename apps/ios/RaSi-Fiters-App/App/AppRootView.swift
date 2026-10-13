@@ -60,7 +60,7 @@ struct AppRootView: View {
             if oldToken == nil, newToken != nil { programContext.sessionDidBecomeActive(.launch) }
         }
         .onChange(of: programContext.isOnline) { _, online in
-            // A4: stream reconnects pause while offline; the link coming back resumes them (foreground only).
+            // A4: stream reconnects pause while offline; coming back online (NetworkMonitor) resumes them (foreground only).
             if online, scenePhase == .active { programContext.startNotificationStreamIfNeeded() }
         }
         .onReceive(NotificationCenter.default.publisher(for: PushNotificationTapped.notificationName)) { _ in

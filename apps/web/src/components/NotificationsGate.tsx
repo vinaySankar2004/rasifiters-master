@@ -197,7 +197,7 @@ export function NotificationsGate() {
   // of silence = reconnect with a fresh token (a deploy ends streams with a plain close; a 401 leaves EventSource
   // CLOSED for good). EventSource hides the status, so after 3 failed opens in a row one session refresh runs
   // (rate-limited in client.ts) in case the server already treats the token as expired. Re-created on every token
-  // change; paused while hidden or offline (the `online` event restarts it).
+  // change; paused while hidden or offline (the combined online value — link + API reachability — restarts it).
   useEffect(() => {
     if (!shouldRun || !visible || !online) return;
     let cancelled = false;

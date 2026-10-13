@@ -73,6 +73,10 @@ Reliability Phase 3 C1 (auth §3.1, notifications §3.3, observability §4.1/§8
   `/unacknowledged` on every start and every `ready` (a re-fetch drops queued items acknowledged elsewhere; a
   just-acknowledged id is ignored for 2 min); backoff 1 s ×2, capped at 30 s, full jitter; a 60 s idle timeout
   (server pings every 25 s); one forced refresh after 3 failed opens.
+- **Connectivity (polish-1, `lib/kit/use-online-status.ts`)**: online = `navigator.onLine` && not proven offline (an API fetch
+  rejected with a `TypeError`, never our timeout); cleared by any HTTP answer (not `/app-config`), a link down→up, or a probe
+  (`GET /app-config` no-store, 5 s, right away then every 10 s while visible) — banner, stale-banner hiding, SSE pause, refresh-backoff reset,
+  no query auto-retry while offline, and the launch screens' offline view + reconnect refetch all use this one value.
 - **Kit adoption scope**: QueryClient defaults; the global offline banner (`shell.tsx`, with bottom scroll room while
   it shows); `/programs`, `/summary`, `/program/profile`, `/program/password`, `/members/invite`, `/login`,
   `/create-account`.

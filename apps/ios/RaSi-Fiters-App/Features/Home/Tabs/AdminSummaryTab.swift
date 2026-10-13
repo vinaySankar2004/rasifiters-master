@@ -155,7 +155,7 @@ struct AdminSummaryTab: View {
             loadState = .fresh(pid)
             return
         }
-        guard let appError = AppError(failure) else { return }        // cancelled = superseded, not a failure
+        guard let appError = AppError(failure)?.labeled(online: programContext.isOnline) else { return }   // cancelled = superseded; polish-1 rule 6
         // A13: parts that loaded stay on screen as stale data (never the error view over real values).
         loadState = result.applied ? .stale(pid, fetchedAt: Date(), error: appError) : loadState.failing(with: appError)
     }

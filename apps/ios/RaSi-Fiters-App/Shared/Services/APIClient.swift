@@ -73,6 +73,15 @@ final class APIClient {
         return try JSONDecoder().decode(AppConfigResponse.self, from: data)
     }
 
+    /// polish-1 rule 4, NetworkMonitor's offline probe: `GET /app-config`, no auth, 5 s, never from URLCache (the
+    /// route is cacheable, D-C2). `transport` reports the outcome; the answer itself is unused.
+    func probeReachability() async {
+        var request = URLRequest(url: baseURL.appendingPathComponent("app-config"),
+                                 cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 5)
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        _ = try? await transport(request)
+    }
+
     /// Every JSON call: the authenticated path (`rawData`, APIClient+Session); non-2xx → `APIHTTPError`.
     func data(for request: URLRequest, allowRefresh: Bool = true) async throws -> Data {
         let response: (Data, HTTPURLResponse)

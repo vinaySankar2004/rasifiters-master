@@ -41,6 +41,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.SummaryData
 import com.app.rasifiters.core.SummaryPart
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.AppErrorKind
 import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppOrange
@@ -50,6 +52,8 @@ import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.components.kit.ErrorView
 import com.app.rasifiters.ui.components.kit.FloatingBanner
 import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -87,6 +91,13 @@ fun SummaryScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) 
     LaunchedEffect(program?.id, refreshToken) {
         if (program != null) programContext.loadSummary()
     }
+    // D-KIT-13: back online → a failed / stale Summary reloads by itself.
+    LaunchedEffect(Unit) {
+        programContext.isOnline.drop(1).filter { it }.collect {
+            val st = programContext.summaryState.value
+            if (st is UiState.Failed || st is UiState.Stale) programContext.loadSummary()
+        }
+    }
 
     val summary = state.dataOrNull
     // Offline is the app-wide banner (AppScaffold, A6); this screen adds only its own "Couldn't refresh".
@@ -122,6 +133,8 @@ fun SummaryScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) 
                 val current = state
                 when {
                     summary != null -> SummaryAnalytics(summary, onNavigate)
+                    // polish-1 rule 6: no data while offline → the kit's offline view + Retry, never a spinner.
+                    !online -> ErrorView(AppError(AppErrorKind.OFFLINE), onRetry = { scope.launch { programContext.loadSummary() } })
                     current is UiState.Failed -> ErrorView(current.error, onRetry = { scope.launch { programContext.loadSummary() } })
                     else -> Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()

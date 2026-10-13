@@ -17,6 +17,7 @@ import { expiresWithin, isTokenExpired, tokenSubject } from "@/lib/auth/jwt";
 import { fetchMe, logout as apiLogout, logoutAll as apiLogoutAll, refreshSession as apiRefreshSession } from "@/lib/api/auth";
 import { ApiError, REFRESH_WINDOW_S, setSessionBridge } from "@/lib/api/client";
 import { KIT_COPY } from "@/lib/kit/copy";
+import { subscribeReconnect } from "@/lib/kit/use-online-status";
 import { failureProps, flushEvents, reportEvent, requestIdOf, startClientEvents } from "@/lib/events/client-events";
 
 // Sessions client contract (auth SPEC §3.1; DESIGN_BOARD §2 client rules 1-6). One token store (session.ts); the HTTP
@@ -231,14 +232,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return startClientEvents();
   }, [isBootstrapping]);
 
-  // Back online = the refresh backoff (set while offline) is moot: the next request or Retry refreshes at once.
-  useEffect(() => {
-    const onOnline = () => {
-      backoffUntilRef.current = 0;
-    };
-    window.addEventListener("online", onOnline);
-    return () => window.removeEventListener("online", onOnline);
-  }, []);
+  // Back online (the combined value — link up AND the API reachable, polish-1) = the refresh backoff (set while
+  // offline) is moot: the next request or Retry refreshes at once.
+  useEffect(
+    () =>
+      subscribeReconnect(() => {
+        backoffUntilRef.current = 0;
+      }),
+    []
+  );
 
   // A fresh sign-in is taken as issued — never bounced on the device clock (a fast clock would read it as expired).
   const setSession = useCallback((next: SessionState | null) => {

@@ -82,6 +82,12 @@ struct AppError: LocalizedError {
         }
     }
 
+    /// polish-1 rule 6: a load that fails while the app is offline shows the offline error view — a client-side
+    /// timeout over a dead link included (online, a timeout keeps its own copy; an HTTP 408 always does).
+    func labeled(online: Bool) -> AppError {
+        online || kind != .timeout || status != nil ? self : AppError(kind: .offline)
+    }
+
     /// Pure HTTP → AppError mapping: the status decides the kind; `code` is carried, never decisive.
     /// A 401 maps to `.signedOut` for display only — except on credential endpoints (scope rule above).
     static func fromHTTP(

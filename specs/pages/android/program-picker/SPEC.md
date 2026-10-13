@@ -1,6 +1,6 @@
 # Screen: `program-picker` (android) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-picker`](../../ios/program-picker/SPEC.md)
 > + [`web programs`](../../web/programs/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `SignedInGraph` route `Routes.PROGRAM_PICKER` (`ProgramPickerScreen`) — the
@@ -68,7 +68,8 @@
   default tab→start-tab pop. On a detail/log screen it's disabled, so back there pops the detail as usual.
 - **A-7 (frontend kit, 0.3.0):** this member's **cached list shows first** (`core/LaunchCache`), then refreshes;
   programs + the invite inbox load **in parallel**; a failed first load with no cache → `ErrorView` + Retry (never an
-  empty "No programs yet"); **pull to refresh** (M3 `PullToRefreshBox`) reloads both. ONE floating banner slot above
+  empty "No programs yet"); no data while offline (polish-1: link down or proven offline) → the kit's **offline**
+  `ErrorView` + Retry, never the spinner; **pull to refresh** (M3 `PullToRefreshBox`) reloads both. ONE floating banner slot above
   the FABs (`FloatingBanner`, `bottomInset = 146.dp` + `navigationBarsPadding`): **offline** (the app-wide
   connectivity monitor, A6) › **stale** ("Couldn't refresh" + Retry) › **update available** (A-8). While a banner
   shows, the list's bottom padding grows from 120 dp to 238 dp (146 + the 76 dp banner block + a 16 dp gap) **plus the
@@ -104,6 +105,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **Polish 1 (offline detection).** No data while offline (link down OR proven offline by a failed request) → the kit's offline `ErrorView` + Retry, never the spinner (rule 6); the offline banner now follows the combined monitor; back online, a failed / stale list reloads itself (D-KIT-13). Compile-checked green (`assembleDebug`). |
 | 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3.** Invites move to the ONE inbox (`/my-invites`; global admins `/all-invites` + Revoke) answered via `/invite-response` with the decline "Block future invites" dialog; inline invited Accept/Decline retired, requested Cancel Request kept (A-4/A-5 rewritten, A10). Kit adoption: cached list first, parallel loads, `ErrorView`, one floating offline / stale / update banner above the FABs with list padding, pull to refresh (A-7). Update-available banner + withheld sheets under the blocking update screen (A-8). Invite push tap opens the invites tab (A-9). D-C1 narrowed to reorder / delete / cancel failures. Compile-checked green (`assembleDebug`). |
 | 0.2.0 | 2026-07-08 | Forward-nav wired (pre-Phase-H cleanup). New `ProgramActionsSheet` (My Invites / Create) on the "+" → `POST /programs` `createProgram` (ApiService + ProgramContext + `CreateProgramRequest/Response`), fixed-height tab region so the sheet doesn't resize between tabs (A-5). Account sheet's Profile/Change-Password/Appearance/Notifications rows now navigate to the real settings screens (registered in `SignedInGraph`); Health-Connect row removed (deferred, A-3). Edge-back from the 4 main tabs pops to the picker (A-6, `AppScaffold` `BackHandler`). App-wide background standardized to the solid theme background (auth-only orange gradient removed). Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase C — first authenticated screen). `ProgramPickerScreen` + `AccountMenuSheet`; `ProgramContext` gains `programs`/`activeProgram` state + `loadPrograms`/`moveProgram`/`persistProgramOrder`/`deleteProgram`/`respondToInvite`/`selectProgram`; `ProgramDTO` + order/membership DTOs + 4 endpoints. Faithful to iOS/web incl. D-C1 error banner + D-N1 reorder/search; Android-idiom deviations A-1..A-4 (overflow-menu Edit/Delete, long-press-drag reorder, `ModalBottomSheet` account sheet, list-derived invite badge). Forward-nav deferred per D-SCOPE. `RootScreen` now routes token→picker→shell. Compile-checked green (`android-build`, `assembleDebug` BUILD SUCCESSFUL). Visual run = user. |

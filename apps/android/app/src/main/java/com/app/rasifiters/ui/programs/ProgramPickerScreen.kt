@@ -70,6 +70,8 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.app.rasifiters.core.ProgramContext
 import com.app.rasifiters.core.VersionGate
+import com.app.rasifiters.core.kit.AppError
+import com.app.rasifiters.core.kit.AppErrorKind
 import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.kit.toAppError
@@ -81,6 +83,8 @@ import com.app.rasifiters.ui.components.kit.ErrorView
 import com.app.rasifiters.ui.components.kit.FloatingBanner
 import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -136,6 +140,13 @@ fun ProgramPickerScreen(
         launch { programContext.loadInvites() }
     }
     LaunchedEffect(Unit) { reloadAll() }
+    // D-KIT-13: back online → a failed / stale list reloads by itself.
+    LaunchedEffect(Unit) {
+        programContext.isOnline.drop(1).filter { it }.collect {
+            val st = programContext.programsState.value
+            if (st is UiState.Failed || st is UiState.Stale) reloadAll()
+        }
+    }
     // Invite push tap (U2): open the actions sheet on its invites tab, then refresh.
     LaunchedEffect(inviteInboxRequest) {
         if (!inviteInboxRequest) return@LaunchedEffect
@@ -196,6 +207,9 @@ fun ProgramPickerScreen(
             ) {
                 val current = loadState
                 when {
+                    // polish-1 rule 6: nothing to show while offline → the kit's offline view + Retry, never a spinner.
+                    programs.isEmpty() && current.dataOrNull == null && !online ->
+                        ErrorView(AppError(AppErrorKind.OFFLINE), Modifier.align(Alignment.Center), onRetry = { scope.launch { reloadAll() } })
                     programs.isEmpty() && current is UiState.Failed ->
                         ErrorView(current.error, Modifier.align(Alignment.Center), onRetry = { scope.launch { reloadAll() } })
                     programs.isEmpty() && (current is UiState.Loading || current is UiState.Idle) ->

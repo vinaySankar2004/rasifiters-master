@@ -1,7 +1,7 @@
 # Feature: `frontend-kit` — shared loading / error / offline / banner kit (web + iOS + Android)
 
 > **Status:** 🧩 adopted (Phase 3 client release: web live; iOS 1.5.0 (58) + Android 1.1.0 (5) built — 🚀 deployed once
-> both store builds are live) · **Version:** 0.2.0 ·
+> both store builds are live) · **Version:** 0.3.0 ·
 > **Apps (`consumed_by`):** `web` `ios` `android`
 > **Provenance:** net-new — reliability overhaul Phase 2 track D. Contract = [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md)
 > §6 (W7) + W7-D1 (one palette = web's) + W7-D2 (keep data + "Couldn't refresh — Retry"); evidence =
@@ -91,9 +91,10 @@ state from TanStack v5 with `fromQuery`, matching the transitions: data + error 
 data → loaded (refreshing = isFetching — a Retry from stale shows loaded-refreshing, exactly like
 `refreshing()`) · error → failed · paused with no data → failed(offline) (never an endless spinner) ·
 pending + not fetching → idle · else loading.
-Connectivity is link-level everywhere (D-KIT-7): web `navigator.onLine` + `online`/`offline` events; iOS
-`NWPathMonitor` `.satisfied`; Android default network has `NET_CAPABILITY_INTERNET`. One monitor per app,
-started once at adoption.
+Connectivity = **link up AND not proven offline** (D-KIT-16, 0.3.0): the link signal (web `navigator.onLine`; iOS
+`NWPathMonitor` `.satisfied`; Android `NET_CAPABILITY_INTERNET`) plus request evidence — a no-connection failure flips
+to offline at once, any network answer or a probe of `GET /api/app-config` (at once, then every 10 s while
+foreground) flips back. One monitor per app, started once at launch.
 
 ## 6. Banner + error view
 | Variant | Dot | Text | Action |
@@ -169,7 +170,8 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   `APIHTTPError` (status, `code`, `retryAfter`, `requestId`), Android `ApiException.retryAfter`.)*
 - **D-KIT-6 Five states** (§5); "empty" is a view decision; W7-D2 is encoded in `failing()`; web `fromQuery`
   follows the same transitions (a retry in flight is loaded-refreshing, not stale).
-- **D-KIT-7 Link-level connectivity on all three** (Android: `NET_CAPABILITY_INTERNET`, NOT `VALIDATED`) so
+- **D-KIT-7 Link-level connectivity on all three** *(superseded in part at v0.3.0 by D-KIT-16: the link is now only
+  half of the signal)* (Android: `NET_CAPABILITY_INTERNET`, NOT `VALIDATED`) so
   the offline banner means the same thing everywhere and never false-alarms on networks that fail Android's
   validation; a reachable-but-failing server surfaces through the vocabulary instead.
 - **D-KIT-8 Bottom floating banner, max 520, min height 52, tap targets ≥ 44/48, never over bottom controls**
@@ -219,16 +221,28 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   `toCredentialMessage`. A Google provider failure on web shows the kit `unknown` copy (A8).
 - **D-KIT-15 Per-surface realization (0.2.0; platform idiom only).** **Web:** the offline banner sits in `app/shell.tsx`
   outside `<main>` + a spacer while offline; pages hide their stale banner while offline; the launch cache is read only
-  in `useLaunchSeed`'s effect (never in render — no hydration mismatch). **iOS:** the root `.floatingBanner(bottomInset:
-  floatingBannerInset)` in `AppRootView` — the visible stack publishes its inset (picker FAB stack 150, AdminHomeView's
-  tab bar 64, pushed screens 0) and a root `safeAreaInset` reserves 76 pt on every screen while it shows; a screen's
-  banner goes through `ScreenBanner` (hidden while offline); picker banner
+  in `useLaunchSeed`'s effect (never in render — no hydration mismatch). **iOS:** the root `.floatingBanner` in `AppRootView` at inset 0, with a `safeAreaInset` of 76 pt on both
+  NavigationStacks while offline so every screen's content, tab bar and FABs sit above it; a screen's banner goes
+  through `ScreenBanner` (hidden while offline); picker banner
   priority = action error > stale > update-available. **Android:** the offline banner in `RootScreen` with per-screen
   placement + a content reserve (picker list clearance 238 dp + the nav-bar inset); Summary merges a partial failure
   with `—` placeholders (no longer fails all seven reads); `core/LaunchCache.kt`; the blocking
   `ui/components/UpdateRequiredScreen.kt`.
+- **D-KIT-16 Offline = no real reachability, not just no link (0.3.0; reliability-overhaul polish 1,
+  `plans/polish-1-offline-detection.md`).** `isOnline = linkUp && !provenOffline`. *Proven offline* is set by a request
+  that fails with a no-connection error — iOS `URLError` notConnectedToInternet · networkConnectionLost · cannotFindHost
+  · cannotConnectToHost · dnsLookupFailed · internationalRoamingOff · dataNotAllowed; Android `UnknownHost` · `Connect`
+  · `NoRouteToHost` · `PortUnreachable` (cause chain included); web a `fetch` `TypeError` that isn't our own timeout
+  abort. **Timeouts and TLS failures are not offline.** It clears on any real network answer (cacheable `/app-config`
+  answers excluded), on a link down→up change, or on a probe — `GET /api/app-config` bypassing the HTTP cache, 5 s
+  timeout, **at once and then every 10 s** while proven offline, the link is up and the app is in the foreground (web:
+  tab visible); iOS also probes at once on a path change while proven offline. Everything keyed on connectivity (the
+  banner, screen-banner suppression A6, refresh-backoff reset A3, SSE pause A4, refetch on reconnect D-KIT-13 —
+  Android's launch screens now do it too) uses the combined value. With no data while offline the launch screens show
+  the offline error view, never a spinner. Web: queries don't auto-retry while offline. Why: the user's iPhone in
+  airplane mode (a USB developer link kept the path "satisfied") showed a spinner and never the offline banner.
 
-## 10. Not in 0.2.0 / open
+## 10. Not in 0.3.0 / open
 Loading skeleton, empty view, toast (board §6.6); spacing/type/radius tokens; Next.js `error.tsx`; web: the TanStack
 query `signal` is not combined with the request's own 15 s abort (the fetchers take no signal). Delivered in 0.2.0
 (D-KIT-13): `QueryClient` defaults, the 15 s timeout, the on-device cache (D-9), the offline banner (it replaced iOS's
@@ -236,6 +250,9 @@ query `signal` is not combined with the request's own 15 s abort (the fetchers t
 update screen.
 
 ## 11. Changelog
+- **v0.3.0** (2026-10-13) — **D-KIT-16**: offline = link up AND not proven offline (request evidence + an
+  `/app-config` probe at once then every 10 s) on all three; D-KIT-7 superseded in part; Android launch screens refetch
+  on reconnect; D-KIT-15 iOS line corrected (root safe-area inset, no per-screen inset plumbing). Polish 1.
 - **v0.2.0** (2026-10-13) — **adopted** (reliability-overhaul Phase 3 client release — web live, iOS 1.5.0 (58),
   Android 1.1.0 (5)); status built → adopted. D-KIT-13 adoption rules (global offline banner, launch screens on the five
   states + partial failures + pull-to-refresh, per-member launch cache written only while signed in, 15 s timeout, web

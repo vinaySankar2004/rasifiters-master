@@ -32,9 +32,9 @@ import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
 import { IconUser, IconLock, IconPalette, IconDocument, IconLogout, SearchIcon } from "@/components/icons";
 import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
-import { toAppError, type AppError } from "@/lib/kit/app-error";
+import { appError, toAppError, type AppError } from "@/lib/kit/app-error";
 import { fromQuery } from "@/lib/kit/async-state";
-import { useOnlineStatus } from "@/lib/kit/use-online-status";
+import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
 
 const STATUS_OPTIONS = ["planned", "active", "completed"] as const;
@@ -87,6 +87,10 @@ export default function ProgramsPage() {
   const programsState = fromQuery(programsQuery);
   const invitesState = fromQuery(invitesQuery);
   const online = useOnlineStatus();
+  // polish-1 rule 6: nothing to show while offline → the kit's offline view + Retry, never a spinner.
+  const offlineEmpty = !online && (programsState.status === "loading" || programsState.status === "failed");
+  const listError = offlineEmpty ? appError("offline") : programsState.status === "failed" ? programsState.error : null;
+  useRefetchOnReconnect([programsQuery, invitesQuery]);
 
   const updateMembershipMutation = useMutation({
     mutationFn: (payload: { programId: string; status: string }) => {
@@ -314,14 +318,12 @@ export default function ProgramsPage() {
         )}
 
         <section className="space-y-6 pb-28 sm:pb-0">
-          {programsState.status === "loading" && (
+          {programsState.status === "loading" && !offlineEmpty && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center text-rf-text-muted">
               Loading programs…
             </div>
           )}
-          {programsState.status === "failed" && (
-            <ErrorView error={programsState.error} onRetry={() => void programsQuery.refetch()} />
-          )}
+          {listError && <ErrorView error={listError} onRetry={() => void programsQuery.refetch()} />}
           {programsLoaded && programs.length === 0 && (
             <div className="glass-card rounded-3xl px-6 py-8 text-center">
               <p className="text-lg font-semibold text-rf-text">No programs yet</p>

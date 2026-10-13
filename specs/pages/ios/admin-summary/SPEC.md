@@ -84,7 +84,8 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   in-card "No data yet" (the timeline card's never-ending spinner is gone — W7 F3).
 - **Error (D-C3, supersedes the D-C1 banner):** nothing loaded for this program → `ErrorStateView` (Retry) and the
   analytics cards hide (the add / progress cards stay) — never another program's or zero values; some parts loaded, or
-  data + a failed refresh → those values stay with the kit stale banner. Back online → refetch. Pull-to-refresh reloads now and starts a background
+  data + a failed refresh → those values stay with the kit stale banner. Back online → refetch. A load that fails
+  while offline (link down or proven offline — polish-1) shows the offline error view, a client timeout included. Pull-to-refresh reloads now and starts a background
   `pull_to_refresh` sync; a sync that lands workouts bumps `summaryRefreshToken` → reload again.
 - **Reorder:** drag a card → `CardDropDelegate` moves it + `persistOrder()` writes
   `summary.card.order.<programId>`; `restoreOrder()` merges saved + any new cards, enforcing add-workout/
@@ -122,6 +123,10 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   boundary is the backend 403 (`requireDataEntryAllowed`) reached by the deferred log forms. (web F2 mirror)
 
 ## 11. Changelog
+- **v0.2.1** (2026-10-13, polish 1 — offline detection) — offline = link down OR proven offline by a failed request
+  (`NetworkMonitor`); nothing loaded + a load that fails while offline → the kit's offline `ErrorStateView` + Retry, a
+  client timeout included (`AppError.labeled(online:)`, rule 6); stale-banner suppression and refetch-on-reconnect
+  follow the combined value.
 - **v0.2.0** (2026-10-13, reliability Phase 3 C2) — D-C3: 8 parallel loads, `LoadState` + `.task(id:)`, cache-first,
   kit error view (analytics cards hidden) + stale banner (D-C1 superseded), pull-to-refresh with a background sync,
   reload when a sync lands workouts, refetch on reconnect, the timeline spinner fix.

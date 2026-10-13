@@ -26,7 +26,8 @@ extension APIClient {
     /// `requestBodyStreamExhausted` instead (read as "couldn't confirm"). The 401 retry builds a new stream.
     private static let oneShotBodyPaths = ["auth/change-password", "auth/email"]
 
-    /// One exchange on the 15 s session: identity headers + a fresh `X-Request-Id`. No auth logic.
+    /// One exchange on the 15 s session: identity headers + a fresh `X-Request-Id`. No auth logic. Every outcome is
+    /// reported to `NetworkMonitor` (polish-1: a no-connection failure proves offline, an answer clears it).
     func transport(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
         var request = request
         if let body = request.httpBody, let path = request.url?.path, Self.oneShotBodyPaths.contains(where: { path.hasSuffix($0) }) {
@@ -36,8 +37,15 @@ extension APIClient {
         }
         Self.identityHeaders.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
         request.setValue(UUID().uuidString, forHTTPHeaderField: "X-Request-Id")
-        let (data, response) = try await session.data(for: request)
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            NetworkMonitor.shared.requestFailed(error)
+            throw error
+        }
         guard let http = response as? HTTPURLResponse else { throw APIError(message: "No response") }
+        NetworkMonitor.shared.requestAnswered(request, http)
         if http.statusCode == 426 { updateRequiredHandler?() }
         return (data, http)
     }

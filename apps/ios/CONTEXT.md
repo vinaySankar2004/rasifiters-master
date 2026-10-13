@@ -71,6 +71,8 @@ Phase 3 C2):
   pause health sync, clear the launch cache + tokens + `session.*`); the client event queue survives it. A forced
   sign-out is explained once (splash subheadline, else the login alert); any sign-in clears it. Offline → one
   app-wide banner whose band is a bottom safe-area inset on both stacks; reconnecting clears the refresh back-off.
+  Offline = link down OR proven offline (polish-1): `NetworkMonitor` flips on a no-connection `URLError` from
+  `transport` and clears on any network answer, the link coming up, or a foreground `GET /app-config` probe (5 s, every 10 s).
   "Sign out everywhere" lives in My Profile above Delete Account. The change-password / email `PUT`s send a one-shot
   body (no silent CFNetwork replay).
   15 s request timeout; every call sends `X-App-Platform` / `X-App-Version` / `X-App-Build` + a fresh `X-Request-Id`.

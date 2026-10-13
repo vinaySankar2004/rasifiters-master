@@ -67,7 +67,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 @Composable
 fun RootScreen(programContext: ProgramContext, appearanceStore: AppearanceStore, versionGate: VersionGate) {
     val signedIn by programContext.isSignedIn.collectAsStateWithLifecycle()
-    // Collected here for the whole foreground: keeps the ONE connectivity monitor hot (banner + SSE reconnect pause).
+    // The ONE connectivity monitor's combined state (link up && not proven offline, polish-1) — the root offline banners.
     val online by programContext.isOnline.collectAsStateWithLifecycle()
     val updateRequired by versionGate.required.collectAsStateWithLifecycle()
     val notificationQueue by programContext.notificationQueue.collectAsStateWithLifecycle()

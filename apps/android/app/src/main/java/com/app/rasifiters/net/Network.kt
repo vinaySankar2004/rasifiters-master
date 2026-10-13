@@ -14,12 +14,18 @@ import okhttp3.Route
 import okhttp3.logging.HttpLoggingInterceptor
 import okio.BufferedSink
 import retrofit2.Retrofit
+import java.io.IOException
+import java.net.ConnectException
+import java.net.NoRouteToHostException
+import java.net.PortUnreachableException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 /**
  * Builds the single ApiService + the refresh and SSE clients. Every client sends the observability §4.1 identity
  * headers. The Bearer comes from the ONE token store (proactive refresh at < 60 s), a 401 triggers one single-flight
- * refresh + one retry ([TokenRefresher]), and a 426 opens the blocking update screen (app-config D-C5).
+ * refresh + one retry ([TokenRefresher]), and a 426 opens the blocking update screen (app-config D-C5). The main and
+ * refresh clients report every call's outcome to the connectivity monitor ([ReachabilityListener], polish-1).
  */
 object Network {
     val json = Json { ignoreUnknownKeys = true; explicitNulls = false; coerceInputValues = true }
@@ -30,10 +36,18 @@ object Network {
     /** notifications §3.3: the server pings every 25 s, so 60 s of silence = a dead stream → reconnect. */
     private const val STREAM_IDLE_TIMEOUT_S = 60L
 
-    /** Main client. Order: identity headers → one-shot bodies → bearer (proactive refresh) → 426 gate → logging; 401 → [AuthAuthenticator]. */
-    fun build(baseUrl: String, session: Session, refresher: TokenRefresher, onUpgradeRequired: () -> Unit): ApiService {
+    /** Main client. Order: reachability → identity headers → one-shot bodies → bearer (proactive refresh) → 426 gate →
+     *  logging; 401 → [AuthAuthenticator]. */
+    fun build(
+        baseUrl: String,
+        session: Session,
+        refresher: TokenRefresher,
+        reachability: ReachabilityListener,
+        onUpgradeRequired: () -> Unit,
+    ): ApiService {
         val client = OkHttpClient.Builder()
             .callTimeout(REQUEST_TIMEOUT_S, TimeUnit.SECONDS)
+            .addInterceptor(ReachabilityInterceptor(reachability))
             .addInterceptor(ClientHeadersInterceptor())
             .addInterceptor(OneShotBodyInterceptor())
             .addInterceptor(AuthHeaderInterceptor(session, refresher))
@@ -46,9 +60,10 @@ object Network {
             .build().create(ApiService::class.java)
     }
 
-    /** The refresh call's own client — no auth layer (no loops), still the §4.1 headers. */
-    fun refreshClient(): OkHttpClient = OkHttpClient.Builder()
+    /** The refresh call's own client — no auth layer (no loops), still the §4.1 headers + reachability reporting. */
+    fun refreshClient(reachability: ReachabilityListener): OkHttpClient = OkHttpClient.Builder()
         .callTimeout(REFRESH_TIMEOUT_S, TimeUnit.SECONDS)
+        .addInterceptor(ReachabilityInterceptor(reachability))
         .addInterceptor(ClientHeadersInterceptor()).build()
 
     /** SSE client: 60 s idle timeout (pings every 25 s keep it alive), §4.1 headers. */
@@ -60,6 +75,38 @@ object Network {
     /** Retrofit needs a trailing slash on the base for relative endpoint paths to resolve. */
     private fun normalizeBase(base: String) = if (base.endsWith("/")) base else "$base/"
 }
+
+/** polish-1: where every call's outcome is reported (the app's ONE connectivity monitor). Called on OkHttp threads. */
+interface ReachabilityListener {
+    /** The server answered — any HTTP status. */
+    fun onResponse()
+
+    /** The call failed with a no-connection error (never a timeout, TLS failure or cancellation). */
+    fun onNoConnection()
+}
+
+/** Outermost, so it sees each call's final outcome: a network response → [ReachabilityListener.onResponse]; a
+ *  no-connection failure → [ReachabilityListener.onNoConnection]; the exception is always rethrown unchanged. No client
+ *  has an OkHttp Cache today; the networkResponse check keeps a cache-only answer from ever counting as reachability. */
+private class ReachabilityInterceptor(private val listener: ReachabilityListener) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val response = try {
+            chain.proceed(chain.request())
+        } catch (e: IOException) {
+            if (e.isNoConnection()) listener.onNoConnection()
+            throw e
+        }
+        if (response.networkResponse != null) listener.onResponse()
+        return response
+    }
+}
+
+/** polish-1 rule 2: the no-connection classes, on the exception itself or anywhere in its cause chain. */
+private fun Throwable.isNoConnection(): Boolean = generateSequence(this) { it.cause }.take(MAX_CAUSE_DEPTH).any {
+    it is UnknownHostException || it is ConnectException || it is NoRouteToHostException || it is PortUnreachableException
+}
+
+private const val MAX_CAUSE_DEPTH = 8
 
 /** Paths that must never trigger a refresh (no loops; logout / unregister / events work without a valid login). */
 private val NO_REFRESH_SUFFIXES = listOf(

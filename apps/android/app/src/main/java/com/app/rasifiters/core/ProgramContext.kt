@@ -7,6 +7,7 @@ import com.app.rasifiters.core.events.signInFailed
 import com.app.rasifiters.core.events.signInProviderFailed
 import com.app.rasifiters.core.kit.AppErrorException
 import com.app.rasifiters.core.kit.AppErrorKind
+import com.app.rasifiters.core.kit.ConnectivityObserver
 import com.app.rasifiters.core.kit.KitCopy
 import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.dataOrNull
@@ -123,10 +124,13 @@ class ProgramContext(
     private val events: ClientEventQueue,
     private val deviceRegistry: DeviceRegistry,
     private val launchCache: LaunchCache,
-    /** One app-wide connectivity monitor (frontend-kit §5) — the global offline banner + SSE reconnect pause. */
-    val isOnline: StateFlow<Boolean>,
+    private val connectivity: ConnectivityObserver,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    /** One app-wide connectivity monitor (frontend-kit §5, polish-1: link && !proven offline) — the global offline
+     *  banner + SSE reconnect pause. */
+    val isOnline: StateFlow<Boolean> = connectivity.isOnline
 
     /**
      * Health Connect auto-sync (Phase H) — the analog of the iOS Apple-Health lifecycle that hangs off
@@ -596,6 +600,7 @@ class ProgramContext(
 
     /** RootScreen ON_START — `launch` (first start of this signed-in state) or `foreground`. */
     fun onForeground(trigger: String) {
+        connectivity.setForeground(true)   // the offline probe runs signed in or out
         events.flushSoon()
         if (!session.signedIn.value) return
         startNotificationStream()
@@ -603,8 +608,11 @@ class ProgramContext(
         health.onTrigger(trigger)
     }
 
-    /** RootScreen ON_STOP — the stream is foreground-only. */
-    fun onBackground() = pauseNotificationStream()
+    /** RootScreen ON_STOP — the stream and the offline probe are foreground-only. */
+    fun onBackground() {
+        connectivity.setForeground(false)
+        pauseNotificationStream()
+    }
 
     /** notifications §3.3: after every `ready`, re-fetch — drops items acknowledged elsewhere, keeps our own recent acks
      *  out (A4), and refreshes the invite inbox when an invite is among them. */

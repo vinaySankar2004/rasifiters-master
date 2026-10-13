@@ -1,6 +1,7 @@
 import { API_BASE_URL } from "@/lib/config";
 import { expiresWithin, isTokenExpired, tokenSubject } from "@/lib/auth/jwt";
 import { KIT_COPY } from "@/lib/kit/copy"; // copy.ts imports app-error types only — no runtime cycle
+import { reportHttpResponse, reportNoConnection } from "@/lib/kit/use-online-status";
 
 // The one HTTP client: auth SPEC §3.1 (sessions), observability §4.1 + §8 (identity headers), frontend-kit D-KIT-5
 // (code / Retry-After capture). Session calls send the CURRENT token at send time (read through the bridge
@@ -163,6 +164,9 @@ async function send(path: string, options: ApiRequestOptions, token: string | nu
       body: options.body ? JSON.stringify(options.body) : undefined,
       signal: controller.signal
     });
+    // polish-1: a real HTTP answer clears "proven offline" — never /app-config, which the browser may serve from its
+    // 5-min HTTP cache (the connectivity probe fetches it with no-store itself).
+    if (!path.startsWith("/app-config")) reportHttpResponse();
     const text = response.status === 204 ? "" : await response.text();
     return {
       status: response.status,
@@ -172,6 +176,8 @@ async function send(path: string, options: ApiRequestOptions, token: string | nu
       retryAfter: parseRetryAfter(response.headers.get("Retry-After"))
     };
   } catch (error) {
+    // polish-1: a network-error rejection (TypeError) proves offline; our own timeout abort never does.
+    if (!timedOut && error instanceof TypeError) reportNoConnection();
     throw timedOut ? timeoutError() : error;
   } finally {
     clearTimeout(timer);

@@ -534,7 +534,9 @@ struct ProgramPickerView: View {
             programContext.programs = programs
             loadState = .fresh(programs)
         } catch {
-            if let appError = AppError(error) { loadState = loadState.failing(with: appError) }
+            if let appError = AppError(error) {
+                loadState = loadState.failing(with: appError.labeled(online: programContext.isOnline))   // polish-1 rule 6
+            }
         }
         await invites.value
     }
