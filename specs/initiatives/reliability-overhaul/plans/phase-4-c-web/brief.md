@@ -1,0 +1,168 @@
+# SCOPE BRIEF — Phase 4 Track C (web only): notifications client N3 (+ N7/N8 client parts), People client S2 + S5 (polish #32), and the composer (D-N16)
+
+- **Features**:
+  - notifications@0.5.0, going to 0.6.0 via N-SRV (+ a PATCH via S1) (SPEC: specs/features/notifications/SPEC.md) · consumed_by [web, ios, android]. This track adopts C1–C7 (§3.4–§3.8 after the N-SRV docs land).
+  - people (NEW 0.1.0, created by S1 docs; not yet in registry.json) (SPEC: specs/features/people/SPEC.md) · consumed_by [] → += web.
+  - members@0.4.0 (S0 working tree; S1 → next MINOR) (SPEC: specs/features/members/SPEC.md) · consumed_by [web, ios, android]. Web reads and writes `hide_activity`.
+  - invites@0.2.1 (SPEC: specs/features/invites/SPEC.md) · consumed_by [web, ios, android]. The "My Invites" tab becomes Inbox. Mark invite items read after accept or decline (C7.7).
+  - observability@0.3.0, going to 0.4.0 via N-SRV (SPEC: specs/features/observability/SPEC.md) · consumed_by [web, ios, android]. Web sends `X-Time-Zone`.
+  - frontend-kit@0.3.0 (SPEC: specs/features/frontend-kit/SPEC.md) · consumed_by [web, ios, android]. Consumed only (fromQuery / ErrorView / FloatingBanner / useRefetchOnReconnect). It changes only if the orchestrator puts new shared copy into the kit table (open question 1).
+- **Pages/screens**:
+  - Changed:
+    - web/programs (specs/pages/web/programs/SPEC.md): Inbox tab, server badge, account rows.
+    - web/program (specs/pages/web/program/SPEC.md): account section rows, the "View Members" row becomes People.
+    - web/members (specs/pages/web/members/SPEC.md): People pill for every role, S5 kit.
+    - web/members/list (specs/pages/web/members/list/SPEC.md): becomes the People list.
+    - web/program/profile (specs/pages/web/program/profile/SPEC.md): Hide my activity.
+    - web/privacy-policy (specs/pages/web/privacy-policy/SPEC.md).
+    - web/program/privacy (specs/pages/web/program/privacy/SPEC.md).
+  - NEW page SPECs:
+    - web/members/person (specs/pages/web/members/person/SPEC.md): profile.
+    - web/program/notifications (specs/pages/web/program/notifications/SPEC.md): settings.
+    - web/program/announcements (specs/pages/web/program/announcements/SPEC.md): composer.
+  - Plus rows in specs/pages/REGISTRY.md.
+- **Files (exhaustive — implementer may touch ONLY these), grouped by surface**:
+  - backend/ — none. Implement against the N-SRV C1–C8 and People §A–§F contracts.
+  - ios/ — none (parallel track N4/S3).
+  - android/ — none (parallel track N5/S4).
+  - web/ — modify:
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/api/client.ts — `send()` headers (:155-163). Add `"X-Time-Zone": Intl.DateTimeFormat().resolvedOptions().timeZone`, guarded with try/omit (C1).
+      - CORS needs no change: backend `cors()` at server.js:55-69 has no `allowedHeaders`, so the request's headers are reflected.
+      - EventSource can't send headers, and the stream doesn't need them.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/api/notifications.ts — rewrite (22 lines today).
+      - `InboxItem` (C3).
+      - fetchInbox(limit, before), fetchUnreadCount, markRead({ids}|{all}), fetchPreferences, updatePreferences (partial PUT).
+      - Remove `fetchUnacknowledgedNotifications` / `acknowledgeNotification` (C7.3; nothing else imports them).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/NotificationsGate.tsx — rewrite, keeping the mount in shell.tsx:60.
+      - Stream `?token=…&inbox=1`.
+      - No `/unacknowledged` and no modal queue (N-5, :51-307).
+      - On `ready` / item: invalidate unread + inbox.
+      - Keep the per-type query invalidation (:102-140, incl. `program.updated`/`deleted` → refresh the active program).
+      - An invite item refreshes `["invites", …]`.
+      - Toast only if `categories[item.category]` is on in the cached preferences (C7.5).
+      - Keep the A4 SSE values and the offline/visibility pause.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/NotificationModal.tsx — DELETE (its only importer is the gate).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/programs/page.tsx (1232 lines; **shared with quick-wins #8, uncommitted working tree — build on top**). Wiring only:
+      - The "+" FAB badge (:258-262) = unread-count `badge`.
+      - Tab label (:412) → "Inbox". Pending invites stay first, then `<InboxList>`.
+      - Auto-open the sheet on the Inbox tab from `?open=inbox`.
+      - Account modal rows (:489-535): Inbox, Notifications, and Announcements (global admin only).
+      - `respondInviteMutation` success → mark that program's unread `program.invite_received` items read (C7.7).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/page.tsx (**shared with quick-wins #8**).
+      - `MyAccountSection` (:446+): the same 3 rows.
+      - The Members-section "View Members" row (:142-176) → People.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/page.tsx (838 lines; not touched by other tracks).
+      - Header "View Members" pill (:259-266, today `!canViewAs`, so admins and global admins lack it) → "People" for every role (D-P2 a).
+      - S5: kit recipe on the dashboard queries (:147-198) and cards — loading placeholders, ErrorView/"Couldn't load · Retry", useRefetchOnReconnect. No fake 0 and no "No workouts logged yet" on failure (:580, :728).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/list/page.tsx (**shared with quick-wins #8 at :55**) — rewrite into the People list over `GET /api/people`:
+      - "You" first, server initials, last active, every row → `/members/person?memberId=`.
+      - Hidden member = name + one honest line.
+      - Kit states. Today the rows are clickable only for global admins (:65).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/profile/page.tsx (515 lines) — import and render `<HideActivityToggle>` between the Gender select (:284) and the sign-out-everywhere block (:465). No other change.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/api/members.ts — `MemberProfile.hide_activity?: boolean`; the `updateMemberProfile` payload and response gain `hide_activity`.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/privacy-policy/page.tsx (**shared with quick-wins #48 BrandMark, uncommitted — merge, never overwrite**). People plan §A items 1–5. Anchors: :17 subtitle, :58 notifications bullet, after :68, first `<li>` after :74, after :114.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/privacy/page.tsx — the identical §A edits. Anchors: :16, :50, after :60, after :66, after :106.
+  - web/ — NEW (suggested names; the planner may merge them but not add others):
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/notifications/stream.ts — the SSE connect/backoff/idle hook, moved out of the gate so the gate stays ≤ ~200 lines.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/notifications/queries.ts — query keys + hooks: unread count, inbox (cursor paging), preferences, markRead, markInviteItemsRead(programId).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/notifications/targets.ts — target → route (C2):
+      - `invites`/`inbox` → `/programs?open=inbox`
+      - `program` → saveActiveProgram(program_id) (the gate's existing fetchPrograms pattern) → workspace
+      - `programs` → `/programs`
+      - `log_workout` → `/summary/log-workout`, or `/programs` with no active program
+      - unknown → inbox
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/notifications/NotificationToast.tsx — "<title> · View" with auto-dismiss.
+      - It must not collide with the kit FloatingBanner (bottom, z-40) or the bottom nav, so top-center under modals (z-50+) is suggested.
+      - It must fit on mobile and desktop.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/notifications/InboxList.tsx — the inbox list: unread state, `next_cursor` paging, kit loading/error/empty. Opening it marks items read; tapping an item marks it read and routes.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/ui/Switch.tsx — an accessible toggle (none exists in components/ui), used by the settings page and HideActivityToggle.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/notifications/page.tsx — Notifications settings (`useAuthGuard({requireProgram:false})`):
+      - 5 category switches using C2 labels plus one-line explanations.
+      - Reminder time (default 19:00).
+      - Honest opt-in wording for Reminders and Digest, and a note that web has no push (reminders and digest land in the inbox).
+      - Partial PUT, kit states.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/announcements/page.tsx — the composer shell. Global admins only; everyone else is redirected (the server also returns 403).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/announcements/ComposerForm.tsx — the form:
+      - Target: program / chosen members / everyone.
+      - Title ≤100 and body ≤500, with merge-field chips. `{program_name}` only for a program target.
+      - Delivery: now, or local date (today..+30) + time.
+      - Live preview for a sample recipient. The limit is 30/min, so use an explicit Preview or a ≥2 s debounce.
+      - Send (10/h). Show the 400 server text (invalidInput).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/announcements/MemberPicker.tsx — multi-select over `GET /api/members`.
+      - It returns the full directory only for global admins (S0 D-C3) and excludes global admins (`global_role:"standard"`).
+      - Maximum 200 members.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/announcements/AnnouncementHistory.tsx — `GET /announcements` (newest 50), status + counts, Cancel for scheduled/sending (409 handled).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/api/announcements.ts — list / preview / create / cancel, plus the directory fetch (`GET /members`).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/api/people.ts — listPeople, getPersonProfile, giveKudos (201/200), undoKudos (no `count`; decrement on `removed`).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/members/person/page.tsx — the profile (`?memberId=`, `force-dynamic` + useClientSearchParams like members/detail):
+      - Streaks, active days this month, last 10 workouts, last active, kudos.
+      - "Open full stats" if `can_open_full_stats`.
+      - A global-admin link to /members/detail.
+      - Hidden member: name only + a one-line explanation.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/people/KudosButton.tsx — one per day, undoable, shows the count. Handle 403 `activity_hidden` (re-fetch) and 429.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/people/HideActivityToggle.tsx — reads `hide_activity` from the profile query and sends `PUT /members/:id {hide_activity}`, with one-line copy (what it hides, from whom).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/people/ActivityVisibilityNotice.tsx — the U-1(b) one-time "Who can see your activity" notice (localStorage flag) with Keep visible / Hide my activity, using the People plan §B copy. Build it ONLY if U-1 = (b).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/members/MemberDashboardCards.tsx — the S5 cards (MemberOverviewCard…MemberHealthCard, members/page.tsx:517-770) extracted with loading/failed props, so members/page.tsx shrinks.
+  - docs (orchestrator docs commit):
+    - Changed page SPECs: specs/pages/web/{programs, program, members, members/list, program/profile, privacy-policy, program/privacy}/SPEC.md.
+    - NEW page SPECs: specs/pages/web/{members/person, program/notifications, program/announcements}/SPEC.md.
+    - specs/pages/REGISTRY.md.
+    - Feature SPECs: specs/features/{notifications, people, invites, members, observability}/SPEC.md (the web client realization; notifications D-C18 web line, F7/F8 superseded).
+    - specs/features/registry.json + REGISTRY.md (people consumed_by += web).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/CONTEXT.md (SSE §:72, NotificationsGate :153, route count).
+- **DB surface**: none. Client only; everything goes through the API.
+- **Flags/env/config involved**:
+  - No new env vars.
+  - Routes stay inside the existing middleware.ts matcher (`/program/:path*`, `/members/:path*`), so middleware.ts and robots.ts need no change.
+  - `X-Time-Zone` is required by the server for local-time announcements.
+  - Compile gate: `npm run build` (apps/web).
+- **Blast radius**:
+  - Dependents of notifications: programs, program-memberships, invites (FYI; emit signature unchanged).
+  - Dependents of people: member-analytics, analytics, analytics-v2 (S1 adds `depends_on` people).
+  - Surfaces to keep in parity: web / ios / android.
+  - Platform divergences to call out:
+    - Web has no push, no app-icon badge, no permission ask and no channels.
+    - The composer is web only (D-N16).
+  - Existing web pages are unaffected by the new S1 403s: lifestyle view-as is admin-only (lifestyle/page.tsx:58), and the Members view-as is admin/logger (staff).
+- **Live-binary compat**:
+  - None from this track: no backend contract change.
+  - Deploy ORDER still matters:
+    - Web N3 must go live only after 011 is on public AND the notifications 0.6.0 backend is live. Before that, `/inbox`, `/preferences` and `/announcements` return 404, and `?inbox=1` gets legacy 7-field frames.
+    - Web People (S2) must go live only after 012 + S1 are live, and per U-3 (recommended) together with the store release.
+  - After N3, web stops acknowledging via `/unacknowledged`. Read = acknowledged (D-N5), so reading on web clears the item for old apps too (intended).
+- **Doc↔code mismatches found**:
+  - specs/pages/REGISTRY.md members/list row says `fetchProgramMembers`, but the code and page SPEC use `fetchMembershipDetails` (`GET /program-memberships/details`). The members/detail row says `removeMember`; the code says `removeMembership`.
+  - Line drift:
+    - notifications SPEC D-C2/D-C5 cite `NotificationsGate.tsx:144` for `?token=`; it is now :241.
+    - DISCOVERY P-2 `members/list/page.tsx:64` → :65; `members/detail/page.tsx:32-36` → :33-37.
+  - Cross-plan contract conflicts (they don't change web code — web uses `/inbox` + C3 — but the orchestrator must reconcile them):
+    - People §F says kudos is delivered via `/unacknowledged` with push data `notification_id/type/program_id` only. N-SRV keeps `activity.kudos_received` out of LEGACY_TYPES, so it is never on `/unacknowledged`, and push adds `category`/`target`. People step-28 checks on `/unacknowledged` therefore pass vacuously.
+    - People S1 passes raw "Kudos received" copy, whereas N-SRV C8 renders the kudos templates.
+    - People seam S-3 `getMemberTimeZone` (utils/notifications.js) does not exist in the N-SRV plan; N-SRV has `notificationPreferenceService.getTimeZones`.
+    - People seam S-1 `canViewRoster` does not match the working-tree S0 module API (`loadViewer` / `canView(viewer, target, kind)` in apps/backend/utils/memberVisibility.js). G0 will stop on it.
+  - D-N1 says four categories; the C2 contract has five (+ Announcements, D-N16). The task follows C2.
+- **Out of scope (explicitly)**:
+  - All backend, iOS and Android code.
+  - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/shell.tsx — the gate keeps its mount.
+  - members/detail/page.tsx: unchanged; it is reached from the profile; polish #11 is not here.
+  - members/metrics, lifestyle/*, summary/*.
+  - lib/kit/* (unless open question 1 adds shared copy).
+  - providers.tsx and middleware.ts.
+  - Web push / service worker.
+  - Any streak-semantics change (people F1).
+  - Other polish rows (#22 tab-pick/accept progress, #41 support row, etc.).
+  - App/web version bumps.
+- **Open questions for the orchestrator**:
+  1. **Shared Phase-4 copy table.** Who pins one cross-surface table (A1-style) before the three client tracks start? It would cover: the 5 category one-liners, the opt-in wording, the toast format, inbox empty text, the Hide-my-activity one-liner, the hidden-member line, and the People/profile labels. Only the C2 labels and the People §B notice and footnote are pinned today. Without one table the tracks will drift.
+  2. **U-1 (consent notice) and U-3 (People go-live timing) are still open.** Recommended: build ActivityVisibilityNotice, ship N3 on web once N-SRV is live, and hold the web S2 deploy for the store release.
+  3. **Global admins:** the server `badge` counts only their OWN pending invites, but today's web badge counts all system invites (`fetchAllInvites`). Recommendation: badge = server `badge` for everyone; the Inbox tab shows the All Invites (+Revoke) section first, then their own notifications.
+  4. **Inbox entry from the Program-tab account section.** Recommendation: the row navigates to `/programs?open=inbox`, with no standalone inbox page.
+  5. **"Open full stats" target on web.**
+     - Admins: preset the Members-tab "View as" (sessionStorage `rf:members:view-as:<programId>:<userId>`) and open /members.
+     - Loggers: the logger overview is self-only (members/page.tsx:141), so open `/members/history|streaks|workouts?memberId=` instead.
+     - This needs a parity answer with the iOS and Android tracks.
+  6. **Global-admin path to /members/detail** once roster rows open profiles: recommend a "Manage membership" link on the profile (D-P11). Please confirm.
+  7. **Routes:** reuse `/members/list` for People (keeps the Program-tab row and the detail page's back/push links) plus new `/members/person`, `/program/notifications` and `/program/announcements`. Please confirm.
+  8. **Opening the inbox:** mark `{all:true}`, or only the ids of the loaded page?
+  9. **Privacy policy:** neither plan adds a line for the newly captured time zone or for reminders, digest and announcements. Should web add one alongside the People §A text?
+  10. **Composer history + Cancel** (`GET /announcements`, `POST /:id/cancel`) isn't named in D-N16. It is recommended because it is the only way to stop a scheduled send. Note the composer can't be tested on staging (no global admin there), so it is tested on prod with an own-id `members` target.

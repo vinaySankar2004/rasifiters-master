@@ -1,0 +1,155 @@
+# SCOPE BRIEF: Phase 4 Track C, the iOS client for Notifications (N4 + client parts of N7/N8) and People (S3 + S5 = polish #32)
+
+- **Features**:
+  - notifications@0.5.0 → 0.6.0 when N-SRV lands (SPEC: specs/features/notifications/SPEC.md) · consumed_by [web, ios, android]
+  - people@new 0.1.0, server S1 (SPEC: specs/features/people/SPEC.md, created by S1) · consumed_by [] → += ios
+  - members@0.4.0 (SPEC: specs/features/members/SPEC.md): `hide_activity` read and write · consumed_by [web, ios, android]
+  - invites@0.2.1 (SPEC: specs/features/invites/SPEC.md): the invites section moves into the Inbox · consumed_by [web, ios, android]
+  - frontend-kit@0.3.0 (SPEC: specs/features/frontend-kit/SPEC.md): every new screen adopts it; the toast is not a kit primitive today (§10) · consumed_by [web, ios, android]
+  - member-analytics@0.5.0 (SPEC: specs/features/member-analytics/SPEC.md): S5 client states only · consumed_by [web, ios, android]
+  - observability@0.3.0 → 0.4.0 (SPEC: specs/features/observability/SPEC.md): the `X-Time-Zone` header · consumed_by [web, ios, android]
+  - apple-health@0.8.0 (SPEC: specs/features/apple-health/SPEC.md): consent footnote and purpose string · consumed_by [ios]
+- **Pages/screens**:
+  - ios/notifications (specs/pages/ios/notifications/SPEC.md)
+  - ios/program-actions (specs/pages/ios/program-actions/SPEC.md)
+  - ios/program-picker (specs/pages/ios/program-picker/SPEC.md): FAB badge and the AccountMenuSheet
+  - ios/admin-program (specs/pages/ios/admin-program/SPEC.md): ProgramMyAccountSection, the second account-menu copy
+  - ios/admin-members (specs/pages/ios/admin-members/SPEC.md)
+  - ios/program-member-management (specs/pages/ios/program-member-management/SPEC.md)
+  - ios/my-profile (specs/pages/ios/my-profile/SPEC.md)
+  - ios/apple-health (specs/pages/ios/apple-health/SPEC.md)
+  - NEW ios/inbox, NEW ios/people (list and profile)
+- **Files (exhaustive — the implementer may touch ONLY these), grouped by surface**:
+  - backend/: none (tracks N-SRV and S1)
+  - web/: none (parallel track)
+  - android/: none (parallel track)
+  - ios/, MODIFY:
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/App/AppRootView.swift
+      - Replace the blocking `notificationQueue` → `NotificationModalView` overlay (:32-41) with the toast overlay.
+      - `handlePendingPushTap` (:153-157) passes `target` and `program_id`.
+      - The foreground push hook (:69-71) refreshes the counts for every type.
+      - On `.active` (:72-99): refresh counts and the app badge.
+      - **Shared with quick-wins** (#2/#7, uncommitted). QA7 keeps it ≤ ~200 lines, so the logic goes in new files.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/App/AppDelegate.swift
+      - `PushNotificationTapped` gains `target` and `program_id` keys; `pendingTap` carries them (:10-18, :69-77).
+      - `willPresent` (:55-66): any remote push posts a refresh, not only invites. It keeps `[.badge]` while the stream is connected (A5).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Services/APIClient+Session.swift: `identityHeaders` (:14-19) += `"X-Time-Zone": TimeZone.current.identifier` (C1). The SSE client already uses this header set.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Services/APIClient+Auth.swift: `registerDevice` (:74-80) adds `"inbox": true`. The body is `[String: String]` today and must carry a Bool.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Services/DeviceRegistry.swift: the 12 h memo (:59-72) is also keyed by `CFBundleVersion`, so a new build re-registers once (C7.4).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Services/NotificationStreamClient.swift: the URL becomes `notifications/stream?inbox=1` (:30), and frames decode as C3 items.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Services/APIClient+Notifications.swift
+      - `NotificationDTO` gains optional `category`, `target` and `read_at`.
+      - Drop `fetchUnacknowledgedNotifications` and `acknowledgeNotification` (C7.3; no callers remain).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext.swift
+      - Remove `notificationQueue` (:120-121), `notificationIds` (:154) and `acknowledgedNotificationIds` (:157-158).
+      - Add @Published inbox state: `unread`, `pending_invites`, `badge`, the toast item, cached preferences, and the open-target request(s). Stored properties can't live in extensions.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext+Notifications.swift (153 lines): rewrite.
+      - Stream `onReady` refreshes counts (no `/unacknowledged`).
+      - `onNotification` refreshes counts, shows a toast only if the cached `categories[item.category]` is on, and refreshes invites for an invite item.
+      - `handlePushTap` sends `POST /inbox/read {ids}`, then routes by `target`.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext+Session.swift
+      - `sessionDidBecomeActive` (:152-158) also refreshes counts, preferences and the app badge, and runs the one-time permission ask (D-N12).
+      - `clearInMemorySession` (:126-148) resets the inbox state and sets the app badge to 0.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Views/NotificationModalView.swift: delete ONLY `struct NotificationModalView` (:3-44). **Keep `ForcedUpdateModalView`** (:46+), which the update cover uses.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/ProgramActions/ProgramActionsSheet.swift: tab 0 becomes "Inbox" → `InboxView` (:20-30, :41-45); default-tab rule (:70-78). Shared with quick-wins #2.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/ProgramActions/InvitesTabView.swift (347 lines)
+      - Becomes the invites section shown first inside the Inbox: no own ScrollView or header. Accept, Decline, Revoke and `DeclineInviteDialog` stay.
+      - After accept or decline, mark that program's unread `program.invite_received` items read (C7.7; `PendingInviteDTO.program_id`).
+      - Shared with quick-wins #2.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/ProgramPickerView.swift (984 lines; minimal edits)
+      - FAB badge = server `badge` (:25-27, :327-334).
+      - `AccountDestination.inbox` plus an Inbox row in `AccountMenuSheet` (:124-137, :581-589, :609-700).
+      - Consume target routing next to `openInvitesRequested` (:83-88, :544-559): open `program_id` via `applyProgram` + `programToOpen` (:381-384), inbox, programs.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/ProgramCards.swift: `ProgramMyAccountSection` gets the Inbox row (:279-356). It serves both Program tabs. Shared with quick-wins #8 (:92).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Settings/NotificationsSettingsView.swift: keep the OS-permission card and the Open Settings button; replace the subtitle copy (:15); host the new preferences section.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/StandardMembersTab.swift
+      - The header GlassButton (:43-48) opens `PeopleListView`.
+      - S5: kit LoadState, ErrorStateView with Retry, `.refreshable`, and a reload of its own member when returning from Open full stats.
+      - Shared with quick-wins #5.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/AdminMembersTab.swift
+      - Add the People entry (header :35-40, see OQ1).
+      - S5 kit adoption for the View-as loads (:131-150), plus `.refreshable`.
+      - Shared with quick-wins #5.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/MemberCards.swift: S5. History, Streak and Recent show placeholders while loading. A failed load shows "—", never "No workouts logged yet." (:136-137) or a 0-day streak.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/MemberOverviewPicker.swift: S5 loading and failure states for `MemberOverviewCard` (:81-113) and `MemberMetricsPreviewCard` (:386-420).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext+Members.swift: S5. `loadMemberOverview`, `loadMemberHistory`, `loadMemberStreaks` and `loadMemberRecent` (:88-199) report failure (e.g. `@discardableResult AppError?`) instead of only setting `errorMessage`. Shared with quick-wins #8.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/ProgramManagement/MemberManagementSection.swift: the "View Members" row (:24-34) and `ProgramMembersListView` (:65-159) become People (OQ10). `MemberDetailEditView` is reused from the profile for global admins. Shared with quick-wins #8 (:352, :366).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Settings/MyProfileView.swift (547 lines): insert one line, `HideActivitySection()`, after `signInMethodsSection` (:77). Shared with quick-wins #8 (:453).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Settings/AppleHealthSettingsView.swift (815 lines): one footnote line near "Sync to Programs" (:184-189). Copy per the People plan, Privacy §B.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App.xcodeproj/project.pbxproj: `INFOPLIST_KEY_NSHealthShareUsageDescription` at :381 and :420 gets the People §B string, which also removes "Fit'ers". This is the ONLY pbxproj edit: the groups are file-system-synchronized, so new files need none.
+  - ios/, NEW (all under /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/):
+    - Shared/Services/APIClient+Inbox.swift: `GET /notifications/inbox` (limit, before), `GET /inbox/unread-count`, `POST /inbox/read`, `GET`/`PUT /notifications/preferences`, and the DTOs (C3/C4).
+    - Shared/Services/APIClient+People.swift: `GET /people`, `GET /people/:id`, `POST`/`DELETE /people/:id/kudos`, `GET`/`PUT /members/:id` `hide_activity`, and the DTOs (People §B–§F).
+    - Shared/Models/ProgramContext+Inbox.swift:
+      - count refresh and mark read (ids or all);
+      - the app-icon badge via `UNUserNotificationCenter.setBadgeCount` (target 18.6), on launch, foreground and after every read;
+      - the preferences cache and toast gating;
+      - target routing: invites, program, programs, `log_workout` → `widgetRoute = .quickAddWorkout`, inbox; unknown → inbox;
+      - the one-time permission ask (UserDefaults memo).
+    - Shared/Views/NotificationToast.swift: the floating "‹title› · View" toast plus its root overlay modifier.
+    - Features/Home/Inbox/InboxView.swift (+ InboxRow.swift if it exceeds ~200 lines): invites first, then items paged by `next_cursor`. Kit loading/error/stale states, pull-to-refresh, read marking, a tap routes. Used by the "+" sheet tab and by both account-menu rows.
+    - Features/Home/Settings/NotificationPreferencesSection.swift: the 5 C2 switches with one-line explanations, the reminder time (DatePicker, `HH:MM`, default 19:00) and the opt-in wording. LoadState; a partial `PUT` that reverts on failure.
+    - Features/Home/People/PeopleListView.swift: "You" first, initials, last active, every row opens the profile; kit states.
+    - Features/Home/People/PersonProfileView.swift: streaks, active days this month, the last 10 workouts, last active, kudos, "Open full stats" when `can_open_full_stats`. A hidden member shows the name plus one line. Global admins get the existing membership editor.
+    - Features/Home/People/KudosButton.swift: give or undo. 201/200 return `count`; DELETE returns `removed` only, so decrement locally.
+    - Features/Home/People/MemberFullStatsView.swift: the staff "Open full stats" screen (OQ5).
+    - Features/Home/Settings/HideActivitySection.swift: the switch and its one-line copy.
+    - Features/Home/People/ActivityVisibilityNotice.swift: the one-time "Who can see your activity" notice, ONLY if U-1 = (b). It shows once per device, and once after the update when Apple Health sync is on.
+  - docs/ (orchestrator-owned, one docs commit at landing):
+    - specs/pages/ios/{notifications, program-actions, program-picker, admin-program, admin-members, program-member-management, my-profile, apple-health}/SPEC.md
+    - NEW specs/pages/ios/inbox/SPEC.md and specs/pages/ios/people/SPEC.md
+    - specs/pages/REGISTRY.md
+    - specs/features/notifications/SPEC.md: an iOS client D-rule for C7, D-N3/N4/N12/N14. C7.3 supersedes A4's "/unacknowledged on ready" for Phase 4 builds.
+    - specs/features/people/SPEC.md + specs/features/registry.json + specs/features/REGISTRY.md: `consumed_by` += ios.
+    - specs/features/frontend-kit/SPEC.md: ONLY if OQ6 makes the toast a kit primitive.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/CONTEXT.md: the :95 NotificationModalView line, and the new Inbox/ and People/ folders.
+- **DB surface**: none (client only). It relies on sql/011 and sql/012, which the user runs.
+- **Flags/env/config involved**:
+  - No env vars. The new `X-Time-Zone` request header (C1).
+  - New UserDefaults memos: the permission asked once; the registered build; the U-1 notice seen.
+  - `NSHealthShareUsageDescription` (pbxproj).
+  - **No version bumps**: the repo is already at 1.5.1 (59).
+  - Gates: `bash tools/ios-typecheck.sh`, then the user's ⌘B.
+- **Blast radius**:
+  - Dependents: notifications ← programs, program-memberships, invites; members ← program-memberships, notifications, invites, workout-logs, analytics, member-analytics. All FYI; the client track changes no server contract.
+  - Surfaces to keep in parity: web (N3/S2/S5), android (N5/S4/S5).
+  - Sanctioned iOS divergences: the app-icon badge (Android: OS launcher dots), and no web push.
+  - Global-admin FAB badge changes meaning: today it counts ALL system invites; after the change it is the server `badge` (own unread + own pending invites).
+- **Live-binary compat**: none from this track (client only). But this build hard-depends on N-SRV (011 + 0.6.0) and People S1 (012) being live on prod BEFORE any TestFlight build of this work.
+  - Both server plans are still "pending user approval", so the contract may move.
+  - Until those servers are live, `/inbox` and `/people` return 404. The optional DTO fields keep legacy stream frames decodable.
+- **Doc↔code mismatches found**:
+  - (1) `NotificationModalView.swift` also holds `ForcedUpdateModalView`. Deleting the file breaks the forced-update cover.
+  - (2) The People plan's seam S-3 is `getMemberTimeZone` in `utils/notifications.js`. The Notifications plan exports no such function; it offers `getTimeZones` in `services/notificationPreferenceService.js` (C8).
+  - (3) People plan §F/F3 says kudos arrive via `/unacknowledged` and show as a pop-up in old binaries. Notifications D-C20 makes `activity.kudos_received` non-legacy, so it is never on `/unacknowledged` or plain streams. iOS reads kudos only from `/inbox` and the `?inbox=1` stream. S1's step-28 `/unacknowledged` checks will pass vacuously.
+  - (4) People §F says push data carries only `notification_id`, `type` and `program_id`. C5 adds `category` and `target`; iOS routes on C5.
+  - (5) People S1 hard-codes "Kudos received" copy instead of the C8 `getContentProvider` template.
+  - (6) The People plan's "today's labels" (members 0.3.0, member-analytics 0.4.0, analytics 0.4.0) lag the registry (0.4.0 / 0.5.0 / 0.5.0). Its "next MINOR above S0" rule covers this.
+  - (7) The registry already lists `utils/memberVisibility.js` under program-memberships, while the file is still untracked (S0 working tree).
+  - (8) The ios/notifications page SPEC says "no per-type preference API, iOS-only". Superseded.
+  - (9) DISCOVERY P-1 line refs for StandardMembersTab have shifted: the header is now :43-48.
+- **Out of scope (explicitly)**:
+  - backend, web (composer, /privacy-policy), Android;
+  - polish items other than #32 (no #34 detail-state isolation beyond the Members-tab reload in OQ5; #45 only via the pbxproj string the People plan mandates);
+  - any version bump; no app-version gating; web push;
+  - an activity feed, photos, blocking, membership editing beyond the existing global-admin editor;
+  - streak semantics (F1);
+  - the quick-wins edits already in the working tree (compose on top, never revert).
+- **Open questions for the orchestrator**:
+  - (OQ1) **Admin Members tab People entry.** The header already holds the Invite GlassButton, and the standing memory rule says never to add buttons to iOS custom headers. D-P2 says "header button for every role".
+    - Recommend a second GlassButton (person.2): it matches the Standard tab's existing one and "Members" is a short title.
+    - Needs a user OK or a visual check.
+  - (OQ2) **Does opening the Inbox mark everything read** (`{all:true}`), or only tapped items? This must match web and Android. Recommend: mark all read on open, keep the unread dots for that visit, set the app badge from the response.
+  - (OQ3) **The global admin's Inbox tab.** Recommend the label "Inbox" for every role, with the invites section still "All invites" plus Revoke (A10). The badge counts own invites only.
+  - (OQ4) **D-N12 trigger.** Existing 1.5.0 users restore their session and never "sign in" again. Recommend asking once per install, on the first session activation (sign-in OR restore), only while `.notDetermined`.
+  - (OQ5) **"Open full stats" on iOS.** iOS has no single member-detail screen, and the cards read shared ProgramContext state.
+    - Recommend a new `MemberFullStatsView` that reuses the five cards.
+    - The Members tabs reload their own member when they reappear.
+  - (OQ6) **Where the toast lives.** Recommend a notifications-local `Shared/Views/NotificationToast.swift` (no frontend-kit bump), styled like FloatingBanner. A root overlay is hidden under sheets; accept that, since the badge and inbox cover it.
+  - (OQ7) **One cross-surface copy table**, fixed before implementers start:
+    - category explanations, the opt-in line and the reminder label;
+    - inbox empty and error states, the toast "· View";
+    - "Hide my activity" copy, the hidden-member line, kudos labels;
+    - the U-1 notice.
+  - (OQ8) **People user decisions U-1, U-2, U-3 are pending.** U-1(b) adds `ActivityVisibilityNotice.swift`; U-3 decides when iOS People goes live.
+  - (OQ9) **Fate of the roster.** Recommend replacing `ProgramMembersListView` with People at every entry, including the admin Program tab "View Members" row. Global admins edit memberships from the profile.
