@@ -9,15 +9,16 @@ struct PeopleListView: View {
     @EnvironmentObject private var programContext: ProgramContext
     @State private var state: LoadState<APIClient.PeopleListDTO> = .idle
     @State private var searchText = ""
+    /// Rows are plain-style buttons with state-driven pushes (the program picker's pattern): a List row's own selection
+    /// (NavigationLink / default-style Button rows) never fires under the root's keyboard-dismiss tap gesture on iPhone.
+    @State private var selectedPerson: PersonRoute?
+    @State private var showInvite = false
 
     var body: some View {
         List {
             if programContext.canEditProgramData {
-                NavigationLink {
-                    InviteMemberView()
-                } label: {
-                    InviteMemberRow()
-                }
+                Button { showInvite = true } label: { InviteMemberRow() }
+                    .buttonStyle(.plain)
             }
             switch state {
             case .idle, .loading:
@@ -39,11 +40,13 @@ struct PeopleListView: View {
                         .listRowBackground(Color.clear)
                 } else {
                     ForEach(people) { person in
-                        NavigationLink {
-                            PersonProfileView(memberId: person.memberId, programId: list.programId, name: person.memberName)
+                        Button {
+                            selectedPerson = PersonRoute(memberId: person.memberId, programId: list.programId,
+                                                         name: person.memberName)
                         } label: {
                             PersonRow(person: person)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -58,6 +61,10 @@ struct PeopleListView: View {
         .searchable(text: $searchText, prompt: PeopleCopy.searchPrompt)
         .navigationTitle(PeopleCopy.title)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(item: $selectedPerson) { route in
+            PersonProfileView(memberId: route.memberId, programId: route.programId, name: route.name)
+        }
+        .navigationDestination(isPresented: $showInvite) { InviteMemberView() }
         .refreshable { await load() }
         .task(id: programContext.programId) { await load() }
         .task { await programContext.offerActivityVisibilityNotice() }      // people U-1 (b), the notice rule
@@ -114,8 +121,27 @@ private struct PersonRow: View {
                     .foregroundColor(Color(.secondaryLabel))
             }
             Spacer(minLength: 0)
+            RowChevron()
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
+    }
+}
+
+/// The profile a tapped row opens.
+private struct PersonRoute: Hashable {
+    let memberId: String
+    let programId: String
+    let name: String
+}
+
+/// The disclosure chevron a NavigationLink row would show (the rows are plain buttons).
+private struct RowChevron: View {
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundColor(Color(.tertiaryLabel))
+            .accessibilityHidden(true)
     }
 }
 
@@ -141,8 +167,10 @@ private struct InviteMemberRow: View {
                     .foregroundColor(Color(.secondaryLabel))
             }
             Spacer(minLength: 0)
+            RowChevron()
         }
         .padding(.vertical, 4)
+        .contentShape(Rectangle())
     }
 }
 
