@@ -13,10 +13,10 @@
   - **iOS 1.5.2 (61): Waiting for Review** (resubmitted 2026-10-14 in place of (60): Month x-axis fix + corrected
     description), **automatic release** (public on approval, set by the user 2026-10-14). The only unexpired TestFlight build
     (Internal); 56–60 expired. Repo pre-bumped to **1.5.3 (62)**.
-  - **Android 1.2.0 (7): PUBLIC**; the refreshed listing description (People, Inbox, reminders) is live. Closed
-    testing has **1.2.1 (8)** (R8 on, for Play's DEX check due Feb 2027; sideloaded Pixel smoke test passed). Managed
-    publishing **OFF** since 2026-10-14 (approved changes go live on their own). Repo at versionCode **9**. app-config
-    `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge); `MIN_*` and iOS values untouched.
+  - **Android 1.2.0 (7): PUBLIC**; the refreshed listing description (People, Inbox, reminders) is live.
+    **1.2.1 (8)** (R8 on, for Play's DEX check due Feb 2027) is live in closed testing — Google sign-in + workout
+    verified on the Pixel's Play build — and **in production review** (goes live on approval; managed publishing
+    **OFF** since 2026-10-14). Repo at versionCode **9**. app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge).
 - **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. **People is on for web**
   (`PEOPLE_LIVE = true`, `apps/web/src/lib/api/people.ts` — the off switch), turned on with Android public and iOS
   still in review (the user's call).
@@ -46,8 +46,8 @@
    `LATEST_IOS_VERSION = 1.5.2` (Render env, merge, the user's yes; it redeploys), updates RELEASES.md and marks Phase 4
    🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once adoption allows. A problem first → remove from review, fix, upload
    **1.5.2 (62)** (same version while 1.5.2 is unapproved), re-attach.
-2. **Closed-testing 1.2.1 (8) is available** (approved 2026-10-14) → the user reinstalls from the Play Store on the
-   Pixel, checks Google sign-in + logs a workout → Claude promotes (8) to production (the user's yes).
+2. **Production 1.2.1 (8) in review** (sent 2026-10-14, the user's yes) → live on approval. Then Claude sets
+   `LATEST_ANDROID_VERSION_CODE = 8` (Render env, the user's yes) and updates RELEASES.md.
 3. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
@@ -120,4 +120,5 @@
   Xcode 27 SDK → fixed (summary-activity-detail D-AXIS); 1.5.2 (61) swapped into the review, iOS description
   corrected (it said Health Connect), resubmitted; TestFlight 56–60 expired. Repo 1.5.3 (62). Play description refreshed;
   managed publishing OFF; Android R8 on → 1.2.1 (8) sideload-tested on the Pixel, in closed-testing review; App Store
-  switched to automatic release (the user). Repo versionCode 9.
+  switched to automatic release (the user). Repo versionCode 9. 1.2.1 (8) verified on the Play build →
+  production review; testbed re-refreshed (reviewer admin drift healed, 3 reviewer-made programs removed).
