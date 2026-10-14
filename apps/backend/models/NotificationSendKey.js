@@ -4,7 +4,7 @@ const { sequelize } = require("../config/database");
 // notification_send_keys — the never-send-twice ledger (notifications SPEC §3.6, D-N9; sql/011). A scheduled send is
 // CLAIMED (INSERT … ON CONFLICT DO NOTHING RETURNING) before it is sent; only the caller whose insert returned the row
 // sends. Safe across restarts and across the two instances a Render deploy briefly runs. At most once: a crash between
-// claim and send skips that one send — never a duplicate. Kinds: reminder.daily (period = local date),
+// claim and send skips that one send — never a duplicate. Kinds: reminder.daily (period = local date + reminder time, e.g. 2026-10-13T19:00; older keys = local date),
 // digest.weekly (period = ISO week, e.g. 2026-W42), announcement (period = the announcement id).
 // No associations — NOT registered in models/index.js.
 const NotificationSendKey = sequelize.define("NotificationSendKey", {

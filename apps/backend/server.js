@@ -149,7 +149,7 @@ const startServer = async () => {
         // Bind 0.0.0.0 explicitly — Render (and most PaaS) require it to route external traffic.
         server = app.listen(PORT, "0.0.0.0", () => {
             console.log(`Server running on port ${PORT}`);
-            // notifications Phase 4 (D-N9): the 15-minute reminder / digest / announcement timer — only once we serve.
+            // notifications Phase 4 (D-N9): the 1-minute reminder / digest / announcement timer — only once we serve.
             startNotificationScheduler();
         });
     } catch (error) {

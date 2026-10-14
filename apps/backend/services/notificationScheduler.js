@@ -1,15 +1,18 @@
-// The notification scheduler — notifications SPEC §3.6 (D-N9, the scheduler rule). ONE in-process timer: every 15 min
-// it runs the daily reminders, the weekly digests and the due announcements, in that order. Never-send-twice comes from
-// the send key (models/NotificationSendKey.js), not from the timer — so a restart, a missed tick or the two instances
-// of a Render deploy can never double-send. Timers are unref'd and stopped by server.js's shutdown(); a tick still
-// running when the next fires is skipped (no overlap). One JSON log line per job that claimed or sent something.
+// The notification scheduler — notifications SPEC §3.6 (D-N9, the scheduler rule). ONE in-process timer: every minute
+// (the first tick 60 s after start) it runs the daily reminders, the weekly digests and the due announcements, in that
+// order — every minute so a reminder lands within ~1 min of the member's chosen time. Each job's due window still
+// reaches back (reminder / digest ≤ 120 min late, announcements any time after), so a restart or deploy catches up.
+// Never-send-twice comes from the send key (models/NotificationSendKey.js), not from the timer — so a restart, a missed
+// tick or the two instances of a Render deploy can never double-send. Per tick: one small query per job (+ one claim
+// while a window is open); nothing heavy — retention is pg_cron (sql/011), not here. The timer is unref'd and stopped by
+// server.js's shutdown(); a tick still running when the next fires is skipped (no overlap). One JSON log line per job
+// that claimed or sent something.
 const { runDailyReminders } = require("./dailyReminderJob");
 const { runWeeklyDigests } = require("./weeklyDigestJob");
 const { processDueAnnouncements } = require("./announcementDelivery");
 const { logError } = require("../utils/logError");
 
-const TICK_MS = 15 * 60 * 1000;
-const FIRST_TICK_DELAY_MS = 60 * 1000;
+const TICK_MS = 60 * 1000;
 const JOB_TIMEOUT_MS = 5 * 60 * 1000;
 const JOBS = [
     ["daily_reminder", runDailyReminders],
@@ -17,7 +20,6 @@ const JOBS = [
     ["announcements", processDueAnnouncements]
 ];
 
-let firstTimer = null;
 let interval = null;
 let running = false;
 
@@ -54,16 +56,12 @@ async function tick(now = new Date()) {
 
 function startNotificationScheduler() {
     if (interval) return;
-    firstTimer = setTimeout(() => tick(), FIRST_TICK_DELAY_MS);
-    firstTimer.unref();
     interval = setInterval(() => tick(), TICK_MS);
     interval.unref();
 }
 
 function stopNotificationScheduler() {
-    clearTimeout(firstTimer);
     clearInterval(interval);
-    firstTimer = null;
     interval = null;
 }
 

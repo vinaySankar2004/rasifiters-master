@@ -112,7 +112,7 @@
       }
     },
     "notifications": {
-      "version": "0.6.0",
+      "version": "0.6.1",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "deployed",
       "consumed_by": [
