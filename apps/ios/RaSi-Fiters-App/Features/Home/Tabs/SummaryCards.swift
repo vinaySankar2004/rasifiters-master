@@ -74,13 +74,22 @@ struct CardShell<Content: View, Background: View>: View {
 
 struct PlaceholderCard: View {
     let title: String
+    /// Polish #30: the load settled without this card's data → "—" (never a fake 0); otherwise a spinner while it loads.
+    var isUnavailable = false
 
     var body: some View {
         VStack(alignment: .center, spacing: 6) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(Color(.secondaryLabel))
-            ProgressView()
+            if isUnavailable {
+                Text("—")
+                    .font(.title3.weight(.bold))
+                    .foregroundColor(Color(.secondaryLabel))
+                    .accessibilityLabel("Unavailable")
+            } else {
+                ProgressView()
+            }
         }
         .frame(maxWidth: .infinity)
         .padding()

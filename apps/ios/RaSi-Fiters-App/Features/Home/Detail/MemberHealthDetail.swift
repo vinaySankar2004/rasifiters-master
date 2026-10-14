@@ -4,7 +4,7 @@
 //
 //  Members tab → health card → per-member daily-health logs (write surface).
 //  iOS analogue of web /members/health (run 46), the write twin of MemberRecentDetail.
-//  Sorted + filterable list over ProgramContext.loadMemberHealthLogs, swipe Edit
+//  Sorted + filterable list over its own APIClient.fetchDailyHealthLogs load (polish #29), swipe Edit
 //  (sleep + diet, at-least-one-metric) / Delete per row, and a client-side CSV export.
 //
 //  Faithful 1:1 port of legacy Features/Home/Sheets/HealthSortFilterSheets.swift
@@ -99,14 +99,24 @@ struct MemberHealthDetail: View {
     @State private var showSortSheet = false
     @State private var showFilterSheet = false
     @State private var filters = HealthFilters()
-    @State private var isLoading = false
-    @State private var logs: [APIClient.DailyHealthLogItem] = []
+    /// Polish #29 / #34: this screen's own list (frontend-kit §5).
+    @State private var state: LoadState<[APIClient.DailyHealthLogItem]> = .idle
     @State private var shareItem: ShareItem?
     @State private var showDeleteAlert = false
     @State private var itemToDelete: APIClient.DailyHealthLogItem?
     @State private var deleteErrorMessage: String?
     @State private var showDeleteErrorAlert = false
     @State private var itemToEdit: APIClient.DailyHealthLogItem?
+
+    /// Everything the list depends on — a change restarts the load; an older query's result is dropped (polish #34).
+    private struct HealthQuery: Equatable {
+        let sort: HealthSortField
+        let direction: HealthSortDirection
+        let filters: HealthFilters
+    }
+
+    private var query: HealthQuery { HealthQuery(sort: sortField, direction: sortDirection, filters: filters) }
+    private var logs: [APIClient.DailyHealthLogItem] { state.value ?? [] }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -165,10 +175,9 @@ struct MemberHealthDetail: View {
         } message: {
             Text(deleteErrorMessage ?? "Unable to delete daily health log.")
         }
-        .task { await loadHealthLogs() }
-        .onChange(of: sortField) { _, _ in Task { await loadHealthLogs() } }
-        .onChange(of: sortDirection) { _, _ in Task { await loadHealthLogs() } }
-        .onChange(of: filters) { _, _ in Task { await loadHealthLogs() } }
+        .loadStateChrome(state, onRetry: { Task { await loadHealthLogs() } })
+        .onChange(of: query) { _, _ in state = .loading }      // the old order never sits under the new controls
+        .task(id: query) { await loadHealthLogs() }
     }
 
     private var controls: some View {
@@ -294,18 +303,18 @@ struct MemberHealthDetail: View {
     }
 
     private var contentList: some View {
-        Group {
-            if isLoading {
-                VStack(spacing: 10) {
-                    ForEach(0..<5, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(.systemGray5))
-                            .frame(height: 60)
-                            .redacted(reason: .placeholder)
-                    }
+        LoadStateContent(state: state, onRetry: { Task { await loadHealthLogs() } }) {
+            VStack(spacing: 10) {
+                ForEach(0..<5, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 60)
+                        .redacted(reason: .placeholder)
                 }
-                .padding(.horizontal, 20)
-            } else if logs.isEmpty {
+            }
+            .padding(.horizontal, 20)
+        } content: { _ in
+            if logs.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("No daily health logs found.")
                         .font(.subheadline.weight(.semibold))
@@ -425,24 +434,22 @@ struct MemberHealthDetail: View {
     }
 
     private func loadHealthLogs() async {
-        guard !isLoading else { return }
-        guard let mId = memberId else { return }
-        isLoading = true
-        logs = await programContext.loadMemberHealthLogs(
-            memberId: mId,
-            limit: 0,
-            startDate: filters.startDateString(),
-            endDate: filters.endDateString(),
-            sortBy: sortField.apiValue,
-            sortDir: sortDirection.apiValue,
-            minSleepHours: filters.minSleepHours,
-            maxSleepHours: filters.maxSleepHours,
-            minFoodQuality: filters.minFoodQuality,
-            maxFoodQuality: filters.maxFoodQuality,
-            minSteps: filters.minSteps,
-            maxSteps: filters.maxSteps
-        )
-        isLoading = false
+        guard let mId = memberId, let pid = programContext.programId,
+              let token = programContext.authToken, !token.isEmpty else { return }
+        let query = self.query
+        state = state.refreshing()
+        let outcome = await loadOutcome {
+            try await APIClient.shared.fetchDailyHealthLogs(
+                token: token, programId: pid, memberId: mId, limit: 0,
+                startDate: query.filters.startDateString(), endDate: query.filters.endDateString(),
+                sortBy: query.sort.apiValue, sortDir: query.direction.apiValue,
+                minSleepHours: query.filters.minSleepHours, maxSleepHours: query.filters.maxSleepHours,
+                minFoodQuality: query.filters.minFoodQuality, maxFoodQuality: query.filters.maxFoodQuality,
+                minSteps: query.filters.minSteps, maxSteps: query.filters.maxSteps
+            ).items
+        }
+        guard let outcome, query == self.query else { return }    // polish #34: an older query's result is dropped
+        state = state.applying(outcome)
     }
 
     private func deleteHealthLog(_ item: APIClient.DailyHealthLogItem) async {

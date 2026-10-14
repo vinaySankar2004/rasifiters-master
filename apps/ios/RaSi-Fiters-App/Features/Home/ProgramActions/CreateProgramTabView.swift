@@ -18,8 +18,21 @@ struct CreateProgramTabView: View {
 
     private let statusOptions = ["planned", "active", "completed"]
 
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    // Polish #38: Edit's client-side date check (EditProgramInfoView, web program/edit D-C1) — end must be after start.
+    // The server enforces the same rule (programs, server + every client).
+    private var dateRangeError: String? {
+        Self.dayFormatter.string(from: startDate) >= Self.dayFormatter.string(from: endDate)
+            ? "End date must be after the start date." : nil
+    }
+
     private var isFormValid: Bool {
-        !programName.trimmingCharacters(in: .whitespaces).isEmpty
+        !programName.trimmingCharacters(in: .whitespaces).isEmpty && dateRangeError == nil
     }
 
     private var accentColor: Color {
@@ -96,6 +109,12 @@ struct CreateProgramTabView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(12)
                     }
+                }
+
+                if let dateRangeError {
+                    Text(dateRangeError)
+                        .foregroundColor(.appRed)
+                        .font(.footnote.weight(.semibold))
                 }
 
                 if let errorMessage {

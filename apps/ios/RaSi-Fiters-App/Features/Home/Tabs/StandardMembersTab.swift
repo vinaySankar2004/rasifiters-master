@@ -18,6 +18,8 @@ struct StandardMembersTab: View {
     @State private var loggedInUserMetrics: APIClient.MemberMetricsDTO?
     @State private var loggerViewAsMember: APIClient.MemberDTO?
     @State private var showLoggerMemberPicker = false
+    /// Polish #10: the logger's View-as Recent read — cancelled on the next switch / program change.
+    @State private var loggerLoadTask: Task<Void, Never>?
     /// The tab's own screen is on screen (not covered by People / a profile / "Open full stats" / a detail).
     @State private var isVisible = false
 
@@ -111,6 +113,8 @@ struct StandardMembersTab: View {
             .onDisappear { isVisible = false }
         }
         .onChange(of: programContext.programId) { _, _ in
+            loggerLoadTask?.cancel()
+            loggerViewAsMember = nil       // #10: a member of the previous program never carries over
             Task { await loadUserData() }
         }
         .onChange(of: programContext.loggedInUserId) { _, _ in
@@ -161,13 +165,14 @@ struct StandardMembersTab: View {
                 showNoneOption: false,
                 onSelect: { member in
                     showLoggerMemberPicker = false
+                    loggerLoadTask?.cancel()        // #10: the previous member's read never lands under the new name
                     guard let m = member else {
                         loggerViewAsMember = loggedInMember
-                        if let me = loggedInMember { Task { await loadLoggerLogsData(memberId: me.id) } }
+                        if let me = loggedInMember { loggerLoadTask = Task { await loadLoggerLogsData(memberId: me.id) } }
                         return
                     }
                     loggerViewAsMember = m
-                    Task {
+                    loggerLoadTask = Task {
                         await loadLoggerLogsData(memberId: m.id)
                     }
                 }

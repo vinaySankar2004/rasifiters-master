@@ -95,7 +95,7 @@ extension ProgramContext {
         let startStr = startDate.map { formatter.string(from: $0) }
         let endStr = endDate.map { formatter.string(from: $0) }
 
-        let response = try await APIClient.shared.createProgram(
+        _ = try await APIClient.shared.createProgram(
             token: token,
             name: name,
             status: status,
@@ -103,9 +103,11 @@ extension ProgramContext {
             endDate: endStr
         )
 
-        // Refresh programs list to include the new program
-        let updatedPrograms = try await APIClient.shared.fetchPrograms(token: token)
-        programs = updatedPrograms
+        // Polish #12: success is the create alone — a failed list refresh never reports "failed" (a retry would make a
+        // duplicate). The picker reloads its list when the sheet closes anyway.
+        if let updatedPrograms = try? await APIClient.shared.fetchPrograms(token: token) {
+            programs = updatedPrograms
+        }
     }
 
     /// The invite inbox (invites §3.1): global admins GET /all-invites, everyone else GET /my-invites. Throws — the

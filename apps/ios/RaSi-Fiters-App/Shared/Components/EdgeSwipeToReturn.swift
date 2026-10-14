@@ -3,13 +3,14 @@ import UIKit
 
 /// A left-edge swipe-back "hack" for the program-detail area.
 ///
-/// Every screen inside a program sets `.navigationBarBackButtonHidden(true)`, which also disables
-/// iOS's native edge swipe-back gesture — leaving no quick way back to the program list. This installs
-/// a single `UIScreenEdgePanGestureRecognizer` (the same recognizer iOS uses for native swipe-back) and,
-/// on completion, inspects the currently selected tab's nested navigation stack:
+/// The program shell (AdminHomeView) and every tab root set `.navigationBarBackButtonHidden(true)`, which disables
+/// iOS's native edge swipe-back there — leaving no quick way back to the program list. This installs ONE
+/// `UIScreenEdgePanGestureRecognizer` on the window while the shell is on screen (removed with it) and, on completion:
 ///
-/// - a sub-screen is pushed (`viewControllers.count > 1`) → pop one level (normal back);
-/// - at the tab root → run `onRootSwipe` (which returns to the program list).
+/// - polish #13: leaves the program (`onRootSwipe`) ONLY from a tab's top screen;
+/// - anything above it — a screen pushed on the outer stack (Summary, admin Lifestyle and admin Program have no stack
+///   of their own), on the tab's own stack, or a presented sheet / cover — is a normal one-level back: the system
+///   swipe-back when it is running (a transition is in flight), otherwise one pop here.
 ///
 /// Because it only fires from the very screen edge, it does not conflict with the in-content
 /// horizontal `DragGesture` scrubbing used by the summary/timeline charts.
@@ -45,9 +46,16 @@ private struct EdgeSwipeToReturnInstaller: UIViewRepresentable {
         context.coordinator.onRootSwipe = onRootSwipe
     }
 
+    /// Polish #13: the recognizer lives on the WINDOW — remove it when the program shell leaves, so it never outlives
+    /// AdminHomeView (or stacks up one per program visit).
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.detach()
+    }
+
     final class Coordinator: NSObject, UIGestureRecognizerDelegate {
         var onRootSwipe: () -> Void
         private weak var hostView: UIView?
+        private var recognizer: UIScreenEdgePanGestureRecognizer?
 
         init(onRootSwipe: @escaping () -> Void) {
             self.onRootSwipe = onRootSwipe
@@ -57,23 +65,42 @@ private struct EdgeSwipeToReturnInstaller: UIViewRepresentable {
         /// pans across the whole program-detail area (not just this zero-size background view).
         func attach(_ recognizer: UIScreenEdgePanGestureRecognizer, to view: UIView) {
             hostView = view
+            self.recognizer = recognizer
             DispatchQueue.main.async { [weak self] in
-                guard let self, let target = self.hostView?.window ?? self.hostView else { return }
+                guard let self, let recognizer = self.recognizer,
+                      let target = self.hostView?.window ?? self.hostView else { return }
                 target.addGestureRecognizer(recognizer)
             }
         }
 
+        func detach() {
+            if let recognizer { recognizer.view?.removeGestureRecognizer(recognizer) }
+            recognizer = nil
+        }
+
         @objc func handleEdgePan(_ recognizer: UIScreenEdgePanGestureRecognizer) {
-            guard recognizer.state == .ended else { return }
-            guard let nav = activeTabNavigationController(from: recognizer.view) else {
-                onRootSwipe()
-                return
+            guard recognizer.state == .ended,
+                  let root = (recognizer.view?.window ?? UIApplication.shared.keyWindowRoot)?.rootViewController,
+                  let tabBar = deepestTabBarController(root) else { return }
+            // A sheet / full-screen cover is up: it owns the swipe, never the program shell.
+            if root.presentedViewController != nil { return }
+            // Something is pushed above the shell on the OUTER stack → one level back, never leave the program.
+            if let outer = tabBar.navigationController {
+                if outer.transitionCoordinator != nil { return }          // the system swipe-back is already popping
+                if let top = outer.topViewController, !isAncestor(top, of: tabBar) {
+                    outer.popViewController(animated: true)
+                    return
+                }
             }
-            if nav.viewControllers.count > 1 {
-                nav.popViewController(animated: true)
-            } else {
-                onRootSwipe()
+            // Something is pushed on the selected tab's OWN stack → the same.
+            if let selected = tabBar.selectedViewController, let inner = firstNavigationController(in: selected) {
+                if inner.transitionCoordinator != nil { return }
+                if inner.viewControllers.count > 1 {
+                    inner.popViewController(animated: true)
+                    return
+                }
             }
+            onRootSwipe()   // a tab's top screen → back to the program list
         }
 
         // MARK: - UIGestureRecognizerDelegate
@@ -87,13 +114,14 @@ private struct EdgeSwipeToReturnInstaller: UIViewRepresentable {
 
         // MARK: - Hierarchy lookup
 
-        /// The nested navigation controller backing the currently selected tab, if any.
-        private func activeTabNavigationController(from view: UIView?) -> UINavigationController? {
-            guard let root = (view?.window ?? UIApplication.shared.keyWindowRoot)?.rootViewController
-            else { return nil }
-            guard let tabBar = deepestTabBarController(root) else { return nil }
-            guard let selected = tabBar.selectedViewController else { return nil }
-            return firstNavigationController(in: selected)
+        /// `ancestor` is `vc` itself or one of its parents (the outer stack's top hosts the program shell).
+        private func isAncestor(_ ancestor: UIViewController, of vc: UIViewController) -> Bool {
+            var current: UIViewController? = vc
+            while let candidate = current {
+                if candidate === ancestor { return true }
+                current = candidate.parent
+            }
+            return false
         }
 
         /// Deepest visible `UITabBarController` reachable through children/presented VCs — the program

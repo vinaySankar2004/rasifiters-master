@@ -8,6 +8,13 @@ import Charts
 // (run 54), the `WorkoutPopularity*` logic/components (run 50), `AccentChip` (run 56),
 // `GlassButton` (run 55), and `ViewWorkoutTypesListView` (deferred stub).
 
+/// Polish #43: the big orange / green values on white were ≈2:1 — light mode uses a darker shade (≥ 4.5:1 on white),
+/// dark mode keeps the system color. Local to these cards on purpose (palette tokens untouched — D-KIT-10).
+private extension Color {
+    static let lifestyleOrangeValue = Color(light: Color(hex: "C2410C"), dark: .orange)
+    static let lifestyleGreenValue = Color(light: Color(hex: "15803D"), dark: .green)
+}
+
 struct WorkoutTypesHeader: View {
     let title: String
     let subtitle: String
@@ -28,14 +35,15 @@ struct WorkoutTypesHeader: View {
             NavigationLink {
                 ViewWorkoutTypesListView()
             } label: {
-                GlassButton(icon: "dumbbell")
+                GlassButton(icon: "dumbbell", label: "Workout types")
             }
         }
     }
 }
 
 struct WorkoutTypesTotalCard: View {
-    let total: Int
+    /// nil = the read failed (polish #31: "—", never a fake 0).
+    let total: Int?
     private let accent: Color = .orange
 
     var body: some View {
@@ -53,9 +61,9 @@ struct WorkoutTypesTotalCard: View {
 
                 Spacer()
 
-                Text("\(total)")
+                Text(total.map { "\($0)" } ?? "—")
                     .font(.title2.weight(.bold))
-                    .foregroundColor(accent)
+                    .foregroundColor(.lifestyleOrangeValue)
 
                 Spacer()
 
@@ -71,6 +79,7 @@ struct WorkoutTypesTotalCard: View {
 struct WorkoutTypeMostPopularCard: View {
     let name: String?
     let sessions: Int
+    var isUnavailable = false
     private let accent: Color = .purple
 
     var body: some View {
@@ -88,7 +97,7 @@ struct WorkoutTypeMostPopularCard: View {
 
                 Spacer()
 
-                Text(name ?? "N/A")
+                Text(isUnavailable ? "—" : (name ?? "N/A"))
                     .font(.title3.weight(.bold))
                     .foregroundColor(accent)
                     .lineLimit(2)
@@ -96,7 +105,7 @@ struct WorkoutTypeMostPopularCard: View {
 
                 Spacer()
 
-                Text(name == nil ? "No data" : "\(sessions) workouts")
+                Text(isUnavailable ? "" : (name == nil ? "No data" : "\(sessions) workouts"))
                     .font(.footnote)
                     .foregroundColor(Color(.secondaryLabel))
             }
@@ -108,6 +117,7 @@ struct WorkoutTypeMostPopularCard: View {
 struct WorkoutTypeLongestDurationCard: View {
     let name: String?
     let avgMinutes: Int
+    var isUnavailable = false
     private let accent: Color = .red
 
     var body: some View {
@@ -125,7 +135,7 @@ struct WorkoutTypeLongestDurationCard: View {
 
                 Spacer()
 
-                Text(name ?? "N/A")
+                Text(isUnavailable ? "—" : (name ?? "N/A"))
                     .font(.title3.weight(.bold))
                     .foregroundColor(accent)
                     .lineLimit(2)
@@ -133,7 +143,7 @@ struct WorkoutTypeLongestDurationCard: View {
 
                 Spacer()
 
-                Text(name == nil ? "No data" : "\(avgMinutes) mins avg")
+                Text(isUnavailable ? "" : (name == nil ? "No data" : "\(avgMinutes) mins avg"))
                     .font(.footnote)
                     .foregroundColor(Color(.secondaryLabel))
             }
@@ -145,6 +155,7 @@ struct WorkoutTypeLongestDurationCard: View {
 struct WorkoutTypeHighestParticipationCard: View {
     let name: String?
     let participationPct: Double
+    var isUnavailable = false
     private let accent: Color = .green
 
     var body: some View {
@@ -162,15 +173,15 @@ struct WorkoutTypeHighestParticipationCard: View {
 
                 Spacer()
 
-                Text(name ?? "N/A")
+                Text(isUnavailable ? "—" : (name ?? "N/A"))
                     .font(.title3.weight(.bold))
-                    .foregroundColor(accent)
+                    .foregroundColor(.lifestyleGreenValue)
                     .lineLimit(2)
                     .minimumScaleFactor(0.8)
 
                 Spacer()
 
-                Text(name == nil ? "No data" : String(format: "%.1f%% of members", participationPct))
+                Text(isUnavailable ? "" : (name == nil ? "No data" : String(format: "%.1f%% of members", participationPct)))
                     .font(.footnote)
                     .foregroundColor(Color(.secondaryLabel))
             }

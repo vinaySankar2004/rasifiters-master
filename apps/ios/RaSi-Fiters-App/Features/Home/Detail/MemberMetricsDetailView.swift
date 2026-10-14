@@ -5,7 +5,7 @@
 //  Members tab → metrics-preview card → full member-performance metrics table.
 //  iOS analogue of web /members/metrics (run 42). Read-only, program-wide:
 //  searchable + server-sorted + server-filtered grid of MemberMetricsCard over
-//  ProgramContext.loadMemberMetrics, plus a client-side CSV export (ShareSheet).
+//  its own APIClient.fetchMemberMetrics load (polish #29), plus a client-side CSV export (ShareSheet).
 //
 //  Faithful 1:1 port of legacy Features/Home/Detail/MemberMetricsViews.swift +
 //  Features/Home/Detail/MemberPickerOverviewView.swift (the MetricsFilters/SortSheet/
@@ -24,14 +24,30 @@ struct MemberMetricsDetailView: View {
     @State private var showSortSheet = false
     @State private var showFilterSheet = false
     @State private var filters = MetricsFilters()
-    @State private var isLoading = false
-    @State private var reloadQueued = false
-    /// The date range of the list on screen (captured right after its load): the CSV filename's S / E. The shared
-    /// `memberMetricsRange*` is also written by the Members tab's overview load, so it can't be read at export time.
-    @State private var listRangeStart: Date?
-    @State private var listRangeEnd: Date?
+    /// The search the list shows — applied on Return / clear (part of the load key).
+    @State private var committedSearch = ""
+    /// Polish #29 / #34: this screen's own results — never ProgramContext.memberMetrics (the Members-tab preview card's
+    /// copy). The #47 CSV reads these same rows and their own date_range.
+    @State private var state: LoadState<APIClient.MemberMetricsResponse> = .idle
     @State private var showShare = false
     @State private var shareItem: ShareItem?
+
+    /// Everything the list depends on — a change restarts the load (task(id:) cancels the old one) and a load for an
+    /// older query is dropped, so the list and the CSV always match the controls (member-analytics D-C9).
+    private struct MetricsQuery: Equatable {
+        let programId: String?
+        let search: String
+        let sort: SortField
+        let direction: SortDirection
+        let filters: MetricsFilters
+    }
+
+    private var query: MetricsQuery {
+        MetricsQuery(programId: programContext.programId, search: committedSearch, sort: sortField,
+                     direction: sortDirection, filters: filters)
+    }
+
+    private var metrics: [APIClient.MemberMetricsDTO] { state.value?.members ?? [] }
 
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
@@ -54,17 +70,15 @@ struct MemberMetricsDetailView: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
-                .disabled(isLoading || programContext.memberMetrics.isEmpty)
+                .disabled(metrics.isEmpty)
             }
         }
         .sheet(item: $shareItem) { item in
             ShareSheet(activityItems: [item.url])
         }
-        .task { await loadMetrics() }
-        .onChange(of: sortField) { _, _ in Task { await loadMetrics() } }
-        .onChange(of: sortDirection) { _, _ in Task { await loadMetrics() } }
-        .onChange(of: filters) { _, _ in Task { await loadMetrics() } }
-        .onChange(of: programContext.programId) { _, _ in Task { await loadMetrics() } }
+        .loadStateChrome(state, onRetry: { Task { await loadMetrics() } })
+        .onChange(of: query) { _, _ in state = .loading }      // the old order never sits under the new controls
+        .task(id: query) { await loadMetrics() }
     }
 
     private var controls: some View {
@@ -73,14 +87,14 @@ struct MemberMetricsDetailView: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(Color(.tertiaryLabel))
                 TextField("Search member", text: $searchText, onCommit: {
-                    Task { await loadMetrics() }
+                    committedSearch = searchText
                 })
                 .textInputAutocapitalization(.none)
                 .autocorrectionDisabled()
                 if !searchText.isEmpty {
                     Button {
                         searchText = ""
-                        Task { await loadMetrics() }
+                        committedSearch = ""
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(Color(.tertiaryLabel))
@@ -137,17 +151,17 @@ struct MemberMetricsDetailView: View {
     }
 
     private var contentList: some View {
-        Group {
-            if isLoading {
-                VStack(spacing: 10) {
-                    ForEach(0..<3) { _ in
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color(.systemGray5))
-                            .frame(height: 130)
-                            .redacted(reason: .placeholder)
-                    }
+        LoadStateContent(state: state, onRetry: { Task { await loadMetrics() } }) {
+            VStack(spacing: 10) {
+                ForEach(0..<3) { _ in
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 130)
+                        .redacted(reason: .placeholder)
                 }
-            } else if programContext.memberMetrics.isEmpty {
+            }
+        } content: { _ in
+            if metrics.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("No members to display.")
                         .font(.subheadline.weight(.semibold))
@@ -159,7 +173,7 @@ struct MemberMetricsDetailView: View {
                 .padding(.vertical, 8)
             } else {
                 VStack(spacing: 12) {
-                    ForEach(programContext.memberMetrics) { metric in
+                    ForEach(metrics) { metric in
                         MemberMetricsCard(metric: metric, hero: sortField)
                     }
                 }
@@ -168,45 +182,28 @@ struct MemberMetricsDetailView: View {
     }
 
     private func loadMetrics() async {
-        // Polish #47: a sort / filter / search change during a load is queued, not dropped — the loop re-reads the
-        // controls until they settle, so the list (and the CSV built from it) always matches what the controls show.
-        guard !isLoading else {
-            reloadQueued = true
-            return
+        guard let token = programContext.authToken, !token.isEmpty, let pid = programContext.programId else { return }
+        let query = self.query
+        var filterParams: [String: String] = [:]
+        query.filters.addTo(&filterParams)
+        state = state.refreshing()
+        let outcome = await loadOutcome {
+            try await APIClient.shared.fetchMemberMetrics(token: token, programId: pid, search: query.search,
+                                                          sort: query.sort.rawValue, direction: query.direction.rawValue,
+                                                          filters: filterParams)
         }
-        isLoading = true
-        repeat {
-            reloadQueued = false
-            var filterParams: [String: String] = [:]
-            filters.addTo(&filterParams)
-            await programContext.loadMemberMetrics(
-                search: searchText,
-                sort: sortField.rawValue,
-                direction: sortDirection.rawValue,
-                filters: filterParams,
-                dateRange: (filters.startDate, filters.endDate)
-            )
-            listRangeStart = programContext.memberMetricsRangeStart
-            listRangeEnd = programContext.memberMetricsRangeEnd
-        } while reloadQueued
-        isLoading = false
+        guard let outcome, query == self.query else { return }    // polish #34: an older query's result is dropped
+        state = state.applying(outcome)
     }
 
     private func exportCSV() async {
-        let rows = programContext.memberMetrics
-        guard !rows.isEmpty else { return }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        let fileName = Self.csvFileName(
-            programName: programContext.name,
-            start: listRangeStart.map { formatter.string(from: $0) },
-            end: listRangeEnd.map { formatter.string(from: $0) }
-        )
+        guard let response = state.value, !response.members.isEmpty else { return }
+        // member-analytics D-C9: S / E = the list's own response date_range (yyyy-MM-dd), else all / today.
+        let fileName = Self.csvFileName(programName: programContext.name,
+                                        start: response.date_range?.start, end: response.date_range?.end)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
         do {
-            try Self.csv(rows).write(to: url, atomically: true, encoding: .utf8)
+            try Self.csv(response.members).write(to: url, atomically: true, encoding: .utf8)
             shareItem = ShareItem(url: url)
         } catch {
             // silently fail for now

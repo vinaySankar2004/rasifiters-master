@@ -5,7 +5,7 @@
 //  Members tab → streak card → streak stats + milestone ladder.
 //  iOS analogue of web /members/streaks (run 44). Read-only: two streak tiles
 //  (current / longest, in days) + a wrapped row of milestone chips, all from the
-//  server-computed ProgramContext.memberStreaks (no client math).
+//  server-computed streaks, loaded by the screen itself (polish #29; no client math).
 //
 //  Faithful 1:1 port of legacy Features/Home/Detail/MemberDetailViews.swift + two
 //  user-picked cleanups:
@@ -21,22 +21,24 @@ import SwiftUI
 
 struct MemberStreakDetail: View {
     @EnvironmentObject var programContext: ProgramContext
+    /// Whose streaks. Polish #29: the screen loads its own (never writes ProgramContext.memberStreaks, the card's copy),
+    /// with the kit error view + Retry instead of "No streak data.".
+    let memberId: String?
+    @State private var state: LoadState<APIClient.MemberStreaksResponse> = .idle
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            if let s = programContext.memberStreaks {
-                HStack(spacing: 12) {
-                    streakTile(title: "Current", value: s.currentStreakDays, icon: "flame.fill", color: .appOrange)
-                    streakTile(title: "Longest", value: s.longestStreakDays, icon: "trophy.fill", color: .appYellow)
-                }
+            LoadStateContent(state: state, onRetry: { Task { await load() } }) { s in
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 12) {
+                        streakTile(title: "Current", value: s.currentStreakDays, icon: "flame.fill", color: .appOrange)
+                        streakTile(title: "Longest", value: s.longestStreakDays, icon: "trophy.fill", color: .appYellow)
+                    }
 
-                Text("Milestones")
-                    .font(.headline.weight(.semibold))
-                WrapChips(items: s.milestones.map { ($0.dayValue, $0.achieved) })
-            } else {
-                Text("No streak data.")
-                    .font(.footnote)
-                    .foregroundColor(Color(.secondaryLabel))
+                    Text("Milestones")
+                        .font(.headline.weight(.semibold))
+                    WrapChips(items: s.milestones.map { ($0.dayValue, $0.achieved) })
+                }
             }
             Spacer()
         }
@@ -45,6 +47,22 @@ struct MemberStreakDetail: View {
         .frame(maxWidth: .infinity)
         .navigationTitle("Streak Stats")
         .navigationBarTitleDisplayMode(.inline)
+        .loadStateChrome(state, onRetry: { Task { await load() } })
+        .task { await load() }
+    }
+
+    private func load() async {
+        guard let memberId, let pid = programContext.programId,
+              let token = programContext.authToken, !token.isEmpty else { return }
+        // Instant open (D-9): the card's copy when it is this member's (the render-time identity tag); refreshed below.
+        if state.value == nil, let shared = programContext.memberStreaks, programContext.memberStreaksMemberId == memberId {
+            state = .loaded(shared, fetchedAt: Date(), refreshing: false)
+        }
+        state = state.refreshing()
+        guard let outcome = await loadOutcome({
+            try await APIClient.shared.fetchMemberStreaks(token: token, programId: pid, memberId: memberId)
+        }) else { return }
+        state = state.applying(outcome)
     }
 
     private func streakTile(title: String, value: Int, icon: String, color: Color) -> some View {

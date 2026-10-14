@@ -378,7 +378,7 @@ struct ProgramMyAccountSection: View {
                         icon: "heart.fill",
                         color: .appRed,
                         title: "Apple Health",
-                        subtitle: "Sync workouts automatically"
+                        subtitle: "Sync workouts, sleep, and steps"
                     )
                 }
                 .buttonStyle(.plain)

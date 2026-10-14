@@ -4,7 +4,7 @@
 //
 //  Members tab → recent-workouts card → per-member workout history (write surface).
 //  iOS analogue of web /members/workouts (run 45). Sorted + filterable list over
-//  ProgramContext.loadMemberRecent, swipe Edit (duration only) / Delete per row, and
+//  its own APIClient.fetchMemberRecentWorkouts load (polish #29), swipe Edit (duration only) / Delete per row, and
 //  a client-side CSV export (ShareSheet).
 //
 //  Faithful 1:1 port of legacy Features/Home/Sheets/WorkoutSortFilterSheets.swift
@@ -104,7 +104,8 @@ struct MemberRecentDetail: View {
     @State private var showSortSheet = false
     @State private var showFilterSheet = false
     @State private var filters = WorkoutFilters()
-    @State private var isLoading = false
+    /// Polish #29 / #34: this screen's own list — never ProgramContext.memberRecent (the Members-tab card's 10 rows).
+    @State private var state: LoadState<[APIClient.MemberRecentWorkoutsResponse.Item]> = .idle
     @State private var shareItem: ShareItem?
     @State private var showDeleteAlert = false
     @State private var itemToDelete: APIClient.MemberRecentWorkoutsResponse.Item?
@@ -115,6 +116,16 @@ struct MemberRecentDetail: View {
     @State private var itemToEdit: APIClient.MemberRecentWorkoutsResponse.Item?
     @State private var editSuccessMessage: String?
     @State private var showEditSuccessAlert = false
+
+    /// Everything the list depends on — a change restarts the load; an older query's result is dropped (polish #34).
+    private struct RecentQuery: Equatable {
+        let sort: WorkoutSortField
+        let direction: WorkoutSortDirection
+        let filters: WorkoutFilters
+    }
+
+    private var query: RecentQuery { RecentQuery(sort: sortField, direction: sortDirection, filters: filters) }
+    private var recent: [APIClient.MemberRecentWorkoutsResponse.Item] { state.value ?? [] }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -140,7 +151,7 @@ struct MemberRecentDetail: View {
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
-                .disabled(programContext.memberRecent.isEmpty)
+                .disabled(recent.isEmpty)
             }
         }
         .sheet(item: $shareItem) { item in
@@ -158,15 +169,17 @@ struct MemberRecentDetail: View {
         .sheet(item: $itemToEdit) { item in
             WorkoutLogEditSheet(memberName: memberName, item: item) { updatedDuration in
                 withAnimation {
-                    if let index = programContext.memberRecent.firstIndex(where: { $0.id == item.id }) {
-                        programContext.memberRecent[index] = APIClient.MemberRecentWorkoutsResponse.Item(
-                            id: item.id,
-                            workoutType: item.workoutType,
-                            workoutDate: item.workoutDate,
-                            durationMinutes: updatedDuration
-                        )
+                    state = state.mapValue { items in
+                        items.map {
+                            $0.id == item.id
+                                ? APIClient.MemberRecentWorkoutsResponse.Item(id: item.id, workoutType: item.workoutType,
+                                                                             workoutDate: item.workoutDate,
+                                                                             durationMinutes: updatedDuration)
+                                : $0
+                        }
                     }
                 }
+                Task { await refreshTabPreview() }          // #34: the Members-tab card keeps its own 10 rows
                 editSuccessMessage = "\"\(item.workoutType)\" updated."
                 showEditSuccessAlert = true
             }
@@ -195,10 +208,9 @@ struct MemberRecentDetail: View {
         } message: {
             Text(editSuccessMessage ?? "Workout updated.")
         }
-        .task { await loadWorkouts() }
-        .onChange(of: sortField) { _, _ in Task { await loadWorkouts() } }
-        .onChange(of: sortDirection) { _, _ in Task { await loadWorkouts() } }
-        .onChange(of: filters) { _, _ in Task { await loadWorkouts() } }
+        .loadStateChrome(state, onRetry: { Task { await loadWorkouts() } })
+        .onChange(of: query) { _, _ in state = .loading }      // the old order never sits under the new controls
+        .task(id: query) { await loadWorkouts() }
     }
 
     private var controls: some View {
@@ -291,18 +303,18 @@ struct MemberRecentDetail: View {
     }
 
     private var contentList: some View {
-        Group {
-            if isLoading {
-                VStack(spacing: 10) {
-                    ForEach(0..<5, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(.systemGray5))
-                            .frame(height: 60)
-                            .redacted(reason: .placeholder)
-                    }
+        LoadStateContent(state: state, onRetry: { Task { await loadWorkouts() } }) {
+            VStack(spacing: 10) {
+                ForEach(0..<5, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.systemGray5))
+                        .frame(height: 60)
+                        .redacted(reason: .placeholder)
                 }
-                .padding(.horizontal, 20)
-            } else if programContext.memberRecent.isEmpty {
+            }
+            .padding(.horizontal, 20)
+        } content: { _ in
+            if recent.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("No workouts found.")
                         .font(.subheadline.weight(.semibold))
@@ -315,7 +327,7 @@ struct MemberRecentDetail: View {
                 .padding(.vertical, 8)
             } else {
                 List {
-                    ForEach(programContext.memberRecent) { item in
+                    ForEach(recent) { item in
                         workoutRow(item)
                             .listRowInsets(EdgeInsets(top: 4, leading: 20, bottom: 4, trailing: 20))
                             .listRowSeparator(.hidden)
@@ -385,21 +397,27 @@ struct MemberRecentDetail: View {
     }
 
     private func loadWorkouts() async {
-        guard !isLoading else { return }
+        guard let mId = memberId, let pid = programContext.programId,
+              let token = programContext.authToken, !token.isEmpty else { return }
+        let query = self.query
+        state = state.refreshing()
+        let outcome = await loadOutcome {
+            try await APIClient.shared.fetchMemberRecentWorkouts(
+                token: token, programId: pid, memberId: mId, limit: 0,
+                startDate: query.filters.startDateString(), endDate: query.filters.endDateString(),
+                sortBy: query.sort.apiValue, sortDir: query.direction.apiValue,
+                workoutType: query.filters.workoutTypeName,
+                minDuration: query.filters.minDurationMinutes, maxDuration: query.filters.maxDurationMinutes
+            ).items
+        }
+        guard let outcome, query == self.query else { return }    // polish #34: an older query's result is dropped
+        state = state.applying(outcome)
+    }
+
+    /// Polish #34: after an edit / delete here, the Members-tab Recent card reloads its own 10 rows.
+    private func refreshTabPreview() async {
         guard let mId = memberId else { return }
-        isLoading = true
-        await programContext.loadMemberRecent(
-            memberId: mId,
-            limit: 0,
-            startDate: filters.startDateString(),
-            endDate: filters.endDateString(),
-            sortBy: sortField.apiValue,
-            sortDir: sortDirection.apiValue,
-            workoutType: filters.workoutTypeName,
-            minDuration: filters.minDurationMinutes,
-            maxDuration: filters.maxDurationMinutes
-        )
-        isLoading = false
+        await programContext.loadMemberRecent(memberId: mId, limit: 10)
     }
 
     @MainActor
@@ -412,8 +430,9 @@ struct MemberRecentDetail: View {
                 date: item.workoutDate
             )
             withAnimation {
-                programContext.memberRecent.removeAll { $0.id == item.id }
+                state = state.mapValue { $0.filter { $0.id != item.id } }
             }
+            Task { await refreshTabPreview() }
             itemToDelete = nil
             deleteErrorMessage = nil
             deleteSuccessMessage = "\"\(item.workoutType)\" deleted."
@@ -425,7 +444,7 @@ struct MemberRecentDetail: View {
     }
 
     private func exportCSV() async {
-        guard !programContext.memberRecent.isEmpty else { return }
+        guard !recent.isEmpty else { return }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -436,7 +455,7 @@ struct MemberRecentDetail: View {
         let fileName = "Workouts_\(exportMemberName)_\(startLabel)_to_\(endLabel).csv"
 
         var csv = "Workout Type,Date,Duration (min)\n"
-        for w in programContext.memberRecent {
+        for w in recent {
             let line = "\"\(w.workoutType.replacingOccurrences(of: "\"", with: "\"\""))\",\(w.workoutDate),\(w.durationMinutes)\n"
             csv.append(line)
         }

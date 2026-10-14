@@ -4,6 +4,8 @@ struct SearchablePickerSheet: View {
     let title: String
     let options: [PickerOption]
     let selectedId: String?
+    /// Polish #16: what an EMPTY list says — never a blank sheet. nil = no hint (still loading, or a filter sheet).
+    var emptyHint: String? = nil
     let onSelect: (PickerOption) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var search = ""
@@ -16,6 +18,13 @@ struct SearchablePickerSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                // Polish #16: an empty list says why (once known); a search with no match says so.
+                if options.isEmpty {
+                    if let emptyHint { hintRow(emptyHint) }
+                } else if filtered.isEmpty {
+                    hintRow("No results")
+                }
+
                 ForEach(filtered) { option in
                     Button {
                         onSelect(option)
@@ -42,6 +51,12 @@ struct SearchablePickerSheet: View {
                 }
             }
         }
+    }
+
+    private func hintRow(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundColor(Color(.secondaryLabel))
     }
 
     private var filtered: [PickerOption] {

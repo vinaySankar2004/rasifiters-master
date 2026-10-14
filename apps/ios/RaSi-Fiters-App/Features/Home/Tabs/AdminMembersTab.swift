@@ -93,6 +93,12 @@ struct AdminMembersTab: View {
             .floatingBanner { ScreenBanner(banner: staleBanner) }
             .onAppear {
                 isVisible = true
+                // Polish #10 (I4): our load that stopped when this screen left (below) runs again — also after an unowned
+                // write meanwhile (loadMemberData resets the cards); another screen's ownership takes the path below.
+                if let selectedMember, loadTask == nil, isLoadInFlight, cardsFree {
+                    startLoad(for: selectedMember)
+                    return
+                }
                 // Back from "Open full stats" / a detail screen: another member — or an unowned write — is in the shared
                 // card state. Placeholders, then our View-as member again.
                 let owner = programContext.memberCardsOwner
@@ -103,15 +109,24 @@ struct AdminMembersTab: View {
                 loadState = .loading
                 startLoad(for: selectedMember)
             }
-            .onDisappear { isVisible = false }
+            .onDisappear {
+                isVisible = false
+                // Polish #10 (I4): an unfinished View-as load stops with the screen — a late read never lands after it
+                // left (or after a program switch); the next appearance reloads it.
+                if isLoadInFlight {
+                    loadTask?.cancel()
+                    loadTask = nil
+                }
+            }
         }
         .task {
             applyDefaultSelectionIfNeeded()
         }
         .onChange(of: programContext.programId) { _, _ in
-            if !programContext.isGlobalAdmin {
-                selectedMember = nil
-            }
+            // Polish #10: "View as" belongs to one program — reset it for every role (global admins too).
+            loadTask?.cancel()
+            loadTask = nil
+            selectedMember = nil
             applyDefaultSelectionIfNeeded()
         }
         .onChange(of: programContext.members.count) { _, _ in
@@ -194,6 +209,15 @@ struct AdminMembersTab: View {
     }
 
     private var isBannerShowing: Bool { programContext.isOnline && staleBanner != nil }
+
+    /// A View-as load hasn't settled (first load or a refresh under kept cards).
+    private var isLoadInFlight: Bool {
+        switch loadState {
+        case .loading: return true
+        case .loaded(_, _, let refreshing): return refreshing
+        case .idle, .failed, .stale: return false
+        }
+    }
 
     /// Retry (error view / banner): the View-as cards + the self-loading preview and health cards.
     private func retry() {

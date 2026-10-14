@@ -43,8 +43,11 @@ struct WidgetQuickAddHeader: View {
                             .font(.headline.weight(.semibold))
                             .foregroundColor(Color(.label))
                     }
+                    .minTapTarget(alignment: .leading)
                 }
                 .buttonStyle(.plain)
+                .padding(.vertical, -4)          // #36: 44-pt hit area on the 36-pt circle, header height unchanged
+                .accessibilityLabel("Back")
 
                 Spacer()
             }

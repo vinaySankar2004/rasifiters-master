@@ -251,10 +251,12 @@ struct ManageRolesView: View {
                     .strokeBorder(isSelected ? color.opacity(0.8) : color.opacity(0.3), lineWidth: isSelected ? 2 : 1)
             )
             .contentShape(Capsule())
+            .minTapTarget()
         }
         .buttonStyle(.plain)
         .disabled(isSelected || isDisabled)
         .opacity(isSelected || !isDisabled ? 1.0 : 0.55)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func roleColor(for role: String) -> Color {

@@ -36,6 +36,12 @@ struct CreateAccountView: View {
     // non-nil ⇒ social mode. `didConfigure` guards the one-time prefill from the init param.
     @State private var social: PendingSocial? = nil
     @State private var didConfigure: Bool = false
+    // Polish #17 (auth D-C18 in the amendments): a taken username / email shows on the step that owns the field; once
+    // the account exists, a retry only signs in — with the credentials it was created with — and steps 1–2 lock.
+    @State private var detailsError: String?
+    @State private var registered: (username: String, password: String)?
+    /// The server's 400 texts for a taken name (authService register + oauth/complete).
+    private static let takenMessages: Set<String> = ["Username already exists", "Email already exists"]
     // autoFocus the First Name field on load (matches web D-C5).
     @FocusState private var firstNameFocused: Bool
     private let genderOptions = ["Female", "Male", "Non-binary", "Prefer not to say"]
@@ -128,6 +134,8 @@ struct CreateAccountView: View {
             }
         }
         .onAppear(perform: configureIfNeeded)
+        .onChange(of: username) { detailsError = nil }
+        .onChange(of: email) { detailsError = nil }
         .task {
             // Brief beat so the field is mounted before focusing (autoFocus, D-C5).
             try? await Task.sleep(nanoseconds: 350_000_000)
@@ -147,9 +155,11 @@ struct CreateAccountView: View {
     private var namePage: some View {
         measuredPage {
             VStack(spacing: 16) {
-                AppInputField(title: "First Name", text: $firstName, autocapitalization: .words)
+                AppInputField(title: "First Name", text: $firstName, autocapitalization: .words, contentType: .givenName)
                     .focused($firstNameFocused)
-                AppInputField(title: "Last Name", text: $lastName, autocapitalization: .words)
+                    .disabled(registered != nil)
+                AppInputField(title: "Last Name", text: $lastName, autocapitalization: .words, contentType: .familyName)
+                    .disabled(registered != nil)
                 // Federated sign-in — email mode only (hidden once the wizard is in the social branch).
                 if !isSocial {
                     socialSignInSection
@@ -196,13 +206,15 @@ struct CreateAccountView: View {
     private var detailsPage: some View {
         measuredPage {
             VStack(spacing: 16) {
-                AppInputField(title: "Username", text: $username)
+                AppInputField(title: "Username", text: $username, contentType: .username)
+                    .disabled(registered != nil)
 
                 genderPicker
+                    .disabled(registered != nil)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    AppInputField(title: "Email", text: $email)
-                        .disabled(isSocial)
+                    AppInputField(title: "Email", text: $email, keyboardType: .emailAddress, contentType: .emailAddress)
+                        .disabled(isSocial || registered != nil)
                         .opacity(isSocial ? 0.6 : 1)
                     if isSocial {
                         // Email is the verified address from the connected account — locked.
@@ -218,6 +230,13 @@ struct CreateAccountView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+
+                if let detailsError {
+                    Text(detailsError)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(.appRed)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
@@ -229,6 +248,7 @@ struct CreateAccountView: View {
                     title: "Password",
                     text: $password,
                     isSecure: !isPasswordVisible,
+                    contentType: .newPassword,
                     accessory: AnyView(AppPasswordToggleButton(isVisible: $isPasswordVisible))
                 )
 
@@ -236,6 +256,7 @@ struct CreateAccountView: View {
                     title: "Confirm Password",
                     text: $confirmPassword,
                     isSecure: !isConfirmPasswordVisible,
+                    contentType: .newPassword,
                     accessory: AnyView(AppPasswordToggleButton(isVisible: $isConfirmPasswordVisible))
                 )
 
@@ -425,11 +446,25 @@ struct CreateAccountView: View {
     private func advance() {
         if step < lastStep {
             withAnimation { step += 1 }
-        } else if isSocial {
+            return
+        }
+        // Polish #17: the paged TabView can be swiped past a page's checks — re-check every page and jump to the first
+        // that fails (not once the account exists: then the tap only signs in).
+        if registered == nil, let invalid = (0...lastStep).first(where: { !canContinue($0) }) {
+            withAnimation { step = invalid }
+            return
+        }
+        if isSocial {
             Task { await handleCompleteSocial() }
         } else {
             Task { await handleCreateAccount() }
         }
+    }
+
+    /// Polish #17: back to the details step with the server's message under the field.
+    private func showTaken(_ message: String) {
+        detailsError = message
+        withAnimation { step = 1 }
     }
 
     private func showAlert(_ message: String) {
@@ -441,20 +476,28 @@ struct CreateAccountView: View {
         guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
-        do {
-            _ = try await APIClient.shared.registerAccount(firstName: firstName, lastName: lastName, username: username,
-                                                            email: email, password: password, gender: gender)
-        } catch {
-            showAlert(SessionCopy.credentialMessage(for: error))        // sign-up, not a sign-in: no event
-            return
+        let login: (username: String, password: String)
+        if let registered {
+            login = registered                                           // #17: the account exists — sign in only
+        } else {
+            do {
+                _ = try await APIClient.shared.registerAccount(firstName: firstName, lastName: lastName, username: username,
+                                                                email: email, password: password, gender: gender)
+            } catch {
+                let message = SessionCopy.credentialMessage(for: error)    // sign-up, not a sign-in: no event
+                if Self.takenMessages.contains(message) { showTaken(message) } else { showAlert(message) }
+                return
+            }
+            login = (username, password)
+            registered = login
         }
         do {
-            let response = try await APIClient.shared.loginGlobal(identifier: username, password: password)
+            let response = try await APIClient.shared.loginGlobal(identifier: login.username, password: login.password)
             try await programContext.applyAuthResponse(response)
             navigateToProgramPicker = true
         } catch {
             ClientEventQueue.shared.recordSignInFailure(error, method: "password")
-            showAlert(SessionCopy.credentialMessage(for: error))
+            showAlert("Account created. Please sign in.")              // #17: tapping Create Account again signs in
         }
     }
 
@@ -476,7 +519,8 @@ struct CreateAccountView: View {
             navigateToProgramPicker = true
         } catch {
             ClientEventQueue.shared.recordSignInFailure(error, method: pending.provider)   // A11
-            showAlert(SessionCopy.credentialMessage(for: error))
+            let message = SessionCopy.credentialMessage(for: error)
+            if Self.takenMessages.contains(message) { showTaken(message) } else { showAlert(message) }
         }
     }
 

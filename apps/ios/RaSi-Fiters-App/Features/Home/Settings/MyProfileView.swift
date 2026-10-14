@@ -1,6 +1,4 @@
 import SwiftUI
-import AuthenticationServices
-import GoogleSignIn
 
 /// "My Profile" — the account-menu profile screen (ProgramMyAccountSection → My Profile).
 /// Faithful 1:1 port of the legacy iOS screen (first/last name + gender + delete account),
@@ -16,29 +14,18 @@ struct MyProfileView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showSuccessAlert = false
-    @State private var showDeleteConfirmation = false
-    @State private var isDeleting = false
 
     // Email change (web-parity ADD, D-C1) — collapsible, direct, password-confirmed. Its own
     // state + messages so it never collides with the name/gender Save flow above.
     @State private var currentEmail: String?
+    /// Polish #18: the email read failed — "Couldn't load this · Retry", reloaded on reconnect ("Change email" stays).
+    @State private var emailLoadError: AppError?
     @State private var showEmailForm = false
     @State private var newEmail: String = ""
     @State private var emailPassword: String = ""
     @State private var isChangingEmail = false
     @State private var emailError: String?
     @State private var showEmailSuccess = false
-
-    // Sign-in methods (auth phase-2, D-C10)
-    @State private var identities: [IdentitiesResponse.Identity] = []
-    @State private var hasPassword = true
-    @State private var linkError: String?
-    @State private var isLinking = false
-    @State private var showPasswordForm = false
-    @State private var newAccountPassword = ""
-    @State private var isSettingPassword = false
-    @State private var hadUnconfirmedSetPassword = false
-    @State private var showPasswordSetNotice = false
 
     private let genderOptions = ["Male", "Female", "Non-binary", "Prefer not to say"]
 
@@ -52,10 +39,10 @@ struct MyProfileView: View {
                 // Editable Fields
                 VStack(alignment: .leading, spacing: 14) {
                     fieldLabelled("First name") {
-                        AppInputField(title: "Enter first name", text: $firstName, autocapitalization: .words)
+                        AppInputField(title: "Enter first name", text: $firstName, autocapitalization: .words, contentType: .givenName)
                     }
                     fieldLabelled("Last name") {
-                        AppInputField(title: "Enter last name", text: $lastName, autocapitalization: .words)
+                        AppInputField(title: "Enter last name", text: $lastName, autocapitalization: .words, contentType: .familyName)
                     }
                     fieldLabelled("Gender") { genderPicker }
                 }
@@ -74,7 +61,7 @@ struct MyProfileView: View {
 
                 emailSection
 
-                signInMethodsSection
+                SignInMethodsSection()
 
                 // D-P6 / D-P7: "Hide my activity" — one switch for every program, directly above Sign out everywhere.
                 HideActivitySection()
@@ -82,24 +69,8 @@ struct MyProfileView: View {
                 // auth §3.1 / amendment U3: "Sign out everywhere" sits above Delete Account (every role).
                 SignOutEverywhereSection()
 
-                // Delete Account Section
                 if !programContext.isGlobalAdmin {
-                    VStack(spacing: 8) {
-                        Divider()
-                            .padding(.bottom, 8)
-
-                        AppDestructiveButton(title: "Delete Account", isLoading: isDeleting) {
-                            showDeleteConfirmation = true
-                        }
-                        .disabled(isDeleting)
-
-                        Text("This will permanently delete your account and all associated data.")
-                            .font(.caption)
-                            .foregroundColor(Color(.tertiaryLabel))
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .padding(.top, 20)
+                    DeleteAccountSection()
                 }
             }
             .padding(20)
@@ -113,14 +84,6 @@ struct MyProfileView: View {
             Button("OK") {}
         } message: {
             Text("Profile updated successfully")
-        }
-        .alert("Delete Account?", isPresented: $showDeleteConfirmation) {
-            Button("Cancel", role: .cancel) {}
-            Button("Delete", role: .destructive) {
-                Task { await deleteAccount() }
-            }
-        } message: {
-            Text("This action cannot be undone. All your data, including workout logs, health logs, and program memberships will be permanently deleted.")
         }
         .onAppear {
             // Initialize fields from current values (faithful — name/gender from session state)
@@ -138,7 +101,9 @@ struct MyProfileView: View {
         .task {
             // Web-parity ADD: fetch the current email for display (GET /members/:id).
             await loadCurrentEmail()
-            await loadIdentities()
+        }
+        .onChange(of: programContext.isOnline) { _, online in
+            if online, emailLoadError != nil { Task { await loadCurrentEmail() } }   // D-IOS-KIT-3: refetch on reconnect
         }
     }
 
@@ -195,6 +160,19 @@ struct MyProfileView: View {
                 .foregroundColor(.appOrange)
             }
 
+            if emailLoadError != nil {
+                HStack {
+                    Text(KitCopy.errorViewTitle)
+                        .font(.footnote)
+                        .foregroundColor(Color(.secondaryLabel))
+                    Spacer(minLength: 8)
+                    Button(KitCopy.retry) { Task { await loadCurrentEmail() } }
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(.appOrange)
+                        .frame(minHeight: 44)
+                }
+            }
+
             if showEmailSuccess {
                 Text("Email updated successfully.")
                     .font(.footnote.weight(.semibold))
@@ -204,11 +182,11 @@ struct MyProfileView: View {
             if showEmailForm {
                 VStack(alignment: .leading, spacing: 10) {
                     fieldLabelled("New email") {
-                        AppInputField(title: "you@example.com", text: $newEmail)
-                            .keyboardType(.emailAddress)
+                        AppInputField(title: "you@example.com", text: $newEmail, keyboardType: .emailAddress,
+                                      contentType: .emailAddress)
                     }
                     fieldLabelled("Current password") {
-                        AppInputField(title: "Current password", text: $emailPassword, isSecure: true)
+                        AppInputField(title: "Current password", text: $emailPassword, isSecure: true, contentType: .password)
                     }
 
                     if let emailError {
@@ -225,128 +203,6 @@ struct MyProfileView: View {
                 }
             }
         }
-    }
-
-    @ViewBuilder
-    private var signInMethodsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Divider()
-            Text("Sign-in methods").font(.subheadline.weight(.semibold))
-
-            providerRow(provider: "google", label: "Google")
-            providerRow(provider: "apple", label: "Apple")
-
-            HStack(alignment: .firstTextBaseline) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Password").font(.subheadline.weight(.semibold))
-                    Text(hasPassword ? "Enabled" : "Not set").font(.subheadline).foregroundColor(Color(.secondaryLabel))
-                }
-                Spacer()
-                if !hasPassword {
-                    Button(showPasswordForm ? "Cancel" : "Add password") {
-                        showPasswordForm.toggle(); linkError = nil; newAccountPassword = ""
-                    }.font(.footnote.weight(.semibold)).foregroundColor(.appOrange)
-                }
-            }
-
-            if showPasswordSetNotice {
-                Text(SessionCopy.passwordSet)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundColor(.appGreen)
-            }
-
-            if showPasswordForm && !hasPassword {
-                AppInputField(title: "New password", text: $newAccountPassword, isSecure: true)
-                Text("At least 8 characters with an uppercase, a lowercase, and a number.")
-                    .font(.caption).foregroundColor(Color(.tertiaryLabel))
-                AppPrimaryButton(title: "Save password", isLoading: isSettingPassword) {
-                    Task { await addPassword() }
-                }.frame(maxWidth: .infinity).disabled(!isNewPasswordValid || isSettingPassword)
-            }
-
-            if let linkError {
-                Text(linkError).font(.footnote.weight(.semibold)).foregroundColor(.appRed)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func providerRow(provider: String, label: String) -> some View {
-        let linked = identities.contains { $0.provider == provider }
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.subheadline.weight(.semibold))
-                Text(linked ? (identities.first { $0.provider == provider }?.email ?? "Linked") : "Not linked")
-                    .font(.subheadline).foregroundColor(Color(.secondaryLabel)).lineLimit(1).truncationMode(.middle)
-            }
-            Spacer()
-            Button(linked ? "Unlink" : "Link") {
-                Task { await toggleProvider(provider, linked: linked) }
-            }
-            .font(.footnote.weight(.semibold))
-            .foregroundColor(.appOrange)
-            .disabled(isLinking || (linked && identities.count <= 1))
-        }
-    }
-
-    private var isNewPasswordValid: Bool {
-        newAccountPassword.range(of: "^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,}$", options: .regularExpression) != nil
-    }
-
-    private func loadIdentities() async {
-        do { apply(try await programContext.fetchIdentities()) } catch { /* faithful-swallow: section still usable */ }
-    }
-
-    private func apply(_ r: IdentitiesResponse) {
-        identities = r.identities
-        hasPassword = r.hasPassword
-    }
-
-    private func toggleProvider(_ provider: String, linked: Bool) async {
-        isLinking = true; linkError = nil
-        defer { isLinking = false }
-        do {
-            if linked {
-                apply(try await programContext.unlink(provider: provider))
-            } else {
-                apply(try await (provider == "apple" ? programContext.linkApple() : programContext.linkGoogle()))
-            }
-        } catch {
-            if !isCancellation(error) { linkError = SessionCopy.credentialMessage(for: error) }   // A8
-        }
-    }
-
-    /// auth §3.1 rule 6 for set-password: never auto-retried; "couldn't confirm" after a 503 / 5xx / timeout; a
-    /// same-password 400 on the manual retry means the earlier attempt landed. Other errors → kit copy (A8).
-    private func addPassword() async {
-        isSettingPassword = true; linkError = nil; showPasswordSetNotice = false
-        defer { isSettingPassword = false }
-        do {
-            apply(try await programContext.setPassword(newPassword: newAccountPassword))
-            passwordSetDone()
-        } catch {
-            if hadUnconfirmedSetPassword, let http = error as? APIHTTPError, http.statusCode == 400,
-               http.message == SessionCopy.samePassword {
-                await loadIdentities()                                  // rule 6: the earlier attempt landed
-                passwordSetDone()
-            } else if SessionCopy.isUnconfirmedWrite(error) {
-                hadUnconfirmedSetPassword = true
-                linkError = SessionCopy.passwordUnconfirmed
-            } else {
-                linkError = SessionCopy.kitMessage(for: error)
-            }
-        }
-    }
-
-    private func passwordSetDone() {
-        showPasswordForm = false
-        newAccountPassword = ""
-        hadUnconfirmedSetPassword = false
-        showPasswordSetNotice = true
-    }
-
-    private func isCancellation(_ error: Error) -> Bool {
-        (error as? ASAuthorizationError)?.code == .canceled || (error as? GIDSignInError)?.code == .canceled
     }
 
     private var genderPicker: some View {
@@ -417,8 +273,10 @@ struct MyProfileView: View {
         do {
             let member = try await APIClient.shared.fetchMemberById(token: token, memberId: userId)
             currentEmail = member.email
+            emailLoadError = nil
         } catch {
-            // Faithful-swallow: web also surfaces no error for the read; the form still works.
+            // Polish #18: "Couldn't load this · Retry" under the row (never a silent "—"); the form still works.
+            if let appError = AppError(error) { emailLoadError = appError.labeled(online: programContext.isOnline) }
         }
     }
 
@@ -433,6 +291,7 @@ struct MyProfileView: View {
                 password: emailPassword
             )
             currentEmail = updated ?? newEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+            emailLoadError = nil
             showEmailSuccess = true
             showEmailForm = false
             newEmail = ""
@@ -442,20 +301,6 @@ struct MyProfileView: View {
         }
 
         isChangingEmail = false
-    }
-
-    private func deleteAccount() async {
-        isDeleting = true
-        errorMessage = nil
-
-        do {
-            try await programContext.deleteAccount()
-            // After successful deletion, signOut is called automatically,
-            // which triggers navigation back to login.
-        } catch {
-            errorMessage = SessionCopy.kitMessage(for: error)
-            isDeleting = false
-        }
     }
 
     private func save() async {
@@ -481,7 +326,8 @@ struct MyProfileView: View {
                 memberId: userId,
                 firstName: trimmedFirst,
                 lastName: trimmedLast,
-                gender: gender.isEmpty ? nil : gender
+                gender: gender.isEmpty ? nil : gender,
+                clearGender: gender.isEmpty && didEditGender      // #44: "Clear" sends null (web parity)
             )
             showSuccessAlert = true
         } catch {

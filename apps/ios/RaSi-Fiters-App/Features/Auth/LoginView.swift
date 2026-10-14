@@ -21,121 +21,134 @@ struct LoginView: View {
             AppGradient.background(for: colorScheme)
                 .ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                NavigationLink(
-                    destination: ProgramPickerView()
-                        .navigationBarBackButtonHidden(true),
-                    isActive: $navigateToProgramPicker
-                ) {
-                    EmptyView()
-                }
+            // Polish #28: scrollable like CreateAccountView, so keyboard avoidance scrolls the form instead of hiding fields.
+            ScrollView {
+                VStack(spacing: 16) {
+                    NavigationLink(
+                        destination: ProgramPickerView()
+                            .navigationBarBackButtonHidden(true),
+                        isActive: $navigateToProgramPicker
+                    ) {
+                        EmptyView()
+                    }
 
-                NavigationLink(
-                    destination: CreateAccountView(pendingSocial: pendingSocial),
-                    isActive: $navigateToCreateAccount
-                ) {
-                    EmptyView()
-                }
+                    NavigationLink(
+                        destination: CreateAccountView(pendingSocial: pendingSocial),
+                        isActive: $navigateToCreateAccount
+                    ) {
+                        EmptyView()
+                    }
 
-                // Real brand icon (matches web; replaces the legacy placeholder).
-                BrandMark(size: 64)
+                    // Real brand icon (matches web; replaces the legacy placeholder).
+                    BrandMark(size: 64)
 
-                VStack(alignment: .center, spacing: 8) {
-                    Text("Welcome Back")
-                        .font(.title.bold())
-                        .foregroundColor(Color(.label))
+                    VStack(alignment: .center, spacing: 8) {
+                        Text("Welcome Back")
+                            .font(.title.bold())
+                            .foregroundColor(Color(.label))
 
-                    Text("Login to access your fitness dashboard")
-                        .font(.callout.weight(.semibold))
-                        .foregroundColor(Color(.secondaryLabel))
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
+                        Text("Login to access your fitness dashboard")
+                            .font(.callout.weight(.semibold))
+                            .foregroundColor(Color(.secondaryLabel))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
 
-                VStack(spacing: 14) {
-                    AppInputField(
-                        title: "Username or Email",
-                        text: $identifier
-                    )
+                    VStack(spacing: 14) {
+                        AppInputField(
+                            title: "Username or Email",
+                            text: $identifier,
+                            keyboardType: .emailAddress,
+                            contentType: .username
+                        )
 
-                    AppInputField(
-                        title: "Password",
-                        text: $password,
-                        isSecure: !isPasswordVisible,
-                        accessory: AnyView(AppPasswordToggleButton(isVisible: $isPasswordVisible))
-                    )
-                }
-
-                Button(action: { Task { await handleLogin() } }) {
-                    Group {
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                                .tint(colorScheme == .dark ? .black : .white)
-                        } else {
-                            Text("Login")
-                                .font(.headline.weight(.semibold))
+                        AppInputField(
+                            title: "Password",
+                            text: $password,
+                            isSecure: !isPasswordVisible,
+                            contentType: .password,
+                            accessory: AnyView(AppPasswordToggleButton(isVisible: $isPasswordVisible))
+                        )
+                        .onSubmit {
+                            // Polish #35: Return on the password field signs in (the Login button's own gate).
+                            guard !isLoading, !identifier.isEmpty, !password.isEmpty else { return }
+                            Task { await handleLogin() }
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .frame(maxWidth: 240)
-                    .foregroundColor(colorScheme == .dark ? .black : .white)
-                    .background(
-                        Capsule()
-                            .fill(Color(.label))
-                    )
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .adaptiveShadow(radius: 8, y: 4)
-                .disabled(isLoading || identifier.isEmpty || password.isEmpty)
 
-                socialSignInSection
-
-                // Footer cluster — one tight VStack so the links sit close + evenly, no dead space.
-                VStack(spacing: 12) {
-                    // Self-service password recovery — the email-request step is native (ForgotPasswordView).
-                    // The emailed link still opens rasifiters.com/reset-password in the browser to set the new
-                    // password (that shared page is client-neutral; the set-new-password step isn't duplicated).
-                    NavigationLink {
-                        ForgotPasswordView()
-                    } label: {
-                        Text("Forgot your password?")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundColor(.appOrange)
+                    Button(action: { Task { await handleLogin() } }) {
+                        Group {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(.circular)
+                                    .tint(colorScheme == .dark ? .black : .white)
+                            } else {
+                                Text("Login")
+                                    .font(.headline.weight(.semibold))
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: 240)
+                        .foregroundColor(colorScheme == .dark ? .black : .white)
+                        .background(
+                            Capsule()
+                                .fill(Color(.label))
+                        )
+                        .contentShape(Capsule())
                     }
+                    .buttonStyle(.plain)
+                    .adaptiveShadow(radius: 8, y: 4)
+                    .disabled(isLoading || identifier.isEmpty || password.isEmpty)
 
-                    HStack(spacing: 6) {
-                        Text("New here?")
-                            .font(.footnote)
-                            .foregroundColor(Color(.secondaryLabel))
+                    socialSignInSection
 
+                    // Footer cluster — one tight VStack so the links sit close + evenly, no dead space.
+                    VStack(spacing: 12) {
+                        // Self-service password recovery — the email-request step is native (ForgotPasswordView).
+                        // The emailed link still opens rasifiters.com/reset-password in the browser to set the new
+                        // password (that shared page is client-neutral; the set-new-password step isn't duplicated).
                         NavigationLink {
-                            CreateAccountView()
+                            ForgotPasswordView()
                         } label: {
-                            Text("Create an account")
+                            Text("Forgot your password?")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.appOrange)
+                        }
+
+                        HStack(spacing: 6) {
+                            Text("New here?")
+                                .font(.footnote)
+                                .foregroundColor(Color(.secondaryLabel))
+
+                            NavigationLink {
+                                CreateAccountView()
+                            } label: {
+                                Text("Create an account")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundColor(.appOrange)
+                            }
+                        }
+
+                        VStack(spacing: 4) {
+                            Text("Training hard? Login to track your progress.")
+                                .font(.footnote)
+                                .foregroundColor(Color(.secondaryLabel))
+                                .frame(maxWidth: .infinity, alignment: .center)
+
+                            Link("Privacy Policy", destination: APIConfig.privacyPolicyURL)
                                 .font(.footnote.weight(.semibold))
                                 .foregroundColor(.appOrange)
                         }
                     }
-
-                    VStack(spacing: 4) {
-                        Text("Training hard? Login to track your progress.")
-                            .font(.footnote)
-                            .foregroundColor(Color(.secondaryLabel))
-                            .frame(maxWidth: .infinity, alignment: .center)
-
-                        Link("Privacy Policy", destination: APIConfig.privacyPolicyURL)
-                            .font(.footnote.weight(.semibold))
-                            .foregroundColor(.appOrange)
-                    }
                 }
-
-                Spacer()
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+                .padding(.bottom, 24)
+                .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 24)
-            .frame(maxWidth: AdaptiveLayout.formMaxWidth)
+            .scrollDismissesKeyboard(.interactively)
+            .scrollBounceBehavior(.basedOnSize)
         }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)

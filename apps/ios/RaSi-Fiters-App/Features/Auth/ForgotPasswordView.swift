@@ -54,7 +54,8 @@ struct ForgotPasswordView: View {
                                 AppInputField(
                                     title: "Email",
                                     text: $email,
-                                    keyboardType: .emailAddress
+                                    keyboardType: .emailAddress,
+                                    contentType: .emailAddress
                                 )
                                 // Inline email-format hint (matches CreateAccountView / web D-C1).
                                 if !email.isEmpty && !isEmailValid {

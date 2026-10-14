@@ -336,7 +336,9 @@ struct ProgramPickerView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Program actions")
+        // Polish #36: the spoken label reads the badge's own count (one source — the badge and the label move together).
+        .accessibilityLabel(programContext.inboxBadgeCount > 0
+                            ? "Program actions, \(programContext.inboxBadgeLabel) new" : "Program actions")
     }
 
     private func deleteProgram(_ program: APIClient.ProgramDTO) async {
@@ -384,6 +386,7 @@ struct ProgramPickerView: View {
             applyProgram(program)
             programToOpen = program
         }
+        .accessibilityAddTraits(canOpen ? .isButton : [])        // #36: VoiceOver opens the card like a button
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
             if canManage {
                 Button {
@@ -458,6 +461,8 @@ struct ProgramPickerView: View {
     private var isBannerShowing: Bool { programContext.isOnline && pickerBanner != nil }
 
     private func applyProgram(_ program: APIClient.ProgramDTO) {
+        // Polish #10 / #30: a different program never shows the previous one's numbers.
+        if program.id != programContext.programId { programContext.resetProgramScopedData() }
         programContext.name = program.name
         programContext.status = (program.status ?? "Active")
         programContext.programId = program.id
@@ -730,7 +735,7 @@ private struct AccountMenuSheet: View {
                                     icon: "heart.fill",
                                     color: .appRed,
                                     title: "Apple Health",
-                                    subtitle: "Sync workouts automatically"
+                                    subtitle: "Sync workouts, sleep, and steps"
                                 )
                             }
                             .buttonStyle(.plain)
@@ -970,6 +975,7 @@ private struct ProgramCard: View {
                             .padding(.vertical, 8)
                             .background(Capsule().fill(Color(.systemGray5)))
                             .foregroundColor(Color(.label))
+                            .minTapTarget(alignment: .leading)
                     }
                     Spacer()
                 }

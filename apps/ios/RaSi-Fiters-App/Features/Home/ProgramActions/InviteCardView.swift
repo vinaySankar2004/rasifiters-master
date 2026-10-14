@@ -110,6 +110,7 @@ struct InviteCard: View {
                         .background(Capsule().fill(Color.appOrange))
                         .foregroundColor(.black)
                         .contentShape(Capsule())
+                        .minTapTarget()
                 }
                 .buttonStyle(.plain)
 
@@ -121,6 +122,7 @@ struct InviteCard: View {
                         .background(Capsule().fill(Color(.systemGray5)))
                         .foregroundColor(Color(.label))
                         .contentShape(Capsule())
+                        .minTapTarget()
                 }
                 .buttonStyle(.plain)
 
@@ -133,6 +135,7 @@ struct InviteCard: View {
                             .background(Capsule().stroke(Color.appRed, lineWidth: 1.5))
                             .foregroundColor(.appRed)
                             .contentShape(Capsule())
+                            .minTapTarget()
                     }
                     .buttonStyle(.plain)
                 }

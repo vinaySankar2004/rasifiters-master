@@ -15,6 +15,9 @@ struct AdminSummaryTab: View {
     /// The loaded value is the program id whose analytics are on screen (frontend-kit §5; A13: the error view never
     /// sits over another program's or zero values).
     @State private var loadState: LoadState<String> = .idle
+    /// Polish #30: which Summary reads this program has on screen — a card without its part shows a spinner while a
+    /// load is in flight and "—" once it settled (never a fake 0 or the previous program's total).
+    @State private var loadedParts: Set<SummaryPart> = []
     @State private var cardOrder: [SummaryCardType] = SummaryCardType.defaultOrder
     @State private var draggingCard: SummaryCardType?
     @State private var timelinePeriod: AdminHomeView.Period = .week
@@ -98,6 +101,9 @@ struct AdminSummaryTab: View {
             await load()          // a newer key cancels the running load (W7 F5 — replaces `guard !isLoading`)
         }
         .onChange(of: programContext.programId) { _, _ in
+            // Polish #10 / #30 (keyed state): another program's cards never render, not even for a frame.
+            loadState = .loading
+            loadedParts = []
             restoreOrder()
             Task { await programContext.loadLookupData() }
         }
@@ -141,23 +147,41 @@ struct AdminSummaryTab: View {
     /// Instant open (D-9): cached Summary first, then the network; the 8 loads run in parallel (ProgramContext.loadSummary).
     private func load() async {
         guard let pid = programContext.programId else { return }
-        if loadState.value != pid { loadState = .idle }                   // another program's data never carries over
+        if loadState.value != pid {                                        // another program's data never carries over
+            loadState = .idle
+            loadedParts = []
+        }
         if loadState.value == nil,
            let cached = try? await programContext.loadSummary(period: period.apiValue, timelinePeriod: timelinePeriod.apiValue,
                                                                read: .cacheOnly),
            cached.failure == nil {
+            loadedParts = cached.applied
             loadState = .loaded(pid, fetchedAt: Date(), refreshing: true)
         }
         loadState = loadState.refreshing()
         guard let result = try? await programContext.loadSummary(period: period.apiValue, timelinePeriod: timelinePeriod.apiValue,
                                                                  read: .network) else { return }   // superseded
+        loadedParts.formUnion(result.applied)
         guard let failure = result.failure else {
             loadState = .fresh(pid)
             return
         }
         guard let appError = AppError(failure)?.labeled(online: programContext.isOnline) else { return }   // cancelled = superseded; polish-1 rule 6
         // A13: parts that loaded stay on screen as stale data (never the error view over real values).
-        loadState = result.applied ? .stale(pid, fetchedAt: Date(), error: appError) : loadState.failing(with: appError)
+        loadState = result.applied.isEmpty ? loadState.failing(with: appError) : .stale(pid, fetchedAt: Date(), error: appError)
+    }
+
+    /// Polish #30: a load is running (first load, Retry, or a refresh) — a missing card shows a spinner, not "—".
+    private var isLoadInFlight: Bool {
+        switch loadState {
+        case .idle, .loading: return true
+        case .loaded(_, _, let refreshing): return refreshing
+        case .failed, .stale: return false
+        }
+    }
+
+    private func missingCard(_ title: String) -> some View {
+        PlaceholderCard(title: title, isUnavailable: !isLoadInFlight)
     }
 
     /// Arrange cards into rows honoring full-width cards and packing half-width cards two per row.
@@ -229,7 +253,7 @@ struct AdminSummaryTab: View {
             )
             .frame(maxWidth: .infinity)
         case .mtdParticipation:
-            if let mtd = programContext.mtdParticipation {
+            if loadedParts.contains(.mtd), let mtd = programContext.mtdParticipation {
                 MTDParticipationCard(
                     active: mtd.active_members,
                     total: mtd.total_members,
@@ -237,51 +261,56 @@ struct AdminSummaryTab: View {
                     change: mtd.change_pct
                 )
             } else {
-                PlaceholderCard(title: "MTD Participation")
+                missingCard("MTD Participation")
             }
         case .totalWorkouts:
-            TotalWorkoutsCard(
-                total: programContext.totalWorkoutsMTD,
-                change: programContext.totalWorkoutsChangePct
-            )
+            if loadedParts.contains(.workouts) {
+                TotalWorkoutsCard(total: programContext.totalWorkoutsMTD, change: programContext.totalWorkoutsChangePct)
+            } else {
+                missingCard("Total workouts")
+            }
         case .totalDuration:
-            TotalDurationCard(
-                hours: programContext.totalDurationHoursMTD,
-                change: programContext.totalDurationChangePct
-            )
+            if loadedParts.contains(.duration) {
+                TotalDurationCard(hours: programContext.totalDurationHoursMTD, change: programContext.totalDurationChangePct)
+            } else {
+                missingCard("Total duration")
+            }
         case .avgDuration:
-            AvgDurationCard(
-                minutes: programContext.avgDurationMinutesMTD,
-                change: programContext.avgDurationChangePctMTD
-            )
+            if loadedParts.contains(.average) {
+                AvgDurationCard(minutes: programContext.avgDurationMinutesMTD, change: programContext.avgDurationChangePctMTD)
+            } else {
+                missingCard("Avg duration")
+            }
         case .activityTimeline:
-            NavigationLink {
-                ActivityTimelineDetailView(initialPeriod: timelinePeriod)
-            } label: {
-                ActivityTimelineCardSummary(
-                    points: programContext.activityTimeline
-                )
+            if loadedParts.contains(.timeline) {
+                NavigationLink {
+                    ActivityTimelineDetailView(initialPeriod: timelinePeriod)
+                } label: {
+                    ActivityTimelineCardSummary(points: programContext.activityTimeline)
+                }
+            } else {
+                missingCard("Workout Activity Timeline")
             }
         case .distributionByDay:
-            NavigationLink {
-                DistributionByDayDetailView(
-                    points: distributionPoints(fromCounts: programContext.distributionByDayCounts)
-                )
-            } label: {
-                DistributionByDayCard(
-                    points: distributionPoints(fromCounts: programContext.distributionByDayCounts),
-                    interactive: false
-                )
+            if loadedParts.contains(.distribution) {
+                NavigationLink {
+                    DistributionByDayDetailView(points: distributionPoints(fromCounts: programContext.distributionByDayCounts))
+                } label: {
+                    DistributionByDayCard(points: distributionPoints(fromCounts: programContext.distributionByDayCounts),
+                                          interactive: false)
+                }
+            } else {
+                missingCard("Workout Distribution by Day")
             }
         case .workoutTypes:
-            NavigationLink {
-                WorkoutTypesDetailView(
-                    types: programContext.workoutTypes
-                )
-            } label: {
-                WorkoutTypesSummaryCard(
-                    types: programContext.workoutTypes
-                )
+            if loadedParts.contains(.types) {
+                NavigationLink {
+                    WorkoutTypesDetailView(types: programContext.workoutTypes)
+                } label: {
+                    WorkoutTypesSummaryCard(types: programContext.workoutTypes)
+                }
+            } else {
+                missingCard("Top Workout Types")
             }
         }
     }

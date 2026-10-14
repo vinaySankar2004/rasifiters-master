@@ -5,7 +5,6 @@ import Combine
 final class SplashViewModel: ObservableObject {
     @Published var displayedHeadline: String = ""
     @Published var displayedSubheadline: String = ""
-    @Published var isCTAVisible: Bool = false
     @Published var isHeadlineComplete: Bool = false
 
     private let headline = "Hi, welcome to RaSi Fiters"
@@ -39,23 +38,15 @@ final class SplashViewModel: ObservableObject {
         await type(text: subheadline) { [weak self] char in
             self?.displayedSubheadline.append(char)
         }
-        if isSkipped { return }
-
-        try? await Task.sleep(nanoseconds: 300_000_000)
-
-        withAnimation {
-            isCTAVisible = true
-        }
     }
 
     func skip() {
-        guard !isCTAVisible else { return }
+        guard !isSkipped else { return }
         isSkipped = true
         displayedHeadline = headline
         displayedSubheadline = subheadline
         withAnimation {
             isHeadlineComplete = true
-            isCTAVisible = true
         }
     }
 
@@ -107,24 +98,22 @@ struct SplashView: View {
 
                 Spacer()
 
-                if viewModel.isCTAVisible {
-                    NavigationLink {
-                        LoginView()
-                    } label: {
-                        Text("Sign in")
-                            .font(.headline.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .frame(maxWidth: 240)
-                    .foregroundColor(colorScheme == .dark ? .black : .white)
-                    .background(
-                        Capsule()
-                            .fill(Color(.label))
-                    )
-                    .adaptiveShadow(radius: 8, y: 4)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                // Polish #25: Sign in is there from the first frame — the typewriter above is decoration only.
+                NavigationLink {
+                    LoginView()
+                } label: {
+                    Text("Sign in")
+                        .font(.headline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
                 }
+                .frame(maxWidth: 240)
+                .foregroundColor(colorScheme == .dark ? .black : .white)
+                .background(
+                    Capsule()
+                        .fill(Color(.label))
+                )
+                .adaptiveShadow(radius: 8, y: 4)
 
                 Spacer(minLength: 40)
             }

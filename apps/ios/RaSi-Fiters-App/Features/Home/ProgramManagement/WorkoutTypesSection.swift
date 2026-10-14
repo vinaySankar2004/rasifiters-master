@@ -68,6 +68,11 @@ struct ViewWorkoutTypesListView: View {
     @State private var newWorkoutName = ""
     @State private var isProcessing = false
     @State private var errorMessage: String?
+    /// Polish #9: a failed hide / show / delete — the dismissable error banner where the user is (the list is long; a
+    /// line at its top would be off-screen). The Add / Edit sheets show their own.
+    @State private var actionError: AppError?
+    /// Polish #29: the list's own load state; the value = the program whose list is on screen.
+    @State private var loadState: LoadState<String> = .idle
 
     private var canManage: Bool {
         programContext.canEditProgramData
@@ -92,28 +97,30 @@ struct ViewWorkoutTypesListView: View {
     }
 
     var body: some View {
-        List {
-            // Visible workouts section
-            if !visibleWorkouts.isEmpty {
-                Section {
-                    ForEach(visibleWorkouts) { workout in
-                        workoutRow(workout)
+        LoadStateContent(state: loadState, onRetry: { Task { await load() } }) { _ in
+            List {
+                // Visible workouts section
+                if !visibleWorkouts.isEmpty {
+                    Section {
+                        ForEach(visibleWorkouts) { workout in
+                            workoutRow(workout)
+                        }
+                    } header: {
+                        Text("Available (\(visibleWorkouts.count))")
                     }
-                } header: {
-                    Text("Available (\(visibleWorkouts.count))")
                 }
-            }
 
-            // Hidden workouts section (only show to admins)
-            if canManage && !hiddenWorkouts.isEmpty {
-                Section {
-                    ForEach(hiddenWorkouts) { workout in
-                        workoutRow(workout)
-                    }
-                } header: {
-                    HStack {
-                        Image(systemName: "eye.slash")
-                        Text("Hidden (\(hiddenWorkouts.count))")
+                // Hidden workouts section (only show to admins)
+                if canManage && !hiddenWorkouts.isEmpty {
+                    Section {
+                        ForEach(hiddenWorkouts) { workout in
+                            workoutRow(workout)
+                        }
+                    } header: {
+                        HStack {
+                            Image(systemName: "eye.slash")
+                            Text("Hidden (\(hiddenWorkouts.count))")
+                        }
                     }
                 }
             }
@@ -139,12 +146,10 @@ struct ViewWorkoutTypesListView: View {
                 }
             }
         }
-        .task {
-            await programContext.loadProgramWorkouts()
-        }
-        .refreshable {
-            await programContext.loadProgramWorkouts()
-        }
+        .task { await load() }
+        .refreshable { await load() }
+        .loadStateChrome(loadState, actionError: actionError, onDismissError: { actionError = nil },
+                         onRetry: { Task { await load() } })
         .alert("Delete Custom Workout?", isPresented: $showDeleteConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Delete", role: .destructive) {
@@ -278,17 +283,34 @@ struct ViewWorkoutTypesListView: View {
         .presentationDetents([.medium])
     }
 
+    /// Polish #29: the kit load step on the program's list (a Retry keeps the list — stale + banner).
+    private func load() async {
+        guard let pid = programContext.programId else { return }
+        actionError = nil
+        if loadState.value != pid {
+            // The Program tab / log forms usually loaded this program's list already (a program switch clears it), so
+            // it shows at once and refreshes underneath.
+            loadState = programContext.programWorkouts.isEmpty ? .idle : .loaded(pid, fetchedAt: Date(), refreshing: false)
+        }
+        loadState = loadState.refreshing()
+        guard let failure = await programContext.loadProgramWorkouts() else {
+            loadState = .fresh(pid)
+            return
+        }
+        guard let appError = AppError(failure) else { return }        // cancelled
+        loadState = loadState.failing(with: appError)
+    }
+
     private func editCustomWorkoutSheet(_ workout: APIClient.ProgramWorkoutDTO) -> some View {
         EditCustomWorkoutSheet(
             workout: workout,
             onSave: { newName in
-                Task {
-                    do {
-                        try await programContext.editCustomProgramWorkout(workoutId: workout.id, name: newName)
-                        workoutToEdit = nil
-                    } catch {
-                        errorMessage = SessionCopy.kitMessage(for: error)
-                    }
+                do {
+                    try await programContext.editCustomProgramWorkout(workoutId: workout.id, name: newName)
+                    workoutToEdit = nil
+                    return nil
+                } catch {
+                    return SessionCopy.kitMessage(for: error)          // #9: shown in the sheet, which stays open
                 }
             },
             onCancel: {
@@ -300,30 +322,33 @@ struct ViewWorkoutTypesListView: View {
     private func toggleVisibility(_ workout: APIClient.ProgramWorkoutDTO) async {
         guard let libraryId = workout.library_workout_id else { return }
         isProcessing = true
+        actionError = nil
         do {
             try await programContext.toggleWorkoutVisibility(libraryWorkoutId: libraryId)
         } catch {
-            errorMessage = SessionCopy.kitMessage(for: error)
+            actionError = AppError(error)
         }
         isProcessing = false
     }
 
     private func toggleCustomVisibility(_ workout: APIClient.ProgramWorkoutDTO) async {
         isProcessing = true
+        actionError = nil
         do {
             try await programContext.toggleCustomWorkoutVisibility(workoutId: workout.id)
         } catch {
-            errorMessage = SessionCopy.kitMessage(for: error)
+            actionError = AppError(error)
         }
         isProcessing = false
     }
 
     private func deleteWorkout(_ workout: APIClient.ProgramWorkoutDTO) async {
         isProcessing = true
+        actionError = nil
         do {
             try await programContext.deleteCustomProgramWorkout(workoutId: workout.id)
         } catch {
-            errorMessage = SessionCopy.kitMessage(for: error)
+            actionError = AppError(error)
         }
         isProcessing = false
     }
@@ -348,11 +373,13 @@ struct ViewWorkoutTypesListView: View {
 // Helper sheet for editing custom workout
 struct EditCustomWorkoutSheet: View {
     let workout: APIClient.ProgramWorkoutDTO
-    let onSave: (String) -> Void
+    /// Returns nil on success (the parent closes the sheet) or the error to show here (polish #9).
+    let onSave: (String) async -> String?
     let onCancel: () -> Void
 
     @State private var workoutName: String = ""
     @State private var isSaving = false
+    @State private var errorMessage: String?
 
     var body: some View {
         NavigationStack {
@@ -364,6 +391,13 @@ struct EditCustomWorkoutSheet: View {
                 } header: {
                     Text("Edit Custom Workout")
                 }
+
+                if let errorMessage {
+                    Section {
+                        Text(errorMessage)
+                            .foregroundColor(.appRed)
+                    }
+                }
             }
             .navigationTitle("Edit Workout")
             .navigationBarTitleDisplayMode(.inline)
@@ -373,8 +407,12 @@ struct EditCustomWorkoutSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        isSaving = true
-                        onSave(workoutName.trimmingCharacters(in: .whitespacesAndNewlines))
+                        Task {
+                            // Polish #9: a failure keeps the sheet open with the error, and Save works again.
+                            isSaving = true
+                            errorMessage = await onSave(workoutName.trimmingCharacters(in: .whitespacesAndNewlines))
+                            isSaving = false
+                        }
                     }
                     .disabled(workoutName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
                 }

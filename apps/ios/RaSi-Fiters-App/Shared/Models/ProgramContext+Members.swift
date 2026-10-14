@@ -10,11 +10,15 @@ extension ProgramContext {
         return formatter.date(from: s)
     }
 
+    /// Roster + workouts + programs. Polish #16: returns its failure (nil = loaded, or no session) so a form can show
+    /// "Couldn't load · Retry"; most callers ignore it.
+    @discardableResult
     @MainActor
-    func loadLookupData() async {
-        guard let token = authToken, !token.isEmpty else { 
-            return 
+    func loadLookupData() async -> Error? {
+        guard let token = authToken, !token.isEmpty else {
+            return nil
         }
+        let requestedProgramId = programId
         do {
             let membersData: [APIClient.MemberDTO]
             if let pid = programId {
@@ -24,6 +28,9 @@ extension ProgramContext {
             }
             let workoutsData = try await APIClient.shared.fetchWorkouts(token: token)
             let programsData = try await APIClient.shared.fetchPrograms(token: token)
+            // Polish #10 (keyed state): the program changed meanwhile — never publish its roster under the new one.
+            // Superseded is not a success (callers gating on nil see a cancellation, which they don't show).
+            guard programId == requestedProgramId else { return CancellationError() }
             members = membersData
             membersProgramId = programId
             workouts = workoutsData
@@ -39,9 +46,11 @@ extension ProgramContext {
                 membershipDetails = []
                 persistSession()
             }
+            return nil
         } catch {
             // Do not fail hard; surface error message
             if let message = AppError(error)?.message { errorMessage = message }
+            return error
         }
     }
 
@@ -114,6 +123,8 @@ extension ProgramContext {
                 memberId: memberId,
                 filters: filters
             )
+            // Polish #10 (keyed state): a superseded read (cancelled, or the program changed) never publishes.
+            guard !Task.isCancelled, programId == pid else { return nil }
             if !ownedWrite { memberCardsOwner = nil }
             selectedMemberOverview = resp.members.first
             if let dr = resp.date_range {
@@ -147,6 +158,7 @@ extension ProgramContext {
                 memberId: memberId,
                 period: period
             )
+            guard !Task.isCancelled, programId == pid else { return nil }     // polish #10: superseded → no publish
             if !ownedWrite { memberCardsOwner = nil }
             memberHistory = resp.buckets
             memberHistoryMemberId = memberId
@@ -177,6 +189,7 @@ extension ProgramContext {
                 programId: pid,
                 memberId: memberId
             )
+            guard !Task.isCancelled, programId == pid else { return nil }     // polish #10: superseded → no publish
             if !ownedWrite { memberCardsOwner = nil }
             memberStreaks = resp
             memberStreaksMemberId = memberId
@@ -222,6 +235,7 @@ extension ProgramContext {
                 minDuration: minDuration,
                 maxDuration: maxDuration
             )
+            guard !Task.isCancelled, programId == pid else { return nil }     // polish #10: superseded → no publish
             if !ownedWrite { memberCardsOwner = nil }
             memberRecent = resp.items
             memberRecentMemberId = memberId
@@ -313,6 +327,7 @@ extension ProgramContext {
         }
         do {
             let data = try await APIClient.shared.fetchMembershipDetails(token: token, programId: pid)
+            guard programId == pid else { return false }      // polish #10: superseded — another program's roster / role
             let activeData = data.filter { $0.is_active }
             membershipDetails = activeData
 
@@ -394,8 +409,11 @@ extension ProgramContext {
         )
     }
 
+    /// Polish #44: `clearGender` sends an explicit JSON null (the user picked "Clear"); a nil gender otherwise omits
+    /// the key, so an untouched-empty field never wipes a gender this device hasn't loaded.
     @MainActor
-    func updateMemberProfile(memberId: String, firstName: String?, lastName: String?, gender: String?) async throws {
+    func updateMemberProfile(memberId: String, firstName: String?, lastName: String?, gender: String?,
+                             clearGender: Bool = false) async throws {
         guard let token = authToken, !token.isEmpty else {
             throw APIError(message: "No auth token")
         }
@@ -405,7 +423,8 @@ extension ProgramContext {
             memberId: memberId,
             firstName: firstName,
             lastName: lastName,
-            gender: gender
+            gender: gender,
+            clearGender: clearGender
         )
 
         // Update local state if this is the logged-in user

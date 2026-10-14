@@ -18,8 +18,9 @@ struct MemberHistoryCard: View {
     let selectedMember: APIClient.MemberDTO?
     var state: MemberCardState = .loaded
 
+    /// The id the card's render-time check uses (nil member = the signed-in member) — never the overview's member.
     private var memberId: String? {
-        selectedMember?.id ?? programContext.selectedMemberOverview?.member_id
+        selectedMember?.id ?? programContext.loggedInUserId
     }
 
     private var memberPoints: [APIClient.ActivityTimelinePoint] {
@@ -85,7 +86,7 @@ struct MemberStreakCard: View {
 
     var body: some View {
         NavigationLink {
-            MemberStreakDetail()
+            MemberStreakDetail(memberId: selectedMember?.id ?? programContext.loggedInUserId)
                 .environmentObject(programContext)
         } label: {
             VStack(alignment: .leading, spacing: 12) {

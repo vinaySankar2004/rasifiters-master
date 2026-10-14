@@ -43,6 +43,10 @@ struct AddDailyHealthDetailView: View {
     @State private var isSaving = false
     @State private var topErrorMessage: String?
     @State private var selectedProgramIds: Set<String> = []
+    /// Polish #16: a lookup (roster / programs) failed — "Couldn't load · Retry" on the form.
+    @State private var lookupError: AppError?
+    /// Polish #16: the first lookup pass finished cleanly — only then can an empty picker mean "none".
+    @State private var lookupsLoaded = false
 
     @State private var memberPickerRowId: Int?
 
@@ -129,6 +133,11 @@ struct AddDailyHealthDetailView: View {
                     memberLockHint: memberLockHint
                 )
 
+                if let lookupError {
+                    ErrorStateView(error: lookupError.labeled(online: programContext.isOnline),
+                                   onRetry: { Task { await ensureLookups() } })
+                }
+
                 if rows.isEmpty {
                     emptyState
                 } else {
@@ -187,11 +196,15 @@ struct AddDailyHealthDetailView: View {
                 rows[i].memberName = selfName
             }
         }
+        .onChange(of: programContext.isOnline) { _, online in
+            if online, lookupError != nil { Task { await ensureLookups() } }        // #16: reload when back online
+        }
         .sheet(item: memberPickerBinding) { target in
             SearchablePickerSheet(
                 title: "Select member",
                 options: programContext.members.map { .init(id: $0.id, label: $0.member_name) },
-                selectedId: rows.first { $0.id == target.id }?.memberId
+                selectedId: rows.first { $0.id == target.id }?.memberId,
+                emptyHint: emptyHint("No active members in this program yet.")
             ) { option in
                 updateRow(target.id) {
                     $0.memberId = option.id
@@ -219,8 +232,12 @@ struct AddDailyHealthDetailView: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
+                        .minTapTarget()
                 }
                 .buttonStyle(.plain)
+                .padding(.vertical, -AppSpacing.md)          // #36: 44-pt hit area, header row height unchanged
+                .padding(.trailing, -AppSpacing.md)
+                .accessibilityLabel("Remove entry \(rowNumber(row))")
             }
 
             if effectiveCanSelectAnyMember {
@@ -473,16 +490,26 @@ struct AddDailyHealthDetailView: View {
         String(value.filter(\.isNumber).prefix(2))
     }
 
+    /// The empty-picker line (web / Android `lookupsLoaded` parity): failed → the kit title; loaded → the hint;
+    /// still loading → none.
+    private func emptyHint(_ hint: String) -> String? {
+        if lookupError != nil { return KitCopy.errorViewTitle }
+        return lookupsLoaded ? hint : nil
+    }
+
+    /// Polish #16: as AddWorkoutsDetailView.ensureLookups — a failure shows "Couldn't load · Retry".
     private func ensureLookups() async {
+        var failure: Error?
         let needsRefresh = programContext.membersProgramId != programContext.programId
         if programContext.members.isEmpty || needsRefresh {
-            await programContext.loadLookupData()
+            failure = await programContext.loadLookupData()
         }
-        if programContext.programs.isEmpty,
-           let token = programContext.authToken, !token.isEmpty,
-           let fetched = try? await APIClient.shared.fetchPrograms(token: token) {
-            programContext.programs = fetched
+        if programContext.programs.isEmpty, let token = programContext.authToken, !token.isEmpty {
+            do { programContext.programs = try await APIClient.shared.fetchPrograms(token: token) }
+            catch { failure = failure ?? error }
         }
+        lookupError = failure.flatMap { AppError($0) }
+        lookupsLoaded = failure == nil
     }
 
     private func save() async {

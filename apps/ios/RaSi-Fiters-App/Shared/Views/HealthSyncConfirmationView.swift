@@ -48,6 +48,12 @@ struct HealthSyncConfirmationView: View {
             .navigationTitle(flowTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Polish #14: a way out — Later closes the review; `onDisappear` records the defer (nothing lost, asked
+                // again on the next sync; a queued sleep / steps review shows next — Android's back does the same).
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Later") { dismiss() }
+                        .disabled(isCommitting)
+                }
                 ToolbarItem(placement: .topBarTrailing) { tickButton }
             }
         }
@@ -115,6 +121,7 @@ struct HealthSyncConfirmationView: View {
         }
         .disabled(isCommitting)
         .modifier(GlassTickStyle())
+        .accessibilityLabel("Confirm")
     }
 
     private func toggle(_ row: PendingSyncConfirmation.Row) {

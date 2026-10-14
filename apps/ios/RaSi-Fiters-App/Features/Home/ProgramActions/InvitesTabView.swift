@@ -147,6 +147,7 @@ struct DeclineInviteDialog: View {
                 }
                 .contentShape(Rectangle())
                 .buttonStyle(.plain)
+                .accessibilityAddTraits(blockFutureInvites ? .isSelected : [])
 
                 VStack(spacing: 10) {
                     Button(role: .destructive) {

@@ -14,7 +14,7 @@ struct AppearanceSettingsView: View {
                     Text("Appearance")
                         .font(.title2.weight(.bold))
                         .foregroundColor(Color(.label))
-                    Text("Choose how RaSi Fit'ers looks to you")
+                    Text("Choose how RaSi Fiters looks to you")
                         .font(.subheadline)
                         .foregroundColor(Color(.secondaryLabel))
                 }
@@ -66,6 +66,7 @@ struct AppearanceSettingsView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                        .accessibilityAddTraits(themeManager.appearance == mode ? .isSelected : [])
                     }
                 }
                 

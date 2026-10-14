@@ -70,7 +70,6 @@ struct MemberDetailEditView: View {
     let membership: APIClient.MembershipDetailDTO
 
     @State private var joinedAt: Date = Date()
-    @State private var isActive: Bool = true
     @State private var isSaving = false
     @State private var showRemoveConfirm = false
     @State private var errorMessage: String?
@@ -140,17 +139,6 @@ struct MemberDetailEditView: View {
                             .background(Color(.systemGray6))
                             .cornerRadius(12)
                     }
-
-                    Toggle(isOn: $isActive) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Active Membership")
-                                .font(.subheadline.weight(.semibold))
-                            Text(isActive ? "Member is active in this program" : "Member is inactive")
-                                .font(.caption)
-                                .foregroundColor(Color(.secondaryLabel))
-                        }
-                    }
-                    .adaptiveTint()
                 }
 
                 if let errorMessage {
@@ -207,11 +195,9 @@ struct MemberDetailEditView: View {
                     joinedAt = date
                 }
             }
-            isActive = membership.is_active
         }
         // Cleanup (run 62): clear a stale error when the user edits either field (web members/detail D-C3).
         .onChange(of: joinedAt) { errorMessage = nil }
-        .onChange(of: isActive) { errorMessage = nil }
         .alert("Remove Member?", isPresented: $showRemoveConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Remove", role: .destructive) {
@@ -250,7 +236,7 @@ struct MemberDetailEditView: View {
             try await programContext.updateMembership(
                 memberId: membership.member_id,
                 role: nil,
-                isActive: isActive,
+                isActive: nil,          // #11: the Active toggle is gone — "Remove from Program" (confirmed) covers removal; nil omits the key
                 joinedAt: joinedAt
             )
             dismiss()

@@ -46,6 +46,7 @@ struct ChangePasswordView: View {
                             title: "••••••••",
                             text: $newPassword,
                             isSecure: !showPassword,
+                            contentType: .newPassword,
                             accessory: AnyView(AppPasswordToggleButton(isVisible: $showPassword))
                         )
                     }
@@ -53,7 +54,7 @@ struct ChangePasswordView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Confirm password")
                             .font(.subheadline.weight(.semibold))
-                        AppInputField(title: "••••••••", text: $confirmPassword, isSecure: true)
+                        AppInputField(title: "••••••••", text: $confirmPassword, isSecure: true, contentType: .newPassword)
                     }
 
                     // Live policy checklist (D-C2) — appears on first keystroke, greens per rule.

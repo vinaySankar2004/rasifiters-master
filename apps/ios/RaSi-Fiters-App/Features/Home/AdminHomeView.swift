@@ -16,6 +16,16 @@ struct AdminHomeView: View {
 
         var label: String { rawValue }
 
+        /// Polish #36: what VoiceOver says for a period segment (the visible label is one letter).
+        var spokenName: String {
+            switch self {
+            case .week: return "Week"
+            case .month: return "Month"
+            case .year: return "Year"
+            case .program: return "Program"
+            }
+        }
+
         var apiValue: String {
             switch self {
             case .week: return "week"

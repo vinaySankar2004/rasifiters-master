@@ -79,17 +79,24 @@ extension ProgramContext {
         )
     }
 
+    /// Polish #16 / #29: returns its failure (nil = loaded, or no session / program) for the screens that show it.
+    @discardableResult
     @MainActor
-    func loadProgramWorkouts() async {
-        guard let token = authToken, !token.isEmpty else { return }
+    func loadProgramWorkouts() async -> Error? {
+        guard let token = authToken, !token.isEmpty else { return nil }
         guard let pid = programId else {
             errorMessage = "No program selected for program workouts."
-            return
+            return nil
         }
         do {
-            programWorkouts = try await APIClient.shared.fetchProgramWorkouts(token: token, programId: pid)
+            let data = try await APIClient.shared.fetchProgramWorkouts(token: token, programId: pid)
+            // Polish #10 (keyed state): the program changed meanwhile — superseded, not a success (callers drop it).
+            guard programId == pid else { return CancellationError() }
+            programWorkouts = data
+            return nil
         } catch {
             if let message = AppError(error)?.message { errorMessage = message }
+            return error
         }
     }
 

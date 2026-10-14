@@ -49,6 +49,15 @@ struct QuickAddHealthWidgetEntryView: View {
 
     // Per-program member lookups (no single active program), intersected across the selection.
     @State private var programMembers: [String: [APIClient.MembershipDetailDTO]] = [:]
+    /// Polish #16: the program list failed (the form can't work) / a selected program's lookups failed.
+    @State private var programsError: AppError?
+    @State private var selectionError: AppError?
+    private var lookupError: AppError? { programsError ?? selectionError }
+
+    /// Polish #16: every selected program's roster has arrived — only then can an empty picker mean "none".
+    private var membersLoaded: Bool {
+        !selectedProgramIds.isEmpty && selectedProgramIds.allSatisfy { programMembers[$0] != nil }
+    }
 
     // MARK: - Program derived
 
@@ -159,6 +168,11 @@ struct QuickAddHealthWidgetEntryView: View {
                         alwaysShow: true
                     )
 
+                    if let lookupError {
+                        ErrorStateView(error: lookupError.labeled(online: programContext.isOnline),
+                                       onRetry: { Task { await reloadLookups() } })
+                    }
+
                     if rows.isEmpty {
                         emptyState
                     } else {
@@ -210,6 +224,9 @@ struct QuickAddHealthWidgetEntryView: View {
         .onChange(of: selectedProgramIds) { _, _ in
             Task { await loadSelectedProgramData() }
         }
+        .onChange(of: programContext.isOnline) { _, online in
+            if online, lookupError != nil { Task { await reloadLookups() } }        // #16: reload when back online
+        }
         .onChange(of: ignoreMember) { _, nowIgnore in
             // The member column just appeared/disappeared. When it disappears (plain member or a
             // member-locked selection), force every row to self so a hidden foreign member can't be
@@ -231,7 +248,9 @@ struct QuickAddHealthWidgetEntryView: View {
             SearchablePickerSheet(
                 title: "Select member",
                 options: availableMembers.map { .init(id: $0.id, label: $0.name) },
-                selectedId: rows.first { $0.id == target.id }?.memberId
+                selectedId: rows.first { $0.id == target.id }?.memberId,
+                emptyHint: lookupError != nil ? KitCopy.errorViewTitle
+                    : (membersLoaded ? "No active members in this program yet." : nil)
             ) { option in
                 updateRow(target.id) {
                     $0.memberId = option.id
@@ -259,8 +278,12 @@ struct QuickAddHealthWidgetEntryView: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
+                        .minTapTarget()
                 }
                 .buttonStyle(.plain)
+                .padding(.vertical, -AppSpacing.md)          // #36: 44-pt hit area, header row height unchanged
+                .padding(.trailing, -AppSpacing.md)
+                .accessibilityLabel("Remove entry \(rowNumber(row))")
             }
 
             if effectiveCanSelectAnyMember {
@@ -514,14 +537,16 @@ struct QuickAddHealthWidgetEntryView: View {
 
     @MainActor
     private func loadInitialData() async {
+        var failure: Error?
         if programContext.programs.isEmpty {
-            await programContext.loadLookupData()
+            failure = await programContext.loadLookupData()
         }
-        if programContext.programs.isEmpty,
-           let token = programContext.authToken, !token.isEmpty,
-           let fetched = try? await APIClient.shared.fetchPrograms(token: token) {
-            programContext.programs = fetched
+        if programContext.programs.isEmpty, let token = programContext.authToken, !token.isEmpty {
+            do { programContext.programs = try await APIClient.shared.fetchPrograms(token: token) }
+            catch { failure = failure ?? error }
         }
+        // #16: only a still-empty program list is a failure this form can't work without.
+        programsError = programContext.programs.isEmpty ? failure.flatMap { AppError($0) } : nil
         if rows.isEmpty { addRows(1) }
     }
 
@@ -529,17 +554,28 @@ struct QuickAddHealthWidgetEntryView: View {
     private func loadSelectedProgramData() async {
         guard let token = programContext.authToken, !token.isEmpty else { return }
         guard !selectedProgramIds.isEmpty else {
+            selectionError = nil
             syncRowsAfterSelectionChange()
             return
         }
 
-        for programId in Array(selectedProgramIds) {
-            if programMembers[programId] == nil,
-               let data = try? await APIClient.shared.fetchMembershipDetails(token: token, programId: programId) {
-                programMembers[programId] = data.filter { $0.is_active }
-            }
+        var failure: Error?
+        for programId in Array(selectedProgramIds) where programMembers[programId] == nil {
+            do {
+                programMembers[programId] = try await APIClient.shared
+                    .fetchMembershipDetails(token: token, programId: programId).filter { $0.is_active }
+            } catch { failure = failure ?? error }
         }
+        // #16: recorded, not swallowed — and only while the CURRENT selection still lacks a roster.
+        selectionError = membersLoaded ? nil : failure.flatMap { AppError($0) }
         syncRowsAfterSelectionChange()
+    }
+
+    /// #16 Retry / back online: reload whatever failed.
+    @MainActor
+    private func reloadLookups() async {
+        if programsError != nil { await loadInitialData() }
+        await loadSelectedProgramData()
     }
 
     /// After the selection's data loads, drop any per-row member no longer shared across the

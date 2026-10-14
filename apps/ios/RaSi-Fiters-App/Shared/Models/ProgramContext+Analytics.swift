@@ -1,14 +1,20 @@
 import Foundation
 
+/// The Summary reads (polish #30: the tab tracks which parts it has for the program on screen).
+nonisolated enum SummaryPart: Hashable {
+    case summary, mtd, workouts, duration, average, timeline, distribution, types
+}
+
 extension ProgramContext {
     // MARK: - Analytics
 
     /// Summary tab (board §6 item 5 + D-9): the 8 loads in PARALLEL, cache-only when `read == .cacheOnly`. Every load
-    /// that succeeded is applied (amendment A13: partial failures keep the parts that loaded). Returns whether any part
-    /// applied + the first failure (the tab goes stale / failed — frontend-kit §5); throws only when superseded.
+    /// that succeeded is applied (amendment A13: partial failures keep the parts that loaded). Returns WHICH parts
+    /// applied (polish #30) + the first failure (the tab goes stale / failed — frontend-kit §5); throws only when
+    /// superseded.
     @MainActor
     func loadSummary(period: String, timelinePeriod: String,
-                     read: APIClient.LaunchRead) async throws -> (applied: Bool, failure: Error?) {
+                     read: APIClient.LaunchRead) async throws -> (applied: Set<SummaryPart>, failure: Error?) {
         guard let pid = programId else { throw AppError(kind: .notFound) }
         let api = APIClient.shared
         let token = authToken ?? ""
@@ -72,138 +78,15 @@ extension ProgramContext {
                                        "Thursday": d.Thursday, "Friday": d.Friday, "Saturday": d.Saturday]
         }
         if let types { workoutTypes = types }
-        let parts: [Any?] = [summary, mtd, workouts, duration, average, timeline, distribution, types]
-        return (parts.contains(where: { $0 != nil }), failure)
-    }
-
-    @MainActor
-    func loadActivityTimeline(period: String) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for activity timeline."
-            return
-        }
-        do {
-            let resp = try await APIClient.shared.fetchActivityTimeline(token: token, period: period, programId: pid)
-            activityTimeline = resp.buckets
-            activityTimelineLabel = resp.label
-            activityTimelineDailyAverage = resp.daily_average
-            errorMessage = nil  // Clear error on success
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
-    }
-
-    @MainActor
-    func loadHealthTimeline(period: String, memberId: String? = nil) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for health timeline."
-            return
-        }
-        do {
-            let resp = try await APIClient.shared.fetchHealthTimeline(
-                token: token,
-                period: period,
-                programId: pid,
-                memberId: memberId
-            )
-            healthTimeline = resp.buckets
-            healthTimelineDailyAverageSleep = resp.daily_average_sleep
-            healthTimelineDailyAverageFood = resp.daily_average_food
-            healthTimelineDailyAverageSteps = resp.daily_average_steps ?? 0
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
-    }
-
-    @MainActor
-    func loadStepsStats(memberId: String? = nil) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for steps analytics."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchHealthSteps(token: token, programId: pid, memberId: memberId)
-            stepsStats = data
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
-    }
-
-    @MainActor
-    func loadWorkoutTypes(memberId: String? = nil, limit: Int = 100) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for workout types."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchWorkoutTypes(token: token, programId: pid, memberId: memberId, limit: limit)
-            workoutTypes = data
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
-    }
-
-    @MainActor
-    func loadWorkoutTypesTotal(memberId: String? = nil) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for workout types total."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchWorkoutTypesTotal(token: token, programId: pid, memberId: memberId)
-            workoutTypesTotal = data.total_types
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
-    }
-
-    @MainActor
-    func loadWorkoutTypeMostPopular(memberId: String? = nil) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for most popular workout type."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchWorkoutTypeMostPopular(token: token, programId: pid, memberId: memberId)
-            workoutTypeMostPopular = data
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
-    }
-
-    @MainActor
-    func loadWorkoutTypeLongestDuration(memberId: String? = nil) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for longest duration workout type."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchWorkoutTypeLongestDuration(token: token, programId: pid, memberId: memberId)
-            workoutTypeLongestDuration = data
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
-    }
-
-    @MainActor
-    func loadWorkoutTypeHighestParticipation(memberId: String? = nil) async {
-        guard let token = authToken, !token.isEmpty else { return }
-        guard let pid = programId else {
-            errorMessage = "No program selected for highest participation workout type."
-            return
-        }
-        do {
-            let data = try await APIClient.shared.fetchWorkoutTypeHighestParticipation(token: token, programId: pid, memberId: memberId)
-            workoutTypeHighestParticipation = data
-        } catch {
-            if let message = AppError(error)?.message { errorMessage = message }
-        }
+        var applied: Set<SummaryPart> = []
+        if summary != nil { applied.insert(.summary) }
+        if mtd != nil { applied.insert(.mtd) }
+        if workouts != nil { applied.insert(.workouts) }
+        if duration != nil { applied.insert(.duration) }
+        if average != nil { applied.insert(.average) }
+        if timeline != nil { applied.insert(.timeline) }
+        if distribution != nil { applied.insert(.distribution) }
+        if types != nil { applied.insert(.types) }
+        return (applied, failure)
     }
 }

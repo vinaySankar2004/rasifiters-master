@@ -5,11 +5,14 @@ import SwiftUI
 // Tab 3 "Lifestyle", program-admin variant — adds the role-gated "view as" picker above the
 // cards. Ported verbatim from the legacy `Features/Home/Tabs/StandardWorkoutTypesTab.swift`
 // (which co-located both tab structs) on the Lifestyle-tab port (run 56).
+// Polish #31: the Summary recipe (see StandardWorkoutTypesTab), keyed on (program, View-as member); every visit
+// reloads (admin re-entry included), and "View as" resets on a program switch for every role (#10).
 
 struct AdminWorkoutTypesTab: View {
     @EnvironmentObject var programContext: ProgramContext
+    /// This tab's own data for (program, View-as member) — frontend-kit §5.
+    @State private var loadState: LoadState<LifestyleSnapshot> = .idle
     @State private var isLoading = false
-    @State private var errorMessage: String?
     @State private var showMemberPicker = false
     @State private var selectedMember: APIClient.MemberDTO?
     @State private var hasUserChosenViewAs = false
@@ -29,6 +32,16 @@ struct AdminWorkoutTypesTab: View {
         return programContext.loggedInUserName ?? "Member"
     }
 
+    /// Whose numbers the cards show (polish #10, keyed state): the picked member; until the user picks, a program
+    /// admin's own (no roster needed — the label already reads their name); a global admin / "Admin" = program-wide.
+    private var scopeMemberId: String? {
+        selectedMember?.id ?? (!hasUserChosenViewAs && !programContext.isGlobalAdmin ? programContext.loggedInUserId : nil)
+    }
+
+    private var currentKey: LifestyleKey? {
+        programContext.programId.map { LifestyleKey(programId: $0, memberId: scopeMemberId) }
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             Color.appBackground
@@ -45,50 +58,8 @@ struct AdminWorkoutTypesTab: View {
                         viewAsSelector
                     }
 
-                    VStack(spacing: 14) {
-                        HStack(spacing: 14) {
-                            WorkoutTypesTotalCard(total: programContext.workoutTypesTotal)
-                                .frame(maxWidth: .infinity)
-                            WorkoutTypeMostPopularCard(
-                                name: programContext.workoutTypeMostPopular?.workout_name,
-                                sessions: programContext.workoutTypeMostPopular?.sessions ?? 0
-                            )
-                            .frame(maxWidth: .infinity)
-                        }
-                        HStack(spacing: 14) {
-                            WorkoutTypeLongestDurationCard(
-                                name: programContext.workoutTypeLongestDuration?.workout_name,
-                                avgMinutes: programContext.workoutTypeLongestDuration?.avg_minutes ?? 0
-                            )
-                            .frame(maxWidth: .infinity)
-                            WorkoutTypeHighestParticipationCard(
-                                name: programContext.workoutTypeHighestParticipation?.workout_name,
-                                participationPct: programContext.workoutTypeHighestParticipation?.participation_pct ?? 0
-                            )
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-
-                    StepsStatsCard(stats: programContext.stepsStats)
-
-                    WorkoutTypePopularityCard(types: programContext.workoutTypes)
-
-                    NavigationLink {
-                        LifestyleTimelineDetailView(
-                            initialPeriod: .week,
-                            memberId: selectedMember?.id
-                        )
-                    } label: {
-                        LifestyleTimelineCardSummary(points: programContext.healthTimeline)
-                    }
-
-                    NavigationLink {
-                        StepsTimelineDetailView(
-                            initialPeriod: .week,
-                            memberId: selectedMember?.id
-                        )
-                    } label: {
-                        StepsTimelineCardSummary(points: programContext.healthTimeline)
+                    LoadStateContent(state: loadState, onRetry: { Task { await load() } }) { snapshot in
+                        LifestyleCardsSection(snapshot: snapshot)
                     }
                 }
                 .padding(.horizontal, 20)
@@ -97,28 +68,30 @@ struct AdminWorkoutTypesTab: View {
                 .frame(maxWidth: AdaptiveLayout.contentMaxWidth + 40)
                 .frame(maxWidth: .infinity)
             }
+            .refreshable { await load() }
         }
+        .loadStateChrome(loadState, onRetry: { Task { await load() } })
         .task {
-            await programContext.loadLookupData()
+            // QA5: every visit refreshes the roster, program and role — alongside the load (the default scope needs no
+            // roster); #31: every visit reloads (admin re-entry included).
+            let lookup = Task<Void, Never> { await programContext.loadLookupData() }
+            await load()
+            await lookup.value
             applyDefaultSelectionIfNeeded()
-            if selectedMember == nil {
-                await load()
-            }
         }
         .onChange(of: programContext.programId) { _, _ in
+            // #10: "View as" belongs to one program — reset it for every role (global admins too).
+            selectedMember = nil
+            hasUserChosenViewAs = false
             Task {
-                if !programContext.isGlobalAdmin {
-                    selectedMember = nil
-                    hasUserChosenViewAs = false
-                }
                 await programContext.loadLookupData()
                 applyDefaultSelectionIfNeeded()
-                if selectedMember == nil {
-                    await load()
-                }
             }
         }
-        .onChange(of: selectedMember?.id) { _, _ in
+        .onChange(of: currentKey) { _, key in
+            // Polish #10 (keyed state): a new program / View-as member shows the spinner in the same event as the pick
+            // — never the previous member's numbers under the new label; the load follows (queued if one is running).
+            if loadState.value?.key != key { loadState = .loading }
             Task { await load() }
         }
         .onChange(of: programContext.members.count) { _, _ in
@@ -134,30 +107,23 @@ struct AdminWorkoutTypesTab: View {
     }
 
     private func load() async {
-        // Polish #5: the seven reads run in parallel. A View-as change during a load is queued, not dropped — the loop
-        // re-reads the selection until it settles, so the cards always end on the member the label shows.
+        // Polish #5: a View-as change (or a Retry / reconnect / pull) during a load is queued, not dropped — the loop
+        // re-reads the key until it settles, so the cards always end on the member the label shows.
         guard !isLoading else {
             reloadQueued = true
             return
         }
         isLoading = true
-        errorMessage = nil
-        let pc = programContext
-        let week = AdminHomeView.Period.week.apiValue
         repeat {
             reloadQueued = false
-            let memberId = selectedMember?.id
-            await withDiscardingTaskGroup { group in
-                group.addTask { await pc.loadWorkoutTypesTotal(memberId: memberId) }
-                group.addTask { await pc.loadWorkoutTypeMostPopular(memberId: memberId) }
-                group.addTask { await pc.loadWorkoutTypeLongestDuration(memberId: memberId) }
-                group.addTask { await pc.loadWorkoutTypeHighestParticipation(memberId: nil) }  // Always program-wide
-                group.addTask { await pc.loadWorkoutTypes(memberId: memberId) }
-                group.addTask { await pc.loadHealthTimeline(period: week, memberId: memberId) }
-                group.addTask { await pc.loadStepsStats(memberId: memberId) }
+            guard let key = currentKey else { break }
+            // #10: another program's / member's numbers never sit under the new label.
+            if loadState.value?.key != key { loadState = .idle }
+            loadState = loadState.refreshing()
+            if let result = await programContext.loadLifestyle(memberId: key.memberId), !reloadQueued, key == currentKey {
+                loadState = loadState.merging(result)
             }
         } while reloadQueued && !Task.isCancelled
-        errorMessage = pc.errorMessage
         isLoading = false
         // This load's task was cancelled (the tab's .task on disappear) with a View-as change still queued: run it on
         // its own, so the change isn't lost.

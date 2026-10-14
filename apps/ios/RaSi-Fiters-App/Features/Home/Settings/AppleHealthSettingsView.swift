@@ -11,6 +11,12 @@ struct AppleHealthSettingsView: View {
     @State private var workoutSyncError: String?
     @State private var sleepSyncError: String?
     @State private var stepsSyncError: String?
+    /// Polish #27: the program list's own load (frontend-kit §5) — never "No programs available" while loading or after
+    /// a failure. Seeded with the list already in memory, so it shows at once and refreshes underneath.
+    @State private var programsState: LoadState<[APIClient.ProgramDTO]> = .idle
+
+    /// The three sync kinds' program selectors.
+    private enum SyncKind { case workouts, sleep, steps }
 
     private let syncNowErrorText = "Couldn't reach the server. Check your connection and try again."
     private let autoRetryStatusText = "Last sync couldn't reach the server — will retry automatically."
@@ -89,12 +95,8 @@ struct AppleHealthSettingsView: View {
         .background(Color.appBackground.ignoresSafeArea())
         .navigationTitle("Apple Health")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
-            guard let token = programContext.authToken, !token.isEmpty else { return }
-            if let programs = try? await APIClient.shared.fetchPrograms(token: token) {
-                programContext.programs = programs
-            }
-        }
+        .loadStateChrome(programsState, onRetry: { Task { await loadPrograms() } })
+        .task { await loadPrograms() }
     }
 
     // MARK: - Header
@@ -185,33 +187,13 @@ struct AppleHealthSettingsView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundColor(Color(.secondaryLabel))
 
-            if programContext.programs.isEmpty {
-                Text("No programs available. Join or create a program first.")
-                    .font(.caption)
-                    .foregroundColor(Color(.tertiaryLabel))
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(cardBackground)
-                    .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(programContext.programs, id: \.id) { program in
-                        programRow(program, isSelected: programContext.healthKitSyncProgramIds.contains(program.id)) {
-                            if programContext.healthKitSyncProgramIds.contains(program.id) {
-                                programContext.healthKitSyncProgramIds.remove(program.id)
-                            } else {
-                                programContext.healthKitSyncProgramIds.insert(program.id)
-                            }
-                            programContext.persistHealthKitSettings()
-                        }
-
-                        if program.id != programContext.programs.last?.id {
-                            Divider().padding(.leading, 50)
-                        }
-                    }
+            programList(.workouts, selectedIds: programContext.healthKitSyncProgramIds) { id in
+                if programContext.healthKitSyncProgramIds.contains(id) {
+                    programContext.healthKitSyncProgramIds.remove(id)
+                } else {
+                    programContext.healthKitSyncProgramIds.insert(id)
                 }
-                .background(cardBackground)
-                .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+                programContext.persistHealthKitSettings()
             }
 
             // people U-1: synced workouts are part of program activity.
@@ -219,6 +201,90 @@ struct AppleHealthSettingsView: View {
                 .font(.caption)
                 .foregroundColor(Color(.secondaryLabel))
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func loadPrograms() async {
+        guard let token = programContext.authToken, !token.isEmpty else { return }
+        if programsState.value == nil, !programContext.programs.isEmpty {
+            programsState = .loaded(programContext.programs, fetchedAt: Date(), refreshing: false)
+        }
+        programsState = programsState.refreshing()
+        guard let outcome = await loadOutcome({ try await APIClient.shared.fetchPrograms(token: token) }) else { return }
+        programsState = programsState.applying(outcome)
+        if case .success(let programs) = outcome {
+            programContext.programs = programs
+            pruneInactiveSelections(programs)
+        }
+    }
+
+    /// Polish #27: a selected program you're no longer active in can never receive a sync (the server skips it) — drop
+    /// it from every kind's selection after a fresh load, then persist.
+    private func pruneInactiveSelections(_ programs: [APIClient.ProgramDTO]) {
+        let active = Set(activePrograms(programs).map(\.id))
+        if !programContext.healthKitSyncProgramIds.isSubset(of: active) {
+            programContext.healthKitSyncProgramIds.formIntersection(active)
+            programContext.persistHealthKitSettings()
+        }
+        if !programContext.sleepSyncProgramIds.isSubset(of: active) {
+            programContext.sleepSyncProgramIds.formIntersection(active)
+            programContext.persistSleepSyncSettings()
+        }
+        if !programContext.stepsSyncProgramIds.isSubset(of: active) {
+            programContext.stepsSyncProgramIds.formIntersection(active)
+            programContext.persistStepsSyncSettings()
+        }
+    }
+
+    /// Only programs you're ACTIVE in (the server skips every other program: healthSyncService `skipped_not_member`).
+    private func activePrograms(_ programs: [APIClient.ProgramDTO]) -> [APIClient.ProgramDTO] {
+        programs.filter { ($0.my_status ?? "").lowercased() == "active" }
+    }
+
+    /// The first enabled sync kind shows the list's load state (spinner / "Couldn't load · Retry"); the others show
+    /// their list once it's there — one load-state block per screen, never three.
+    private var loadStateKind: SyncKind? {
+        if programContext.isHealthKitEnabled { return .workouts }
+        if programContext.isSleepSyncEnabled { return .sleep }
+        if programContext.isStepsSyncEnabled { return .steps }
+        return nil
+    }
+
+    /// Polish #27: one program list for the three selectors — load states, and active programs only.
+    @ViewBuilder
+    private func programList(_ kind: SyncKind, selectedIds: Set<String>,
+                             onToggle: @escaping (String) -> Void) -> some View {
+        if kind == loadStateKind {
+            LoadStateContent(state: programsState, minHeight: 80, onRetry: { Task { await loadPrograms() } }) { all in
+                programRows(activePrograms(all), selectedIds: selectedIds, onToggle: onToggle)
+            }
+        } else if let all = programsState.value {
+            programRows(activePrograms(all), selectedIds: selectedIds, onToggle: onToggle)
+        }
+    }
+
+    @ViewBuilder
+    private func programRows(_ programs: [APIClient.ProgramDTO], selectedIds: Set<String>,
+                             onToggle: @escaping (String) -> Void) -> some View {
+        if programs.isEmpty {
+            Text("No programs available. Join or create a program first.")
+                .font(.caption)
+                .foregroundColor(Color(.tertiaryLabel))
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(cardBackground)
+                .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+        } else {
+            VStack(spacing: 0) {
+                ForEach(programs, id: \.id) { program in
+                    programRow(program, isSelected: selectedIds.contains(program.id)) { onToggle(program.id) }
+                    if program.id != programs.last?.id {
+                        Divider().padding(.leading, 50)
+                    }
+                }
+            }
+            .background(cardBackground)
+            .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
         }
     }
 
@@ -253,6 +319,7 @@ struct AppleHealthSettingsView: View {
         }
         .buttonStyle(.plain)
         .disabled(locked)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     /// Count of currently-selected programs that are admin-locked for this viewer (won't sync).
@@ -444,33 +511,13 @@ struct AppleHealthSettingsView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundColor(Color(.secondaryLabel))
 
-            if programContext.programs.isEmpty {
-                Text("No programs available. Join or create a program first.")
-                    .font(.caption)
-                    .foregroundColor(Color(.tertiaryLabel))
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(cardBackground)
-                    .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(programContext.programs, id: \.id) { program in
-                        programRow(program, isSelected: programContext.sleepSyncProgramIds.contains(program.id)) {
-                            if programContext.sleepSyncProgramIds.contains(program.id) {
-                                programContext.sleepSyncProgramIds.remove(program.id)
-                            } else {
-                                programContext.sleepSyncProgramIds.insert(program.id)
-                            }
-                            programContext.persistSleepSyncSettings()
-                        }
-
-                        if program.id != programContext.programs.last?.id {
-                            Divider().padding(.leading, 50)
-                        }
-                    }
+            programList(.sleep, selectedIds: programContext.sleepSyncProgramIds) { id in
+                if programContext.sleepSyncProgramIds.contains(id) {
+                    programContext.sleepSyncProgramIds.remove(id)
+                } else {
+                    programContext.sleepSyncProgramIds.insert(id)
                 }
-                .background(cardBackground)
-                .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+                programContext.persistSleepSyncSettings()
             }
         }
     }
@@ -651,33 +698,13 @@ struct AppleHealthSettingsView: View {
                 .font(.footnote.weight(.semibold))
                 .foregroundColor(Color(.secondaryLabel))
 
-            if programContext.programs.isEmpty {
-                Text("No programs available. Join or create a program first.")
-                    .font(.caption)
-                    .foregroundColor(Color(.tertiaryLabel))
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(cardBackground)
-                    .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(programContext.programs, id: \.id) { program in
-                        programRow(program, isSelected: programContext.stepsSyncProgramIds.contains(program.id)) {
-                            if programContext.stepsSyncProgramIds.contains(program.id) {
-                                programContext.stepsSyncProgramIds.remove(program.id)
-                            } else {
-                                programContext.stepsSyncProgramIds.insert(program.id)
-                            }
-                            programContext.persistStepsSyncSettings()
-                        }
-
-                        if program.id != programContext.programs.last?.id {
-                            Divider().padding(.leading, 50)
-                        }
-                    }
+            programList(.steps, selectedIds: programContext.stepsSyncProgramIds) { id in
+                if programContext.stepsSyncProgramIds.contains(id) {
+                    programContext.stepsSyncProgramIds.remove(id)
+                } else {
+                    programContext.stepsSyncProgramIds.insert(id)
                 }
-                .background(cardBackground)
-                .overlay(cardBorder(Color(.systemGray4).opacity(0.6)))
+                programContext.persistStepsSyncSettings()
             }
         }
     }

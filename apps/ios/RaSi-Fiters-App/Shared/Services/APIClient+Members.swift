@@ -324,17 +324,18 @@ extension APIClient {
         return try JSONDecoder().decode(MemberRecentWorkoutsResponse.self, from: data)
     }
 
-    func updateMemberProfile(token: String, memberId: String, firstName: String?, lastName: String?, gender: String?) async throws -> MemberUpdateResponse {
+    func updateMemberProfile(token: String, memberId: String, firstName: String?, lastName: String?, gender: String?,
+                             clearGender: Bool = false) async throws -> MemberUpdateResponse {
         var request = URLRequest(url: baseURL.appendingPathComponent("members/\(memberId)"))
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
+
         var body: [String: Any] = [:]
         if let firstName { body["first_name"] = firstName }
         if let lastName { body["last_name"] = lastName }
-        if let gender { body["gender"] = gender }
+        if let gender { body["gender"] = gender } else if clearGender { body["gender"] = NSNull() }   // #44: JSON null clears (web parity)
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [])
         let data = try await data(for: request)
