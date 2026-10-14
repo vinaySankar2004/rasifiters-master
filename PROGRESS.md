@@ -34,8 +34,7 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > **Status 2026-10-13:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
 > and the release touch-ups are live on backend + web (People dark on web behind `PEOPLE_LIVE`). **The iOS + Android
 > builds are submitted, awaiting store approval** (versions: `RELEASES.md`). **Next (user-owned):** Play Publish
-> clicks + the App Store Release click, then flip `PEOPLE_LIVE` + raise `LATEST_*`; Search Console owner steps —
-> HANDOFF "Next action".
+> clicks + the App Store Release click, then flip `PEOPLE_LIVE` + raise `LATEST_*` — HANDOFF "Next action".
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
@@ -75,10 +74,10 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 ## Open items (carry until resolved)
 
 - **Search Console (web indexing)** — canonical host (landing **D-LAND-11**, 2026-08-20) + displayed site name
-  (**D-LAND-12**, 2026-10-13) are live. **Pending, owner steps:** resubmit the sitemap, Rich Results Test, Request
-  indexing `https://rasifiters.com/`, *Validate Fix* on any leftover "Page with redirect" row —
-  [`plans/phase-4-seo.md`](specs/initiatives/reliability-overhaul/plans/phase-4-seo.md). "RaSi Fiters" as the
-  shown name takes days–weeks (schema is a hint, not a switch) — recheck before doing anything more.
+  (**D-LAND-12**, 2026-10-13) are live. Owner steps done 2026-10-13: sitemap resubmitted, Rich Results valid,
+  indexing requested for the home page + the 5 "Discovered – not indexed" pages. The 2 "Page with redirect" rows
+  are the `http://` hosts redirecting to `https://` apex — expected, no action. "RaSi Fiters" as the shown name
+  takes days–weeks (schema is a hint, not a switch) — recheck ~2026-10-27 before doing anything more.
 - **Self-serve account deletion (`DELETE /api/auth/account`) is effectively unexercised.** Live traffic
   proves the common paths, not the destructive rare ones. Nuance: the cascade itself
   (`cascadeMemberDeletion`, `apps/backend/utils/programMemberships.js:167`) is **shared** with the admin path

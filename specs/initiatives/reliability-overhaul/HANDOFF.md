@@ -28,7 +28,7 @@
     user — don't re-pitch.**
   - (e) iOS People rows `1e74a54`.
   - (f) SEO `cc46131` (landing 0.1.5, D-LAND-12): WebSite `alternateName` = real spellings only, brand-first
-    description, hero eyebrow, per-page titles. Live + verified. Owner steps pending (below).
+    description, hero eyebrow, per-page titles. Live + verified; Search Console steps done.
 - **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
   storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt.
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
@@ -46,8 +46,8 @@
    1. Flip `PEOPLE_LIVE = true` → deploy web (a yes to push).
    2. Raise app-config `LATEST_*` (later `MIN_*`).
    3. Update RELEASES.md; mark Phase 4 🚀 shipped in BRIEF §7 + PROGRESS.md.
-4. **SEO owner steps** ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)): Search Console → resubmit the sitemap →
-   Rich Results Test → URL Inspection → Request indexing. Days–weeks to show "RaSi Fiters".
+4. ~~**SEO owner steps**~~ **DONE 2026-10-13** ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)). Recheck the shown
+   name in Google around 2026-10-27 before doing anything more.
 
 ## Workstream status
 
@@ -108,4 +108,5 @@
   back-swipe investigation + an SEO audit; 4 per-surface implementers, adversary reviews + fix rounds; backend +
   web + SEO live. Builds iOS 1.5.2 (60) / Android 1.2.0 (7); **both submitted** (App Store manual release; Play
   managed publishing), App Privacy + Data safety updated. Repo pre-bumped to 1.5.3 (61) / versionCode 8. The user's
-  TestFlight 60 check passed. Docs freshness pass.
+  TestFlight 60 check passed. Docs freshness pass. Search Console: sitemap resubmitted, Rich Results valid, indexing
+  requested for the home page + 5 waiting pages.
