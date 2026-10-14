@@ -137,6 +137,9 @@ Verify: every feature's **current** `version` in `registry.json` has a matching
 - **Multi-surface client release (2026-10-13):** commit each surface as a no-bump `feat(<surface>)` when its review
   passes (it can ship alone), then ONE docs commit bumps every touched feature + registry + both REGISTRY files and
   carries the tags. Agents that rename by create + delete → stage with path-scoped `git add -A -- apps/<surface>`.
+- **Phased waves (2026-10-13, Phase 4):** one docs commit per wave; each feature takes ONE bump per wave (a feature
+  touched by three waves gets three versions, e.g. frontend-kit 0.4.0 → 0.5.0 → 0.6.0), and the tags are created at
+  that docs commit — plan-time version numbers are provisional until then.
 - **Lessons edits = a separate `chore(skills)` commit.** The skills' `LESSONS_ARCHIVE.md` files ARE in-repo,
   so they commit normally; methodology/playbook docs that live outside this git repo are intentionally
   untracked — don't hunt for them in `git status`.

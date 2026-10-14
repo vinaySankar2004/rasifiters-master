@@ -65,8 +65,11 @@ not re-validating business logic:
 - **Green build command (confirmed 2026-07-08):** `cd apps/android && ./gradlew :app:assembleDebug`.
   First run downloads the 8.11.1 distribution + AGP/Compose/Retrofit deps (~90s cold); incremental ~7s.
 - **Version set that builds clean:** AGP 8.9.1 · Gradle 8.11.1 · Kotlin 2.0.21 (+ compose & serialization
-  compiler plugins same version) · Compose BOM 2024.12.01 · compileSdk 36 · minSdk 26 · JDK 17 bytecode
+  compiler plugins same version) · Compose BOM 2025.04.01 · compileSdk 36 · minSdk 26 · JDK 17 bytecode
   (built on Temurin 21). Deps via `gradle/libs.versions.toml` version catalog.
+- **BOM bump = a contained change (2026-10-13, Phase 4 #35):** 2024.12.01 → 2025.04.01 (Compose UI 1.8, for
+  `ContentType` autofill) built clean with Kotlin 2.0.21 / AGP 8.9.1 unchanged — bump only the BOM line, rebuild, then
+  check the themed autofill highlight visually (the user's emulator pass).
 - **Top-level `val` init order bites:** a top-level property referencing another top-level `val` declared
   *below* it fails "must be initialized" (hit in Theme.kt referencing a color declared after the scheme).
   Declare shared constants above their first use, or inline them.

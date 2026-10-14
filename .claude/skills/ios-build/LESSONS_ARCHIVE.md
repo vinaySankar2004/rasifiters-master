@@ -422,3 +422,14 @@ specific "list navigator issues" tool must be called after the build tool.
 - **Build:** the user's ⌘B passed first try. Before it, the impl-adversary ran a scratch `swiftc -typecheck` with the
   target's flags + DerivedData module maps (0 errors, 28 pre-existing warnings) → saved as `tools/ios-typecheck.sh`
   and made step 0 of the loop. Fix round: the script again reported 0 errors before the second ⌘B.
+
+## Run — 2026-10-13 — reliability Phase 4 iOS (quick wins `53f2e5d`, Notifications + People `198407c`, polish `05e185a`, People-row fix `1e74a54`)
+- **Build:** every iOS commit passed the user's ⌘B.
+- **Device test 1 — push:** after a ⌘R debug build over the TestFlight install, the iPhone's APNs token was a sandbox
+  one; prod runs `APNS_PRODUCTION=true`, so the send fails `BadDeviceToken` and the server prunes the token. Fix =
+  reinstall from TestFlight before testing push.
+- **Device test 2 — dead List rows:** People rows (NavigationLink) never highlighted or pushed. The root
+  `.dismissKeyboardOnTap()` adds a `.simultaneousGesture(TapGesture())` that cancels List row selection (its doc comment
+  claims it never swallows row taps — wrong for List selection). Fix `1e74a54`: `.buttonStyle(.plain)` Buttons that set
+  a route + `.navigationDestination` on the List; user-verified with ⌘R.
+- Promoted to Converged lessons: "Phase 4 device-test gotchas".

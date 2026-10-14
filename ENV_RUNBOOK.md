@@ -41,8 +41,8 @@ equivalent:
 curl -s https://api.render.com/v1/services/srv-d90tgmv7f7vs73cudptg/env-vars \
   -H "Authorization: Bearer $RENDER_API_KEY" | jq -r '.[].envVar.key'   # keys only — no values leaked
 ```
-(The hosted `render` MCP works interactively but 400s in non-interactive/headless sessions — prefer the
-API-key helper there.)
+(The `render` MCP authenticates with the same key as a Bearer header — `CLAUDE.md` §MCP — and its
+`update_environment_variables` confirms per call.)
 
 > **Render env-var values are readable** (dashboard "reveal", and the REST API returns raw values) —
 > they are *not* sealed/write-only. To audit/compare without leaking, list **keys only** (the `jq`
@@ -125,6 +125,11 @@ server-side web route both use) must be **byte-identical** wherever it appears.
 | `APNS_PRODUCTION` | `true`/`false` → APNs prod vs sandbox gateway | no | **currently `true`** (flipped 2026-07-11 for TestFlight distribution — build 50 friend testers were on production tokens hitting the sandbox gateway → silent `BadDeviceToken`). TestFlight/App Store builds get production tokens; this must be `true` for them. ⚠️ **Trade-off:** `true` means **Xcode dev builds (sandbox tokens) no longer receive pushes** — a single provider matches one gateway at a time; test pushes via a TestFlight build. To go back to dev-phone testing, set `false` (`tools/render-env.sh set APNS_PRODUCTION false && tools/render-env.sh deploy`). A mismatch → `BadDeviceToken` and the token is auto-pruned. Defaults to `NODE_ENV==='production'` if unset. |
 | ~~`JWT_SECRET`~~ | (was: HS256 secret to sign+verify self-issued access tokens) | secret | **RETIRED at R1** — identity moves to Supabase Auth; verification uses `SUPABASE_JWT_SECRET`/JWKS. The legacy value `my_secret_key` is a dev placeholder, not a real secret. |
 | ~~`REFRESH_TOKEN_TTL_DAYS`~~ | (was: TTL for rows in the `refresh_tokens` table) | no | **RETIRED at R1** — Supabase Auth owns refresh tokens; the legacy `refresh_tokens` table + `/api/auth/refresh` self-issue path go away (the proxy forwards Supabase's refresh). Legacy value `90`. |
+
+> **No env var (Phase 4):** the notification scheduler runs inside the API process, always on, with no switch
+> (`apps/backend/CONTEXT.md` §Runtime). Migrations 011 + 012 and their nightly `pg_cron` retention jobs
+> (`notifications_retention_<schema>`, `notification_send_keys_retention_<schema>`) are SQL, not env — applied to
+> `staging` and `public` 2026-10-13; per-file notes in `apps/backend/sql/README.md`.
 
 > **Auth-cutover note (R1):** these Supabase vars exist because the backend proxies Supabase Auth and
 > verifies its JWTs (mapping `sub` → member via `members.auth_user_id`), replacing the retired
@@ -258,8 +263,11 @@ carries the Web client `client_type: 3`, plus the iOS client in `other_platform_
 - An Android OAuth client exists in Google Cloud (`rasi-fiters`) for every signing key that ships — the Play App
   Signing key always; the upload key only if a build signed with it is ever installed directly; each dev machine's
   debug key for its emulator (W5 — the second cause above).
-- Before the 1.1.0 Play rollout, review the Play Console **Data safety** form: the install id (`device_id`) is a device
-  identifier, and `app_events` (auth / sync diagnostics) is app-diagnostics data.
+- Before the production rollout (1.2.0), review the Play Console **Data safety** form: the install id (`device_id`) is
+  a device identifier, `app_events` (auth / sync diagnostics) is app-diagnostics data, and Phase 4 stores each member's
+  time zone (`notification_preferences.time_zone`, from `X-Time-Zone`).
+- Channels: the CLI-built AAB goes to Play **internal** and **closed** testing — the user's Pixel only receives builds
+  through closed testing. Routine: the `deploy` skill §D; what's on each channel: `RELEASES.md`.
 
 ## 7b. Auth email (password reset) — Resend custom SMTP
 

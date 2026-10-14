@@ -3,8 +3,9 @@ import UIKit
 
 extension View {
     /// Dismisses the soft keyboard when the user taps outside the focused input.
-    /// `.simultaneousGesture` never swallows taps meant for buttons / list rows /
-    /// other controls — they still receive the tap.
+    /// SwiftUI buttons / gestures still receive the tap, but it DOES cancel UIKit List row selection: a
+    /// `NavigationLink` or default-style Button as a List row never fires under it — use `.buttonStyle(.plain)`
+    /// Buttons (or `.onTapGesture`) for List rows outside sheets (People rows, 2026-10-13).
     func dismissKeyboardOnTap() -> some View {
         simultaneousGesture(
             TapGesture().onEnded { hideKeyboard() }

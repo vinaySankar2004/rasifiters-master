@@ -222,3 +222,15 @@
   `rasifiters-api` verified 200 after.
 - Resend auth domain DNS (DKIM TXT, two CNAMEs, `_dmarc`) added via the Vercel dashboard — the project-scoped
   `VERCEL_TOKEN` is forbidden on domain records; a record under `auth.` disables the `*` wildcard there (fine).
+
+## Run 2026-10-13 — reliability Phase 4 (backend + web live; phone candidates on test channels)
+- **Migrations 011 + 012:** handed to the user on the clipboard (`pbcopy`), schema-prefixed (`SET search_path TO
+  staging;`, then `public;`); the user ran them; verified read-only through the `supabase-rasifiters` MCP (tables on
+  both schemas + the four new `pg_cron` jobs active). Order mattered: 012 had to be on both schemas
+  BEFORE the People code was pushed — the `Member` model reads `hide_activity` on every authenticated request, so a
+  backend with the attribute but no column answers every call 503. Promoted to Converged lessons.
+- **Backend + web:** live on Render + Vercel as each wave's review passed (backend first).
+- **Android 1.2.0 (6):** `./gradlew :app:bundleRelease` → the browser pane can't attach local files, so the user
+  clicked Upload in Play Console; Claude set the name / notes and published internal testing, then promoted to closed
+  testing (each with the user's yes). Closed testing is what reached the user's Pixel (approved 2026-10-13/14) — §D
+  now says to always promote there too.

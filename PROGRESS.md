@@ -31,12 +31,10 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (current state, what's live with versions, next action) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
 > (scope + phase plan §7).
 >
-> **Status 2026-10-13:** design board approved · **Phase 1b ✅** (auth hotfix, analytics membership gate, refresh
-> rate limit, Resend reset email) · **Phase 2 ✅** (version gate, observability, frontend kits, opt-in staging) ·
-> **Phase 3 backend ✅** (R1 sessions / per-user rate limits, R2 health sync v2, R3 invites + push + device registry)
-> · **Phase 3 clients ✅** (web live; iOS 1.5.0 (58) TestFlight + Android 1.1.0 (5) Play internal, device-tested) ·
-> **Polish 1 ✅** (real offline detection). **Next:** plan + build Phase 4 (decided — notifications, People, 47 polish
-> fixes), then ONE iOS + Android store release.
+> **Status 2026-10-13:** Phases 1b, 2, 3 and polish 1 ✅ (BRIEF §7) · **Phase 4 built ✅** — Notifications, People
+> and polish #1–#48; backend + web **live** (People stays dark on web behind `PEOPLE_LIVE` until release day); the
+> phones are on test channels (`RELEASES.md`) and the user is device-testing. **Next:** the user's touch-up list
+> (HANDOFF "Next action"), then ONE iOS + Android store release.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
@@ -44,19 +42,13 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 
 ## Surface state
 
-- **`backend`** — All features ported + live on Render (`specs/features/REGISTRY.md`). Auth round-trip
-  verified live against migrated data. Push = APNs (iOS) + FCM (Android).
-- **`web`** — All pages ported + live on `rasifiters.com`, plus the net-new public pages: the marketing
-  `landing` (`/`), `forgot-password`/`reset-password` recovery, and `privacy-policy`/`support`/
-  `delete-account` legal (the last three are linked from both store listings). Page SPECs indexed in
-  `specs/pages/REGISTRY.md`.
-- **`ios`** — Code-complete; all screens, widgets, and Apple Health auto-sync (workouts + sleep) ported, no
-  stubs left. Builds green in Xcode (the user's ⌘B). `apple-health` is at 0.6.0 (per-program date-window
-  scoping, gated first-sync confirmation, admin-lock-aware sync, sum-on-conflict via `on_duplicate:"sum"`,
-  silent auto-retry). Visual/runtime verification is the user's, in Xcode — memory
-  [[ios-user-verifies-builds-visually]].
-- **`android`** — Code-complete; all 4 tabs, Health Connect, SSE + FCM notifications ported, scaffold fully
-  removed. `./gradlew :app:assembleDebug` green.
+- **`backend`** — All features live on Render (`specs/features/REGISTRY.md`), incl. Phase 4's notification
+  inbox / preferences / scheduler / composer and People. Push = APNs (iOS) + FCM (Android).
+- **`web`** — All pages live on `rasifiters.com`, plus the net-new public pages (landing, password recovery,
+  legal). Page SPECs indexed in `specs/pages/REGISTRY.md`.
+- **`ios`** — Code-complete (screens, widgets, Apple Health sync of workouts / sleep / steps). Builds green in
+  Xcode (the user's ⌘B); visual/runtime verification is the user's — memory [[ios-user-verifies-builds-visually]].
+- **`android`** — Code-complete (4 tabs, Health Connect, SSE + FCM, widgets). `./gradlew :app:assembleDebug` green.
 - **Data/auth** — Supabase (`kpadxjekpiwfkqcxtrio`); schema + 48/48 members migrated (bcrypt hashes
   imported, no resets). The one-time migrator was removed post-cutover.
 
@@ -75,9 +67,8 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 
 ## Coverage
 
-- Features: **16** (incl. the Android-only `health-connect`) — `specs/features/REGISTRY.md` + `registry.json`.
-- Page/screen SPECs: `specs/pages/REGISTRY.md` (the canonical index — don't restate hard counts elsewhere,
-  they drift).
+- Features: `specs/features/REGISTRY.md` + `registry.json`; page/screen SPECs: `specs/pages/REGISTRY.md` (the
+  canonical indexes — don't restate hard counts elsewhere, they drift).
 - Legacy-parity coverage: `COVERAGE.md`.
 
 ## Open items (carry until resolved)
@@ -96,6 +87,5 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
   *caller's own* account. Irreversible, touches every table. **Not scheduled** — verifying it means seeding a
   throwaway account via `tools/testbed/`, deleting through the app, then checking for orphaned rows. Low
   likelihood, high blast radius; flagged so the risk stays explicit rather than forgotten. NOT a blocker.
-- **`notifications` cross-feature emits** — invites + membership changes already emit; the one remaining
-  deferred emit is `program.updated` / `program.deleted` (`apps/backend/services/programService.js:21`
-  TODO). Folds into the reliability initiative's notification redesign (Phase 4); not blocking.
+- ~~**`notifications` cross-feature emits** — the deferred `program.updated` / `program.deleted` emit.~~ **DONE
+  2026-10-13** — live since Phase 4 (programs D-C3, notifications 0.6.0, DECISIONS D-N13).

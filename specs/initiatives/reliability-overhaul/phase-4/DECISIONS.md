@@ -1,5 +1,8 @@
 # Phase 4 — decisions (user, 2026-10-13)
 
+> **Status: built 2026-10-13** (backend + web live, phones on test channels). Amendments made while building:
+> `../plans/phase-4-{wave-a,np,polish}-amendments.md`; the as-built rules live in the feature SPECs (§9).
+
 > From the decision board (https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD, `db` doc `board/phase4`) + the user's
 > messages. Options and rationale: [`DISCOVERY.md`](DISCOVERY.md). Planning builds against this file.
 

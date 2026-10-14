@@ -60,6 +60,10 @@ The user owns the visual/runtime confirmation in the simulator.
 - **Typecheck before ⌘B (2026-10-13):** `tools/ios-typecheck.sh` predicted 0 errors on a 62-file change and ⌘B
   passed first try; it caught the fix round clean too. If the project's Swift settings change (Swift version,
   default isolation, upcoming features), update the script's flags. Run it via `bash` (zsh doesn't word-split).
+- **Phase 4 device-test gotchas (2026-10-13):** (a) a ⌘R debug install over TestFlight registers a sandbox APNs token
+  that the prod server prunes (`BadDeviceToken`, ENV_RUNBOOK `APNS_PRODUCTION`) — reinstall from TestFlight to test
+  push. (b) The root `.dismissKeyboardOnTap()` `TapGesture` cancels List row selection — make List rows
+  `.buttonStyle(.plain)` Buttons (or `onTapGesture`) + `navigationDestination`, never NavigationLink rows.
 - *The next three bullets record the pre-2026-10-12 MCP build loop — reference only; never call `BuildProject` now.*
 - **Tool names (confirmed live):** build = `mcp__xcode__BuildProject`, structured issues =
   `mcp__xcode__XcodeListNavigatorIssues` (filter by `severity`/`glob`/`pattern`), raw log =

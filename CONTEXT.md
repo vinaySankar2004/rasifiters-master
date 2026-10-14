@@ -2,7 +2,8 @@
 
 RaSi Fiters — a fitness-program tracker. Members join Programs; per-program roles (admin / logger /
 member) gate what they can do. Members log workouts and daily health metrics; the app surfaces analytics,
-streaks, leaderboards, and sends push notifications. Three clients (`web`, `ios`, `android`) share one `backend` API.
+streaks and leaderboards, a program People list with kudos, and a notification inbox + push. Three clients
+(`web`, `ios`, `android`) share one `backend` API.
 
 This is the **ICM rebuild** of the original app — a faithful 1:1 recreation on a new stack, now complete
 and standalone (the original app it was ported from is archived, not tracked here). Per-app detail lives in
@@ -11,8 +12,8 @@ and standalone (the original app it was ported from is archived, not tracked her
 ## Brand
 - Name: **RaSi Fiters**
 - Domain: **rasifiters.com** (served by the new Vercel project since cutover 2026-06-29).
-- Accent: carried from the original app (web uses Tailwind `rf-*` CSS vars; iOS uses `AppTheme`).
-  Exact values recorded in `apps/*/CONTEXT.md`.
+- Accent: `#ff8b1f` — one palette (= web's `rf-*` tokens) on all three clients; light/dark values + per-surface
+  names: [`frontend-kit`](specs/features/frontend-kit/SPEC.md) §7.
 - Support / legal: `rasifiters.com/{support,privacy-policy,delete-account}` (public pages; the last two are
   linked from both store listings).
 - Store listings: [App Store](https://apps.apple.com/ca/app/rasi-fiters/id6758078961) ·

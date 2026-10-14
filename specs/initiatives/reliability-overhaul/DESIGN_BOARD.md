@@ -210,7 +210,10 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
 | Migrations | Today's files hard-code `public.`. New migrations are written **schema-neutral** (no schema names) and run once per schema: `psql -c "SET search_path TO staging" -f NNN.sql`, then the same for `public`. The base schema is created in `staging` once. Phase 2 Track A's migrations go straight to prod (staging doesn't exist yet) |
 | Not isolated | Supabase Auth settings + rate limits (shared) |
 
-## 9. Notification redesign (concept — Phase 4)
+## 9. Notification redesign (concept — Phase 4; ✅ built 2026-10-13)
+
+> As built: the [`notifications`](../../features/notifications/SPEC.md) SPEC; where the decisions refined this
+> concept, [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md) wins.
 
 - **Categories:** *Program & invites* (invites, membership changes, program updated/deleted — today's deferred
   emit) · *Activity* (logs from people in your programs, later) · *Reminders* (log your workout, streak at
@@ -226,7 +229,10 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
   and **email**. Design the pipeline as content source → trigger → preferences → channel so email and AI-written
   content plug in later without rework. Powerful, not over-engineered.
 
-## 10. Social layer (concept — Phase 4, privacy first)
+## 10. Social layer (concept — Phase 4, privacy first; ✅ built 2026-10-13, dark on web until release day)
+
+> As built: the [`people`](../../features/people/SPEC.md) SPEC; where the decisions refined this concept (e.g. D-P9:
+> no person-to-person blocking), [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md) wins.
 
 - **Model ◆:** start with a **program "People" list** (everyone in a program you share; profile + recent
   activity + kudos) — no strangers, no new graph. *Later:* follows across programs.

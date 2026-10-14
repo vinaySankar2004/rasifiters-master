@@ -539,3 +539,11 @@ One-line change: 48dp leading `Spacer` above `BrandMark` in `CreateAccountScreen
 top-anchored (tall) create-account form down off the status bar. `./gradlew :app:compileDebugKotlin` →
 `BUILD SUCCESSFUL` in 1s (incremental). No new durable pattern — trivial layout tweak; user owns the
 visual/emulator confirmation as always.
+
+## Run — 2026-10-13 · reliability Phase 4 (quick wins `82b7297`, Notifications + People `d528f75`, polish `0b0a0a3`)
+Three Android commits; the Notifications + People and polish commits record `./gradlew :app:assembleDebug` PASS
+after their review + fix rounds. Polish #35 bumped the
+Compose BOM 2024.12.01 → 2025.04.01 (Compose UI 1.8) for `ContentType` autofill on the credential fields — the only
+catalog change; Kotlin 2.0.21 / AGP 8.9.1 stayed and the build was clean. The SKILL's "version set" line still said
+2024.12.01 — corrected, and the bump recipe promoted to Converged lessons. Release AAB 1.2.0 (6) built from the CLI
+(`:app:bundleRelease`; routine in the `deploy` skill §D).

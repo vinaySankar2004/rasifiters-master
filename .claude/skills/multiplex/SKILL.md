@@ -116,3 +116,7 @@ anything you'd want adversarially checked before the user tests it on prod.
 - (Run 4) Directory-disjoint implementers in the main tree must run **no git writes**; the orchestrator commits each
   surface after its review + fix round, and ships it (web) without waiting for the slower surfaces. Fix rounds =
   resume the same implementer with the reviewer's list; the orchestrator spot-checks the fix diff + re-runs the compile.
+- (Run 5, 2026-10-13) Plan a big phase in **waves** — the small urgent wave is approved + built while the rest still
+  plan; client plans feed the server plans' API CONTRACT sections, then one parity check → one binding amendments file.
+  Versions + D-IDs in plans are provisional (assigned at landing). Two tracks in one shared file (`server.js`): commit
+  each by staging a copy stripped of the other track's lines, so every commit boots.

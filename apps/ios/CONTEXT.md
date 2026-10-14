@@ -21,76 +21,42 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
   (`git log -S "CURRENT_PROJECT_VERSION = <n>"` to check).
 
 ## Targets
-- **RaSi-Fiters-App** — the main app (78 Swift files in the legacy app; 41 foundation files in the scaffold).
+- **RaSi-Fiters-App** — the main app.
 - **RaSi-Fiters-App-Widgets** — home-screen widgets: quick-add workout (`rasifiters://quick-add-workout`)
   + quick-add health (`rasifiters://quick-add-health`). Self-contained `WidgetKit` extension (no app-code
     deps) — copied verbatim and kept in the scaffold.
 
-## Surface (screens, from the legacy app)
+## Surface (screens — index: `specs/pages/REGISTRY.md`)
 Splash · Login · CreateAccount · ProgramPicker · AdminHome (Summary / Members / Lifestyle / Program tabs,
 admin + standard variants) · member detail/metrics/streaks/history · Settings (profile / password /
-appearance / notifications / **Apple Health**) · widget entry views · ~~notification modal~~ (Phase 4: the Inbox +
-toast — `Features/Home/Inbox/`; People — `Features/Home/People/`; Members-card state `Features/Home/Tabs/MemberCardsState.swift`).
-Phase 4 polish helpers: `Shared/Kit/LoadStateContent.swift` (the one detail-load helper — frontend-kit D-KIT-21) and
-`Shared/Components/TapTarget.swift` (`.minTapTarget()`, D-KIT-22). **Debt:** `Shared/Models/ProgramContext.swift` still
+appearance / notifications / **Apple Health**) · widget entry views · Phase 4: the Inbox (`Features/Home/Inbox/`;
+toast `Shared/Views/NotificationToast.swift`), People (`Features/Home/People/`), Members-card state
+(`Features/Home/Tabs/MemberCardsState.swift`). Kit: `Shared/Kit/` (incl. `LoadStateContent.swift`, frontend-kit
+D-KIT-21) + `Shared/Components/TapTarget.swift` (`.minTapTarget()`, D-KIT-22). **Debt:** `Shared/Models/ProgramContext.swift` still
 declares fields nothing writes any more (`healthTimeline*`, `stepsStats`, `workoutType*` incl. `workoutTypesTotal`, + their
 init parameters) — harmless; delete in a later cleanup.
 
 ## Apple Health auto-sync (2026-06-30; health-sync v2 since 1.5.0)
-The [`apple-health`](../../specs/features/apple-health/SPEC.md) feature — iOS-only HealthKit workout / sleep / steps
-sync over [`health-sync`](../../specs/features/health-sync/SPEC.md) §8 (native **HealthKit**, zero third-party deps;
-maps every `HKWorkoutActivityType` → a library name via `HealthKitWorkoutTypeMap`). Since **1.5.0** (reliability
-Phase 3 C2):
-- **`HealthSyncEngine`** — a singleton (not the view-owned `ProgramContext`), so a HealthKit background wake syncs
-  without a scene. Observers + background delivery register in `AppDelegate.didFinishLaunching` (every launch) and
-  HealthKit's completion handler is called after the run, inside `beginBackgroundTask`. One run in flight; screen
-  triggers (launch / foreground / program entry, and a HealthKit wake while the app is active) are spaced ≥ 60 s;
-  Sync Now / connect / pull-to-refresh wait for a run in flight and then run.
-- A run = the rule-9 upgrade (once, BEFORE the state read) → `GET /programs` + `GET /api/health-sync/state` →
-  HealthKit reads (`HealthSyncPlanner`) → `POST /api/health-sync/batch` (per-sample workout items incl. deletions;
-  day totals for sleep / steps; ≤ 300 items / 250 kB, halved on 413) → `PUT /state` (`sync_success`) → advance or
-  hold the workout anchor (lock, pending review, `skipped_locked`, upload error, read failure, no program window) →
-  one `sync.run` event. Catch-up window = max(oldest `last_success_at` − 1 d, today − 30 d); workouts never read before
-  the (re)connect date unless the upgrade marker is set (only a device that held the old ledger).
-- **Per-member `HealthSyncPrefs`** (`healthsync.<member>.<kind>.*`): toggles, programs, status, anchor, exclusions,
-  local 0-row confirms. Sign-out pauses (prefs kept); **Disconnect** clears the connection prefs + anchor only and
-  sends nothing. The first-sync review is server-side (`review_done_at`, any integration) and `review_done` is sent
-  only when the user confirms a review page.
-- The old `POST /api/workout-logs` `on_duplicate:"sum"` / daily-health POST→409→PUT sync paths and the client ledger
-  are gone (health-sync rule 11). Requires the HealthKit + Background-Delivery + Background-Modes capabilities
-  (entitlements shipped; no `BGTaskScheduler` id).
+HealthKit workout / sleep / steps sync (native, zero third-party deps). Contract + run sequence:
+[`apple-health`](../../specs/features/apple-health/SPEC.md) and [`health-sync`](../../specs/features/health-sync/SPEC.md) §8.
+Where it lives: `HealthSyncEngine` (a singleton, so a HealthKit background wake syncs without a scene; observers +
+background delivery register in `AppDelegate.didFinishLaunching`), `HealthSyncPlanner`, the per-member
+`HealthSyncPrefs` (`healthsync.<member>.<kind>.*`), `HealthKitWorkoutTypeMap`; a batch is ≤ 300 items and ≤ 250 kB
+(the server's parser takes 256 kb). Requires the HealthKit +
+Background-Delivery + Background-Modes capabilities (entitlements shipped; no `BGTaskScheduler` id).
 
 ## Auth (client side)
-- **Locked (de-risked by web):** keep the existing Keychain + APIClient networking and have the **backend
-  proxy** issue Supabase tokens — clients change minimally, no `supabase-swift`. The web surface PROVED this
-  exact path live on `rasifiters.com`, so the only client change is the API base URL (see §Foundation port).
-  Formally transcribed into the iOS `auth` SPEC when the auth screens are ported (question-asker).
-- **Sessions (auth §3.1, 1.5.0):** ONE token store — `SessionStore` caches one keychain pair item
-  (`AfterFirstUnlockThisDeviceOnly`, update-or-add; the pre-1.5 two-item store migrates on first read). Only a
-  stored item that won't decode (or has no refresh token) forces a sign-out (`token_store_unreadable`); any other
-  keychain status reads as "locked" and is re-read on unlock / the next foreground. `ProgramContext.authToken` is a
-  UI mirror only. `APIClient+Session` reads the token at send time; refresh within 60 s of expiry (by the token's
-  own lifetime from `receivedAt`, so a wrong device clock doesn't matter) or on a 401; single-flight; one quick retry
-  after min(Retry-After ?? 2, 5) s, then back-off 30 / 60 / 120 / 300 s. Sign-out ONLY on `/refresh`
-  `401 session_invalid`. `SessionTeardown.end(_:)` is the single teardown (logout this device, unregister the device,
-  pause health sync, clear the launch cache + tokens + `session.*`); the client event queue survives it. A forced
-  sign-out is explained once (splash subheadline, else the login alert); any sign-in clears it. Offline → one
-  app-wide banner whose band is a bottom safe-area inset on both stacks; reconnecting clears the refresh back-off.
-  Offline = link down OR proven offline (polish-1): `NetworkMonitor` flips on a no-connection `URLError` from
-  `transport` and clears on any network answer, the link coming up, or a foreground `GET /app-config` probe (5 s, every 10 s).
-  "Sign out everywhere" lives in My Profile above Delete Account. The change-password / email `PUT`s send a one-shot
-  body (no silent CFNetwork replay).
-  15 s request timeout; every call sends `X-App-Platform` / `X-App-Version` / `X-App-Build` + a fresh `X-Request-Id`
-  (+ `X-Time-Zone` since Phase 4).
-- **Push (notifications §3.1–3.3):** `DeviceRegistry` = keychain install id + one serial register / unregister
-  queue (PUT /device ≤ once per 12 h per token; unregister on every sign-out and once per permission denial, the
-  sign-in ride-along then omits `push_token`; sign-out forgets the memo, keeps the token — D-IOS-PUSH-1). The SSE
-  stream lives in the foreground only, reconnects with 1 s × 2 / 30 s full-jitter backoff (paused offline) and
-  re-fetches `/unacknowledged` on every `ready`. An invite push tap opens the Invites tab; others re-fetch.
-  **Phase 4 (notifications D-C31):** `?inbox=1` + a catch-up instead of `/unacknowledged`; taps / toast `View` route by
-  `target`; `PUT /device` sends `inbox: true`. `UserDefaults` keys: `push.permissionAsked` (permission asked once at the
-  first signed-in start), `push.registeredBuild` (re-register once per build), `people.activityVisibilityNoticeSeen.<memberId>`
-  (the People notice). The app-icon badge (inbox-capable installs only) is written only via `setBadgeCount`.
+- Keychain + `APIClient` networking; the **backend proxy** issues Supabase tokens — no `supabase-swift`.
+- **Sessions** (`Shared/Services/{SessionStore,APIClient+Session,KeychainService}.swift`,
+  `Shared/Models/ProgramContext+Session.swift`): one keychain pair item, read at send time; `SessionTeardown.end` is
+  the single teardown; `ProgramContext.authToken` is a UI mirror only. Policy + iOS realization:
+  [`auth`](../../specs/features/auth/SPEC.md) D-C16 / D-C17. Offline detection (`Shared/Kit/NetworkMonitor.swift`):
+  [`frontend-kit`](../../specs/features/frontend-kit/SPEC.md) §5. 15 s request timeout; headers per
+  [`observability`](../../specs/features/observability/SPEC.md) §4.1 + `X-Time-Zone`.
+- **Push + real-time** (`DeviceRegistry`, `NotificationStreamClient`, `ProgramContext+Notifications` / `+Inbox`):
+  foreground-only SSE `?inbox=1` + a catch-up (no `/unacknowledged` since Phase 4); taps and the toast's `View` route
+  by `target`; the app-icon badge only via `setBadgeCount`. Rules + `UserDefaults` keys:
+  [`notifications`](../../specs/features/notifications/SPEC.md) §3.1–§3.3, D-C31 (+ D-IOS-PUSH-1).
 
 ## Foundation port (run 50, 2026-06-30)
 

@@ -60,12 +60,12 @@ set (rolled out as the contract proves out — shipped features are single-file 
 
 A **page/screen SPEC** lives at `specs/pages/{web,ios,android}/<page>/SPEC.md` and documents a single
 page/screen; it was ported faithfully from the original app. Like features, a page is tied to a
-surface (`web` or `ios`). **Role-based view rules are first-class for RaSi** — what each role sees /
+surface (`web`, `ios` or `android`). **Role-based view rules are first-class for RaSi** — what each role sees /
 can do on a page is a load-bearing part of the contract, not an afterthought. Sections:
 
 1. **What it is + who uses it** — one-line identity and the audience (which roles land here).
 2. **Why it exists** — the job the page does in the product.
-3. **Route/location** — which app (`web`/`ios`) + the path/route (and the legacy equivalent).
+3. **Route/location** — which app (`web`/`ios`/`android`) + the path/route (and the legacy equivalent).
 4. **Contents/sections** — the blocks on the page, top to bottom; cite the provenance `file:line`
    for each block.
 5. **Components + shared features consumed** — the shared components and feature SPECs this page

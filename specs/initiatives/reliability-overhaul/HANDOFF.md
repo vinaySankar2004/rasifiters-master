@@ -60,6 +60,17 @@
        banner only, as designed.
    - **Final touch-ups list** (the user's ideas, for after testing, before release):
      - (a) Inbox management: clear all / swipe to delete. Today, retention deletes items after 90 days.
+     - (b) Exact reminders: the scheduler ticks every 60 s, and a changed reminder time fires again the same day.
+       In progress (implementer, then review, then push with a yes).
+     - (c) The top-right initials circle on Summary + Program opens My Account / My Profile, and Back returns to the
+       screen it came from. All three surfaces, by the parity rule.
+     - (d) iPhone back navigation feels glitchy next to Android's swipe. Suspect: the custom window-level
+       `EdgeSwipeToReturn` recognizer racing the native interactive pop. Investigate.
+     - (e) ✅ The iOS People-row fix is `1e74a54`, user-verified with ⌘R. Rows were dead because the root
+       `.dismissKeyboardOnTap()` `TapGesture` cancels List row selection; they are now `.buttonStyle(.plain)`
+       Buttons with `navigationDestination`. It ships in the next TestFlight build, 1.5.2 (60), together with (c)/(d).
+     - Device-test note: after a ⌘R debug build the iPhone's push token is a sandbox one, which the prod server
+       prunes. Reinstall TestFlight to test push. Signing into a test account moves the device off your account.
 2. **Release day** (the user's call): flip `PEOPLE_LIVE`, then do the ONE store release (App Store submission + Play
    production, each with the user's yes). Then update RELEASES.md and app-config `LATEST_*`.
 3. Close Phase 4 in BRIEF §7, PROGRESS.md, the session log and the skills' Converged lessons (multiplex: the

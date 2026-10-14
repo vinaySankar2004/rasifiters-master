@@ -10,6 +10,19 @@ distilled "Converged lessons"). Append one entry per notable run.
   - New durable pattern promoted to Converged lessons: <… or none>.
 
 ## Runs
+- **Run 5 (2026-10-13) — task: reliability overhaul Phase 4** (Notifications + People + polish #1–#48, all four
+  surfaces; plans in `specs/initiatives/reliability-overhaul/plans/phase-4-*`).
+  - Shape: three **waves**, each user-approved with an amendments file — A (quick wins + privacy fix S0; small, urgent)
+    was approved and built while B (Notifications + People: server, then web / iOS / Android clients) and C (polish
+    #9–#45 per surface) were still planning. Per-surface client plans fed the server plans' API CONTRACT sections;
+    one parity check per wave produced the binding `phase-4-{wave-a,np,polish}-amendments.md`. Versions and D-IDs in
+    plans were provisional and assigned at each docs commit (`phase-4-np-amendments.md` §7). Implementers ran in the main tree on disjoint
+    surfaces with no git writes; the orchestrator committed each surface after its review + fix round.
+  - What broke / caught: the Notifications and People server tracks both edited `server.js` → the commit was split
+    by staging a copy stripped of the other track's lines, so each commit boots on its own. Migration 012 had to run on
+    both schemas before the People code was committed (the `Member` model reads `hide_activity` on every request).
+  - New durable pattern promoted to Converged lessons: plan in waves; client plans → server contract; provisional
+    IDs; split a shared-file commit by staging a stripped copy.
 - **Run 4 (2026-10-13) — task: reliability overhaul Phase 3 client release** (web / iOS / Android; plans in
   `specs/initiatives/reliability-overhaul/plans/phase-3-c*`). Planning = one workflow: `plan-pipeline` per surface in
   parallel → low-effort summarizers → one **parity-check** agent over all three plans (19 agents, ~2 h). Every track

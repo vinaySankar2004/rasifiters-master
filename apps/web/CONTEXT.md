@@ -13,81 +13,41 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
   308→apex); also at
   `https://rasifiters.vercel.app`. Domain cutover done 2026-06-29.
 
-## Surface (~36 routes — the legacy app's + Phase 4's three)
-- **Public:** `/`, `/splash`, `/login`, `/create-account`, `/privacy-policy`, `/support`
-- **Programs:** `/programs`, `/program`, `/program/{profile,password,appearance,privacy,roles,edit}`, `/program/{notifications,announcements}` (Phase 4)
-- **Summary (analytics):** `/summary`, `/summary/{activity,distribution,workout-types,log-workout,log-health,bulk-log-workout}`
-- **Members:** `/members`, `/members/{list,detail,invite,metrics,health,history,workouts,streaks}`, `/members/person` (Phase 4, dark)
-- **Lifestyle:** `/lifestyle`, `/lifestyle/{timeline,workouts}`
+## Surface (route map — the page index + count is `specs/pages/REGISTRY.md`)
+- **Public:** `/`, `/splash`, `/login`, `/create-account`, `/forgot-password`, `/reset-password`, `/privacy-policy`,
+  `/support`, `/delete-account`
+- **Programs:** `/programs`, `/program`, `/program/{profile,password,appearance,privacy,roles,edit,notifications,announcements}`
+- **Summary (analytics):** `/summary`, `/summary/{activity,distribution,workout-types,log-workout,log-health}`
+- **Members:** `/members`, `/members/{list,detail,invite,metrics,health,history,workouts,streaks,person}` (`person` is
+  dark until `PEOPLE_LIVE`)
+- **Lifestyle:** `/lifestyle`, `/lifestyle/{timeline,steps-timeline,workouts}`
 
-Each page becomes a page spec in `specs/pages/web/<page>/SPEC.md` via the `question-asker` loop (with
-role-based view rules), then ported faithfully from the legacy app. Cross-cutting capabilities (auth,
-analytics, notifications) are `specs/features/` it consumes.
+Each page has a spec in `specs/pages/web/<page>/SPEC.md` (with role-based view rules); cross-cutting capabilities
+are the `specs/features/` it consumes.
 
-## Auth (client side)
-Reliability Phase 3 C1 (auth §3.1, notifications §3.3, observability §4.1/§8, frontend-kit §10):
-- **One token store**: localStorage `rasi.fiters.session`, plus the non-HttpOnly cookie mirror `rasi.fiters.token`
-  for `middleware.ts`. `saveSession`/`clearSession` keep them in sync. `loadSession` tells absent from corrupt
-  (corrupt → forced sign-out, reason `token_store_unreadable`).
-- **Sessions** (`lib/api/client.ts` + `lib/auth/auth-provider.tsx`):
-  - Requests read the current token at send time through the session bridge.
-  - A refresh runs when the token expires within 60 s (with a 5-min clock-skew guard) or on a 401, and is
-    coalesced. Before refreshing, another tab's pair for the same account (`sub`) with a LATER `exp` is adopted
-    from localStorage (and refreshed with its refresh token if it is itself near expiry) — never a replay of an
-    already-rotated refresh token. Display-field writes (`updateUser`, `/me` heal) also start from that newer pair.
-  - A 401 sent with an outdated token retries with the current one, else once after one refresh (a 401 means the
-    call never ran — safe for the password writes too). An explicit Bearer (recovery link, pending sign-up, logout,
-    events) is never swapped or refresh-retried.
-  - Sign-out happens only on refresh `401 session_invalid` or an unreadable store (`auth.forced_sign_out`; the guard
-    redirects to `/login?reason=expired` → the kit `signedOut` copy). Other failures keep the session: a quick retry
-    `min(Retry-After ?? 2, 5)` s, then 30/60/120/300 s backoff; `auth.refresh_failed` once per failure cycle (after
-    the quick retry). Worst case, a request waiting on a failing refresh takes ~35 s before failing (15 + 5 + 15);
-    during backoff it fails at once.
-  - Bootstrap doesn't wait for `/auth/me`: pages render with the stored identity, and `/me` heals it.
-  - Only the user's own **Sign out** calls `/auth/logout` (this device only, outcome ignored); a forced sign-out and
-    "Sign out everywhere" (`/auth/logout-all`) don't. Every sign-out path then runs the teardown: clear the store
-    and the active program (skipped when the shared store already holds ANOTHER account — a stale tab never wipes
-    it), the launch cache, the refresh state; `queryClient.clear()`; the SSE stops (null token).
-  - A refreshed pair is held in memory first, then persisted (`saveSession` never throws on a storage-quota error).
-    The 401 re-send only ever uses a token of the same account (`sub`). Going back online clears the refresh backoff.
-    A sign-in is never bounced on the device clock.
-  - "Sign out everywhere" (`POST /auth/logout-all`) lives in My Profile above Delete Account. Profile edits use
-    `updateUser` (tokens never come from a React snapshot).
-- **Every request**: 15 s timeout (one `AbortController` + `setTimeout` — no `AbortSignal.any/timeout`, old iOS
-  Safari); `X-App-Platform: web`; `X-App-Version` = the short Vercel commit SHA (`NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA`,
-  `dev` locally; no `X-App-Build`); a fresh `X-Request-Id`; `ApiError` carries `code` / `retryAfter` / `requestId`.
-- **TanStack's abort `signal` is not wired** (the fetchers don't take one) — deferred. QueryClient defaults: queries
-  retry ≤ 2 only on a retryable kit kind (never a 4xx other than 408/429), honouring Retry-After; mutations never
-  auto-retry.
-- **Credential errors** (`credentialErrorMessage`, `lib/kit/app-error.ts`): the server text for 400/401/409/422, the
-  kit copy otherwise; on authenticated credential routes (password, link/unlink, email) a 401 reads `signedOut`; a
-  failure with no response while `navigator.onLine` is false reads the kit offline copy (a password write that
-  failed offline is never "couldn't confirm").
-- **Events** (`lib/events/client-events.ts`): the `auth.*` queue (localStorage `rasi.fiters.events`) survives
-  sign-out and first flushes after bootstrap; batches ≤ 25; 429 waits Retry-After, 413 halves, other 4xx drop,
-  5xx/network back off.
-- **Instant opens** (`lib/cache/launch-cache.ts`): picker (`["programs"]` only — invites stay live) + the 8 Summary
-  reads; per member; schema v1; Summary entries kept for the member's 10 most recently loaded programs (LRU index);
-  seeded after bootstrap, written only while signed in, cleared by the teardown.
-- **SSE** (`NotificationsGate` + `lib/notifications/stream.ts`): foreground only (`visibilitychange`) and paused while
-  offline; `?inbox=1` (every type as an inbox item — no `/unacknowledged`, no legacy feed since Phase 4); a catch-up on
-  every start and every `ready` (the inbox + unread count; programs, invites and the active program at most once per
-  5 s); backoff 1 s ×2, capped at 30 s, full jitter; a 60 s idle timeout (server pings every 25 s); one forced refresh
-  after 3 failed opens. Every request also sends `X-Time-Zone` (`lib/api/client.ts`). Rules: notifications §3.9, D-C30.
-- **Connectivity (polish-1, `lib/kit/use-online-status.ts`)**: online = `navigator.onLine` && not proven offline (an API fetch
-  rejected with a `TypeError`, never our timeout); cleared by any HTTP answer (not `/app-config`), a link down→up, or a probe
-  (`GET /app-config` no-store, 5 s, right away then every 10 s while visible) — banner, stale-banner hiding, SSE pause, refresh-backoff reset,
-  no query auto-retry while offline, and the launch screens' offline view + reconnect refetch all use this one value.
-- **Kit adoption scope**: QueryClient defaults; the global offline banner (`shell.tsx`, with bottom scroll room while
-  it shows); `/programs`, `/summary`, `/program/profile`, `/program/password`, `/members/invite`, `/login`,
-  `/create-account`; since Phase 4 polish the detail pages through **`components/kit/QueryView.tsx`** (`QueryView` /
-  `InlineLoadError` — frontend-kit D-KIT-21) and the shared dialogs `components/ui/{Modal,ConfirmDialog}.tsx` (D-KIT-24).
+## Client runtime (where it lives — the contracts are in the SPECs)
+- **Session** (`lib/auth/{session.ts,auth-provider.tsx,jwt.ts}`, `lib/api/client.ts`): one localStorage store
+  `rasi.fiters.session` + the non-HttpOnly cookie mirror `rasi.fiters.token` that `middleware.ts` reads. Refresh,
+  401 re-send, forced sign-out, teardown and "Sign out everywhere" (My Profile): [`auth`](../../specs/features/auth/SPEC.md)
+  D-C16 + D-C17 (web realization). Bootstrap doesn't wait for `/auth/me`; `saveSession` never throws on a quota error;
+  worst case a request waiting on a failing refresh fails after ~35 s (15 + 5 + 15).
+- **Requests:** 15 s timeout via one `AbortController` + `setTimeout` (no `AbortSignal.any/timeout` — old iOS
+  Safari); headers per [`observability`](../../specs/features/observability/SPEC.md) §4.1 (`X-App-Version` = the
+  short Vercel SHA) + `X-Time-Zone`. TanStack's abort `signal` is not wired (deferred).
+- **Kit** ([`frontend-kit`](../../specs/features/frontend-kit/SPEC.md) §8): `lib/kit/{copy,app-error,async-state,use-online-status}.ts`,
+  `components/kit/{FloatingBanner,ErrorView,QueryView}.tsx`, dialogs `components/ui/{Modal,ConfirmDialog}.tsx`, the
+  offline banner in `shell.tsx`, instant opens `lib/cache/launch-cache.ts`.
+- **Events:** `lib/events/client-events.ts` (observability §8).
+- **Notifications:** `NotificationsGate` + `lib/notifications/stream.ts` (SSE `?inbox=1` + catch-up), the toast
+  `components/notifications/NotificationToast.tsx`, the Inbox in the `/programs` "+" sheet —
+  [`notifications`](../../specs/features/notifications/SPEC.md) §3.3 / §3.9.
+- **`PEOPLE_LIVE`** (`lib/api/people.ts`) — a compile-time `false` keeping People dark; flip it on the store-release
+  day, then delete the dark roster ([`people`](../../specs/features/people/SPEC.md) D-C13).
 - **Debt (recorded, Phase 4 polish):** `app/programs/page.tsx` is ~1,425 lines and `app/lifestyle/page.tsx` ~750 — split
   later (InviteCard / CreateProgramTab / EditProgramModal; the Lifestyle cards); `Modal` has no Tab trap and `Select.tsx`
   should own its Escape (D-KIT-24).
-- No health sync and no version gate on web.
-- Roles drive UI: `global_admin`, per-program `admin` / `logger` / `member`; `admin_only_data_entry`
-  disables logging UI for non-admins.
+- No health sync and no version gate on web. Roles drive UI (`global_admin`, per-program `admin` / `logger` /
+  `member`; `admin_only_data_entry` disables logging UI for non-admins).
 
 ## Deploy (PROVISIONED + LIVE 2026-06-29)
 Vercel project **`rasifiters`** (`prj_Eqd5XmbgXDkRRhKJPASBOcIqKF6u`), team **`personal-vinayak`**
@@ -156,12 +116,7 @@ the legacy app (`rasifiters-webapp`), all justified by the migration:
 - **Prod API default** — `src/lib/config.ts` `prodBase` fallback → `https://rasifiters-api.onrender.com/api`
   (our Render service; legacy pointed at the old `rasi-fiters-api` host). Env-overridable.
 - **`NotificationsGate` was a deferred stub at foundation time; it is now the full port**
-  (`src/components/NotificationsGate.tsx`) — opens the SSE stream and hydrates the active program. Since Phase 4 it
-  renders the **toast** (`components/notifications/NotificationToast.tsx`, frontend-kit D-KIT-20), not a modal
-  (`NotificationModal.tsx` deleted); the Inbox lives in the `/programs` "+" sheet.
-- **`PEOPLE_LIVE`** (`src/lib/api/people.ts`) — a compile-time `false` keeping People dark (today's roster on
-  `/members/list`, `/members/person` redirects, the Hide toggle hidden); flip to `true` on the store-release day, then
-  delete the dark roster. See [`people`](../../specs/features/people/SPEC.md) D-C13.
+  (`src/components/NotificationsGate.tsx`; today's shape: §Client runtime).
 - **`src/middleware.ts` = decode + expiry only (RESOLVED 2026-06-29, option b)** — the faithful HS256 port
   couldn't validate Supabase **ES256** (asymmetric) tokens (would redirect-loop every real session). Resolved
   with the `programs` page port (its D-C1): the edge middleware is a **UX redirect gate**, not the security

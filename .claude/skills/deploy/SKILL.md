@@ -200,7 +200,8 @@ Blueprint / Vercel App), done once per repo in the dashboard; everything else is
   **A track's FIRST publish:** its opt-in link "can take several hours" to work (the page keeps showing "Accept invite"
   and Play keeps serving the older track) — internal testing is now set up, so later internal releases arrive in
   minutes. A tester opted into internal testing is excluded from closed/open tests. Closed-testing releases go
-  through Google review ("typically ≤ 7 days").
+  through Google review ("typically ≤ 7 days"). **Always also promote each candidate to closed testing** — the user's
+  Pixel only receives builds there (1.2.0 arrived that way, 2026-10-13/14).
 
 ### Result
 Push to `main` touching `apps/web/**` → Vercel rebuilds + deploys; touching `apps/backend/**` →
@@ -232,6 +233,9 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
       caveat and a dedicated verify pass — don't flip 🚀 on an unverified surface.
 
 ## Converged lessons (durable — the patterns that recur, project-agnostic)
+- **Migrations land before the code that reads them (2026-10-13):** a Sequelize model with a new attribute but no
+  column 503s EVERY request. Hand the user each migration on the clipboard (`pbcopy`, prefixed `SET search_path TO
+  staging;` / `public;`), run staging then public, verify read-only via the `supabase-rasifiters` MCP, then push.
 - **Render false-green:** a "deployed" claim can reflect the OLD snapshot — always confirm a NEW deploy id
   with `status: live` via `GET /v1/services/{id}/deploys?limit=1`; trigger a manual deploy if the
   git-trigger didn't fire.

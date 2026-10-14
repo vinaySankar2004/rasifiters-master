@@ -620,3 +620,10 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   commit. iOS renames done as create + delete by an agent → stage with `git add -A -- apps/ios` (path-scoped) so git
   records the renames. Page-SPEC headers had drifted from their own changelogs (6 pages) — the pages REGISTRY sweep
   caught them; fix the header, then the cell.
+- **Run — 2026-10-13 — reliability Phase 4 (three waves).** Shape: per-surface `feat(<surface>)` / `fix(backend)`
+  commits as each review passed (no bumps), then ONE docs commit per wave carrying every bump + registry + both
+  REGISTRY files + the tags: wave A `ecc249c` (frontend-kit 0.4.0, member-analytics 0.6.0, app-config 0.4.0), wave B
+  `053f31b` (new `people` 0.1.0 + 12 bumps incl. notifications 0.6.0), wave C `f3bb5ce` (14 bumps incl. auth 0.15.0).
+  A feature touched by several waves took one version per wave (frontend-kit 0.4.0 → 0.5.0 → 0.6.0). The plans'
+  versions and D-IDs were provisional (`plans/phase-4-np-amendments.md` §7) and were assigned in landing order at each
+  docs commit. Promoted to Converged lessons: "Phased waves".
