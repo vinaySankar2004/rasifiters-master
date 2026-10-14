@@ -5,87 +5,52 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-13, night)
+## Now (2026-10-13, late night) — BOTH APPS SUBMITTED FOR STORE REVIEW
 
-- **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → **Phase 4 BUILT ✅, now the user's device testing.**
+- **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
-- **Phase 4, what's live where:**
-  - **Backend:** live on Render.
-    - Privacy fix S0 `5e76113`.
-    - Notifications server `6224a61`.
-    - People S1 `d8f8eee`.
-    - Polish #38 date guard `b23f90c`.
-    - Migrations 011 + 012 run by the user on staging and public, verified.
-  - **Web:** live on Vercel.
-    - Quick wins `095d864`.
-    - Notifications + People `b2ea09b`. People stays dark: `PEOPLE_LIVE = false` in `apps/web/src/lib/api/people.ts`.
-    - Polish `ec13107`.
-  - **Phones** (committed):
-    - Android: quick wins `82b7297`, Track C `d528f75`, polish `0b0a0a3`.
-    - iOS: quick wins `53f2e5d`, Track C `198407c`, polish `05e185a`. Every iOS commit passed the user's ⌘B.
-  - **Docs:** `ecc249c` (wave A), `053f31b` (wave B), `f3bb5ce` (wave C); every feature version is tagged.
-  - **Plans + binding amendments:** `plans/phase-4-*` and `plans/phase-4-{wave-a,np,polish}-amendments.md`.
-- **Test builds (RELEASES.md):**
-  - iOS **1.5.1 (59)** is on TestFlight Internal; the user is testing it.
-  - Android **1.2.0 (6)** is on Play internal testing. Closed testing is **in review**, and the user's Pixel only gets
-    builds through closed testing.
-  - Repo pre-bumped: iOS **1.5.2 (60)**, Android versionCode **7**.
-- **Test checklist:** [`phase-4/TEST-CHECKLIST.md`](phase-4/TEST-CHECKLIST.md).
-- **Release rule:** ONE iOS + Android store release once the user has tested. Release day:
-  1. Flip `PEOPLE_LIVE` and deploy web.
-  2. Submit iOS 1.5.1 (59) and promote Android 1.2.0 (6) to production. If testing needs a fix build, use iOS
-     1.5.2 (60) / Android 7.
-  3. Once they're public, raise `LATEST_*` and later `MIN_*` in app-config.
-- **Known, accepted:**
-  - Sign out everywhere ends other devices at their next refresh (≤ 1 h).
-  - Old iOS 1.4.x still shows the refresh storm; nudge those users once 1.5.x is public.
-  - iOS Members tab flashes placeholders when returning from History / View Workouts.
-  - Recorded debt is in the CONTEXT files: web `programs/page.tsx` ~1,425 lines, Modal Tab trap, iOS unused
-    ProgramContext fields.
-- **Open follow-ups:**
-  - Daily watch: E8 `[refresh]` · `push_deliveries` · `app_events` `auth.*` / `sync.run` · scheduler sends.
-  - Delete the legacy `RaSi_Fiters_API` around 2026-11-11.
-  - Android Health Connect hand-entry test (user).
-  - A stale-page-SPEC cleanup chip was offered (bulk-log-workout and two iOS loader names).
+- **Store state (RELEASES.md):**
+  - **iOS 1.5.2 (60): Waiting for Review**, manual release (goes public only on the user's Release click). Also on
+    TestFlight Internal. App Privacy + Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**.
+  - **Android 1.2.0 (7): production + closed testing in review**, Data safety + Device IDs + Diagnostics. **Managed
+    publishing ON** — every approved change waits for the user's Publish click (closed testing → Pixel first).
+    Internal testing live. Repo pre-bumped to versionCode **8**.
+- **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. People stays dark on web
+  (`PEOPLE_LIVE = false`, `apps/web/src/lib/api/people.ts`) until the store apps are public.
+- **Tonight's touch-ups** (plans `plans/phase-4-touchup-{inbox,profile}/`, amendments
+  `plans/phase-4-touchup-amendments.md`; each surface reviewed + fix-rounded):
+  - (a) Inbox remove one + Clear all — backend `97492d9` (notifications 0.7.0, D-C32), web `fa57ad9`, Android
+    `5ca5309`, iOS `1d813c4`. Option (A): every notification row removable; Invitations never touched.
+  - (b) Exact reminders `9a57bd0` — user-verified.
+  - (c) Profile circle → My Profile, Back returns (D-PC1) — in the same client commits.
+  - (d) iOS edge swipe needs a committed drag `728afad` (D-REL2). Follow-the-finger root swipe **dropped by the
+    user — don't re-pitch.**
+  - (e) iOS People rows `1e74a54`.
+  - (f) SEO `cc46131` (landing 0.1.5, D-LAND-12): WebSite `alternateName` = real spellings only, brand-first
+    description, hero eyebrow, per-page titles. Live + verified. Owner steps pending (below).
+- **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
+  storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; iOS inbox device
+  check: open a card, close it, open another — the list must not jump (if it does: `ScrollPosition` swap, see
+  the iOS fix-round review).
+- **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
+  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 
 ## Next action
 
-1. **The user tests Phase 4** on iPhone (TestFlight 59), web, and the Pixel once closed testing is approved, using
-   [`phase-4/TEST-CHECKLIST.md`](phase-4/TEST-CHECKLIST.md). For any issue: check the same thing on all three
-   surfaces, then fix → review → commit. Phone fixes go in a new build: iOS 1.5.2 (60) / Android 7.
-   - **Test results so far (2026-10-13):**
-     - §1 Notifications passes on iPhone + web. A composer announcement reached the Pixel's old Play build as a push
-       banner only, as designed.
-   - **Final touch-ups list** (the user's ideas, for after testing, before release):
-     - **DECIDED 2026-10-13 (user): finish everything and SUBMIT BOTH APPS FOR STORE REVIEW TONIGHT.**
-       - Order: touch-ups (a)/(c)/(d) → one multiplex plan, a single plan for backend + 3 surfaces, then the
-         user's approval → per-surface implementers + review → web live → builds **iOS 1.5.2 (60)** + **Android
-         1.2.0 (7)** → the user's quick device check → submit.
-       - Submission steps, in the browser pane with a yes per change:
-         - App Store: what's new, App Privacy updated for People (workouts shared with co-members) + the time zone,
-           then submit.
-         - Play: promote to production, Data safety updated, then send for review.
-       - Then `PEOPLE_LIVE` flips on web once the apps are approved and public, and app-config `LATEST_*` is raised.
-     - (a) **Inbox clearing, DECIDED: Clear all (with a confirm) + remove one** (swipe on the phones, × on web).
-       Invites stay until answered. The server needs an additive delete route for the member's own
-       recipient rows, safe for old apps. Today, retention deletes items after 90 days.
-     - (b) Exact reminders: the scheduler ticks every 60 s, and a changed reminder time fires again the same day.
-       In progress (implementer, then review, then push with a yes).
-     - (c) The top-right initials circle on Summary + Program opens My Account / My Profile, and Back returns to the
-       screen it came from. All three surfaces, by the parity rule.
-     - (d) iPhone back navigation feels glitchy next to Android's swipe. Suspect: the custom window-level
-       `EdgeSwipeToReturn` recognizer racing the native interactive pop. Investigate.
-     - (e) ✅ The iOS People-row fix is `1e74a54`, user-verified with ⌘R. Rows were dead because the root
-       `.dismissKeyboardOnTap()` `TapGesture` cancels List row selection; they are now `.buttonStyle(.plain)`
-       Buttons with `navigationDestination`. It ships in the next TestFlight build, 1.5.2 (60), together with (c)/(d).
-     - Device-test note: after a ⌘R debug build the iPhone's push token is a sandbox one, which the prod server
-       prunes. Reinstall TestFlight to test push. Signing into a test account moves the device off your account.
-2. **Release day** (the user's call): flip `PEOPLE_LIVE`, then do the ONE store release (App Store submission + Play
-   production, each with the user's yes). Then update RELEASES.md and app-config `LATEST_*`.
-3. Close Phase 4 in BRIEF §7, PROGRESS.md, the session log and the skills' Converged lessons (multiplex: the
-   three-wave plan, separating shared-file commits, migrations before code).
+1. **The user:** quick TestFlight 60 check ([`phase-4/TEST-CHECKLIST.md`](phase-4/TEST-CHECKLIST.md) §4). A problem →
+   pull the App Store submission, fix, upload **1.5.3 (61)**.
+2. **Play:** Publishing overview → when closed testing is approved, **Publish** (Pixel gets 7) → Pixel quick check →
+   when production is approved, **Publish**.
+3. **App Store approved → Release.** Then, once BOTH are public:
+   1. Flip `PEOPLE_LIVE = true` → deploy web (a yes to push).
+   2. Raise app-config `LATEST_*` (later `MIN_*`).
+   3. Update RELEASES.md.
+4. **SEO owner steps** ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)): Search Console → resubmit the sitemap →
+   Rich Results Test → URL Inspection → Request indexing. Days–weeks to show "RaSi Fiters".
+5. Close Phase 4 in BRIEF §7, PROGRESS.md and the skills' Converged lessons (multiplex: three-wave plan, shared-file
+   commit split, migrations before code, per-surface fix rounds, managed publishing for the store hold).
 
 ## Workstream status
 
@@ -141,6 +106,11 @@
   server → clients → parity; C: polish #9–#45), each user-approved with amendments, then built by per-surface
   implementers with an adversary review and fix rounds each. Migrations 011/012 run by the user. Backend + web live;
   phones on TestFlight 59 / Play internal + closed (in review). Docs and tags for all three waves. User testing next.
+
+- **2026-10-13 (late night)** — Release touch-ups: two parallel plan-pipelines (inbox, profile circle) + a
+  back-swipe investigation + an SEO audit; 4 per-surface implementers, adversary reviews + fix rounds; backend +
+  web + SEO live. Builds iOS 1.5.2 (60) / Android 1.2.0 (7); **both submitted** (App Store manual release; Play
+  managed publishing), App Privacy + Data safety updated. Repo pre-bumped to 1.5.3 (61) / versionCode 8.
 
 ## Kickoff prompt — Session 1
 

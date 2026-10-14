@@ -34,23 +34,28 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** Train closed. Next App Store candidate: 1.5.1 (59) (Phase 4); repo pre-bumped to 1.5.2 (60). Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
+| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** **1.5.2 (60) is Waiting for Review** (submitted 2026-10-13 ~21:20 PDT, **manual release** — it goes public only on the user's Release click). App Privacy now also lists Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
 | TestFlight — external ("Beta Testers") | 1.4.3 (57) | Testing → **expires ~2026-10-15** | 2026-07-20 | Ahead-train (same code as the live 1.4.2 (56)). 8 invited / 6 installs (read 2026-10-11). **User decision 2026-10-11: let it lapse** — testers fall back to App Store 1.4.2; the next TestFlight build is the reliability release |
-| TestFlight — internal ("Internal") | **1.5.1 (59)** | **Testing — in the Internal group** (uploaded 2026-10-13 ~18:05 PDT; processed, "Ready to Submit") | 2026-10-13 | **The Phase 4 release candidate** (Notifications + People + quick wins + polish #9–#45, on top of the 1.5.0 reliability release, which never reached the App Store). The user tests it on their iPhone; it becomes the ONE store release if it passes. Repo pre-bumped to **1.5.2 (60)** (one-train-ahead) |
+| TestFlight — internal ("Internal") | **1.5.2 (60)** | **Testing — in the Internal group** (uploaded 2026-10-13 ~21:05 PDT) | 2026-10-13 | **The store candidate**: Phase 4 + release touch-ups (inbox swipe-remove / Clear all, profile circle, edge-swipe threshold). 1.5.1 (59) before it passed the Phase 4 device tests |
 
 ### Android
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| Play Store (production) | 1.0.0 (4) | **LIVE — public on Google Play** | 2026-08-06 | **Current public release** — 100% rollout, 176 countries + rest of world. Next production candidate: 1.2.0 (6) (Phase 4); repo pre-bumped to versionCode 7. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
-| Play Console — closed testing ("Alpha") | **1.2.0 (6)** | **Approved / available (user-confirmed)** — on the user's Pixel 2026-10-13/14 (sent for review 2026-10-13 ~18:10 PDT) | 2026-10-13 | The route that reaches the user's Pixel (it only receives builds through closed testing). 1.1.0 (5) was approved earlier |
+| Play Store (production) | 1.0.0 (4) | **LIVE — public on Google Play** | 2026-08-06 | **Current public release** — 100% rollout, 176 countries + rest of world. **1.2.0 (7) is in production review** (sent 2026-10-13 ~21:15 PDT; managed publishing ON — it goes public only on the user's Publish click). Repo pre-bump to versionCode 8 is due. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
+| Play Console — closed testing ("Alpha") | **1.2.0 (7)** | **In review** (sent 2026-10-13 ~21:15 PDT, with production); needs a Publish click once approved (managed publishing) | 2026-10-13 | The route that reaches the user's Pixel (it only receives builds through closed testing). 1.2.0 (6) was approved and is on the Pixel |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
-| Play Console — internal testing | **1.2.0 (6)** | **Available to internal testers** (released 2026-10-13 18:07 local) | 2026-10-13 | **The Phase 4 release candidate** (Notifications + People + quick wins + polish). Same testers and opt-in link as 1.1.0. Built by `./gradlew :app:bundleRelease` with the upload key. Repo pre-bumped to **versionCode 7** |
+| Play Console — internal testing | **1.2.0 (7)** | **Available to internal testers** (released 2026-10-13 20:57 local) | 2026-10-13 | **The store candidate**: Phase 4 + release touch-ups (inbox remove / Clear all, profile circle). Built by `./gradlew :app:bundleRelease` with the upload key |
 
 ## Release log (append-only, newest first)
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-13 | iOS | 1.5.2 (60) | App Store | version 1.5.2 created; What's New + promotional text + People/Inbox review note; App Privacy + Other Diagnostic Data; submitted (the user's yes), **manual release** | **Waiting for Review** — repo pre-bumped to 1.5.3 (61) |
+| 2026-10-13 | iOS | 1.5.2 (60) | TestFlight — internal | archived + uploaded from Xcode by the user; auto-added to the Internal group | **Processed → Internal group** |
+| 2026-10-13 | Android | 1.2.0 (7) | Play — production | promoted from internal; Data safety updated (+ Device or other IDs, + Diagnostics; collected, not shared); sent for review together with closed testing (the user's yes). **Managed publishing ON** — approved changes wait for the user's Publish click | **In review** — the store candidate (Phase 4 + release touch-ups) |
+| 2026-10-13 | Android | 1.2.0 (7) | Play — closed testing (Alpha) | promoted from internal + sent for review (the user's yes); review restarted once to bundle with production | **In review** — on approval it needs a Publish click (managed publishing) |
+| 2026-10-13 | Android | 1.2.0 (7) | Play — internal testing | AAB built from the CLI; the user attached it; Claude set notes + published (the user's yes) | **Available to internal testers** |
 | 2026-10-13 | Android | 1.2.0 (6) | Play — closed testing (Alpha) | promoted from internal + sent for review (the user's yes) | **Approved / available (user-confirmed)** — on the user's Pixel 2026-10-13/14 |
 | 2026-10-13 | Android | 1.2.0 (6) | Play — internal testing | AAB built from the CLI; the user attached it in the browser pane; Claude set name/notes + published (the user's yes) | **Available to internal testers** — Phase 4 candidate; repo pre-bumped to versionCode 7 |
 | 2026-10-13 | iOS | 1.5.1 (59) | TestFlight — internal | uploaded from Xcode; auto-added to the Internal group | **Processed → Internal group** — Phase 4 candidate; repo pre-bumped to 1.5.2 (60) |

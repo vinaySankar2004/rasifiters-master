@@ -1,0 +1,60 @@
+# SCOPE BRIEF: Phase 4 touch-up (c). The top-right initials circle on Summary and Program opens My Profile, and Back returns to where you were (web/iOS/Android)
+
+- **Features**: no feature contract changes; this is client navigation only. The destination screen uses members@0.5.1 (SPEC: specs/features/members/SPEC.md) · consumed_by [web, ios, android]. **No feature version bump.** The page SPECs get the bumps, as in the web program/profile 0.1.0 "no feature bump" case.
+- **Pages/screens and what the circle does today** (checked in code, all three surfaces):
+  - web/summary (specs/pages/web/summary/SPEC.md, v0.4.3): **decorative.** It is a `<div>` inside the local `SummaryHeader` (apps/web/src/app/summary/page.tsx:400-422; the circle is at :416-418; it is called at :228).
+  - web/program (specs/pages/web/program/SPEC.md, v0.3.0): **decorative.** It is a `<div>` in the header (apps/web/src/app/program/page.tsx:128-136; the circle is at :133-135). The page's `MyAccountSection` is at :524+ and is rendered in both the admin branch (:293) and the standard branch (:372). Its profile row (:547-561) already goes to `/program/profile`.
+  - web My Account destination = `/program/profile` (specs/pages/web/program/profile/SPEC.md, v0.4.1). It has Sign out everywhere, plus Hide my activity behind `PEOPLE_LIVE`. Its `PageHeader backHref` (profile/page.tsx:265) renders `BackButton`, which calls `router.back()` when `history.length > 1` (apps/web/src/components/BackButton.tsx:18-24). Browser Back works natively. The bottom nav only shows on exact tab roots (apps/web/src/app/shell.tsx:16), so no tab is highlighted by mistake.
+  - web/programs picker (not an initials circle): an `IconUser` fab-button (programs/page.tsx:345-352) opens the "My Account" modal (:568-680). Its rows are Profile, Inbox, Notifications, Password, Appearance, Announcements (global admin only), Privacy, Support and Sign Out. **Leave unchanged.**
+  - ios/admin-summary (specs/pages/ios/admin-summary/SPEC.md, v0.2.3) and ios/admin-program, admin variant (specs/pages/ios/admin-program/SPEC.md, v0.2.1): **decorative.** Both use the shared `SummaryHeader` (Features/Home/Tabs/SummaryCards.swift:6-41; circle at :25-38), called from AdminSummaryTab.swift:42-47 and AdminProgramTab.swift:18-23, both with `programContext.adminInitials`. Neither tab has its own stack. The shell is pushed on the picker's NavigationStack (ProgramPickerView.swift:112), so a push lands on that outer stack, as the Summary cards' NavigationLinks already do.
+  - ios/admin-program, standard variant: **decorative.** It is an inline circle (StandardProgramTab.swift:43-56) inside that tab's own `NavigationStack` (:25).
+  - iOS destination = `MyProfileView` (specs/pages/ios/my-profile/SPEC.md, v0.4.0). It has Hide my activity (:67) and Sign out everywhere (:70). The pattern to reuse is the existing ScrollView row `NavigationLink { MyProfileView() } label: {…}.buttonStyle(.plain)` (ProgramCards.swift:280-315). This is not a List, so the `.dismissKeyboardOnTap()` List-row gotcha does not apply.
+  - iOS Back: the native back button or swipe. `EdgeSwipeToReturn.swift:88-102` already pops one level for both the outer stack and a tab's own stack. Tab selection survives because AdminHomeView's `@State selectedTab` stays alive in the stack.
+  - ios/program-picker (not an initials circle): a `person.fill` button (ProgramPickerView.swift:234-247) opens `AccountMenuSheet` (:653+), whose rows include **Apple Health**, Support and Sign Out. **Leave unchanged.**
+  - android/summary (specs/pages/android/summary/SPEC.md, v0.2.1): **decorative.** It is a `Box` in private `Header` (ui/summary/SummaryScreen.kt:215-236; circle at :226-234; called at :118).
+  - android/program (specs/pages/android/program/SPEC.md, v0.3.0): **decorative.** It is a `Box` in private `Header` (ui/program/ProgramScreen.kt:223-244; circle at :234-242; called at :108). The account section's profile row calls `onNavigate(Routes.PROGRAM_PROFILE)` (ProgramAccountSection.kt:65-70).
+  - Android destination = `MyProfileScreen` (specs/pages/android/my-profile/SPEC.md, v0.3.1), the inner-NavHost route `Routes.PROGRAM_PROFILE` (ui/shell/AppScaffold.kt:173-175, `onBack = nav.popBackStack()`). `BackHandler` is enabled only on the 4 main tabs (AppScaffold.kt:93-94), so system back on the profile screen pops to the tab you came from. `rememberScrollState` is saveable.
+  - android/program-picker (not an initials circle): `CircleButton(Icons.Filled.Person)` (ProgramPickerScreen.kt:207) opens `AccountMenuSheet` (:349-355), which includes **Health Connect**. **Leave unchanged.**
+  - **Trade-off (decided):** the picker keeps its account-menu button, because that menu holds rows reachable only there. The Summary and Program circles do nothing today on any surface, so making them open My Profile removes no access. Every other My Account item stays in the Program tab's My Account section.
+- **Files (exhaustive; the implementer may touch ONLY these), grouped by surface**:
+  - backend/: none.
+  - web/:
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/summary/page.tsx
+      - `SummaryHeader` gets an `onOpenProfile` prop. The circle `<div>` becomes `<button type="button" aria-label="My Profile">` with the same classes, and `router.push("/program/profile")` is passed from the page.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/app/program/page.tsx
+      - The header circle `<div>` at :133 becomes the same button with the same classes.
+  - ios/:
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/SummaryCards.swift
+      - Wrap the `SummaryHeader` circle in `NavigationLink { MyProfileView() } label: {…}.buttonStyle(.plain).accessibilityLabel("My Profile")`, with no visual change. This covers both Summary and admin Program.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/StandardProgramTab.swift
+      - Wrap the inline circle (:43-56) the same way.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/AdminSummaryTab.swift and /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Tabs/AdminProgramTab.swift
+      - **Recommended, see OQ1:** change `initials: programContext.adminInitials` to `programContext.loggedInUserInitials`.
+  - android/:
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/ui/summary/SummaryScreen.kt
+      - `Header` gets an `onOpenProfile` parameter. Make the circle clickable with `Modifier.tapTarget(label = "My Profile", shape = CircleShape) { onNavigate(Routes.PROGRAM_PROFILE) }`. `tapTarget` must come first in the modifier chain, per ui/components/TapTarget.kt; at 52dp the look does not change.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/ui/program/ProgramScreen.kt
+      - The same change on its `Header`.
+  - docs/ (a single shared docs commit after the code):
+    - Page SPECs: specs/pages/web/summary/SPEC.md, web/program/SPEC.md, web/program/profile/SPEC.md ("reached via" grows), ios/admin-summary/SPEC.md, ios/admin-program/SPEC.md, ios/my-profile/SPEC.md, android/summary/SPEC.md, android/program/SPEC.md, android/my-profile/SPEC.md. Each gets a patch bump plus a changelog row; the versions are provisional.
+    - specs/pages/REGISTRY.md: the version cells for those 9 rows.
+    - specs/initiatives/reliability-overhaul/HANDOFF.md: mark touch-up (c).
+- **DB surface**: none.
+- **Flags/env/config involved**: none. `PEOPLE_LIVE` is not involved: the web profile page already gates its own Hide-my-activity row. No app version files change, since iOS 1.5.2 (60) and Android versionCode 7 / 1.2.0 are already in the repo.
+- **Blast radius**: no dependent features (no feature or contract change). Surfaces to keep in parity: web, ios, android. The platform-idiom difference is Back: browser Back / BackButton on web, nav back or edge swipe on iOS, system back on Android. All three already pop to the originating tab.
+- **Live-binary compat**: none (no backend change).
+- **Doc↔code mismatches found**:
+  1. android/summary SPEC deviation A-2 and ios/admin-summary SPEC :33 say iOS shows the "program admin's" initials. In code, `adminName` is set to the signed-in user's name at login and restore (ProgramContext+Auth.swift:42-43, 126-129). It is **not** refreshed when the user edits their name in My Profile: ProgramContext+Members.swift:433-439 updates only `loggedInUserName`.
+  2. The "reached via" lines in ios/my-profile and web/program/profile list only the Program tab's My Account row. In code, the profile is also reached from the picker's account menu (ProgramPickerView.swift:120-123; programs/page.tsx:601-604).
+  3. Line references have drifted: web/program SPEC cites the header at program/page.tsx:90-98 (it is actually at :128-136), and web/summary cites :313-335 (actually :400-422).
+- **Out of scope (explicitly)**:
+  - The picker account buttons on all three surfaces.
+  - Members and Lifestyle headers (e.g. web members/page.tsx:301, iOS MemberOverviewPicker): the user named only Summary and Program.
+  - Touch-up (d), owned separately: EdgeSwipeToReturn.swift and AdminHomeView.swift must not be touched here.
+  - Touch-up (a), inbox clearing.
+  - Any backend work.
+  - The user's SEO and Play Store search request. They called it "final once everything is literally done and dusted", so it should be its own task after release.
+- **Open questions for the orchestrator**:
+  - **OQ1.** Should iOS Summary and admin Program switch from `adminInitials` to `loggedInUserInitials`? Recommendation: yes. Without it, renaming yourself on the screen this circle now opens leaves the circle showing the old initials on iOS until relaunch, while web (`updateUser`, profile/page.tsx:198) and Android (`_memberName`, ProgramContext.kt:1547) update at once. It is a one-word edit in each of two files. Drop the two files if that's not wanted.
+  - **OQ2.** On Android, should `nav.navigate(Routes.PROGRAM_PROFILE)` add `launchSingleTop = true` to guard against a double-tap pushing the screen twice? The existing account row doesn't; recommend following the existing pattern (no).
+  - **OQ3.** Queue the user's SEO / "RaSi Fiters" spelling / Play Store search item as a separate final task after store submission. It is not part of this brief.

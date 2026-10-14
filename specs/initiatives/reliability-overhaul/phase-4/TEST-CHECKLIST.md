@@ -67,7 +67,26 @@
   - [ ] Program-tab Sign Out asks first.
   - [ ] Creating a program with the end date before the start date is refused.
 
-## 4. Known and accepted
+## 4. Release touch-ups (iOS 1.5.2 (60) · Android 1.2.0 (7) · web): the quick check before submitting
+- [ ] **Inbox, remove one:**
+  - iPhone: a left swipe on a notification shows **Remove**.
+  - Pixel: swipe the card away, past about 40 % of its width. A short brush springs back.
+  - Web: **×** on the row.
+  - The "+" badge and "N new" update.
+  - Invitations (Accept/Decline) can't be removed.
+- [ ] **Inbox, Clear all:** **Clear all** sits on the Notifications heading. It asks first, then empties the
+      notifications on every device. Invitations stay.
+- [ ] **Offline:** remove or Clear all fails at once with plain words, and no confirm opens.
+- [ ] **iPhone only:**
+  - Tapping a notification still opens it.
+  - A right swipe from the middle of a card still goes back, from the program shell and from the account row.
+  - In the "+" sheet, swiping a card doesn't jump to Create.
+- [ ] **Profile circle:** on Summary and Program, tap your initials circle. My Profile opens, and Back (button,
+      swipe, system back, browser back) returns to the same tab.
+- [ ] **iPhone edge swipe:** a tiny edge touch on a tab's top screen no longer leaves the program. A real swipe or
+      a quick flick still does.
+
+## 5. Known and accepted
 - Returning from History / View Workouts on the iPhone Members tab shows placeholders once while it reloads.
 - Routing a notification from inside a program on the iPhone takes about 1 s.
 - On web, People stays hidden until release day (flip `PEOPLE_LIVE`).

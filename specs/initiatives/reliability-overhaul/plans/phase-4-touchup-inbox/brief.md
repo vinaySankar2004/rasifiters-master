@@ -1,0 +1,87 @@
+# SCOPE BRIEF: Phase 4 touch-up (a), inbox management (remove one + Clear all; invites untouched)
+
+- **Features**: notifications@0.6.1 (SPEC: specs/features/notifications/SPEC.md, status deployed). consumed_by [web, ios, android]. reference_impl backend (`routes/notificationInbox.js`, `services/notificationInboxService.js`, …). Proposed version 0.7.0 (provisional, set at landing): adds 2 routes. invites@0.3.1 is read-only context: the Invitations section reads `program_invites`, which no new SQL touches. frontend-kit@0.6.0: reuse the offline and error copy only, no change.
+- **Pages/screens**: web/programs (specs/pages/web/programs/SPEC.md). This is the only web host of `InboxList`; /program's Inbox row links to `/programs?open=inbox`. ios/inbox (specs/pages/ios/inbox/SPEC.md): `InboxView` has 4 hosts (the "+" sheet tab 0, both account rows, the root Inbox sheet), and every change goes inside `InboxView`. android/inbox (specs/pages/android/inbox/SPEC.md): `InboxList` has 2 hosts (`ProgramActionsSheet`, `InboxScreen`), and every change goes inside `InboxList`.
+
+- **Files (exhaustive; the implementer may touch ONLY these), grouped by surface**:
+  - backend/
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/backend/routes/notificationInbox.js: add `router.delete("/", …)` and `router.delete("/:id", …)` through the existing `handle()`. Add a per-member limiter, `rateLimit({ windowMs, max, keyFn: (req) => req.user.id })` from `../utils/rateLimit`. The three existing inbox routes have no limiter, so the closest pattern is people/healthSync (60 per 10 min per member), giving 429 `rate_limited` + `Retry-After`. There is no path clash: `/unread-count` is GET and `/read` is POST.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/backend/services/notificationInboxService.js (149 lines): add `removeItem(memberId, id)` and `clearAll(memberId)`.
+      - Both use raw SQL: `DELETE FROM notification_recipients nr USING notifications n WHERE n.id = nr.notification_id AND nr.member_id = :memberId AND n.type <> 'program.invite_received' [AND nr.notification_id = :id]`.
+      - `removeItem`: a malformed id gives 400 `invalid_body` (the `UUID_RE` already in this file). Zero rows deleted (unknown id, another member's row, or an invite item) gives 404 `{error:"Notification not found.", code:"not_found"}`.
+      - `clearAll`: idempotent, 200 even when 0 rows are deleted.
+      - Both return `{ deleted, ...getUnreadCounts(memberId) }`, mirroring `markRead`'s `{ updated, … }`.
+      - Export both.
+  - web/
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/api/notifications.ts: add `removeInboxItem(token, id)` and `clearInbox(token)` (`apiRequest`, `method: "DELETE"`), a `DeleteResult = UnreadCounts & { deleted: number }` type, and new `NOTIFICATION_COPY` keys (Clear all, the confirm title/body/button, the remove label, the failure line).
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/lib/notifications/queries.ts: add `useRemoveInboxItem` and `useClearInbox`.
+      - `onMutate`: snapshot `NOTIFICATION_KEYS.inbox` and remove the row(s) from the cached pages. Clear all keeps `program.invite_received` items.
+      - `onError`: restore the snapshot.
+      - `onSuccess`: `setQueryData(NOTIFICATION_KEYS.unread, counts)`, which feeds the badge and the /program row because they share the cache.
+      - Mutations already use `networkMode:"always"`, so offline fails at once.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/notifications/InboxList.tsx (159 lines):
+      - Restructure each row. Today it is one `<button>`, and a nested × button would be invalid HTML. Make it a wrapper `div` holding the open button and a × button with a ≥ 44 px target that hides on invite items.
+      - Put "Clear all" on the `Notifications` heading line, shown only when at least one loaded item is not an invite.
+      - Confirm through `components/ui/ConfirmDialog.tsx` (reuse, read-only; `closeOnConfirm={false}` + `errorMessage`).
+      - Show a plain error line when a remove fails.
+    - OPTIONAL NEW /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/web/src/components/notifications/InboxItemRow.tsx: only if InboxList would pass about 200 lines.
+  - ios/
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Services/APIClient+Inbox.swift: add `deleteInboxItem(id:)` and `clearInbox()`. Both are DELETE calls that decode `InboxCountsDTO`, which ignores the extra `deleted` key.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Shared/Models/ProgramContext+Inbox.swift (241 lines, over the limit, already accepted as F2): add `removeInboxItem(id:)` and `clearInbox()`, which call the private `applyInboxCounts`. That updates the "+" badge, the "N new" rows and `setAppBadge`.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Inbox/InboxRow.swift (200 lines): in `InboxFeed`, add optimistic `remove(ids:)`, `removeAllExceptInvites()` and `restore(snapshot)`. Moving `InboxFeed` into a new file is allowed.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Inbox/InboxView.swift (240 lines): add the swipe-to-delete on rows, the "Clear all" text button in the `notificationsSection` header (in content, NOT a custom header), the confirm (`.confirmationDialog` or `.alert`) and the failure alert.
+    - OPTIONAL NEW /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/ios/RaSi-Fiters-App/Features/Home/Inbox/InboxSwipeToDelete.swift and/or InboxFeed.swift: the project uses synchronized groups, so no pbxproj edit is needed.
+  - android/
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/net/ApiService.kt: add `@DELETE("notifications/inbox/{id}")` and `@DELETE("notifications/inbox")`, both returning `UnreadCountsDTO`.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/net/InboxDtos.kt: add `val deleted: Int? = null` to `UnreadCountsDTO`.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/core/NotificationInbox.kt (338 lines): add `remove(id)` and `clearAll()`. Each removes optimistically via `updateItems`, restores on failure (same shape as `markRead`, guarded by `owner()`), calls `applyCounts` on success, and returns `Result` so the UI can show the error.
+    - /Users/vinayaksankaranarayanan/Developer/rasifiters-master/apps/android/app/src/main/java/com/app/rasifiters/ui/inbox/InboxList.kt (258 lines; a Column + verticalScroll, not a Lazy list):
+      - Wrap `InboxRow` in M3 `SwipeToDismissBox`. Compose BOM 2025.04.01 means Material3 1.3.x, so it is available. Do not wrap invite items.
+      - Put "Clear all" on the `SectionLabel("Notifications")` line, confirmed with an `AlertDialog`.
+      - Show failures with the existing `errorMessage` / `FormErrorText` and `offlineOr`.
+
+- **DB surface**: no migration. The routes run DELETEs on the member's own `notification_recipients` rows: an app-level write scoped by member, with no schema change. They join `notifications` to read `type`. The composite PK (notification_id, member_id) and `idx_notification_recipients_member_id` cover both queries. `notifications` rows are never deleted. A row left with no recipients is removed by the existing 90-day `notifications_retention_*` cron.
+- **Flags/env/config involved**: none. There is no new env and the CORS default methods already allow DELETE. `PEOPLE_LIVE` is not involved.
+- **Blast radius**:
+  - Dependents of notifications: [programs, program-memberships, invites, people].
+  - invites: the exclusion of `program.invite_received` must hold on the server, not only in the UI.
+  - people/kudos: if the recipient deletes an unread kudos item and the giver then undoes the kudos, `undoKudos` counts 0 unread and leaves the `notifications` row orphaned. Harmless; retention removes it.
+  - Re-send risk: none. `notification_send_keys` claims (reminder/digest/announcement) are keyed by (member_id, kind, period_key) and never read recipient rows. `push_deliveries` cascade from notifications/members, not from recipients.
+  - Cross-device: other open devices and tabs don't get an SSE event. They catch up on the next `ready`, foreground start or reload (iOS `refreshHead` already drops rows gone from the server).
+  - Surfaces to keep in parity: [web, ios, android]. The only idiom difference is swipe on the phones and × on web; call it out in each SPEC.
+- **Live-binary compat**:
+  - The routes are additive. No live binary (iOS 1.4.2 (56)/1.5.0 (58)/1.5.1 (59); Android 1.0.0 (4)/1.1.0 (5)/1.2.0 (6)) calls them, and existing shapes are unchanged.
+  - Side effect: an item the member deletes elsewhere also leaves the old binaries' `/unacknowledged` pop-up feed. A later `POST /:id/acknowledge` for it returns the existing 404 "Notification not found.", which is low risk.
+  - Deploy the backend (Render) FIRST, before web goes to Vercel and before the iOS 1.5.2 (60) / Android 1.2.0 (7) builds, which hit prod.
+- **Doc↔code mismatches found**:
+  - The task says items only disappear via the 90-day retention. In code, `kudosService.undoKudos` also deletes an unread kudos notification.
+  - The pages REGISTRY and page SPECs cite `notifications 0.6.0`, while registry.json is at 0.6.1. This is lag only.
+  - The iOS Inbox is a `ScrollView` + `LazyVStack` of cards, not a `List`. Native `.swipeActions` is therefore unavailable, and the List-row-selection gotcha does not apply as things stand.
+- **Docs to update at landing**:
+  - specs/features/notifications/SPEC.md:
+    - §1 item 6 and the §2 route table: 2 new rows.
+    - §3.5 table: request, 200 `{deleted, unread, pending_invites, badge}`, errors 400/404/429.
+    - §3.9: a new client rule covering optimistic removal and rollback, Clear all visibility, invites untouched and the confirm.
+    - The copy table: Clear all, confirm, remove, error.
+    - New decision D-C32.
+    - Changelog entry at 0.7.0.
+  - specs/features/registry.json and specs/features/REGISTRY.md: bump the notifications version.
+  - specs/pages/ios/inbox/SPEC.md, specs/pages/android/inbox/SPEC.md, specs/pages/web/programs/SPEC.md: §4/§6/§8, a new D-NP entry and the changelog. Bump the page versions.
+- **Out of scope (explicitly)**:
+  - Touch-ups (c) (the initials circle opening My Account) and (d) (iOS back-swipe / `EdgeSwipeToReturn`).
+  - (f) the SEO pass (WebSite JSON-LD name/alternateName, metadata, sitemap/robots, Search Console) and the Play Store search issue. The user's relayed request confirms these come LAST, after both apps are submitted.
+  - Answering, revoking or deleting `program_invites`.
+  - Any change to retention or the cron jobs.
+  - An SSE "deleted" event.
+  - Cancelling Android tray notifications on remove.
+  - Marketing/build version bumps (already at 1.5.2 (60) / 1.2.0 (7)).
+  - The People routes.
+- **Open questions for the orchestrator**:
+  1. **What counts as an "invite"?** Option (A): only the Invitations section (`program_invites`), which these deletes can't touch anyway. Then every notification item can be removed, including `program.invite_received`, and Clear all shows whenever the list is non-empty. Option (B): `program.invite_received` notification items are also protected. The server excludes them from both DELETEs, phones show no swipe and web no × on them, and they leave only through the 90-day retention, even after the invite is answered. The brief assumes (B), the literal "never touch invites" wording. Variant (B'): protect an invite item only while its invite is still pending, which needs more SQL. Needs a decision.
+  2. **iOS swipe mechanics (highest risk).**
+     - Native `.swipeActions` needs a `List`. Converting `InboxView` to a List restyles the screen and brings the `.dismissKeyboardOnTap()` row-selection gotcha into play.
+     - A custom horizontal `DragGesture` on each row has its own conflict. In the "+" sheet, `InboxView` sits inside a `TabView` with `.tabViewStyle(.page)` (ProgramActionsSheet.swift:45-59). A left swipe on a row competes with paging to the Create tab.
+     - Pick one: a custom drag with a horizontal-dominance threshold (user device check required), a List conversion, or a fallback such as long-press `.contextMenu` "Remove" in the paged host only.
+     - Android has no pager in its sheet, and `SwipeToDismissBox` works fine in a Column.
+  3. When Clear all deletes items on pages not yet loaded, should the client reload page 1 after success (simplest), or only drop the loaded non-invite rows? Clear all's visibility is decided from loaded items only.
+  4. Rate-limit numbers: confirm 60 requests per 10 min per member for both DELETEs, or a shared limiter.
