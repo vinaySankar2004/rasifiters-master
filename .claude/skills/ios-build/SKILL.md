@@ -64,6 +64,9 @@ The user owns the visual/runtime confirmation in the simulator.
   that the prod server prunes (`BadDeviceToken`, ENV_RUNBOOK `APNS_PRODUCTION`) — reinstall from TestFlight to test
   push. (b) The root `.dismissKeyboardOnTap()` `TapGesture` cancels List row selection — make List rows
   `.buttonStyle(.plain)` Buttons (or `onTapGesture`) + `navigationDestination`, never NavigationLink rows.
+- **A new Xcode SDK can change rendering without a code change (2026-10-14):** on Xcode 27, `AxisMarks(values:)` stopped
+  thinning a categorical Swift Charts axis (Month drew all 31 days). Filter inside the mark builder (`if … { AxisGridLine();
+  AxisValueLabel }` — `buildIf` is supported). After an Xcode major, the user's device check covers the dense charts.
 - *The next three bullets record the pre-2026-10-12 MCP build loop — reference only; never call `BuildProject` now.*
 - **Tool names (confirmed live):** build = `mcp__xcode__BuildProject`, structured issues =
   `mcp__xcode__XcodeListNavigatorIssues` (filter by `severity`/`glob`/`pattern`), raw log =

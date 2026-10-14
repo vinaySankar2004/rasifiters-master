@@ -433,3 +433,12 @@ specific "list navigator issues" tool must be called after the build tool.
   claims it never swallows row taps — wrong for List selection). Fix `1e74a54`: `.buttonStyle(.plain)` Buttons that set
   a route + `.navigationDestination` on the List; user-verified with ⌘R.
 - Promoted to Converged lessons: "Phase 4 device-test gotchas".
+
+## Run — 2026-10-14 — Month x-axis labels squished (1.5.2 (60) in review → 1.5.2 (61))
+- **Report:** the user's iPhone showed all 31 day labels under the Workout Activity Timeline M tab. The code still
+  passed `AxisMarks(values: ["1","8","15","22","29"])` — unchanged since July; 1.4.2 (Xcode 26) thinned, 1.5.x
+  (Xcode 27) did not. Lifestyle + Steps timelines share the block.
+- **Fix:** `showsAxisMark` in `ChartDetailComponents.swift` + an `if` inside the three `AxisMarks` closures (Month only;
+  other periods unchanged — Program ticks use the device locale, so a filter there could hide labels). Checked the
+  SDK's `Charts.swiftinterface` for `AxisMarkBuilder.buildIf` first. Typecheck 0 errors.
+- Promoted to Converged lessons: "A new Xcode SDK can change rendering without a code change".

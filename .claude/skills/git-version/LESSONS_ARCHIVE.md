@@ -627,3 +627,8 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   A feature touched by several waves took one version per wave (frontend-kit 0.4.0 → 0.5.0 → 0.6.0). The plans'
   versions and D-IDs were provisional (`plans/phase-4-np-amendments.md` §7) and were assigned in landing order at each
   docs commit. Promoted to Converged lessons: "Phased waves".
+
+## Run — 2026-10-14 — iOS Month-axis fix + 1.5.2 (61) resubmission
+- Four commits: `fix(ios)` (code + 3 iOS page SPECs 0.1.2 → 0.1.3 + pages REGISTRY — page bumps, no tag; the chart
+  files sit in no feature's `reference_impl`), `fix(testbed)`, `chore(skills)`, `chore(releases)` (ledger + current-state
+  docs + the 1.5.3 (62) pre-bump). No new pattern.
