@@ -31,9 +31,9 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (current state, what's live with versions, next action) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
 > (scope + phase plan §7).
 >
-> **Status 2026-10-13:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
+> **Status 2026-10-14:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
 > and the release touch-ups are live on backend + web (People on for web since 2026-10-13). **Android 1.2.0 (7) is
-> public; iOS 1.5.2 (60) awaits App Store approval** (`RELEASES.md`). **Next (user-owned):** the App Store Release
+> public; iOS 1.5.2 (61) awaits App Store approval** (`RELEASES.md`). **Next (user-owned):** the App Store Release
 > click, then `LATEST_IOS_VERSION` — HANDOFF "Next action".
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both

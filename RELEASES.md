@@ -34,9 +34,9 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** **1.5.2 (60) is Waiting for Review** (submitted 2026-10-13 ~21:20 PDT, **manual release** — it goes public only on the user's Release click). App Privacy now also lists Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
-| TestFlight — external ("Beta Testers") | 1.4.3 (57) | Testing → **expires ~2026-10-15** | 2026-07-20 | Ahead-train (same code as the live 1.4.2 (56)). 8 invited / 6 installs (read 2026-10-11). **User decision 2026-10-11: let it lapse** — testers fall back to App Store 1.4.2; the next TestFlight build is the reliability release |
-| TestFlight — internal ("Internal") | **1.5.2 (60)** | **Testing — in the Internal group** (uploaded 2026-10-13 ~21:05 PDT) | 2026-10-13 | **The store candidate**: Phase 4 + release touch-ups (inbox swipe-remove / Clear all, profile circle, edge-swipe threshold); the user's quick check passed. 1.5.1 (59) before it passed the Phase 4 device tests |
+| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** **1.5.2 (61) is Waiting for Review** (resubmitted 2026-10-14 ~10:55 PDT in place of (60), **manual release** — it goes public only on the user's Release click). App Privacy now also lists Other Diagnostic Data. Repo pre-bumped to **1.5.3 (62)**. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
+| TestFlight — external ("Beta Testers") | (none) | No build — 1.4.3 (57) expired 2026-10-14 | 2026-10-14 | 8 invited / 6 installs fall back to App Store 1.4.2. The next external build is the user's call |
+| TestFlight — internal ("Internal") | **1.5.2 (61)** | **Testing — the only unexpired build** (uploaded 2026-10-14) | 2026-10-14 | **The store candidate**: (60) + the Month x-axis label fix (summary-activity-detail D-AXIS); the user checked it on device. 56–60 expired 2026-10-14 (housekeeping) |
 
 ### Android
 
@@ -51,6 +51,9 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-14 | iOS | 1.5.2 (56–60) | TestFlight | expired every build but (61) — housekeeping (the user's yes); App Store 1.4.2 unaffected | **Expired** |
+| 2026-10-14 | iOS | 1.5.2 (61) | App Store | (60) removed from review → (61) attached → description fixed (Health Connect → Apple Health; + People, Inbox, reminders) → resubmitted (the user's yes); manual release kept | **Waiting for Review** — repo pre-bumped to 1.5.3 (62) |
+| 2026-10-14 | iOS | 1.5.2 (61) | TestFlight — internal | Month x-axis labels fix; ⌘B + device check + archive/upload by the user | **Processed → Internal group** |
 | 2026-10-13 | Android + web | 1.2.0 (7) | app-config + web | `LATEST_ANDROID_VERSION_CODE = 7` on prod Render; `PEOPLE_LIVE = true` on web (the user's call; iOS left for its release) | **Live** |
 | 2026-10-13 | Android | 1.2.0 (7) | Play — production + closed testing | both approved; published together with Data safety (the user's yes). Managed publishing publishes every approved change at once — "Remove changes" pulls all of them back to draft, so there is no closed-testing-only publish | **LIVE — public** (store within ~1 h) |
 | 2026-10-13 | iOS | 1.5.2 (60) | App Store | version 1.5.2 created; What's New + promotional text + People/Inbox review note; App Privacy + Other Diagnostic Data; submitted (the user's yes), **manual release** | **Waiting for Review** — repo pre-bumped to 1.5.3 (61) |

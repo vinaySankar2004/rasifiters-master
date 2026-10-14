@@ -2,7 +2,7 @@
 
 > Claude drives the consoles in the browser pane. **Each change gets the user's yes.** The user types no secrets.
 > Source for the privacy answers: `plans/phase-4-p-server/plan.md` §"Privacy, consent and store disclosures" C.
-> **Status: both submitted 2026-10-13; Android published the same night** (`RELEASES.md`). Not done, the user's call: Play step 5 and the optional Play
+> **Status: both submitted 2026-10-13; Android published the same night; iOS resubmitted 2026-10-14 as 1.5.2 (61)** (`RELEASES.md`). Not done, the user's call: Play step 5 and the optional Play
 > title tweak (`../plans/phase-4-seo.md`).
 
 ## What's new (same text on both stores; Play allows ≤ 500 characters)
@@ -29,6 +29,8 @@
    - Time zone: stored only to schedule reminders at local time. It isn't an Apple category, so make no change unless
      the form asks.
 4. Submit for review with **manual release**, so the People flag on web flips only once the store version is out.
+5. *(2026-10-14, resubmitted as build 61)* **Description** names **Apple Health**, never Health Connect (it had
+   been copied from Play; guideline 2.3.10), and lists People, the Inbox and reminders.
 
 ## Play Console: Android 1.2.0 (7)
 1. Internal testing: upload the AAB (the user clicks Upload; Claude does the rest). Release notes = What's new.

@@ -5,14 +5,14 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-13, late night) — ANDROID 1.2.0 + PEOPLE ON WEB LIVE · iOS 1.5.2 IN REVIEW
+## Now (2026-10-14) — ANDROID 1.2.0 + PEOPLE ON WEB LIVE · iOS 1.5.2 (61) IN REVIEW
 
 - **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
 - **Store state (RELEASES.md):**
-  - **iOS 1.5.2 (60): Waiting for Review**, manual release (goes public only on the user's Release click). Also on
-    TestFlight Internal — the user's quick check ([`TEST-CHECKLIST`](phase-4/TEST-CHECKLIST.md) §4, incl. "the
-    inbox list doesn't jump") **passed**. App Privacy + Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**.
+  - **iOS 1.5.2 (61): Waiting for Review** (resubmitted 2026-10-14 in place of (60): Month x-axis fix + corrected
+    description), manual release (goes public only on the user's Release click). The only unexpired TestFlight build
+    (Internal); 56–60 expired. Repo pre-bumped to **1.5.3 (62)**.
   - **Android 1.2.0 (7): PUBLIC** (production + closed testing + Data safety published together, the user's yes).
     Managed publishing stays ON; one Publish click releases every approved change. Repo pre-bumped to versionCode **8**.
     app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge); `MIN_*` and iOS values untouched.
@@ -41,9 +41,10 @@
 
 ## Next action
 
-1. **The user: App Store approves 1.5.2 (60) → Release.** Then Claude sets `LATEST_IOS_VERSION = 1.5.2` (Render env,
+1. **The user: App Store approves 1.5.2 (61) → Release.** Then Claude sets `LATEST_IOS_VERSION = 1.5.2` (Render env,
    merge; it redeploys), updates RELEASES.md and marks Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once
-   adoption allows. A problem first → pull the submission, fix, upload **1.5.3 (61)**; Android → versionCode 8.
+   adoption allows. A problem first → remove from review, fix, upload **1.5.2 (62)** (same version while 1.5.2 is
+   unapproved), re-attach; Android → versionCode 8.
 2. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
@@ -53,7 +54,7 @@
 |---|---|---|---|---|---|
 | W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
 | W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
-| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (60) in App Store review |
+| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (61) in App Store review |
 | W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | ✅ Android 1.2.0 (7) public |
 | W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | ✅ Android 1.2.0 (7) public |
 | W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS in review |
@@ -111,3 +112,7 @@
   Support / Delete-account pages restyled in the landing chrome (landing D-LAND-13). People on for web +
   `LATEST_ANDROID_VERSION_CODE = 7` (the user's call, iOS left for its release). One Privacy Policy copy: web's
   account menus open the public page like the phones; `/program/privacy` retired → 308 (privacy-policy D-ONE).
+
+- **2026-10-14** — Testbed refreshed (seeder now seeds only test accounts). iOS Month x-axis labels squished on the
+  Xcode 27 SDK → fixed (summary-activity-detail D-AXIS); 1.5.2 (61) swapped into the review, iOS description
+  corrected (it said Health Connect), resubmitted; TestFlight 56–60 expired. Repo 1.5.3 (62).
