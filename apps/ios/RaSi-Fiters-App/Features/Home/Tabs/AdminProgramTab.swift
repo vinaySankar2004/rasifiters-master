@@ -19,7 +19,7 @@ struct AdminProgramTab: View {
                         title: "Program",
                         subtitle: programContext.name,
                         status: programContext.status,
-                        initials: programContext.adminInitials
+                        initials: programContext.loggedInUserInitials
                     )
 
                     VStack(spacing: 16) {

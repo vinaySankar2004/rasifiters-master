@@ -99,6 +99,21 @@ extension ProgramContext {
         applyInboxCounts(counts)
     }
 
+    /// DELETE /inbox/:id (§3.9 rule 11) → fresh counts: the "+" badge, the account rows' "<n> new", the app-icon badge.
+    /// A 404 (already gone on another device) counts as removed. Any other failure throws (the Inbox puts the row back).
+    func removeInboxItem(id: String) async throws {
+        do {
+            applyInboxCounts(try await APIClient.shared.deleteInboxItem(id: id))
+        } catch let error where AppError(error)?.kind == .notFound {
+            await refreshInboxCounts()
+        }
+    }
+
+    /// DELETE /inbox/all (§3.9 rule 11) → fresh counts. The invitations (program_invites) are never touched.
+    func clearInbox() async throws {
+        applyInboxCounts(try await APIClient.shared.clearInbox())
+    }
+
     private func applyInboxCounts(_ counts: APIClient.InboxCountsDTO) {
         guard authToken != nil else { return }                          // an answer landing after sign-out
         inboxCounts = counts

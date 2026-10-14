@@ -40,20 +40,29 @@ struct StandardProgramTab: View {
                                     .foregroundColor(Color(.secondaryLabel))
                             }
                             Spacer()
-                            ZStack {
-                                Circle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [Color.appOrange, Color.appOrangeGradientEnd],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
+                            // Touch-up (c), D-PC1: the initials circle opens My Profile on this tab's own stack;
+                            // nav back / the edge swipe pops back here. Plain style = same look.
+                            NavigationLink {
+                                MyProfileView()
+                            } label: {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [Color.appOrange, Color.appOrangeGradientEnd],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
                                         )
-                                    )
-                                    .frame(width: 52, height: 52)
-                                Text(loggedInUserInitials)
-                                    .font(.headline.weight(.bold))
-                                    .foregroundColor(.black)
+                                        .frame(width: 52, height: 52)
+                                    Text(loggedInUserInitials)
+                                        .font(.headline.weight(.bold))
+                                        .foregroundColor(.black)
+                                }
+                                .contentShape(Circle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("My Profile")
                         }
                         .padding(.top, 24)
 

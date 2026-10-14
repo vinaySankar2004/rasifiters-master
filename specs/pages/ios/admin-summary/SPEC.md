@@ -30,7 +30,7 @@ cards two-per-row (`laidOutRows()`). Each card is drag-reorderable (persisted pe
 
 | Block | Reference `file:line` | Ported to |
 |---|---|---|
-| `SummaryHeader` (title · program name · admin-initials avatar) | legacy `AdminHomeHelpers.swift:53` | `SummaryCards.swift` |
+| `SummaryHeader` (title · program name · signed-in user's initials circle → `MyProfileView`, D-PC1) | legacy `AdminHomeHelpers.swift:53` | `SummaryCards.swift` (`SummaryHeader`) |
 | **Program Progress** (`CompletionRing` + %/days + status pill) | `AdminHomeHelpers.swift:145, 197` | `SummaryCards.swift` |
 | **MTD Participation** (pct · active/total · change badge) | `AdminHomeHelpers.swift:219` | `SummaryCards.swift` |
 | **Total Workouts / Total Duration / Avg Duration** (value + change badge) | `AdminHomeHelpers.swift:284, 337, 398` | `SummaryCards.swift` |
@@ -44,7 +44,7 @@ cards two-per-row (`laidOutRows()`). Each card is drag-reorderable (persisted pe
 
 ## 5. Components + features consumed
 - **`ProgramContext`** (`@EnvironmentObject`) — all analytics data + the `load*` methods + the program-progress
-  computeds (`completionPercent`/`elapsedDays`/`totalDays`/`remainingDays`/`adminInitials`/`name`/`status`),
+  computeds (`completionPercent`/`elapsedDays`/`totalDays`/`remainingDays`/`loggedInUserInitials`/`name`/`status`),
   all ported in the foundation (run 50). NEW this run: `adminOnlyDataEntry` + `dataEntryLocked` (D-C2).
 - **`APIClient+Analytics`** DTOs (`MTDParticipationDTO`, `ActivityTimelinePoint`, `WorkoutTypeDTO`, …) — foundation.
 - **`workoutTypePaletteColor`** (`Shared/Components/WorkoutPopularityLogic.swift:56`) — foundation.
@@ -110,6 +110,7 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
 | **D-DEPS** | **No new dependency for the dashboard** — every analytics loader/DTO/theme symbol + the progress computeds ported in the foundation (run 50). Newly ported WITH the cards (lived only in deferred Detail files): `ScrollableBarChart`, `DistributionPoint`/`distributionPoints`, `DistributionChartOverlay`, `typeColor`/`barColor`. | dep-purity grep; foundation `WorkoutPopularityLogic.swift` |
 | **D-C3** | **Kit adoption + instant open (reliability Phase 3 C2; board §6.5, D-9; frontend-kit §5–§6).** `ProgramContext.loadSummary` runs the 8 loads in parallel (was serial) and applies every part that loaded; `LoadState<String>` (the program id on screen) + `.task(id: SummaryLoadKey)` replaces `guard !isLoading` (W7 F5); cache-first via `LaunchCache`; `ErrorStateView` only when nothing loaded (analytics cards hidden — amendment A13), any part that loaded → stale (kept values + banner) via `ScreenBanner`; the scroll content gets bottom padding while that banner shows, and the offline band is the stack's bottom safe-area inset (A6); refetch on reconnect; `.refreshable` = reload now + a background `pull_to_refresh` sync, and a run that applies workouts reloads again (A13, H5); the timeline card's empty spinner removed (W7 F3). | frontend-kit §5–§6; health-sync §8 rule 1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A6 / A13 / H5. |
 | **D-REL1** | **Phase 4 polish (#30, with #10).** #30 honest Summary cards (analytics **D-C11**, analytics-v2 **D-C6**; the frontend-kit D-KIT-11 in-flight idiom): `loadSummary` returns WHICH parts applied (`Set<SummaryPart>`) and the tab keeps `loadedParts`; each of the 7 analytics cards (MTD Participation, Total workouts, Total duration, Avg duration, timeline, distribution, top types) renders only when its part loaded — else `PlaceholderCard(isUnavailable:)`: the spinner while a load is in flight (first load, Retry, refresh), `—` (spoken `Unavailable`) after a settled failure; never a fake 0. The three chart drill-downs open only from a loaded card. #10 keyed state (frontend-kit **D-KIT-23**): a program change sets `.loading` + clears `loadedParts` in the same event; `resetProgramScopedData()` clears the Summary fields. | `05e185a`; polish amendments U3; iOS plan P-6, steps 33–34 |
+| **D-PC1** | **Touch-up (c) — the header circle opens My Profile (2026-10-13).** `SummaryHeader` (shared by Summary and the admin Program tab) wraps its circle in `NavigationLink { MyProfileView() }` + `.buttonStyle(.plain)` + `.contentShape(Circle())` + `.accessibilityLabel("My Profile")` — same look. It pushes on the picker's outer stack, so nav back / the edge swipe pops to this tab with the selected tab and program intact. Initials now read `loggedInUserInitials` (was `adminInitials`: the same name at sign-in, never refreshed after a rename in My Profile) — web/Android parity; closes android/summary A-2. `ProgramContext.adminInitials`/`adminName` are now unused (left in place); a missing user name shows `?` (was "A" from the `"Admin"` default). The picker's account button is unchanged. | user, touch-up (c) (reliability HANDOFF) |
 
 ## 10. Flagged characteristics (kept as-is)
 - **F1 — iOS-only drag-to-reorder + per-program `UserDefaults` persistence.** Web has no card reordering; this
@@ -132,6 +133,7 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   boundary is the backend 403 (`requireDataEntryAllowed`) reached by the deferred log forms. (web F2 mirror)
 
 ## 11. Changelog
+- **v0.2.4** (2026-10-13, **D-PC1 — touch-up (c)**) — the `SummaryHeader` circle is a plain-style `NavigationLink` → `MyProfileView` (label "My Profile", same look) and shows `loggedInUserInitials` (was `adminInitials`, now unused).
 - **v0.2.3** (2026-10-13, **D-REL1 — Phase 4 polish (`05e185a`)**) — #30 a card without its loaded part shows a spinner
   while in flight and `—` (`Unavailable`) after a settled failure, never a fake 0 (`loadSummary` returns the applied
   parts); #10 a program switch resets the tab and clears the Summary fields in the same event.

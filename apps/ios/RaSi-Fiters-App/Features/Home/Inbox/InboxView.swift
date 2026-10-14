@@ -31,6 +31,10 @@ struct InboxView: View {
     @State private var respondError: String?
     @State private var inviteToDecline: APIClient.PendingInviteDTO?
     @State private var blockFutureInvites = false
+    /// The last remove / Clear all failure ("Couldn't … <kit message>"), under the Notifications heading.
+    @State private var actionError: String?
+    /// The card whose Remove is showing — one at a time (InboxSwipeToDelete).
+    @State private var openSwipeId: String?
 
     private var onScreen: Bool { isActive && isVisible }
 
@@ -117,9 +121,10 @@ struct InboxView: View {
 
     private var notificationsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(InboxCopy.notificationsHeader)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(Color(.label))
+            InboxNotificationsHeader(canClear: !(feed.state.value ?? []).isEmpty,
+                                     failure: actionError,
+                                     shouldConfirm: { shouldConfirmClearAll() },
+                                     onClearAll: { Task { await clearAll() } })
             switch feed.state {
             case .idle, .loading:
                 ProgressView()
@@ -128,19 +133,19 @@ struct InboxView: View {
             case .failed(let error):
                 ErrorStateView(error: error, onRetry: { Task { await reload() } })
             case .loaded(let items, _, _), .stale(let items, _, _):
-                if items.isEmpty {
+                if items.isEmpty && !feed.canLoadMore {
                     InboxEmptyState()
                 } else {
                     LazyVStack(spacing: 10) {
                         ForEach(items) { item in
-                            InboxRow(item: item, showsUnread: item.wasUnread(atVisitStart: visitStart),
-                                     onOpen: item.opensElsewhere ? { open(item) } : nil)
-                                .onAppear {
-                                    if item.id == items.last?.id { Task { await feed.loadMore() } }
-                                }
+                            // §3.9 rule 11: a left swipe reveals Remove (InboxSwipeToDelete; one card open at a time).
+                            InboxSwipeToDelete(id: item.id, openId: $openSwipeId, onRemove: { remove(item) }) {
+                                InboxRow(item: item, showsUnread: item.wasUnread(atVisitStart: visitStart),
+                                         onOpen: item.opensElsewhere ? { open(item) } : nil)
+                            }
                         }
-                        if feed.isLoadingMore {
-                            ProgressView().padding(.vertical, 8)
+                        if feed.canLoadMore {
+                            InboxLoadMoreTrigger(feed: feed, rowsKey: "\(items.count)|\(items.last?.id ?? "")")
                         }
                     }
                 }
@@ -210,6 +215,50 @@ struct InboxView: View {
     private func open(_ item: APIClient.NotificationDTO) {
         programContext.openInboxItem(item, fromInbox: true)
         dismiss()
+    }
+
+    /// §3.9 rule 11 — swipe-remove (the card has already closed — InboxSwipeToDelete): offline fails at once (the kit's
+    /// words, no request); otherwise the row leaves now and comes back, closed, where it was if the server refuses (a
+    /// 404 — already gone elsewhere — counts as removed).
+    private func remove(_ item: APIClient.NotificationDTO) {
+        guard programContext.isOnline else { return showFailure(InboxCopy.removeFailed, AppError(kind: .offline)) }
+        actionError = nil
+        let context = programContext
+        Task {
+            do {
+                try await feed.remove(id: item.id) { try await context.removeInboxItem(id: item.id) }
+            } catch {
+                showFailure(InboxCopy.removeFailed, error)
+            }
+        }
+    }
+
+    /// The Clear all tap: offline → the failure line at once and no confirm; otherwise the confirm opens.
+    private func shouldConfirmClearAll() -> Bool {
+        guard programContext.isOnline else {
+            showFailure(InboxCopy.clearFailed, AppError(kind: .offline))
+            return false
+        }
+        actionError = nil
+        return true
+    }
+
+    /// §3.9 rule 11 — Clear all (confirmed): every notification leaves now (the invitations above never change); success
+    /// re-reads the newest page, a refusal puts the rows back.
+    private func clearAll() async {
+        guard programContext.isOnline else { return showFailure(InboxCopy.clearFailed, AppError(kind: .offline)) }
+        let context = programContext
+        do {
+            try await feed.clearAll(online: context.isOnline) { try await context.clearInbox() }
+        } catch {
+            showFailure(InboxCopy.clearFailed, error)
+        }
+    }
+
+    /// "Couldn't … <kit message>" under the heading; a cancelled call shows nothing (the next load reconciles).
+    private func showFailure(_ lead: String, _ error: Error) {
+        guard let appError = AppError(error) else { return }
+        actionError = "\(lead) \(appError.labeled(online: programContext.isOnline).message)"
     }
 
     private func respond(_ invite: APIClient.PendingInviteDTO, action: String, blockFuture: Bool = false) async {

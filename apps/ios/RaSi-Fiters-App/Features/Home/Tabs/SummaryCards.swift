@@ -22,20 +22,29 @@ struct SummaryHeader: View {
 
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.appOrange, Color.appOrangeGradientEnd],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+            // Touch-up (c), D-PC1: the initials circle opens My Profile. It pushes on the picker's outer stack, so
+            // nav back / the edge swipe returns to this tab with the tab + program intact. Plain style = same look.
+            NavigationLink {
+                MyProfileView()
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.appOrange, Color.appOrangeGradientEnd],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .frame(width: 52, height: 52)
-                Text(initials)
-                    .font(.headline.weight(.bold))
-                    .foregroundColor(.black)
+                        .frame(width: 52, height: 52)
+                    Text(initials)
+                        .font(.headline.weight(.bold))
+                        .foregroundColor(.black)
+                }
+                .contentShape(Circle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel("My Profile")
         }
     }
 }

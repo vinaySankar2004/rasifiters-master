@@ -43,7 +43,7 @@ struct AdminSummaryTab: View {
                         title: "Summary",
                         subtitle: programContext.name,
                         status: programContext.status,
-                        initials: programContext.adminInitials
+                        initials: programContext.loggedInUserInitials
                     )
 
                     if case .failed(let error) = loadState {

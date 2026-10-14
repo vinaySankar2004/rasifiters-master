@@ -1,6 +1,6 @@
 # Screen: `inbox` (ios) — the Inbox (invitations + notifications) and the notification toast
 
-> **Status:** 🏗️ built (`apps/ios/`, `198407c` — for the Phase 4 store release) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`, `198407c` — for the Phase 4 store release) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
 > **Location:** `InboxView` hosted in three places — the "+" sheet's tab 0 ([program-actions](../program-actions/SPEC.md)),
 > pushed from both account rows (`AccountMenuSheet` in [program-picker](../program-picker/SPEC.md) and
 > `ProgramMyAccountSection` in [admin-program](../admin-program/SPEC.md)), and the **root Inbox sheet** (a `Done`
@@ -8,8 +8,9 @@
 > **Provenance:** **NET-NEW** (reliability-overhaul Phase 4 Track C; replaces the blocking `NotificationModalView` queue).
 > **Web parity reference:** [`web programs`](../../web/programs/SPEC.md) (the Inbox tab + `InboxList`); Android
 > [`inbox`](../../android/inbox/SPEC.md).
-> **Consumes (features):** [`notifications`](../../../features/notifications/SPEC.md) 0.6.0 (`GET /inbox`,
-> `/inbox/unread-count`, `POST /inbox/read`, the `?inbox=1` stream — §3.5, §3.9, D-C31), [`invites`](../../../features/invites/SPEC.md)
+> **Consumes (features):** [`notifications`](../../../features/notifications/SPEC.md) 0.7.0 (`GET /inbox`,
+> `/inbox/unread-count`, `POST /inbox/read`, `DELETE /inbox/:id` + `/inbox/all`, the `?inbox=1` stream — §3.5, §3.9,
+> D-C31, D-C32), [`invites`](../../../features/invites/SPEC.md)
 > 0.3.0 (the Invitations section, D-C10), [`frontend-kit`](../../../features/frontend-kit/SPEC.md) 0.5.0 (D-KIT-20 toast,
 > D-KIT-17 offline band).
 
@@ -18,7 +19,7 @@
 ## 1. What it is + who uses it
 Every signed-in role: `Inbox` · `Invites and notifications` — the `Invitations` section first (global admins `All
 invitations`, grouped by program, with Revoke; the `InvitesTabView` content), then `Notifications` (`InboxRow`s with an
-unread dot, title, body and a relative time). Files: `Features/Home/Inbox/{InboxView,InboxRow}.swift`,
+unread dot, title, body and a relative time). Files: `Features/Home/Inbox/{InboxView,InboxRow,InboxFeed,InboxSwipeToDelete}.swift`,
 `Shared/Models/ProgramContext+Inbox.swift`, `Shared/Services/APIClient+Inbox.swift`, `Shared/Views/NotificationToast.swift`.
 
 ## 2. Why it exists
@@ -37,7 +38,7 @@ back to, read state syncs across devices, and the app-icon badge means something
 | Block | What |
 |---|---|
 | Invitations | `Invitations` / `All invitations` + Revoke (global admins); accept / decline per invites §3.1; a failed action → alert `Unable to update invitation` + the kit message. |
-| Notifications | Rows newest first; **load-on-scroll** (the next page with `before=next_cursor`, 30 per page); a page-1 refresh merges into the loaded rows. |
+| Notifications | Rows newest first; **load-on-scroll** (the next page with `before=next_cursor`, 30 per page); a page-1 refresh merges into the loaded rows. 0.2.0: a left swipe on a card reveals a red Remove (each card in a horizontal ScrollView settling closed / open — a swipe that starts on a card no longer pages the "+" sheet to Create; elsewhere it still does). Like native swipe actions: one card open at a time, a tap on an open card closes it (never opens the item), a Remove tap closes the card first (an offline / refused remove leaves it closed), and the hidden Remove is never tappable while the card is closed. The heading's Clear all (shown while notifications are listed) → confirmationDialog (on the heading, dropped when nothing is left to clear); failures inline under the heading. Load-on-scroll is an end-of-list trigger (`InboxLoadMoreTrigger`), so removes that shrink the list (even to none) still page in older rows; the empty state shows only when no older page remains. |
 | Empty | `No notifications yet` · `Program updates, kudos, reminders and announcements show up here.` (`tray` icon). |
 | Times | `Just now` · `5m ago` · `3h ago` (today) · `Yesterday` · `Oct 12` · `Oct 12, 2025`. |
 | Toast | Top overlay (width ≤ `formMaxWidth`): `<title>` (blank → `New notification`) · `View` · × (`Dismiss`); 5 s; × or a swipe up only hides it. |
@@ -53,6 +54,7 @@ back to, read state syncs across devices, and the app-icon badge means something
 | `fetchInbox` | `GET /api/notifications/inbox?limit=30&before=` | |
 | `fetchUnreadCounts` | `GET /inbox/unread-count` | The "+" badge, account rows, app-icon badge. |
 | `markAllInboxRead` / `markInboxRead(ids:)` | `POST /inbox/read` `{all:true}` / `{ids}` | See §8 rules. |
+| `deleteInboxItem(id:)` / `clearInbox()` | `DELETE /inbox/:id` · `/inbox/all` | `ProgramContext.removeInboxItem` (404 = removed) / `clearInbox` → `applyInboxCounts`. |
 | stream | `GET /notifications/stream?inbox=1` | Items → toast / live reload. |
 
 ## 7. Role-based view rules
@@ -71,6 +73,10 @@ back to, read state syncs across devices, and the app-icon badge means something
   when the Inbox marks all read (to the pending-invite count); 0 at sign-out.
 - **Toast suppression:** none while an `InboxView` is visible or anything is presented (dropped, not queued); an Inbox
   coming on screen dismisses a toast.
+- Remove / Clear all: optimistic with restore on a refusal; offline fails at once (Clear all: no confirm). A removed id
+  stays out of every first page that lands later (a load in flight can't bring it back); a remove never cancels
+  paging. Clear all drops loads in flight (the generation), pages nothing older while it runs, and re-reads page 1.
+  A reload dropped or cancelled that way puts back the "Couldn't refresh" banner it had hidden.
 
 ## 9. Decisions made
 | ID | Decision | Rests on |
@@ -78,14 +84,16 @@ back to, read state syncs across devices, and the app-icon badge means something
 | **D-NP1** | **Hosts + the root Inbox sheet (TC10).** `inbox` / `invites` targets reload a visible Inbox, else open the root sheet when nothing is presented (the program stays open), else fall back to the picker's "+" sheet. | notifications D-C31; NP amendments R5. |
 | **D-NP2** | **Mark read only what was seen (TC2 / R1)** — a loaded, visible visit; dots per visit; load-on-scroll (an iOS idiom vs web / Android `Load more`). | NP amendments R1, R7. |
 | **D-NP3** | **Top toast (D-KIT-20) + one notice presenter** that yields to the covers (widget form, forced update, Health review) and returns. | frontend-kit D-KIT-20; NP amendments R3. |
+| **D-NP4** | Reveal-swipe, not .swipeActions (the Inbox is a ScrollView of cards; no List conversion, no DragGesture), with native swipe-action manners: one open card, a tap on an open card closes it, Remove closes it first, the hidden Remove isn't hit-testable while closed. Failures inline, never an alert racing the dialog — notifications D-C32. | touch-up (a) plan rev 2 + impl review fixes. |
 
 ## 10. Flagged characteristics
 | ID | Characteristic | Follow-up? |
 |----|----------------|-----------|
 | **F1** | More than one `ProgramPickerView` can be mounted ("Select Program" pushes a second); both observe `inboxRoute`, the first consumer clears it (pre-existing, as with U2). | Accepted. |
-| **F2** | `InboxView.swift` / `ProgramContext+Inbox.swift` exceed ~200 lines (accepted in the plan, TC14). | Accepted. |
+| **F2** | `InboxView.swift` (~290 after 0.2.0) / `ProgramContext+Inbox.swift` (~255) exceed ~200 lines (accepted in the plan, TC14). | Accepted. |
 
 ## 11. Changelog
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **Remove one + Clear all (touch-up (a); notifications 0.7.0 D-C32, §3.9 rule 11).** A left swipe on a card reveals a red Remove (`InboxSwipeToDelete`: each card in a horizontal ScrollView, the two-stop `InboxRevealBehavior`; one card open at a time, a tap on an open card closes it, Remove closes it first, the hidden Remove isn't tappable while closed; VoiceOver Remove action); `Clear all` on the Notifications heading while notifications are listed → `confirmationDialog`; optimistic with restore, 404 = removed (removed ids stay out of later first pages; a remove never cancels paging), offline fails at once (no confirm), Clear all re-reads page 1; failures inline under the heading (D-NP4). Load-on-scroll moves to an end-of-list trigger (`InboxLoadMoreTrigger`) so older pages stay reachable after removes; a dropped / cancelled reload restores a hidden "Couldn't refresh". `InboxFeed` moved to its own file; the card border is a `strokeBorder`. Invitations unchanged. |
 | 0.1.0 | 2026-10-13 | Initial SPEC — net-new Inbox + toast (Phase 4, `198407c`): three hosts incl. the root Inbox sheet, invitations then notifications, mark-all after a loaded visible visit, per-visit dots, load-on-scroll, kit states, app-icon badge, top toast; `NotificationModalView` retired. |

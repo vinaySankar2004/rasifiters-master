@@ -68,6 +68,19 @@ extension APIClient {
         try await postInboxRead(["all": true])
     }
 
+    /// DELETE /notifications/inbox/:id — this member's own item, gone on every device → fresh counts (the extra
+    /// `deleted` key is ignored). 404 = unknown / not this member's / already gone.
+    func deleteInboxItem(id: String) async throws -> InboxCountsDTO {
+        let data = try await data(for: authorizedRequest("notifications/inbox/\(id)", method: "DELETE"))
+        return try JSONDecoder().decode(InboxCountsDTO.self, from: data)
+    }
+
+    /// DELETE /notifications/inbox/all — every notification (the invitations are separate and stay) → fresh counts.
+    func clearInbox() async throws -> InboxCountsDTO {
+        let data = try await data(for: authorizedRequest("notifications/inbox/all", method: "DELETE"))
+        return try JSONDecoder().decode(InboxCountsDTO.self, from: data)
+    }
+
     /// GET /notifications/preferences (also stores this device's X-Time-Zone server-side).
     func fetchNotificationPreferences() async throws -> NotificationPreferencesDTO {
         let data = try await data(for: authorizedRequest("notifications/preferences", method: "GET"))

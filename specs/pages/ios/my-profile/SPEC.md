@@ -1,8 +1,9 @@
 # Screen: `my-profile` (ios) — the account-menu "My Profile" screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.4.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.4.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (the Program tab's My Account section, run 57) →
-> "My Profile" `NavigationLink → MyProfileView()`.
+> "My Profile" `NavigationLink → MyProfileView()`, from the picker's `AccountMenuSheet` (Profile), and from the
+> header initials circle on the Summary and Program tabs (0.4.1, D-PC1).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/MyProfileView.swift`.
 > **Web parity reference:** [`web program/profile`](../../web/program/profile/SPEC.md) — same own-profile
 > editor; the net-new **email-change form** now mirrored.
@@ -32,9 +33,11 @@ web↔iOS gap toward web parity (memory [[ios-matches-web-not-just-legacy]]).
 
 ## 3. Route / location
 
-- **App:** `ios`. **Reached via:** `ProgramMyAccountSection` → "My Profile".
-- **Leaves to:** back to the Program tab (nav back) · `LoginView` (after a successful **delete** → automatic
-  `signOut()` flips the root). No forward-nav targets.
+- **App:** `ios`. **Reached via:** `ProgramMyAccountSection` → "My Profile"; the picker's `AccountMenuSheet` →
+  Profile (`ProgramPickerView` `accountDestination`); the header initials circle on the Summary tab and both
+  Program tab variants (0.4.1, admin-summary/admin-program D-PC1).
+- **Leaves to:** back (nav back or the edge swipe) to the screen it was opened from, tab and program unchanged ·
+  `LoginView` (after a successful **delete** → automatic `signOut()` flips the root). No forward-nav targets.
 
 ## 4. Contents / sections
 
@@ -133,6 +136,7 @@ this screen (the read-vs-write-lock axis: the lock follows logging, not all writ
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.1 | 2026-10-13 | Reached-via grows (touch-up (c), admin-summary/admin-program D-PC1): the Summary / Program header circle, plus the picker's `AccountMenuSheet` (already true, now documented); back returns to the opener. No change to this screen. |
 | 0.4.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #15 Delete Account spinner + error under the button (auth D-C19); #18 sign-in methods "—" until loaded / Couldn't load · Retry (replaces the rows) / reload on reconnect, email read error + Retry under the row (auth D-C19); #35 autofill content types; #44 Clear sends `gender: null` (members D-C5); sections split into `MyProfileSections.swift`. |
 | 0.3.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 People, `198407c`): `HideActivitySection` above Sign out everywhere; missing echo = failure (revert + kit message). |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the Delete Account error uses `SessionCopy.kitMessage` (frontend-kit D-KIT-19, #8). |

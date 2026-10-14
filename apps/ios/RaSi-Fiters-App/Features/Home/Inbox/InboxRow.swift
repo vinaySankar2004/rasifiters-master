@@ -1,4 +1,3 @@
-import Combine
 import SwiftUI
 
 /// One inbox item (notifications contract C3): category glyph, title, body (never clamped), relative time, an unread
@@ -64,7 +63,7 @@ struct InboxRow: View {
         }
         .padding(14)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(.systemBackground)))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Color(.systemGray4).opacity(0.6), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color(.systemGray4).opacity(0.6), lineWidth: 1))
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityValue(showsUnread ? "Unread" : "")
@@ -93,75 +92,29 @@ struct InboxEmptyState: View {
     }
 }
 
-/// The inbox list's paging state (GET /notifications/inbox — C4): the first page on open / refresh, then older pages by
-/// `next_cursor` as the last row appears. A reload supersedes a page still in flight (generation).
-final class InboxFeed: ObservableObject {
-    @Published private(set) var state: LoadState<[APIClient.NotificationDTO]> = .idle
-    @Published private(set) var isLoadingMore = false
-    private var nextCursor: String?
-    private var generation = 0
+/// Load-on-scroll (D-NP2) at the end of the rows, while an older page exists: it loads when it comes on screen, and
+/// again when the rows above change while it stays there (removes shrank the list, even to none) — older pages stay
+/// reachable. The spinner shows only while a page loads.
+struct InboxLoadMoreTrigger: View {
+    @ObservedObject var feed: InboxFeed
+    /// The rows above (count + last id).
+    let rowsKey: String
+    @State private var isOnScreen = false
 
-    /// true when THIS call loaded the first page (InboxView marks read only then).
-    @discardableResult
-    func reload(online: Bool) async -> Bool {
-        generation += 1
-        let current = generation
-        state = state.refreshing()
-        do {
-            let page = try await APIClient.shared.fetchInbox()
-            guard current == generation else { return false }
-            nextCursor = page.nextCursor
-            state = .fresh(page.items)
-            return true
-        } catch {
-            guard current == generation, let appError = AppError(error) else { return false }
-            state = state.failing(with: appError.labeled(online: online))
-            return false
-        }
-    }
-
-    /// A live reload (an item arrived / the catch-up): page 1 merged into the loaded pages — the rows paged in and their
-    /// cursor stay; a row inside page 1's span that's gone was removed server-side (e.g. an undone kudos).
-    @discardableResult
-    func refreshHead(online: Bool) async -> Bool {
-        guard state.value != nil else { return await reload(online: online) }
-        generation += 1
-        let current = generation
-        do {
-            let page = try await APIClient.shared.fetchInbox()
-            guard current == generation else { return false }
-            let loaded = state.value ?? []                                  // the rows now, not before the fetch
-            let pageIds = Set(page.items.map(\.id))
-            let oldest = page.items.last?.createdDate
-            let older = page.nextCursor == nil ? [] : loaded.filter { item in
-                guard !pageIds.contains(item.id), let date = item.createdDate, let oldest else { return false }
-                return date <= oldest
+    var body: some View {
+        Color.clear
+            .frame(height: feed.isLoadingMore ? 36 : 1)
+            .overlay {
+                if feed.isLoadingMore { ProgressView() }
             }
-            if older.isEmpty { nextCursor = page.nextCursor }
-            state = .fresh(page.items + older)
-            return true
-        } catch {
-            guard current == generation, let appError = AppError(error) else { return false }
-            state = state.failing(with: appError.labeled(online: online))
-            return false
-        }
-    }
-
-    func loadMore() async {
-        guard !isLoadingMore, let cursor = nextCursor, state.value != nil else { return }
-        isLoadingMore = true
-        defer { isLoadingMore = false }
-        let current = generation
-        guard let page = try? await APIClient.shared.fetchInbox(before: cursor), current == generation,
-              let items = state.value else { return }                       // the rows now, not before the fetch
-        nextCursor = page.nextCursor
-        let known = Set(items.map(\.id))
-        state = .fresh(items + page.items.filter { !known.contains($0.id) })
-    }
-
-    /// C7.7: the loaded invite notifications of one program (an accept / decline marks them read).
-    func inviteItemIds(programId: String) -> [String] {
-        (state.value ?? []).filter { $0.type == "program.invite_received" && $0.programId == programId }.map(\.id)
+            .onAppear {
+                isOnScreen = true
+                Task { await feed.loadMore() }
+            }
+            .onDisappear { isOnScreen = false }
+            .onChange(of: rowsKey) { _, _ in
+                if isOnScreen { Task { await feed.loadMore() } }
+            }
     }
 }
 
@@ -177,6 +130,12 @@ enum InboxCopy {
     static let respondFailedTitle = "Unable to update invitation"
     static let toastAction = "View"
     static let toastFallbackTitle = "New notification"
+    static let clearAll = "Clear all"
+    static let clearConfirmTitle = "Clear all notifications?"
+    static let clearConfirmMessage = "They're removed from your Inbox on all your devices. Invitations stay until you answer them."
+    static let remove = "Remove"
+    static let removeFailed = "Couldn't remove the notification."
+    static let clearFailed = "Couldn't clear your notifications."
 
     /// The account-menu Inbox rows' subtitle.
     static func rowSubtitle(badge: Int) -> String {

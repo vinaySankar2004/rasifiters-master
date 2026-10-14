@@ -1,6 +1,6 @@
 # Screen: `AdminProgramTab` / `StandardProgramTab` (ios) — the Program tab (Tab 4, the LAST tab body)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
 > **Location:** Tab 4 **"Program"** (`calendar.badge.clock`) of `AdminHomeView`'s bottom `TabView` — the iOS
 > analogue of the web `/program` workspace hub. Role-bifurcated by `programContext.isProgramAdmin`:
 > `AdminProgramTab` (program/global admin — sectioned management menu) vs `StandardProgramTab` (logger/member —
@@ -47,6 +47,7 @@ manager, the workout-type manager, and the account screens (profile/password/app
   StandardProgramTab()` ([AdminHomeView.swift:83-87](../../../../apps/ios/RaSi-Fiters-App/Features/Home/AdminHomeView.swift#L83)).
 - **Reached:** after program pick (the shell is pushed by `ProgramPickerView` → `AdminHomeView`); Tab 4 of 4.
 - **Leaves to:**
+  - `MyProfileView()` — also from the header initials circle, both variants (0.2.2, D-PC1).
   - `ProgramPickerView()` — Select/Switch Program (already ported, real) — via `navigationDestination`.
   - `EditProgramInfoView()` — admin-only program editor (web `/program/edit`) — **deferred stub**.
   - `MyProfileView` / `ChangePasswordView` / `AppearanceSettingsView` / `NotificationsSettingsView` — the 4
@@ -65,7 +66,7 @@ manager, the workout-type manager, and the account screens (profile/password/app
 
 | Block | What | Reference `file:line` (legacy) |
 |---|---|---|
-| Header | `SummaryHeader(title:"Program", subtitle:name, status:, initials:adminInitials)`. | `AdminProgramTab.swift:14-19` |
+| Header | `SummaryHeader(title:"Program", subtitle:name, status:, initials:loggedInUserInitials)`; the circle is a `NavigationLink` → `MyProfileView()` (0.2.2, D-PC1). | `AdminProgramTab.swift` (`SummaryHeader` call) |
 | Program Info | `ProgramInfoSection(showSelectProgram:)` — Select Program (→ picker) · Edit Program Details (admin-only → `EditProgramInfoView`) · Leave Program (non-global-admin). | `ProgramInfoSection.swift` |
 | Member Management | `ProgramMemberManagementSection()` — **deferred stub** (View Members + Invite). **0.2.0:** the first row reads **`People`** · `<n> enrolled` → `PeopleListView` (the roster `ProgramMembersListView` is retired — [program-member-management](../program-member-management/SPEC.md) D-NP1). | `MemberManagementSection.swift` |
 | Role Management | `ProgramRoleManagementSection()` — **deferred stub**; gated by `canEditProgramData`. | `RoleManagementSection.swift` |
@@ -76,7 +77,7 @@ manager, the workout-type manager, and the account screens (profile/password/app
 
 | Block | What | Reference `file:line` (legacy) |
 |---|---|---|
-| Header | Inline `HStack`: "Program" + program name + own initials avatar (orange gradient). | `StandardProgramTab.swift:31-55` |
+| Header | Inline `HStack`: "Program" + program name + own initials avatar (orange gradient); the avatar is a `NavigationLink` → `MyProfileView()` on this tab's own stack (0.2.2, D-PC1). | `StandardProgramTab.swift` (header `HStack`) |
 | Program Info card | Read-only `GlassCard`: Name · Status (capsule badge) · Duration · **Progress bar** (`completionPercent` + elapsed/remaining days) · Active Members. | `StandardProgramTab.swift:95-213` |
 | Switch Program | Button → `ProgramPickerView`. | `StandardProgramTab.swift:215-253` |
 | Leave Program | Button → confirm alert → `leaveProgram()` → picker. | `StandardProgramTab.swift:255-295` |
@@ -94,7 +95,7 @@ manager, the workout-type manager, and the account screens (profile/password/app
   `appBlueLight`/`appGreen`/`appPurple`/`appRed`/`appRedLight`, `adaptiveShadow`), `ThemeManager` (injected at
   `@main`), `APIConfig.privacyPolicyURL`/`supportURL`.
 - **Context (foundation run 50):** `name`/`status`/`dateRangeLabel`/`completionPercent`/`elapsedDays`/
-  `remainingDays`/`activeMembers`/`adminInitials`/`loggedInUserName`/`loggedInUsername`/`loggedInUserInitials`;
+  `remainingDays`/`activeMembers`/`loggedInUserName`/`loggedInUsername`/`loggedInUserInitials`;
   `canEditProgramData`/`isGlobalAdmin`/`isProgramAdmin`; `loadMembershipDetails()`/`leaveProgram()`/`signOut()`.
 
 ## 6. Data / API
@@ -153,6 +154,7 @@ write sub-routes, not the program hub). The read-vs-write axis (runs 31/36/54/55
 | **D-DEPS** | **One small new dep class** — the `sectionHeader`/`settingsRow` free helpers (co-located in the legacy giant `AdminHomeHelpers.swift`, never pulled into the foundation — the run-55/56 `GlassButton`/`AccentChip` situation) + the new `.leaveProgramConfirmation` modifier (D-C1, authored this run). Everything else already ported (run 50/52/54): `SummaryHeader`, `ProgramPickerView`, `ThemeManager`, `APIConfig` URLs, theme, all `ProgramContext` props/methods. Zero new api fn. | dep-purity grep (foundation). |
 | **D-NP1** | **Inbox row + the People row (0.2.0; notifications D-C31, people D-C14, NP-U1).** `ProgramMyAccountSection` (in `Tabs/ProgramCards.swift`) gains the `Inbox` row (the badge as `<n> new`) pushing `InboxView`; the Member Management section's roster row becomes `People` · `<n> enrolled` → `PeopleListView` (TC1 / UA-1 superseded by NP-U1 — the Members-tab header also opens People for every role). Same rows on both role variants (My Account is shared). | NP amendments NP-U1, R7, R8; iOS plan TC1, TC9. |
 | **D-REL1** | **Phase 4 polish (#45).** `ProgramMyAccountSection`'s Apple Health row subtitle reads `Sync workouts, sleep, and steps` (was "Sync workouts automatically"; iOS syncs steps — Android keeps `Sync workouts and sleep`), the same copy as the picker's account sheet (PA1). Both role variants (shared section). The management sections' own polish is recorded in their page SPECs. | `05e185a`; polish amendments PA1 |
+| **D-PC1** | **Touch-up (c) — the header circle opens My Profile (2026-10-13).** Admin variant: via the shared `SummaryHeader` (admin-summary D-PC1), initials = `loggedInUserInitials`. Standard variant: the inline circle is wrapped the same way (`NavigationLink { MyProfileView() }`, `.buttonStyle(.plain)`, `.contentShape(Circle())`, label "My Profile") and pushes on the tab's own `NavigationStack`. Back / the edge swipe pops to the Program tab. `ProgramMyAccountSection` keeps its profile row. | user, touch-up (c) (reliability HANDOFF) |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -185,6 +187,7 @@ write sub-routes, not the program hub). The read-vs-write axis (runs 31/36/54/55
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.2 | 2026-10-13 | **D-PC1 — touch-up (c).** The header circle (both variants) opens `MyProfileView` (plain `NavigationLink`, label "My Profile", same look); the admin variant shows `loggedInUserInitials`. |
 | 0.2.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #45 My Account's Apple Health subtitle `Sync workouts, sleep, and steps`. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`198407c`).** My Account gains the `Inbox` row (unread badge → `InboxView`); the Member Management row reads `People` · `<n> enrolled` → `PeopleListView` (roster retired). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error (`ProgramCards.swift`) uses `SessionCopy.kitMessage` (frontend-kit D-KIT-19, #8). |
