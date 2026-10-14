@@ -3,6 +3,7 @@
 // deletes older rows). Read = acknowledged_at (D-N5). The badge counts an invite ONCE: unread items except
 // program.invite_received, plus the member's pending, unexpired invites (the GET /my-invites rule — exact username).
 // Daily reminders and weekly digests stay in `unread` but never in `badge` (an ignored nudge must not make it climb).
+// Remove one / Clear all (0.7.0, D-C32) hard-delete the member's OWN notification_recipients rows (never program_invites).
 const { QueryTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 const { NotificationRecipient } = require("../models");
@@ -146,4 +147,24 @@ async function markRead(memberId, body) {
     return { updated, ...(await getUnreadCounts(memberId)) };
 }
 
-module.exports = { listInbox, getBadgeCounts, getUnreadCounts, markRead };
+const notFound = () => new AppError(404, "Notification not found.", { code: "not_found" });
+
+/** Remove one (D-C32): THIS member's recipient row only — the notification stays for its other recipients (one left with
+ *  none goes with the 90-day retention, D-C28). A malformed id → 400; unknown, another member's or already removed → 404. */
+async function removeItem(memberId, id) {
+    if (typeof id !== "string" || !UUID_RE.test(id)) throw invalid("id must be a notification id.");
+    const deleted = await NotificationRecipient.destroy({
+        where: { member_id: memberId, notification_id: id.toLowerCase() }
+    });
+    if (deleted === 0) throw notFound();
+    return { deleted, ...(await getUnreadCounts(memberId)) };
+}
+
+/** Clear all (D-C32): every recipient row of THIS member; idempotent (0 deleted is still 200). Invitations live in
+ *  program_invites and are never touched; nothing re-sends (send keys + push_deliveries never read these rows). */
+async function clearAll(memberId) {
+    const deleted = await NotificationRecipient.destroy({ where: { member_id: memberId } });
+    return { deleted, ...(await getUnreadCounts(memberId)) };
+}
+
+module.exports = { listInbox, getBadgeCounts, getUnreadCounts, markRead, removeItem, clearAll };

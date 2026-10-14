@@ -1,6 +1,6 @@
 # Feature: `notifications` — in-app alerts, real-time SSE delivery & APNs push
 
-> **Status:** 🚀 deployed (`apps/backend/` + the `apps/web`, `apps/ios`, `apps/android` clients) · **Version:** 0.6.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (`apps/backend/` + the `apps/web`, `apps/ios`, `apps/android` clients) · **Version:** 0.7.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/notifications.js`, `utils/notifications.js`,
 > `utils/notificationStreams.js` (SSE registry), `utils/pushNotifications.js` (APNs),
 > `models/{Notification,NotificationRecipient,MemberPushToken}.js`, `services/authService.js`
@@ -22,6 +22,8 @@
 > categories, the inbox + read state + badge, preferences + time zone, the reminder / digest scheduler, send-anytime
 > announcements, per-category push, the content seam, 90-day retention, the kudos emitter, and the clients' Inbox + toast
 > replacing the pop-up queue — D-C19–D-C31; §3.4–§3.9.
+> **0.7.0 (Phase 4 touch-up):** remove one + Clear all — `DELETE /inbox/:id` + `DELETE /inbox/all` (self-only); phones
+> swipe, web ×, Clear all behind a confirm — D-C32; §3.5, §3.9 rule 11.
 
 ---
 
@@ -29,7 +31,7 @@
 
 The **alerts layer** of RaSi Fiters — the `notifications` / `notification_recipients` tables, the
 **real-time SSE stream** that pushes new alerts to connected clients, and the **APNs push** path that wakes
-iOS devices. Legacy ships **6 routes** at `/api/notifications` (`server.js:61`), all owned here, plus one net-new route (0.4.0, item 4) and nine net-new routes on three sub-routers (0.6.0, items 6–8):
+iOS devices. Legacy ships **6 routes** at `/api/notifications` (`server.js:61`), all owned here, plus one net-new route (0.4.0, item 4) and nine net-new routes on three sub-routers (0.6.0, items 6–8) and two more on the inbox router (0.7.0, item 6):
 
 1. **Read my pending alerts** — `GET /unacknowledged` (the per-member backfill on app load / stream start).
 2. **Acknowledge one** — `POST /:id/acknowledge` (mark a recipient row read; dismisses the modal).
@@ -39,7 +41,8 @@ iOS devices. Legacy ships **6 routes** at `/api/notifications` (`server.js:61`),
    D-C11/D-C12).
 5. **Admin broadcast** — `POST /broadcast` (`global_admin` only). **Called by neither client** (vestigial,
    kept for parity, flagged §10 / F1).
-6. **Inbox** (0.6.0) — `GET /inbox`, `GET /inbox/unread-count`, `POST /inbox/read` (`routes/notificationInbox.js`; §3.5).
+6. **Inbox** (0.6.0) — `GET /inbox`, `GET /inbox/unread-count`, `POST /inbox/read`; (0.7.0) `DELETE /inbox/:id` +
+   `DELETE /inbox/all` — remove one / Clear all (`routes/notificationInbox.js`; §3.5).
 7. **Preferences** (0.6.0) — `GET` + `PUT /preferences` (`routes/notificationPreferences.js`; §3.5).
 8. **Announcements** (0.6.0, global admins) — `GET /announcements`, `POST /announcements/preview`, `POST /announcements`,
    `POST /announcements/:id/cancel` (`routes/announcements.js`; §3.8).
@@ -86,6 +89,8 @@ emit/recipient logic in `utils/notifications.js`; SSE registry in `utils/notific
 | 14 | `POST /announcements/preview` | net-new (0.6.0) | same; 30 / min | Recipient count + one sample rendering (§3.8). |
 | 15 | `POST /announcements` | net-new (0.6.0) | same; 10 / hour | Send now or at each recipient's local time (§3.8). |
 | 16 | `POST /announcements/:id/cancel` | net-new (0.6.0) | same | Cancel a scheduled / sending announcement (§3.8). |
+| 17 | `DELETE /inbox/:id` | net-new (0.7.0) | `authenticateToken`; 120 / 10 min per member, shared with 18 | Remove one of the member's own items (its recipient row) — §3.5, D-C32. |
+| 18 | `DELETE /inbox/all` | net-new (0.7.0) | same | Clear all: every one of the member's own items — §3.5, D-C32. A literal `/all`: an empty-id `/inbox/` matches no route. |
 
 **0.6.0 on the legacy routes:** `GET /unacknowledged` returns **legacy types only** (§3.4); `GET /stream` without
 `?inbox=1` frames legacy types only and with `?inbox=1` every type as an inbox item; `PUT /device` also records the
@@ -350,6 +355,8 @@ announcement (§3.8).
 | `GET /inbox?limit=1..50&before=<next_cursor>` | limit defaults to 30. Newest first, last 90 days. | `{ "items": [item…], "next_cursor": "2026-10-13T17:02:11.482913Z_<uuid>" \| null }` — the cursor is opaque | 400 `invalid_body` |
 | `GET /inbox/unread-count` | — | `{ "unread": 3, "pending_invites": 1, "badge": 3 }` | — |
 | `POST /inbox/read` | `{ "ids": ["uuid", …] }` (1–100) **or** `{ "all": true }` **or** `{ "type": "program.invite_received", "program_id": "uuid" }` (that program's unread invite items, wherever they sit in the paged inbox). Idempotent. | `{ "updated": 1, "unread": 2, "pending_invites": 1, "badge": 2 }` | 400 `invalid_body` |
+| `DELETE /inbox/:id` | — | `{ "deleted": 1, "unread": 2, "pending_invites": 1, "badge": 2 }` | 400 `invalid_body` (not a uuid) · 404 `not_found` (unknown, another member's, already removed) · 429 `rate_limited` |
+| `DELETE /inbox/all` | — | `{ "deleted": 12, "unread": 0, "pending_invites": 1, "badge": 1 }` — idempotent, 0 is still 200 | 429 `rate_limited` |
 | `GET /preferences` | — | `{ "categories": { "program": true, "activity": true, "reminders": false, "digest": false, "announcements": true }, "reminder_time": "19:00", "time_zone": "Africa/Nairobi" \| null }` | — |
 | `PUT /preferences` | Partial: `{ "categories": { "reminders": true }, "reminder_time": "07:30" }` (24-hour `HH:MM`; unknown category keys ignored). GET and PUT store the caller's zone first, so `time_zone` is current. | the full preferences, same shape as GET | 400 `invalid_body` (e.g. `Nothing to update.`) |
 | `GET /stream?inbox=1` | Bearer, or `?token=…&inbox=1` | `ready` / `ping` unchanged; every `event: notification` `data` is an inbox item, for every type | 401 / 503 as §3.3 |
@@ -363,6 +370,10 @@ announcement (§3.8).
   the "+" badge and the iOS app-icon badge. For a global admin it counts **their own** invites only.
 - **Preferences:** one `notification_preferences` row per member; **no row = the defaults** (program, activity,
   announcements on; reminders + digest off; reminder 19:00 local). PUT is partial — only the fields sent change.
+- **Remove / Clear all (0.7.0, D-C32):** hard-delete the member's own `notification_recipients` rows only; the
+  notification row stays for its other recipients (orphans go with D-C28's retention, as do kudos rows orphaned by a
+  later undo). Invitations (`program_invites`) are never touched. Nothing re-sends (send keys + `push_deliveries` never
+  read recipient rows). No SSE event — other devices drop the item at their next catch-up / reload (F18).
 
 ### 3.6 Scheduler — daily reminder and weekly digest (0.6.0, D-C24)
 
@@ -480,6 +491,15 @@ rule 3 · C7.5 → rule 4 · C7.6 → rule 8 · C7.7 → rule 9 · C7.8 → rule
    Navigation never discards an open form or cover.
 9. After accepting or declining an invite, mark that program's unread `program.invite_received` items read.
 10. iOS sets the app-icon badge to `badge`; Android shows launcher dots only (no count); web has none.
+11. **Remove + Clear all (0.7.0, D-C32):** every notification row is removable — iOS: a left swipe reveals Remove;
+    Android: swipe the card away end→start (40 % threshold; a quick short flick also removes — M3's fling threshold is
+    fixed); web: an × per row (platform idiom); VoiceOver / TalkBack get a Remove action. Clear all sits on the
+    Notifications heading line only while a notification is listed, behind a confirm. Optimistic: rows leave at once (a
+    load already in flight is dropped) and come back on a refusal with the failure line under the heading (web: a
+    refused Clear all shows inside its kept-open dialog); a 404 on remove counts as removed; offline fails at once with
+    the kit's offline words — no request, and Clear all opens no confirm. The answer's counts update the "+" badge, the
+    account rows' `<n> new` and the iOS app-icon badge; after Clear all the newest page is re-read. The Invitations
+    section never changes.
 
 **Copy (R7 — identical on all three; casing per surface idiom):**
 
@@ -497,6 +517,7 @@ rule 3 · C7.5 → rule 4 · C7.6 → rule 8 · C7.7 → rule 9 · C7.8 → rule
 | Times | `Just now` · `5m ago` · `3h ago` · `Yesterday` · `Oct 12` · `Oct 12, 2025` |
 | Account row | `Inbox` · `<n> new` when badge > 0, otherwise `Invites and notifications` (web adds a count pill) |
 | "+" sheet tabs / toast | `Inbox` · `Create` / `<title>` (blank → `New notification`) · `View` |
+| Remove / Clear all (0.7.0) | `Clear all` · confirm `Clear all notifications?` / `They're removed from your Inbox on all your devices. Invitations stay until you answer them.` / `Clear all` · `Cancel` (web while running: `Clearing…`) · `Remove` (web ×: `Remove notification`) · failures `Couldn't remove the notification. <kit message>` · `Couldn't clear your notifications. <kit message>` |
 
 
 ## 4. Feature list (behaviors to port)
@@ -544,7 +565,8 @@ Faithful names (R5); schema already applied in `apps/backend/sql/001_schema.sql`
   **SET NULL**, `actor_member_id`→`members` **SET NULL** (`001_schema.sql:212-224`).
 - **`notification_recipients`** (owned — composite PK `(notification_id, member_id)`) — `acknowledged_at?`;
   FKs CASCADE on both parents (`:228-236`). Indexes incl. `(member_id, acknowledged_at)` for the
-  unacknowledged query (`:274`).
+  unacknowledged query (`:274`). **0.7.0:** `DELETE /inbox/:id` + `/inbox/all` hard-delete `notification_recipients`
+  rows (no schema change, no migration).
 - **`member_push_tokens`** (owned — written only by `services/deviceService.js` [`PUT /device`, the login ride-along
   via `authService.upsertPushToken`, `DELETE /device`, `POST /device/unregister`], read by the push facade + broadcast,
   pruned by the facade + `pg_cron`) — `id`, `member_id`, `device_token` (unique), `platform` (default `ios`), `device_id?`
@@ -711,6 +733,7 @@ preserved exactly so both clients' parsers (web `EventSource`, iOS `Notification
 | **D-C29** | **New emitter — `activity.kudos_received` (0.6.0, [people](../people/SPEC.md) 0.1.0).** `services/kudosService.js` emits it inside the kudos insert transaction through **C8 only**: title + body from `getContentProvider().render("activity.kudos_received", { first_name, actor_first_name, day_label }, "<recipient>\|<giver>\|<date>")` (the KUDOS variants — not fixed text), then `createNotification({ type, programId, actorMemberId: giver, title, body, recipientIds: [recipient], transaction })`; the day = `localParts(getTimeZones(...) \|\| "UTC")`. Category activity, target inbox: delivered via `GET /inbox`, the `?inbox=1` stream and push (keys incl. `category` / `target`), never on `/unacknowledged` or a plain stream (D-C20); Activity off → not created (`kudos.notification_id` null). Undo deletes it while the recipient's row is unread. `utils/notifications.js` unchanged by People. | people D-C5/D-C6/D-C11; NP amendments S1-3/S1-4, N-1. |
 | **D-C30** | **Client rules (§3.9: C7 + NP amendments R1–R5, R7; NP-U2) + the web realization (0.6.0).** All three Phase 4 builds: `X-Time-Zone`; `?inbox=1`; no `/unacknowledged` and no pop-up queue — the **Inbox** (the "+" sheet's `Inbox` tab: invitations first, then notifications) and a **toast** (frontend-kit D-KIT-20); read rule R1; catch-up R2 on every `ready` + foreground (≤ once per 5 s); badge + tab choice R4; a tap / `View` / row marks read then routes by `target` with the R5 guards (NP-U2 — supersedes D-C17(c)); answered invites mark that program's invite items read; copy R7. **Web** (`components/NotificationsGate.tsx` + `components/notifications/{InboxList,NotificationToast}.tsx` + `lib/notifications/{stream,queries,targets}.ts`): the stream URL `…/stream?token=…&inbox=1`; catch-up on start + `ready` (the unread count + inbox always; programs, invites and the stored active program at most once per 5 s; a role / status change re-reads the role-gated queries); on an item: refresh the inbox, run the type's refetches (only `program.*` types trigger the general program refetches; kudos → People), toast if the category is on; **toast** 5 s, top-centre, ×, never over a modal (`.modal-surface` or `[aria-modal='true']`, watched live) — the "+" sheet that hosts the Inbox is one — and never on the page-form routes `/program/profile`, `/program/password`, `/program/edit`, `/members/detail`, `/program/announcements` (cleared when one opens); routing: `program` → open it (stay put when it is already active and a program tab is showing), `programs` → `/programs`, `log_workout` → `/summary/log-workout`, everything else → the Inbox (`/programs?open=inbox`, or the `rf:open-inbox` event when already there); Inbox marks all read once its first fresh page is on screen; account rows `Inbox` (`<n> new` + a count pill), `Notifications`, `Announcements` (global admins); settings `/program/notifications`; composer `/program/announcements` (§3.8 — exact-preview send, a timeout / unknown failure shows `Check Recent announcements before sending again.`, 429 `You've reached the announcement limit. Try again later.`). `NotificationModal.tsx` deleted. Web divergences (platform idiom): no push / permission / app badge / channels; the composer is web-only. Supersedes D-C18's web clause and D-C5's modal queue; F7 / F8 superseded. | NP amendments §1 (NP-U2, NP-U6), §3 R1–R5 + R7, §4 web; web plan W5/W9/W13–W15/W17/W18. |
 | **D-C31** | **iOS + Android realization (0.6.0; platform idiom only).** **iOS** (`Features/Home/Inbox/{InboxView,InboxRow}.swift`, `Shared/Views/NotificationToast.swift`, `Shared/Models/ProgramContext+{Inbox,Notifications}.swift`, `Shared/Services/{APIClient+Inbox,APIClient+Notifications,DeviceRegistry,NotificationStreamClient}.swift`, `App/{AppDelegate,AppRootView}.swift`): Inbox hosts — the "+" sheet's tab 0, both account rows, and a **root Inbox sheet** (with `Done` + `.offlineBanner()`) so an open program stays open; mark-all only after a loaded **and visible** visit, later live items marked by id; dots per visit; load-on-scroll. Toast at the top, 5 s, × or swipe up; no toast while an `InboxView` is visible or anything is presented (suppressed, not queued). `openTarget`: `inbox` / `invites` → reload the visible Inbox, else the root Inbox sheet, else the picker opens the "+" sheet; other targets via `inboxRoute` (the picker; skipped while a full-screen cover is up); `log_workout` opens the quick-add workout form over the current screen and returns there. **Permission asked once per install** at the first signed-in start (sign-in or a restored session; `UserDefaults` `push.permissionAsked`) — NP-U3. **App-icon badge** (NP-U4) only for inbox-capable installs: set via `setBadgeCount` from every counts answer, dropping when the Inbox marks all read (to the pending invites), 0 at sign-out. `PUT /device` sends `inbox: true`; the 12-h memo is also keyed by build (`push.registeredBuild`). `foregroundPushReceived` is skipped while the stream is connected. `NotificationModalView` deleted (`NotificationModalView.swift` keeps only `ForcedUpdateModalView`). **Android** (`core/NotificationInbox.kt`, `ui/inbox/{InboxList,InboxScreen,NotificationToast}.kt`, `ui/RootScreen.kt`, `push/{DeviceRegistry,RaSiFirebaseMessagingService}.kt`, `App.kt`, `MainActivity.kt`, `net/InboxDtos.kt`): Inbox hosts — the "+" sheet's Inbox tab and the `inbox` route (root + shell graphs); every load of the newest page while on screen (open, pull, Retry, reconnect) is followed by `{all:true}` (`inboxVisible` set via `DisposableEffect`; the race with an item arriving between the GET and the mark is accepted); a successful mark-all cancels the posted pushes (except the Health Connect one). Toast (D-KIT-20) suppressed while the inbox is visible, a form is open (`ROOT_FORMS` + `SHELL_FORMS` + a non-blank "+" sheet Create draft) or a cover is up (cover counter: Health Connect review, account menu, "+" sheet). Routing: `invites` → the picker's "+" sheet on Inbox; `programs` → the picker (clears the active program if it is the one); `inbox` → the Inbox route; `log_workout` → `inbox/log-workout` (the quick-add workout form over where the member is); `program` → open it, or stay when it is already showing. Catch-up on `ready` + foreground reconciles the open program — a role change replaces it and resets View-as; a program gone (or no longer active) → the picker, then the active program is cleared. **Six channels** created before the container: `rasi_default` (General), `rasi_invites` (Invites & membership, high), `rasi_activity`, `rasi_reminders`, `rasi_digest` (low), `rasi_announcements`; the monochrome `ic_stat_notification` is the FCM default icon and the posted-notification icon (also the health-sync notifier); launcher dots, no count. The `inbox: true` memo is `inbox_registered_token` in `rasi.push`. Permission asked once after the first signed-in start (unchanged). `NotificationModal.kt` deleted. | NP amendments R1–R5, R14, NP-U3, NP-U4; iOS plan TC2/TC4/TC6/TC10/TC11, UA-2/UA-3; Android plan TC-1/TC-6/TC-9/TC-11. |
+| **D-C32** | **Remove one + Clear all (0.7.0; Phase 4 touch-up, user decision 2026-10-13).** `DELETE /inbox/:id` + `DELETE /inbox/all` (`routes/notificationInbox.js` → `notificationInboxService.removeItem` / `clearAll`) hard-delete the token member's OWN `notification_recipients` rows (`NotificationRecipient.destroy` scoped by `member_id`); malformed id → `400 invalid_body`; nothing deleted → `404 not_found`; Clear all idempotent; both answer `{ deleted, unread, pending_invites, badge }`. Clear all is the literal `/all` so an empty-id call can't reach it. One per-member limiter for both, 120 / 10 min. "Invites" = the Invitations section (`program_invites`), never touched — every notification row is removable, incl. the informational `program.invite_received` item. No migration; nothing re-sends; old binaries' `/unacknowledged` drops a removed item too (read = acknowledged parity). Clients: §3.9 rule 11 — iOS reveal-swipe (horizontal `ScrollView` + two-stop `ScrollTargetBehavior`; the Inbox isn't a `List`), Android M3 `SwipeToDismissBox`, web × (platform idiom only). | touch-up (a) brief + plan rev 2. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -733,11 +756,13 @@ preserved exactly so both clients' parsers (web `EventSource`, iOS `Notification
 | **F15** | **Claim-then-crash skips one send** — the send key is claimed before the send, so a crash (or the shutdown cut) between claim and send skips that member for that day / week / announcement. At most once is preferred over a duplicate. | `services/{dailyReminderJob,weeklyDigestJob,announcementDelivery}.js` | Accepted. |
 | **F16** | **Composer limits are per-process memory** (preview 30 / min, send 10 / hour per admin) — a deploy resets them; a second instance would double them. | `routes/announcements.js` | Accepted (single instance, observability F3). |
 | **F17** | **Stale "stub" header comments** — `utils/programMemberships.js:4-6` and `services/membershipService.js:9` still describe the emits as calling the deferred `utils/notifications` stub (live since 0.1.0). | those two files | Comment-only fix when those files are next touched. |
+| **F18** | **Remove / Clear all aren't pushed to other open devices** — they drop at the next catch-up / reload; Clear all also removes an item that arrived after the list loaded (server-side "all"). | `routes/notificationInbox.js` | Accepted. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.7.0 | 2026-10-13 | Phase 4 touch-up (a): remove one + Clear all — `DELETE /inbox/:id` + `DELETE /inbox/all` (self-only hard delete of recipient rows, 120 / 10 min per member), §3.5, §3.9 rule 11, copy, D-C32, F18. MINOR (2 additive routes); no migration; no live binary calls them; dependents unaffected. Deploy order: backend, then web + iOS 1.5.2 (60) / Android 1.2.0 (7). |
 | 0.6.1 | 2026-10-13 | **Exact reminders (user request after device testing).** Scheduler tick 15 min → 60 s; the daily-reminder send key is local date + reminder time, so a changed time fires once at the new time that day; catch-up window 120 → 15 min (a time set further in the past waits until tomorrow). No route/shape/client change. D-C24 + §3.6 updated in place. PATCH. |
 | 0.6.0 | 2026-10-13 | **Reliability-overhaul Phase 4 — the Notifications server (`6224a61`, live), the People kudos emitter (`d8f8eee`) and the three client builds (web `b2ea09b` live; Android `d528f75` + iOS `198407c` built for the store release).** Server: five categories + one type map (D-C19, §3.4); legacy-feed safety — `/unacknowledged` + plain streams carry legacy types only, `?inbox=1` every type, `program.updated` not legacy (D-C20); preferences + the category filter inside `createNotification` (recipient ids lower-cased; D-C21); the inbox (`GET /inbox`, `/inbox/unread-count`, `POST /inbox/read` with `{ids}` / `{all}` / `{type, program_id}`), read = acknowledged, the badge (invites once, reminders + digest excluded; D-C22, §3.5); `X-Time-Zone` capture, Intl-canonical names, no-zone rules (D-C23); the 15-min scheduler with send keys, 5-min job cap, daily reminder + weekly digest (opt-in; non-deleted programs only; D-C24, §3.6); announcements composer (global admins, preview / send / list / cancel, merge fields incl. `{streak}` = 0, local time, four plain-language 400s; D-C25, §3.8); per-category push gated by `supports_inbox` (thread, replace key, badge, Android category channels that don't stack; D-C26); templates + channels seam (D-C27, §3.7); 90-day retention + the one-time delete of 407 rows (D-C28); `sql/011`. People: the `activity.kudos_received` emitter through C8 (D-C29). Clients: §3.9 rules + R7 copy; Inbox + toast replace the pop-up queue; routing by `target`; catch-up; the web realization incl. settings + composer (D-C30); iOS (root Inbox sheet, permission once, app-icon badge) + Android (six channels, monochrome icon, form guard, open-program reconciliation) (D-C31). Superseded: D-C17(a) re-fetch clause + (c), D-C18's web clause, D-C5's modal queue, F7, F8; §3.2 / §3.3 client paragraphs. Flagged F14–F17. `reference_impl` += 20 backend files + `sql/011`. MINOR (owned interface: new routes, stream capability, device field, push keys, schema); additive for every live binary; dependents (programs 0.3.0 — D-C3; invites 0.3.0; people 0.1.0) documented in the same change. Deploy order: `011` on staging → public, then the backend. |
 | 0.5.0 | 2026-10-13 | **Clients adopt §3.1–§3.3 (reliability-overhaul Phase 3 client release — web live, iOS 1.5.0 (58), Android 1.1.0 (5)).** D-C17: SSE reconnect values fixed (1 s ×2, 30 s cap, full jitter, reset on `ready`, 60 s idle, paused offline; `/unacknowledged` on every start + `ready`, acked-elsewhere dropped, recent acks ignored); a foreground push is shown once (A5); push tap → acknowledge, invite → the invite inbox, else re-fetch (U2 — §3.2 amended); `PUT /device` at most every 12 h unless the token / permission changed, unregister once per denial (A12 — §3.1 amended). D-C18: per-surface realization (web 3-failed-opens forced refresh + `visibilityState`; iOS keeps the APNs token value, parks a cold-start tap; Android `rasi_invites` channel, `rasi.push` state, FCM-token unregister fallback, ask-once permission). §8 downstream line corrected (all three clients). No backend change. MINOR (owned client contract amended); dependents unaffected. |
