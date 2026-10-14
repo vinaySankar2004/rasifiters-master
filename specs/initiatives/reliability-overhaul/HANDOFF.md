@@ -59,7 +59,18 @@
      - §1 Notifications passes on iPhone + web. A composer announcement reached the Pixel's old Play build as a push
        banner only, as designed.
    - **Final touch-ups list** (the user's ideas, for after testing, before release):
-     - (a) Inbox management: clear all / swipe to delete. Today, retention deletes items after 90 days.
+     - **DECIDED 2026-10-13 (user): finish everything and SUBMIT BOTH APPS FOR STORE REVIEW TONIGHT.**
+       - Order: touch-ups (a)/(c)/(d) → one multiplex plan, a single plan for backend + 3 surfaces, then the
+         user's approval → per-surface implementers + review → web live → builds **iOS 1.5.2 (60)** + **Android
+         1.2.0 (7)** → the user's quick device check → submit.
+       - Submission steps, in the browser pane with a yes per change:
+         - App Store: what's new, App Privacy updated for People (workouts shared with co-members) + the time zone,
+           then submit.
+         - Play: promote to production, Data safety updated, then send for review.
+       - Then `PEOPLE_LIVE` flips on web once the apps are approved and public, and app-config `LATEST_*` is raised.
+     - (a) **Inbox clearing, DECIDED: Clear all (with a confirm) + remove one** (swipe on the phones, × on web).
+       Invites stay until answered. The server needs an additive delete route for the member's own
+       recipient rows, safe for old apps. Today, retention deletes items after 90 days.
      - (b) Exact reminders: the scheduler ticks every 60 s, and a changed reminder time fires again the same day.
        In progress (implementer, then review, then push with a yes).
      - (c) The top-right initials circle on Summary + Program opens My Account / My Profile, and Back returns to the
