@@ -5,7 +5,7 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-13, late night) — ANDROID 1.2.0 PUBLIC · iOS 1.5.2 IN REVIEW
+## Now (2026-10-13, late night) — ANDROID 1.2.0 + PEOPLE ON WEB LIVE · iOS 1.5.2 IN REVIEW
 
 - **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
@@ -15,8 +15,10 @@
     inbox list doesn't jump") **passed**. App Privacy + Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**.
   - **Android 1.2.0 (7): PUBLIC** (production + closed testing + Data safety published together, the user's yes).
     Managed publishing stays ON; one Publish click releases every approved change. Repo pre-bumped to versionCode **8**.
-- **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. People stays dark on web
-  (`PEOPLE_LIVE = false`, `apps/web/src/lib/api/people.ts`) until the store apps are public.
+    app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge); `MIN_*` and iOS values untouched.
+- **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. **People is on for web**
+  (`PEOPLE_LIVE = true`, `apps/web/src/lib/api/people.ts` — the off switch), turned on with Android public and iOS
+  still in review (the user's call).
 - **Tonight's touch-ups** (plans `plans/phase-4-touchup-{inbox,profile}/`, amendments
   `plans/phase-4-touchup-amendments.md`; each surface reviewed + fix-rounded):
   - (a) Inbox remove one + Clear all — backend `97492d9` (notifications 0.7.0, D-C32), web `fa57ad9`, Android
@@ -29,7 +31,8 @@
   - (f) SEO `cc46131` (landing 0.1.5, D-LAND-12): WebSite `alternateName` = real spellings only, brand-first
     description, hero eyebrow, per-page titles. Live + verified; Search Console steps done.
 - **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
-  storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt.
+  storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; until iOS 1.5.2 is
+  public, iPhone users see People only on web (Hide my activity is in web My Profile).
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
   legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip; Android R8
   shrink + obfuscation in the next Android build (release has `isMinifyEnabled = false`; Play: 1 %, fix by Feb 2027).
@@ -38,16 +41,11 @@
 
 ## Next action
 
-1. ~~**The user:** quick TestFlight 60 check (TEST-CHECKLIST §4).~~ **DONE 2026-10-13 — passed.** (A later problem
-   → pull the App Store submission, fix, upload **1.5.3 (61)**.)
-2. ~~**Play Publish**~~ **DONE 2026-10-13** — all three approved changes published at once (Play can't publish one
-   alone). The Pixel §4 check runs on the public 1.2.0 (7); a problem → fix → versionCode 8.
-3. **App Store approved → Release.** Then, with both public:
-   1. Flip `PEOPLE_LIVE = true` → deploy web (a yes to push).
-   2. Raise app-config `LATEST_*` (later `MIN_*`).
-   3. Update RELEASES.md; mark Phase 4 🚀 shipped in BRIEF §7 + PROGRESS.md.
-4. ~~**SEO owner steps**~~ **DONE 2026-10-13** ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)). Recheck the shown
-   name in Google around 2026-10-27 before doing anything more.
+1. **The user: App Store approves 1.5.2 (60) → Release.** Then Claude sets `LATEST_IOS_VERSION = 1.5.2` (Render env,
+   merge; it redeploys), updates RELEASES.md and marks Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once
+   adoption allows. A problem first → pull the submission, fix, upload **1.5.3 (61)**; Android → versionCode 8.
+2. ~2026-10-27: recheck Google's shown site name before doing anything more
+   ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
 ## Workstream status
 
@@ -110,4 +108,5 @@
   managed publishing), App Privacy + Data safety updated. Repo pre-bumped to 1.5.3 (61) / versionCode 8. The user's
   TestFlight 60 check passed. Docs freshness pass. Search Console: sitemap resubmitted, Rich Results valid, indexing
   requested for the home page + 5 waiting pages. Android 1.2.0 (7) published (all three approved Play changes). Public Privacy /
-  Support / Delete-account pages restyled in the landing chrome (landing D-LAND-13).
+  Support / Delete-account pages restyled in the landing chrome (landing D-LAND-13). People on for web +
+  `LATEST_ANDROID_VERSION_CODE = 7` (the user's call, iOS left for its release).

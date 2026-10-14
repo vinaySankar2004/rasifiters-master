@@ -19,7 +19,7 @@ auth path (Supabase-issued tokens via the backend proxy). Legacy source archived
 - **Programs:** `/programs`, `/program`, `/program/{profile,password,appearance,privacy,roles,edit,notifications,announcements}`
 - **Summary (analytics):** `/summary`, `/summary/{activity,distribution,workout-types,log-workout,log-health}`
 - **Members:** `/members`, `/members/{list,detail,invite,metrics,health,history,workouts,streaks,person}` (`person` is
-  dark until `PEOPLE_LIVE`)
+  People's profile, behind `PEOPLE_LIVE`)
 - **Lifestyle:** `/lifestyle`, `/lifestyle/{timeline,steps-timeline,workouts}`
 
 Each page has a spec in `specs/pages/web/<page>/SPEC.md` (with role-based view rules); cross-cutting capabilities
@@ -41,8 +41,8 @@ are the `specs/features/` it consumes.
 - **Notifications:** `NotificationsGate` + `lib/notifications/stream.ts` (SSE `?inbox=1` + catch-up), the toast
   `components/notifications/NotificationToast.tsx`, the Inbox in the `/programs` "+" sheet —
   [`notifications`](../../specs/features/notifications/SPEC.md) §3.3 / §3.9.
-- **`PEOPLE_LIVE`** (`lib/api/people.ts`) — a compile-time `false` keeping People dark; flip it on the store-release
-  day, then delete the dark roster ([`people`](../../specs/features/people/SPEC.md) D-C13).
+- **`PEOPLE_LIVE`** (`lib/api/people.ts`) — People's kill switch, `true` since 2026-10-13; `false` turns every People
+  surface off (the roster returns) ([`people`](../../specs/features/people/SPEC.md) D-C13).
 - **Debt (recorded, Phase 4 polish):** `app/programs/page.tsx` is ~1,425 lines and `app/lifestyle/page.tsx` ~750 — split
   later (InviteCard / CreateProgramTab / EditProgramModal; the Lifestyle cards); `Modal` has no Tab trap and `Select.tsx`
   should own its Escape (D-KIT-24).

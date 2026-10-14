@@ -1,6 +1,6 @@
 # Page: `members/person` (web) — a person's profile (People)
 
-> **Status:** 🏗️ built (`apps/web/`, `b2ea09b`) — **dark until the store release** (`PEOPLE_LIVE = false` redirects it)
+> **Status:** 🏗️ built (`apps/web/`, `b2ea09b`) — **live since 2026-10-13** (`PEOPLE_LIVE`; switched off, it redirects)
 > · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/person?memberId=<id>` — one program member's profile: name, initials, role, workout stats, recent
 > workouts and kudos; staff get "Open full stats", global admins "Edit membership". Reached from a row of the People
@@ -30,7 +30,7 @@ visibility rule.
 ## 3. Route / location
 - **Protected**; `useAuthGuard()` (an active program required). `PageHeader` `Profile` + program name, Back →
   `/members/list`.
-- **While `PEOPLE_LIVE` is false** the page immediately `router.replace("/members/list")` (today's roster); a missing
+- **While `PEOPLE_LIVE` is false** the page immediately `router.replace("/members/list")` (the roster); a missing
   `memberId` does the same.
 
 ## 4. Contents / sections
@@ -68,7 +68,7 @@ visibility rule.
 ## 9. Decisions made
 | ID | Decision | Rests on |
 |----|----------|----------|
-| **D-NP1** | **Dark until the store release (W1 / NP-U5)** — a redirect while `PEOPLE_LIVE` is false; reachable only from People once live. | web plan W1, W8. |
+| **D-NP1** | **Dark until the store release (W1 / NP-U5)** — a redirect while `PEOPLE_LIVE` is false; reachable only from People once live. *(On since 2026-10-13.)* | web plan W1, W8. |
 | **D-NP2** | **"Open full stats" per role (W6, R13)** — admins / global admins via the Members view-as key; loggers via `/members/workouts`. Coupled to `members/page.tsx`'s view-as key name. | web plan W6; people D-C13. |
 | **D-NP3** | **"Edit membership" for global admins only (D-P11)** → the existing `/members/detail` editor (which loads its own data). | DECISIONS D-P11; web plan W7. |
 

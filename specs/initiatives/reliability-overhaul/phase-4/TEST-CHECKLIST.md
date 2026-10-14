@@ -1,7 +1,7 @@
 # Phase 4 — test checklist (user, on device)
 
-> Everything is built, reviewed and committed. The server and web are live; People is dark on web until
-> release day. **Status:** §1–3 passed on iOS 1.5.1 (59) / Android 1.2.0 (6); §4 passed on the iPhone (TestFlight
+> Everything is built, reviewed and committed. The server and web are live; People is on for web since
+> 2026-10-13. **Status:** §1–3 passed on iOS 1.5.1 (59) / Android 1.2.0 (6); §4 passed on the iPhone (TestFlight
 > 1.5.2 (60), 2026-10-13) — the Pixel's §4 check runs on the public 1.2.0 (7).
 
 ## 1. Notifications (all three)
@@ -25,7 +25,7 @@
 - [ ] **Old apps unaffected:** if anyone is still on the App Store / Play 1.x versions, they see the usual invite
       pop-ups and never the new types.
 
-## 2. People (phones; web stays dark until release day)
+## 2. People (phones; web on since 2026-10-13)
 - [ ] **People list:** Members tab → **People** header button (every role). "You" is first, everyone shows
       initials, and every row opens a profile.
 - [ ] **Profile:** shows the current and longest streak, this month's active days, recent workouts and last
@@ -88,4 +88,4 @@
 ## 5. Known and accepted
 - Returning from History / View Workouts on the iPhone Members tab shows placeholders once while it reloads.
 - Routing a notification from inside a program on the iPhone takes about 1 s.
-- On web, People stays hidden until release day (flip `PEOPLE_LIVE`).
+- On web, People is on since 2026-10-13 (`PEOPLE_LIVE`), ahead of the iOS release.

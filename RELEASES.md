@@ -42,7 +42,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| Play Store (production) | **1.2.0 (7)** | **LIVE — public on Google Play** (published 2026-10-13 night) | 2026-10-13 | **Current public release** — 100% rollout, 178 countries. Un-updated 1.0.0 (4) installs linger; the backend must keep degrading gracefully for them. Play flags R8 obfuscation at 1% (fix by Feb 2027). Repo pre-bumped to versionCode 8. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
+| Play Store (production) | **1.2.0 (7)** | **LIVE — public on Google Play** (published 2026-10-13 night) | 2026-10-13 | **Current public release** — 100% rollout, 178 countries. Un-updated 1.0.0 (4) installs linger; the backend must keep degrading gracefully for them. Play flags R8 obfuscation at 1% (fix by Feb 2027). app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge). Repo pre-bumped to versionCode 8. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
 | Play Console — closed testing ("Alpha") | **1.2.0 (7)** | **Available** (published with production) | 2026-10-13 | The route that reaches the user's Pixel (it only receives builds through closed testing) |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
 | Play Console — internal testing | **1.2.0 (7)** | **Available to internal testers** (released 2026-10-13 20:57 local) | 2026-10-13 | **The store candidate**: Phase 4 + release touch-ups (inbox remove / Clear all, profile circle). Built by `./gradlew :app:bundleRelease` with the upload key |
@@ -51,6 +51,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-13 | Android + web | 1.2.0 (7) | app-config + web | `LATEST_ANDROID_VERSION_CODE = 7` on prod Render; `PEOPLE_LIVE = true` on web (the user's call; iOS left for its release) | **Live** |
 | 2026-10-13 | Android | 1.2.0 (7) | Play — production + closed testing | both approved; published together with Data safety (the user's yes). Managed publishing publishes every approved change at once — "Remove changes" pulls all of them back to draft, so there is no closed-testing-only publish | **LIVE — public** (store within ~1 h) |
 | 2026-10-13 | iOS | 1.5.2 (60) | App Store | version 1.5.2 created; What's New + promotional text + People/Inbox review note; App Privacy + Other Diagnostic Data; submitted (the user's yes), **manual release** | **Waiting for Review** — repo pre-bumped to 1.5.3 (61) |
 | 2026-10-13 | iOS | 1.5.2 (60) | TestFlight — internal | archived + uploaded from Xcode by the user; auto-added to the Internal group | **Processed → Internal group** |

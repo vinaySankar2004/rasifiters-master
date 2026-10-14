@@ -7,12 +7,11 @@ import { appError } from "@/lib/kit/app-error";
 // the Hide my activity rule) — the client only renders it.
 
 /**
- * The People go-live rule: People goes live on web together with the iOS + Android store release. Until then (false)
- * every People surface is off — /members/list runs today's roster unchanged, the entry labels stay "View Members", the
- * admin Invite pill stays, no notice, no Hide my activity switch, and /members/person redirects to /members/list.
- * Flip to true in the release-day web commit (this one line).
+ * The People go-live switch — on since 2026-10-13 (Android 1.2.0 public). Set false to turn every People surface off on
+ * web: /members/list runs the plain roster, the entry labels read "View Members", the admin Invite pill returns, no
+ * notice, no Hide my activity switch, and /members/person redirects to /members/list.
  */
-export const PEOPLE_LIVE: boolean = false;
+export const PEOPLE_LIVE: boolean = true;
 
 export type ProgramRole = "admin" | "logger" | "member";
 export type PersonRow = {

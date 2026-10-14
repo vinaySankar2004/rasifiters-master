@@ -46,5 +46,5 @@
 5. *(Not done — user's call.)* Store settings → Contact details → Website = `https://rasifiters.com` (SEO).
 
 ## After approval
-The go-live steps (Publish / Release, `PEOPLE_LIVE`, `LATEST_*`) live in
+The remaining go-live steps (the App Store Release, `LATEST_IOS_VERSION`) live in
 [`../HANDOFF.md`](../HANDOFF.md) "Next action".
