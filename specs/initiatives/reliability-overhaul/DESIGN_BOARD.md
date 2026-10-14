@@ -229,7 +229,7 @@ SQL-only, 7 days, with personal data. The server is fast; opens are slow from ro
   and **email**. Design the pipeline as content source → trigger → preferences → channel so email and AI-written
   content plug in later without rework. Powerful, not over-engineered.
 
-## 10. Social layer (concept — Phase 4, privacy first; ✅ built 2026-10-13, dark on web until release day)
+## 10. Social layer (concept — Phase 4, privacy first; ✅ built + live on web and Android 2026-10-13; iOS with 1.5.2)
 
 > As built: the [`people`](../../features/people/SPEC.md) SPEC; where the decisions refined this concept (e.g. D-P9:
 > no person-to-person blocking), [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md) wins.
