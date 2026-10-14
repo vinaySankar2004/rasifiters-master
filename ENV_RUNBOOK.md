@@ -267,10 +267,11 @@ carries the Web client `client_type: 3`, plus the iOS client in `other_platform_
   install id (`device_id`) = Device or other IDs, `app_events` (auth / sync diagnostics) = Diagnostics, and each
   member's time zone (`notification_preferences.time_zone`, from `X-Time-Zone`) is stored for reminders.
 - Channels: the CLI-built AAB goes to Play **internal** and **closed** testing — the user's Pixel only receives builds
-  through closed testing. **Play managed publishing is ON (since 2026-10-13)** and App Store versions use **manual
-  release**: approval never goes live until the user clicks Publish / Release. Play's Publish releases **every**
-  approved change at once ("Remove changes" pulls them all back to draft) — no track-by-track publish. Routine: the `deploy` skill §D; what's
-  on each channel: `RELEASES.md`.
+  through closed testing. **Play managed publishing is OFF (since 2026-10-14, the user's call)**: each approved change
+  goes live on its own, so send a release to closed testing first and promote to production only after the Pixel
+  check. App Store versions use **automatic release** (since 2026-10-14, the user's call). Release builds run **R8**
+  (shrink + obfuscate, since 1.2.1 (8); keep rules in `app/proguard-rules.pro`) and the AAB carries the mapping, so
+  Play deobfuscates crashes on its own. Routine: the `deploy` skill §D; what's on each channel: `RELEASES.md`.
 
 ## 7b. Auth email (password reset) — Resend custom SMTP
 

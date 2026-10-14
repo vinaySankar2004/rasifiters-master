@@ -11,11 +11,12 @@
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
 - **Store state (RELEASES.md):**
   - **iOS 1.5.2 (61): Waiting for Review** (resubmitted 2026-10-14 in place of (60): Month x-axis fix + corrected
-    description), manual release (goes public only on the user's Release click). The only unexpired TestFlight build
+    description), **automatic release** (public on approval, set by the user 2026-10-14). The only unexpired TestFlight build
     (Internal); 56–60 expired. Repo pre-bumped to **1.5.3 (62)**.
-  - **Android 1.2.0 (7): PUBLIC** (production + closed testing + Data safety published together, the user's yes).
-    Managed publishing stays ON; one Publish click releases every approved change. Repo pre-bumped to versionCode **8**.
-    app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge); `MIN_*` and iOS values untouched.
+  - **Android 1.2.0 (7): PUBLIC.** In Play review together (managed publishing **OFF** since 2026-10-14 — approved
+    changes go live on their own): the refreshed listing description (People, Inbox, reminders) and closed-testing
+    **1.2.1 (8)** (R8 on, for Play's DEX check due Feb 2027; sideloaded Pixel smoke test passed). Repo at versionCode
+    **9**. app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge); `MIN_*` and iOS values untouched.
 - **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. **People is on for web**
   (`PEOPLE_LIVE = true`, `apps/web/src/lib/api/people.ts` — the off switch), turned on with Android public and iOS
   still in review (the user's call).
@@ -34,18 +35,20 @@
   storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; until iOS 1.5.2 is
   public, iPhone users see People only on web (Hide my activity is in web My Profile).
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
-  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip; Android R8
-  shrink + obfuscation in the next Android build (release has `isMinifyEnabled = false`; Play: 1 %, fix by Feb 2027).
+  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip; Android 1.2.1 (8)
+  on the Pixel (closed testing): check Google sign-in + log a workout, then promote to production.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 
 ## Next action
 
-1. **The user: App Store approves 1.5.2 (61) → Release.** Then Claude sets `LATEST_IOS_VERSION = 1.5.2` (Render env,
-   merge; it redeploys), updates RELEASES.md and marks Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once
-   adoption allows. A problem first → remove from review, fix, upload **1.5.2 (62)** (same version while 1.5.2 is
-   unapproved), re-attach; Android → versionCode 8.
-2. ~2026-10-27: recheck Google's shown site name before doing anything more
+1. **Apple approves 1.5.2 (61) → it goes live on its own (automatic release).** Then Claude sets
+   `LATEST_IOS_VERSION = 1.5.2` (Render env, merge, the user's yes; it redeploys), updates RELEASES.md and marks Phase 4
+   🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once adoption allows. A problem first → remove from review, fix, upload
+   **1.5.2 (62)** (same version while 1.5.2 is unapproved), re-attach.
+2. **Play approves closed-testing 1.2.1 (8)** (it goes live on its own) → the user reinstalls from the Play Store on the
+   Pixel, checks Google sign-in + logs a workout → Claude promotes (8) to production (the user's yes).
+3. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
 ## Workstream status
@@ -115,4 +118,6 @@
 
 - **2026-10-14** — Testbed refreshed (seeder now seeds only test accounts). iOS Month x-axis labels squished on the
   Xcode 27 SDK → fixed (summary-activity-detail D-AXIS); 1.5.2 (61) swapped into the review, iOS description
-  corrected (it said Health Connect), resubmitted; TestFlight 56–60 expired. Repo 1.5.3 (62).
+  corrected (it said Health Connect), resubmitted; TestFlight 56–60 expired. Repo 1.5.3 (62). Play description refreshed;
+  managed publishing OFF; Android R8 on → 1.2.1 (8) sideload-tested on the Pixel, in closed-testing review; App Store
+  switched to automatic release (the user). Repo versionCode 9.
