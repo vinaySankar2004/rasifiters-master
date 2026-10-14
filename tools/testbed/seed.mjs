@@ -261,6 +261,26 @@ async function seedProgram(program, adminSession, testIds) {
   log(`    seeded: workouts +${wOk} (skip ${wSkip}${wErr ? `, err ${wErr}` : ""}) · health ${hOk} rows (${active.length} members × ${SEED_DAYS}d)`);
 }
 
+// Create one configured program from scratch: program → roster with roles → seed → end date.
+async function buildProgram(cfg, admin, ok, testIds) {
+  const created = await api("POST", "/programs", admin.token, {
+    name: cfg.name, status: "active", start_date: ymd(daysAgo(SEED_DAYS)), end_date: ymd(daysAhead(END_DATE_DAYS)),
+  });
+  if (!created.ok) { log(`  ✗ create "${cfg.name}" failed (${created.status})`); return; }
+  const program = { id: created.data.id, name: cfg.name };
+  log(`  ✓ "${cfg.name}" (${program.id}) — admin ${cfg.admin}`);
+  for (const [uname, role] of cfg.roster) {
+    const ms = ok(uname);
+    if (!ms) { log(`    ⚠ skip ${uname} (not logged in)`); continue; }
+    const done = await ensureMembership(program, admin, ms, role);
+    if (done) log(`    + ${uname} → ${role}`);
+  }
+  if (cfg.admin_only_data_entry) await api("PUT", `/programs/${program.id}`, admin.token, { admin_only_data_entry: true });
+  log("    seeding…");
+  await seedProgram(program, admin, testIds);
+  await extendEndDate(program, admin);
+}
+
 async function extendEndDate(program, adminSession) {
   const end = ymd(daysAhead(END_DATE_DAYS));
   const r = await api("PUT", `/programs/${program.id}`, adminSession.token, { end_date: end, status: "active" });
@@ -300,22 +320,7 @@ async function main() {
     for (const cfg of PROGRAMS) {
       const admin = ok(cfg.admin);
       if (!admin) { log(`  ✗ SKIP "${cfg.name}" — admin ${cfg.admin} not logged in`); continue; }
-      const created = await api("POST", "/programs", admin.token, {
-        name: cfg.name, status: "active", start_date: ymd(daysAgo(SEED_DAYS)), end_date: ymd(daysAhead(END_DATE_DAYS)),
-      });
-      if (!created.ok) { log(`  ✗ create "${cfg.name}" failed (${created.status})`); continue; }
-      const program = { id: created.data.id, name: cfg.name };
-      log(`  ✓ "${cfg.name}" (${program.id}) — admin ${cfg.admin}`);
-      for (const [uname, role] of cfg.roster) {
-        const ms = ok(uname);
-        if (!ms) { log(`    ⚠ skip ${uname} (not logged in)`); continue; }
-        const done = await ensureMembership(program, admin, ms, role);
-        if (done) log(`    + ${uname} → ${role}`);
-      }
-      if (cfg.admin_only_data_entry) await api("PUT", `/programs/${program.id}`, admin.token, { admin_only_data_entry: true });
-      log("    seeding…");
-      await seedProgram(program, admin, testIds);
-      await extendEndDate(program, admin);
+      await buildProgram(cfg, admin, ok, testIds);
     }
   } else {
     log("\n── REFRESH (top up data + extend end dates; non-destructive) ──");
@@ -323,7 +328,8 @@ async function main() {
       const wantAdmin = ok(cfg.admin);
       if (!wantAdmin) { log(`  ✗ SKIP "${cfg.name}" — admin ${cfg.admin} not logged in`); continue; }
       const located = await locateProgram(sessions, cfg.name, cfg.admin);
-      if (!located) { log(`  ✗ "${cfg.name}" not found — run with --reset first`); continue; }
+      // A tester can delete a configured program (store reviewers exercise admin "Delete program") — rebuild just that one.
+      if (!located) { log(`  ＋ "${cfg.name}" missing — recreating`); await buildProgram(cfg, wantAdmin, ok, testIds); continue; }
       const { program } = located;
       let admin = located.adminSession;
       if (!admin) { log(`  ✗ "${cfg.name}" (${program.id}) — no test account admins it any more; run with --reset`); continue; }
