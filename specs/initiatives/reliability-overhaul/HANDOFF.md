@@ -11,7 +11,8 @@
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
 - **Store state (RELEASES.md):**
   - **iOS 1.5.2 (60): Waiting for Review**, manual release (goes public only on the user's Release click). Also on
-    TestFlight Internal. App Privacy + Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**.
+    TestFlight Internal — the user's quick check ([`TEST-CHECKLIST`](phase-4/TEST-CHECKLIST.md) §4, incl. "the
+    inbox list doesn't jump") **passed**. App Privacy + Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**.
   - **Android 1.2.0 (7): production + closed testing in review**, Data safety + Device IDs + Diagnostics. **Managed
     publishing ON** — every approved change waits for the user's Publish click (closed testing → Pixel first).
     Internal testing live. Repo pre-bumped to versionCode **8**.
@@ -29,9 +30,7 @@
   - (f) SEO `cc46131` (landing 0.1.5, D-LAND-12): WebSite `alternateName` = real spellings only, brand-first
     description, hero eyebrow, per-page titles. Live + verified. Owner steps pending (below).
 - **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
-  storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; iOS inbox device
-  check: open a card, close it, open another — the list must not jump (if it does: `ScrollPosition` swap, see
-  the iOS fix-round review).
+  storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt.
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
   legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
@@ -39,30 +38,28 @@
 
 ## Next action
 
-1. **The user:** quick TestFlight 60 check ([`phase-4/TEST-CHECKLIST.md`](phase-4/TEST-CHECKLIST.md) §4). A problem →
-   pull the App Store submission, fix, upload **1.5.3 (61)**.
-2. **Play:** Publishing overview → when closed testing is approved, **Publish** (Pixel gets 7) → Pixel quick check →
-   when production is approved, **Publish**.
+1. ~~**The user:** quick TestFlight 60 check (TEST-CHECKLIST §4).~~ **DONE 2026-10-13 — passed.** (A later problem
+   → pull the App Store submission, fix, upload **1.5.3 (61)**.)
+2. **Play:** Publishing overview → when closed testing is approved, **Publish** (Pixel gets 7) → Pixel quick check
+   (§4) → when production is approved, **Publish**.
 3. **App Store approved → Release.** Then, once BOTH are public:
    1. Flip `PEOPLE_LIVE = true` → deploy web (a yes to push).
    2. Raise app-config `LATEST_*` (later `MIN_*`).
-   3. Update RELEASES.md.
+   3. Update RELEASES.md; mark Phase 4 🚀 shipped in BRIEF §7 + PROGRESS.md.
 4. **SEO owner steps** ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)): Search Console → resubmit the sitemap →
    Rich Results Test → URL Inspection → Request indexing. Days–weeks to show "RaSi Fiters".
-5. Close Phase 4 in BRIEF §7, PROGRESS.md and the skills' Converged lessons (multiplex: three-wave plan, shared-file
-   commit split, migrations before code, per-surface fix rounds, managed publishing for the store hold).
 
 ## Workstream status
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web live; phones on test channels |
-| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web live; phones on test channels |
-| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS 1.5.0 (58) | 🟨 TestFlight Internal |
-| W4 | Android health sync | ✅ | ✅ | ✅ backend + Android 1.1.0 (5) | 🟨 Play internal testing |
-| W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (1.1.0) | 🟨 Play internal testing |
-| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web live |
-| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit adopted + real offline detection (frontend-kit 0.3.0) | 🟨 web live; rest of the screens = Phase 4 polish |
+| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web live; phones in store review |
+| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web live; phones in store review |
+| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (60) in App Store review |
+| W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | 🟨 Android 1.2.0 (7) in Play review |
+| W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | 🟨 Android 1.2.0 (7) in Play review |
+| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web live; phones in store review |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web live; phones in store review |
 
 ## Session log
 
@@ -110,41 +107,5 @@
 - **2026-10-13 (late night)** — Release touch-ups: two parallel plan-pipelines (inbox, profile circle) + a
   back-swipe investigation + an SEO audit; 4 per-surface implementers, adversary reviews + fix rounds; backend +
   web + SEO live. Builds iOS 1.5.2 (60) / Android 1.2.0 (7); **both submitted** (App Store manual release; Play
-  managed publishing), App Privacy + Data safety updated. Repo pre-bumped to 1.5.3 (61) / versionCode 8.
-
-## Kickoff prompt — Session 1
-
-```text
-Session 1 of the RaSi Fiters reliability overhaul. You are the orchestrator.
-
-Read first: PROGRESS.md, then specs/initiatives/reliability-overhaul/BRIEF.md and HANDOFF.md.
-
-Role: orchestrate. Spin up agents (Explore, scout, planner, the adversaries) and workflows in parallel,
-keep your own context lean, and verify agent claims against the code before they reach me or the board.
-No app code changes this session until I approve the design board.
-
-1. Step 0 — credentials, no OAuth. My tokens are in .claude/settings.local.json (RENDER_API_KEY,
-   VERCEL_TOKEN, SUPABASE_ACCESS_TOKEN = read-only, SUPABASE_ADMIN_TOKEN = full access). Wire
-   token-based access for Render, Vercel and Supabase: test whether each hosted MCP accepts a Bearer
-   header, otherwise use the CLI/REST with the token. Prove each with a read-only call (Render logs,
-   Vercel logs, Supabase Auth settings + logs via the Management API). Build the guardrail: any command
-   using SUPABASE_ADMIN_TOKEN must ask me first (BRIEF §6). Update CLAUDE.md, .mcp.json,
-   .env.mcp.example and the hooks. Commit + push.
-2. Phase 0 — discovery. Launch parallel read-only agents for W1–W7 (BRIEF §7). Each returns an evidence
-   brief: how it works today (file:line), failure modes, which suspects S1–S9 are confirmed or refuted,
-   and what the industry-standard version looks like. Pull production evidence now that we have access.
-3. Walk me through the findings one workstream at a time and let me ask questions. Don't jump to
-   solutions before I understand the current state.
-4. Phase 1 — build the design board as an artifact: per workstream current vs target, the one contract
-   all three frontends follow, the shared loading/error/design standard, the staging mechanism (same
-   Supabase project, staging tables), and the decisions I need to make. Add the notification redesign
-   and the social layer at concept level.
-5. Once I approve, split the build into parallel phases and record them in BRIEF.md and HANDOFF.md.
-
-My Pixel 7 is plugged in with USB debugging authorized (adb at ~/Library/Android/sdk/platform-tools/adb,
-running the Play build 1.0.0 (4)) — use logcat/dumpsys for evidence, read-only.
-
-Rules: update HANDOFF.md after every milestone so I can /compact at any time; commit + push docs via
-git-version at milestones; backend changes stay compatible with every live binary in RELEASES.md;
-no direct DB writes. I test on my iPhone, my Pixel and the web.
-```
+  managed publishing), App Privacy + Data safety updated. Repo pre-bumped to 1.5.3 (61) / versionCode 8. The user's
+  TestFlight 60 check passed. Docs freshness pass.

@@ -31,10 +31,11 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (current state, what's live with versions, next action) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
 > (scope + phase plan §7).
 >
-> **Status 2026-10-13:** Phases 1b, 2, 3 and polish 1 ✅ (BRIEF §7) · **Phase 4 built ✅** — Notifications, People
-> and polish #1–#48; backend + web **live** (People stays dark on web behind `PEOPLE_LIVE` until release day); the
-> phones are on test channels (`RELEASES.md`) and the user is device-testing. **Next:** the user's touch-up list
-> (HANDOFF "Next action"), then ONE iOS + Android store release.
+> **Status 2026-10-13:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
+> and the release touch-ups are live on backend + web (People dark on web behind `PEOPLE_LIVE`). **The iOS + Android
+> builds are submitted, awaiting store approval** (versions: `RELEASES.md`). **Next (user-owned):** Play Publish
+> clicks + the App Store Release click, then flip `PEOPLE_LIVE` + raise `LATEST_*`; Search Console owner steps —
+> HANDOFF "Next action".
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
@@ -73,11 +74,11 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 
 ## Open items (carry until resolved)
 
-- **Search Console re-validation (web indexing)** — the canonical-host fix landed 2026-08-20 (landing SPEC
-  **D-LAND-11**): apex serves, `www` 308→apex, `rel=canonical` on every route. **Pending, user-side:** in GSC
-  hit *Validate Fix* on the "Page with redirect" row and Request-Indexing `https://rasifiters.com/`; the
-  duplicate `www` entry should drop out over ~1–2 weeks. Brand-query pickup for the spaced `"rasi fiters"`
-  is slower (schema is a hint, not a switch) — recheck in a few weeks before doing anything more.
+- **Search Console (web indexing)** — canonical host (landing **D-LAND-11**, 2026-08-20) + displayed site name
+  (**D-LAND-12**, 2026-10-13) are live. **Pending, owner steps:** resubmit the sitemap, Rich Results Test, Request
+  indexing `https://rasifiters.com/`, *Validate Fix* on any leftover "Page with redirect" row —
+  [`plans/phase-4-seo.md`](specs/initiatives/reliability-overhaul/plans/phase-4-seo.md). "RaSi Fiters" as the
+  shown name takes days–weeks (schema is a hint, not a switch) — recheck before doing anything more.
 - **Self-serve account deletion (`DELETE /api/auth/account`) is effectively unexercised.** Live traffic
   proves the common paths, not the destructive rare ones. Nuance: the cascade itself
   (`cascadeMemberDeletion`, `apps/backend/utils/programMemberships.js:167`) is **shared** with the admin path
@@ -87,5 +88,3 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
   *caller's own* account. Irreversible, touches every table. **Not scheduled** — verifying it means seeding a
   throwaway account via `tools/testbed/`, deleting through the app, then checking for orphaned rows. Low
   likelihood, high blast radius; flagged so the risk stays explicit rather than forgotten. NOT a blocker.
-- ~~**`notifications` cross-feature emits** — the deferred `program.updated` / `program.deleted` emit.~~ **DONE
-  2026-10-13** — live since Phase 4 (programs D-C3, notifications 0.6.0, DECISIONS D-N13).

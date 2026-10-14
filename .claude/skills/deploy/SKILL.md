@@ -233,6 +233,10 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
       caveat and a dedicated verify pass — don't flip 🚀 on an unverified surface.
 
 ## Converged lessons (durable — the patterns that recur, project-agnostic)
+- **Store submission in the browser pane (2026-10-13):** hold go-live with Play **managed publishing** + App Store
+  **manual release** (approval ≠ public; the user clicks Publish / Release). Send all Play track changes as ONE
+  submission — adding a change restarts an in-progress review. App Store Connect hides controls in the narrow pane →
+  `resize_window` 1280×900; read checkbox / radio state via JS, not the screenshot.
 - **Migrations land before the code that reads them (2026-10-13):** a Sequelize model with a new attribute but no
   column 503s EVERY request. Hand the user each migration on the clipboard (`pbcopy`, prefixed `SET search_path TO
   staging;` / `public;`), run staging then public, verify read-only via the `supabase-rasifiters` MCP, then push.

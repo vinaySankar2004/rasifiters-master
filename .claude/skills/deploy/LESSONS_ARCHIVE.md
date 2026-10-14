@@ -234,3 +234,14 @@
   clicked Upload in Play Console; Claude set the name / notes and published internal testing, then promoted to closed
   testing (each with the user's yes). Closed testing is what reached the user's Pixel (approved 2026-10-13/14) — §D
   now says to always promote there too.
+
+## Run 2026-10-13 (late) — release touch-ups live + store submission (iOS 1.5.2 (60), Android 1.2.0 (7))
+- **Backend + web:** inbox DELETE routes (`97492d9`) pushed first, then web (`fa57ad9`, SEO `cc46131`); live.
+- **App Store Connect (browser pane):** version 1.5.2 → build 60, What's New, review note, App Privacy (+ Other
+  Diagnostic Data), submitted with **manual release**. The default narrow pane hid controls → `resize_window`
+  1280×900 fixed it; checkbox states were verified with a JS read before saving.
+- **Play Console:** 7 to internal (the user clicked Upload), promoted to closed testing + production, Data safety
+  (+ Device or other IDs, + Diagnostics). **Managed publishing turned ON** so approval doesn't go live by itself.
+  Closed testing had already been sent; adding production afterwards restarted its review — send all track changes
+  in one submission.
+- Promoted to Converged lessons: the store-submission line (hold go-live, one submission, viewport, JS checks).

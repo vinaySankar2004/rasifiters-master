@@ -120,3 +120,7 @@ anything you'd want adversarially checked before the user tests it on prod.
   plan; client plans feed the server plans' API CONTRACT sections, then one parity check → one binding amendments file.
   Versions + D-IDs in plans are provisional (assigned at landing). Two tracks in one shared file (`server.js`): commit
   each by staging a copy stripped of the other track's lines, so every commit boots.
+- (Run 6, 2026-10-13) Several small cross-surface tasks at once: one `plan-pipeline` per task in parallel under a
+  wrapper workflow, one amendments file, then ONE implementer per surface carrying every plan's steps for that surface
+  (one fence, no same-file races between tasks). A complex fix round (scroll / gesture / concurrency) gets a fresh
+  `impl-adversary` re-review, not just a diff spot-check.

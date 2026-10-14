@@ -263,11 +263,13 @@ carries the Web client `client_type: 3`, plus the iOS client in `other_platform_
 - An Android OAuth client exists in Google Cloud (`rasi-fiters`) for every signing key that ships — the Play App
   Signing key always; the upload key only if a build signed with it is ever installed directly; each dev machine's
   debug key for its emulator (W5 — the second cause above).
-- Before the production rollout (1.2.0), review the Play Console **Data safety** form: the install id (`device_id`) is
-  a device identifier, `app_events` (auth / sync diagnostics) is app-diagnostics data, and Phase 4 stores each member's
-  time zone (`notification_preferences.time_zone`, from `X-Time-Zone`).
+- Play Console **Data safety** (updated for 1.2.0, 2026-10-13; re-check when a release collects something new): the
+  install id (`device_id`) = Device or other IDs, `app_events` (auth / sync diagnostics) = Diagnostics, and each
+  member's time zone (`notification_preferences.time_zone`, from `X-Time-Zone`) is stored for reminders.
 - Channels: the CLI-built AAB goes to Play **internal** and **closed** testing — the user's Pixel only receives builds
-  through closed testing. Routine: the `deploy` skill §D; what's on each channel: `RELEASES.md`.
+  through closed testing. **Play managed publishing is ON (since 2026-10-13)** and App Store versions use **manual
+  release**: approval never goes live until the user clicks Publish / Release. Routine: the `deploy` skill §D; what's
+  on each channel: `RELEASES.md`.
 
 ## 7b. Auth email (password reset) — Resend custom SMTP
 

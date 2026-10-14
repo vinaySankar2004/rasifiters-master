@@ -2,6 +2,8 @@
 
 > Audit date: 2026-10-13, read-only. Most SEO work already shipped on 2026-08-20 (landing SPEC 0.1.4,
 > D-LAND-10/11). The domain is verified in Search Console by a DNS TXT record.
+> **Status:** changes A–D shipped `cc46131` (landing 0.1.5, D-LAND-12). Owner steps 1–3 pending; step 4 and the Play
+> title options not done (the user's call).
 
 ## Problem
 Google shows the site as "rasifiters" instead of "RaSi Fiters". Searching "rasi fiters" (with the space) is weak.

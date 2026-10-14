@@ -10,6 +10,18 @@ distilled "Converged lessons"). Append one entry per notable run.
   - New durable pattern promoted to Converged lessons: <… or none>.
 
 ## Runs
+- **Run 6 (2026-10-13) — task: Phase 4 release touch-ups** (inbox remove one + Clear all on all four surfaces; the
+  Summary/Program initials circle → My Profile on the three clients; plans in
+  `specs/initiatives/reliability-overhaul/plans/phase-4-touchup-*`).
+  - Shape: two `plan-pipeline` runs in parallel under one wrapper workflow (each revised once; both verdicts advisory)
+    + a separate iOS back-swipe investigation and SEO audit → one `phase-4-touchup-amendments.md`, user-approved. Build:
+    backend first, then ONE implementer per client surface carrying BOTH plans' steps for it; impl-adversary per
+    surface; fix rounds by SendMessage to the same implementer.
+  - What broke / caught: the iOS fix round (swipe-to-remove, one card open at a time, paging across removes) was
+    complex enough that a diff spot-check wasn't trusted — a second impl-adversary pass reviewed it, and its one open
+    risk ("the list jumps") became a device-checklist line that passed on TestFlight 60.
+  - New durable pattern promoted to Converged lessons: parallel plan-pipelines under a wrapper → per-surface
+    implementers carrying every plan's steps; re-review complex fix rounds.
 - **Run 5 (2026-10-13) — task: reliability overhaul Phase 4** (Notifications + People + polish #1–#48, all four
   surfaces; plans in `specs/initiatives/reliability-overhaul/plans/phase-4-*`).
   - Shape: three **waves**, each user-approved with an amendments file — A (quick wins + privacy fix S0; small, urgent)

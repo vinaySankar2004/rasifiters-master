@@ -669,7 +669,7 @@ net-new cross-surface capability, always sweep the rebuilt stack too, not just t
    recommend the leak-free default; the user picked it.
 3. **Reset path** — *through the Express backend* (vs web embeds Supabase client). R1: clients never embed
    Supabase → new `auth` routes + a MINOR auth-feature bump when built.
-4. **Support email** — `vinay.sankara@gmail.com`, an explicit **placeholder that may change** → wire as a
+4. **Support email** — the support address, an explicit **placeholder that may change** → wire as a
    config/env value (reuses the iOS `APIConfig.supportURL` precedent).
 
 **Output:** ported `apps/web/src/app/login/page.tsx` faithful 1:1 + **D-C1** (one addition: "Forgot your
@@ -689,7 +689,7 @@ the initial assumption. **Next:** `forgot-password` page (build the link target 
 neither client). Page mode.
 
 **Pre-locked vs genuinely-open — the short-round discipline paid off again.** Login's D-PLAN had already
-resolved almost everything (always-send + always-visible `mailto:` fallback; support = `vinay.sankara@gmail.com`
+resolved almost everything (always-send + always-visible `mailto:` fallback; support = the support address
 placeholder via config; reset-through-Express). And METHODOLOGY R1 locks "clients never embed Supabase" → the
 reset link MUST land on our own `/reset-password` page, not Supabase's hosted one — so I **stated that as
 context, did not ask it** (presenting "use Supabase's hosted page" would offer something R1 forbids). After
@@ -2029,8 +2029,8 @@ The genuinely-open count was ONE (D-DUP) plus the scope confirm — a single `As
 
 **Flagged:** privacy-policy F1 (shared iOS-push/APNs text on the web surface — the run-30 F1, kept verbatim) / F2 (the
 web↔web body dup with `program/privacy`, kept per D-DUP) / F3 (hardcoded effective date + email) / F4 (public/no-role);
-support F1 (public/no-role) / F2 (its contact email `vinay.sankara@gmail.com` differs from the policy's
-`geethasankar78@gmail.com` — both faithful) / F3 (the "iOS version"/"Device model" prompts on the web page).
+support F1 (public/no-role) / F2 (its contact email the support address differs from the policy's
+a legacy contact address — both faithful) / F3 (the "iOS version"/"Device model" prompts on the web page).
 `npm run build` ✓ — 38 static pages, `/privacy-policy` 2.81 kB, `/support` 1.52 kB (the smallest page in the app).
 
 **Durable patterns promoted:**
