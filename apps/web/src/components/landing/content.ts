@@ -12,7 +12,7 @@ export const PRIVACY_PATH = "/privacy-policy";
 export const SUPPORT_PATH = "/support";
 
 export const HERO = {
-  eyebrow: "For your whole group",
+  eyebrow: "RaSi Fiters · For your whole group",
   title: "Fitness programs, tracked together.",
   subtitle:
     "Join a program, log workouts and daily health, and see how your whole group is progressing.",

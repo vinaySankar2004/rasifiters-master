@@ -35,7 +35,7 @@ const THEME_BOOTSTRAP = `(function(){try{var k="rf:appearance",p=localStorage.ge
 
 const TITLE = "RaSi Fiters: Fitness programs, tracked together";
 const DESCRIPTION =
-  "Join a fitness program, log workouts and daily health, and track your whole group's progress with leaderboards, streaks and analytics. On iPhone, Android and the web.";
+  "RaSi Fiters is a free group fitness app: join a program, log workouts and daily health, and track your whole group's progress with leaderboards, streaks and analytics. On iPhone, Android and the web.";
 
 const BRAND = "RaSi Fiters";
 
@@ -51,6 +51,11 @@ const BRAND_ALIASES = [
   "RaSi Fitters",
   "Rasi Fitters"
 ];
+
+// WebSite.alternateName is what Google may DISPLAY as the site name (in preference order) — only the
+// brand's real spellings, never the lowercase domain token or the "fitters" misspellings (those stay on
+// Organization / SoftwareApplication for entity matching).
+const SITE_ALIASES = ["Rasi Fiters", "RaSiFiters"];
 
 const ORGANIZATION_ID = `${appUrl}/#organization`;
 const WEBSITE_ID = `${appUrl}/#website`;
@@ -77,7 +82,7 @@ const STRUCTURED_DATA = [
     "@type": "WebSite",
     "@id": WEBSITE_ID,
     name: BRAND,
-    alternateName: BRAND_ALIASES,
+    alternateName: SITE_ALIASES,
     url: appUrl,
     publisher: { "@id": ORGANIZATION_ID }
   },
