@@ -233,11 +233,12 @@ A 401/404 proves the GUARD fired, not that the FEATURE works — be honest about
       caveat and a dedicated verify pass — don't flip 🚀 on an unverified surface.
 
 ## Converged lessons (durable — the patterns that recur, project-agnostic)
-- **Store submission in the browser pane (2026-10-13):** hold go-live with Play **managed publishing** + App Store
-  **manual release** (approval ≠ public; the user clicks Publish / Release). Send all Play track changes as ONE
-  submission — adding a change restarts an in-progress review — and know Publish releases them ALL at once (no
-  closed-testing-only publish; "Remove changes" drafts every one). App Store Connect hides controls in the narrow pane →
-  `resize_window` 1280×900; read checkbox / radio state via JS, not the screenshot.
+- **Store submission in the browser pane (2026-10-13; modes changed 2026-10-14):** both stores now go live **on
+  approval** (Play managed publishing OFF, App Store automatic release — the user's call), so a risky Android build goes
+  to closed testing first and is promoted to production only after the Pixel check. Send all Play changes as ONE
+  submission — adding one restarts an in-progress review. App Store Connect hides controls in the narrow pane →
+  `resize_window` 1280×900; read checkbox / radio state via JS, not the screenshot. Act only in Claude's own tab
+  (`tabId`) — the user may be browsing another tab in the same pane.
 - **Migrations land before the code that reads them (2026-10-13):** a Sequelize model with a new attribute but no
   column 503s EVERY request. Hand the user each migration on the clipboard (`pbcopy`, prefixed `SET search_path TO
   staging;` / `public;`), run staging then public, verify read-only via the `supabase-rasifiters` MCP, then push.

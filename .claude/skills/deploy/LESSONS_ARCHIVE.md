@@ -245,3 +245,9 @@
   Closed testing had already been sent; adding production afterwards restarted its review — send all track changes
   in one submission.
 - Promoted to Converged lessons: the store-submission line (hold go-live, one submission, viewport, JS checks).
+
+## Run — 2026-10-14 — store modes flipped + R8 closed-testing release
+The user turned Play managed publishing OFF and App Store release to automatic. 1.2.1 (8) (R8) went to closed testing
+directly (the Pixel's only channel), bundled into one review with the listing change ("Restart review" prompt). A click
+landed in the user's own browser-pane tab once (they had opened one) — pass `tabId` on every action. Converged lesson
+updated in place.

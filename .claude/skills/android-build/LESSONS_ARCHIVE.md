@@ -547,3 +547,10 @@ Compose BOM 2024.12.01 → 2025.04.01 (Compose UI 1.8) for `ContentType` autofil
 catalog change; Kotlin 2.0.21 / AGP 8.9.1 stayed and the build was clean. The SKILL's "version set" line still said
 2024.12.01 — corrected, and the bump recipe promoted to Converged lessons. Release AAB 1.2.0 (6) built from the CLI
 (`:app:bundleRelease`; routine in the `deploy` skill §D).
+
+## Run — 2026-10-14 — R8 on for release (1.2.1 (8))
+Play flagged "DEX code optimisation is below our threshold — obfuscation 1 %, fix by Feb 2027" on 1.2.0 (7).
+`isMinifyEnabled = true`; existing serialization/Retrofit rules kept; added the Credential Manager provider rule and
+`-keepnames class **.InvalidProtocolBufferException` (Session.isCorrupt matches Tink's exception by simple name — R8
+would have broken corrupt-store recovery silently). Build clean, no R8 warnings; APK 4.4 MB; 1,259 app classes
+renamed, 112 serializers kept; the AAB carries `proguard.map`. Promoted to Converged lessons.

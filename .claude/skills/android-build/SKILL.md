@@ -231,6 +231,10 @@ not re-validating business logic:
 - **An inferred `var` type outlives a smart cast:** `var t = nullableParam` infers `String?` even after an
   early `if (nullableParam == null) return`. Annotate `var t: String = nullableParam` (the return proves
   non-null). Same family as the Run-8 `Result<Unit?>` inference gotcha. (Run 14.)
+- **Release builds run R8 (2026-10-14):** `:app:assembleRelease :app:bundleRelease` (~80 s). Before adding code that
+  matches classes by name (`javaClass.simpleName`, `Class.forName`), add a `-keepnames` rule; verify any keep rule in
+  `app/build/outputs/mapping/release/mapping.txt` (`X -> X:` = kept). R8 bugs show only at runtime, so a release-APK
+  smoke test (the user's emulator) comes before the Play upload.
 
 ## Lessons log (self-learning loop)
 Full run-by-run history → **`LESSONS_ARCHIVE.md`** (not auto-loaded). **Protocol every run:** append the
