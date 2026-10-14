@@ -17,8 +17,8 @@
 > **Cross-app:** the same policy is surfaced natively on iOS (Settings → Privacy Policy) and is the shared
 > cross-surface legal document (it intentionally describes the iOS push/APNs behavior even on web — F1); parity
 > audited at the iOS port.
-> **Stance:** faithful 1:1 port **+ one small cleanup** (D-C1 reuse `useAuthGuard`) **+ one deliberate
-> 2026-07-01 content update** (D-AH: Apple Health/HealthKit disclosure for App-Store review). Content
+> **Stance:** faithful 1:1 port **+ one small cleanup** (D-C1 reuse `useAuthGuard`) **+ deliberate content
+> updates** (D-AH 2026-07-01: Apple Health/HealthKit disclosure for App-Store review; D-NP1 2026-10-13). Content
 > otherwise verbatim; cross-surface oddities flagged §10.
 
 ---
@@ -26,8 +26,8 @@
 ## 1. What it is + who uses it
 
 The **Privacy Policy** page for the signed-in member: a `PageShell` + `PageHeader` ("Privacy Policy", subtitle
-"Effective date: 2026-07-01") over a single `GlassCard padding="lg"` containing the full policy prose — sections
-for *Information we collect*, *How we use information*, *Apple Health*, *Sharing of information*, *Data retention*,
+"Effective date: 2026-10-13") over a single `GlassCard padding="lg"` containing the full policy prose — sections
+for *Information we collect*, *How we use information*, *Connected health data*, *Sharing of information*, *Data retention*,
 *Security*, *Your choices*, *Children's privacy*, *Changes to this policy*, and *Contact us* (`geethasankar78@gmail.com`).
 Used by **any authenticated user** to read the policy; there is **no admin gate and no role redirect** — the only
 guard is `!session?.token → /login` (now via `useAuthGuard`, D-C1). It is **read-only** — nothing on the page is
@@ -46,7 +46,7 @@ and no per-user state** — so it never touches the backend or another member, a
   the policy with no program selected); there is **no role redirect** (every role may read it).
 - **Reached via:** the [`program`](../SPEC.md) hub's account menu (`router.push("/program/privacy")`).
 - **Chrome:** `PageShell maxWidth="3xl"` (wider than `appearance`'s `2xl` — it's a text document) + `PageHeader`
-  (title "Privacy Policy", subtitle "Effective date: 2026-07-01", `backHref = program?.id ? "/program" :
+  (title "Privacy Policy", subtitle "Effective date: 2026-10-13", `backHref = program?.id ? "/program" :
   "/programs"` — back to the hub if a program is active, else the programs list). No bottom nav (sub-route, not a
   workspace tab).
 - **Leaves to:** `/program` or `/programs` on Back; otherwise stays in place (no other navigation, no actions).
@@ -124,8 +124,8 @@ and no per-user state** — so it never touches the backend or another member, a
 - **F2 — the policy is gated behind auth.** `/program/privacy` requires a session (redirects to `/login`),
   unlike a typical always-public privacy page; a separate public `/privacy-policy` route exists for the pre-auth
   path. Faithful — legacy also placed this copy behind auth under `/program/*`.
-- **F3 — hardcoded effective date + contact email.** The effective date `2026-07-01` and contact
-  `geethasankar78@gmail.com` are literal strings in the JSX (privacy/page.tsx:16, 132); updating the policy means
+- **F3 — hardcoded effective date + contact email.** The effective date `2026-10-13` and contact
+  `geethasankar78@gmail.com` are literal strings in the JSX (privacy/page.tsx:16, 145); updating the policy means
   editing the page. Faithful; a CMS/config-sourced policy would be a rebuild feature, not a cleanup.
 - **F4 — no role is read at all.** Like `appearance`/`password`, this page has no role-conditional UI — the
   ABSENCE of role logic is the finding; §7 is "same for everyone." Faithful.

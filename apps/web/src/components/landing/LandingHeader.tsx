@@ -12,12 +12,13 @@ export function LandingHeader() {
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm text-rf-text-muted md:flex">
-          <a href="#features" className="transition-colors hover:text-rf-text">Features</a>
-          <a href="#analytics" className="transition-colors hover:text-rf-text">Analytics</a>
+          {/* "/#…" so the header also works on the public text pages (PublicPage); on `/` it stays an in-page jump. */}
+          <a href="/#features" className="transition-colors hover:text-rf-text">Features</a>
+          <a href="/#analytics" className="transition-colors hover:text-rf-text">Analytics</a>
         </nav>
 
         <div className="flex items-center gap-3">
-          <a href="#download" className="hidden text-sm font-medium text-rf-text-muted transition-colors hover:text-rf-text sm:block">
+          <a href="/#download" className="hidden text-sm font-medium text-rf-text-muted transition-colors hover:text-rf-text sm:block">
             Get the app
           </a>
           <AuthCta variant="nav" />

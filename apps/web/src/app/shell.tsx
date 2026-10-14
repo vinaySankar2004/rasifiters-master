@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { NotificationsGate } from "@/components/NotificationsGate";
 import { SummaryIcon, MembersIcon, LifestyleIcon, ProgramIcon } from "@/components/icons";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
+import { PUBLIC_PAGE_PATHS } from "@/components/landing/content";
 import { useDismissKeyboard } from "@/lib/hooks/use-dismiss-keyboard";
 import { useOnlineStatus } from "@/lib/kit/use-online-status";
 
@@ -21,9 +22,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     body.style.overflow = "";
   }, [pathname]);
 
-  // The public landing page (`/`) owns its own full-bleed layout — skip the app-bg
-  // chrome, glow orbs, bottom nav and NotificationsGate entirely.
-  if (pathname === "/") {
+  // The public landing page (`/`) and the public text pages own their full-bleed layout —
+  // skip the app-bg chrome, glow orbs, bottom nav and NotificationsGate entirely.
+  if (pathname === "/" || PUBLIC_PAGE_PATHS.includes(pathname)) {
     return <>{children}</>;
   }
 

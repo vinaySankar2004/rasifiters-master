@@ -1,14 +1,15 @@
 # Page: `delete-account` (web) — Public Account-Deletion Instructions
 
-> **Status:** 🏗️ built (`apps/web/`, deployed to prod) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
-> **Route:** `/delete-account` — the **PUBLIC** (pre-auth) account-deletion instructions page: a single static
-> `GlassCard` explaining how a user requests deletion of their RaSi Fiters account and data (in-app steps + an
-> email fallback), **what data is deleted**, and **what is retained + for how long**. Header **Support** link to
-> [`support`](../support/SPEC.md), mirroring the sibling [`privacy-policy`](../privacy-policy/SPEC.md).
+> **Status:** 🏗️ built (`apps/web/`, deployed to prod) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Route:** `/delete-account` — the **PUBLIC** (pre-auth) account-deletion instructions page: static prose
+> explaining how a user requests deletion of their RaSi Fiters account and data (in-app steps + an
+> email fallback), **what data is deleted**, and **what is retained + for how long**. Wears the landing site's
+> chrome (`PublicPage` — [landing D-LAND-13](../landing/SPEC.md)) like the sibling
+> [`privacy-policy`](../privacy-policy/SPEC.md); the footer links Privacy · [Support](../support/SPEC.md).
 > **Provenance:** **NET-NEW (no legacy port)** — created **2026-07-10** to satisfy **Google Play's Data safety
 > form + account-deletion policy**, which require a **public web URL** (viewable without signing in or installing)
 > that describes the deletion process. Filled into the Play Console **Data safety → account deletion URL** field.
-> **Consumes (features):** none beyond the foundation — `PageShell`/`PageHeader`/`GlassCard` + `next/link`. No
+> **Consumes (features):** none — the chrome is the landing's `PublicPage` (D-LAND-13). No
 > feature SPEC; the content is hardcoded page prose. **No `useAuthGuard`** (public page).
 > **Cross-app:** the same public URL is the account-deletion resource referenced by the **Android** Play listing
 > (and reusable by the iOS App Store listing). The actual in-app deletion action lives on
@@ -20,14 +21,13 @@
 
 ## 1. What it is + who uses it
 
-The **PUBLIC account-deletion instructions** page: a `PageShell maxWidth="3xl"` + `PageHeader` ("Delete Your
-Account", subtitle "How to request deletion of your RaSi Fiters account and data", a **Support** link action)
-over a single `GlassCard padding="lg"` containing five prose sections — *Delete your account from the app*
+The **PUBLIC account-deletion instructions** page: `PublicPage` (eyebrow "Legal", H1 "Delete Your Account",
+subtitle "How to request deletion of your RaSi Fiters account and data") containing an intro + five prose sections — *Delete your account from the app*
 (4-step list), *Request deletion by email* (fallback for locked-out users → `geethasankar78@gmail.com`), *What
 data is deleted*, *What is retained, and for how long* (immediate live-system removal; encrypted-backup purge
 within 30 days; minimal legally-required records only), and *Contact us*. Used by **anyone, signed-in or not**
 (public route) — in practice reached from the Play Store listing's "app support / account deletion" link. It is
-**read-only**; nothing is interactive except the header **Support** link.
+**read-only**; nothing is interactive beyond the landing header/footer links.
 
 ## 2. Why it exists
 
@@ -47,27 +47,26 @@ identically for everyone.
 - **Reached via:** the Google Play Console listing's account-deletion / app-support link, and any direct link
   (marketing footer). Pairs with the sibling public pages [`privacy-policy`](../privacy-policy/SPEC.md) and
   [`support`](../support/SPEC.md).
-- **Chrome:** `PageShell maxWidth="3xl"` (a text document) + `PageHeader` (title "Delete Your Account", subtitle,
-  `actions` = a `next/link` **Support** link → `/support`). **No `backHref`**; **no bottom nav**.
-- **Leaves to:** `/support` via the header link; otherwise stays in place.
+- **Chrome:** `PublicPage` — the landing header + footer around one readable column; skips the app shell via
+  `PUBLIC_PAGE_PATHS` ([landing D-LAND-13](../landing/SPEC.md)). **No back button**; **no bottom nav**.
+- **Leaves to:** the landing header/footer links (incl. Privacy · Support); otherwise stays in place.
 
 ## 4. Contents / sections
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Delete Your Account" + subtitle + a **Support** `next/link` action → `/support`. | delete-account/page.tsx:11-22 |
-| Instructions card | `GlassCard padding="lg"` (`space-y-6 text-sm text-rf-text-muted`) wrapping the intro + five titled sections. | delete-account/page.tsx:24-96 |
-| In-app steps | *Delete your account from the app* — a `list-decimal` of the 4 steps (sign in → My Account → Delete Account → confirm). | delete-account/page.tsx:33-46 |
-| Email fallback | *Request deletion by email* — for users who cannot sign in; `geethasankar78@gmail.com`, subject "Delete my account". | delete-account/page.tsx:48-59 |
-| Data deleted | *What data is deleted* — `list-disc` of account info, profile, fitness/activity logs, Apple-Health/Health-Connect-derived logs (copies removed; originals untouched), push tokens. | delete-account/page.tsx:61-79 |
-| Retention | *What is retained, and for how long* — immediate live-system removal, encrypted-backup purge within 30 days, minimal legally-required records only. | delete-account/page.tsx:81-90 |
-| Contact | *Contact us* — `geethasankar78@gmail.com`. | delete-account/page.tsx:92-95 |
+| Header | `PublicPage` header: eyebrow "Legal" + H1 "Delete Your Account" + subtitle, above a divider. | delete-account/page.tsx:5-9 |
+| Body | The intro + five titled sections in `PublicPage`'s body column (`space-y-8`, 15px `text-rf-text-muted`) — no card. | delete-account/page.tsx:10-82 |
+| In-app steps | *Delete your account from the app* — a `list-decimal` of the 4 steps (sign in → My Account → Delete Account → confirm). | delete-account/page.tsx:16-27 |
+| Email fallback | *Request deletion by email* — for users who cannot sign in; `geethasankar78@gmail.com`, subject "Delete my account". | delete-account/page.tsx:29-39 |
+| Data deleted | *What data is deleted* — `list-disc` of account info, profile, fitness/activity logs, Apple-Health/Health-Connect-derived logs (copies removed; originals untouched), push tokens. | delete-account/page.tsx:41-59 |
+| Retention | *What is retained, and for how long* — immediate live-system removal, encrypted-backup purge within 30 days, minimal legally-required records only. | delete-account/page.tsx:61-74 |
+| Contact | *Contact us* — `geethasankar78@gmail.com`. | delete-account/page.tsx:76-82 |
 
 ## 5. Components + consumed features
 
-- **Shared UI:** `PageShell`, `PageHeader`, `GlassCard` + `next/link` `Link` — all already ported (no new
-  dependency). No icons, no other primitives.
-- **Hooks/state:** **none** — no `useAuthGuard`, no `useState`, no `useEffect`, no router. Pure static render
+- **Shared UI:** `PublicPage` (landing chrome — D-LAND-13). No icons, no other primitives.
+- **Hooks/state:** **none** — a server component; no `useAuthGuard`, no `useState`, no `useEffect`, no router. Pure static render
   (same shape as [`privacy-policy`](../privacy-policy/SPEC.md)).
 - **Consumed features:** **none.** The content is hardcoded JSX; no feature SPEC, no `lib/*` module, no network
   dependency. The described in-app deletion action belongs to [`program/profile`](../program/profile/SPEC.md)
@@ -93,7 +92,7 @@ identically for everyone.
 ## 8. States & edge cases
 
 - **Only one state:** the fully-rendered static document. **No loading, empty, error, pending, or offline
-  state** — nothing is fetched. No interaction beyond the header **Support** link.
+  state** — nothing is fetched. No interaction beyond the landing header/footer links.
 - **Unauthenticated:** **allowed** — the public route renders with no redirect (the point of the page: reachable
   while signed-out, and by a locked-out ex-user who still needs the email fallback).
 
@@ -102,15 +101,15 @@ identically for everyone.
 | ID | Decision | Rests on |
 |----|----------|----------|
 | **D-NEW** | **NET-NEW page (not a legacy port).** Created 2026-07-10 for Google Play's Data-safety + account-deletion policy (a public deletion URL is mandatory to complete the Data safety form and to pass review). Called out per CLAUDE.md as a deliberate addition. | Play Console Data safety / [account-deletion policy](https://support.google.com/googleplay/android-developer/answer/13327111) |
-| **D-STRUCT** | **Mirror [`privacy-policy`](../privacy-policy/SPEC.md) exactly** — same `PageShell maxWidth="3xl"` + `PageHeader` (with a **Support** `next/link` action) + single static `GlassCard`, same `rf-*` tokens and section idiom. Keeps the two public legal/support pages visually consistent; no new dependency. | privacy-policy/page.tsx |
+| **D-STRUCT** | **Mirror [`privacy-policy`](../privacy-policy/SPEC.md) exactly** — same ~~`PageShell maxWidth="3xl"` + `PageHeader` (with a **Support** `next/link` action) + single static `GlassCard`~~ *(superseded at 0.2.0 by landing D-LAND-13 — both wear `PublicPage`)*, same `rf-*` tokens and section idiom. Keeps the two public legal/support pages visually consistent; no new dependency. | privacy-policy/page.tsx |
 | **D-FAITHFUL** | **Content states the REAL deletion behavior**, verified against the code: in-app deletion lives on [`program/profile`](../program/profile/SPEC.md) ("Delete Account?" → `deleteAccountApi`); data removed matches what the privacy policy enumerates (account, profile/gender, workouts/sleep/steps/diet, Health-Connect/Apple-Health-derived logs, push tokens). Retention: immediate live removal + 30-day encrypted-backup purge + minimal legally-required records only. | apps/web/src/app/program/profile/page.tsx; privacy-policy/page.tsx |
-| **D-EMAIL** | **Email fallback = `geethasankar78@gmail.com`** (the same contact as the privacy policy), for users who can no longer sign in and thus cannot use the in-app path. Google requires the deletion route to work even without app access. | privacy-policy/page.tsx:140 |
+| **D-EMAIL** | **Email fallback = `geethasankar78@gmail.com`** (the same contact as the privacy policy), for users who can no longer sign in and thus cannot use the in-app path. Google requires the deletion route to work even without app access. | privacy-policy/page.tsx:130 |
 | **D-REF** | `consumed_by = [web]` for this page spec; the SAME public URL is reused by the Android Play listing (and reusable by the iOS App Store listing) — no per-surface duplication of the page, just a shared public URL. | Play Console listing |
 
 ## 10. Flagged characteristics (kept as-is)
 
 - **F1 — hardcoded contact email + retention window.** `geethasankar78@gmail.com` and the "within 30 days"
-  backup-purge window are literal strings in the JSX (delete-account/page.tsx:52, 85); changing them means editing
+  backup-purge window are literal strings in the JSX (delete-account/page.tsx:35, 66); changing them means editing
   the page. Faithful to the privacy-policy page's F3 pattern; a config-sourced value would be a rebuild feature.
 - **F2 — content overlaps the privacy policy's *Data retention* / *Your choices* sections.** The deletion story is
   stated in both [`privacy-policy`](../privacy-policy/SPEC.md) (briefly) and here (in full, with steps). Kept as
@@ -126,5 +125,6 @@ identically for everyone.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.0 | 2026-10-13 | **Landing chrome (landing D-LAND-13):** renders through `PublicPage` (landing header + footer, eyebrow "Legal", H1, subtitle, one readable column) instead of `PageShell` + the 96px `BrandMark` + `PageHeader` + `GlassCard`; the header Support link gives way to the footer's Privacy · Support. Body unchanged; now a server component. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the RaSi brand mark (`BrandMark` 96) centred above the `PageHeader` (#48). |
 | 0.1.0 | 2026-07-10 | **Net-new public account-deletion page** (D-NEW), created for the **first Android Play release** — Google Play's Data safety form + account-deletion policy require a public URL describing how users request account/data deletion, what is deleted vs retained, and the retention period. Static `GlassCard` mirroring [`privacy-policy`](../privacy-policy/SPEC.md) (D-STRUCT): in-app 4-step instructions + email fallback (D-EMAIL) + data-deleted list + retention (immediate live removal, 30-day backup purge, minimal legal records). Content verified faithful to the real in-app deletion flow on [`program/profile`](../program/profile/SPEC.md) (`deleteAccountApi`) and the privacy policy's data enumeration (D-FAITHFUL). `consumed_by=[web]`; the same URL is reused by the Android/iOS store listings (D-REF). Consumes only foundation chrome + `next/link`; **no feature bump.** Added `apps/web/src/app/delete-account/page.tsx`; committed `4101ae0`, deployed to prod (aliased `www.rasifiters.com`), live at `/delete-account` (verified 200). |

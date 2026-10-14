@@ -1,6 +1,6 @@
 # Page: `landing` (web) — the public marketing landing page (root `/`)
 
-> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.5 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built + 🚀 deployed to `rasifiters.com` · **Version:** 0.1.6 · **App:** `web` (Next.js App Router)
 > **Route:** `/` (the root). **Public** — not in the `middleware.ts` matcher.
 > **Provenance:** **NET-NEW** — not ported from the legacy app. The legacy root `/` only `redirect()`ed to
 > `/splash`; this is the ICM's **first net-new web page** (no legacy reference to be faithful to). Replaces
@@ -33,27 +33,28 @@ To give the app a real, professional marketing front door (replacing the placeho
 
 - **App:** `web`. **Route:** `/`. **Public** (not in the `middleware.ts` matcher; freely reachable).
 - **Renders via:** `src/app/page.tsx` → `<Landing />` (`src/components/landing/Landing.tsx`).
-- **Chrome:** bypasses the app shell. `src/app/shell.tsx` early-returns bare children when `pathname === "/"`,
-  so the landing owns its own full-bleed background and there is no bottom nav / `NotificationsGate`.
+- **Chrome:** bypasses the app shell. `src/app/shell.tsx` early-returns bare children when `pathname === "/"`
+  (and for `PUBLIC_PAGE_PATHS` — D-LAND-13), so the landing owns its own full-bleed background and there is no
+  bottom nav / `NotificationsGate`.
 - **Leaves to:** the App Store + Google Play listings (badges), `/login` (logged-out CTA) / `/programs` (logged-in CTA),
-  `#download` (in-page anchor), `/privacy-policy`, `/support`.
+  `/#download` (an in-page jump on `/`), `/privacy-policy`, `/support`.
 
 ## 4. Contents / sections
 
 All section components live under `src/components/landing/`. Copy + constants are centralized in
 `content.ts`; there are **three client islands** (`AuthCta`, `Reveal`, `ScrollCue`); everything else is a
-server component.
+server component. `PublicPage.tsx` reuses the header + footer as the public text pages' chrome (D-LAND-13).
 
 | Section | What | Component |
 |---------|------|-----------|
-| Header (sticky, glass) | BrandMark + wordmark; `Features`/`Analytics` anchors; auth-aware CTA; "Get the app" → `#download`. | `LandingHeader.tsx` |
+| Header (sticky, glass) | BrandMark + wordmark; `Features`/`Analytics` anchors (`/#features`, `/#analytics`); auth-aware CTA; "Get the app" → `/#download`. | `LandingHeader.tsx` |
 | Hero | Eyebrow "For your whole group", H1 "Fitness programs, tracked together.", subtitle, `StoreBadges`, hero `AuthCta`, trust line, and a generated Summary dashboard inside a realistic iPhone frame. Plus a **desktop-only scroll cue** pinned to the section bottom. | `Hero.tsx` · `panels.tsx` (`HeroDashboard`) · `devices.tsx` (`IPhoneFrame`) · `ScrollCue.tsx` |
 | Feature rows (×3, alternating) | Programs & roles · Workouts & daily health · Auto-sync (Apple Health / Health Connect) + notifications. Each = copy + bullets + a generated phone screen. | `FeatureRows.tsx` · `screens.tsx` (`ProgramsScreen`/`LogScreen`/`SyncScreen`) |
 | Analytics highlight | The full Summary dashboard recreated in a browser frame + a 68.2% participation stat callout. | `AnalyticsHighlight.tsx` · `panels.tsx` (`DashboardPreview`) · `frames.tsx` (`BrowserFrame`) |
 | Feature grid | Six capability cards (Leaderboards, Streaks & milestones, Participation, Workout-type mix, Invites, Activity timeline). | `FeatureGrid.tsx` |
 | Cross-platform | An iPhone (health rings "Today" screen) + a Pixel-style Android (Members/leaderboard) side by side, **equal height**, labelled with the Apple + Android logos. | `CrossPlatform.tsx` · `devices.tsx` (`IPhoneFrame`/`AndroidFrame`) · `screens.tsx` (`HealthRingsScreen`/`StreakScreen`) |
 | Final CTA (`#download`) | "Start tracking today." + `StoreBadges` + final `AuthCta`, on an orange-glow band. | `FinalCta.tsx` |
-| Footer | BrandMark + wordmark; `Privacy` + `Support` links; © 2026. (No email — the Support page covers contact.) | `LandingFooter.tsx` |
+| Footer | BrandMark + wordmark; `Privacy` + `Support` links; © RaSi Fiters. (No email — the Support page covers contact.) | `LandingFooter.tsx` |
 
 **Generated-UI approach.** ~90% of the imagery is **generated in-theme markup** (not screenshots) that
 recreates real app surfaces — the progress radial, stat tiles, activity/distribution bars, the color-coded
@@ -88,8 +89,8 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 
 **Indexing infra (D-LAND-10).** Three additive metadata routes back the same `NEXT_PUBLIC_APP_URL`:
 - `src/app/robots.ts` → `/robots.txt`: `Allow: /`, a `Sitemap:` line, and `host`; disallows the auth-gated
-  app routes (`/programs`, `/program`, `/members`, `/summary`, `/lifestyle`, `/reset-password`,
-  `/delete-account`) and the unlinked `/splash` to keep crawl budget on marketing pages.
+  app routes (`/programs`, `/program`, `/members`, `/summary`, `/lifestyle`, `/reset-password`), the public
+  but not-for-search `/delete-account`, and the unlinked `/splash` to keep crawl budget on marketing pages.
 - `src/app/sitemap.ts` → `/sitemap.xml`: the 6 public entry pages only (`/`, `/login`, `/create-account`,
   `/forgot-password`, `/privacy-policy`, `/support`); `/` weekly/priority 1, the rest monthly/0.6.
 - **JSON-LD graph** (schema.org) inlined in `layout.tsx` (rendered in `<body>`): `Organization` + `WebSite` +
@@ -117,6 +118,7 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 | **D-LAND-10** | **Indexing infra for brand discovery.** Add `robots.ts` (`/robots.txt`, allow-all + sitemap ref, disallow auth-gated routes), `sitemap.ts` (`/sitemap.xml`, 6 public pages), and `SoftwareApplication` JSON-LD in `layout.tsx` (`sameAs` → the store listings; both stores since 0.1.3 — **superseded at 0.1.4 by the 3-node graph in D-LAND-11**). Additive metadata only — no visible/behavior change. Paired with the site's Search Console setup + the App Store Marketing URL (`rasifiters.com`) so Google links site ↔ app entity for the near-uncontested "RaSi Fiters" query. | `robots.ts`; `sitemap.ts`; `layout.tsx`; user (2026-07-11) |
 | **D-LAND-11** | **One canonical host (apex) + brand aliases.** The canonical host is the apex `rasifiters.com`: Vercel serves it directly and `www` **308**→apex. Everything the app declares — `metadataBase`, sitemap locs, robots `Host:`/`Sitemap:`, `og:url`, JSON-LD `url`/`@id` — is apex, and `alternates.canonical = "./"` in the root layout self-canonicalises every route (Next resolves `"./"` against `metadataBase` + the current pathname; the public pages are all `"use client"` and cannot export `metadata`). JSON-LD `alternateName` carries the spaced spelling, the closed one, and the **autocorrection** `Rasi Fitters`. **Why:** apex was **307**→`www` with *no* `rel=canonical` anywhere, so Google indexed both hosts as duplicates and filed the sitemap's 6 apex URLs under "Page with redirect" (2 indexed + 2 not-indexed in GSC); a 307 is temporary and never consolidates signal. Separately the spaced query `"rasi fiters"` did not rank while `"rasifiters"` ranked #1 — Google autocorrects `Fiters`→`Fitters` and nothing declared otherwise. **Both halves must agree**: flipping Vercel back so apex redirects re-breaks every sitemap URL. | `layout.tsx`; Vercel Domains; user (2026-08-20) |
 | **D-LAND-12** | **Displayed site name = "RaSi Fiters".** Google showed the site as "rasifiters". `WebSite.alternateName` is what Google may *display* as the site name (in preference order), so it now carries only `SITE_ALIASES` = `Rasi Fiters`, `RaSiFiters` — never the lowercase domain token or the `Fitters` misspellings, which stay on `Organization` / `SoftwareApplication` for entity matching (D-LAND-11). The description now opens with "RaSi Fiters is a free group fitness app…", the hero eyebrow reads "RaSi Fiters · For your whole group" (the brand in visible hero text), and the six public client pages get real titles via pass-through `layout.tsx` files (`Log in` / `Create account` / `Forgot password` / `Privacy Policy` / `Support` / `Delete your account` → "%s · RaSi Fiters"). Owner steps after deploy: resubmit the sitemap, Rich Results Test, URL Inspection → Request indexing; the site name updates over days–weeks. | `layout.tsx`; `*/layout.tsx`; `content.ts`; user (2026-10-13) |
+| **D-LAND-13** | **Public text pages wear the landing chrome.** `/privacy-policy`, `/support` and `/delete-account` render through `PublicPage.tsx`: `LandingHeader` + `LandingFooter` around one `max-w-3xl` column (eyebrow, H1, optional subtitle, divider, then 15px `text-rf-text-muted` body), full-bleed `bg-rf-bg`; no app `PageShell`/`PageHeader`/`GlassCard`, no big centred `BrandMark`. Like `/`, they skip the app shell: `content.ts` `PUBLIC_PAGE_PATHS` (`PRIVACY_PATH`, `SUPPORT_PATH`, `DELETE_ACCOUNT_PATH`) is the one list `shell.tsx` checks. Header anchors are `/#features` · `/#analytics` · `/#download` so they work off `/` (on `/` still an in-page jump); the footer (Privacy · Support) is the pages' cross-link. A new public text page = wrap it in `PublicPage` + add its path to `PUBLIC_PAGE_PATHS`. **Why:** the centred 96px logo looked awkward; the user wanted the industry-standard website look, nothing heavy. | `PublicPage.tsx`; `content.ts`; `shell.tsx`; `LandingHeader.tsx`; user (2026-10-13) |
 
 ## 8. Open items / flags
 
@@ -132,6 +134,7 @@ Set in `src/app/layout.tsx` (the landing is the site default since `/` is home):
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.6 | 2026-10-13 | **Landing chrome for the public text pages** (new **D-LAND-13**): new `PublicPage.tsx` (header + footer around one readable column) now frames `/privacy-policy`, `/support`, `/delete-account`; `content.ts` gains `DELETE_ACCOUNT_PATH` + `PUBLIC_PAGE_PATHS`, which `shell.tsx` skips like `/`; header anchors → `/#…`. No visible change on `/`. `next build` green; checked at desktop + 375px, dark + light. |
 | 0.1.5 | 2026-10-13 | **Displayed site name** (new **D-LAND-12**): WebSite `alternateName` → `SITE_ALIASES` (`Rasi Fiters`, `RaSiFiters`); the description leads with the brand; hero eyebrow "RaSi Fiters · For your whole group" (the one visible change, user-approved); per-page titles for the six public client pages via pass-through layouts. §6 JSON-LD location corrected (`<body>`). `next build` green. |
 | 0.1.4 | 2026-08-20 | **Canonical host + brand entity** (new **D-LAND-11**) — Search Console showed 2 indexed + 2 not-indexed ("Page with redirect"). Cause: apex **307**→`www` while every declared URL said apex, and **no `rel=canonical` anywhere** — so Google indexed both hosts as duplicates and every sitemap URL was a redirect. Fixed on both sides: Vercel now serves apex with `www` **308**→apex (verified: all 6 sitemap paths → 200), and `layout.tsx` gains `alternates.canonical = "./"` (per-route self-canonical, verified in the build output). The `SoftwareApplication` JSON-LD becomes an `Organization` + `WebSite` + `SoftwareApplication` graph, all carrying `alternateName` aliases (`Rasi Fiters`, `RasiFiters`, `rasifiters`, `RaSi Fitters`, `Rasi Fitters`) so the spaced query `"rasi fiters"` — which did not rank, vs `"rasifiters"` at #1 — resolves to this entity. Metadata-only: no visible/behavior change, no API or contract delta, live iOS/Android binaries unaffected. `next build` green. `layout.tsx`; §6 + §7 updated. |
 | 0.1.3 | 2026-08-20 | **Google Play badge goes live** (D-LAND-3 rewritten; **F-LAND-3 closed**) — Android has been public on the Play Store since 2026-08-06, but the landing still showed a dead "Coming soon" pill, so the page was the last surface still claiming Android was unreleased. The Play pill is now a real link in the *same* `button-primary--dark-white` styling as the App Store pill (equal prominence, still in-theme markup per D-LAND-2; text "Get it on / Google Play"). New `PLAY_STORE_URL` in `content.ts` alongside `APP_STORE_URL`; `layout.tsx` now **imports both** instead of re-declaring the App Store URL, and the `SoftwareApplication` JSON-LD `sameAs` carries both listings so Google links the site to the app entity on both stores. `tsc --noEmit` + `next build` green. `StoreBadges.tsx`, `content.ts`, `layout.tsx`, `icons.tsx` (comment). §3/§6 updated. |

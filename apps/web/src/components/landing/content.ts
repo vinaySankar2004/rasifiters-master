@@ -10,6 +10,9 @@ export const PLAY_STORE_URL =
 export const SUPPORT_EMAIL = "vinay.sankara@gmail.com";
 export const PRIVACY_PATH = "/privacy-policy";
 export const SUPPORT_PATH = "/support";
+export const DELETE_ACCOUNT_PATH = "/delete-account";
+// Public text pages that wear the landing chrome (PublicPage) and skip the app shell.
+export const PUBLIC_PAGE_PATHS: readonly string[] = [PRIVACY_PATH, SUPPORT_PATH, DELETE_ACCOUNT_PATH];
 
 export const HERO = {
   eyebrow: "RaSi Fiters · For your whole group",

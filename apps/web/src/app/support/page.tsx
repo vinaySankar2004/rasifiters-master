@@ -1,67 +1,52 @@
-"use client";
+import { PublicPage } from "@/components/landing/PublicPage";
+import { SUPPORT_EMAIL } from "@/components/landing/content";
 
-import Link from "next/link";
-import { BrandMark } from "@/components/BrandMark";
-import { PageShell } from "@/components/ui/PageShell";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { GlassCard } from "@/components/ui/GlassCard";
+const PLATFORM_DETAILS = [
+  { name: "iOS app", items: ["App version", "iOS version", "Device model"] },
+  { name: "Android app", items: ["App version", "Android version", "Device model"] },
+  { name: "Web", items: ["Browser and version", "Operating system"] }
+] as const;
 
 export default function SupportPage() {
   return (
-    <PageShell maxWidth="3xl">
-      <div className="flex justify-center">
-        <BrandMark size={96} />
-      </div>
-      <PageHeader
-        title="Support"
-        actions={
-          <Link
-            href="/privacy-policy"
-            className="text-sm font-semibold text-rf-accent transition hover:text-rf-accent-strong"
+    <PublicPage eyebrow="Help" title="Support">
+      <div className="glass-card flex flex-col gap-4 rounded-2xl p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p>If you need help with RaSi Fiters, contact us at:</p>
+          <a
+            href={`mailto:${SUPPORT_EMAIL}`}
+            className="mt-1 block break-words text-lg font-semibold text-rf-text transition-colors hover:text-rf-accent"
           >
-            Privacy Policy
-          </Link>
-        }
-      />
+            {SUPPORT_EMAIL}
+          </a>
+        </div>
+        <a
+          href={`mailto:${SUPPORT_EMAIL}`}
+          className="button-primary button-primary--dark-white inline-flex shrink-0 items-center justify-center self-start rounded-full px-5 py-2.5 text-sm font-semibold sm:self-auto"
+        >
+          Email support
+        </a>
+      </div>
 
-      <GlassCard padding="lg" className="space-y-6 text-sm text-rf-text-muted">
+      <div className="space-y-4">
         <p>
-          If you need help with RaSi Fiters, contact us at:
-        </p>
-        <p className="font-semibold text-rf-text">vinay.sankara@gmail.com</p>
-        <p className="mt-4">
           To help us resolve your issue quickly, let us know whether you&rsquo;re using the iOS app,
           the Android app, or the web app, and include the details for your platform:
         </p>
-
-        <div>
-          <p className="font-semibold text-rf-text">iOS app</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>App version</li>
-            <li>iOS version</li>
-            <li>Device model</li>
-          </ul>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {PLATFORM_DETAILS.map((platform) => (
+            <div key={platform.name} className="glass-card rounded-2xl p-5">
+              <p className="font-semibold text-rf-text">{platform.name}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                {platform.items.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
-
-        <div>
-          <p className="font-semibold text-rf-text">Android app</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>App version</li>
-            <li>Android version</li>
-            <li>Device model</li>
-          </ul>
-        </div>
-
-        <div>
-          <p className="font-semibold text-rf-text">Web</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Browser and version</li>
-            <li>Operating system</li>
-          </ul>
-        </div>
-
         <p>And, whichever platform you&rsquo;re on, a short description of the issue.</p>
-      </GlassCard>
-    </PageShell>
+      </div>
+    </PublicPage>
   );
 }

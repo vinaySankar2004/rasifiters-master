@@ -109,4 +109,5 @@
   web + SEO live. Builds iOS 1.5.2 (60) / Android 1.2.0 (7); **both submitted** (App Store manual release; Play
   managed publishing), App Privacy + Data safety updated. Repo pre-bumped to 1.5.3 (61) / versionCode 8. The user's
   TestFlight 60 check passed. Docs freshness pass. Search Console: sitemap resubmitted, Rich Results valid, indexing
-  requested for the home page + 5 waiting pages. Android 1.2.0 (7) published (all three approved Play changes).
+  requested for the home page + 5 waiting pages. Android 1.2.0 (7) published (all three approved Play changes). Public Privacy /
+  Support / Delete-account pages restyled in the landing chrome (landing D-LAND-13).

@@ -12,7 +12,7 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 
 | Page | Route | Status | Consumes (features) | Spec |
 |------|-------|--------|---------------------|------|
-| landing | `/` (root, **public marketing**) | 🏗️ v0.1.5 | `auth` (foundation `useAuth` for the auth-aware CTA; no API) | [landing SPEC](web/landing/SPEC.md) |
+| landing | `/` (root, **public marketing**) | 🏗️ v0.1.6 | `auth` (foundation `useAuth` for the auth-aware CTA; no API) | [landing SPEC](web/landing/SPEC.md) |
 | splash | `/splash` (retained, **unlinked**; root `/` now serves landing) | 🏗️ v0.2.1 | `auth` (foundation `useAuth`; no API) | [splash SPEC](web/splash/SPEC.md) |
 | login | `/login` | 🏗️ v0.3.1 | `auth` (`login()` `POST /auth/login/global`, `useAuth`, jwt helpers) | [login SPEC](web/login/SPEC.md) |
 | forgot-password | `/forgot-password` | 🏗️ v0.1.1 | `auth` v0.3.0 (`requestPasswordReset()` `POST /auth/forgot-password`, `useAuth`); `SUPPORT_EMAIL` | [forgot-password SPEC](web/forgot-password/SPEC.md) |
@@ -49,9 +49,9 @@ Status legend: 📄 documented → 🏗️ built → 🚀 deployed → ⊘ retir
 | program/privacy | `/program/privacy` (program-settings **sub-route** 6/6, all roles) | 🏗️ v0.2.3 | none — static Privacy Policy content (signed-in twin of public `privacy-policy`) + `useAuthGuard`; no API | [program/privacy SPEC](web/program/privacy/SPEC.md) |
 | program/notifications | `/program/notifications` (account sub-route, all roles) | 🏗️ v0.1.0 | `notifications` 0.6.0 (`GET`/`PUT /notifications/preferences` — five category switches, reminder time, time-zone line) + `auth` | [program/notifications SPEC](web/program/notifications/SPEC.md) |
 | program/announcements | `/program/announcements` (account sub-route, **global_admin only**) | 🏗️ v0.1.0 | `notifications` 0.6.0 (`/notifications/announcements*` — composer, exact preview, send now / local time, history + cancel) + `programs` + `members` + `auth` | [program/announcements SPEC](web/program/announcements/SPEC.md) |
-| delete-account | `/delete-account` (**public** legal — net-new for Play) | 🏗️ v0.1.1 | none — static account-deletion instructions (`PageShell`/`PageHeader`/`GlassCard` + `next/link`); no API, no auth | [delete-account SPEC](web/delete-account/SPEC.md) |
-| privacy-policy | `/privacy-policy` (**public** legal) | 🏗️ v0.2.4 | none — static policy page (`PageShell`/`PageHeader`/`GlassCard`); no API, no auth | [privacy-policy SPEC](web/privacy-policy/SPEC.md) |
-| support | `/support` (**public**) | 🏗️ v0.2.1 | none — static support/contact page (`PageShell`/`PageHeader`/`GlassCard`); no API, no auth | [support SPEC](web/support/SPEC.md) |
+| delete-account | `/delete-account` (**public** legal — net-new for Play) | 🏗️ v0.2.0 | none — static account-deletion instructions in `PublicPage` (landing chrome); no API, no auth | [delete-account SPEC](web/delete-account/SPEC.md) |
+| privacy-policy | `/privacy-policy` (**public** legal) | 🏗️ v0.3.0 | none — static policy page in `PublicPage` (landing chrome); no API, no auth | [privacy-policy SPEC](web/privacy-policy/SPEC.md) |
+| support | `/support` (**public**) | 🏗️ v0.3.0 | none — static support/contact page in `PublicPage` (landing chrome); no API, no auth | [support SPEC](web/support/SPEC.md) |
 
 **Inventory: COMPLETE** — all 40 on-disk web page SPECs are indexed above (every `specs/pages/web/**/SPEC.md`
 has a row; the 17 sub-route rows under `summary`/`members`/`lifestyle`/`program` were back-filled 2026-07-18,

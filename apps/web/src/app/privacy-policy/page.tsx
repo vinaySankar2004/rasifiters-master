@@ -1,158 +1,134 @@
-"use client";
-
-import Link from "next/link";
-import { BrandMark } from "@/components/BrandMark";
-import { PageShell } from "@/components/ui/PageShell";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { GlassCard } from "@/components/ui/GlassCard";
+import { PublicPage } from "@/components/landing/PublicPage";
 
 export default function PublicPrivacyPolicyPage() {
   return (
-    <PageShell maxWidth="3xl">
-      <div className="flex justify-center">
-        <BrandMark size={96} />
+    <PublicPage eyebrow="Legal" title="Privacy Policy" subtitle="Effective date: 2026-10-13">
+      <p>
+        RaSi Fiters (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) respects your privacy. This policy explains what
+        information we collect, how we use it, and the choices you have. It applies to the RaSi
+        Fiters iOS app, Android app, web app, and related services. Some features run on only some
+        platforms. Connected health data (Apple Health on iOS, Health Connect on Android) and push
+        notifications apply to the mobile apps only, and we say so in the relevant section below.
+      </p>
+
+      <div>
+        <p className="text-base font-semibold text-rf-text">Information we collect</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Account information: name, email address, and password (stored securely).</li>
+          <li>Profile information: optional gender field.</li>
+          <li>Fitness and activity data: workouts, sleep, steps, and diet quality that you log in the app.</li>
+          <li>Connected health data (mobile apps only): if you connect Apple Health on iOS or Health Connect on Android, the app reads workout, sleep, and step data from it to log activity automatically on your behalf.</li>
+          <li>Usage data: app interactions, feature usage, and diagnostic logs.</li>
+          <li>Device and network data: device type, OS version, and IP address.</li>
+          <li>Time zone: your device or browser time zone (for example America/Vancouver), sent automatically so reminders and the weekly summary arrive at your local time.</li>
+          <li>Push notification data (mobile apps only): if you enable push notifications on the iOS or Android app, we collect and store a device token (and optionally a device identifier) so we can send you notifications. This is linked to your account.</li>
+        </ul>
       </div>
-      <PageHeader
-        title="Privacy Policy"
-        subtitle="Effective date: 2026-10-13"
-        actions={
-          <Link
-            href="/support"
-            className="text-sm font-semibold text-rf-accent transition hover:text-rf-accent-strong"
-          >
-            Support
-          </Link>
-        }
-      />
 
-      <GlassCard padding="lg" className="space-y-6 text-sm text-rf-text-muted">
-        <p>
-          RaSi Fiters (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) respects your privacy. This policy explains what
-          information we collect, how we use it, and the choices you have. It applies to the RaSi
-          Fiters iOS app, Android app, web app, and related services. Some features run on only some
-          platforms. Connected health data (Apple Health on iOS, Health Connect on Android) and push
-          notifications apply to the mobile apps only, and we say so in the relevant section below.
+      <div>
+        <p className="text-base font-semibold text-rf-text">How we use information</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Provide and operate the app, including authentication and core features.</li>
+          <li>Personalize and improve the app experience.</li>
+          <li>Automatically log workouts, sleep, and steps from Apple Health (iOS) or Health Connect (Android) when you enable that feature in the mobile app.</li>
+          <li>Monitor performance, fix bugs, and maintain security.</li>
+          <li>Communicate with you about your account or support requests.</li>
+          <li>Deliver push and in-app notifications (for example program updates, membership or role changes, and kudos from other members). We use Apple&apos;s Push Notification service (APNs) on iOS and Firebase Cloud Messaging (FCM) on Android to send notifications to your device when the app is not in the foreground.</li>
+          <li>Send a daily workout reminder and a weekly summary only if you turn them on in your notification settings, and show announcements from the RaSi Fiters team in your Inbox.</li>
+        </ul>
+      </div>
+
+      <div>
+        <p className="text-base font-semibold text-rf-text">Connected health data (Apple Health and Health Connect)</p>
+        <p className="mt-2">This section applies only to the RaSi Fiters mobile apps. The web app does not connect to or read from Apple Health or Health Connect.</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>With your permission, the iOS app reads from Apple Health (HealthKit) and the Android app reads from Health Connect to automatically create workout, sleep, and step logs in your RaSi Fiters program.</li>
+          <li>Access is read-only. The apps do not write any data back to Apple Health or Health Connect.</li>
+          <li>We use data read from Apple Health or Health Connect only to provide the automatic logging described above. We never use it for advertising or marketing, and we never sell it or share it with third parties for their own purposes.</li>
+          <li>Workouts created from Apple Health or Health Connect are part of your program activity: other members of your programs can see them, along with your streaks and active days, unless you turn on Hide my activity in My Profile. Sleep and steps are never shown to other members — only you, your program&apos;s admins and loggers, and RaSi Fiters administrators can see them.</li>
+          <li>You can turn health sync on or off in the app (My Account → Apple Health on iOS, My Account → Health Connect on Android). You can revoke access at any time: on iOS in Settings → Privacy &amp; Security → Health, and on Android in the Health Connect app (Settings → Security &amp; privacy → Health Connect). Turning it off stops any further reading of your health data.</li>
+        </ul>
+      </div>
+
+      <div>
+        <p className="text-base font-semibold text-rf-text">Sharing of information</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Other members of your programs: members of a program you belong to can see your name, username, gender, program role, and when you joined RaSi Fiters and the program. They can also see your workouts, workout stats (such as streaks and active days) and the kudos you receive — including workouts synced from Apple Health or Health Connect — unless you turn on Hide my activity in My Profile. Program admins and loggers can always see your activity in their programs. Your sleep, diet and steps are visible only to you, your program&apos;s admins and loggers, and RaSi Fiters administrators. Your email address is never shown to other members.</li>
+          <li>
+            Service providers: we may share data with vendors who help us operate the app
+            (for example, hosting and analytics). They are required to protect your information.
+          </li>
+          <li>
+            Push delivery: we share your device token with Apple on iOS (APNs) or Google on
+            Android (Firebase Cloud Messaging) so they can deliver push notifications to your
+            device. Their handling of that data is governed by their own privacy policies.
+          </li>
+          <li>
+            Legal requirements: we may disclose information if required by law or to protect
+            our rights and users.
+          </li>
+        </ul>
+        <p className="mt-2">We do not sell your personal information, and we do not share data we read from Apple Health or Health Connect with third parties for their own use.</p>
+      </div>
+
+      <div>
+        <p className="text-base font-semibold text-rf-text">Data retention</p>
+        <p className="mt-2">
+          We keep information only as long as needed to provide the service and comply with legal
+          obligations. We remove device tokens when you turn off notifications (or unregister your
+          device), or when Apple or Google tells us a token is no longer valid. You can request
+          deletion at any time.
         </p>
+      </div>
 
-        <div>
-          <p className="text-base font-semibold text-rf-text">Information we collect</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Account information: name, email address, and password (stored securely).</li>
-            <li>Profile information: optional gender field.</li>
-            <li>Fitness and activity data: workouts, sleep, steps, and diet quality that you log in the app.</li>
-            <li>Connected health data (mobile apps only): if you connect Apple Health on iOS or Health Connect on Android, the app reads workout, sleep, and step data from it to log activity automatically on your behalf.</li>
-            <li>Usage data: app interactions, feature usage, and diagnostic logs.</li>
-            <li>Device and network data: device type, OS version, and IP address.</li>
-            <li>Time zone: your device or browser time zone (for example America/Vancouver), sent automatically so reminders and the weekly summary arrive at your local time.</li>
-            <li>Push notification data (mobile apps only): if you enable push notifications on the iOS or Android app, we collect and store a device token (and optionally a device identifier) so we can send you notifications. This is linked to your account.</li>
-          </ul>
-        </div>
+      <div>
+        <p className="text-base font-semibold text-rf-text">Security</p>
+        <p className="mt-2">
+          We use reasonable safeguards to protect your data, but no method of transmission or
+          storage is 100% secure.
+        </p>
+      </div>
 
-        <div>
-          <p className="text-base font-semibold text-rf-text">How we use information</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Provide and operate the app, including authentication and core features.</li>
-            <li>Personalize and improve the app experience.</li>
-            <li>Automatically log workouts, sleep, and steps from Apple Health (iOS) or Health Connect (Android) when you enable that feature in the mobile app.</li>
-            <li>Monitor performance, fix bugs, and maintain security.</li>
-            <li>Communicate with you about your account or support requests.</li>
-            <li>Deliver push and in-app notifications (for example program updates, membership or role changes, and kudos from other members). We use Apple&apos;s Push Notification service (APNs) on iOS and Firebase Cloud Messaging (FCM) on Android to send notifications to your device when the app is not in the foreground.</li>
-            <li>Send a daily workout reminder and a weekly summary only if you turn them on in your notification settings, and show announcements from the RaSi Fiters team in your Inbox.</li>
-          </ul>
-        </div>
+      <div>
+        <p className="text-base font-semibold text-rf-text">Your choices</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5">
+          <li>Access or update your information in the app.</li>
+          <li>Turn on Hide my activity (My Profile) to hide your workouts, workout stats and kudos from other members of your programs. You stay on your programs&apos; member lists by name, program admins and loggers still see your activity, and program totals still include it.</li>
+          <li>
+            Enable or disable push notifications in the app (My Account → Notifications) or in
+            your device Settings; disabling or unregistering stops us from sending push and we
+            remove your token.
+          </li>
+          <li>
+            Delete your account from within the app (or contact us); that permanently removes
+            your data, including any stored device tokens.
+          </li>
+          <li>Request deletion by contacting us.</li>
+        </ul>
+      </div>
 
-        <div>
-          <p className="text-base font-semibold text-rf-text">Connected health data (Apple Health and Health Connect)</p>
-          <p className="mt-2">This section applies only to the RaSi Fiters mobile apps. The web app does not connect to or read from Apple Health or Health Connect.</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>With your permission, the iOS app reads from Apple Health (HealthKit) and the Android app reads from Health Connect to automatically create workout, sleep, and step logs in your RaSi Fiters program.</li>
-            <li>Access is read-only. The apps do not write any data back to Apple Health or Health Connect.</li>
-            <li>We use data read from Apple Health or Health Connect only to provide the automatic logging described above. We never use it for advertising or marketing, and we never sell it or share it with third parties for their own purposes.</li>
-            <li>Workouts created from Apple Health or Health Connect are part of your program activity: other members of your programs can see them, along with your streaks and active days, unless you turn on Hide my activity in My Profile. Sleep and steps are never shown to other members — only you, your program&apos;s admins and loggers, and RaSi Fiters administrators can see them.</li>
-            <li>You can turn health sync on or off in the app (My Account → Apple Health on iOS, My Account → Health Connect on Android). You can revoke access at any time: on iOS in Settings → Privacy &amp; Security → Health, and on Android in the Health Connect app (Settings → Security &amp; privacy → Health Connect). Turning it off stops any further reading of your health data.</li>
-          </ul>
-        </div>
+      <div>
+        <p className="text-base font-semibold text-rf-text">Children&apos;s privacy</p>
+        <p className="mt-2">
+          RaSi Fiters is intended for adults aged 18 and over. It is not directed to children, and we
+          do not knowingly collect personal information from anyone under 18. If you believe a child has
+          provided us with personal information, please contact us and we will delete it.
+        </p>
+      </div>
 
-        <div>
-          <p className="text-base font-semibold text-rf-text">Sharing of information</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Other members of your programs: members of a program you belong to can see your name, username, gender, program role, and when you joined RaSi Fiters and the program. They can also see your workouts, workout stats (such as streaks and active days) and the kudos you receive — including workouts synced from Apple Health or Health Connect — unless you turn on Hide my activity in My Profile. Program admins and loggers can always see your activity in their programs. Your sleep, diet and steps are visible only to you, your program&apos;s admins and loggers, and RaSi Fiters administrators. Your email address is never shown to other members.</li>
-            <li>
-              Service providers: we may share data with vendors who help us operate the app
-              (for example, hosting and analytics). They are required to protect your information.
-            </li>
-            <li>
-              Push delivery: we share your device token with Apple on iOS (APNs) or Google on
-              Android (Firebase Cloud Messaging) so they can deliver push notifications to your
-              device. Their handling of that data is governed by their own privacy policies.
-            </li>
-            <li>
-              Legal requirements: we may disclose information if required by law or to protect
-              our rights and users.
-            </li>
-          </ul>
-          <p className="mt-2">We do not sell your personal information, and we do not share data we read from Apple Health or Health Connect with third parties for their own use.</p>
-        </div>
+      <div>
+        <p className="text-base font-semibold text-rf-text">Changes to this policy</p>
+        <p className="mt-2">
+          We may update this policy from time to time. If we make changes, we will update the
+          effective date above.
+        </p>
+      </div>
 
-        <div>
-          <p className="text-base font-semibold text-rf-text">Data retention</p>
-          <p className="mt-2">
-            We keep information only as long as needed to provide the service and comply with legal
-            obligations. We remove device tokens when you turn off notifications (or unregister your
-            device), or when Apple or Google tells us a token is no longer valid. You can request
-            deletion at any time.
-          </p>
-        </div>
-
-        <div>
-          <p className="text-base font-semibold text-rf-text">Security</p>
-          <p className="mt-2">
-            We use reasonable safeguards to protect your data, but no method of transmission or
-            storage is 100% secure.
-          </p>
-        </div>
-
-        <div>
-          <p className="text-base font-semibold text-rf-text">Your choices</p>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>Access or update your information in the app.</li>
-            <li>Turn on Hide my activity (My Profile) to hide your workouts, workout stats and kudos from other members of your programs. You stay on your programs&apos; member lists by name, program admins and loggers still see your activity, and program totals still include it.</li>
-            <li>
-              Enable or disable push notifications in the app (My Account → Notifications) or in
-              your device Settings; disabling or unregistering stops us from sending push and we
-              remove your token.
-            </li>
-            <li>
-              Delete your account from within the app (or contact us); that permanently removes
-              your data, including any stored device tokens.
-            </li>
-            <li>Request deletion by contacting us.</li>
-          </ul>
-        </div>
-
-        <div>
-          <p className="text-base font-semibold text-rf-text">Children&apos;s privacy</p>
-          <p className="mt-2">
-            RaSi Fiters is intended for adults aged 18 and over. It is not directed to children, and we
-            do not knowingly collect personal information from anyone under 18. If you believe a child has
-            provided us with personal information, please contact us and we will delete it.
-          </p>
-        </div>
-
-        <div>
-          <p className="text-base font-semibold text-rf-text">Changes to this policy</p>
-          <p className="mt-2">
-            We may update this policy from time to time. If we make changes, we will update the
-            effective date above.
-          </p>
-        </div>
-
-        <div>
-          <p className="text-base font-semibold text-rf-text">Contact us</p>
-          <p className="mt-2">If you have questions or requests, contact us at:</p>
-          <p className="mt-1 font-semibold text-rf-text">geethasankar78@gmail.com</p>
-        </div>
-      </GlassCard>
-    </PageShell>
+      <div>
+        <p className="text-base font-semibold text-rf-text">Contact us</p>
+        <p className="mt-2">If you have questions or requests, contact us at:</p>
+        <p className="mt-1 font-semibold text-rf-text">geethasankar78@gmail.com</p>
+      </div>
+    </PublicPage>
   );
 }
