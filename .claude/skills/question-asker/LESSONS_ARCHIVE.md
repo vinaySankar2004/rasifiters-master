@@ -2901,3 +2901,7 @@ SURFACE-layer** (the deferred stubs) — delete the stub seam file + say "layer 
 run-47's "closes the web surface"; (4) when the xcode project is OPEN, run the native `BuildProject` MCP for a real
 green-check instead of settling for grep-only (memory `ios-user-verifies-builds-visually` is about the local *CLI*
 CoreSimulator quirk — the MCP compile path sidesteps it).
+
+- **2026-10-13 — run-47 lesson (c) reversed.** Keeping `privacy-policy` and `program/privacy` as verbatim twins
+  (faithful duplicate) cost a double edit per policy change and a cross-surface UX mismatch; the user chose one public
+  page linked from everywhere (privacy-policy D-ONE). SKILL.md lesson (c) carries the supersede note.

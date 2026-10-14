@@ -24,6 +24,7 @@ import { ErrorView } from "@/components/kit/ErrorView";
 import { FloatingBanner } from "@/components/kit/FloatingBanner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
+import { PRIVACY_POLICY_URL } from "@/lib/config";
 import {
   IconInfo,
   IconUsers,
@@ -624,7 +625,7 @@ function MyAccountSection({
 
         <button
           type="button"
-          onClick={() => router.push("/program/privacy")}
+          onClick={() => window.open(PRIVACY_POLICY_URL, "_blank", "noopener")}
           className="flex w-full items-center gap-4 rounded-2xl border border-rf-border bg-rf-surface-muted px-4 py-3 text-left text-sm font-semibold text-rf-text shadow-sm transition hover:border-rf-text"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600">
@@ -637,7 +638,8 @@ function MyAccountSection({
           <span className="ml-auto text-rf-text-muted">›</span>
         </button>
 
-        {/* polish #41: /support is a public page with no in-app back; open it beside the app, as the phones do. */}
+        {/* polish #41: /privacy-policy and /support are public pages with no in-app back; open them beside the app, as
+            the phones do (one policy copy — privacy-policy D-ONE). */}
         <AccountLinkRow
           title="Support"
           subtitle="Get help or contact us"

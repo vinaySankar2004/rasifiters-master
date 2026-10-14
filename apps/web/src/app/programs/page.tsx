@@ -41,6 +41,7 @@ import { NOTIFICATION_COPY } from "@/lib/api/notifications";
 import { markInviteItemsRead, useUnreadCount } from "@/lib/notifications/queries";
 import { OPEN_INBOX_EVENT, openNotificationTarget, opensInbox } from "@/lib/notifications/targets";
 import { InboxList } from "@/components/notifications/InboxList";
+import { PRIVACY_POLICY_URL } from "@/lib/config";
 
 const STATUS_OPTIONS = ["planned", "active", "completed"] as const;
 const PROGRAMS_KEY = ["programs"];
@@ -657,7 +658,8 @@ export default function ProgramsPage() {
               icon={<IconDocument className="h-5 w-5" />}
               onClick={() => {
                 setShowAccount(false);
-                router.push("/program/privacy");
+                // Public pages with no in-app back open beside the app, as the phones do (privacy-policy D-ONE).
+                window.open(PRIVACY_POLICY_URL, "_blank", "noopener");
               }}
             />
             <AccountRow
@@ -666,8 +668,7 @@ export default function ProgramsPage() {
               icon={<IconHelp className="h-5 w-5" />}
               onClick={() => {
                 setShowAccount(false);
-                // polish #41: /support is a public page with no in-app back; open it beside the app, as the phones do.
-                window.open("/support", "_blank", "noopener");
+                window.open("/support", "_blank", "noopener"); // polish #41 — same rule as Privacy above
               }}
             />
             <AccountRow

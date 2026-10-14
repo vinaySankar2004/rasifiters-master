@@ -1,6 +1,6 @@
 # Page: `program` (web) — the program settings hub (fourth & last workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/program` — **the fourth (last) bottom-nav tab** of a program's workspace. The settings hub:
 > a role-gated menu of settings entries (program info/edit · members/invite · role management · workout types ·
 > leave program · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins.
@@ -70,7 +70,7 @@ shared sign-out/account section + the leave-confirm dialog.
 | **Non-admin variant** — Program Info card | Read-only `GlassCard`: Name · Status (`StatusBadge`) · Duration · a **client-computed progress bar** (`computeProgramProgress`, %/elapsed/remaining) · Active Members. | program/page.tsx:265-315 |
 | Non-admin — Switch Program | → `/programs`. | program/page.tsx:317-330 |
 | Leave Program | `canLeaveProgram`-only (both variants) → opens the leave-confirm dialog. Extracted to one `LeaveProgramButton` (D-C2). | program/page.tsx:244-259, 332-347 |
-| My Account | Profile (→ `/program/profile`; 0.3.0: titled with the member name, subtitle `@username`, initials in the circle — D-REL1) · **`Inbox`** (0.2.0: `<n> new` + a count pill, else `Invites and notifications` → `/programs?open=inbox`) · **`Notifications`** (0.2.0 → `/program/notifications`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · **`Announcements`** (0.2.0, global admins → `/program/announcements`) · Privacy Policy (→ `/program/privacy`) · **`Support`** (0.3.0, `Get help or contact us` → `/support` in a new tab — D-REL1) · **Sign Out** (~~live `signOut()`~~ *(superseded at v0.3.0 by D-REL1)* opens the `Sign Out?` confirm). | program/page.tsx (`MyAccountSection`) |
+| My Account | Profile (→ `/program/profile`; 0.3.0: titled with the member name, subtitle `@username`, initials in the circle — D-REL1) · **`Inbox`** (0.2.0: `<n> new` + a count pill, else `Invites and notifications` → `/programs?open=inbox`) · **`Notifications`** (0.2.0 → `/program/notifications`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · **`Announcements`** (0.2.0, global admins → `/program/announcements`) · Privacy Policy (0.3.2: `/privacy-policy` in a new tab — privacy-policy D-ONE) · **`Support`** (0.3.0, `Get help or contact us` → `/support` in a new tab — D-REL1) · **Sign Out** (~~live `signOut()`~~ *(superseded at v0.3.0 by D-REL1)* opens the `Sign Out?` confirm). | program/page.tsx (`MyAccountSection`) |
 | Leave-confirm dialog | `ConfirmDialog` (danger) — runs `leaveMutation`; on success clears the active program, invalidates `["programs"]`, → `/programs`. | program/page.tsx:354-362 |
 | Sign-out confirm (0.3.0) | `ConfirmDialog` (danger) `Sign Out?` / `Are you sure you want to sign out?` / `Sign Out` → `signOut()` → `/login`; at page root, not inside `MyAccountSection` (D-REL1). | program/page.tsx (page root) |
 
@@ -171,6 +171,7 @@ and is not gated by the lock.)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.2 | 2026-10-13 | **Privacy Policy row → the public page** (privacy-policy D-ONE): `window.open(PRIVACY_POLICY_URL)` in a new tab, like Support and the phones; the in-app `/program/privacy` copy is retired. |
 | 0.3.1 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle is a button (`aria-label="My Profile"`, same look) → `/program/profile`; Back returns to Program. |
 | 0.3.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #33 honest roster / roles / workout-type states (`Loading...`, "—" only on failure, ErrorView + Retry, stale banner, reload on reconnect); #41 signed-in-as profile row (name + `@username`), Support row (new tab), `Sign Out?` confirm. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`b2ea09b`).** My Account rows `Inbox` (count), `Notifications`, `Announcements` (global admins); the Members row label `People` · `<n> enrolled` behind `PEOPLE_LIVE` (dark: unchanged). |

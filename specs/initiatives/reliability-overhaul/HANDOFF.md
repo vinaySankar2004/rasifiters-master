@@ -109,4 +109,5 @@
   TestFlight 60 check passed. Docs freshness pass. Search Console: sitemap resubmitted, Rich Results valid, indexing
   requested for the home page + 5 waiting pages. Android 1.2.0 (7) published (all three approved Play changes). Public Privacy /
   Support / Delete-account pages restyled in the landing chrome (landing D-LAND-13). People on for web +
-  `LATEST_ANDROID_VERSION_CODE = 7` (the user's call, iOS left for its release).
+  `LATEST_ANDROID_VERSION_CODE = 7` (the user's call, iOS left for its release). One Privacy Policy copy: web's
+  account menus open the public page like the phones; `/program/privacy` retired → 308 (privacy-policy D-ONE).

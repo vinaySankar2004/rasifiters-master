@@ -800,7 +800,10 @@ where one applies (the archived original a port came from). After the SPEC is si
   **faithful-duplicate + flag** (an F-row / rebuild-cleanup candidate), offer single-source with its coupling cost named;
   the user owns the DRY-vs-decoupling trade-off. Run-30 was "don't TRIM a shared doc to fit one surface"; run-47 is the
   symmetric "don't MERGE two shared copies into one component" — same principle, a shared legal/policy doc stays
-  verbatim-per-route, coupling it is content governance, not a code cleanup.
+  verbatim-per-route, coupling it is content governance, not a code cleanup. **(c) superseded 2026-10-13
+  (privacy-policy D-ONE):** the twin drifted — web's account menu opened the in-app copy while iOS / Android opened
+  the public URL — and every policy edit had to land twice; the user chose ONE public page that every surface links
+  to. For a shared legal doc, recommend one URL + links, not per-route copies.
 - **Run 48 — the web `notifications` CLIENT port (replaces the `NotificationsGate` deferred stub): a client port that
   replaces a deferred stub is the MIRROR of the keystone backend run, the SPEC already documents it (realize, don't
   re-spec), and a legacy client's cross-layer assumptions must be re-checked against the DIVERGED rebuild.** Three durable

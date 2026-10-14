@@ -51,6 +51,9 @@ the two clients*, grounded in code + the feature spec.
    `git-version`; spec gaps loop back through `question-asker`.
 
 ## Notes
+- **Parity includes destinations (2026-10-13):** the same row (Privacy, Support, Delete account …) must open the same
+  place on web, iOS and Android — grep each surface's link target, not just the row's presence. Missed until the user
+  noticed web's Privacy opened an in-app copy while the phones opened the public page (privacy-policy D-ONE).
 - The **backend is the single contract** — when web and ios disagree, the backend + the feature spec
   decide who's right (usually: business logic belongs in the backend, both clients just call it).
 - Living skill: keep this lean; append run notes to `LESSONS_ARCHIVE.md` and promote converged checks here.

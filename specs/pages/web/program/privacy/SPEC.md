@@ -1,6 +1,9 @@
 # Page: `program/privacy` (web) — Privacy Policy (program-settings sub-route 6 of 6 — LAST)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.3 · **App:** `web` (Next.js App Router)
+> **Status:** ⊘ **retired 2026-10-13** · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
+> **Retired:** one policy copy now — the account-menu Privacy rows open the public `/privacy-policy` in a new tab
+> (as iOS / Android do) and `/program/privacy` 308-redirects there ([privacy-policy D-ONE](../../privacy-policy/SPEC.md)).
+> The page file is deleted; everything below describes the retired page.
 > **Route:** `/program/privacy` — the **Privacy Policy** document: a single static `GlassCard` of policy prose
 > (effective date, information-collected/used/shared, Apple Health, retention, security, choices, children's privacy, contact),
 > the **sixth and LAST** of the deferred `/program/*` settings sub-routes (reached from the
@@ -134,6 +137,7 @@ and no per-user state** — so it never touches the backend or another member, a
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **Retired** (privacy-policy D-ONE): `page.tsx` deleted; `/program/privacy` → 308 `/privacy-policy` (`next.config.mjs`); the `program` / `programs` account rows open the public page in a new tab. The duplicate copy had to be edited twice per policy change and was the only Privacy entry that differed across surfaces. |
 | 0.2.3 | 2026-10-13 | **D-NP1 — Phase 4 policy text** (`b2ea09b`, live): effective date 2026-10-13; time zone collected; kudos in notifications; opt-in reminder + weekly summary and Inbox announcements; synced workouts visible to co-members unless Hide my activity (sleep / steps never); what co-members can see; Hide my activity under Your choices. Identical to `privacy-policy` 0.2.4. |
 | 0.2.2 | 2026-07-10 | **Audience clause → adults 18+.** Replaced the *Children's privacy* clause "not intended for children under 4" with an adults-18-and-over-intended statement (not directed to children; no knowing collection from under-18s; contact-to-delete), aligning with the Google Play **"18 and over"** target audience set during the first Android release. Bumped **effective date → 2026-07-10**. Applied **identically** to the byte-identical public [`privacy-policy`](../../privacy-policy/SPEC.md) (D-DUP parity). **No iOS/Android change** — the apps open the public URL; no embedded copy. Committed `d724d8a`, deployed + verified live. |
 | 0.2.1 | 2026-07-01 | **Platform-scope clarification** (one app, two surfaces): scoped the iOS-only *Apple Health* feature explicitly in-copy so web users aren't told it applies to them. Titled the section "Apple Health (iOS app only)" + added a lead sentence ("the web app does not connect to or read from Apple Health"), split the fitness collect-bullet so the Apple Health clause is its own "(iOS app only)" bullet, added "in the iOS app" to the *How we use* auto-log bullet, and added an intro sentence noting platform-specific features (Apple Health, push) are called out where they apply. No change to what data is collected/used; **effective date unchanged (2026-07-01)**. Applied **identically** to the byte-identical public [`privacy-policy`](../../privacy-policy/SPEC.md) (D-DUP parity). Updated **F1**. **No iOS change** — the app links to this URL. `npm run build` ✓. |
