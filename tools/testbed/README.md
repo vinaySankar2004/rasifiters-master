@@ -73,6 +73,9 @@ base, neither step runs.
 Re-runnable safely: enrollment checks current membership first; daily-health uses the batch UPSERT
 endpoint; workout logs are inserted row-by-row and duplicates (409) are skipped.
 
+Only the configured test accounts get dummy data. A real account that joined a test program (e.g. the owner
+trying invites/People) is left untouched and logged as `⚠ non-test member left unseeded`.
+
 ## Excluded account
 
 `liam.kim` is intentionally excluded — his Supabase Auth password isn't the shared test password and

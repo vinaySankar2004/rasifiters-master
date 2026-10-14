@@ -217,9 +217,13 @@ async function ensureMembership(program, adminSession, memberSession, role) {
   return true;
 }
 
-async function seedProgram(program, adminSession) {
+// Seeds ONLY the configured test accounts (testIds). A real account a tester added to a test program
+// (e.g. the owner joining to try People/invites) is left alone — dummy data must never land on a real person.
+async function seedProgram(program, adminSession, testIds) {
   const details = await api("GET", `/program-memberships/details?programId=${program.id}`, adminSession.token);
-  const active = (details.data || []).filter((m) => m.status === "active");
+  const allActive = (details.data || []).filter((m) => m.status === "active");
+  const active = allActive.filter((m) => testIds.has(m.member_id));
+  for (const m of allActive.filter((x) => !testIds.has(x.member_id))) log(`    ⚠ non-test member left unseeded: ${m.username || m.member_id}`);
 
   // Workouts: row-by-row (skip 409 duplicates). ~2/3 of days per member for realism.
   let wOk = 0, wSkip = 0, wErr = 0;
@@ -286,6 +290,7 @@ async function main() {
   log("── LOGIN ──");
   const sessions = await loginAll();
   const ok = (u) => sessions[u]?.ok ? sessions[u] : null;
+  const testIds = new Set(Object.values(sessions).filter((s) => s?.ok).map((s) => s.memberId));
 
   if (MODE === "reset") {
     log("\n── CLEAR (delete programs admined by test members) ──");
@@ -309,7 +314,7 @@ async function main() {
       }
       if (cfg.admin_only_data_entry) await api("PUT", `/programs/${program.id}`, admin.token, { admin_only_data_entry: true });
       log("    seeding…");
-      await seedProgram(program, admin);
+      await seedProgram(program, admin, testIds);
       await extendEndDate(program, admin);
     }
   } else {
@@ -343,7 +348,7 @@ async function main() {
       for (const m of (details.data || []).filter((x) => x.status === "active" && x.program_role === "admin")) {
         if (m.member_id !== wantAdmin.memberId) log(`    ⚠ extra admin left in place: ${m.username || m.member_id}`);
       }
-      await seedProgram(program, admin);
+      await seedProgram(program, admin, testIds);
       await extendEndDate(program, admin);
     }
   }
