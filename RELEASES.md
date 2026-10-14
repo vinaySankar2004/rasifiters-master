@@ -36,21 +36,24 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 |---|---|---|---|---|
 | App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** Train closed. Repo pre-bumped to 1.4.3 (57) — one-train-ahead satisfied. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
 | TestFlight — external ("Beta Testers") | 1.4.3 (57) | Testing → **expires ~2026-10-15** | 2026-07-20 | Ahead-train (same code as the live 1.4.2 (56)). 8 invited / 6 installs (read 2026-10-11). **User decision 2026-10-11: let it lapse** — testers fall back to App Store 1.4.2; the next TestFlight build is the reliability release |
-| TestFlight — internal ("Internal") | **1.5.0 (58)** | **Testing — in the Internal group** (uploaded 2026-10-13T06:57Z; external "Ready to Submit" skipped per one-train-ahead) | 2026-10-13 | **The reliability release** (Phase 3 client: sessions, HealthKit sync v2, invite inbox, version gate) — App-Store-bound candidate; the user tests it on their iPhone first. Repo pre-bumped to **1.5.1 (59)** (one-train-ahead). Replaces the stale 1.4.1 (54) internal build |
+| TestFlight — internal ("Internal") | **1.5.1 (59)** | **Testing — in the Internal group** (uploaded 2026-10-13 ~18:05 PDT; processed, "Ready to Submit") | 2026-10-13 | **The Phase 4 release candidate** (Notifications + People + quick wins + polish #9–#45, on top of the 1.5.0 reliability release, which never reached the App Store). The user tests it on their iPhone; it becomes the ONE store release if it passes. Repo pre-bumped to **1.5.2 (60)** (one-train-ahead) |
 
 ### Android
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | Play Store (production) | 1.0.0 (4) | **LIVE — public on Google Play** | 2026-08-06 | **Current public release** — 100% rollout, 176 countries + rest of world. Repo pre-bumped to versionCode 5, so the next upload must be ≥5 (the Android analog of one-train-ahead). Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
-| Play Console — closed testing ("Alpha") | **1.1.0 (5)** | **In review** (sent 2026-10-13 ~08:50 PDT; Google says ≤ 7 days) — 1.0.0 (4) stays available until approved | 2026-10-13 | Backup route to the user's Pixel while the internal track's first-time opt-in link propagates; 100% rollout to the one-account list. Some testers may still be on (3)/(4) |
+| Play Console — closed testing ("Alpha") | **1.2.0 (6)** | **In review** (sent 2026-10-13 ~18:10 PDT; Google says ≤ 7 days); full rollout to the one-account list on approval | 2026-10-13 | Backup route to the user's Pixel (the user believes closed testing is what delivered 1.1.0 last time). 1.1.0 (5) was approved earlier |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
-| Play Console — internal testing | **1.1.0 (5)** | **Available to internal testers** (released 2026-10-13 00:05 local) | 2026-10-13 | **The reliability release** (Phase 3 client). Testers = the "RaSi Fiters closed testers" list (the user's account); opt-in link https://play.google.com/apps/internaltest/4701584098902409817. Built by `./gradlew :app:bundleRelease` with the upload key (`keystore.properties`). Repo pre-bumped to **versionCode 6** |
+| Play Console — internal testing | **1.2.0 (6)** | **Available to internal testers** (released 2026-10-13 18:07 local) | 2026-10-13 | **The Phase 4 release candidate** (Notifications + People + quick wins + polish). Same testers and opt-in link as 1.1.0. Built by `./gradlew :app:bundleRelease` with the upload key. Repo pre-bumped to **versionCode 7** |
 
 ## Release log (append-only, newest first)
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-13 | Android | 1.2.0 (6) | Play — closed testing (Alpha) | promoted from internal + sent for review (the user's yes) | **In review** |
+| 2026-10-13 | Android | 1.2.0 (6) | Play — internal testing | AAB built from the CLI; the user attached it in the browser pane; Claude set name/notes + published (the user's yes) | **Available to internal testers** — Phase 4 candidate; repo pre-bumped to versionCode 7 |
+| 2026-10-13 | iOS | 1.5.1 (59) | TestFlight — internal | uploaded from Xcode; auto-added to the Internal group | **Processed → Internal group** — Phase 4 candidate; repo pre-bumped to 1.5.2 (60) |
 | 2026-10-13 | Android | 1.1.0 (5) | Play — closed testing (Alpha) | promoted from internal + sent for review (the user's yes) | **In review**. Why: the internal track's FIRST publish — its opt-in link "can take several hours" (Play help 9845334); the user's Pixel kept showing "Accept invite" ~8.5 h later and stayed on (4) |
 | 2026-10-13 | Android | 1.1.0 (5) | Play — internal testing | AAB built from the CLI + uploaded by the user; Claude set testers + notes + published (the user's yes) | **Available to internal testers** — first use of the internal track; repo pre-bumped to versionCode 6 |
 | 2026-10-13 | iOS | 1.5.0 (58) | TestFlight — internal | uploaded from Xcode | **Processed → in the Internal group** (Ready to Submit for external — skipped). Reliability overhaul Phase 3 client release; repo pre-bumped to 1.5.1 (59) |
