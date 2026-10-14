@@ -38,8 +38,8 @@ android {
         applicationId = "com.app.rasifiters"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.2.0"
+        versionCode = 9
+        versionName = "1.2.1"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -68,7 +68,8 @@ android {
             if (hasReleaseKeystore) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            isMinifyEnabled = false
+            // R8 shrink + obfuscate (Play's DEX-optimisation check, fix by Feb 2027). Keep rules: proguard-rules.pro.
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

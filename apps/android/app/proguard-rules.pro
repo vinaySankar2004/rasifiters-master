@@ -13,3 +13,10 @@
 -dontwarn javax.annotation.**
 -keep,allowobfuscation,allowshrinking interface retrofit2.Call
 -keep,allowobfuscation,allowshrinking class retrofit2.Response
+
+# Credential Manager loads its Play Services provider by reflection (androidx.credentials docs).
+-if class androidx.credentials.CredentialManager
+-keep class androidx.credentials.playservices.** { *; }
+
+# Session.isCorrupt matches Tink's exception by simple name — keep the name so a corrupt token store still resets.
+-keepnames class **.InvalidProtocolBufferException
