@@ -24,6 +24,7 @@ export type InboxItem = {
 export type InboxPage = { items: InboxItem[]; next_cursor: string | null };
 export type UnreadCounts = { unread: number; pending_invites: number; badge: number };
 export type MarkReadResult = UnreadCounts & { updated: number };
+export type InboxDeleteResult = UnreadCounts & { deleted: number };
 export type NotificationPreferences = {
   categories: Record<NotificationCategory, boolean>;
   reminder_time: string;
@@ -49,6 +50,16 @@ export function fetchUnreadCount(token: string) {
 
 export function markNotificationsRead(token: string, body: { ids: string[] } | { all: true }) {
   return apiRequest<MarkReadResult>("/notifications/inbox/read", { method: "POST", token, body });
+}
+
+/** DELETE /notifications/inbox/:id — this member's own item, gone on every device; answers fresh counts (404 = gone). */
+export function removeInboxItem(token: string, id: string) {
+  return apiRequest<InboxDeleteResult>(`/notifications/inbox/${encodeURIComponent(id)}`, { method: "DELETE", token });
+}
+
+/** DELETE /notifications/inbox/all — every notification (the invitations are separate and stay); answers fresh counts. */
+export function clearInbox(token: string) {
+  return apiRequest<InboxDeleteResult>("/notifications/inbox/all", { method: "DELETE", token });
 }
 
 export function fetchNotificationPreferences(token: string) {
@@ -82,6 +93,13 @@ export const NOTIFICATION_COPY = {
   unread: "Unread",
   loadMore: "Load more",
   loadingMore: "Loading…",
+  clearAll: "Clear all",
+  clearConfirmTitle: "Clear all notifications?",
+  clearConfirmBody: "They're removed from your Inbox on all your devices. Invitations stay until you answer them.",
+  clearing: "Clearing…",
+  removeLabel: "Remove notification",
+  removeFailed: "Couldn't remove the notification.",
+  clearFailed: "Couldn't clear your notifications.",
   toastView: "View",
   toastFallbackTitle: "New notification",
   justNow: "Just now",

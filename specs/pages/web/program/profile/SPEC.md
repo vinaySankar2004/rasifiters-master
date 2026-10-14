@@ -1,6 +1,6 @@
 # Page: `program/profile` (web) — my profile (program-settings sub-route 3 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/profile` — the logged-in user's **own "My Profile" account page** (first/last name +
 > gender + **email view/change** + Delete Account), the third of the six deferred `/program/*` settings sub-routes (reached from the
 > [`program`](../SPEC.md) hub's "My Account" row). **Despite living under `/program/*` it is NOT a
@@ -45,18 +45,19 @@ best-effort Supabase `admin.deleteUser`).
 - **App:** `web`. **Route:** `/program/profile`. **Protected** — under the `middleware.ts` matcher (unauth edge
   request → `/login`). `useAuthGuard({ requireProgram: false })` — **no active program required** (you can edit
   your profile with no program selected); there is **no role redirect** (every role may edit own profile).
-- **Reached via:** the [`program`](../SPEC.md) hub's "My Account" row, and the account menu elsewhere
-  (`router.push("/program/profile")`).
+- **Reached via:** the [`program`](../SPEC.md) hub's "My Account" row, the `/programs` picker's "My Account" menu
+  (Profile row), and the header initials circle on `/summary` and `/program` (0.4.2, summary/program D-PC1) — all
+  `router.push("/program/profile")`.
 - **Chrome:** `PageShell maxWidth="3xl"` + `PageHeader` (title "My Profile", `backHref = program?.id ?
   "/program" : "/programs"` — back to the hub if a program is active, else the programs list). No bottom nav
   (it is a sub-route, not a workspace tab).
-- **Leaves to:** `/program` or `/programs` on Back; `/login` after a successful account deletion.
+- **Leaves to:** Back (`BackButton` → `router.back()`, or browser Back) returns to the page it was opened from (`/summary`, `/program` or `/programs`); `backHref` is only the no-history fallback. `/login` after a successful account deletion.
 
 ## 4. Contents / sections
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "My Profile" + Back → `/program` or `/programs`. | profile/page.tsx:111-112 |
+| Header | `PageHeader` "My Profile" + Back (`router.back()`) → the opener; `backHref` = no-history fallback. | profile/page.tsx (`PageHeader`) |
 | Identity card | Avatar pill (`initials`), `First Last` (or `memberName`), `@username`, role label. | profile/page.tsx:114-126 |
 | Name fields | First name / Last name inputs (`input-shell`, labels linked by `htmlFor`), 2-up on `sm`; seeded from the session name until the profile arrives. A failed profile read shows `InlineLoadError` ("Couldn't load this" + Retry) above them (D-REL5). | profile/page.tsx:128-147 |
 | Gender | Shared **`Select`** (D-GENDER) — "Select gender" placeholder + the shared `GENDER_OPTIONS` (`lib/genders.ts`). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
@@ -202,6 +203,7 @@ best-effort Supabase `admin.deleteUser`).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.2 | 2026-10-13 | Reached-via grows (touch-up (c), summary/program D-PC1): the Summary / Program header circle, plus the `/programs` account menu (already true, now documented); Back returns to the opener (§3 + the §4 Header row; `backHref` = no-history fallback). No change to this page. |
 | 0.4.1 | 2026-10-13 | **D-REL5 — Phase 4 polish (`ec13107`).** #15 `Deleting…` + the error under Delete Account, above the caption; #18 sign-in methods "—" until loaded (Link disabled, Add password hidden), `InlineLoadError` + Retry, reload on reconnect, Save waits for the profile; #23 Google Link button retries when back online; #37 linked labels. |
 | 0.4.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 Pass B, `b2ea09b`): `HideActivityToggle` above Sign out everywhere, behind `PEOPLE_LIVE` (dark until the store release); missing echo = failure; unsaved edits survive. No toast on this route. |
 | 0.3.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 ("Sign out everywhere" above Delete Account, every role, `POST /auth/logout-all`) · D-REL2 (set-password rule 6 + `passwordSet` copy; `has_password` refetch closes the form) · D-REL3 (no `refresh_token` on link/unlink; gate + hint removed) · D-REL4 (credential errors via `credentialErrorMessage(…, "account")`, save/delete via the kit; save uses `updateUser`). §4/§5/§6/§8 updated (incl. the sign-in-methods block). |

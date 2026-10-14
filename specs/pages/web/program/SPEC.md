@@ -1,6 +1,6 @@
 # Page: `program` (web) — the program settings hub (fourth & last workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/program` — **the fourth (last) bottom-nav tab** of a program's workspace. The settings hub:
 > a role-gated menu of settings entries (program info/edit · members/invite · role management · workout types ·
 > leave program · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins.
@@ -52,6 +52,7 @@ edit/profile/password/appearance/privacy/roles editors and re-uses the cross-tab
   `/program/{edit,roles,profile,password,appearance,privacy}`, plus `/members/list` · `/members/invite` ·
   `/lifestyle/workouts`. The 6 `/program/*` sub-routes were **deferred** at port time as their own page-spec
   rows and have **all since been built** (F2).
+- **Header circle (0.3.1, D-PC1):** the initials circle → `/program/profile`; Back returns here.
 
 ## 4. Contents / sections
 
@@ -60,7 +61,7 @@ shared sign-out/account section + the leave-confirm dialog.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "Program" + active program name + a user-initials avatar pill. | program/page.tsx:90-98 |
+| Header | "Program" + active program name + the user's initials circle — a button (`aria-label="My Profile"`) that opens `/program/profile` (0.3.1, D-PC1). | program/page.tsx (`<header>`) |
 | Error banner | `ErrorState` on a failed leave mutation. **0.3.0 (D-REL1):** a failed membership read (or, on the admin view, a failed workout-types read) shows the kit `ErrorView` + Retry under it; a failed refresh over shown data shows the floating "Couldn't refresh · Retry" banner. | program/page.tsx (header + `loadError` / `loadStale`) |
 | **Admin variant** — Program Info | Select Program (→ `/programs`) · Edit Program Details (→ `/program/edit`, subtitle = status + date range). | program/page.tsx:104-138 |
 | Admin — Members | View Members (→ `/members/list`, subtitle = active count) · Invite Member (`canInvite` → `/members/invite`). **0.2.0 (D-NP1):** behind `PEOPLE_LIVE` the first row reads **`People`** · `<n> enrolled` (dark today: `View Members` · `<n> active`). | program/page.tsx (Members section) |
@@ -153,6 +154,7 @@ and is not gated by the lock.)
 | **D-C3** | **Keep `computeProgramProgress` local (no change).** It is **client-computed** from `program.start_date`/`end_date`, semantically distinct from the summary tab's `ProgramProgressCard` which uses the **server-derived** `progress_percent`/`elapsed_days` (run-11 "client copy vs server copy"). Single-use here; not hoisted. Flagged §10 (F4). | `program/page.tsx:434-453`; `summary/page.tsx:338-347`; user answer (confirm, no change). |
 | **D-REL1** | **Phase 4 polish (#33, #41).** #33 honest roster / roles / workout-type states (the Summary recipe): `Loading...` while loading, "—" only after a failed read, the role-lists empty line only on loaded data, one kit `ErrorView` + Retry (`retryNow` on the failed key) for a failed membership read or — admin view only — a failed workout-types read, the stale `FloatingBanner` at page root, refetch on reconnect (program-memberships **D-C7** #33; program-workouts **D-C3**). #41 `MyAccountSection` names the member (name + `@username` + initials, iOS ProfileRow parity), adds a **Support** row (`Get help or contact us`, opens `/support` in a new tab), and Sign Out opens a `Sign Out?` / `Are you sure you want to sign out?` / `Sign Out` confirm (the picker keeps its `Sign Out` title). | `ec13107`; polish amendments PA1 (#41 copy) |
 | **D-NP1** | **Phase 4 account rows + the People label (0.2.0; notifications D-C30, people D-C13).** `MyAccountSection` gains `Inbox` (the unread `badge`: `<n> new` + a red count pill — W18; opens `/programs?open=inbox`), `Notifications` (`Choose what you're notified about` → `/program/notifications`) and, for global admins, `Announcements` (→ `/program/announcements`). The Members section's first row reads `People` · `<n> enrolled` only when `PEOPLE_LIVE` (release day); dark it keeps `View Members` · `<n> active`. | NP amendments R7, R8, NP-U1; web plan W5, W18. |
+| **D-PC1** | **Touch-up (c) — the header circle opens My Profile (2026-10-13).** The header's initials circle (was a decorative `<div>`) is a `<button type="button" aria-label="My Profile">` with the same classes → `router.push("/program/profile")`; Back (`router.back()` / browser Back) returns to `/program`. Same as web summary D-PC1 and the iOS/Android Summary + Program headers. `MyAccountSection` keeps its profile row. | user, touch-up (c) (reliability HANDOFF) |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -169,6 +171,7 @@ and is not gated by the lock.)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle is a button (`aria-label="My Profile"`, same look) → `/program/profile`; Back returns to Program. |
 | 0.3.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #33 honest roster / roles / workout-type states (`Loading...`, "—" only on failure, ErrorView + Retry, stale banner, reload on reconnect); #41 signed-in-as profile row (name + `@username`), Support row (new tab), `Sign Out?` confirm. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`b2ea09b`).** My Account rows `Inbox` (count), `Notifications`, `Announcements` (global admins); the Members row label `People` · `<n> enrolled` behind `PEOPLE_LIVE` (dark: unchanged). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error goes through `toAppError` (frontend-kit D-KIT-19, #8). |

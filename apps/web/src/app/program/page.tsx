@@ -130,9 +130,15 @@ export default function ProgramPage() {
             <h1 className="text-3xl font-bold text-rf-text">Program</h1>
             <p className="mt-1 text-sm font-semibold text-rf-text-muted">{program?.name ?? "Program"}</p>
           </div>
-          <div className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-rf-accent text-base font-bold text-black">
+          {/* Touch-up (c), D-PC1: the initials circle opens My Profile; its Back (router.back) returns here. */}
+          <button
+            type="button"
+            onClick={() => router.push("/program/profile")}
+            aria-label="My Profile"
+            className="ml-auto flex h-12 w-12 items-center justify-center rounded-full bg-rf-accent text-base font-bold text-black"
+          >
             {userInitials || "RF"}
-          </div>
+          </button>
         </header>
 
         {errorMessage && <ErrorState message={errorMessage} />}

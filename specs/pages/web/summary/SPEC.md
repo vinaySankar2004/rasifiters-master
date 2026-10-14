@@ -1,6 +1,6 @@
 # Page: `summary` (web) — the program workspace overview (first tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.3 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.4 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary` — **the first bottom-nav tab** of a program's workspace; the screen you land on
 > after selecting a program on the hub (`saveActiveProgram` → `router.push("/summary")`). Sibling tabs
 > (`/members`, `/lifestyle`, `/program`) and the 6 summary sub-routes are **not** in this run (deferred).
@@ -52,12 +52,13 @@ real screen — the first web surface to consume the analytics + logging backend
   on **mobile** `/summary/log-workout` (the unified "Add workouts" form) · `/summary/log-health` (the action
   cards route to pages instead of opening modals). The 3 detail cards were deferred at port time and are
   **since built** (F2). (`/summary/bulk-log-workout` was removed in the 2026-07-01 merge.)
+- **Header circle (0.4.4, D-PC1):** the initials circle → `/program/profile`; Back returns here.
 
 ## 4. Contents / sections
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | "Summary" + active program name + the user's initials avatar. | summary/page.tsx:178, 313-335 |
+| Header | "Summary" + active program name + the user's initials circle — a button (`aria-label="My Profile"`) that opens `/program/profile` (0.4.4, D-PC1). | summary/page.tsx (`SummaryHeader`) |
 | Error view (D-REL1) | Kit `ErrorView` ("Couldn't load this" + the kit message + Retry) when any of the 8 reads failed with nothing to show; the cards that loaded stay. A stale read (cached data, refresh failed) shows the floating "Couldn't refresh · Retry" banner instead. | summary/page.tsx (`summaryError` / `summaryStale`) |
 | Program Progress | `GlassCard` with an SVG circular gauge (`progress_percent`), elapsed/total days, a `StatusBadge` (shown only once the summary has loaded — D-REL4), and elapsed/remaining day counts; "…" while loading, "—" after a failure. | summary/page.tsx:186, 337-396 |
 | Activity Timeline | Clickable card → `/summary/activity`; a Recharts `BarChart` of workouts + active members over the **week** (label + daily average). | summary/page.tsx:187-192, 489-536 |
@@ -163,6 +164,7 @@ disabled UI + messaging.
 | **D-REL3** | **Offline = link + reachability (polish-1).** A read that failed while offline (`useOnlineStatus` = `navigator.onLine` && not proven offline) shows the kit's offline `ErrorView` + Retry (a timeout included); queries don't auto-retry while offline, so it shows at once. When the combined value comes back, the failed reads refetch (`useRefetchOnReconnect`). | polish-1 rules 5–6; frontend-kit D-KIT-13. |
 | **D-C1** | **One typed cleanup:** `ProgramProgressCard`'s prop typed `summary?: AnalyticsSummary` instead of `summary?: any` (the `AnalyticsSummary` type already exists in `lib/api/summary.ts`). Non-behavioral — the same `program_progress` fields are read. No other cleanup (the `summaryPeriod="week"` const stays faithful — F4). | `summary/page.tsx:337`; `lib/api/summary.ts:3-49`; user answer ("faithful + minor typed cleanups"). |
 | **D-REL4** | **Phase 4 polish (#16, #30, #36, #37, #43).** #16 the two bulk-log forms load their lookups through `use-log-lookups.ts` (members + workout types + programs together): a failed load → `InlineLoadError` + Retry, reload on reconnect, lists from an earlier good load kept; the specific empty hints only on loaded data (workout-logs **D-C12**, daily-health-logs **D-C8**). #30 honest landing states: "…" while a read has nothing to show (stat cards, Program Progress, daily average), "—" only after a settled failure, Workout Types "Loading…" / "—", the status badge only once loaded (analytics **D-C11**, analytics-v2 **D-C6**; frontend-kit D-KIT-11 in-flight idiom). #36 in the forms the mobile Remove pill is a 44 px `text-sm` target and the desktop ✕ reads `Remove entry {n}` (frontend-kit **D-KIT-22**; PA12). #37 both desktop bulk-log modals set `closeOnEscape={false}` (frontend-kit **D-KIT-24**). #43 the health card gradient darkens to `sky-700 → blue-700` with full-white body text. | `ec13107`; polish amendments PA1, PA4, PA12, U3 |
+| **D-PC1** | **Touch-up (c) — the header circle opens My Profile (2026-10-13).** `SummaryHeader`'s initials circle (was a decorative `<div>`) is a `<button type="button" aria-label="My Profile">` with the same classes → `router.push("/program/profile")`. Back (`BackButton` → `router.back()`, or browser Back) returns to `/summary` with the active program intact. Parity: web `/program`, iOS `SummaryHeader`/`StandardProgramTab`, Android `SummaryScreen`/`ProgramScreen` (only Back is platform idiom). The `/programs` account button is unchanged — its menu holds rows reachable only there. | user, touch-up (c) (reliability HANDOFF) |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -180,6 +182,7 @@ disabled UI + messaging.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.4 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle is a button (`aria-label="My Profile"`, same look) → `/program/profile`; Back returns to Summary. |
 | 0.4.3 | 2026-10-13 | **D-REL4 — Phase 4 polish (`ec13107`).** #16 form lookups via `use-log-lookups.ts` (`InlineLoadError` + Retry, reload on reconnect, empty hints only when loaded); #30 "…" while loading / "—" after a failure, Workout Types "Loading…"; #36 Remove pill 44 px + ✕ `Remove entry {n}`; #37 `closeOnEscape={false}` on both bulk-log modals; #43 darker health card gradient. |
 | 0.4.2 | 2026-10-13 | Phase 4 quick wins: reads fail after the first try and Retry uses `retryNow` for every query that failed or is still retrying (D-KIT-18, #6); the workout / health form errors go through `toAppError` (D-KIT-19, #8). |
 | 0.4.1 | 2026-10-13 | Polish-1 — D-REL3 (a read failed while offline → kit offline `ErrorView` at once; failed reads refetch when the combined online value returns). |

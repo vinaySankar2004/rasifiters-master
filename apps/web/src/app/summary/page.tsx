@@ -225,7 +225,12 @@ export default function SummaryPage() {
 
   return (
     <PageShell>
-        <SummaryHeader title="Summary" subtitle={program?.name ?? "Program"} initials={userInitials || "RF"} />
+        <SummaryHeader
+          title="Summary"
+          subtitle={program?.name ?? "Program"}
+          initials={userInitials || "RF"}
+          onOpenProfile={() => router.push("/program/profile")}
+        />
 
         {/* polish-1 rule 6: a read that failed while offline shows the kit's offline view (a timeout included). */}
         {summaryError && <ErrorView error={online ? summaryError : appError("offline")} onRetry={retrySummary} />}
@@ -400,11 +405,13 @@ function stillLoading(query: QueryLike<unknown>): boolean {
 function SummaryHeader({
   title,
   subtitle,
-  initials
+  initials,
+  onOpenProfile
 }: {
   title: string;
   subtitle: string;
   initials: string;
+  onOpenProfile: () => void;
 }) {
   return (
     <div className="flex items-center gap-6">
@@ -413,9 +420,15 @@ function SummaryHeader({
         <p className="mt-1 text-sm font-semibold text-rf-text-muted">{subtitle}</p>
       </div>
       <div className="ml-auto flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rf-accent text-base font-bold text-black">
+        {/* Touch-up (c), D-PC1: the initials circle opens My Profile; its Back (router.back) returns here. */}
+        <button
+          type="button"
+          onClick={onOpenProfile}
+          aria-label="My Profile"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-rf-accent text-base font-bold text-black"
+        >
           {initials}
-        </div>
+        </button>
       </div>
     </div>
   );

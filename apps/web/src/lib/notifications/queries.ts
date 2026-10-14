@@ -9,10 +9,12 @@ import {
   type QueryClient
 } from "@tanstack/react-query";
 import {
+  clearInbox,
   fetchInbox,
   fetchNotificationPreferences,
   fetchUnreadCount,
   markNotificationsRead,
+  removeInboxItem,
   updateNotificationPreferences,
   type InboxPage,
   type MarkReadResult,
@@ -20,6 +22,7 @@ import {
   type PreferencesUpdate,
   type UnreadCounts
 } from "@/lib/api/notifications";
+import { toAppError } from "@/lib/kit/app-error";
 
 // Notification query keys + hooks (the notifications inbox contract). No member id in the keys: the sign-out teardown
 // clears the whole QueryClient (auth-provider). The gate keeps the unread count + preferences cached app-wide; the
@@ -59,13 +62,20 @@ export function useInboxQuery(token: string) {
 
 type ReadTarget = string[] | "all";
 
-/** A mark-read answer: the server's fresh counts, and the read items marked read in the cached inbox. */
-function applyReadResult(queryClient: QueryClient, result: MarkReadResult, target: ReadTarget): void {
+type InboxData = InfiniteData<InboxPage>;
+
+/** The server's fresh counts → the "+" badge and the account row (they share this cache entry). */
+function setUnreadCounts(queryClient: QueryClient, result: UnreadCounts): void {
   queryClient.setQueryData<UnreadCounts>(NOTIFICATION_KEYS.unread, {
     unread: result.unread,
     pending_invites: result.pending_invites,
     badge: result.badge
   });
+}
+
+/** A mark-read answer: the server's fresh counts, and the read items marked read in the cached inbox. */
+function applyReadResult(queryClient: QueryClient, result: MarkReadResult, target: ReadTarget): void {
+  setUnreadCounts(queryClient, result);
   const readAt = new Date().toISOString();
   const isRead = (id: string) => target === "all" || target.includes(id);
   queryClient.setQueryData<InfiniteData<InboxPage>>(NOTIFICATION_KEYS.inbox, (data) =>
@@ -133,5 +143,60 @@ export function useUpdatePreferences(token: string) {
       if (context?.previous) queryClient.setQueryData(NOTIFICATION_KEYS.preferences, context.previous);
     },
     onSuccess: (preferences) => queryClient.setQueryData(NOTIFICATION_KEYS.preferences, preferences)
+  });
+}
+
+/** Optimistic inbox edit: stop in-flight reads (they would overwrite it) and keep the old pages for the rollback. */
+async function editInbox(queryClient: QueryClient, edit: (data: InboxData) => InboxData) {
+  await queryClient.cancelQueries({ queryKey: NOTIFICATION_KEYS.inbox });
+  const previous = queryClient.getQueryData<InboxData>(NOTIFICATION_KEYS.inbox);
+  if (previous) queryClient.setQueryData<InboxData>(NOTIFICATION_KEYS.inbox, edit(previous));
+  return { previous };
+}
+
+/** Remove one (§3.9 rule 11): the row leaves the cached pages at once and comes back if the server refuses; a 404
+ *  (already gone on another device) counts as removed. The answer's counts feed the "+" badge and the account row.
+ *  Settled either way, the inbox is re-read: a read the edit cancelled is replaced by a fresh one (InboxList's
+ *  mark-all waits for it), and a load that started mid-delete can't leave the removed row on screen. */
+export function useRemoveInboxItem(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string): Promise<UnreadCounts | null> => {
+      try {
+        return await removeInboxItem(token, id);
+      } catch (error) {
+        if (toAppError(error).kind === "notFound") return null;
+        throw error;
+      }
+    },
+    onMutate: (id) =>
+      editInbox(queryClient, (data) => ({
+        ...data,
+        pages: data.pages.map((page) => ({ ...page, items: page.items.filter((item) => item.id !== id) }))
+      })),
+    onError: (_error, _id, context) => {
+      if (context?.previous) queryClient.setQueryData(NOTIFICATION_KEYS.inbox, context.previous);
+    },
+    onSuccess: (result) => {
+      if (result) setUnreadCounts(queryClient, result);
+      else void queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.unread });
+    },
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.inbox })
+  });
+}
+
+/** Clear all (§3.9 rule 11): every notification leaves at once (one empty page, so no "Load more"); a refusal restores
+ *  the pages; success sets the counts. Settled either way, the inbox is re-read (anything that arrived meanwhile, and a
+ *  read the edit cancelled). Invitations are a separate list and never change here. */
+export function useClearInbox(token: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => clearInbox(token),
+    onMutate: () => editInbox(queryClient, () => ({ pages: [{ items: [], next_cursor: null }], pageParams: [null] })),
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(NOTIFICATION_KEYS.inbox, context.previous);
+    },
+    onSuccess: (result) => setUnreadCounts(queryClient, result),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.inbox })
   });
 }
