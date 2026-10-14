@@ -1,6 +1,6 @@
 # Screen: `program` (android) — the Program tab (4th bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the iOS Program tab
 > (`Features/Home/Tabs/{Admin,Standard}ProgramTab.swift` + `ProgramCards.swift`) + the web `/program`
 > surfaces — this file records only the Android realization + idiom deviations.
@@ -10,7 +10,7 @@
 ## Parity + role bifurcation (`isProgramAdmin`)
 
 Header (both variants): **"Program"** + active-program name + the signed-in user's gradient initials avatar
-(web-parity avatar, same as the Summary tab).
+(web-parity avatar, same as the Summary tab). **0.3.1:** tapping it opens [`my-profile`](../my-profile/SPEC.md) (D-PC1).
 
 - **Standard (non-admin):** read-only **Program Info** card (Name / Status pill / Duration / Progress bar +
   elapsed·remaining days / Active Members — client date math, iOS `ProgramContext` computeds) + a standalone
@@ -73,10 +73,17 @@ notifications` → the [`inbox`](../inbox/SPEC.md) screen) · **Change Password*
   refresh** (re-reads all three) and the floating `Couldn't refresh · Retry` banner (with list clearance) when a load is
   stale. #45 the Health Connect row's subtitle reads `Sync workouts, sleep, and steps` (`ProgramAccountSection.kt`).
 
+## Profile circle (0.3.1)
+
+- **D-PC1 (touch-up (c)):** the header initials circle is `Modifier.tapTarget(label = "My Profile", shape =
+  CircleShape)` (first in the chain; 52 dp, look unchanged) → `Routes.PROGRAM_PROFILE`. System back pops to the Program
+  tab. The My Account profile row stays. Parity: web `/program`, iOS `AdminProgramTab`/`StandardProgramTab`.
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle opens `MyProfileScreen` (`tapTarget` "My Profile", same look); system back returns to Program. |
 | 0.3.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #33 admin sections on the kit states — `Loading...` / `—` + `Couldn't load this · Retry` (People, Workout Types), spinner / inline error / honest empty (Role Management), pull to refresh, stale banner, reconnect reload; #45 Health Connect subtitle `Sync workouts, sleep, and steps`. Stale A-1 (Health Connect row omitted) struck. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`d528f75`).** "View Members" → `People` · `<n> enrolled` (the People list); the My Account `Inbox` row (`<n> new`). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error goes through `toAppError()` (frontend-kit D-KIT-19, #8). |

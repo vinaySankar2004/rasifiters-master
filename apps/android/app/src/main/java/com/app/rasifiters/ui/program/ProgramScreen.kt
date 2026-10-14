@@ -45,6 +45,7 @@ import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
 import com.app.rasifiters.ui.components.kit.STALE_BANNER_CLEARANCE
 import com.app.rasifiters.ui.components.kit.initialLoadState
 import com.app.rasifiters.ui.components.kit.rememberLoad
+import com.app.rasifiters.ui.components.tapTarget
 import com.app.rasifiters.ui.programs.initialsOf
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -105,7 +106,11 @@ fun ProgramScreen(
                 .padding(top = 24.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Header(programName = program?.name ?: "", initials = initialsOf(memberName))
+            Header(
+                programName = program?.name ?: "",
+                initials = initialsOf(memberName),
+                onOpenProfile = { onNavigate(Routes.PROGRAM_PROFILE) },
+            )
 
             errorMessage?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error) }
 
@@ -220,7 +225,7 @@ fun ProgramScreen(
 }
 
 @Composable
-private fun Header(programName: String, initials: String) {
+private fun Header(programName: String, initials: String, onOpenProfile: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text("Program", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
@@ -231,8 +236,11 @@ private fun Header(programName: String, initials: String) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
         }
+        // Touch-up (c), D-PC1: the initials circle opens My Profile; system back pops back here. tapTarget goes first
+        // (TapTarget.kt order rule); at 52dp the look is unchanged.
         Box(
             modifier = Modifier
+                .tapTarget(label = "My Profile", shape = CircleShape, onClick = onOpenProfile)
                 .size(52.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(AppOrange, AppOrangeGradientEnd))),

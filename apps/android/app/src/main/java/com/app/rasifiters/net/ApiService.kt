@@ -290,6 +290,14 @@ interface ApiService {
     @POST("notifications/inbox/read")
     suspend fun markInboxRead(@Body body: InboxReadRequest): UnreadCountsDTO
 
+    /** Remove one of this member's own items (404 = unknown / already gone) → fresh counts. */
+    @DELETE("notifications/inbox/{id}")
+    suspend fun removeInboxItem(@Path("id") id: String): UnreadCountsDTO
+
+    /** Clear all — every notification (the invitations are separate and stay) → fresh counts. */
+    @DELETE("notifications/inbox/all")
+    suspend fun clearInbox(): UnreadCountsDTO
+
     @GET("notifications/preferences")
     suspend fun getNotificationPreferences(): NotificationPreferencesDTO
 

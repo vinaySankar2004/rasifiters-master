@@ -1,6 +1,6 @@
 # Screen: `summary` (android) — the per-program workspace overview (first bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-summary`](../../ios/admin-summary/SPEC.md)
 > + [`web summary`](../../web/summary/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.SUMMARY` (`SummaryScreen`) — Tab 1 of the per-program
@@ -39,13 +39,18 @@
   (`AppScaffold`, A6) — the tab content gives up its height while it shows. **Pull to refresh** reloads at once,
   runs a `pull_to_refresh` health sync on the app scope, and reloads again if the sync applied anything (A13). The
   cache is written only after a full success, only while signed in, and cleared by sign-out.
+- **D-PC1 (0.2.2, touch-up (c)):** the header initials circle opens [`my-profile`](../my-profile/SPEC.md)
+  (`Modifier.tapTarget(label = "My Profile", shape = CircleShape)` first in the chain; 52 dp, so the look is unchanged →
+  `Routes.PROGRAM_PROFILE`). System back pops to Summary with its scroll and the active program intact. Parity: web
+  `/summary`, iOS `SummaryHeader`.
 - **Deviation A-1 (no card drag-reorder):** the dashboard is a **fixed vertical layout** — iOS's per-program
   `UserDefaults` card drag-reorder (iOS F1) is an iOS-only legacy nicety **web lacks**, so it is not ported.
   Layout order = iOS `defaultOrder`: progress → add-workouts → log-health → (MTD | total-workouts) →
   (total-duration | avg-duration) → timeline → distribution → workout-types.
-- **Deviation A-2 (header avatar = signed-in user):** the initials avatar shows the **logged-in user's**
+- ~~**Deviation A-2 (header avatar = signed-in user):** the initials avatar shows the **logged-in user's**
   initials (`ProgramContext.memberName`), matching **web** ("the user's initials avatar"), not iOS's program
-  admin initials — resolves the cross-app divergence toward web parity (memory `ios-matches-web-not-just-legacy`).
+  admin initials — resolves the cross-app divergence toward web parity (memory `ios-matches-web-not-just-legacy`).~~
+  *(No longer a deviation at 0.2.2 — iOS shows the signed-in user's initials too, `loggedInUserInitials`; D-PC1.)*
 - **Deviation A-3 (progress source):** the progress ring % comes from the loaded **`ProgramDTO.progress_percent`**
   (server value, same as the picker/web `program_progress`); elapsed/total days are computed client-side from
   `start_date`/`end_date` (the iOS date math). The vestigial `analytics/summary` over-fetch (iOS F2 / web F5 —
@@ -81,6 +86,7 @@ detail screens). Program progress needs **no** call (read from the `ProgramDTO`)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle opens `MyProfileScreen` (`tapTarget` "My Profile", same look); system back returns to Summary. A-2 is no longer a deviation (iOS matches). |
 | 0.2.1 | 2026-10-13 | **Polish 1 (offline detection).** No data while offline (link down OR proven offline by a failed request) → the kit's offline `ErrorView` + Retry, never the spinner (rule 6); back online, a failed / stale Summary reloads itself (D-KIT-13). Compile-checked green (`assembleDebug`). |
 | 0.2.0 | 2026-10-13 | **Reliability Phase 3 C3 — D-C3.** Cached Summary first, 7 parallel reads with partial-failure merge, spinner (never zero cards), `ErrorView`, floating stale banner (offline = the app-wide banner), pull to refresh with a `pull_to_refresh` health sync. D-C1 superseded. Compile-checked green (`assembleDebug`). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase D — the Summary **dashboard landing**). `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`; `ProgramContext` gains `summary`/`summaryLoading`/`summaryError` + `dataEntryLocked` + `loadSummary()`; `net` gains 7 analytics DTOs + `SummaryData` + 7 GET endpoints; theme gains `AppOrangeGradientEnd`/`AppBlue`/`AppPurple`/`AppRed` + `ChartPalette` + `workoutTypePaletteColor`. Faithful to iOS/web incl. D-C1 error banner + D-C2 data-lock; deviations A-1..A-4 (no card reorder, signed-in-user avatar, ProgramDTO progress source, Canvas charts). The 5 forward targets stubbed per D-SCOPE. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

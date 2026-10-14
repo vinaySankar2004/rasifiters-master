@@ -52,6 +52,7 @@ import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.components.kit.ErrorView
 import com.app.rasifiters.ui.components.kit.FloatingBanner
 import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
+import com.app.rasifiters.ui.components.tapTarget
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -69,7 +70,6 @@ import java.time.temporal.ChronoUnit
  *
  * Android-idiom deviations (see specs/pages/android/summary/SPEC.md):
  *  • No card drag-reorder (iOS-only legacy nicety, web lacks it) — fixed vertical layout.
- *  • Header avatar shows the signed-in user's initials (web parity) rather than the program admin's (iOS).
  *  • Progress read from the loaded ProgramDTO (progress_percent + date math), skipping the vestigial
  *    `analytics/summary` over-fetch (feeds only the deferred detail views — iOS F2 / web F5).
  * The 5 forward targets (activity / distribution / workout-types / log-workout / log-health) are stubs
@@ -115,7 +115,11 @@ fun SummaryScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) 
                     .padding(horizontal = 20.dp, vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Header(programName = program?.name ?: "", initials = initialsOf(memberName))
+                Header(
+                    programName = program?.name ?: "",
+                    initials = initialsOf(memberName),
+                    onOpenProfile = { onNavigate(Routes.PROGRAM_PROFILE) },
+                )
 
                 if (locked) DataLockBanner()
 
@@ -212,7 +216,7 @@ private fun UnavailableCard(title: String, modifier: Modifier = Modifier, height
 }
 
 @Composable
-private fun Header(programName: String, initials: String) {
+private fun Header(programName: String, initials: String, onOpenProfile: () -> Unit) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Column(modifier = Modifier.weight(1f)) {
             Text("Summary", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
@@ -223,8 +227,11 @@ private fun Header(programName: String, initials: String) {
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             )
         }
+        // Touch-up (c), D-PC1: the initials circle opens My Profile; system back pops back here. tapTarget goes first
+        // (TapTarget.kt order rule); at 52dp the look is unchanged.
         Box(
             modifier = Modifier
+                .tapTarget(label = "My Profile", shape = CircleShape, onClick = onOpenProfile)
                 .size(52.dp)
                 .clip(CircleShape)
                 .background(Brush.linearGradient(listOf(AppOrange, AppOrangeGradientEnd))),

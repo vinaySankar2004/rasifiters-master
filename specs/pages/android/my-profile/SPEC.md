@@ -1,8 +1,10 @@
 # Screen: `my-profile` (android) — account profile editor
 
-> **Status:** 🏗️ built · **Version:** 0.3.1 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.3.2 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = iOS `Features/Home/Settings/MyProfileView.swift` + web `/program/profile`.
-> **Location:** `ui/shell/AppScaffold.kt` route `Routes.PROGRAM_PROFILE` (`MyProfileScreen`).
+> **Location:** `ui/shell/AppScaffold.kt` route `Routes.PROGRAM_PROFILE` (`MyProfileScreen`). Reached from the Program
+> tab's profile row, the picker's account menu (`AccountMenuSheet`, root route) and — 0.3.2, summary/program D-PC1 —
+> the Summary / Program header initials circle; back pops to the screen it was opened from.
 > **Files:** `ui/program/ProfileScreen.kt`.
 
 ## Parity (iOS 1:1)
@@ -70,6 +72,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.2 | 2026-10-13 | Reached-via grows (touch-up (c), summary/program D-PC1): the Summary / Program header circle, plus the picker's account menu (already true, now documented). No change to this screen. |
 | 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #15 delete error under its button; #18 sign-in methods `—` / Link disabled / Add password hidden until loaded, `Couldn't load this` + Retry, reconnect reload; #44 gender sent only when changed (Clear = explicit null); #35 email / new-password autofill; #36 labelled 48 dp targets. |
 | 0.3.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 People, `d528f75`): `HideActivitySection` above Sign out everywhere; missing echo = failure with rollback. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the Sign-out-everywhere and Delete Account errors go through `toAppError()` (frontend-kit D-KIT-19, #8). |

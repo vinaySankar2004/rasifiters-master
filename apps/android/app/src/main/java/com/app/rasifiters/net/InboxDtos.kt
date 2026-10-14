@@ -29,7 +29,7 @@ data class InboxPageDTO(
     @SerialName("next_cursor") val nextCursor: String? = null,
 )
 
-/** `GET /inbox/unread-count` and the `POST /inbox/read` answer. [badge] = unread items except invite items + pending
+/** `GET /inbox/unread-count` and the `POST /inbox/read` / `DELETE /inbox/…` answer. [badge] = unread items except invite items + pending
  *  invites — the "+" badge (Android draws no app-icon count: launcher dots are the OS's, the platform idiom). */
 @Serializable
 data class UnreadCountsDTO(
@@ -38,6 +38,8 @@ data class UnreadCountsDTO(
     val badge: Int = 0,
     /** Only on `POST /inbox/read`: how many items this call marked. */
     val updated: Int? = null,
+    /** Only on `DELETE /inbox/:id` / `DELETE /inbox/all`: how many items this call removed. */
+    val deleted: Int? = null,
 )
 
 /** `POST /inbox/read` — either [ids] (1–100) or [all] = true; the null one is omitted (explicitNulls = false). */

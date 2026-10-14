@@ -492,8 +492,8 @@ rule 3 · C7.5 → rule 4 · C7.6 → rule 8 · C7.7 → rule 9 · C7.8 → rule
 9. After accepting or declining an invite, mark that program's unread `program.invite_received` items read.
 10. iOS sets the app-icon badge to `badge`; Android shows launcher dots only (no count); web has none.
 11. **Remove + Clear all (0.7.0, D-C32):** every notification row is removable — iOS: a left swipe reveals Remove;
-    Android: swipe the card away end→start (40 % threshold; a quick short flick also removes — M3's fling threshold is
-    fixed); web: an × per row (platform idiom); VoiceOver / TalkBack get a Remove action. Clear all sits on the
+    Android: swipe the card away end→start (it must pass ~40 % of the card width, slow or fast — a short brush or flick
+    springs back; a `confirmValueChange` gate overrides M3's fixed fling threshold); web: an × per row (platform idiom); VoiceOver / TalkBack get a Remove action. Clear all sits on the
     Notifications heading line only while a notification is listed, behind a confirm. Optimistic: rows leave at once (a
     load already in flight is dropped) and come back on a refusal with the failure line under the heading (web: a
     refused Clear all shows inside its kept-open dialog); a 404 on remove counts as removed; offline fails at once with

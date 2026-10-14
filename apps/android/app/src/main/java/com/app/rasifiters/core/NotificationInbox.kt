@@ -1,5 +1,7 @@
 package com.app.rasifiters.core
 
+import com.app.rasifiters.core.kit.AppErrorException
+import com.app.rasifiters.core.kit.AppErrorKind
 import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.kit.failing
@@ -12,6 +14,8 @@ import com.app.rasifiters.net.NotificationPreferencesDTO
 import com.app.rasifiters.net.NotificationPreferencesUpdate
 import com.app.rasifiters.net.UnreadCountsDTO
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +26,8 @@ import java.time.Instant
 import kotlin.coroutines.cancellation.CancellationException
 
 private const val INVITE_TYPE = "program.invite_received"
+/** [NotificationInbox.loadFirstPage]'s answer when a remove / Clear all superseded the page (nothing was applied). */
+private class DroppedLoadException : Exception("An inbox edit superseded this load.")
 /** `POST /inbox/read` takes at most 100 ids. */
 private const val MAX_READ_IDS = 100
 
@@ -68,6 +74,13 @@ class NotificationInbox(
     val canLoadMore: StateFlow<Boolean> = _canLoadMore.asStateFlow()
     private val _loadingMore = MutableStateFlow(false)
     val loadingMore: StateFlow<Boolean> = _loadingMore.asStateFlow()
+    /** Bumped by every optimistic remove / Clear all: a first-page load already in flight then is dropped on landing
+     *  (its rows would bring the removed items back). */
+    private var listEdits = 0
+    /** Removes / Clear alls still waiting for the server's answer. */
+    private var editsInFlight = 0
+    /** A newest-page load was dropped by an edit: re-read it once [editsInFlight] is back to 0. */
+    private var reloadWhenSettled = false
 
     private var visibleCount = 0
     private val _inboxVisible = MutableStateFlow(false)
@@ -150,20 +163,36 @@ class NotificationInbox(
 
     // ---- the list ----
 
-    /** The newest page (30). */
+    /** The newest page (30). A page that lands after a remove / Clear all began is dropped (it may still hold what was
+     *  removed) and reported as a failure, so nothing marks read off the stale list; it is re-read once the edits settle. */
     suspend fun loadFirstPage(): Result<Unit> {
         val o = owner() ?: return Result.success(Unit)
+        val edits = listEdits
         _items.value = _items.value.refreshing()
-        return runCatching { api.getInbox() }
+        val result = runCatching { api.getInbox() }
+        if (o != owner()) return result.map { }
+        if (edits != listEdits) {
+            reloadWhenSettled = true
+            reloadIfSettled()
+            return Result.failure(DroppedLoadException())
+        }
+        return result
             .onSuccess { page ->
-                if (o != owner()) return@onSuccess
                 nextCursor = page.nextCursor
                 _canLoadMore.value = page.nextCursor != null
                 if (_inboxVisible.value) noteNew(page.items)
                 _items.value = UiState.fresh(page.items)
             }
-            .onFailure { if (it !is CancellationException && o == owner()) _items.value = _items.value.failing(it.toAppError()) }
+            .onFailure { if (it !is CancellationException) _items.value = _items.value.failing(it.toAppError()) }
             .map { }
+    }
+
+    /** A dropped page's re-read, once no remove / Clear all waits on the server (a fresh page then matches the list). On
+     *  screen it marks everything read as usual, so a visit never stays unread because its load was dropped. */
+    private fun reloadIfSettled() {
+        if (!reloadWhenSettled || editsInFlight > 0 || owner() == null) return
+        reloadWhenSettled = false
+        scope.launch { loadAndMarkRead() }
     }
 
     /** The inbox is on screen: load the newest page, then mark everything read (the reading rule). */
@@ -224,6 +253,83 @@ class NotificationInbox(
             .filter { it.type == INVITE_TYPE && it.programId == programId && it.readAt == null }
             .map { it.id }
         if (ids.isEmpty()) refreshCounts() else markRead(ids)
+    }
+
+    // ---- remove one + Clear all (§3.9 rule 11, D-C32) ----
+
+    // Both writes run on this hub's long-lived scope: leaving the Inbox mid-request never cancels them, so the rollback
+    // and the counts still land. The caller may await the answer (the failure line, the swipe's spring-back).
+
+    /** Swipe-remove one item: it leaves the list at once and comes back where it was if the server refuses; a 404
+     *  (already gone on another device) counts as removed. The answer's counts move the "+" badge. */
+    fun remove(id: String): Deferred<Result<Unit>> = scope.async { removeNow(id) }
+
+    /** "Clear all": every notification leaves at once — the invitations (program_invites) are never touched; a refusal
+     *  puts them back under anything that arrived meanwhile; success re-reads the newest page. */
+    fun clearAll(): Deferred<Result<Unit>> = scope.async { clearAllNow() }
+
+    private suspend fun removeNow(id: String): Result<Unit> {
+        val o = owner() ?: return Result.success(Unit)
+        val before = _items.value.dataOrNull ?: return Result.success(Unit)
+        val index = before.indexOfFirst { it.id == id }
+        if (index < 0) return Result.success(Unit)
+        val removed = before[index]
+        listEdits++
+        updateItems { list -> list.filterNot { it.id == id } }
+        return serverEdit { api.removeInboxItem(id) }.fold(
+            onSuccess = { counts -> applyCounts(o, counts); Result.success(Unit) },
+            onFailure = { e ->
+                if (e is CancellationException) throw e
+                val error = e.toAppError()
+                when {
+                    o != owner() -> Result.success(Unit)
+                    error.kind == AppErrorKind.NOT_FOUND -> { refreshCounts(); Result.success(Unit) }
+                    else -> {
+                        updateItems { list ->
+                            if (list.any { it.id == id }) list
+                            else list.toMutableList().apply { add(index.coerceAtMost(size), removed) }
+                        }
+                        Result.failure(AppErrorException(error))
+                    }
+                }
+            },
+        )
+    }
+
+    private suspend fun clearAllNow(): Result<Unit> {
+        val o = owner() ?: return Result.success(Unit)
+        val before = _items.value.dataOrNull ?: return Result.success(Unit)
+        if (before.isEmpty()) return Result.success(Unit)
+        listEdits++
+        val couldLoadMore = _canLoadMore.value
+        updateItems { emptyList() }
+        _canLoadMore.value = false          // no "Load more" under a just-cleared list; the re-read sets it again
+        return serverEdit { api.clearInbox() }.fold(
+            onSuccess = { counts ->
+                applyCounts(o, counts)
+                loadFirstPage()
+                Result.success(Unit)
+            },
+            onFailure = { e ->
+                if (e is CancellationException) throw e
+                if (o == owner()) {
+                    updateItems { list -> list + before.filter { old -> list.none { it.id == old.id } } }
+                    _canLoadMore.value = couldLoadMore
+                }
+                Result.failure(AppErrorException(e.toAppError()))
+            },
+        )
+    }
+
+    /** One remove / Clear all request, counted in flight until the server answers (then a dropped page is re-read). */
+    private suspend fun <T> serverEdit(call: suspend () -> T): Result<T> {
+        editsInFlight++
+        return try {
+            runCatching { call() }
+        } finally {
+            editsInFlight--
+            reloadIfSettled()
+        }
     }
 
     // ---- live items, pushes, opening ----
@@ -329,6 +435,7 @@ class NotificationInbox(
         nextCursor = null
         _canLoadMore.value = false
         _loadingMore.value = false
+        reloadWhenSettled = false
         _visitNewIds.value = emptySet()
         _preferences.value = UiState.Idle
         _toast.value = null
