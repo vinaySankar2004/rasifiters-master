@@ -5,7 +5,7 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-14) — ANDROID 1.2.0 + PEOPLE ON WEB LIVE · iOS 1.5.2 (61) IN REVIEW
+## Now (2026-10-14) — ANDROID 1.2.1 + PEOPLE ON WEB LIVE · iOS 1.5.2 (61) IN REVIEW
 
 - **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
@@ -13,10 +13,9 @@
   - **iOS 1.5.2 (61): Waiting for Review** (resubmitted 2026-10-14 in place of (60): Month x-axis fix + corrected
     description), **automatic release** (public on approval, set by the user 2026-10-14). The only unexpired TestFlight build
     (Internal); 56–60 expired. Repo pre-bumped to **1.5.3 (62)**.
-  - **Android 1.2.0 (7): PUBLIC**; the refreshed listing description (People, Inbox, reminders) is live.
-    **1.2.1 (8)** (R8 on, for Play's DEX check due Feb 2027) is live in closed testing — Google sign-in + workout
-    verified on the Pixel's Play build — and **in production review** (goes live on approval; managed publishing
-    **OFF** since 2026-10-14). Repo at versionCode **9**. app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge).
+  - **Android 1.2.1 (8): PUBLIC** (2026-10-14; R8 on — Play's DEX-optimisation warning, due Feb 2027, cleared) +
+    the refreshed listing description. app-config `LATEST_ANDROID_VERSION_CODE = 8` → "Update available" banner on
+    1.1.0+ (`MIN_*` unset). Managed publishing **OFF** (approved changes go live on their own). Repo at versionCode **9**.
 - **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. **People is on for web**
   (`PEOPLE_LIVE = true`, `apps/web/src/lib/api/people.ts` — the off switch), turned on with Android public and iOS
   still in review (the user's call).
@@ -35,8 +34,10 @@
   storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; until iOS 1.5.2 is
   public, iPhone users see People only on web (Hide my activity is in web My Profile).
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
-  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip; Android 1.2.1 (8)
-  on the Pixel (closed testing): check Google sign-in + log a workout, then promote to production.
+  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip. **Only when next
+  building Android anyway** (Play's optional tips): `isShrinkResources = true` (smaller download; no `getIdentifier`
+  use) and bump `activity-compose` past 1.9.3 (clears the deprecated edge-to-edge API note — the calls are inside
+  AndroidX; the app already calls `enableEdgeToEdge()`). Skip AGP 9 unless upgrading for another reason.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 
@@ -46,9 +47,7 @@
    `LATEST_IOS_VERSION = 1.5.2` (Render env, merge, the user's yes; it redeploys), updates RELEASES.md and marks Phase 4
    🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once adoption allows. A problem first → remove from review, fix, upload
    **1.5.2 (62)** (same version while 1.5.2 is unapproved), re-attach.
-2. **Production 1.2.1 (8) in review** (sent 2026-10-14, the user's yes) → live on approval. Then Claude sets
-   `LATEST_ANDROID_VERSION_CODE = 8` (Render env, the user's yes) and updates RELEASES.md.
-3. ~2026-10-27: recheck Google's shown site name before doing anything more
+2. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
 ## Workstream status
@@ -58,8 +57,8 @@
 | W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
 | W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
 | W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (61) in App Store review |
-| W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | ✅ Android 1.2.0 (7) public |
-| W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | ✅ Android 1.2.0 (7) public |
+| W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | ✅ Android public (1.2.1 (8)) |
+| W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | ✅ Android public (1.2.1 (8)) |
 | W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS in review |
 | W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web + Android live; iOS in review |
 
@@ -121,4 +120,5 @@
   corrected (it said Health Connect), resubmitted; TestFlight 56–60 expired. Repo 1.5.3 (62). Play description refreshed;
   managed publishing OFF; Android R8 on → 1.2.1 (8) sideload-tested on the Pixel, in closed-testing review; App Store
   switched to automatic release (the user). Repo versionCode 9. 1.2.1 (8) verified on the Play build →
-  production review; testbed re-refreshed (reviewer admin drift healed, 3 reviewer-made programs removed).
+  production → **live**, `LATEST_ANDROID_VERSION_CODE = 8` (banner); testbed re-refreshed (reviewer admin drift healed,
+  3 reviewer-made programs removed).

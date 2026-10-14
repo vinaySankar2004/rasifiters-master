@@ -1,6 +1,6 @@
 # Phase 4 — decisions (user, 2026-10-13)
 
-> **Status: built + device-tested 2026-10-13** (backend + web live; Android 1.2.0 (7) public; iOS 1.5.2 (61) in App Store
+> **Status: built + device-tested 2026-10-13** (backend + web live; Android public (1.2.1 (8)); iOS 1.5.2 (61) in App Store
 > review). Amendments made while building: `../plans/phase-4-{wave-a,np,polish,touchup}-amendments.md`; the as-built
 > rules live in the feature SPECs (§9).
 

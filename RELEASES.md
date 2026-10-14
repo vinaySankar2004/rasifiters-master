@@ -42,16 +42,17 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| Play Store (production) | **1.2.0 (7)** | **LIVE — public on Google Play** (published 2026-10-13 night) | 2026-10-13 | **Current public release** — 100% rollout, 178 countries. Un-updated 1.0.0 (4) installs linger; the backend must keep degrading gracefully for them. Play flags DEX obfuscation at 1% (fix by Feb 2027) → **1.2.1 (8) with R8 on**: closed testing live, **production in review** (live on approval); repo at versionCode 9. app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge). **Managed publishing OFF** since 2026-10-14. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
+| Play Store (production) | **1.2.1 (8)** | **LIVE — public on Google Play** (published 2026-10-14) | 2026-10-14 | **Current public release** — 100% rollout, 178 countries. R8 on: Play's DEX-optimisation warning (due Feb 2027) is cleared. app-config `LATEST_ANDROID_VERSION_CODE = 8` → "Update available" banner on 1.1.0+ (1.0.0 (4) installs predate the check; the backend must keep degrading gracefully for them). Repo at versionCode 9. **Managed publishing OFF** since 2026-10-14. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
 | Play Console — closed testing ("Alpha") | **1.2.1 (8)** | **Available** (R8 build, released 2026-10-14 11:50) | 2026-10-14 | The route that reaches the user's Pixel (it only receives builds through closed testing) |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
-| Play Console — internal testing | **1.2.0 (7)** | **Available to internal testers** (released 2026-10-13 20:57 local) | 2026-10-13 | **The store candidate**: Phase 4 + release touch-ups (inbox remove / Clear all, profile circle). Built by `./gradlew :app:bundleRelease` with the upload key |
+| Play Console — internal testing | **1.2.0 (7)** | Available to internal testers (released 2026-10-13 20:57 local) | 2026-10-13 | Superseded — 1.2.1 (8) went straight to closed testing (the Pixel's only channel); internal is unused |
 
 ## Release log (append-only, newest first)
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
-| 2026-10-14 | Android | 1.2.1 (8) | Play — production | promoted from closed testing after the Pixel check on the Play build (Google sign-in `/auth/oauth` 200, workout batch 201); full rollout (the user's yes) | **In review** — goes live on approval (managed publishing off) |
+| 2026-10-14 | Android | 1.2.1 (8) | Play — production + app-config | approved and published (100%); `LATEST_ANDROID_VERSION_CODE = 8` on prod Render (the user's yes — banner, not a block) | **LIVE — public** |
+| 2026-10-14 | Android | 1.2.1 (8) | Play — production | promoted from closed testing after the Pixel check on the Play build (Google sign-in `/auth/oauth` 200, workout batch 201); full rollout (the user's yes) | **Approved → live** (row above) |
 | 2026-10-14 | Android | 1.2.1 (8) | Play — closed testing (Alpha) | R8 build (APK 3.39 MB, −13.6 MB); sideloaded smoke test on the Pixel passed (all requests 200/201); uploaded by the user, sent for review with the listing change (review restarted to bundle) | **Approved → available to closed testers** (released 14 Oct 11:50); production after the Pixel check |
 | 2026-10-14 | Android | (listing) | Play — store listing | full description refreshed (People, Inbox, reminders; "Connect to Health Connect"); no AI-asset labels; managed publishing turned OFF (the user's call) so it publishes on approval | **Approved → live** on the public listing |
 | 2026-10-14 | iOS | 1.5.2 (56–60) | TestFlight | expired every build but (61) — housekeeping (the user's yes); App Store 1.4.2 unaffected | **Expired** |
