@@ -188,6 +188,13 @@ func axisValues(for period: AdminHomeView.Period, startDate: Date, endDate: Date
     }
 }
 
+/// Whether a timeline x-axis mark gets its grid line + label. Month (~31 daily bars) keeps only the
+/// `axisValues` days 1/8/15/22/29 (Android's `axisLabels` thins the same way). `AxisMarks(values:)` alone stopped
+/// thinning the categorical axis on the Xcode 27 SDK — 1.5.2 drew all 31 days — so the mark content filters too.
+func showsAxisMark(_ label: String, period: AdminHomeView.Period, ticks: [String]) -> Bool {
+    period != .month || ticks.contains(label)
+}
+
 func shortLabel(for value: String, period: AdminHomeView.Period) -> String {
     switch period {
     case .year, .program:

@@ -110,11 +110,9 @@ struct StepsTimelineDetailView: View {
                                 }
                             } else {
                                 AxisMarks(values: ticks) { value in
-                                    AxisGridLine()
-                                    AxisValueLabel {
-                                        if let s = value.as(String.self) {
-                                            Text(shortLabel(for: s, period: period))
-                                        }
+                                    if let s = value.as(String.self), showsAxisMark(s, period: period, ticks: ticks) {
+                                        AxisGridLine()
+                                        AxisValueLabel { Text(shortLabel(for: s, period: period)) }
                                     }
                                 }
                             }
