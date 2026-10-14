@@ -13,10 +13,10 @@
   - **iOS 1.5.2 (61): Waiting for Review** (resubmitted 2026-10-14 in place of (60): Month x-axis fix + corrected
     description), **automatic release** (public on approval, set by the user 2026-10-14). The only unexpired TestFlight build
     (Internal); 56–60 expired. Repo pre-bumped to **1.5.3 (62)**.
-  - **Android 1.2.0 (7): PUBLIC.** In Play review together (managed publishing **OFF** since 2026-10-14 — approved
-    changes go live on their own): the refreshed listing description (People, Inbox, reminders) and closed-testing
-    **1.2.1 (8)** (R8 on, for Play's DEX check due Feb 2027; sideloaded Pixel smoke test passed). Repo at versionCode
-    **9**. app-config `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge); `MIN_*` and iOS values untouched.
+  - **Android 1.2.0 (7): PUBLIC**; the refreshed listing description (People, Inbox, reminders) is live. Closed
+    testing has **1.2.1 (8)** (R8 on, for Play's DEX check due Feb 2027; sideloaded Pixel smoke test passed). Managed
+    publishing **OFF** since 2026-10-14 (approved changes go live on their own). Repo at versionCode **9**. app-config
+    `LATEST_ANDROID_VERSION_CODE = 7` (soft nudge); `MIN_*` and iOS values untouched.
 - **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. **People is on for web**
   (`PEOPLE_LIVE = true`, `apps/web/src/lib/api/people.ts` — the off switch), turned on with Android public and iOS
   still in review (the user's call).
@@ -46,7 +46,7 @@
    `LATEST_IOS_VERSION = 1.5.2` (Render env, merge, the user's yes; it redeploys), updates RELEASES.md and marks Phase 4
    🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once adoption allows. A problem first → remove from review, fix, upload
    **1.5.2 (62)** (same version while 1.5.2 is unapproved), re-attach.
-2. **Play approves closed-testing 1.2.1 (8)** (it goes live on its own) → the user reinstalls from the Play Store on the
+2. **Closed-testing 1.2.1 (8) is available** (approved 2026-10-14) → the user reinstalls from the Play Store on the
    Pixel, checks Google sign-in + logs a workout → Claude promotes (8) to production (the user's yes).
 3. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
