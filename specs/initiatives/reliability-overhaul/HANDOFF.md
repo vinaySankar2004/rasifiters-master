@@ -55,6 +55,11 @@
 1. **The user tests Phase 4** on iPhone (TestFlight 59), web, and the Pixel once closed testing is approved, using
    [`phase-4/TEST-CHECKLIST.md`](phase-4/TEST-CHECKLIST.md). For any issue: check the same thing on all three
    surfaces, then fix → review → commit. Phone fixes go in a new build: iOS 1.5.2 (60) / Android 7.
+   - **Test results so far (2026-10-13):**
+     - §1 Notifications passes on iPhone + web. A composer announcement reached the Pixel's old Play build as a push
+       banner only, as designed.
+   - **Final touch-ups list** (the user's ideas, for after testing, before release):
+     - (a) Inbox management: clear all / swipe to delete. Today, retention deletes items after 90 days.
 2. **Release day** (the user's call): flip `PEOPLE_LIVE`, then do the ONE store release (App Store submission + Play
    production, each with the user's yes). Then update RELEASES.md and app-config `LATEST_*`.
 3. Close Phase 4 in BRIEF §7, PROGRESS.md, the session log and the skills' Converged lessons (multiplex: the
