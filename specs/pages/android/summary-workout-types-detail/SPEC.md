@@ -1,6 +1,6 @@
 # Screen: `summary-workout-types-detail` (android) — the Workout Types drill-down
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios summary-workout-types-detail`](../../ios/summary-workout-types-detail/SPEC.md)
 > + [`web summary/workout-types`](../../web/summary/workout-types/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.SUMMARY_WORKOUT_TYPES` (`WorkoutTypesDetailScreen`), pushed
@@ -27,3 +27,15 @@
 
 Pre-loaded by the Summary tab (`GET /analytics/workouts/types?programId&limit` → `[WorkoutTypeDTO]`, sessions
 DESC). This screen only renders them.
+
+## Phase 4 polish (0.1.1)
+
+- **D-REL1 (#36; frontend-kit D-KIT-22).** The back button (shared `CircleBackButton`, `ui/summary/DetailChrome.kt`) is
+  a labelled (`Back`) 48 dp target; the screen file itself is unchanged. #29 isn't reachable here: with types
+  unavailable the Summary card is a non-tappable `UnavailableCard`, so the detail only opens with loaded types.
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #36 the shared back button is a labelled 48 dp target (no change to this screen's file). |

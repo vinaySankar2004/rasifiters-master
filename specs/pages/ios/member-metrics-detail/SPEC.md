@@ -1,6 +1,6 @@
 # Screen: `member-metrics-detail` (ios) — the Member Performance Metrics table
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's metrics-preview card
 > (`AdminMembersTab.swift:45`, `NavigationLink { MemberMetricsDetailView() }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Detail/MemberMetricsViews.swift`
@@ -8,7 +8,8 @@
 > `FilterSheet`, lines 236–410).
 > **Web parity reference:** [`web members/metrics`](../../web/members/metrics/SPEC.md) — same searchable + server-sorted +
 > server-filtered metrics grid + client CSV export. Faithful-agree → faithful IS web parity.
-> **Consumes:** `ProgramContext.loadMemberMetrics` (`GET /member-metrics`); reads `memberMetrics`. No write.
+> **Consumes:** ~~`ProgramContext.loadMemberMetrics` (`GET /member-metrics`); reads `memberMetrics`~~
+> `APIClient.fetchMemberMetrics` (`GET /member-metrics`) into the screen's own `LoadState` (0.2.2, D-REL1). No write.
 > **Stance:** faithful 1:1 port. Oddities §10.
 
 ---
@@ -29,14 +30,14 @@ no logging, no lock.
 ## 3. Route / location
 
 - **App:** `ios`. **Reached via:** `AdminMembersTab` metrics-preview card → `MemberMetricsDetailView()` (no args;
-  reads all state from `ProgramContext`).
+  ~~reads all state from `ProgramContext`~~ loads its own results — 0.2.2, D-REL1).
 - **Leaves to:** the `SortSheet` + `FilterSheet` modals; back only. No forward-nav (leaf detail).
 
 ## 4. Contents / sections
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Search field | `TextField` "Search member" → re-fetch on commit / clear. | legacy `:262-284` |
+| Search field | `TextField` "Search member" → re-fetch on commit / clear (sets `committedSearch`, part of the load key — 0.2.2). | legacy `:262-284` |
 | Sort + Filter buttons | open `SortSheet` (9 `SortField` cases) / `FilterSheet`. | legacy `:286-328` |
 | Content list | `MemberMetricsCard(metric:hero:)` per member; loading skeletons; "No members to display." empty. | legacy `:331-360` |
 | Export toolbar | `square.and.arrow.up` → `exportCSV()` → temp `.csv` → `ShareSheet`; disabled when empty. | legacy `:242-254`, `:377-403` |
@@ -48,13 +49,17 @@ no logging, no lock.
 - **New this run (`Features/Home/Detail/MemberMetricsDetailView.swift`):** `MetricsFilters`, `SortSheet`, `FilterSheet`.
 - **Reused (run 55, `MemberOverviewPicker.swift`):** `SortField`, `SortDirection`, `MemberMetricsCard` — NOT redefined.
 - **Reused (foundation):** `ShareSheet`/`ShareItem`.
-- **Features:** none as a module — reads `ProgramContext` (`memberMetrics`, `memberMetricsRangeStart/End`, `name`,
-  `startDate`) and calls `loadMemberMetrics` directly (faithful).
+- **Features:** none as a module — ~~reads `ProgramContext` (`memberMetrics`, `memberMetricsRangeStart/End`, `name`,
+  `startDate`) and calls `loadMemberMetrics` directly (faithful).~~ *(0.2.2, D-REL1)* keeps its own
+  `LoadState<MemberMetricsResponse>` (via `APIClient`); reads only `programId` / `name` / `startDate` from
+  `ProgramContext` and writes nothing shared. Kit: `LoadStateContent` + `.loadStateChrome` + `loadOutcome`.
 
 ## 6. Data / API
 
-- **`GET /member-metrics?search=&sort=&direction=&…filters…`** (`ProgramContext.loadMemberMetrics`) — server does the
-  search / sort / filter; sets `memberMetrics` + the range dates. CSV export is client-side (no endpoint).
+- **`GET /member-metrics?search=&sort=&direction=&…filters…`** (~~`ProgramContext.loadMemberMetrics`~~
+  `APIClient.fetchMemberMetrics`, 0.2.2) — server does the search / sort / filter; ~~sets `memberMetrics` + the range
+  dates~~ the response (rows + `date_range`) is the screen's own state. CSV export is client-side (no endpoint) from
+  those rows; its S / E are the response's own `date_range`.
 - Read-only; `admin_only_data_entry` **N/A**.
 
 ## 7. Role-based view rules
@@ -68,10 +73,16 @@ no logging, no lock.
 
 ## 8. States & edge cases
 
-- **Loading:** `isLoading` → 3 redacted skeleton cards.
-- **Empty:** `memberMetrics.isEmpty` → "No members to display."
-- **Control change:** `.onChange` of sortField / sortDirection / filters / `programId` re-fetches.
-- **Error:** `loadMemberMetrics` swallows failures (no `errorMessage` surfaced) — both web + legacy iOS swallow → parity.
+- **Loading:** ~~`isLoading`~~ the `LoadStateContent` placeholder → 3 redacted skeleton cards; offline with no data →
+  the offline `ErrorStateView`, never the skeletons (0.2.2).
+- **Empty:** the loaded list empty → "No members to display."
+- **Control change:** ~~`.onChange` of sortField / sortDirection / filters / `programId` re-fetches.~~ *(0.2.2,
+  D-REL1)* the load is keyed on (program, committed search, sort, direction, filters): a change resets to loading in the
+  same event, `.task(id: query)` loads, and a result for an older query is dropped — the list and the CSV always match
+  the controls (QA6's queued reload removed). A sort / filter change does not apply search text that wasn't committed.
+- **Error:** ~~`loadMemberMetrics` swallows failures (no `errorMessage` surfaced) — both web + legacy iOS swallow → parity.~~
+  *(superseded at v0.2.2 by D-REL1)* failed with no data → `ErrorStateView` + Retry; a failed Retry over a shown list →
+  the list stays with the floating `Couldn't refresh` · Retry banner; reload on reconnect.
 
 ## 9. Decisions made
 
@@ -81,12 +92,13 @@ no logging, no lock.
 | **D-S1** | **Stance = faithful 1:1.** Both web `/members/metrics` AND legacy iOS agree on the shape (server-driven search/sort/filter, client CSV) → faithful IS web parity (run-55/56 both-agree). No web-parity ADD. | legacy file; web SPEC; user answer. |
 | **D-REF** | **Keep iOS-native.** Reached via a `NavigationLink` push (vs web's route); the metric set + role posture already match web → platform idiom, not a gap. `consumed_by=[ios]`. | run-52/53; [[ios-matches-web-not-just-legacy]]. |
 | **D-DEPS** | **No new dependency** — `SortField`/`SortDirection`/`MemberMetricsCard` already ported (run 55), `ShareSheet` + `loadMemberMetrics` + all DTOs in the foundation (run 50). Only the view-local `MetricsFilters`/`SortSheet`/`FilterSheet` port co-located. | collision grep; run-50/55. |
+| **D-REL1** | **Phase 4 polish (#29, #34).** #29 the kit detail load (frontend-kit **D-KIT-21**): own `LoadState<MemberMetricsResponse>` filled by `APIClient.fetchMemberMetrics` — never `ProgramContext.memberMetrics`, the Members-tab preview's copy (member-analytics **D-C13**); `LoadStateContent` (3 skeleton cards, offline view with no data, `ErrorStateView` + Retry) + `.loadStateChrome` (stale banner, reconnect reload). #34 keyed list load (member-analytics **D-C9**, iOS wording): `MetricsQuery` = (program, `committedSearch`, sort, direction, filters); `.onChange(of: query)` → loading, `.task(id: query)` loads, `loadOutcome` + `applying` drop an older query's result — replaces the wave-A QA6 queued reload and the `listRange*` capture. Search applies on Return / clear: a deliberate micro-change, a sort / filter change no longer applies uncommitted text (iOS plan P-12). The CSV's S / E = the response's own `date_range`. | `05e185a`; iOS plan P-4, P-12, step 44 |
 
 ## 10. Flagged characteristics kept as-is
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
-| **F1** | **Server-driven sort/filter/search** — every control change re-fetches (not client-side filtered); mirrors web F1. | `MemberMetricsDetailView.swift` `.onChange` | Kept (faithful). |
+| **F1** | **Server-driven sort/filter/search** — every control change re-fetches (not client-side filtered); mirrors web F1. | `MemberMetricsDetailView.swift` ~~`.onChange`~~ `.task(id: query)` (0.2.2) | Kept (faithful). |
 | **F2** | **Entry-path asymmetry** — the Members tab links here only for `isProgramAdmin`, but the screen + backend (`ensureProgramAccess`) allow any active member reaching it directly (mirrors web F2). | `AdminMembersTab.swift:45`; backend | Kept (faithful); backend is the real boundary. |
 | **F3** | **Client CSV export** (no server endpoint) — mirrors web F4. | `exportCSV()` | Kept (faithful). |
 | **F4** | **Hero metric is sort-coupled** (the big number follows `sortField`) — mirrors web F5. Default sortField = `.active_days` (D-C7 0.4.0; was `.workouts`). | `MemberMetricsCard(hero:)` | Kept (faithful). |
@@ -96,6 +108,7 @@ no logging, no lock.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #29 own `LoadState` via `APIClient` (never the tab preview's `memberMetrics`) + kit error view / Retry / stale banner / offline view / reconnect reload (the swallow retired); #34 keyed list load on (program, committed search, sort, direction, filters) — an older query's result is dropped, QA6's queued reload removed; the CSV's S / E from the response's own `date_range`. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the CSV export follows the shared column contract (member-analytics D-C9, #47) — the filename's S / E come from the list's own load, a control change during a load queues a reload, and Export is disabled while loading. |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (sortField initial `.active_days`; `SortField.allCases` order + CSV unchanged). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 63) — the Members **metrics-detail table**, ported into `apps/ios/.../Features/Home/Detail/MemberMetricsDetailView.swift` (+ co-located `MetricsFilters`/`SortSheet`/`FilterSheet`); deferred stub removed. **D-SCOPE** (Members detail cluster) · **D-S1** (faithful 1:1 — both-agree = web parity) · **D-REF** (keep iOS-native; `consumed_by=[ios]`) · **D-DEPS** (no new dep — `SortField`/`SortDirection`/`MemberMetricsCard` reused from run 55). Flagged F1–F5. Read-only → `admin_only_data_entry` N/A. Build green-check owned by the user (Xcode); symbols grep-verified. |

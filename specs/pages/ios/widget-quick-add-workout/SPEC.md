@@ -1,6 +1,6 @@
 # Screen: `widget-quick-add-workout` (ios) — the "Add workouts" widget deep-link form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.1 · **App:** `ios` (SwiftUI)
 > **Location:** presented by `AppRootView` when a Home-Screen widget deep-links `WidgetRoute.quickAddWorkout`
 > (`.fullScreenCover(item: widgetRoute) { QuickAddWorkoutWidgetEntryView() }`, gated on `authToken != nil`).
 > Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`). **0.3.0 (D-NP1):** also
@@ -50,9 +50,10 @@ duplicate (member, workout, date) rows (409 + `rowErrors`). All-or-nothing — n
 
 | Block | What | Shared component |
 |-------|------|------------------|
-| Header | Back button (→ `exitToMyPrograms`) + title **"Add workouts"** + the in-app subtitle. | `WidgetQuickAddHeader` |
+| Header | Back button (→ `exitToMyPrograms`; 44-pt hit area on the 36-pt circle, spoken `Back` — D-REL1) + title **"Add workouts"** + the in-app subtitle. | `WidgetQuickAddHeader` |
+| Lookup error (conditional, 0.3.1) | `ErrorStateView` + Retry under the Programs list when the program list or a selected program's lookup failed (D-REL1). | `programsError` / `selectionError` |
 | Programs | Multi-select list of **loggable** programs (active + not data-entry-locked); **nothing pre-checked** (`currentProgramId: ""`), always shown (`alwaysShow: true`). | `ProgramMultiSelectSection` (the in-app selector) |
-| Entry N rows | Per row: **Member** (only when the viewer may pick — else hidden/self), **Workout** (`SearchablePickerSheet` over the workout-name **intersection** across selected programs), **Date** (compact `DatePicker`), **Duration** (`Hours`/`Minutes`). Removable; red border + message on a client/back-end row error. | in-app `rowCard` (ported) |
+| Entry N rows | Per row: **Member** (only when the viewer may pick — else hidden/self), **Workout** (`SearchablePickerSheet` over the workout-name **intersection** across selected programs), **Date** (compact `DatePicker`), **Duration** (`Hours`/`Minutes`). Removable (✕ 44-pt, `Remove entry N` — D-REL1); red border + message on a client/back-end row error. Picker sheets carry the D-REL1 empty hints. | in-app `rowCard` (ported) |
 | Add-row controls | `+ Add row` / `+ Add 5 rows` (max 200). | in-app `addRowControls` (ported) |
 | Footer summary | "N rows • [M members •] T min total". | in-app `summaryLine` (ported) |
 | Save all | `AppPrimaryButton` "Save all" / "Saving…"; disabled unless ≥1 program selected AND ≥1 valid row with 0 invalid. | — |
@@ -102,13 +103,21 @@ admin/logger/global-admin in **every** selected program — the member column hi
 ## 8. States & edge cases
 
 - **Init (`task`):** load `ProgramContext.programs` if empty (`loadLookupData` + a `fetchPrograms` fallback); add
-  one empty row. Nothing pre-selected.
+  one empty row. Nothing pre-selected. (0.3.1) A failure that leaves the program list empty → `programsError`.
 - **On program-selection change:** `loadSelectedProgramData()` fetches members + workouts for newly-selected
   programs (cached), then `syncRowsAfterSelectionChange()` reconciles rows — **skipped while any selected program's
-  lookup is still missing** so a transient fetch failure can't wipe entered rows (§10 F3).
+  lookup is still missing** so a transient fetch failure can't wipe entered rows (§10 F3). (0.3.1) A failed fetch is
+  recorded as `selectionError` — only while the **current** selection still lacks a lookup (an overlapping pass for an
+  older selection leaves no stale error).
+- **Lookup failure (D-REL1):** `ErrorStateView` + Retry on the form (Retry / back online reloads whatever failed —
+  `reloadLookups()`); the picker sheets show `Couldn't load this`.
+- **Empty pickers (D-REL1):** the hint shows only once **every selected program's lookup has arrived** —
+  `No active members in this program yet.` / `No workout types available for this program yet.`; nothing selected or
+  still loading → no text; an unmatched search → `No results`.
 - **Member column appears/disappears** (`onChange(of: ignoreMember)`): disappearing → all rows forced to self;
   appearing → the auto-seeded self is cleared so the field reads "Select member" (in-app parity).
-- **No shared workouts across the selection:** the workout picker is empty until the selection narrows.
+- **No shared workouts across the selection:** the workout picker is empty until the selection narrows (since
+  0.3.1 it says `No workout types available for this program yet.` once the selection's lookups have arrived).
 - **Invalid / duplicate rows:** Save disabled; per-row red highlight + message (client) or `rowErrors` (server 409).
 - **Saving:** `isSaving` → button spinner + disabled. **Success:** toast → auto-exit to My Programs (~1.4 s).
 
@@ -120,6 +129,7 @@ admin/logger/global-admin in **every** selected program — the member column hi
 | **D-LOGGABLE** | **Program list shows only loggable programs** (active + not data-entry-locked; current always kept). Applied in the shared `ProgramMultiSelectSection`, so it lands on the widget AND the in-app forms (and mirrored on web/android). Drops completed/locked rows entirely (were shown disabled). | User request 2026-07-09 (consistency + cleaner UI on all clients). |
 | **D-REUSE** | **No new component / no new API** — reuses `ProgramMultiSelectSection` (+ `alwaysShow`), the in-app row card/validation/save logic (ported into the widget's own `@State`, per the widget pattern), and the existing `addWorkoutLogsBatch`. The retired `WidgetProgramSelector`/`WidgetMemberField`/`widgetProgramLockedForLogging` were deleted. | in-app run-60/steps-feature; widget pattern (`WidgetQuickAddComponents.swift`). |
 | **D-NP1** | **Second entry: a `log_workout` notification (0.3.0; notifications §3.9 rule 8, NP amendments R14; iOS plan step 14).** The program picker's `inboxRoute` opens this form (unless something modal is up) with `widgetRouteFromNotification = true`; `exitToMyPrograms()` then skips `returnToMyPrograms` and resets the flag, so the member returns to where they were. The widget deep-link path is unchanged. | NP amendments R14. |
+| **D-REL1** | **Phase 4 polish (#16, #36).** #16 lookups are no longer `try?`-swallowed: `programsError` (the program list failed and is still empty — the form can't work) + `selectionError` (set only while the current selection still lacks a lookup) → `ErrorStateView` + Retry, and Retry / reconnect reload whatever failed (P-11). The picker sheets' `emptyHint` is gated on **every selected program's lookup having arrived** (`membersLoaded` / `workoutsLoaded`): loaded + empty → `No active members in this program yet.` / `No workout types available for this program yet.`, failed → `Couldn't load this`, nothing selected / loading → none; `No results` for an unmatched search (workout-logs **D-C12**; PA4). #36 the header back circle gets a 44-pt hit area (−4 pt vertical give-back, header height unchanged) + the spoken label `Back`; the row ✕ is 44 pt + `Remove entry N` (frontend-kit **D-KIT-22**). | `05e185a`; polish amendments PA1, PA4 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -133,6 +143,7 @@ admin/logger/global-admin in **every** selected program — the member column hi
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #16 failed lookups → Couldn't load · Retry (reload on reconnect; `programsError` / `selectionError`), picker hints only once every selected program's lookup arrived, `No results` for a search (workout-logs D-C12); #36 back button 44 pt + `Back`, ✕ 44 pt + `Remove entry N`. |
 | 0.3.0 | 2026-10-13 | **D-NP1 — opened from a reminder** (`198407c`): a `log_workout` notification opens this form over the current screen; save / back return there (no exit to My Programs); the widget path is unchanged. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the form opens at once with the version check alongside — an unsupported build gets the update modal over the form in place (`WidgetCoverView`, app-config D-C8, #7); the cover carries the offline banner (D-KIT-17, #2); save errors use the kit copy (#8). |
 | 0.2.0 | 2026-07-09 | **D-BATCH — the widget is now the in-app multi-row batch "Add workouts" form** (`AddWorkoutsDetailView`), replacing the legacy single-entry multi-program quick-add (per-program `addWorkoutLog` loop + rollback). Two deltas: **no auto-selected program** (`currentProgramId: ""`, no seeding, `alwaysShow: true`) + the **custom back button** exits to My Programs. Save = one `POST /workout-logs/batch` (`program_ids` = selection; `applyRowErrors` on 409). Member/workout options stay the **intersection** across selected programs. **D-LOGGABLE** — the shared `ProgramMultiSelectSection` now lists only loggable programs (active + not-locked; current kept), dropping completed/locked rows (was shown-disabled); lands here + the in-app forms, mirrored on web/android. **D-REUSE** — no new component/API; retired `WidgetProgramSelector`/`WidgetMemberField`/`widgetProgramLockedForLogging` deleted. Adversary-hardened: transient-fetch-failure no longer wipes rows (F3); admin rows start empty (in-app parity). Native build green via the xcode MCP (0 errors). |

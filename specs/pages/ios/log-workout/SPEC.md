@@ -1,6 +1,6 @@
 # Screen: `log-workout` (ios) — the Summary "Add workouts" multi-row log form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.2 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.3 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s "Add workouts" log-action card
 > (`NavigationLink { AddWorkoutsDetailView() }`). When the program is `dataEntryLocked` the card is dimmed +
 > the `NavigationLink` removed (run 54), so a locked non-admin cannot reach this screen.
@@ -46,9 +46,10 @@ enforces the `admin_only_data_entry` lock (403). Duplicate (member, workout, dat
 | Block | What | Reference |
 |-------|------|-----------|
 | Subtitle | "Add a row per session … then save them all at once." (member variant omits "member"). | `AddWorkoutsDetailView.swift` |
-| Rows (repeating) | A `ForEach` of row cards; per-row **✕ remove**, red highlight + message on a backend/client error. Up to 200 rows. | `rowCard` |
-| Member (per row) | Only when `canSelectAnyMember` → tappable `LogFieldRow` → `SearchablePickerSheet` of `members`. **Plain member: the member field is hidden entirely** and each row is seeded to the logged-in member. | `rowCard` / `memberField` (removed for members) |
-| Workout (per row) | Tappable `LogFieldRow` → `SearchablePickerSheet` over non-hidden `programWorkouts` (or global `workouts` if no program). | `rowCard` |
+| Lookup error (conditional, 0.3.3) | `ErrorStateView` + Retry above the rows when a lookup (roster / programs / workout types) failed (D-REL1). | `lookupError` |
+| Rows (repeating) | A `ForEach` of row cards; per-row **✕ remove** (44-pt hit area, header height unchanged; spoken `Remove entry N` — D-REL1), red highlight + message on a backend/client error. Up to 200 rows. | `rowCard` |
+| Member (per row) | Only when `canSelectAnyMember` → tappable `LogFieldRow` → `SearchablePickerSheet` of `members` (empty-list hint `No active members in this program yet.`, D-REL1). **Plain member: the member field is hidden entirely** and each row is seeded to the logged-in member. | `rowCard` / `memberField` (removed for members) |
+| Workout (per row) | Tappable `LogFieldRow` → `SearchablePickerSheet` over non-hidden `programWorkouts` (or global `workouts` if no program); empty-list hint `No workout types available for this program yet.` (D-REL1). | `rowCard` |
 | Date (per row) | Compact `DatePicker` (any date; new rows default to the last row's date). | `rowCard` |
 | Duration (per row) | Two `AppInputField`s (`Hours`/`Minutes`, `.numberPad`), combined to total minutes. | `rowCard` |
 | Program multi-select | `ProgramMultiSelectSection` above the rows — current program checked+disabled ("Current program"); `admin_only_data_entry`-locked programs disabled ("Admin-only — can't log"); hidden when in one program. Sends `program_ids[]` = the full selection (workout-logs 0.5.0 D-C10). | `AddWorkoutsDetailView.swift` (0.3.0) |
@@ -103,6 +104,10 @@ logger can normally log for any member yet is locked out when the flag is on (ma
 - **Init (`task`):** if `dataEntryLocked` → `dismiss()` (D-C1); else `ensureLookups()` + seed one starter
   row (member rows are pre-seeded to self so a fresh row still reads as "empty" until a workout/duration is
   entered — `ignoreMember` gate).
+- **Lookups (D-REL1):** `ensureLookups()` records a failure (`loadLookupData` / `fetchPrograms` /
+  `loadProgramWorkouts` now return theirs) → `ErrorStateView` + Retry on the form, reloaded when back online; an
+  empty picker sheet says why only once known — loaded + empty → the hint, failed → `Couldn't load this`, still
+  loading → nothing; a search with no match → `No results`. Never an empty picker that reads as "none" after a failure.
 - **Empty vs invalid rows:** empty rows are skipped; a non-empty row missing workout/duration shows an
   inline error and blocks the whole submit (all-or-nothing).
 - **Saving:** `isSaving` swaps the button spinner + disables Save.
@@ -123,6 +128,7 @@ logger can normally log for any member yet is locked out when the flag is on (ma
 | **D-C4** | **Error UX → inline** — an `appRed` error line (already legacy behavior for the workout form; matches web). | legacy `:1857-1861`; web; user answer. |
 | **D-C5** | **Merge single "Add workout" + admin-only "Bulk add" → one multi-row "Add workouts"** (`AddWorkoutsDetailView`, repurposed from `BulkAddWorkoutDetailView`; `AddWorkoutDetailView` + `BulkAddWorkoutDetailView` deleted; the `.bulkAdd` `SummaryCardType` + `BulkAddWorkoutCard` removed). Opened to **plain members** (the card was admin/logger-only): the per-row member field is **hidden** and each row is seeded to self; `ignoreMember = !canSelectAnyMember` gates the empty/valid/error-row checks so a pre-seeded member row still behaves as empty. Always posts to `/workout-logs/batch` (backed by `workout-logs` D-C8). Web parity = `LogWorkoutsForm`. | user request 2026-07-01; [[ios-matches-web-not-just-legacy]]; `workout-logs` D-C8; web summary v0.2.0. |
 | **D-DEPS** | **No new view component; two tiny foundation touches** — (a) `AppInputField.keyboardType` param (non-breaking); (b) `ProgramContext.summaryRefreshToken` published Int + the `AdminSummaryTab.onChange` observer (D-C3). Plus the shared `LogFormComponents.swift` (label/row/formatter) used by both forms. Every API method (`addWorkoutLog`), DTO, and `dataEntryLocked` already existed (foundation run 50 + run 54). | foundation inventory; run-50/54. |
+| **D-REL1** | **Phase 4 polish (#16, #36).** #16 a failed lookup is no longer swallowed: `lookupError` → `ErrorStateView` + Retry on the form (reload on reconnect), and the picker sheets get `SearchablePickerSheet(emptyHint:)` — loaded + empty → `No workout types available for this program yet.` / `No active members in this program yet.`, failed → `Couldn't load this` (`KitCopy.errorViewTitle`), still loading (`lookupsLoaded` false) → no text; a search with no match → the `No results` row (workout-logs **D-C12**; PA4). The hint lives inside the picker sheet — the sanctioned phone idiom (frontend-kit D-KIT-11). #36 the row ✕ is a 44-pt target (growth given back, header row height unchanged) with the spoken label `Remove entry N` (frontend-kit **D-KIT-22**). | `05e185a`; polish amendments PA1, PA4 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -138,6 +144,7 @@ logger can normally log for any member yet is locked out when the flag is on (ma
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.3 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #16 a failed lookup → Couldn't load · Retry on the form (reload on reconnect); picker sheets say `No workout types available for this program yet.` / `No active members in this program yet.` once loaded, `Couldn't load this` after a failure, `No results` for a search (workout-logs D-C12); #36 ✕ 44 pt + `Remove entry N`. |
 | 0.3.2 | 2026-10-13 | Phase 4 quick wins: save errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.3.1 | 2026-07-09 | **Loggable-only program list (D-LOGGABLE).** `ProgramMultiSelectSection` now lists only programs the user can log to — `status == "active"` AND not `admin_only_data_entry`-locked (the current program always kept) — dropping completed/planned + locked rows entirely (0.3.0 showed locked rows disabled "Admin-only — can't log"). Done once in the shared `LogFormComponents.swift`, so it also lands on `log-health` + both widget batch forms, mirrored on web + android. New `alwaysShow` param (default false → in-app still hides the selector when ≤1 loggable program; the widgets pass true). User request 2026-07-09 (cross-client parity + cleaner UI). `BuildProject` ✓ 0 errors; user runs the simulator/visual check. |
 | 0.3.0 | 2026-07-09 | **Multi-program logging (workout-logs 0.5.0 D-C10).** `AddWorkoutsDetailView` gains a `ProgramMultiSelectSection` above the rows (current program checked+disabled; `admin_only_data_entry`-locked programs disabled "Admin-only — can't log"; hidden when in one program) and passes `programIds: Array(selectedProgramIds)` to `APIClient.addWorkoutLogsBatch` (new `programIds:` param, `program_ids[]` body). When any selected program is non-privileged (`privileged(p)` off `p.my_role` + `isGlobalAdmin`) the per-row member field locks to self and rows reset to self on the lock transition. `ensureLookups` also fetches `programs` when empty. Build green-check owned by the user (Xcode). |

@@ -55,9 +55,12 @@ cards two-per-row (`laidOutRows()`). Each card is drag-reorderable (persisted pe
 
 ## 6. Data / API
 All endpoints already mounted + their loaders ported in the foundation (run 50) — **zero backend work, no new
-api function**. On mount + on `period` change, `load()` calls (all on `ProgramContext`): `loadAnalytics(period:)`,
+api function**. ~~On mount + on `period` change, `load()` calls (all on `ProgramContext`): `loadAnalytics(period:)`,
 `loadMTDParticipation()`, `loadTotalWorkoutsMTD()`, `loadTotalDurationMTD()`, `loadAvgDurationMTD()`,
-`loadActivityTimeline(period: timelinePeriod.apiValue)`, `loadDistributionByDay()`, `loadWorkoutTypes()`.
+`loadActivityTimeline(period: timelinePeriod.apiValue)`, `loadDistributionByDay()`, `loadWorkoutTypes()`.~~
+*(superseded by D-C3 at v0.2.0; the leftover `loadActivityTimeline` / `loadWorkoutTypes` were deleted at v0.2.3)* —
+`load()` calls `ProgramContext.loadSummary(period:timelinePeriod:read:)`: the 8 reads in parallel, returning which parts
+applied (`Set<SummaryPart>`, D-REL1) + the first failure.
 NEW decode: `ProgramDTO.admin_only_data_entry` (already returned by the backend program payload; web sources it
 identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(program:)`.
 
@@ -80,8 +83,13 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
 ## 8. States & edge cases
 - **Loading (D-C3, 1.5.0):** `LoadState` keyed by program; `.task(id:)` on (program, period, timeline period,
   `summaryRefreshToken`) — a newer key cancels the running load. Cached Summary first (`LaunchCache`), then the 8
-  loads in parallel; parts that loaded are kept. Cards with nil data fall back to `PlaceholderCard` (MTD) or an
-  in-card "No data yet" (the timeline card's never-ending spinner is gone — W7 F3).
+  loads in parallel; parts that loaded are kept. ~~Cards with nil data fall back to `PlaceholderCard` (MTD) or an
+  in-card "No data yet" (the timeline card's never-ending spinner is gone — W7 F3).~~ *(superseded at v0.2.3 by
+  D-REL1)* Each analytics card renders only once its part loaded for the program on screen (`loadedParts`); otherwise
+  `PlaceholderCard` — a spinner while a load is in flight, `—` (spoken `Unavailable`) once it settled without that part.
+  A loaded-but-empty timeline keeps its in-card "No data yet".
+- **Program switch (D-REL1):** the tab resets to loading and clears `loadedParts` in the same event, and the picker's
+  `resetProgramScopedData()` clears every Summary field — the previous program's totals never show.
 - **Error (D-C3, supersedes the D-C1 banner):** nothing loaded for this program → `ErrorStateView` (Retry) and the
   analytics cards hide (the add / progress cards stay) — never another program's or zero values; some parts loaded, or
   data + a failed refresh → those values stay with the kit stale banner. Back online → refetch. A load that fails
@@ -101,6 +109,7 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
 | **D-C2** | **Web-parity ADD — the `admin_only_data_entry` landing treatment.** A 🔒 banner (verbatim `DATA_LOCK_MESSAGE`) + dimmed/non-navigating add cards when `dataEntryLocked`. Required adding `ProgramDTO.admin_only_data_entry` decode + `ProgramContext.adminOnlyDataEntry`/`dataEntryLocked` (web `isDataEntryLocked` = flag on && not admin). Absent from legacy iOS entirely. | web `lib/permissions.ts:5,21-25`, `summary/page.tsx:196-200`; backend `Program` model |
 | **D-DEPS** | **No new dependency for the dashboard** — every analytics loader/DTO/theme symbol + the progress computeds ported in the foundation (run 50). Newly ported WITH the cards (lived only in deferred Detail files): `ScrollableBarChart`, `DistributionPoint`/`distributionPoints`, `DistributionChartOverlay`, `typeColor`/`barColor`. | dep-purity grep; foundation `WorkoutPopularityLogic.swift` |
 | **D-C3** | **Kit adoption + instant open (reliability Phase 3 C2; board §6.5, D-9; frontend-kit §5–§6).** `ProgramContext.loadSummary` runs the 8 loads in parallel (was serial) and applies every part that loaded; `LoadState<String>` (the program id on screen) + `.task(id: SummaryLoadKey)` replaces `guard !isLoading` (W7 F5); cache-first via `LaunchCache`; `ErrorStateView` only when nothing loaded (analytics cards hidden — amendment A13), any part that loaded → stale (kept values + banner) via `ScreenBanner`; the scroll content gets bottom padding while that banner shows, and the offline band is the stack's bottom safe-area inset (A6); refetch on reconnect; `.refreshable` = reload now + a background `pull_to_refresh` sync, and a run that applies workouts reloads again (A13, H5); the timeline card's empty spinner removed (W7 F3). | frontend-kit §5–§6; health-sync §8 rule 1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A6 / A13 / H5. |
+| **D-REL1** | **Phase 4 polish (#30, with #10).** #30 honest Summary cards (analytics **D-C11**, analytics-v2 **D-C6**; the frontend-kit D-KIT-11 in-flight idiom): `loadSummary` returns WHICH parts applied (`Set<SummaryPart>`) and the tab keeps `loadedParts`; each of the 7 analytics cards (MTD Participation, Total workouts, Total duration, Avg duration, timeline, distribution, top types) renders only when its part loaded — else `PlaceholderCard(isUnavailable:)`: the spinner while a load is in flight (first load, Retry, refresh), `—` (spoken `Unavailable`) after a settled failure; never a fake 0. The three chart drill-downs open only from a loaded card. #10 keyed state (frontend-kit **D-KIT-23**): a program change sets `.loading` + clears `loadedParts` in the same event; `resetProgramScopedData()` clears the Summary fields. | `05e185a`; polish amendments U3; iOS plan P-6, steps 33–34 |
 
 ## 10. Flagged characteristics (kept as-is)
 - **F1 — iOS-only drag-to-reorder + per-program `UserDefaults` persistence.** Web has no card reordering; this
@@ -123,6 +132,9 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   boundary is the backend 403 (`requireDataEntryAllowed`) reached by the deferred log forms. (web F2 mirror)
 
 ## 11. Changelog
+- **v0.2.3** (2026-10-13, **D-REL1 — Phase 4 polish (`05e185a`)**) — #30 a card without its loaded part shows a spinner
+  while in flight and `—` (`Unavailable`) after a settled failure, never a fake 0 (`loadSummary` returns the applied
+  parts); #10 a program switch resets the tab and clears the Summary fields in the same event.
 - **v0.2.2** (2026-10-13, Phase 4 quick wins) — the distribution card's callout gets `overflowResolution`
   fit-to-chart, so it is never clipped (#46).
 - **v0.2.1** (2026-10-13, polish 1 — offline detection) — offline = link down OR proven offline by a failed request

@@ -1,6 +1,6 @@
 # Screen: `apple-health` (ios) — the account-menu "Apple Health" settings screen
 
-> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.6.2 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`) · **Version:** 0.7.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s `AccountMenuSheet` → "Apple Health"
 > (`AccountDestination.appleHealth` → `AppleHealthSettingsView()`).
 > **Provenance (legacy, archived):** `vinaySankar2004/RaSi-Fiters` PR #4 `AppleHealthSettingsView.swift`.
@@ -42,19 +42,19 @@ screen is the configuration surface.
 | Unavailable row | Shown when `HealthKitService.shared.isAvailable == false`. | `unavailableRow` |
 | **Workouts** — Connect button | When not connected → `programContext.startHealthKitSync()`. | `connectButton` |
 | **Workouts** — Connected row | When connected — green "Connected" card. | `connectedRow` |
-| **Workouts** — Program selection | Multi-select; toggles `healthKitSyncProgramIds` + persists. | `programSelectionSection` |
+| **Workouts** — Program selection | Multi-select over **active** programs only (0.7.0); toggles `healthKitSyncProgramIds` + persists; rows carry `.isSelected`. The first enabled section shows the shared program list's load state (D-REL1). | `programSelectionSection` → `programList(.workouts, …)` |
 | **Workouts** — Sync status | Last Synced (relative), Workouts Synced (count), Sync Now (`performHealthKitSync`). | `syncStatusSection` |
 | **Workouts** — Disconnect | `programContext.clearHealthKitSettings()`. | `disconnectSection` |
 | **Sleep** — header | "Sleep" + "log your nightly time asleep". | `sleepHeader` |
 | **Sleep** — Connect button | When sleep off → `programContext.startSleepSync()` (own permission prompt). | `sleepConnectButton` |
 | **Sleep** — Connected row | Green "Connected" card (moon icon). | `sleepConnectedRow` |
-| **Sleep** — Program selection | Independent multi-select; toggles `sleepSyncProgramIds` + persists. | `sleepProgramSelectionSection` |
+| **Sleep** — Program selection | Independent multi-select (active programs only, 0.7.0); toggles `sleepSyncProgramIds` + persists. | `sleepProgramSelectionSection` → `programList(.sleep, …)` |
 | **Sleep** — Sync status | Last Synced (relative), **Nights** Synced (count), Sync Now (`performSleepSync`). | `sleepSyncStatusSection` |
 | **Sleep** — Disconnect | `programContext.clearSleepSyncSettings()`. | `sleepDisconnectSection` |
 | **Steps** — header (0.4.0) | "Steps" + "Automatically log your daily step count" (`figure.walk`, `.teal`). | `stepsHeader` |
 | **Steps** — Connect button | When steps off → `programContext.startStepsSync()` (own permission prompt). | `stepsConnectButton` |
 | **Steps** — Connected row | Green "Connected" card (`figure.walk`). | `stepsConnectedRow` |
-| **Steps** — Program selection | Independent multi-select; toggles `stepsSyncProgramIds` + persists. | `stepsProgramSelectionSection` |
+| **Steps** — Program selection | Independent multi-select (active programs only, 0.7.0); toggles `stepsSyncProgramIds` + persists. | `stepsProgramSelectionSection` → `programList(.steps, …)` |
 | **Steps** — Sync status | Last Synced (relative), **Days** Synced (count), Sync Now (`performStepsSync`). | `stepsSyncStatusSection` |
 | **Steps** — Disconnect | `programContext.clearStepsSyncSettings()`. | `stepsDisconnectSection` |
 
@@ -66,7 +66,8 @@ screen is the configuration surface.
 
 ## 6. Data / API
 
-- **`GET /api/programs`** on appear (refresh the program list). The sync writes — workouts
+- **`GET /api/programs`** on appear (refresh the program list) — since 0.7.0 through the screen's own
+  `LoadState` (`programsState`, seeded with the list in memory), Retry + reload on reconnect (D-REL1). The sync writes — workouts
   (`POST /api/workout-logs`) and sleep (`POST`/`PUT /api/daily-health-logs`) — are owned by the
   `apple-health` feature, not issued from this view directly.
 
@@ -85,14 +86,21 @@ sync, not blocked in this UI.
 
 - **Unavailable device** (iPad/Simulator) → unavailable row, no connect.
 - **Not connected** → connect button only.
-- **Connected, no programs** → "No programs available" empty state.
+- **Connected, no programs** → "No programs available" empty state — ~~shown whenever the list was empty~~ *(v0.7.0,
+  D-REL1: only after the list loaded with no **active** program; while loading → a spinner, offline with nothing →
+  the offline view, a failed load → `ErrorStateView` + Retry — shown once, in the first enabled section; a failed
+  refresh over a kept list → the "Couldn't refresh · Retry" banner; reload on reconnect)*.
+- **Selections pruned (D-REL1):** after a fresh successful load, workout / sleep / steps selections for programs you
+  are no longer active in are dropped and persisted (the server skips them anyway).
 - **Sync Now in flight** → spinner, button disabled (workouts + sleep have independent spinners).
 - **Since 1.5.0 (D-V2)** the review state is server-side (`review_done_at`, any integration / device / platform) and a
   0-row first sync is a local confirm; "Last Synced" moves only after an unheld, fully uploaded run; Disconnect
   keeps exclusions + confirms and a reconnect shows no review and reads nothing from before the reconnect.
 - **First sync of an unconfirmed program** → instead of writing silently, a full-screen **confirmation**
   (`HealthSyncConfirmationView`, presented from `AppRootView`) reviews the rows one program per page with a
-  glass tick to confirm + advance; unchecked rows are excluded, dismiss defers (re-offers next trigger).
+  glass tick to confirm + advance; unchecked rows are excluded, dismiss defers (re-offers next trigger). Since
+  0.7.0 a leading **Later** button (disabled while committing) is that dismiss — a queued sleep / steps review may
+  show next; the tick is labelled `Confirm` (D-REL1).
   Applies to both Connect and later Sync Now while a program is still unconfirmed (feature D-CONF). A 0-row
   first sync confirms silently (no modal).
 - **Nothing new** → status date updates, no notification (D7 / D-S4).
@@ -118,6 +126,7 @@ sync, not blocked in this UI.
 | **D-CONF** | First-sync review is a **separate full-screen modal** (`HealthSyncConfirmationView`) presented globally from `AppRootView`, **not** UI inside this settings screen — so it appears no matter which entry (Account menu or in-program) or trigger started the sync. Full gating/exclusion/defer semantics live in the feature SPEC (D-CONF). | feature `apple-health` D-CONF; `AppRootView` `.fullScreenCover`. |
 | **D-V2** | **Health sync v2 under the same UI (reliability Phase 3 C2, iOS 1.5.0; health-sync §8).** No visual change. The sync is `HealthSyncEngine` (`POST /api/health-sync/batch` + `GET/PUT /state`, per-sample workouts with deletions, the 30-day catch-up). **Last Synced** = the last unheld, fully uploaded run (a lock / pending review / `skipped_locked` holds it). **Sync Now** = the `manual` trigger (waits for a run in flight). **Disconnect** clears this kind's toggle, programs, status and connect date (+ the workout anchor and upgrade marker), keeps exclusions + local confirms, sends nothing; a **reconnect** shows no review and reads workouts from max(last success − 1 d, the reconnect date) (amendment H2). **Sign-out pauses** sync; the same member resumes (prefs are per member). Observers register once a member is known; a HealthKit wake while the device is locked is acknowledged without a run (the next trigger catches up); a kind disconnected mid-run never shows its review. The review is server-side (`review_done` only when the user confirms a page; exclusions recorded only after that PUT lands — H1, C2#10), honoured across devices and platforms. | health-sync §8 rules 1–11; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) H1–H5. |
 | **D-NP1** | **People disclosure copy (0.6.2; people D-C12, U-1 (b); apple-health 0.8.1).** A footnote under the program selection: `Synced workouts are visible to members of your programs unless you turn on Hide my activity in My Profile.`; the `NSHealthShareUsageDescription` purpose string (Debug + Release) = `RaSi Fiters reads your workouts, sleep, and steps from Apple Health to log them in your programs. Members of your programs can see your workouts unless you turn on Hide my activity.` Copy only. | people D-C12; S1 plan Privacy §B. |
+| **D-REL1** | **Phase 4 polish (#14, #27, #36).** #14 the first-sync review (`HealthSyncConfirmationView`) gains a leading toolbar **Later** (disabled while committing) = `dismiss()`; `onDisappear` records the existing defer (nothing lost, asked again on the next sync), and a queued sleep / steps review may show next — what Android's back does (apple-health **D-LATER**; P-14). #27 one program list for the three selectors (`programList(kind:)`): its own `LoadState` (`programsState`) instead of a silent `try?` fetch, **active programs only** (`my_status == "active"`), the load state shown once (the first enabled section; the others show the list once it's there), `.loadStateChrome` stale banner + reload on reconnect, and after a fresh successful load selected ids whose program isn't active are pruned from all three kinds and persisted (apple-health **D-ACTIVE**; PA10). #36 program rows carry `.isSelected`; the review tick is labelled `Confirm` (frontend-kit **D-KIT-22**). | `05e185a`; polish amendments PA10 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -131,6 +140,7 @@ sync, not blocked in this UI.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.7.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #14 **Later** on the first-sync review (= defer; D-LATER); #27 active-only program lists with one load state (spinner / Couldn't load · Retry / offline, stale banner, reload on reconnect) and inactive selections pruned after a fresh load (D-ACTIVE); #36 `.isSelected` rows, `Confirm` label on the tick. MINOR (new Later exit). |
 | 0.6.2 | 2026-10-13 | **D-NP1 — People disclosure copy** (`198407c`): the synced-workouts footnote + the new `NSHealthShareUsageDescription`. PATCH (copy only). |
 | 0.6.1 | 2026-10-13 | Phase 4 quick wins: the first-sync review cover (`HealthSyncConfirmationView`) carries the offline banner with the 76-pt reserve (frontend-kit D-KIT-17, #2). |
 | 0.6.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-V2.** Health sync v2 under the same UI: engine + batch / state routes, Last Synced = last unheld full run, Sync Now = `manual`, Disconnect local-only (no review on reconnect, no import of the disconnected period), sign-out pauses, server-side review. (0.6.0, not 0.5.0: this log already carries a 2026-07-01 0.5.0 row.) |

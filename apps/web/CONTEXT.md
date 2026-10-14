@@ -80,7 +80,11 @@ Reliability Phase 3 C1 (auth §3.1, notifications §3.3, observability §4.1/§8
   no query auto-retry while offline, and the launch screens' offline view + reconnect refetch all use this one value.
 - **Kit adoption scope**: QueryClient defaults; the global offline banner (`shell.tsx`, with bottom scroll room while
   it shows); `/programs`, `/summary`, `/program/profile`, `/program/password`, `/members/invite`, `/login`,
-  `/create-account`.
+  `/create-account`; since Phase 4 polish the detail pages through **`components/kit/QueryView.tsx`** (`QueryView` /
+  `InlineLoadError` — frontend-kit D-KIT-21) and the shared dialogs `components/ui/{Modal,ConfirmDialog}.tsx` (D-KIT-24).
+- **Debt (recorded, Phase 4 polish):** `app/programs/page.tsx` is ~1,425 lines and `app/lifestyle/page.tsx` ~750 — split
+  later (InviteCard / CreateProgramTab / EditProgramModal; the Lifestyle cards); `Modal` has no Tab trap and `Select.tsx`
+  should own its Escape (D-KIT-24).
 - No health sync and no version gate on web.
 - Roles drive UI: `global_admin`, per-program `admin` / `logger` / `member`; `admin_only_data_entry`
   disables logging UI for non-admins.

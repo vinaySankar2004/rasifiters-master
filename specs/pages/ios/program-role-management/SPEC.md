@@ -1,6 +1,6 @@
 # Screen: `program-role-management` (ios) — the Program tab's Role Management section
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.2 · **App:** `ios` (SwiftUI)
 > **Location:** `AdminProgramTab.swift:34` (`ProgramRoleManagementSection()`, gated
 > `if programContext.canEditProgramData`). The section shows read-only Admins/Loggers lists + a **Manage
 > Roles** nav row → `ManageRolesView` (the per-member role picker).
@@ -42,7 +42,8 @@ backend 400). The whole section is gated `canEditProgramData` (loggers/members n
 - **`ManageRolesView`** (`:140-…`) — a `List` over `membershipDetails`; each row = avatar (role-colored) +
   name + role display name, then either a centered `ProgressView` (**while that member updates** — the
   per-member lock) or a 3-button capsule grid (Admin / Logger / Member) with a checkmark on the current role,
-  disabled on the current role **and** on the last-active-admin. `.refreshable` → `loadMembershipDetails`;
+  disabled on the current role **and** on the last-active-admin; each chip has a 44-pt hit area and the current
+  role carries `.isSelected` (0.1.2, D-REL1). `.refreshable` → `loadMembershipDetails`;
   errors surface via an `.alert`.
 
 ## 5. Components + shared features consumed
@@ -88,6 +89,7 @@ backend 400). The whole section is gated `canEditProgramData` (loggers/members n
 | **D-S1** | **Faithful 1:1** otherwise — active-admin filter, 3-button grid, last-admin disable, `updateMembership(role:)` payload all identical to legacy iOS (and match web's rules). | legacy `RoleManagementSection.swift`; web program/roles SPEC |
 | **D-DEPS** | **No new dependency** — API fn / DTO / context wrapper / theme / section helpers all pre-ported. | grep-verified |
 | **D-C1** | **Tokenize bare colors** — `.orange`→`appOrange`, `.blue`→`appBlue` in `roleRow`/`roleButton`/`roleColor`; `Color(.systemGray)` (Member) kept semantic. Light-mode-safe (run-26/61). | `RoleManagementSection.swift` |
+| **D-REL1** | **Phase 4 polish (#36).** Each `roleButton` capsule gets a 44-pt hit area (`.minTapTarget()` on the label; the drawn chip keeps its size, the row grows ~8 pt at the default text size — P-8) and the current role reads as selected to VoiceOver (`.accessibilityAddTraits(.isSelected)`) (frontend-kit **D-KIT-22**). The roster it reads (`membershipDetails`) is cleared on a program switch and a reply for an older program is dropped (frontend-kit **D-KIT-23**; PA6). | `05e185a`; polish amendments PA6 |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -102,6 +104,8 @@ backend 400). The whole section is gated `canEditProgramData` (loggers/members n
 
 ## 11. Changelog
 
+- **0.1.2** (2026-10-13, D-REL1 — Phase 4 polish, `05e185a`) — #36 role chips 44-pt hit areas + `.isSelected` on
+  the current role; the roster is cleared on a program switch (PA6).
 - **0.1.1** (2026-10-13, Phase 4 quick wins) — role-update errors use `SessionCopy.kitMessage` (server text kept for
   400/422 and row errors — frontend-kit D-KIT-19, #8).
 - **0.1.0** (run 62, 2026-06-30) — initial port. Section + `ManageRolesView`; stub removed. Faithful 1:1,

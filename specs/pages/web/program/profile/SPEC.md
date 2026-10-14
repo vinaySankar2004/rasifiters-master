@@ -1,6 +1,6 @@
 # Page: `program/profile` (web) — my profile (program-settings sub-route 3 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/profile` — the logged-in user's **own "My Profile" account page** (first/last name +
 > gender + **email view/change** + Delete Account), the third of the six deferred `/program/*` settings sub-routes (reached from the
 > [`program`](../SPEC.md) hub's "My Account" row). **Despite living under `/program/*` it is NOT a
@@ -58,15 +58,15 @@ best-effort Supabase `admin.deleteUser`).
 |-------|------|------------------------|
 | Header | `PageHeader` "My Profile" + Back → `/program` or `/programs`. | profile/page.tsx:111-112 |
 | Identity card | Avatar pill (`initials`), `First Last` (or `memberName`), `@username`, role label. | profile/page.tsx:114-126 |
-| Name fields | First name / Last name inputs (`input-shell`), 2-up on `sm`. | profile/page.tsx:128-147 |
+| Name fields | First name / Last name inputs (`input-shell`, labels linked by `htmlFor`), 2-up on `sm`; seeded from the session name until the profile arrives. A failed profile read shows `InlineLoadError` ("Couldn't load this" + Retry) above them (D-REL5). | profile/page.tsx:128-147 |
 | Gender | Shared **`Select`** (D-GENDER) — "Select gender" placeholder + the shared `GENDER_OPTIONS` (`lib/genders.ts`). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Error / success | Inline `rf-danger` error line; **`rf-success`** "Profile updated successfully." (D-C1). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
-| Save | "Save changes" (`bg-rf-accent text-black`); disabled unless both names present + not pending. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
+| Save | "Save changes" (`bg-rf-accent text-black`); disabled unless the profile has loaded (D-REL5) + both names present + not pending. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Account email (D-EMAIL) | Current email + **Change email** toggle → new-email + current-password inputs → "Update email" (`PUT /auth/email`). Inline `rf-danger`/`rf-success`. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
-| Sign-in methods | Google row (Link via the compact `GoogleSignInButton` / Unlink, disabled when it is the only method) + Password row ("Add password" form for a social-only member → `POST /auth/set-password`). Errors as `rf-danger` lines; a set password shows the `passwordSet` copy (D-REL2). No `refresh_token` gate (D-REL3). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
+| Sign-in methods | Google row (Link via the compact `GoogleSignInButton` / Unlink, disabled when it is the only method) + Password row ("Add password" form for a social-only member → `POST /auth/set-password`). Until the identities load both rows read "—", Link is disabled and Add password is hidden; a failed read shows `InlineLoadError` + Retry under the heading (D-REL5). Errors as `rf-danger` lines; a set password shows the `passwordSet` copy (D-REL2). No `refresh_token` gate (D-REL3). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Hide my activity (0.4.0, D-NP1) | **Behind `PEOPLE_LIVE`** (hidden today). `HideActivityToggle` (a `Switch`) directly above Sign out everywhere: `Hide my activity` · `Hides your workouts, streaks and kudos from other members of your programs. Program admins and loggers still see them.`; reads `hide_activity` from `GET /members/:id`, saves `PUT /members/:id { hide_activity }`; a 200 without the echo is a failure; load failure `Couldn't load this setting.` + Retry. | `components/people/HideActivityToggle.tsx` |
 | Sign out everywhere (D-REL1) | Every role. Outlined button "Sign out everywhere" + hint "Signs you out on every device, including this one." → `ConfirmDialog` ("Sign out everywhere?" / "You'll be signed out on all your devices, including this one.") → `POST /auth/logout-all`. Kit message in red under the button on failure. Sits just above Delete Account. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
-| Delete Account | **Hidden for global_admin.** Danger-outline button → `ConfirmDialog`. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
+| Delete Account | **Hidden for global_admin.** Danger-outline button → `ConfirmDialog`; while deleting the button reads `Deleting…` (disabled) and a failure shows directly under the button, above the caption (D-REL5). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 
 ## 5. Components + consumed features
 
@@ -133,8 +133,10 @@ best-effort Supabase `admin.deleteUser`).
 ## 8. States & edge cases
 
 - **Loading:** the form renders immediately seeded from the auth session; the `GET /members/:id` query then
-  hydrates first/last/gender via a `useEffect` (no skeleton — faithful).
-- **Save disabled:** when either name is blank or a save is in flight (`canSave`).
+  hydrates first/last/gender via a `useEffect` (no skeleton — faithful). **D-REL5:** a failed profile read shows
+  `InlineLoadError` + Retry; the profile and identities reads reload when the connection returns.
+- **Save disabled:** when the profile hasn't loaded (an unloaded gender is never saved as cleared — D-REL5),
+  either name is blank, or a save is in flight (`canSave`).
 - **Save success:** `rf-success` "Profile updated successfully." line; the identity card + session name update
   in place. The message is **cleared when the user next edits a field** (D-C2; legacy left it lingering).
 - **Save error:** inline `rf-danger` line (the kit message — D-REL4); also cleared on next field edit (D-C2).
@@ -148,8 +150,10 @@ best-effort Supabase `admin.deleteUser`).
   a password, the form closes with the success copy. A manual retry of the SAME password answered with the
   same-password 400 also counts as done. Success → "Password set. Your other devices will be signed out."
 - **Sign out everywhere failure:** the kit message in red under the button; the session is kept.
-- **Delete:** `ConfirmDialog` (danger) → `DELETE /auth/account` → `signOut()` → `/login`; an error surfaces in
-  the same `rf-danger` line and the dialog can be retried/closed.
+- **Delete:** `ConfirmDialog` (danger) → `DELETE /auth/account` → `signOut()` → `/login`; ~~an error surfaces in
+  the same `rf-danger` line and the dialog can be retried/closed~~ *(superseded at v0.4.1 by D-REL5)* — the
+  Delete Account button reads `Deleting…` while it runs, and an error shows directly under the button, above the
+  caption (cleared on the next attempt).
 - **Single-word name:** the split yields an empty last name → Save stays disabled until a last name is entered
   (faithful, F3).
 - **No active program:** allowed — `requireProgram: false`; Back then targets `/programs`.
@@ -169,6 +173,7 @@ best-effort Supabase `admin.deleteUser`).
 | **D-REL2** | **Set-password rule 6.** No auto-retry by TanStack (mutations `retry:false`); a 401 is re-sent once after a refresh (the write never ran — A9); "couldn't confirm" only after a SENT 5xx / 408 / timeout / dropped connection (then the identities refetch, and `has_password` closes the form as done — C1#3); a same-password 400 counts as done only for the same value. Success copy `AUTH_COPY.passwordSet`. | auth §3.1 rules 4 + 6; amendments A1 / A9 / §4 C1. |
 | **D-REL3** | **Link / unlink no longer send `refresh_token`** (auth D-C14 — ignored since 0.13.0). The `hasRefreshToken` gate and its "Sign out and back in to manage linked accounts." hint are removed. | auth D-C14; C1 step 13. |
 | **D-REL4** | **Errors.** Credential calls (email, link / unlink, set-password) use `credentialErrorMessage(error, "account")` (server text for 400 / 409 / 422; a 401 → kit `signedOut`; else the kit copy); profile save and delete use the kit (`toAppError`). Profile save updates only `user.memberName` through `updateUser` (tokens always come from the live session, never a React snapshot). | frontend-kit §4 scope rule; amendments A8. |
+| **D-REL5** | **Phase 4 polish (#15, #18, #23, #37).** #15 Delete Account: `Deleting…` on the button (the confirm keeps `Delete`) and the error under the button, above the caption (auth **D-C19**; PA7). #18 the sign-in methods read "—" with Link disabled and Add password hidden until the identities load; a failed profile or identities read shows `InlineLoadError` ("Couldn't load this" + Retry, frontend-kit **D-KIT-21**) and both reload on reconnect; the names seed from the session; Save waits until the profile has loaded so an unloaded gender is never sent (auth **D-C19**, members **D-C5**; PA8). #23 the compact Google Link button retries loading GSI when back online / on tab focus. #37 form labels linked by `htmlFor`. | `ec13107`; polish amendments PA7, PA8 |
 | **D-EMAIL** | **Net-new email view + change** — has no legacy equivalent (email was fixed at registration). Chosen model: **direct** change (applies immediately, `email_confirm:true` — consistent with register/createMember; email delivery is limited per the auth-recovery work) and **password-confirmed** (re-auth the current password — a safeguard for a sensitive change). `getMemberById` returns the primary email; `PUT /auth/email` keeps Supabase `auth.users` + `member_emails` in sync. iOS `MyProfileView` port is a follow-up. | user request; [authService.changeEmail](../../../../../../apps/backend/services/authService.js); auth SPEC |
 | **D-NP1** | **Hide my activity (0.4.0; people D-C13, members D-C4; NP amendments R11, web W1/W2).** The toggle sits directly above "Sign out everywhere", rendered only when `PEOPLE_LIVE` (flipped on the store-release day) and a session member id exist. It keeps the saved value locally (it never writes the profile query cache), so unsaved name / gender edits survive a flip; the name-seed effect is keyed on the seeded fields only. A missing `hide_activity` echo throws. This page is one of the web toast's page-form routes — no notification toast shows here (frontend-kit D-KIT-20). | people D-C13; web plan W2, revision objection 6. |
 
@@ -197,6 +202,7 @@ best-effort Supabase `admin.deleteUser`).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.1 | 2026-10-13 | **D-REL5 — Phase 4 polish (`ec13107`).** #15 `Deleting…` + the error under Delete Account, above the caption; #18 sign-in methods "—" until loaded (Link disabled, Add password hidden), `InlineLoadError` + Retry, reload on reconnect, Save waits for the profile; #23 Google Link button retries when back online; #37 linked labels. |
 | 0.4.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 Pass B, `b2ea09b`): `HideActivityToggle` above Sign out everywhere, behind `PEOPLE_LIVE` (dark until the store release); missing echo = failure; unsaved edits survive. No toast on this route. |
 | 0.3.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 ("Sign out everywhere" above Delete Account, every role, `POST /auth/logout-all`) · D-REL2 (set-password rule 6 + `passwordSet` copy; `has_password` refetch closes the form) · D-REL3 (no `refresh_token` on link/unlink; gate + hint removed) · D-REL4 (credential errors via `credentialErrorMessage(…, "account")`, save/delete via the kit; save uses `updateUser`). §4/§5/§6/§8 updated (incl. the sign-in-methods block). |
 | 0.2.0 | 2026-06-30 | **Gender fix + net-new email view/change.** **D-GENDER**: gender now uses the shared `Select` + a shared `GENDER_OPTIONS` (`lib/genders.ts`, also adopted by create-account), replacing the native `<select>` that "looked wrong"; backed by widening `members.gender` `varchar(10)`→`varchar(32)` (migration `003`) so `"Prefer not to say"` (17 chars) stops erroring on save. **D-EMAIL**: net-new Account email block — `getMemberById` returns the primary email; password-confirmed **direct** `PUT /auth/email` (`authService.changeEmail`) keeps Supabase `auth.users` + `member_emails` in sync (`email_confirm:true`, no verification email, session stays valid). Backend bumps `members` + `auth` via `git-version`. iOS My Profile email-change port deferred. `npx tsc --noEmit` ✓. |

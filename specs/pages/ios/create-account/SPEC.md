@@ -1,6 +1,6 @@
 # Screen: `create-account` (ios) — the public sign-up screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `LoginView`'s "New here? Create an account" link (`NavigationLink → CreateAccountView()`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Auth/CreateAccountView.swift`.
 > **Web parity reference:** [`web create-account`](../../web/create-account/SPEC.md) — same field set +
@@ -52,7 +52,9 @@ field group. The whole form is wrapped in a **`ScrollView`** and the pager is pi
 
 Per-page validation gates **Continue** (page 0: both names; page 1: username + valid email; page 2: policy
 + match). The last page's Continue reads **"Create Account"** → `handleCreateAccount()`. **Back** appears
-from page 1 on.
+from page 1 on. Since the pager can be swiped past a page's gate, the final tap re-checks every page and jumps to
+the first that fails — skipped once the account exists (D-REL1: then the tap only signs in, and pages 0–1 are
+`.disabled(registered != nil)`).
 
 **Keyboard handling (D-C10, v0.2.2)** — the form is a `ScrollView` (`.scrollDismissesKeyboard(.interactively)`,
 `.scrollBounceBehavior(.basedOnSize)`), and the paged `TabView` — which has **no intrinsic height** — is
@@ -86,11 +88,12 @@ An existing-member OAuth result (no `needs_profile`) → `applyAuthResponse` →
 |-------|------|------------------------|
 | Brand logo | **`BrandMark(size: 90)`** — the real `BrandIcon` asset (D-C1). **Was** the legacy placeholder. | legacy `CreateAccountView.swift:150-166`; new `BrandMark.swift` |
 | Heading + subheading | "Create Account" / "Start tracking your fitness journey". | legacy `CreateAccountView.swift:39-48` |
-| First / Last name inputs | Two `AppInputField`s; **First Name `@FocusState` autoFocus** (D-C5). | legacy `:51-52` |
-| Username input | `AppInputField("Username")`. | legacy `:53` |
-| Email input + inline hint | `AppInputField("Email")`; **a muted "Enter a valid email address." hint** when typed-but-invalid (D-C2, new). | legacy `:54` |
+| First / Last name inputs | Two `AppInputField`s; **First Name `@FocusState` autoFocus** (D-C5); content types `.givenName` / `.familyName` (D-REL1). | legacy `:51-52` |
+| Username input | `AppInputField("Username")` (`.username`, D-REL1). | legacy `:53` |
+| Email input + inline hint | `AppInputField("Email")` (`.emailAddress` keyboard + content type, D-REL1); **a muted "Enter a valid email address." hint** when typed-but-invalid (D-C2, new). | legacy `:54` |
+| Taken line (conditional, D-REL1) | `appRed` footnote under the details step — the server's `Username already exists` / `Email already exists`; cleared on editing username / email. | `detailsError` |
 | Gender menu (optional) | `Menu` of `genderOptions` (`["Female","Male","Non-binary","Prefer not to say"]`); placeholder "Gender (optional)"; sent as-is. | legacy `:168-189` |
-| Password + Confirm (+ toggles) | Two secure `AppInputField`s, each with its own `AppPasswordToggleButton`. | legacy `:57-69` |
+| Password + Confirm (+ toggles) | Two secure `AppInputField`s (`.newPassword`, D-REL1), each with its own `AppPasswordToggleButton` (44-pt, `Show password` / `Hide password`). | legacy `:57-69` |
 | **Live password checklist** | **REPLACES the legacy static hint line (D-C3)** — a ✓/○ list (≥8 · uppercase · lowercase · number) that appears on the first keystroke and greens (`appGreen`) per satisfied rule. | legacy static line `:71-75`; new `policyRow` |
 | Confirm-mismatch hint (conditional) | **Muted "Passwords don't match." (D-C4)** — was legacy's `appRed` text. | legacy red `:77-82` |
 | Create-account button | "Create Account" / `ProgressView`; disabled while `!canSubmit \|\| isLoading`. | legacy `:86-109` |
@@ -99,8 +102,10 @@ An existing-member OAuth result (no `needs_profile`) → `applyAuthResponse` →
 
 **Submit flow** (`handleCreateAccount()`, legacy `:208-246`): guard `!isLoading` → `registerAccount(first,
 last, username, email, password, gender)` → `loginGlobal(username, password)` → write `ProgramContext`
-session → `loadLookupData()` → `persistSession()` → `navigateToProgramPicker = true`. Errors → native
-`Alert`; `defer` clears `isLoading`. **`canSubmit`** requires all names + username non-empty, a
+session → `loadLookupData()` → `persistSession()` → `navigateToProgramPicker = true`. ~~Errors → native
+`Alert`~~ *(superseded at v0.3.1 by D-REL1: a taken username / email → the details step with the message; other
+register errors → the `Alert`; once registered, a retry skips `registerAccount` and only signs in with the registered
+credentials, a sign-in failure reading "Account created. Please sign in.")*; `defer` clears `isLoading`. **`canSubmit`** requires all names + username non-empty, a
 **format-valid email** (D-C2; was legacy's non-empty-only), the password meeting policy, and
 `password == confirmPassword`.
 
@@ -141,10 +146,13 @@ only *after* the post-register auto-login.
 - **Validation:** the button is disabled until all required fields are filled, the email is format-valid
   (D-C2), the password meets policy (live checklist, D-C3), and the two passwords match. The email hint +
   checklist appear only after the user types (no flash of errors on a blank form).
-- **Register/login error:** caught → a native `Alert` titled "Create Account" (e.g. "Username already
-  exists", "Email already exists", a password-policy message).
+- **Register/login error:** caught → a native `Alert` titled "Create Account" (e.g. ~~"Username already
+  exists", "Email already exists",~~ a password-policy message). *(Superseded in part at v0.3.1 by D-REL1: a taken
+  username / email — register or `/oauth/complete` — returns to the details step with the message under the fields.)*
 - **Auto-login after register:** if `register` succeeds but `loginGlobal` throws (rare — same just-created
-  credentials), no session is set; the account exists and the user can sign in via `LoginView` (F2).
+  credentials), no session is set; ~~the account exists and the user can sign in via `LoginView` (F2)~~ *(v0.3.1,
+  D-REL1: the alert reads "Account created. Please sign in.", pages 0–1 lock, and tapping Create Account again only
+  signs in with the registered username + password — never a second register.)*
 - **Already authenticated:** N/A — gated at the root (`AppRootView`); the web's authed→redirect cleanup
   (web create-account D-C2) has **no iOS analogue**.
 - **autoFocus:** First Name focuses ~350 ms after appear (D-C5) so the form is immediately typeable.
@@ -171,6 +179,7 @@ only *after* the post-register auto-login.
 | **D-C10** | **Keyboard-avoidance fix (v0.2.2).** The form is wrapped in a `ScrollView` (`.scrollDismissesKeyboard(.interactively)` + `.scrollBounceBehavior(.basedOnSize)`) and the paged `TabView` is pinned to its tallest page's **measured content height** via a new `PageContentHeightKey` `PreferenceKey` (max-reduce). Fixes the keyboard collapsing the pager / hiding the fields with no scroll. Field set, validators, and the register-then-auto-login flow are unchanged — **layout-interaction only** (corrects §3a's former "no inner scroll"). User live-verified on device. | user report (2026-07-11); `ForgotPasswordView` `ScrollView` idiom; `HeaderHeightKey` measure idiom; web/Android parity. |
 | **D-DEPS** | **One new dependency — `BrandMark.swift` + the `BrandIcon.imageset`** (shared with splash/login). The checklist (`policyRow`) + email regex are inline view helpers (no new module). v0.2.1 uses the shared `GoogleG.imageset` (added by login D-DEPS). Every other import was ported in the foundation (run 50). | foundation inventory (run 50). |
 | **D-C11** | **Sessions + sign-in events (reliability Phase 3 C2, iOS 1.5.0).** The Google / Apple buttons and the post-register login follow [login](../login/SPEC.md) D-C5 (`auth.sign_in_failed`, credential vs kit copy, device-registry ride-along). A failed `/oauth/complete` also emits `auth.sign_in_failed`, `method` = the pending provider (`PendingSocial.provider`, amendment A11); a successful one calls `DeviceRegistry.register()` (that route carries no ride-along — notifications §3.1). Sign-up (`/auth/register`) failures use the same copy but emit no event (not a sign-in). No layout change. | auth §3.1; observability §8; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A11. |
+| **D-REL1** | **Phase 4 polish (#17, #35, #36).** #17 the sign-up retry rule (auth **D-C18**; PA3): `registered: (username, password)?` is set after a successful register; from then on Create Account only signs in with those credentials (a sign-in failure → the alert "Account created. Please sign in."), pages 0–1 are `.disabled(registered != nil)`, and the last-page tap no longer re-validates. Before that, the last-page tap re-checks every page (the pager can be swiped past a gate) and jumps to the first failing one. A register or `/oauth/complete` 400 matching `Username already exists` / `Email already exists` (P-2) → the details step with the message under the fields (cleared on edit); a register whose reply was lost stays a known limit. #35 content types `.givenName` / `.familyName` / `.username` / `.emailAddress` (+ `.emailAddress` keyboard) / `.newPassword` on both password fields (auth **D-C22**). #36 both eyes are 44-pt targets labelled `Show password` / `Hide password` (frontend-kit **D-KIT-22**). | `05e185a`; polish amendments PA1, PA3 |
 
 > **D-C-note — the web "already-authed → redirect" cleanup (web create-account D-C2) is N/A on iOS.** The
 > iOS root (`AppRootView`) already bifurcates on `authToken`, so an authed user never reaches this screen;
@@ -181,7 +190,7 @@ only *after* the post-register auto-login.
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **Role from response body, not a JWT decode** (post-register auto-login) — display/routing only; the backend re-verifies every authed call. | `CreateAccountView.swift:224-228` | Kept (faithful) — not a security boundary (mirrors login F1). |
-| **F2** | **Two-call register-then-login with no rollback on the login leg.** If `register` succeeds but `loginGlobal` throws, no session is set; the account exists and the user can sign in via `LoginView`. Faithful to legacy. | `CreateAccountView.swift:213-245` | Kept (faithful) — recoverable; a rebuild could surface "account created — please sign in" (mirrors web F2). |
+| **F2** | **Two-call register-then-login with no rollback on the login leg.** If `register` succeeds but `loginGlobal` throws, no session is set; the account exists and the user can sign in via `LoginView`. Faithful to legacy. | `CreateAccountView.swift:213-245` | Kept (faithful) — recoverable; ~~a rebuild could surface "account created — please sign in" (mirrors web F2)~~ *(done at v0.3.1, D-REL1: that copy shows and a retry only signs in)*. |
 | **F3** | **No client-side rate limiting** on repeated sign-up attempts. | `CreateAccountView.swift:208-246` | Kept (faithful) — server-side (mirrors web F4 / auth F4). |
 | **F4** | **No username-format rules client-side** — username only checked non-empty; uniqueness + rules enforced server-side (400 "Username already exists"). | `CreateAccountView.swift` `canSubmit` | Kept (faithful) — server is authority (mirrors web F5). |
 | **F5** | **`gender` sent as-is (possibly empty string)** — legacy passes `gender` straight to `registerAccount` with no "send only when non-empty" guard (unlike web, which omits it when blank). | `CreateAccountView.swift:220` | Kept (faithful) — the backend treats blank gender as absent; harmonize with web only if it ever matters. |
@@ -190,6 +199,7 @@ only *after* the post-register auto-login.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #17 after a successful register a retry only signs in with the registered credentials ("Account created. Please sign in.", pages 0–1 locked), a taken username / email → the details step with the message, the last tap re-checks every page (auth D-C18); #35 autofill content types; #36 both eyes 44 pt + Show / Hide password. |
 | 0.3.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C11.** Sign-in events (incl. `/oauth/complete` with the pending provider), credential vs kit copy, `DeviceRegistry.register()` after `/oauth/complete`. No layout change. |
 | 0.2.2 | 2026-07-11 | **Keyboard-avoidance fix (D-C10).** Wrapped the sign-up form in a `ScrollView` (`.scrollDismissesKeyboard(.interactively)` + `.scrollBounceBehavior(.basedOnSize)`) and pinned the paged `TabView` to its tallest page's **measured content height** via a new `PageContentHeightKey` `PreferenceKey` (max-reduce, the `HeaderHeightKey` idiom). Root cause: the pager had no intrinsic height and was the only flexible child, so the keyboard's safe-area inset collapsed it to ~0 — the inputs vanished with nothing to scroll. Now the focused field scrolls into view, the user can scroll to every field + Back/Continue, swipe-down dismisses the keyboard, and the pager grows to fit the live password checklist without clipping; pages are top-aligned so fields don't jump between steps. Field set, validators, and the register-then-auto-login flow are byte-for-byte unchanged (layout-interaction only); corrects §3a's former "no inner scroll". User live-verified on device; compile green via `xcodebuild` device destination (xcode MCP absent this session). `apps/ios/.../Features/Auth/CreateAccountView.swift`. |
 | 0.2.1 | 2026-07-10 | **Federated buttons restyled to custom dark pills + Apple via a standalone controller (D-C9).** The name-page "Continue with Google" + "Continue with Apple" buttons now use the shared `FederatedSignInLabel` dark pill (input-surface capsule = `AppInputField`'s `systemGray3` hairline, no fill, geometry mirroring the primary CTA; 18pt logo + 8pt gap + body-semibold primary-label text) — multicolor `GoogleG` asset for Google, `apple.logo` SF Symbol for Apple, matching web/login. The native `SignInWithAppleButton` is removed; Apple runs through `ProgramContext.startAppleSignIn()` → our own `ASAuthorizationController`. The `socialSignIn` call, the in-place `enterSocialMode` on `needs_profile`, and `applyAuthResponse` routing are unchanged; user-cancel stays silent. iOS compile is USER-run (Xcode). `apps/ios/.../Features/Auth/CreateAccountView.swift` (+ shared `ProgramContext+Auth.swift`, `LoginView.swift`'s `FederatedSignInLabel`, `GoogleG.imageset`). |

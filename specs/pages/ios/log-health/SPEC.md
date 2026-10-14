@@ -1,6 +1,6 @@
 # Screen: `log-health` (ios) — the Summary "Log daily health" multi-row form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.3 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s "Log daily health" log-action card
 > (`AdminSummaryTab.swift:205-212`, `NavigationLink { AddDailyHealthDetailView() }`). When the program is
 > `dataEntryLocked` the card is dimmed + the `NavigationLink` removed (run 54), so a locked non-admin
@@ -45,7 +45,9 @@ daily health" card opens. It POSTs to `/daily-health-logs`; the backend re-autho
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Subtitle | "Log today's sleep and diet quality." | new (chrome) |
-| Member | Same as log-workout — picker (`canSelectAnyMember`) or locked-to-self row. | legacy `:2352-2388` |
+| Lookup error (conditional, 0.2.3) | `ErrorStateView` + Retry above the rows when the roster / programs lookup failed (D-REL1). | `lookupError` |
+| Member | Same as log-workout — picker (`canSelectAnyMember`) or locked-to-self row; the picker sheet's empty hint is `No active members in this program yet.` once loaded (D-REL1). | legacy `:2352-2388` |
+| Row ✕ (0.2.3) | Per-row remove — a 44-pt target, spoken `Remove entry N` (D-REL1). | `rowCard` |
 | Date | Compact `DatePicker` **restricted to past/today** (`in: ...Date()`). | legacy `:2276-2286` |
 | Sleep time | Two `AppInputField`s (`Hours`/`Minutes`, `.numberPad`), **digit-sanitized ≤2 chars each**; combined to fractional hours; validation 0:00–24:00 with an inline error. | legacy `:2288-2322`, `:2438-2441` |
 | Diet quality | `Menu` of 1–5 + a Clear option; optional. | legacy `:2324-2347` |
@@ -87,6 +89,9 @@ locked out when the flag is on (`canSelectAnyMember` includes logger, `isProgram
 
 - **Init (`task`):** if `dataEntryLocked` → `dismiss()` (D-C1); else `ensureLookups()` (load members;
   auto-select self, falling back to the first member, when locked to self).
+- **Lookups (D-REL1):** as [log-workout](../log-workout/SPEC.md) — a failed roster / programs lookup → `ErrorStateView`
+  + Retry on the form, reloaded when back online; the member sheet says `No active members in this program yet.`
+  only once loaded, `Couldn't load this` after a failure, nothing while loading; `No results` for an unmatched search.
 - **Sleep invalid:** hours 0–24 / minutes 0–59 / combined 0–24; an inline `appRed` "Sleep time must be
   between 0:00 and 24:00." shows and Save is blocked.
 - **At-least-one-metric:** Save disabled until sleep **or** diet is provided (client gate; backend also 400s).
@@ -105,6 +110,7 @@ locked out when the flag is on (`canSelectAnyMember` includes logger, `isProgram
 | **D-C3** | **Success UX → web parity** — bump `summaryRefreshToken` + `dismiss()`, **dropping the legacy success Alert** ("Daily health logged"). | web log-health D-C1; user answer. |
 | **D-C4** | **Error UX → inline** — an `appRed` line **replacing the legacy error `Alert`** ("Unable to log"), matching web + the workout form (legacy was internally inconsistent — workout inline, health Alert). | legacy `:2241-2244`; web; user answer. |
 | **D-DEPS** | **No new view component**; shares the same two foundation touches (`AppInputField.keyboardType`, `ProgramContext.summaryRefreshToken` + `AdminSummaryTab.onChange`) and `LogFormComponents.swift` with log-workout. `addDailyHealthLog`/`MemberDTO`/`dataEntryLocked` already existed (run 50/54). | foundation inventory; run-50/54. |
+| **D-REL1** | **Phase 4 polish (#16, #36).** #16 `ensureLookups` records a failed roster / programs lookup (no more `try?`) → `lookupError` → `ErrorStateView` + Retry, reload on reconnect; the member picker passes `emptyHint` — loaded + empty → `No active members in this program yet.`, failed → `Couldn't load this`, loading → none; `No results` for an unmatched search (daily-health-logs **D-C8**; PA4; the in-sheet hint is the phone idiom, D-KIT-11). #36 the row ✕ is a 44-pt target (row height unchanged) labelled `Remove entry N` (frontend-kit **D-KIT-22**). | `05e185a`; polish amendments PA1, PA4 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -120,6 +126,7 @@ locked out when the flag is on (`canSelectAnyMember` includes logger, `isProgram
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #16 a failed lookup → Couldn't load · Retry on the form (reload on reconnect); the member sheet says `No active members in this program yet.` once loaded, `Couldn't load this` after a failure, `No results` for a search (daily-health-logs D-C8); #36 ✕ 44 pt + `Remove entry N`. |
 | 0.2.2 | 2026-10-13 | Phase 4 quick wins: save errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **Loggable-only program list (D-LOGGABLE).** The shared `ProgramMultiSelectSection` now lists only loggable programs — active AND not `admin_only_data_entry`-locked (current always kept) — dropping completed/locked rows (0.2.0 showed locked rows disabled). Shared with `log-workout` + both widgets; mirrored on web + android. See [`log-workout` 0.3.1](../log-workout/SPEC.md#11-changelog). User request 2026-07-09 (parity + cleaner UI). `BuildProject` ✓ 0 errors. |
 | 0.2.0 | 2026-07-09 | **Batched multi-row rebuild + steps + program multi-select (D-C5).** `AddDailyHealthDetailView` is rebuilt as a batched clone of `AddWorkoutsDetailView` — per-row Member · Date · Sleep hr/min · Diet menu · **Steps** digit field; up to 200 rows; client in-batch (member, date) dup check; footer per DC-11 ("{N} rows • {M} members • {H}h {M}m sleep • {S} steps"). A **`ProgramMultiSelectSection`** (current program checked+disabled, `admin_only_data_entry`-locked programs disabled "Admin-only — can't log", hidden when in one program) sends `program_ids[]` to the net-new `APIClient.addDailyHealthLogsBatch` (`POST /daily-health-logs/batch`, daily-health-logs 0.2.0 D-C5); member column locks to self when any selected program is non-privileged. At-least-one-metric now spans sleep/diet/steps (R-1). `BulkRowError`-mapped red rows on failure. Subtitle → "Add a row per day — sleep, diet quality, and steps — then save them all at once." Build green-check owned by the user (Xcode). |

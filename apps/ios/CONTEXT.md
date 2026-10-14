@@ -31,6 +31,10 @@ Splash · Login · CreateAccount · ProgramPicker · AdminHome (Summary / Member
 admin + standard variants) · member detail/metrics/streaks/history · Settings (profile / password /
 appearance / notifications / **Apple Health**) · widget entry views · ~~notification modal~~ (Phase 4: the Inbox +
 toast — `Features/Home/Inbox/`; People — `Features/Home/People/`; Members-card state `Features/Home/Tabs/MemberCardsState.swift`).
+Phase 4 polish helpers: `Shared/Kit/LoadStateContent.swift` (the one detail-load helper — frontend-kit D-KIT-21) and
+`Shared/Components/TapTarget.swift` (`.minTapTarget()`, D-KIT-22). **Debt:** `Shared/Models/ProgramContext.swift` still
+declares fields nothing writes any more (`healthTimeline*`, `stepsStats`, `workoutType*` incl. `workoutTypesTotal`, + their
+init parameters) — harmless; delete in a later cleanup.
 
 ## Apple Health auto-sync (2026-06-30; health-sync v2 since 1.5.0)
 The [`apple-health`](../../specs/features/apple-health/SPEC.md) feature — iOS-only HealthKit workout / sleep / steps

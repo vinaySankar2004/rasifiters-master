@@ -1,13 +1,13 @@
 # Feature: `programs` — program lifecycle (create / list / update / soft-delete / per-member order)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/programs.js`, `services/programService.js`,
 > `models/Program.js`, `models/ProgramMembership.js`, `server.js` (`/api/programs` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`; authz via
 > `ProgramMembership` lookup) · `program-memberships` (the `ProgramMembership` join the creator-row + authz
 > read) · `notifications` (the `program.updated`/`program.deleted` emit — deferred until 0.3.0, **live** since D-C3).
 > **One deliberate change** (the rest is faithful): `createProgram` **drops the vestigial `description`
-> field** — see **§7** (decision **D-C2**).
+> field** — see **§7** (decision **D-C2**). Since 0.4.0 `createProgram` also rejects start ≥ end (**D-C4**).
 
 ---
 
@@ -76,7 +76,8 @@ own-profile gate (members SPEC F4).
 
 `AppError(statusCode, message)` → `{ error: message }`; any other throw → `500` with a route-specific
 generic (`"Failed to fetch programs"`, `"Failed to create program."`, etc.). Status codes: `400` (missing
-/ blank program `name` on create), `403` (`updateProgram`/`deleteProgram` requester is not a program admin
+/ blank program `name` on create; since 0.4.0 also `"End date must be after the start date."` when both dates are given
+and start ≥ end — D-C4), `403` (`updateProgram`/`deleteProgram` requester is not a program admin
 and not `global_admin`), `404` (program not found / already soft-deleted).
 
 ## 4. Feature list (behaviors to port)
@@ -99,7 +100,9 @@ and not `global_admin`), `404` (program not found / already soft-deleted).
   `end_date > start_date`; else `LEAST(100, GREATEST(0, ((CURRENT_DATE - start_date) / (end_date -
   start_date)) * 100))::int`. Time-elapsed bar; recomputed server-side each request.
 - **Create** (`programService.js:70-113`) — require non-blank `name` (`400` else); coerce `status` to one
-  of `planned|active|completed` (default `planned`, `:75-76`); **transaction**: `Program.create({ name
+  of `planned|active|completed` (default `planned`, `:75-76`); **date guard (D-C4, 0.4.0)** — when both `start_date` and
+  `end_date` are given and their `yyyy-MM-dd` prefixes compare start ≥ end → `400 "End date must be after the start
+  date."`, checked **before** the transaction (its catch turns every error into a 500); **transaction**: `Program.create({ name
   (trimmed), status, start_date|null, end_date|null, created_by: requester.id, is_deleted:false })` then
   `ProgramMembership.create({ program_id, member_id: requester.id, role:'admin', status:'active',
   joined_at: today })`; commit. Rollback → `AppError(500)`. **`description` is dropped** (D-C2): no longer
@@ -201,6 +204,8 @@ contract.
 | **D-S1** | **Stance = faithful 1:1 except the `description` drop (D-C2).** Routes, authz gates, raw SQL, transaction, response shapes, error contract preserved; remaining oddities kept + flagged (§10), not fixed. | Whole-module review; §7. |
 | **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): per-member program-card ordering.** New `member_program_order` table (dedicated table, NOT a `program_memberships` column — global admins see programs they have no membership row in), new `PUT /order` (full-replace delete-then-insert; trust-and-store ids, FK-backed; last-write-wins across devices), and the `getPrograms` `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC` change in both branches (new/unordered programs land at the bottom by start_date). Response shape unchanged — clients rely purely on array order, which is what makes the order sync cross-platform for free. | Migration `sql/005`; `services/programService.js` (`setProgramOrder` + both `getPrograms` branches); `routes/programs.js` (`PUT /order` above `/:id`); user decisions (grip-handle web / long-press iOS / bottom placement). |
 | **D-C3** | **The program-change emit is live (0.3.0; reliability-overhaul Phase 4 N-SRV, DESIGN D-N13 — supersedes D-C1's deferral).** `emitProgramNotification` now reads `getActiveProgramMemberIds(programId)`, **drops the requester** (the person who edited / deleted the program is never notified about their own change) and calls `createNotification({ type, programId, actorMemberId, title, body, recipientIds })` — `program.updated` on a real field change, `program.deleted` on a soft-delete. It runs **after** the write succeeded, outside any transaction, and a failure is **logged and swallowed** (`logError("[notifications] <type> emit failed:")`), so the response is always the write's. Titles / bodies are the legacy texts. Category `program`; `program.updated` is **not** a legacy type, so live binaries get only a push banner for it, never a pop-up ([notifications](../notifications/SPEC.md) D-C20). No route / status / body change. | `services/programService.js` (`emitProgramNotification`); N-SRV plan step 18; notifications D-C19/D-C20. |
+| **D-C4** | **Create rejects start ≥ end (0.4.0; reliability-overhaul Phase 4 polish #38 — deliberate; supersedes the "client-side only" wording in the iOS polish plan P-3).** `POST /api/programs` answers `400 { error: "End date must be after the start date." }` when both dates are given and `String(start).slice(0,10) >= String(end).slice(0,10)` (a start ≥ end program sits at 0 % forever); checked before the transaction. **Create only** — `PUT /:id` is unchanged; **edits are checked on the client on all three** (web `program/edit` D-C1, iOS `EditProgramInfoView`, Android `ProgramActionsSheet` / `EditProgramScreen`), and the three Create Program forms now run the same check with the same copy. Live binaries: Android 1.0.0 / 1.1.0 already block equal and reversed dates; iOS 1.4.2 / 1.5.0 default the end date to +3 months and show the server's 400 text; the testbed seeder creates past-start / future-end programs. Backend deployed first (`b23f90c`). | polish amendments §5 + parity report #17; `services/programService.js` `createProgram`. |
+| **D-C5** | **A create is judged by the write (0.4.0; polish #12; iOS + Android clients).** Create Program reports success when `POST /api/programs` succeeds; the program-list refresh after it runs in the background and its failure never turns the create into "failed" (a retry made a duplicate program). Web already behaved this way. Client-only. | iOS `ProgramContext+ProgramManagement.swift` `createProgram`; Android `ProgramContext.createProgram`. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -218,6 +223,7 @@ contract.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **D-C4 — `POST /api/programs` rejects start ≥ end** (`400 "End date must be after the start date."`, before the transaction; create only — edits stay client-checked on all three; live `b23f90c`) + the same check and copy on the web / iOS / Android Create Program forms; **D-C5 — a create is judged by the write** (iOS + Android). §3 error contract + §4 Create updated. **MINOR** (owned interface: a new 400 on create — user acknowledgement of propagation needed at the git-version gate); dependents unaffected (no shape change). Reliability-overhaul Phase 4 polish #12 / #38. |
 | 0.3.0 | 2026-10-13 | **D-C3 — the `program.updated` / `program.deleted` emit is live (reliability-overhaul Phase 4 Notifications server).** Every active member except the requester; after the write, outside the transaction; a failure is logged and swallowed. D-C1's emit deferral superseded (§4/§5/§7/§8 updated). MINOR (deferred behaviour now live; routes, statuses and bodies unchanged); dependents unaffected. |
 | 0.2.0 | 2026-07-05 | **Net-new post-parity: per-member program-card ordering (D-N1).** New `member_program_order` table (migration `sql/005`, composite PK, FKs ON DELETE CASCADE) + `models/MemberProgramOrder.js`; new `PUT /api/programs/order` (`setProgramOrder` — validated full-replace, transactional, FK 23503 → 400; mounted above `/:id`); both `getPrograms` branches now `LEFT JOIN member_program_order` and `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC`. Response shapes otherwise unchanged. Consumed by web `/programs` (framer-motion grip-handle drag + search) and iOS `program-picker` (List `.onMove` long-press drag + `.searchable`). |
 | 0.1.0 | 2026-06-28 | Initial SPEC authored via `question-asker`. Documents the four `/api/programs` routes + `programService`. Decisions D-C1 (scope; notification emit deferred to `notifications`, CRUD fully functional) / D-C2 (the one deliberate change — `createProgram` drops the vestigial `description` field) / D-S2 (keep `getPrograms` raw SQL verbatim) / D-REF (`consumed_by [web, ios]`; `admin_only_data_entry` web-only) / D-S1 (faithful except the `description` drop). Flagged F1–F7. |

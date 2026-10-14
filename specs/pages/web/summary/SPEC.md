@@ -1,6 +1,6 @@
 # Page: `summary` (web) — the program workspace overview (first tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary` — **the first bottom-nav tab** of a program's workspace; the screen you land on
 > after selecting a program on the hub (`saveActiveProgram` → `router.push("/summary")`). Sibling tabs
 > (`/members`, `/lifestyle`, `/program`) and the 6 summary sub-routes are **not** in this run (deferred).
@@ -59,15 +59,15 @@ real screen — the first web surface to consume the analytics + logging backend
 |-------|------|------------------------|
 | Header | "Summary" + active program name + the user's initials avatar. | summary/page.tsx:178, 313-335 |
 | Error view (D-REL1) | Kit `ErrorView` ("Couldn't load this" + the kit message + Retry) when any of the 8 reads failed with nothing to show; the cards that loaded stay. A stale read (cached data, refresh failed) shows the floating "Couldn't refresh · Retry" banner instead. | summary/page.tsx (`summaryError` / `summaryStale`) |
-| Program Progress | `GlassCard` with an SVG circular gauge (`progress_percent`), elapsed/total days, a `StatusBadge`, and elapsed/remaining day counts. | summary/page.tsx:186, 337-396 |
+| Program Progress | `GlassCard` with an SVG circular gauge (`progress_percent`), elapsed/total days, a `StatusBadge` (shown only once the summary has loaded — D-REL4), and elapsed/remaining day counts; "…" while loading, "—" after a failure. | summary/page.tsx:186, 337-396 |
 | Activity Timeline | Clickable card → `/summary/activity`; a Recharts `BarChart` of workouts + active members over the **week** (label + daily average). | summary/page.tsx:187-192, 489-536 |
 | Data-lock banner | Shown when `dataEntryLocked` — 🔒 + `DATA_LOCK_MESSAGE`. | summary/page.tsx:195-200 |
-| Action cards | **Add workouts** + **Log daily health** (two cards, both always shown to every role). Each `disabled={dataEntryLocked}`; on desktop opens a modal, on mobile routes to a sub-page. | summary/page.tsx (cards region + `AddWorkoutCard`/`AddHealthCard`) |
+| Action cards | **Add workouts** + **Log daily health** (two cards, both always shown to every role; the health card's gradient is `sky-700 → blue-700` with white body text for contrast — D-REL4). Each `disabled={dataEntryLocked}`; on desktop opens a modal, on mobile routes to a sub-page. | summary/page.tsx (cards region + `AddWorkoutCard`/`AddHealthCard`) |
 | Stat cards (4) | `StatCard` ×4: MTD Participation (`participation_pct`, `active/total`), Total Workouts, Total Duration (hrs), Avg Duration (min) — each with a `change_pct` delta. | summary/page.tsx:219-256, 461-487 |
 | Distribution | Clickable card → `/summary/distribution`; a `BarChart` of workouts by day of week (Sun–Sat). | summary/page.tsx:259, 538-576 |
-| Workout Types | Clickable card → `/summary/workout-types`; top 6 types by sessions, or an empty hint. | summary/page.tsx:260, 578-604 |
-| Add Workouts modal | `Modal` + `LogWorkoutsForm` (unified multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). Admin/logger get a per-row member picker; a plain member has the member column hidden and each row seeded to self (`canSelectAnyMember` / `selfMemberId`). A **program multi-select** (`ProgramMultiSelect`, current program pre-checked+locked; `admin_only_data_entry`-locked programs disabled; hidden when the user is in only one program) sends `program_ids[]` = the full selection (workout-logs D-C10). | summary/page.tsx (Add-workouts modal) |
-| Log Health modal | `Modal` + `LogDailyHealthForm` (**rebuilt batched multi-row** clone of `LogWorkoutsForm` — member/date/sleep/**diet**/**steps** per row, ≤200 rows, per-row errors → `addDailyHealthLogsBatch`; the same `ProgramMultiSelect` + member-lock; at-least-one of sleep/diet/steps per row, R-1). | summary/page.tsx (Log-health modal) |
+| Workout Types | Clickable card → `/summary/workout-types`; top 6 types by sessions, or the empty hint (loaded data only); "Loading…" while loading, "—" after a failure (D-REL4). | summary/page.tsx:260, 578-604 |
+| Add Workouts modal | `Modal` (`closeOnEscape={false}` — Escape never wipes a half-filled bulk log; Close / backdrop still close it — D-REL4) + `LogWorkoutsForm` (unified multi-row table/cards, ≤200 rows, per-row errors → `addWorkoutLogsBatch`). Admin/logger get a per-row member picker; a plain member has the member column hidden and each row seeded to self (`canSelectAnyMember` / `selfMemberId`). A **program multi-select** (`ProgramMultiSelect`, current program pre-checked+locked; `admin_only_data_entry`-locked programs disabled; hidden when the user is in only one program) sends `program_ids[]` = the full selection (workout-logs D-C10). | summary/page.tsx (Add-workouts modal) |
+| Log Health modal | `Modal` (`closeOnEscape={false}`, D-REL4) + `LogDailyHealthForm` (**rebuilt batched multi-row** clone of `LogWorkoutsForm` — member/date/sleep/**diet**/**steps** per row, ≤200 rows, per-row errors → `addDailyHealthLogsBatch`; the same `ProgramMultiSelect` + member-lock; at-least-one of sleep/diet/steps per row, R-1). | summary/page.tsx (Log-health modal) |
 
 **Data flow.** Eight independent read queries fire in parallel on mount (`enabled: !!token && !!programId`),
 keyed under `["summary", …]`, each first seeded from the per-member launch cache (D-REL2). The two write mutations (`workoutsMutation` batch + `dailyHealthMutation`) each
@@ -107,7 +107,7 @@ ends in `/api`).
 | `addWorkoutLog` | `POST /workout-logs` | Lock-gated (`requireDataEntryAllowed`); member resolved from the form. |
 | `addWorkoutLogsBatch` | `POST /workout-logs/batch` | Lock-gated; ≤200 rows; optional `program_ids[]` (≤20, D-C10); 400/409 → per-row `rowErrors` mapped back into the form. |
 | `addDailyHealthLogsBatch` | `POST /daily-health-logs/batch` | Lock-gated; ≤200 rows; optional `program_ids[]` (≤20); in-batch dup 409, existing rows upsert (D-C5); rows carry sleep/diet/**steps**. |
-| `fetchProgramMembers` / `fetchProgramWorkouts` | `GET /program-memberships/members` · `/program-workouts?programId` | Form lookups (member + workout dropdowns); workouts filtered `!is_hidden` client-side. |
+| `fetchProgramMembers` / `fetchProgramWorkouts` | `GET /program-memberships/members` · `/program-workouts?programId` | Form lookups (member + workout dropdowns, + `fetchPrograms` for the program multi-select), loaded together by `useLogLookups` (D-REL4); workouts filtered `!is_hidden` client-side. |
 
 ## 7. Role-based view rules
 
@@ -130,7 +130,9 @@ disabled UI + messaging.
 
 ## 8. States & edge cases
 
-- **Loading:** a cached open renders at once (D-REL2); otherwise stat values render `—` / "Loading…" (the MTD
+- **Loading:** a cached open renders at once (D-REL2); otherwise ~~stat values render `—` / "Loading…"~~
+  *(superseded at v0.4.3 by D-REL4)* the stat values, the Program Progress figures and the timeline's daily average
+  read "…" while loading and "—" only after a settled failure, the Workout Types card reads "Loading…" (the MTD
   subtitle reads "Loading…" only while its query loads, else `—`); charts render empty until their query resolves.
 - **Empty:** Workout Types shows "No workouts logged yet."; charts render with zero bars.
 - **Error (D-REL1):** the first read that failed with no data → kit `ErrorView` with Retry (re-fetches only the
@@ -138,6 +140,9 @@ disabled UI + messaging.
   `—`, never fake zeros. Any stale read → the floating "Couldn't refresh · Retry" banner (with bottom scroll room),
   hidden while the global offline banner shows. A mutation error renders inside its modal and keeps it open (with
   `rowErrors` per-row for bulk).
+- **Form lookups (D-REL4):** a failed member / workout-type / program lookup shows `InlineLoadError` ("Couldn't load
+  this" + Retry) in the form and reloads on reconnect — never the empty hint; `No workout types available for this
+  program yet.` / `No active members in this program yet.` show only on loaded data; nothing while loading.
 - **No active program:** `useAuthGuard()` (default `requireProgram:true`) redirects to `/programs`.
 - **Unauthenticated / expired:** edge `middleware.ts` → `/login` (or pass-through for client refresh), same
   posture as the hub; a failed refresh keeps the session (cached cards + stale banner) — auth §3.1.
@@ -157,6 +162,7 @@ disabled UI + messaging.
 | **D-REL2** | **Instant open.** All 8 queries are seeded per member + program from the launch cache (`lib/cache/launch-cache.ts`, schema v1) after auth bootstrap, then refreshed; written only while signed in, kept for the member's 10 most recently loaded programs (LRU), cleared by the sign-out teardown. Key VALUES are unchanged, so `/summary/{activity,distribution,workout-types}` keep sharing them. | DESIGN_BOARD §6.5 (D-9); C1 step 24; amendments A14. |
 | **D-REL3** | **Offline = link + reachability (polish-1).** A read that failed while offline (`useOnlineStatus` = `navigator.onLine` && not proven offline) shows the kit's offline `ErrorView` + Retry (a timeout included); queries don't auto-retry while offline, so it shows at once. When the combined value comes back, the failed reads refetch (`useRefetchOnReconnect`). | polish-1 rules 5–6; frontend-kit D-KIT-13. |
 | **D-C1** | **One typed cleanup:** `ProgramProgressCard`'s prop typed `summary?: AnalyticsSummary` instead of `summary?: any` (the `AnalyticsSummary` type already exists in `lib/api/summary.ts`). Non-behavioral — the same `program_progress` fields are read. No other cleanup (the `summaryPeriod="week"` const stays faithful — F4). | `summary/page.tsx:337`; `lib/api/summary.ts:3-49`; user answer ("faithful + minor typed cleanups"). |
+| **D-REL4** | **Phase 4 polish (#16, #30, #36, #37, #43).** #16 the two bulk-log forms load their lookups through `use-log-lookups.ts` (members + workout types + programs together): a failed load → `InlineLoadError` + Retry, reload on reconnect, lists from an earlier good load kept; the specific empty hints only on loaded data (workout-logs **D-C12**, daily-health-logs **D-C8**). #30 honest landing states: "…" while a read has nothing to show (stat cards, Program Progress, daily average), "—" only after a settled failure, Workout Types "Loading…" / "—", the status badge only once loaded (analytics **D-C11**, analytics-v2 **D-C6**; frontend-kit D-KIT-11 in-flight idiom). #36 in the forms the mobile Remove pill is a 44 px `text-sm` target and the desktop ✕ reads `Remove entry {n}` (frontend-kit **D-KIT-22**; PA12). #37 both desktop bulk-log modals set `closeOnEscape={false}` (frontend-kit **D-KIT-24**). #43 the health card gradient darkens to `sky-700 → blue-700` with full-white body text. | `ec13107`; polish amendments PA1, PA4, PA12, U3 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -174,6 +180,7 @@ disabled UI + messaging.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.3 | 2026-10-13 | **D-REL4 — Phase 4 polish (`ec13107`).** #16 form lookups via `use-log-lookups.ts` (`InlineLoadError` + Retry, reload on reconnect, empty hints only when loaded); #30 "…" while loading / "—" after a failure, Workout Types "Loading…"; #36 Remove pill 44 px + ✕ `Remove entry {n}`; #37 `closeOnEscape={false}` on both bulk-log modals; #43 darker health card gradient. |
 | 0.4.2 | 2026-10-13 | Phase 4 quick wins: reads fail after the first try and Retry uses `retryNow` for every query that failed or is still retrying (D-KIT-18, #6); the workout / health form errors go through `toAppError` (D-KIT-19, #8). |
 | 0.4.1 | 2026-10-13 | Polish-1 — D-REL3 (a read failed while offline → kit offline `ErrorView` at once; failed reads refetch when the combined online value returns). |
 | 0.4.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1 (kit `ErrorView` replaces the raw `ErrorState`; stale banner, offline wins; partial failures keep loaded cards; failed Progress / Timeline cards show `—`; MTD subtitle "Loading..." only while loading) · D-REL2 (instant open — the 8 parallel reads seeded from the per-member launch cache; key values unchanged). §4/§8 updated. |

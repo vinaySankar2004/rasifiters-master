@@ -1,6 +1,6 @@
 # Page: `members/invite` (web) — program-admin invite-by-username form (members sub-route 3 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/invite` — the **invite-a-member form** reached by the `/members` landing's "Invite Member"
 > pill (program-admin / global_admin only). A single `@`-prefixed username `<input>` + privacy info-banner →
 > `sendProgramInvite`. **3rd** of the eight deferred `/members` sub-routes
@@ -82,7 +82,8 @@ program invitation (the invitee later accepts via their own pending-invites surf
 ## 7. Role-based view rules
 
 `useAuthGuard()` default (`requireProgram: true`) — no token → `/login`, no active program → `/programs`. **Plus a
-program-admin / global_admin mount redirect** (`:20-24`): `if (!isProgramAdmin) router.push("/members")`, where
+program-admin / global_admin mount redirect** (`:20-24`): `if (!isProgramAdmin) router.push("/members")` — judged
+only once the session is restored (`isBootstrapping || !session` returns early, D-REL2) — where
 `isProgramAdmin = program?.my_role === "admin" || session?.user.globalRole === "global_admin"`.
 
 | Role | What they see / can do |
@@ -126,6 +127,7 @@ axis: the lock follows whether the page does *logging*, not whether it writes).
 | **D-C1** | **Tokenize the success box** — `bg-green-50 text-green-600` → `bg-rf-success/10 text-rf-success` (the lone untokenized color; the error line already uses `rf-danger`). Theme-aware; matches `members/list` run-39 D-C1 / `members/detail` run-40 D-C2 selective-tokenize. | `members/invite/page.tsx:81`; `tailwind.config.ts:20` |
 | **D-C2** | **Clear stale error on field edit** — the `onChange` clears `showSuccess` but not `errorMessage`; also clear `errorMessage` so a prior network error doesn't linger until the next send (matches runs 27/28/40 D-C3). | `members/invite/page.tsx:64-67` |
 | **D-REL1** | **Swallow removed (reliability Phase 3 C1; invites §3.1, board §3.2 / D-12).** "Invitation sent" only on 2xx; every other outcome goes through the kit (`toAppError` — a 400 shows the server text). Copy "Invitation sent" (A1, the same string on iOS + Android). Resolves F1. | invites §3.1; amendments A1. |
+| **D-REL2** | **Phase 4 polish (#19).** The program-admin redirect waits for session restore (`isBootstrapping \|\| !session`), so a hard reload on this route no longer bounces a real admin to `/members` before the session is back. | `ec13107`; web plan step 21 |
 | **D-STANCE** | Faithful 1:1 **+ D-C1, D-C2**. No backend work, no feature bump (route + api fn already shipped). | user, this run |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
@@ -151,5 +153,6 @@ axis: the lock follows whether the page does *logging*, not whether it writes).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | **D-REL2 — Phase 4 polish (`ec13107`).** #19 the program-admin redirect waits for session restore. |
 | 0.2.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1: the swallow is removed — "Invitation sent" (A1 copy, no period) only on 2xx; every other outcome shows the kit message (a 400 shows the server text). F1 resolved; §4/§8 updated. |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/invite` (members sub-route 3 of 8) — invite-by-username form + privacy-safe send; D-C1 tokenize success box, D-C2 clear stale error on edit. No new dependency, zero backend work, no feature bump. |

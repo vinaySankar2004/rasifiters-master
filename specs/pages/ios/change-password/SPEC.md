@@ -1,6 +1,6 @@
 # Screen: `change-password` (ios) — the account-menu "Change Password" screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (run 57) → "Change Password"
 > `NavigationLink → ChangePasswordView()`.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/ChangePasswordView.swift`.
@@ -37,8 +37,8 @@ hint matches both the web sibling and the run-51 create-account screen.
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Heading + subheading | "Change Password" / "Enter your new password". | legacy `ChangePasswordView.swift:21-28` |
-| New password input | Secure `AppInputField` (D-C3) with an `AppPasswordToggleButton` accessory (eye toggle on the **new** field only). | legacy `:31-50` |
-| Confirm password input | Secure `AppInputField` (always masked — no toggle, faithful). | legacy `:52-59` |
+| New password input | Secure `AppInputField` (D-C3; `.newPassword`, D-REL1) with an `AppPasswordToggleButton` accessory (eye toggle on the **new** field only; 44-pt target labelled `Show password` / `Hide password` — D-REL1). | legacy `:31-50` |
+| Confirm password input | Secure `AppInputField` (always masked — no toggle, faithful; `.newPassword`, D-REL1). | legacy `:52-59` |
 | **Live policy checklist** | **REPLACES the legacy 6-char hint line (D-C2)** — a ✓/○ list (≥8 · uppercase · lowercase · number) appearing on the first keystroke, greening (`appGreen`) per satisfied rule. | legacy hint `:61-65`; new `policyRow` |
 | Mismatch hint (conditional) | "Passwords do not match" (`appRed`) when confirm is non-empty and differs. Kept faithful (legacy already showed it red). | legacy `:67-71` |
 | Error line (conditional) | `appRed` footnote on a save failure. | legacy `:74-78` |
@@ -92,6 +92,7 @@ confirm non-empty.
 | **D-C3** | **Adopt the foundation's shared chrome components** — `AppInputField` (+ `AppPasswordToggleButton`) for the fields, `AppPrimaryButton` for the CTA — replacing the legacy hand-rolled `systemGray6`/`cornerRadius` fields + inline button. Matches the run-51 auth screens. | user answer; run-51 auth chrome. |
 | **D-DEPS** | **No new dependency** — every component was ported in the foundation (run 50); `policyRow` is an inline helper (shared shape with create-account). | foundation inventory (run 50). |
 | **D-C4** | **Password write never auto-retried (auth §3.1 rule 6, reliability Phase 3 C2).** The only retry is the central 401 → refresh → once (the write never ran — A9). The body goes as a fresh one-shot stream with an explicit Content-Length, so CFNetwork can't silently replay the `PUT` on a dropped connection (it fails with `requestBodyStreamExhausted` instead). After a 503 / 5xx / 408 / client timeout / dropped connection / refused replay the line reads "We couldn't confirm your password change. It may have gone through, so try signing in with your new password."; a same-password `400` on the user's manual retry after that means the first attempt landed → shown as done. Success = an alert titled "Password updated. Your other devices will be signed out." (this device stays signed in — auth D-C14b). Other errors → kit copy (an authenticated route — no raw "Invalid token.", A8). | auth §3.1 rules 4 + 6; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A1 / A8 / A9. |
+| **D-REL1** | **Phase 4 polish (#35, #36).** #35 both fields carry `contentType: .newPassword`, so iCloud Keychain / password managers offer and save a strong password (auth **D-C22**). #36 the shared eye is a 44-pt target (field height unchanged) with the spoken label `Show password` / `Hide password` (frontend-kit **D-KIT-22**). No flow change. | `05e185a`; polish amendments PA1 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -107,5 +108,6 @@ confirm non-empty.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #35 `.newPassword` content type on both fields; #36 the eye is a 44-pt target labelled Show / Hide password. |
 | 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C4.** Rule-6 "couldn't confirm" copy, same-password-after-unconfirmed = success, A1 success copy, kit copy for other errors. No layout change. |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **Change Password account screen** (one of the 4-screen account/settings cluster, run 58). Documents the own-password form: new + confirm (Show/Hide on new only), submit via `changePassword` (`PUT /auth/change-password`), success-`Alert`-then-`dismiss`. Decisions: **D-REF** (`consumed_by=[ios]`; legacy iOS + web parity) · **D-S1** (faithful 1:1 port) · **D-C2** (web-parity 5-rule live checklist replacing the legacy 6-char hint — matches web + run-51 + backend policy) · **D-C3** (adopt shared `AppInputField`/`AppPasswordToggleButton`/`AppPrimaryButton`) · **D-DEPS** (no new dependency). Flagged F1–F5 (client policy mirror; Show/Hide on new only; no old-password challenge; no JWT re-issue; no client rate-limit). Role rules: same for every role (no role-conditional UI); `admin_only_data_entry` N/A. Ported `apps/ios/.../Features/Home/Settings/ChangePasswordView.swift`. Build green-check owned by the user (Xcode). |

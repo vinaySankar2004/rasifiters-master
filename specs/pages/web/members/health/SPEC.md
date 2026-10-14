@@ -1,6 +1,6 @@
 # Page: `members/health` (web) — per-member daily-health log manager (members sub-route 8 of 8 — CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/health?memberId=&name=` — the **View Health** manager for one member, reached by the
 > `/members` landing's "View Health / Daily health logs" card. Sort + filter modal + CSV export over the member's
 > daily-health-log list, each row **editable** (sleep + diet modal) and **deletable**. **8th & LAST** of the eight
@@ -57,12 +57,13 @@ group.
    - Two `Select`s — **sort field** (Date / Sleep hours / Diet quality / **Steps**) and **direction** (Descending / Ascending).
    - **Filter** button — opens the filter modal; highlighted (`bg-rf-accent/20`) when any filter is active.
    - A `formattedFilters` summary chip (range · "At least/At most {sleep}" · "Diet ≥/≤/n–m") when filters are set.
-3. **Error line** — `errorMessage` (mutation failures) rendered as a `text-rf-danger` `<p>` (`page.tsx:285`).
-4. **List states** (`page.tsx:287-331`): `LoadingState "Loading daily health logs..."` / `EmptyState "No daily health
+3. ~~**Error line** — `errorMessage` (mutation failures) rendered as a `text-rf-danger` `<p>` (`page.tsx:285`).~~
+   *(superseded at v0.2.3 by D-REL1 — an edit error shows inside the Edit modal, a delete error inside the ConfirmDialog)*
+4. **List states** (`page.tsx:287-331`): `QueryView` ("Loading daily health logs..." · `ErrorView` + Retry · offline view · stale banner — D-REL1) / `EmptyState "No daily health
    logs found."` / the row list — one `GlassCard padding="sm"` per item, **stacked metric-cell layout**: a header row
    (`bg-rf-accent` dot + `logDate` semibold) over a 3-col grid of labeled `HealthMetric` cells (uppercase
    `Sleep`/`Diet`/`Steps` label over the semibold value, `bg-rf-surface-muted` fill; `sleepLabel`/`dietLabel`/`stepsLabel`,
-   `—` for missing, steps thousands-grouped), with **Edit** + **Delete** buttons below when `canEdit`. (The Members-tab
+   `—` for missing, steps thousands-grouped), with **Edit** + **Delete** buttons (44 px; Delete = `danger-pill`) below when `canEdit`. (The Members-tab
    `MemberHealthCard` preview keeps the DC-10 two-line form.)
 5. **Filter `Modal`** (`page.tsx:333-450`) — start/end date inputs, min/max **sleep** (hr+min `number` pairs), min/max
    **diet** `Select` (1–5), **min/max steps** (`number` inputs, echoed as "Steps ≥/≤ N", cleared by Clear-all), and a
@@ -71,9 +72,11 @@ group.
 6. **Edit `Modal`** (`page.tsx:452-530`) — disabled Date field, an editable **Sleep time** (hr+min pair, digit-stripped
    `inputMode="numeric"`, 0:00–24:00 validation) + a **Diet quality** `Select` (1–5 / Not set) + a **Steps** `number`
    input (blank = clear → send `steps: null`; integer ≥ 0); Cancel/Save. `submitEdit` guards `sleepInput.isValid` AND
-   **at least one metric** (sleep / diet / steps) before saving.
+   **at least one metric** (sleep / diet / steps) before saving. Guard and save errors show inside the modal, above
+   Cancel/Save (D-REL1).
 7. **`ConfirmDialog`** (D-C1) — the danger delete confirm (`open={!!deleteTarget}`, `loading=deleteMutation.isPending`,
-   confirm → `deleteMutation.mutate(deleteTarget)`).
+   confirm → `deleteMutation.mutate(deleteTarget)`). **v0.2.3 (D-REL1):** keep-open mode (`closeOnConfirm={false}`) —
+   it reads `Deleting…` while running, closes only on success, and shows a failure inside the dialog.
 
 ## 5. Components + which shared features it consumes
 
@@ -115,7 +118,7 @@ group.
 `useAuthGuard()` default (`requireProgram: true`) — no token → `/login`, no active program → `/programs`. A
 **client-side per-member redirect** (`page.tsx:79-84`): `canViewAny = isGlobalAdmin || isProgramAdmin` where
 `isProgramAdmin = my_role==="admin" || my_role==="logger"`; a non-`canViewAny` user whose URL `memberId` is **not their
-own** id is `router.push("/members")`'d on mount. So staff may view **any** member's health logs; a plain member may
+own** id is `router.push("/members")`'d on mount — judged only once the session is restored (D-REL1). So staff may view **any** member's health logs; a plain member may
 view **only their own**.
 
 **Edit/Delete gate** — `canEdit = !isDataEntryLocked(session, program) && (canViewAny || memberId === loggedInUserId)`
@@ -148,10 +151,14 @@ mirror).
 - **No `memberId`** — the redirect `useEffect` early-returns and the query is disabled (`enabled` requires
   `memberId`); the page renders header + controls only, no list. Faithful degenerate direct-nav case (the landing
   always passes `memberId`).
-- **Loading** — `healthQuery.isLoading` → `LoadingState "Loading daily health logs..."`.
+- **Loading** — "Loading daily health logs..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit
+  offline `ErrorView`, never a spinner.
 - **Empty** — `data && items.length === 0` → `EmptyState "No daily health logs found."`.
-- **List query error** — **no `isError` branch** — a failed list query renders header + controls only, no list, no
-  message (F5). Only **mutation** errors surface (the `errorMessage` line).
+- **List query error** — ~~**no `isError` branch** — a failed list query renders header + controls only, no list, no
+  message (F5). Only **mutation** errors surface (the `errorMessage` line).~~ *(superseded at v0.2.3 by D-REL1)* — the
+  kit `ErrorView` + Retry; a failed refresh over a shown list → the floating stale banner; reload on reconnect.
+- **Edit / delete failure (D-REL1)** — an edit guard or save error shows inside the Edit modal (it stays open); a
+  delete error shows inside the open ConfirmDialog (keep-open, `Deleting…` while running; success closes it).
 - **Edit guards** (`submitEdit`, `page.tsx:231-246`) — (a) invalid sleep → "Sleep time must be between 0:00 and
   24:00."; (b) **neither** sleep nor diet provided → "Provide sleep time or diet quality before saving." (the
   at-least-one-metric guard, F6 — the log-health run-37 `hasMetric` mirror).
@@ -170,8 +177,9 @@ mirror).
 | **D-WRITE** | This is a per-member **write** path (Edit/Delete daily-health logs) — so `admin_only_data_entry` is **LIVE**, gating `canEdit` (run-31/36/40/45 read-vs-write-lock axis). The four read-only members sub-routes had the lock N/A; this one (and `workouts`) bite. | `members/health/page.tsx:60` |
 | **D-S1** | **Faithful otherwise** — same `force-dynamic` + `useClientSearchParams` (`memberId`/`name`), same `useAuthGuard()` + `canViewAny` redirect, same React Query key + `enabled` gate, same sort/filter/export markup, same Edit/Delete mutations + payloads (incl. always-send `member_id`, nullable `sleep_hours`/`food_quality`), the sleep 0:00–24:00 + at-least-one-metric validation, the page-local `formatSleepHoursForFilter`/`splitSleepHours` helpers, `maxWidth="4xl"`. | `members/health/page.tsx` |
 | **D-C1** | **`window.confirm` → `ConfirmDialog`** — the legacy delete used the browser-native `window.confirm("Delete this daily health log?")` (`page.tsx:318`); the rebuild replaced `window.confirm` everywhere, so a `deleteTarget` state + the ported danger `ConfirmDialog` (mirroring the workouts twin run 45 / `lifestyle/workouts` run 31) keeps the page from being the lone divergence. | run 45/31 |
-| **D-C2** | **Tokenize the Delete button** — `bg-red-50 … text-red-600` (`page.tsx:322`) → `bg-rf-danger/10 text-rf-danger`, exactly as the workouts twin run 45 / `members/list` run 39 tokenized; theme-aware, light-mode-identical. | run 45/39 |
+| **D-C2** | **Tokenize the Delete button** — `bg-red-50 … text-red-600` (`page.tsx:322`) → `bg-rf-danger/10 text-rf-danger`, exactly as the workouts twin run 45 / `members/list` run 39 tokenized; theme-aware, light-mode-identical. *(At v0.2.3 the button uses the shared `danger-pill` class — D-REL1.)* | run 45/39 |
 | **D-STANCE** | Faithful 1:1 **+ D-C1/C2**. No hoist cleanup (deps already shared). No backend work, no feature bump (all routes + api fns already shipped). | user, this run |
+| **D-REL1** | **Phase 4 polish (#9, #19, #29, #36).** #9 errors show where the user is: an edit error (guard or save) inside the Edit modal, a delete error inside the ConfirmDialog in keep-open mode (`closeOnConfirm={false}`, `Deleting…`, closes on success; frontend-kit **D-KIT-24**) — the page-level error line is gone. #19 the own-only redirect waits for session restore (`isBootstrapping \|\| !session`). #29 the list load goes through `QueryView` (frontend-kit **D-KIT-21**; resolves F5). #36 Export CSV, Edit / Delete, Done / Close / Cancel / Save and Clear-all are 44 px `text-sm` targets; Delete uses `danger-pill` (frontend-kit **D-KIT-22**). | `ec13107` |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
@@ -189,9 +197,10 @@ mirror).
 - **F4 — no lazy filter query.** The workouts twin lazily fetched `program-workouts` for its type dropdown (its F4);
   the health filter has **no type vocabulary** (sleep + diet are numeric), so there is no lazy query — the workouts F4
   is **subtracted**. Recorded as the deliberate absence.
-- **F5 — no list-query error state.** Like the workouts twin, this page has **no** `healthQuery.isError` branch — a
+- ~~**F5 — no list-query error state.** Like the workouts twin, this page has **no** `healthQuery.isError` branch — a
   failed list fetch renders header + controls only, silently. Only mutation errors surface (the `errorMessage` line).
-  Faithful; flagged — a rebuild cleanup would add an `ErrorState` for the list query.
+  Faithful; flagged — a rebuild cleanup would add an `ErrorState` for the list query.~~ **RESOLVED at v0.2.3 (D-REL1)**
+  — `QueryView` shows the kit `ErrorView` + Retry.
 - **F6 — Edit modal: sleep + diet, date disabled, at-least-one-metric guard.** The Date field is disabled (display);
   Sleep time (hr+min, 0:00–24:00) and Diet quality (1–5 / Not set) are editable. `submitEdit` requires **at least one**
   of the two metrics (the log-health run-37 `hasMetric` mirror) AND valid sleep — matching the backend `PUT
@@ -206,6 +215,7 @@ mirror).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #9 edit errors inside the Edit modal, delete errors inside the keep-open ConfirmDialog (`Deleting…`); #19 the own-only redirect waits for session restore; #29 `QueryView` (F5 resolved); #36 44 px targets, Delete `danger-pill`. |
 | 0.2.2 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **View Health row clarity refactor (cosmetic, cross-surface parity).** Each row (`GlassCard padding="sm"`) moves off the DC-10 two-line format to a **stacked metric-cell layout**: a header (`bg-rf-accent` dot + `logDate` semibold) over a 3-col grid of new `HealthMetric` cells (uppercase `Sleep`/`Diet`/`Steps` label over the semibold value, `bg-rf-surface-muted` fill), so each value reads at a glance. Formatting unchanged (`sleepLabel`/`dietLabel`/`stepsLabel`, `—` for missing, steps grouped); Edit/Delete unchanged; the Members-tab `MemberHealthCard` preview keeps the DC-10 two-line form. Matches the iOS + Android View Health rows. No contract/behavior change. `tsc --noEmit` ✓; user live-tested. |
 | 0.2.0 | 2026-07-09 | **Steps throughout the manager** (daily-health-logs 0.2.0). Sort gains a **Steps** field; the filter modal gains **min/max steps** number inputs (echoed "Steps ≥/≤ N", cleared by Clear-all); list rows adopt the **DC-10 two-line** format (`Sleep · Diet · Steps`, thousands-grouped); the Edit modal gains a **Steps** number input (blank clears → `steps: null`, integer ≥ 0; at-least-one-metric now includes steps); the `updateMutation` payload + `fetchMemberHealthLogs` params gain `steps`/`minSteps`/`maxSteps`; the CSV header gains a Steps column. `npm run build` ✓. |

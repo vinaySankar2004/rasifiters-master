@@ -1,6 +1,6 @@
 # Screen: `summary-activity-detail` (android) — the Workout Activity Timeline drill-down
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios summary-activity-detail`](../../ios/summary-activity-detail/SPEC.md)
 > + [`web summary/activity`](../../web/summary/activity/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.SUMMARY_ACTIVITY` (`ActivityDetailScreen`), pushed from the
@@ -15,8 +15,9 @@
   period selector** that re-fetches the timeline on each change (`week`/`month`/`year`/`program`); a
   **daily-average header** ("DAILY AVERAGE" + the range label + the rounded average); and the workouts **bars**
   + active-members **line** chart. Read-only analytics → **`admin_only_data_entry` N/A**; every role sees the
-  same program-wide timeline. Loading → spinner; empty buckets → "No data for this range yet." (load errors are
-  swallowed → empty state, matching iOS F1 / web).
+  same program-wide timeline. Loading → spinner; empty buckets → "No data for this range yet." ~~(load errors are
+  swallowed → empty state, matching iOS F1 / web).~~ *(Superseded at 0.1.1 by D-REL1: a failed load → `ErrorView` +
+  Retry.)*
 - **Range label = iOS parity:** `week` → **"This Week"** (friendly override); `month`/`year`/`program` use the
   **server's `label`** ("Jul 2026" / "2026" / "Jun 2026 – Sep 2026"). The "DAILY AVERAGE" caption + range sit on
   one **baseline** (`Modifier.alignByBaseline()`); the average is shown as a **whole number** (iOS `HeaderStats`).
@@ -37,9 +38,25 @@
 |------|----------|------|
 | `ProgramContext.loadActivityTimeline(period)` | `GET /analytics/timeline?period&programId` | `buckets` (bars + line) · `daily_average` (header) · `label` (range) |
 
-Re-runs on every period change (`LaunchedEffect(period.key)`). Bearer-authed by the OkHttp layer.
+Re-runs on every period change (~~`LaunchedEffect(period.key)`~~ `rememberLoad(period.key)` — 0.1.1). Bearer-authed by the OkHttp layer.
 
 ## Deferred / not ported
 
 Member-scoped entry (iOS `MemberHistoryCard` → member history) is **N/A here** — this route is always
 program-wide from the Summary tab; the Members-tab history entry lands with the Members port (later phase).
+
+## Phase 4 polish (0.1.1)
+
+- **D-REL1 (#26 #29 #34 #36; frontend-kit D-KIT-21, D-KIT-22, D-KIT-23).** **#26 (Android-only):** the screen scrolls
+  vertically and the chart scrubs on a horizontal drag only (`detectHorizontalDragGestures` in the shared
+  `BarLineChart`) — a vertical drag over the chart scrolls the page; a tap still selects. **#29:** one `rememberLoad`
+  per period + `KitLoad` — spinner, the offline `ErrorView` with no data offline, `ErrorView` + Retry on failure,
+  reload on reconnect. **#34:** a period switch starts from Loading, so the old period's bars never sit under the new
+  label; the daily average reads "—" until loaded. **#36:** the back button is a labelled (`Back`) 48 dp target; the
+  W/M/Y/P segments are 48 dp with spoken names (`Week` / `Month` / `Year` / `Program`) and selected state.
+
+## Changelog
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #26 page scrolls, chart scrubs horizontally only; #29 `KitLoad` (ErrorView + Retry, offline ErrorView, reconnect reload) instead of the swallowed error; #34 a period switch starts from Loading ("—" average); #36 labelled 48 dp back + period segments. |

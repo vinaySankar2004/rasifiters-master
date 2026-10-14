@@ -1,6 +1,6 @@
 # Page: `program/edit` (web) — edit program details (program-settings sub-route 1 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/edit` — the **admin-only** program-details editor, the first of the six deferred
 > `/program/*` settings sub-routes (reached from the [`program`](../SPEC.md) hub's "Edit Program Details" row).
 > A single form: program **name** · **status** (`Select`) · **start/end date** · **admin-only data entry** toggle
@@ -101,8 +101,9 @@ program (cached in `localStorage`) and the React-Query `["programs"]` list, then
 - **No-op save (D-C3):** Save with nothing changed → no PUT; just navigate back to `/program`.
 - **Pending:** button reads "Saving…", disabled.
 - **Error:** failed mutation → inline `rf-danger` message (`error.message` or a fallback); user can retry.
-- **Permission-denied:** non-admin → redirected to `/program` before interacting; an admin who lost the role
-  server-side gets the backend 403 surfaced in the error line.
+- **Permission-denied:** non-admin → redirected to `/program` before interacting — judged only once the session
+  is restored (`isBootstrapping || !session` gate, D-REL1), so a reload never bounces an admin; an admin who lost
+  the role server-side gets the backend 403 surfaced in the error line.
 - **No active program:** `useAuthGuard` bounces to `/programs`.
 
 ## 9. Decisions made
@@ -116,6 +117,7 @@ program (cached in `localStorage`) and the React-Query `["programs"]` list, then
 | **D-C1** | **Client-side date-range validation** — when both dates are set and `start_date >= end_date`, show an inline error and disable Save. Legacy had none (a backwards range saved silently and read as 0% progress). Additive, low-risk. | edit/page.tsx:54-56 (legacy payload, no guard) |
 | **D-C2** | **Hydrate the active program from the server response** — on success, `saveActiveProgram` from the returned `ProgramResponse` (canonical row) instead of the optimistic local form state; carry `my_role`/`my_status` over from the current program (the PUT response omits them). | edit/page.tsx:58-68 (legacy writes form state) |
 | **D-C3** | **Skip a no-op PUT** — if no field changed vs the loaded program, short-circuit to `/program` without the network call. Legacy always PUTs. | edit/page.tsx:49-75 |
+| **D-REL1** | **Phase 4 polish (#19, #38).** #19 the non-admin redirect waits for session restore (the effect returns while `isBootstrapping \|\| !session`), so a hard reload on this route no longer bounces a real admin to `/program`. #38 D-C1's start ≥ end check stays the edit rule; the server now also rejects start ≥ end — on **create** only (programs **D-C4**), so edits remain client-checked here (same copy everywhere). | `ec13107` + backend `b23f90c`; web plan #19 |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -137,5 +139,6 @@ program (cached in `localStorage`) and the React-Query `["programs"]` list, then
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #19 the non-admin redirect waits for session restore; #38 the edit date check stays client-side (the server checks create only, programs D-C4). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the save error goes through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 25) — the **eleventh web page spec**, the first of the six deferred `/program/*` settings sub-routes. The **admin-only edit-program-details form** (name · status · start/end date · admin-only-data-entry toggle → `PUT /programs/:id` → back to `/program`). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Edit Program mirrors later) · **D-SCOPE** (this page only; other 5 `/program/*` sub-routes deferred) · **D-DEPS** (port `PageHeader` + `BackButton` verbatim as shared chrome) · **D-S1** (faithful 1:1) · **D-C1** (client-side date-range validation) · **D-C2** (hydrate active-program cache from the server response) · **D-C3** (skip a no-op PUT). Flagged F1–F4 (client JWT-decode admin gate; vestigial `status` default; date-shape trust; no client throttle). Consumes `programs` (`updateProgram`) + `auth` (`useAuthGuard`); **all endpoints already mounted, no new api modules, no feature bump.** Ported `apps/web/src/app/program/edit/page.tsx` + new shared `components/ui/PageHeader.tsx` + `components/BackButton.tsx`. `npm run build` ✓ (`/program/edit` prerendered, 5.7 kB — no Recharts; Middleware 27.3 kB active). |

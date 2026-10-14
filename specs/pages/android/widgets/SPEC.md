@@ -1,6 +1,6 @@
 # Screen: `widgets` (android) — quick-add home-screen widgets (workout + daily-health) via Jetpack Glance
 
-> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.3 · **App:** `android` (Jetpack Glance + Compose)
+> **Status:** 🏗️ built (`apps/android/`) · **Version:** 0.2.4 · **App:** `android` (Jetpack Glance + Compose)
 > **Thin port-note.** Parity target = the **current built iOS widgets** (`RaSi-Fiters-App-Widgets/AddWorkoutWidget.swift`
 > + `Features/Widgets/QuickAdd*WidgetEntryView.swift`) for **functionality + deep-links**; the on-screen **tile
 > chrome** is a deliberate Android-only redesign (D-ANDROID-WIDGET-4). This file records the Android realization
@@ -34,7 +34,8 @@
     `rasifiters://quick-add-health`.
 - Tapping the widget fires `actionStartActivity` with the `rasifiters://` VIEW intent into `MainActivity`
   (already `launchMode="singleTop"`), which parses `WidgetRoute.fromUri(intent.data)` and stashes it on
-  `ProgramContext.setWidgetRoute` (onCreate **and** onNewIntent — mirrors iOS `.onOpenURL` on both paths).
+  `ProgramContext.setWidgetRoute` (onCreate **and** onNewIntent — mirrors iOS `.onOpenURL` on both paths; since 0.2.4
+  onCreate parses only a fresh launch and the link is consumed once — D-REL1).
 
 ## Deep-link target forms (`QuickAdd*WidgetScreen`) — 1:1 with iOS `QuickAdd*WidgetEntryView`
 
@@ -98,6 +99,20 @@
   and the blocking "Update required" screen shows instead. **Doc fix:** the Glance widgets hold **no token** — they
   only deep-link; the form reaches the API through `ProgramContext` and the ONE token store (`core/Session`).
 
+- **D-REL1 (Phase 4 polish, 0.2.4 — #16, #20, #36; workout-logs D-C12, daily-health-logs D-C8, frontend-kit
+  D-KIT-11 additions / D-KIT-22; polish amendments PA4):**
+  - **#20 (Android-only) the widget link is used once:** `MainActivity.onCreate` parses the deep-link only when
+    `savedInstanceState == null` and the launch isn't `FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY`, and `handleDeepLink` nulls
+    `intent.data` after stashing the route — a recreation (rotation, the nightly dark-mode switch) or a relaunch from
+    Recents no longer reopens the form. `onNewIntent` (a real tap while running) is unchanged.
+  - **#16 picker hints:** a failed program list (with no list on screen) or per-program lookup shows `InlineLoadError`
+    (`Couldn't load this` + Retry, which re-fetches the missing lookups) under the program selector and reloads on
+    reconnect — the form no longer stays empty until reopened. The member / workout picker sheets explain an empty list
+    only once **every** selected program's lookup has arrived (`No active members in this program yet.` / `No workout
+    types available for this program yet.`), `Couldn't load this` after a failure, nothing before; `No results` for a
+    search with no match ([log-workout](../log-workout/SPEC.md) D-REL1).
+  - **#36:** the shared row cards' ✕ is the labelled 48 dp `Remove entry N`; the form's back is the shared 48 dp `Back`.
+
 - **Signed-out = STASH & REPLAY (iOS parity, NOT a divergence):** a widget tap while signed out stashes the
   route on `ProgramContext` and leaves it intact; `RootScreen`'s signed-out branch does **not** clear it. The
   moment a token flips authed, `SignedInGraph` mounts and its `LaunchedEffect(widgetRoute)` replays the stashed
@@ -137,6 +152,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.4 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #20 the widget link is consumed once (no reopen on recreation / Recents relaunch); #16 failed program list / lookups → `Couldn't load this` + Retry (reconnect reload), picker hints gated on every selected program's lookup + `No results`; #36 `Remove entry N` 48 dp ✕, 48 dp back. Tile chrome unchanged (D-ANDROID-WIDGET-4). |
 | 0.2.3 | 2026-10-13 | **D-NP1** (Phase 4, `d528f75`): the workout quick-add form also opens from a reminder notification on `inbox/log-workout`, returning to the covered screen (no exit to My Programs). Form unchanged. |
 | 0.2.2 | 2026-10-13 | Phase 4 quick wins: the quick-add forms' save errors go through `toAppError()` (row errors kept; #8); the ≤ 3 s version-gate wait is unchanged (the app-config D-C8 divergence). |
 | 0.2.1 | 2026-10-13 | **Reliability Phase 3 C3 — D-ANDROID-WIDGET-5:** version gate (≤ 3 s) before the widget replay; doc fix: widgets hold no token. Tile chrome unchanged (D-ANDROID-WIDGET-4). Compile-checked green (`assembleDebug`). |

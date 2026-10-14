@@ -1,7 +1,7 @@
 # Feature: `frontend-kit` — shared loading / error / offline / banner kit (web + iOS + Android)
 
 > **Status:** 🧩 adopted (Phase 3 client release: web live; iOS 1.5.0 (58) + Android 1.1.0 (5) built — 🚀 deployed once
-> both store builds are live) · **Version:** 0.5.0 ·
+> both store builds are live) · **Version:** 0.6.0 ·
 > **Apps (`consumed_by`):** `web` `ios` `android`
 > **Provenance:** net-new — reliability overhaul Phase 2 track D. Contract = [`DESIGN_BOARD.md`](../../initiatives/reliability-overhaul/DESIGN_BOARD.md)
 > §6 (W7) + W7-D1 (one palette = web's) + W7-D2 (keep data + "Couldn't refresh — Retry"); evidence =
@@ -18,7 +18,8 @@ One small, self-contained kit per surface: a five-state async model, one error v
 message per kind, a connectivity monitor, a floating banner (offline / stale / error / update-available), an
 error-with-no-data view, and the shared palette tokens. Phase 2 shipped the kits only; the Phase 3 client release
 adopts them on the touched screens (0.2.0 — D-KIT-13–15). 0.5.0 adds the notification **toast** (D-KIT-20) and the
-Phase 4 screens to the adoption list.
+Phase 4 screens to the adoption list. 0.6.0 (Phase 4 polish #9–#45) adds the one detail-load helper per surface
+(D-KIT-21), tap targets + labels (D-KIT-22), keyed state (D-KIT-23) and web dialogs (D-KIT-24).
 
 ## 2. Why it exists
 Today an error looks like "no data" on all three surfaces, spinners never end, raw server / OS text reaches
@@ -135,6 +136,7 @@ Adoption recipe — web: `const s = fromQuery(q)`; `failed` → `<ErrorView erro
 `stale` → `<FloatingBanner variant="stale" onRetry={() => q.refetch()} />`. iOS: screen root
 `.floatingBanner { if case .stale = state { FloatingBanner(variant: .stale, onRetry: reload) } }`. Android, inside
 the screen's `Box`: `FloatingBanner(FloatingBannerVariant.Stale, Modifier.align(Alignment.BottomCenter), onRetry = ::reload)`.
+Detail screens and sections use the packaged helper instead (D-KIT-21, 0.6.0).
 
 ## 7. Palette tokens (= web rf-*, light / dark)
 | Token | Light | Dark |
@@ -146,12 +148,16 @@ the screen's `Box`: `FloatingBanner(FloatingBannerVariant.Stale, Modifier.align(
 | warning | `#f59e0b` | `#fbbf24` |
 | info | `#2563eb` | `#60a5fa` |
 Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rfInfo`. Android: `rfPalette()`.
+Web muted text (`--rf-text-muted`, light) is `#646a76` app-wide since 0.6.0 (was `#7c828e`; polish #43, user decision U1 —
+about 4.9:1 on the page background).
 
 ## 8. Files per surface
-- **web:** `src/lib/kit/{copy,app-error,async-state,use-online-status}.ts`, `src/components/kit/{FloatingBanner,ErrorView}.tsx`
-- **ios:** `Shared/Kit/{KitCopy,AppError,LoadState,NetworkMonitor,FloatingBanner,ErrorStateView,OfflineBanner}.swift`, `Shared/Theme/AppPalette.swift`
-- **android:** `core/kit/{KitCopy,AppError,UiState,ConnectivityObserver}.kt`, `ui/components/kit/{FloatingBanner,ErrorView}.kt`,
-  `core/theme/Palette.kt`; `AndroidManifest.xml` declares `ACCESS_NETWORK_STATE`
+- **web:** `src/lib/kit/{copy,app-error,async-state,use-online-status}.ts`, `src/components/kit/{FloatingBanner,ErrorView,QueryView}.tsx`
+  (QueryView 0.6.0, D-KIT-21); dialogs `src/components/ui/{Modal,ConfirmDialog}.tsx` (D-KIT-24)
+- **ios:** `Shared/Kit/{KitCopy,AppError,LoadState,NetworkMonitor,FloatingBanner,ErrorStateView,OfflineBanner,LoadStateContent}.swift`
+  (LoadStateContent 0.6.0, D-KIT-21), `Shared/Components/TapTarget.swift` (D-KIT-22), `Shared/Theme/AppPalette.swift`
+- **android:** `core/kit/{KitCopy,AppError,UiState,ConnectivityObserver}.kt`, `ui/components/kit/{FloatingBanner,ErrorView,KitLoad}.kt`
+  (KitLoad 0.6.0, D-KIT-21), `ui/components/TapTarget.kt` (D-KIT-22), `core/theme/Palette.kt`; `AndroidManifest.xml` declares `ACCESS_NETWORK_STATE`
 - **The toast (D-KIT-20, 0.5.0)** lives beside its notifications code on each surface: web
   `src/components/notifications/NotificationToast.tsx` (gated in `src/components/NotificationsGate.tsx`), iOS
   `Shared/Views/NotificationToast.swift`, Android `ui/inbox/NotificationToast.kt` (gated in `ui/RootScreen.kt`)
@@ -198,6 +204,12 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   apps use no string resources); AppError = TS plain object / Swift `Error` / Kotlin data class; dismiss
   glyph × / `xmark` / `Icons.Filled.Close`; ErrorView chrome = web glass-card (matches web's
   LoadingState/EmptyState), mobile centered stack + the platform primary pill (`AppPrimaryButton` / `PillButton`).
+  *0.6.0 additions (Phase 4 polish; user decision U3, amendments PA4):* the **in-flight indicator** — web `…`, iOS a
+  spinner per card (`PlaceholderCard`), Android a spinner per section — while `—` (spoken `Unavailable` on iOS) means a
+  **settled failure** on all three; a failed picker lookup on iOS shows the full ErrorStateView where web and Android show
+  the compact InlineLoadError (same title, message and Retry); the #16 empty-picker hint also lives **inside the picker
+  sheet** on the phones (iOS `SearchablePickerSheet(emptyHint:)`, Android `SearchablePickerField(emptyHint:)`); tap
+  targets 44 pt vs 48 dp (D-KIT-22).
 - **D-KIT-12 Android declares `ACCESS_NETWORK_STATE`** (normal permission, no prompt; previously only
   merged in transitively from Firebase).
 - **D-KIT-13 Adoption (0.2.0) — the same rules on all three** (Phase 3 client release; approval amendments A6, A7,
@@ -275,7 +287,8 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   `refetch()` only resumes the retryer's backoff); programs, invites and Summary use it, and Summary's Retry also
   covers queries with `failureCount > 0`. Mutations use `networkMode: "always"` (`providers.tsx`), so an offline save
   fails at once with the kit offline copy instead of pausing on "Saving…". Scope: the `fromQuery` screens (programs,
-  Summary); detail pages keep `isLoading` / `isError` until polish #29.
+  Summary); ~~detail pages keep `isLoading` / `isError` until polish #29~~ *(since 0.6.0 the detail pages too, through
+  `QueryView` — D-KIT-21)*.
 - **D-KIT-19 Every user-facing save / load error goes through the kit (0.4.0; polish #8 sweep).** Web
   `toAppError(e).message` (reset-password: `credentialErrorMessage` except its 401 "link expired" branch); iOS
   `SessionCopy.kitMessage(for:)` for user actions and `AppError(error)?.message` for `ProgramContext` loads (`nil` →
@@ -298,16 +311,91 @@ Web: the existing `rf-*` tokens (unchanged). iOS: `Color.rfAccent` … `Color.rf
   `SHELL_FORMS` + a non-blank "+" sheet Create draft) or while a cover is up (a cover counter: the Health Connect
   review, the account menu, the "+" sheet); not composed during the update screen or the Health Connect review; it
   sits under `ModalBottomSheet` windows (the item still lands in the Inbox).
+- **D-KIT-21 One detail-load helper per surface (0.6.0; reliability-overhaul Phase 4 polish #29 / #34, amendments PA9).**
+  Every detail screen, section and the Lifestyle tab put a load on the five states through ONE helper — the Summary recipe
+  for one read: idle / loading → the screen's placeholder; **no data while offline → the offline ErrorView, never a
+  spinner** (PA9); failed → ErrorView + Retry (offline-labelled while offline); loaded / stale → content, stale adds
+  `Couldn't refresh` · Retry (hidden while the global offline banner shows, A6) with its band reserved; a failed / stale
+  read reloads on reconnect (D-KIT-13). One part of a form or card whose read failed shows the compact **InlineLoadError**
+  (`Couldn't load this` + the message + Retry when retryable) — never an empty list or a guessed value. **Keyed:** a load is
+  keyed on every input (period, member, sort, filters, committed search, program); a key change resets it to loading and a
+  result for an older key is dropped; a Retry keeps the data (stale); detail screens own their results and never write
+  shared app state (shared state = D-KIT-23). **Web** `src/components/kit/QueryView.tsx`: `QueryView({ query, queryKey,
+  loadingMessage })` over `fromQuery` (so detail pages fail fast too, D-KIT-18) + `retryNow` + `useRefetchOnReconnect`;
+  `InlineLoadError({ error, onRetry })`; render at page level, never inside a `.glass-card`; on 13 detail pages
+  (summary/{activity, distribution, workout-types}, members/{history, streaks, workouts, health, detail, metrics},
+  program/roles, lifestyle/{timeline, steps-timeline, workouts}). **iOS** `Shared/Kit/LoadStateContent.swift`:
+  `LoadStateContent(state:onRetry:placeholder:content:)`; `.loadStateChrome(_:actionError:onDismissError:onRetry:)` once
+  at the screen root — ONE banner, a failed action (dismissable `.error`, polish #9) beating stale, the 76-pt band, reload
+  on reconnect; `loadOutcome { … }` (`nil` = cancelled / superseded) + `state = state.applying(outcome)` on the state as it
+  is **after** the await, dropped when the screen's key changed; a key change resets via `.onChange(of: key)` and
+  `.task(id: key)` loads. **Android** `ui/components/kit/KitLoad.kt`: `rememberLoad(keys…) { … }` (a `LoadHandle`; a new key
+  starts fresh — never the previous key's data; `reload()` cancels a load in flight; a failed reload keeps data as Stale),
+  `KitLoad(…)` (Loaded and Stale in one branch, so a refresh keeps scroll / selection), `InlineLoadError`,
+  `BoxScope.KitStaleBanner`, `RefetchOnReconnect`. **Supersedes** wave-A amendment QA6 (the iOS metrics queued reload):
+  the key-drop rule replaces it ([member-analytics](../member-analytics/SPEC.md) D-C9).
+- **D-KIT-22 Tap targets + labels (0.6.0; polish #36, amendments PA1 / PA12).** Every tappable control is at least **44 px
+  (web) / 44 pt (iOS) / 48 dp (Android)**; icon-only controls carry a spoken label; segments, chips and toggle rows announce
+  their selected state. Labels (PA1): `Show password` / `Hide password` · `Remove entry N` · `Back` · `Week` `Month` `Year`
+  `Program` · `Program actions` / `Program actions, N new` · `Invite member` · `View members` · `Workout types`. **Web:**
+  `BackButton`, `Button` size `sm` and `PeriodSelector` (`role="group"`, `aria-pressed`, full-name labels) are `min-h-[44px]`;
+  password toggles `inline-flex min-h-[44px] items-center px-2`; the log-form mobile Remove pill `min-h-[44px] px-4 text-sm`;
+  small pills grow `text-xs` → `text-sm`. **iOS** `Shared/Components/TapTarget.swift`: `.minTapTarget(alignment:)` (a 44 × 44
+  minimum frame + `contentShape`) on a Button's label after its drawn chrome — the drawn shape keeps its size; fixed-size
+  controls in tight rows give the growth back with negative padding (the eye, ✕, the widget back circle); text-sized chips
+  grow their row (role chips +8 pt, invite buttons +4 pt, Cancel request +12 pt — accepted); `GlassButton(label:)`.
+  **Android** `ui/components/TapTarget.kt`: `Modifier.tapTarget(label, role, enabled, shape, onClick)` first in the chain
+  (M3 `minimumInteractiveComponentSize`); `compactTapTarget(footprint, …)` keeps the old visual footprint while the 48 dp
+  target overflows it (rows don't move); `selectableTarget` (segments, selected announced) and `toggleTarget` (checked
+  rows); segmented controls are 48 dp.
+- **D-KIT-23 Keyed state (0.6.0; polish #10 / #31 / #34, amendments PA6).** A program or View-as change resets every affected
+  view to loading **in the same event as the pick** — never a frame (or, offline, forever) of the previous program's or
+  member's numbers; a pick is never lost (also one made during the first load); a result for an older key is dropped;
+  shared member loaders publish only if the program is unchanged and the member is still the focused / selected one.
+  **iOS:** `ProgramContext.resetProgramScopedData()` (`ProgramContext+ProgramSwitch.swift`; the picker calls it only when the
+  program changes) clears the Members-tab cards, `membershipDetails`, Summary's fields and `programWorkouts`; member loads
+  are cancellable tasks (cancelled on a member switch and `onDisappear`); the Lifestyle tab keeps its own
+  `LoadState<LifestyleSnapshot>` keyed by (program, member) (`ProgramContext+Lifestyle.swift`, 7 parallel reads, no shared
+  writes); the admin View-as `onChange` sets `.loading` on a key change; default scope = `selectedMember?.id ??
+  (!hasUserChosenViewAs && !isGlobalAdmin ? loggedInUserId : nil)` (no roster needed). **Android:**
+  `ProgramContext.resetProgramScope()` clears the program-scoped flows on a switch (per-member flows on a View-as change;
+  new program-scoped teardown goes here, not in `clearSession`); writes land only for the active program + session
+  (`afterWorkoutWrite(pid, …)`, `loadAllProgramWorkouts`, `loadMembershipDetails`; the member loaders publish only while
+  `stillActive(pid)`); the Members cards render only data whose held key (`memberCardsHeld`, program + member) matches; `setLifestyleViewAs` resets the state to `Idle` + `lifestyleKey = null` and the View-as effect gates on
+  `lifestyleDefaultedFor == pid` (`core/LifestyleData.kt`). **Web:** the TanStack query keys carry program + member. The
+  iOS Members-tab placeholders are People S5's ([member-analytics](../member-analytics/SPEC.md) D-C12).
+- **D-KIT-24 Web dialogs (0.6.0; polish #37 / #9; web only — the phones use native sheets and alerts).**
+  `src/components/ui/Modal.tsx`: the panel is `role="dialog"` + `aria-modal="true"`, labelled by its first heading; focus
+  moves into it on open (unless a child already took it) and returns to the opener on close; **Escape closes the topmost
+  open modal only**, decided on `event.target` (ignored when the key came from outside the panel — a portaled Select search
+  box — and while an IME composition is cancelled, `event.isComposing`) and never with `closeOnEscape={false}` (Summary's
+  two desktop bulk-log modals); `modal-open` stays while any modal is open. `ConfirmDialog` keep-open mode
+  (`closeOnConfirm={false}`): the dialog stays open while the action runs (`loadingLabel` on the disabled confirm), shows the
+  failure inside (`errorMessage`, `role="alert"`) and the caller closes it on success; while it runs nothing closes it
+  (Cancel, Escape, backdrop). **Recorded debt:** no Tab trap (Tab can leave the panel); `Select.tsx` should own its own
+  Escape (and stop removing `modal-open` while a Modal is open).
 
-## 10. Not in 0.5.0 / open
+## 10. Not in 0.6.0 / open
 Loading skeleton, empty view (board §6.6); spacing/type/radius tokens; Next.js `error.tsx`; web: the TanStack
-query `signal` is not combined with the request's own 15 s abort (the fetchers take no signal); web detail pages are
-not on `fromQuery` yet, so they still wait out the retries before an error (polish #29). Delivered in 0.2.0
+query `signal` is not combined with the request's own 15 s abort (the fetchers take no signal); web `Modal` has no Tab
+trap and `Select.tsx` doesn't own its Escape (D-KIT-24 debt). Delivered in 0.2.0
 (D-KIT-13): `QueryClient` defaults, the 15 s timeout, the on-device cache (D-9), the offline banner (it replaced iOS's
 "You're offline. We'll reconnect…" alert), pull-to-refresh on the launch screens (iOS + Android), the Android blocking
-update screen. Delivered in 0.5.0 (D-KIT-20): the toast.
+update screen. Delivered in 0.5.0 (D-KIT-20): the toast. Delivered in 0.6.0 (D-KIT-21): web detail pages on
+`fromQuery` through `QueryView`.
 
 ## 11. Changelog
+- **v0.6.0** (2026-10-13) — **D-KIT-21** the one detail-load helper per surface (web `QueryView` / `InlineLoadError`; iOS
+  `LoadStateContent` / `loadStateChrome(actionError:onDismissError:onRetry:)` / `loadOutcome` / `applying`; Android `KitLoad`
+  / `rememberLoad` / `InlineLoadError` / `KitStaleBanner` / `RefetchOnReconnect`; no spinner offline with no data — PA9;
+  keyed, older results dropped; QA6 superseded); **D-KIT-22** tap targets 44 px / 44 pt / 48 dp + labels + selected state
+  (iOS `TapTarget.swift`, Android `TapTarget.kt` incl. `compactTapTarget`); **D-KIT-23** keyed state on a program / View-as
+  change (PA6); **D-KIT-24** web dialogs (Modal semantics, topmost-only Escape on `event.target` + IME skip, focus return,
+  `closeOnEscape`, ConfirmDialog keep-open; Tab trap + `Select.tsx` Escape = debt); **D-KIT-11** additions (U3 in-flight
+  idiom, "—" only after a settled failure; PA4 iOS full error view; the #16 hint inside the phones' picker sheet); D-KIT-18
+  scope extended to the web detail pages; §7 web `--rf-text-muted` `#646a76` (U1); §1 / §6 / §8 / §10 updated. No
+  copy-table change. **MINOR** (new rules + `reference_impl` path). Reliability-overhaul Phase 4 polish #9–#45 (web
+  `ec13107` live; iOS `05e185a` / Android `0b0a0a3` built).
 - **v0.5.0** (2026-10-13) — **D-KIT-20** the notification toast (top — an exception to D-KIT-8; 5 s; `View` marks read +
   routes; category gate; never over a modal / sheet / cover or the Inbox; per-surface suppression rules); D-KIT-13
   adoption list += Members tab, People, person profile, Inbox, Notifications settings; D-KIT-17 wording — the "+"

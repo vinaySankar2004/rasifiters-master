@@ -1,6 +1,6 @@
 # Screen: `members` (android) — the per-member performance dashboard (second bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-members`](../../ios/admin-members/SPEC.md)
 > + [`web members`](../../web/members/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBERS` (`MembersScreen`) — Tab 2 of the per-program
@@ -47,9 +47,10 @@
 - **Deviation A-4 (icon-less metrics-preview tiles):** the 3 mini tiles in `MemberMetricsPreviewCard`
   (Active Days / Workouts / Types — D-C7 order) drop the metric icon (`MiniStatTile`) so "Active Days" stays on one line —
   matches the iOS preview (icons appear only in the full metric grid, not the tab-level preview).
-- **Charts carry the shared tooltip:** the Workout-Activity-Timeline card + the history detail pass
-  `BarLineChart(tooltip = …)` (`memberWorkoutsTooltip` — "MMM d" title + "N workouts" row) — every chart has the
-  tap/drag callout, per [[chart-tooltips-mandatory]].
+- **Charts carry the shared tooltip:** ~~the Workout-Activity-Timeline card + the history detail pass~~ the history
+  detail passes `BarLineChart(tooltip = …)` (`memberWorkoutsTooltip` — "MMM d" title + "N workouts" row) — every
+  chart has the tap/drag callout, per [[chart-tooltips-mandatory]]. *(Corrected at 0.3.1: the tab's timeline card is
+  a drill-down preview with no tooltip and no gestures — a tap navigates; see D-REL1.)*
 
 ## Data / API (all via `ProgramContext`, Bearer-authed by the OkHttp layer)
 
@@ -79,10 +80,26 @@ and re-scopes logs on the logger view-as change.
   reloads all five parts. Every screen that reads the shared flows renders through `MemberCardsView` (this tab +
   `MemberFullStatsScreen`). Delivers polish #32 (+ the badge half of #40).
 
+## Phase 4 polish (0.3.1)
+
+- **D-REL1 (#10 #36 #42; frontend-kit D-KIT-22, D-KIT-23; member-analytics D-C13).** **#10:** a program switch clears
+  every program-scoped flow in the same event as the pick — `ProgramContext.resetProgramScope()` (called by
+  `selectProgram` and the sign-out teardown: the leaderboard + its total / range, overview / history / streaks / recent
+  / health, the roster + View-as default, the held keys, Lifestyle, the workout-type catalog). The shared member loaders
+  publish only while their program is still the active one (`stillActive(pid)`); D-NP2's held-key gate is the
+  "loaded-for" gate (no separate `loadedFor` state), so a program or View-as change never shows the previous member's
+  numbers. `ensureMembersLoaded(force)` re-reads the roster without re-defaulting the pick. The member detail screens
+  keep their own results (`publish = false`, #34), so the history card always shows its week —
+  `resetMemberHistoryToWeek` is gone. **#36:** View-as picker rows are `selectableTarget(role = RadioButton)` (selected
+  state announced, 48 dp). **#42:** the picker list sizes itself (`heightIn(max = 380.dp)`; the old 48 dp-per-row
+  height clipped the last ~52 dp row). #26 does not reach this tab: the timeline card has no tooltip, so no gestures
+  (amendments A8); the horizontal-only scrub is on the history detail.
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #10 `resetProgramScope()` on a program switch + loaders publish only for the active program (held-key gate unchanged; history-card reset-to-week removed); #36 View-as rows announce selected state at 48 dp; #42 the picker list sizes itself. Corrected the stale "timeline card has a tooltip" line. |
 | 0.3.0 | 2026-10-13 | **Phase 4 (`d528f75`).** D-NP1 the header button is `People` for every role (Invite moved to People); D-NP2 the S5 recipe (held-key cards, placeholder / `—`, ErrorView only with nothing to show, stale banner, reconnect reload; `membersSelfLoadedFor` removed). |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: reads run in parallel; the standard body spins only for a program's first load (`membersSelfLoadedFor`) and a program switch re-spins and re-defaults View-as; the self card comes from the memberId-scoped overview (no all-member download — member-analytics D-C10); Recent / Health follow View-as (#5). |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — Active Days primary: self card hero ACTIVE_DAYS + load sort=active_days; metric-card subtitle = "Workouts N" + grid row 1 = [Active Days, Workouts]; preview load sort=active_days (top member = top-by-active-days), hardcoded hero = activeDays/"Active Days", mini tiles [Active Days, Workouts, Types]. MTD Workouts untouched. |

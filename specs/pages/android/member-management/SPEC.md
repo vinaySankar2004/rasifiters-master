@@ -1,6 +1,6 @@
 # Screen: `member-management` (android) — Invite + member editor + full stats cluster (the roster retired 0.2.0)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-member-management`](../../ios/program-member-management/SPEC.md)
 > + [`web members/list`](../../web/members/list/SPEC.md) · [`web members/detail`](../../web/members/detail/SPEC.md)
 > · [`web members/invite`](../../web/members/invite/SPEC.md) — this file records only the Android realization + idiom deviations.
@@ -27,8 +27,9 @@
   `ProgramMembersListScreen` + `RosterRow` are deleted; `MEMBER_ROSTER` now renders the [`people`](../people/SPEC.md) list.
 - **Editor (`MemberDetailEditScreen`) — global-admin only, faithful:** header (avatar + name + @username + a
   "Program Admin" badge for admins); **read-only** Gender / Date of Birth / Account Created fact rows; an
-  **editable "Joined Program" date** (`DatePillField`, no future) + an **Active Membership `Switch`**; **"Save
-  changes"** → `editMembership(isActive, joinedAt)`; and a **"Remove from Program"** action → an `AlertDialog`
+  **editable "Joined Program" date** (`DatePillField`, no future) ~~+ an **Active Membership `Switch`**; **"Save
+  changes"** → `editMembership(isActive, joinedAt)`~~ *(superseded at 0.3.0 by D-REL1 — no Active switch; **"Save
+  changes"** → `editMembership(memberId, joinedAt)`)*; and a **"Remove from Program"** action → an `AlertDialog`
   confirm → `removeMember`. Both writes reload the roster (`loadMembershipDetails`) and pop back on success; errors
   stay inline via `FormErrorText`. Missing member → "Member not found."
 - **Deviation A-1 (Members-tab entry, not a Program-tab section):** iOS/web surface these inside a Program-tab
@@ -49,13 +50,21 @@
   `Full stats`, the five Members cards for `focusedMemberId` through `MemberCardsView` (the held-key rule —
   member-analytics D-C12), pull-to-refresh, reconnect reload and the stale banner.
 
+## Phase 4 polish (0.3.0)
+
+- **D-REL1 (#11, #35 — program-memberships D-C7, auth D-C22; polish amendments PA2):** #11 the editor's **Active
+  Membership** switch (and its caption) is retired — the same on web and iOS; **Save changes** sends only `joined_at`
+  (`editMembership(memberId, joinedAt = …)`) and a membership ends through **Remove from Program**. The server still
+  accepts `is_active` from live binaries. #35 the invite's `@username` field has autocorrect off. (#33's roster states
+  belong to the [people](../people/SPEC.md) list — the roster left this page at 0.2.0.)
+
 ## Data / API
 
 | Call | Endpoint | Sets / does |
 |------|----------|-------------|
 | `sendProgramInvite(username)` | `POST /program-memberships/invite` | sends an invite; "Invitation sent" on 200, else the kit error (0.1.1) |
 | `loadMembershipDetails()` | `GET /program-memberships/details` | `membershipDetails` (roster + editor rows) |
-| `editMembership(memberId, isActive, joinedAt)` | `PUT /program-memberships` | updates active + joined-program date; reloads roster |
+| `editMembership(memberId, joinedAt)` | `PUT /program-memberships` | updates the joined-program date (0.3.0: no `is_active` — D-REL1); reloads roster |
 | `removeMember(memberId)` | `DELETE /program-memberships` | removes the member; reloads roster |
 
 Bearer-authed by the OkHttp layer.
@@ -64,6 +73,7 @@ Bearer-authed by the OkHttp layer.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #11 the editor's Active Membership switch retired (Save sends only `joined_at`); #35 invite username autocorrect off. |
 | 0.2.0 | 2026-10-13 | **Phase 4 People (`d528f75`).** D-NP1 roster screen removed (`MEMBER_ROSTER` → People); D-NP2 the editor loads its own details and renders only once loaded; D-NP3 new `MemberFullStatsScreen` (`members/full-stats`). |
 | 0.1.2 | 2026-10-13 | Phase 4 quick wins: invite / member save / remove errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.1.1 | 2026-10-13 | **Reliability Phase 3 C3.** Invite-send swallow removed (invites §3.1): "Invitation sent" only on 200 (toast copy aligned with web / iOS), every other outcome through the frontend kit. Compile-checked green (`assembleDebug`). |

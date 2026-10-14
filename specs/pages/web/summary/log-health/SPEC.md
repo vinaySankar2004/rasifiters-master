@@ -1,6 +1,6 @@
 # Page: `summary/log-health` (web) — standalone Log-daily-health form (summary sub-route 5 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/log-health` — the **mobile log fallback** for the Log-daily-health form: a full-page
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **5th** of the six deferred
 > `/summary` sub-routes and the **2nd of the 3 log fallbacks** (sibling `log-workout` done run 36;
@@ -76,7 +76,8 @@ the workout form.
   `routes/logs.js:17-34`; the daily-health write route at `routes/logs.js:91`). The service resolves the target
   member, enforcing the **own-logs-only 403** when a non-admin/logger passes someone else's id and **404** when the
   target isn't an active member.
-- **Lookups (form mount):** `GET /program-memberships/members?programId` only.
+- **Lookups (form mount):** `GET /program-memberships/members?programId` only (+ `GET /programs` for the program
+  multi-select), loaded together by `lib/hooks/use-log-lookups.ts` (D-REL1).
 - **Success:** `invalidateQueries({ queryKey: ["summary"] })` then **`router.push("/summary")`** (D-C1; legacy
   `router.back()`).
 - **0.2.0 (steps + batch):** the form is now the **batched multi-row** `LogDailyHealthForm` posting to
@@ -99,13 +100,14 @@ no active program → `/programs`.
 
 **`admin_only_data_entry`: LIVE (not N/A).** When the lock is **on** and the user is **not** a program admin,
 the page **redirects to `/summary`** on mount (`page.tsx:24-28`, `router.replace` — keeps the locked page out of
-history). The backend `requireDataEntryAllowed` is the real guard (403); the client redirect is UX only. The 2nd
+history) — judged only once the session is restored (`isBootstrapping || !session` returns early, D-REL1). The backend `requireDataEntryAllowed` is the real guard (403); the client redirect is UX only. The 2nd
 `/summary` sub-route where the lock bites (after `log-workout`; the chart drill-downs were read-only → N/A).
 
 ## 8. States & edge cases
 
 - **Loading lookups** — the form's member `Select` populates after `fetchProgramMembers` resolves (no page-level
-  spinner; faithful).
+  spinner; faithful). **D-REL1:** no hint while loading; a failed lookup shows `InlineLoadError` ("Couldn't load
+  this" + Retry) and reloads on reconnect; `No active members in this program yet.` only on loaded data.
 - **Saving** — the Save button shows "Saving…" and is disabled (`dailyHealthMutation.isPending`).
 - **Error** — the mutation error message renders as a red line above the button (`LogDailyHealthForm.tsx:142`).
 - **Invalid sleep** — a red "Sleep time must be between 0:00 and 24:00." line; submit blocked until valid
@@ -124,6 +126,7 @@ history). The backend `requireDataEntryAllowed` is the real guard (403); the cli
 | **D-DEPS** | **No new dependency** — `LogDailyHealthForm` (incl. its `variant="page"` branch), `PageShell`/`PageHeader`, `addDailyHealthLog`, `useAuthGuard`, `isDataEntryLocked`, the member lookup fn all already ported (summary landing run 21 + `/program/*` chrome). The sweep ports only the page file. | `page.tsx:3-11`; summary SPEC F6 |
 | **D-S1** | Faithful 1:1 otherwise — same `canLogForAny` derivation, the `admin_only_data_entry` `router.replace` lock guard, the mutation injecting `program_id`, `invalidateQueries(["summary"])`, the `variant="page"` form. Already fully `rf-*` tokenized → **no tokenize cleanup**. | legacy `summary/log-health/page.tsx` |
 | **D-C1** | **Deterministic-nav cleanup** (change-now, matches run 36) — swap the two legacy `router.back()` calls (post-save success **and** the form `onClose`) for `router.push("/summary")`, so all navigation off the page is deterministic and matches the header BackButton (which already hardcodes `/summary`). Guards the direct-navigation/refresh case where `router.back()` could leave the app. The lock-guard `router.replace("/summary")` is unchanged (faithful — replace deliberately drops the locked page from history). | user decision; legacy `page.tsx:39`, 57 |
+| **D-REL1** | **Phase 4 polish (#16, #19, #36).** #16 the form's lookups load through `use-log-lookups.ts`: a failure is an error (`InlineLoadError` + Retry, reload on reconnect), never an empty list; `No active members in this program yet.` only on loaded data (daily-health-logs **D-C8**; frontend-kit **D-KIT-21**). #19 the `admin_only_data_entry` lock redirect waits for session restore (`isBootstrapping \|\| !session`). #36 the mobile Remove pill is a 44 px `text-sm` target (the desktop ✕ reads `Remove entry {n}`) (frontend-kit **D-KIT-22**; PA12). | `ec13107`; polish amendments PA1, PA4, PA12 |
 
 > **Not a cleanup:** "reuse `refreshSummaryQueries`" was considered and rejected (same as run 36) — that helper is a
 > module-private one-liner inside `summary/page.tsx:310` (`invalidateQueries(["summary"])`), byte-identical to the
@@ -153,6 +156,7 @@ history). The backend `requireDataEntryAllowed` is the real guard (403); the cli
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #16 lookups via `use-log-lookups.ts` (`InlineLoadError` + Retry, reload on reconnect, hint only on loaded data); #19 the lock redirect waits for session restore; #36 Remove pill 44 px. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the save error goes through `toAppError` (row-error text kept) and an offline save fails at once (frontend-kit D-KIT-18/19, #4/#8). |
 | 0.2.0 | 2026-07-09 | **Steps + batched multi-program** — the page renders the rebuilt batched multi-row `LogDailyHealthForm` (variant="page") with a **steps** column + the shared `ProgramMultiSelect` (`program_ids[]`), posting to `addDailyHealthLogsBatch` (daily-health-logs 0.2.0 D-C5) instead of the single `addDailyHealthLog`; gains per-row `rowErrors` plumbing + `isGlobalAdmin`. Same submit wiring as the summary landing (2-arg `onSubmit`). `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 37) — the **23rd web page spec**, the standalone **Log-daily-health** mobile fallback (`/summary` sub-route 5 of 6, **2nd of the 3 log fallbacks**). Faithful 1:1 port of the legacy 65-line page: a `PageShell` + `PageHeader` wrapping `LogDailyHealthForm variant="page"`, with `canLogForAny` role logic, the `admin_only_data_entry` `router.replace("/summary")` lock guard, and an `addDailyHealthLog` mutation invalidating `["summary"]`. **2nd `/summary` sub-route where `admin_only_data_entry` is live** (after `log-workout`). Decisions: **D-SCOPE** (this page; does not close the group) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — the form + api + chrome all already ported) · **D-S1** (faithful 1:1) · **D-C1** (deterministic-nav cleanup — the two `router.back()` → `router.push("/summary")`; lock `router.replace` unchanged). Flagged F1–F6 (client JWT-decode role/lock; dual lock enforcement; no view-as; no throttle; shared single-sourced form; client-only at-least-one-metric gate). **Zero backend work, NO feature bump** — `POST /daily-health-logs` already mounted (`routes/logs.js:91`). Ported `apps/web/src/app/summary/log-health/page.tsx`. `npm run build` ✓. |

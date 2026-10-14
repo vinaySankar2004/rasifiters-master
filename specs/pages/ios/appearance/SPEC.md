@@ -1,6 +1,6 @@
 # Screen: `appearance` (ios) — the account-menu "Appearance" theme picker
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (run 57) → "Appearance"
 > `NavigationLink → AppearanceSettingsView().environmentObject(themeManager)`.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/AppearanceSettingsView.swift`.
@@ -32,8 +32,8 @@ publishes the change (applied app-wide via `@main`'s `applyTheme`) and persists 
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Heading + subheading | "Appearance" / "Choose how RaSi Fit'ers looks to you". | legacy `AppearanceSettingsView.swift:13-20` |
-| Mode options | `ForEach(AppearanceMode.allCases)` (system/light/dark) — each an icon circle + name + description + a selected checkmark + `appOrange` border; tap → `setAppearance(_:)` with animation. | legacy `:24-70` |
+| Heading + subheading | "Appearance" / ~~"Choose how RaSi Fit'ers looks to you"~~ "Choose how RaSi Fiters looks to you" (brand spelling fixed at v0.1.1, D-REL1). | legacy `AppearanceSettingsView.swift:13-20` |
+| Mode options | `ForEach(AppearanceMode.allCases)` (system/light/dark) — each an icon circle + name + description + a selected checkmark + `appOrange` border (+ `.isSelected` for VoiceOver, D-REL1); tap → `setAppearance(_:)` with animation. | legacy `:24-70` |
 | Preview card | A sample card rendered in the current theme. | legacy `:72-109` |
 
 ## 5. Components + features consumed
@@ -67,6 +67,7 @@ role logic is the finding). **`admin_only_data_entry` = N/A.**
 | **D-REF** | **Reference impl = legacy `.../Features/Home/Settings/AppearanceSettingsView.swift`; web parity = [`web program/appearance`](../../web/program/appearance/SPEC.md). `consumed_by = [ios]`.** | legacy `AppearanceSettingsView.swift:1-129`; web appearance SPEC. |
 | **D-S1** | **Stance = faithful 1:1 verbatim port.** Already matches web (System/Light/Dark device-local); the screen uses bespoke mode-row buttons + a preview card with no shared-component equivalent, so the component-adoption cleanup (D-C3 elsewhere this run) **does not apply** — no text inputs, no generic CTA. | legacy `AppearanceSettingsView.swift`; user answer (cluster stance). |
 | **D-DEPS** | **No new dependency** — `ThemeManager`/`AppearanceMode` + theme colors all ported in the foundation (run 50). | foundation inventory (run 50). |
+| **D-REL1** | **Phase 4 polish (#36, #45).** #36 the selected mode row carries `.accessibilityAddTraits(.isSelected)`, so VoiceOver announces the current theme (frontend-kit **D-KIT-22**). #45 the subheading's legacy typo is fixed to `Choose how RaSi Fiters looks to you` (PA1 copy table) — a deliberate copy deviation from the verbatim legacy port (D-S1). | `05e185a`; polish amendments PA1 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -79,4 +80,5 @@ role logic is the finding). **`admin_only_data_entry` = N/A.**
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #36 `.isSelected` on the current mode row; #45 subheading `Choose how RaSi Fiters looks to you` (was "RaSi Fit'ers"). |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **Appearance theme picker** (one of the 4-screen account/settings cluster, run 58). Documents the System/Light/Dark device-local picker (`ThemeManager` → `UserDefaults`) + preview card. Decisions: **D-REF** (`consumed_by=[ios]`; legacy iOS + web parity) · **D-S1** (faithful 1:1 verbatim port — already matches web; D-C3 component-adoption N/A: bespoke selection controls, no inputs) · **D-DEPS** (no new dependency). Flagged F1 (device-local only) / F2 (bespoke controls kept). Role rules: same for every role (no role read); `admin_only_data_entry` N/A. No API. Ported `apps/ios/.../Features/Home/Settings/AppearanceSettingsView.swift`. Build green-check owned by the user (Xcode). |

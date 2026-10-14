@@ -1,6 +1,6 @@
 # Page: `program/roles` (web) — manage roles (program-settings sub-route 2 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/roles` — the **admin-only** role-management screen, the second of the six deferred
 > `/program/*` settings sub-routes (reached from the [`program`](../SPEC.md) hub's "Role Management" row).
 > A list of the program's **active** members, each with Admin / Logger / Member toggle buttons → `PUT
@@ -53,9 +53,9 @@ notification to the affected member.
 |-------|------|------------------------|
 | Header | `PageHeader` "Manage Roles" / "Assign admin, logger, or member roles." + Back → `/program`. | roles/page.tsx:74-78 |
 | Error line | Inline `rf-danger` text on a failed mutation. | roles/page.tsx:80 |
-| Loading / error | `LoadingState` while fetching; `ErrorState` on a fetch error. | roles/page.tsx:82-84 |
+| Loading / error | ~~`LoadingState` while fetching; `ErrorState` on a fetch error.~~ *(superseded at v0.1.2 by D-REL1)* `QueryView` ("Loading roles..." · `ErrorView` + Retry · offline view · stale banner). | roles/page.tsx:82-84 |
 | Member card | Per **active** member: avatar pill (`initials`), name, role label (+ "• Global Admin"), an "Updating…" tag while that row mutates. | roles/page.tsx:92-107 |
-| Role buttons | A 3-up grid of `RoleButton` (Admin / Logger / Member); the active one shows "✓ "; disabled for the last active admin. | roles/page.tsx:109-131 |
+| Role buttons | A 3-up grid of `RoleButton` (Admin / Logger / Member; 44 px, `aria-pressed` on the active one — D-REL1); the active one shows "✓ "; disabled for the last active admin. | roles/page.tsx:109-131 |
 | Last-admin note | "You cannot remove the last active admin…" under the buttons when applicable. | roles/page.tsx:133-137 |
 
 ## 5. Components + consumed features
@@ -99,16 +99,20 @@ notification to the affected member.
 
 ## 8. States & edge cases
 
-- **Loading:** `LoadingState` ("Loading roles…") while the details query runs.
-- **Error (fetch):** `ErrorState` with the query error message.
+- **Loading:** "Loading roles..." while the details query runs (via `QueryView`, D-REL1); with nothing loaded
+  while offline → the kit offline `ErrorView`, never a spinner.
+- **Error (fetch):** ~~`ErrorState` with the query error message~~ *(superseded at v0.1.2 by D-REL1)* — the kit
+  `ErrorView` + Retry; a failed refresh over shown data → the floating "Couldn't refresh · Retry" banner; a failed
+  read reloads when the connection returns.
 - **Error (mutation):** inline `rf-danger` line (`error.message` or a fallback); the optimistic change rolls
   back (D-C2).
 - **Empty:** no active members → an empty list (no rows). Faithful — legacy renders nothing extra.
 - **Updating:** the affected row shows "Updating…"; **all** role buttons across all rows are disabled while any
   update is in flight (D-C3).
 - **Last active admin:** that member's three buttons are disabled + the guard note shows; the backend also 400s.
-- **Permission-denied:** non-admin → redirected to `/program` before interacting; an admin who lost the role
-  server-side gets the backend 403 surfaced in the error line.
+- **Permission-denied:** non-admin → redirected to `/program` before interacting — judged only once the session
+  is restored (`isBootstrapping || !session` gate, D-REL1); an admin who lost the role server-side gets the
+  backend 403 surfaced in the error line.
 - **No active program:** `useAuthGuard` bounces to `/programs`.
 
 ## 9. Decisions made
@@ -122,6 +126,7 @@ notification to the affected member.
 | **D-C1** | **Tokenize the role-button colors** — replace the inline-hex `ROLE_TONES` (`#f59e0b` / `#3b82f6` / `#6b7280`) with the `rf-*` tokens `rf-warning` (admin) / `rf-info` (logger) / `rf-text-muted` (member) so the buttons are theme-aware (the legacy hexes were a single fixed light-mode palette). Admin keeps dark ink on amber; logger/member keep white. Light-mode `--rf-warning` is literally `#f59e0b` → admin is pixel-identical in light mode. | roles/page.tsx:149-153; `globals.css` `--rf-warning`/`--rf-info`/`--rf-text-muted` |
 | **D-C2** | **Optimistic role update** — on click, write the new role into the `["program","roles",programId]` cache immediately (so the ✓ moves at once), then reconcile on settle; roll the cache back on error before surfacing the message. Legacy waited for the invalidate+refetch. Backend stays authoritative. | roles/page.tsx:46-70 (legacy invalidate-only) |
 | **D-C3** | **Disable all role buttons while any update is in flight** — gate every `RoleButton` on `updateMutation.isPending` (not just the `updatingId` row), preventing rapid cross-row clicks racing. Legacy only locked the same row via `updatingId`. | roles/page.tsx:66 (legacy `updatingId` lock) |
+| **D-REL1** | **Phase 4 polish (#19, #29, #36).** #19 the non-admin redirect waits for session restore (`isBootstrapping \|\| !session`). #29 the roster load goes through `QueryView` (frontend-kit **D-KIT-21**: loading → failed `ErrorView` + Retry → stale banner; offline with no data → the offline view; reload on reconnect), replacing `LoadingState` / `ErrorState`. #36 role buttons are 44 px targets (`text-sm`) with `aria-pressed` on the current role (frontend-kit **D-KIT-22**). | `ec13107`; web plan decision 5 |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -145,5 +150,6 @@ notification to the affected member.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #19 the non-admin redirect waits for session restore; #29 `QueryView` (ErrorView + Retry, stale banner, offline view, reload on reconnect); #36 role buttons 44 px + `aria-pressed`. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the role-update error and the roster load error go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 26) — the **twelfth web page spec**, the **second of the six deferred `/program/*` settings sub-routes**. The **admin-only role-management list** (active members → Admin/Logger/Member buttons → `PUT /program-memberships`). Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Manage Roles mirrors later) · **D-SCOPE** (this page only; other 4 `/program/*` sub-routes deferred) · **D-DEPS** (port `LoadingState` verbatim as shared chrome) · **D-S1** (faithful 1:1) · **D-C1** (tokenize role-button colors → `rf-warning`/`rf-info`/`rf-text-muted`) · **D-C2** (optimistic role update + rollback) · **D-C3** (disable all role buttons while any update is in flight). Flagged F1–F5 (client JWT-decode admin gate; client last-admin disable mirroring the backend 400; role-only payload; raw name / default role label; no client throttle). Consumes `program-memberships` (`fetchMembershipDetails`/`updateMembership`) + `auth` (`useAuthGuard`); **all endpoints already mounted, api modules already ported, no feature bump.** Ported `apps/web/src/app/program/roles/page.tsx` + new shared `components/ui/LoadingState.tsx`. `npm run build` ✓. |

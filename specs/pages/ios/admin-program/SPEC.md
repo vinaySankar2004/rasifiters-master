@@ -1,6 +1,6 @@
 # Screen: `AdminProgramTab` / `StandardProgramTab` (ios) — the Program tab (Tab 4, the LAST tab body)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
 > **Location:** Tab 4 **"Program"** (`calendar.badge.clock`) of `AdminHomeView`'s bottom `TabView` — the iOS
 > analogue of the web `/program` workspace hub. Role-bifurcated by `programContext.isProgramAdmin`:
 > `AdminProgramTab` (program/global admin — sectioned management menu) vs `StandardProgramTab` (logger/member —
@@ -70,7 +70,7 @@ manager, the workout-type manager, and the account screens (profile/password/app
 | Member Management | `ProgramMemberManagementSection()` — **deferred stub** (View Members + Invite). **0.2.0:** the first row reads **`People`** · `<n> enrolled` → `PeopleListView` (the roster `ProgramMembersListView` is retired — [program-member-management](../program-member-management/SPEC.md) D-NP1). | `MemberManagementSection.swift` |
 | Role Management | `ProgramRoleManagementSection()` — **deferred stub**; gated by `canEditProgramData`. | `RoleManagementSection.swift` |
 | Workout Types | `ProgramWorkoutTypesSection()` — **deferred stub**. | `WorkoutTypesSection.swift` |
-| My Account | `ProgramMyAccountSection()` — profile/password/appearance/notifications/privacy/support/sign-out. **0.2.0 (D-NP1):** plus an **`Inbox`** row (`tray.fill`; `<n> new` / `99+ new`, else `Invites and notifications`) → `InboxView`. | `MyAccountSection.swift` / `ProgramCards.swift` |
+| My Account | `ProgramMyAccountSection()` — profile/password/appearance/notifications/privacy/support/sign-out. **0.2.0 (D-NP1):** plus an **`Inbox`** row (`tray.fill`; `<n> new` / `99+ new`, else `Invites and notifications`) → `InboxView`. **0.2.1 (D-REL1):** the Apple Health row's subtitle reads `Sync workouts, sleep, and steps`. | `MyAccountSection.swift` / `ProgramCards.swift` |
 
 **`StandardProgramTab`** (`StandardProgramTab.swift:5-317`) — a flat `NavigationStack` scroll:
 
@@ -152,6 +152,7 @@ write sub-routes, not the program hub). The read-vs-write axis (runs 31/36/54/55
 | **D-C3** | **Tokenize the `.blue` section accent** → `Color.appBlue` (light-mode pixel-identical, dark-mode theme-aware — the run-26 clean mapping). The 3 bare `.blue` accents on the info-section headers/edit icon (`ProgramInfoSection` header + Edit icon, `StandardProgramTab` info-card header icon). `statusColor` is already tokenized (`appGreen`/`appBlue`/`appOrange`); `.gray`/`.appPurple`/`.appRed`/`Color(.systemGray*)`/`Color(.label)` stay faithful (no cleaner token). | user pin; selective tokenize (runs 26/27/42). |
 | **D-DEPS** | **One small new dep class** — the `sectionHeader`/`settingsRow` free helpers (co-located in the legacy giant `AdminHomeHelpers.swift`, never pulled into the foundation — the run-55/56 `GlassButton`/`AccentChip` situation) + the new `.leaveProgramConfirmation` modifier (D-C1, authored this run). Everything else already ported (run 50/52/54): `SummaryHeader`, `ProgramPickerView`, `ThemeManager`, `APIConfig` URLs, theme, all `ProgramContext` props/methods. Zero new api fn. | dep-purity grep (foundation). |
 | **D-NP1** | **Inbox row + the People row (0.2.0; notifications D-C31, people D-C14, NP-U1).** `ProgramMyAccountSection` (in `Tabs/ProgramCards.swift`) gains the `Inbox` row (the badge as `<n> new`) pushing `InboxView`; the Member Management section's roster row becomes `People` · `<n> enrolled` → `PeopleListView` (TC1 / UA-1 superseded by NP-U1 — the Members-tab header also opens People for every role). Same rows on both role variants (My Account is shared). | NP amendments NP-U1, R7, R8; iOS plan TC1, TC9. |
+| **D-REL1** | **Phase 4 polish (#45).** `ProgramMyAccountSection`'s Apple Health row subtitle reads `Sync workouts, sleep, and steps` (was "Sync workouts automatically"; iOS syncs steps — Android keeps `Sync workouts and sleep`), the same copy as the picker's account sheet (PA1). Both role variants (shared section). The management sections' own polish is recorded in their page SPECs. | `05e185a`; polish amendments PA1 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -184,6 +185,7 @@ write sub-routes, not the program hub). The read-vs-write axis (runs 31/36/54/55
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #45 My Account's Apple Health subtitle `Sync workouts, sleep, and steps`. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`198407c`).** My Account gains the `Inbox` row (unread badge → `InboxView`); the Member Management row reads `People` · `<n> enrolled` → `PeopleListView` (roster retired). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error (`ProgramCards.swift`) uses `SessionCopy.kitMessage` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-30 | Initial faithful port — `AdminProgramTab`/`StandardProgramTab` + `ProgramInfoSection` + `ProgramMyAccountSection` + `sectionHeader`/`settingsRow` + `.leaveProgramConfirmation` (D-C1); dropped dead `PlaceholderTab` (D-C2); tokenized `.blue`→`appBlue` (D-C3); deferred the 3 management sections as stubs. CLOSES the 4-tab home shell (run 57). |

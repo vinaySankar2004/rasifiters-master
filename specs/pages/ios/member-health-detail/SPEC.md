@@ -1,13 +1,14 @@
 # Screen: `member-health-detail` (ios) — the per-member daily-Health logs (write surface)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.3 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from the Members tab's health card
 > (`MemberCards.swift:192`, `NavigationLink { MemberHealthDetail(memberId:memberName:) }`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Sheets/HealthSortFilterSheets.swift`
 > (`MemberHealthDetail` + sort/filter sheets + `DailyHealthEditSheet`, lines 1–848).
 > **Web parity reference:** [`web members/health`](../../web/members/health/SPEC.md) — the write twin of
 > `/members/workouts`: sorted/filterable list + Edit (sleep + diet) / Delete + client CSV; `admin_only_data_entry` **LIVE**.
-> **Consumes:** `ProgramContext.loadMemberHealthLogs` / `updateDailyHealthLog` / `deleteDailyHealthLog`.
+> **Consumes:** ~~`ProgramContext.loadMemberHealthLogs`~~ `APIClient.fetchDailyHealthLogs` into the screen's own
+> `LoadState` (0.2.3, D-REL1) / `updateDailyHealthLog` / `deleteDailyHealthLog`.
 > **Stance:** faithful 1:1 port **+ D-C1 (web-parity `admin_only_data_entry` lock)** — the write twin of member-recent. §10.
 
 ---
@@ -47,16 +48,19 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 - **New this run (`Features/Home/Detail/MemberHealthDetail.swift`):** `MemberHealthDetail`, `HealthSortField`,
   `HealthSortDirection`, `HealthFilters`, `HealthSortSheet`, `HealthFilterSheet`, `DailyHealthEditSheet`.
 - **Reused (foundation):** `ShareSheet`/`ShareItem`, theme tokens.
-- **Features:** none as a module — reads `ProgramContext` (`memberHealthLogs`, `dataEntryLocked`) and calls
-  `loadMemberHealthLogs`/`updateDailyHealthLog`/`deleteDailyHealthLog` directly (faithful).
+- **Features:** none as a module — reads `ProgramContext` (~~`memberHealthLogs`~~, `dataEntryLocked`) and calls
+  ~~`loadMemberHealthLogs`~~/`updateDailyHealthLog`/`deleteDailyHealthLog` directly (faithful). *(0.2.3, D-REL1)* the list is
+  its own `LoadState<[DailyHealthLogItem]>` via `APIClient` (no shared write); kit: `LoadStateContent` +
+  `.loadStateChrome` + `loadOutcome`.
 
 ## 6. Data / API
 
-- **`GET /daily-health-logs?memberId=&…`** (`loadMemberHealthLogs`) — server sort/filter; `limit: 0` → backend cap (F1).
+- **`GET /daily-health-logs?memberId=&…`** (~~`loadMemberHealthLogs`~~ `APIClient.fetchDailyHealthLogs`, 0.2.3 — never
+  `ProgramContext.memberHealthLogs`) — server sort/filter; `limit: 0` → backend cap (F1).
 - **`PUT /daily-health-logs`** (`updateDailyHealthLog(…, steps:)`, Edit — explicit null clears steps/diet) ·
   **`DELETE /daily-health-logs`** (`deleteDailyHealthLog`).
 - The GET now flows through the new steps-aware `fetchDailyHealthLogs` (adds `minSteps`/`maxSteps`) into a
-  local `logs: [APIClient.DailyHealthLogItem]`. No lazy type query (health metrics are numeric, F4). CSV
+  local ~~`logs: [APIClient.DailyHealthLogItem]`~~ `LoadState<[APIClient.DailyHealthLogItem]>` (0.2.3). No lazy type query (health metrics are numeric, F4). CSV
   export client-side (header gains a **Steps** column).
 - **`admin_only_data_entry` = LIVE** — write path; the lock hides Edit/Delete for non-admins (D-C1).
 
@@ -73,12 +77,18 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 
 ## 8. States & edge cases
 
-- **Loading:** `isLoading` → 5 redacted skeleton rows.
-- **Empty:** `memberHealthLogs.isEmpty` → "No daily health logs found."
-- **Control change:** `.onChange` of sort/dir/filters re-fetches.
+- **Loading:** ~~`isLoading`~~ the `LoadStateContent` placeholder → 5 redacted skeleton rows; offline with no data → the
+  offline `ErrorStateView` (0.2.3).
+- **Empty:** the loaded list empty → "No daily health logs found."
+- **Control change:** ~~`.onChange` of sort/dir/filters re-fetches.~~ *(0.2.3, D-REL1)* keyed on (sort, direction,
+  filters): a change resets to loading in the same event, `.task(id: query)` loads, a result for an older query is
+  dropped.
+- **List error (0.2.3, D-REL1):** failed with no data → `ErrorStateView` + Retry; a failed reload over a shown list (incl.
+  the one after an edit / delete) → the list stays with the floating `Couldn't refresh` · Retry banner; reload on
+  reconnect.
 - **No `memberId`:** `loadHealthLogs` guards and returns; the edit sheet only mounts `if let mId = memberId`.
 - **Edit validity:** at-least-one-metric (`sleepValue != nil || foodQuality != nil`) + sleep 0:00–24:00 (F6); Save disabled otherwise.
-- **Delete/Edit:** confirm alert → mutate → reload; failures → error alert (only mutation errors surface — no list-query error state, F5).
+- **Delete/Edit:** confirm alert → mutate → reload; failures → error alert. ~~(only mutation errors surface — no list-query error state, F5)~~ *(F5 retired at v0.2.3.)*
 - **Locked:** swipe reveals no actions (D-C1); the list remains viewable.
 
 ## 9. Decisions made
@@ -90,6 +100,7 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 | **D-C1** | **Web-parity `admin_only_data_entry` lock** — swipe Edit/Delete gated on `!programContext.dataEntryLocked` (locked non-admins see the list read-only). Legacy iOS had none (backend 403); completes the run-54/60 lock arc — same treatment as `member-recent-detail` D-C1. | web health D-WRITE; run-54/60; user answer. |
 | **D-REF** | **Keep iOS-native** — swipe actions + native sheets vs web route + modals; list + role posture match web → idiom. `consumed_by=[ios]`. | run-52/53. |
 | **D-DEPS** | **No new dependency** — every API fn / DTO / `dataEntryLocked` / `ShareSheet` already ported (run 50); all sort/filter/edit sheets port co-located. `WorkoutLogEditSheet` (legacy-co-located here) moved to `member-recent-detail`'s file where it belongs. | collision grep; run-50. |
+| **D-REL1** | **Phase 4 polish (#29, #34).** #29 the kit detail load (frontend-kit **D-KIT-21**): own `LoadState<[DailyHealthLogItem]>` filled by `APIClient.fetchDailyHealthLogs` — never `ProgramContext.memberHealthLogs` (member-analytics **D-C13**; the tab's `MemberHealthCard` loads its own preview); `LoadStateContent` (5 skeleton rows, offline view with no data, `ErrorStateView` + Retry) + `.loadStateChrome` (stale banner, reconnect reload) — F5 (no list error state) retired. #34 keyed on (sort, direction, filters): `.onChange(of: query)` → loading, `.task(id: query)` loads, an older query's result is dropped; an edit / delete reloads under the kept rows. | `05e185a`; iOS plan P-4, step 46 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -99,13 +110,14 @@ control change; a **write** surface → the `admin_only_data_entry` lock bites.
 | **F2** | **Client-stricter-than-backend scope** — card scopes to self; `getMemberHealthLogs` enforces only `ensureProgramAccess` + target-enrolled (web F2). | `MemberCards.swift`; backend | Kept (faithful); backend is the boundary. |
 | **F3** | **`memberId` always sent** to `updateDailyHealthLog`/`deleteDailyHealthLog` (unlike the workouts twin's name-only-for-others, web F3). | `DailyHealthEditSheet`/`deleteHealthLog` | Kept (faithful). |
 | **F4** | **No lazy filter query** — health filter is numeric (sleep + diet), no type vocabulary (unlike the workouts twin, web F4). | `HealthFilterSheet` | Kept (faithful). |
-| **F5** | **No list-query error state** — only mutation errors alert (web F5). | `loadHealthLogs` | Kept (faithful). |
+| **F5** | ~~**No list-query error state** — only mutation errors alert (web F5).~~ | `loadHealthLogs` | *Retired at v0.2.3 (D-REL1) — the kit error view + Retry.* |
 | **F6** | **Edit: sleep + diet editable (date disabled), at-least-one-metric + 0:00–24:00 sleep** (log-health run-37 mirror, web F6). | `DailyHealthEditSheet` | Kept (faithful). |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #29 own `LoadState` via `APIClient` (no shared `memberHealthLogs` write) + kit error view / Retry / stale banner / offline view / reconnect reload (F5 retired); #34 keyed on sort / direction / filters, an older query's result dropped. |
 | 0.2.2 | 2026-10-13 | Phase 4 quick wins: edit / delete errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **View Health row clarity refactor (cosmetic, cross-surface parity).** `healthRow` moves off the DC-10 two-line format to a **stacked metric-cell layout**: a header row (`appBlueLight` dot + `logDate` semibold) over three equal labeled cells (new `metricCell`: uppercase `SLEEP`/`DIET`/`STEPS` caption over the semibold value, `systemGray6` fill), so each value reads at a glance. Values/formatting unchanged (`—` for missing, steps grouped); the compact `MemberHealthCard` preview keeps the DC-10 two-line form. Matches the web + Android View Health rows. No contract/behavior change. User live-tested; build green-check owned by the user (Xcode). |
 | 0.2.0 | 2026-07-09 | **Steps throughout (daily-health-logs 0.2.0).** `MemberHealthDetail` reads a local `logs: [APIClient.DailyHealthLogItem]` via the new steps-aware `fetchDailyHealthLogs`/`loadMemberHealthLogs(… minSteps: maxSteps:)`. `HealthSortField` gains `steps`; `HealthFilters` gains `minSteps`/`maxSteps` (+ chip "Steps ≥/≤") + a filter-sheet "Steps" section; `healthRow` adopts the DC-10 two-line layout (`Sleep · Diet · Steps`, grouped); the CSV header gains a Steps column. `DailyHealthEditSheet` takes a `DailyHealthLogItem`, gains a Steps digit field (blank = clear), at-least-one-metric now includes steps, and calls `updateDailyHealthLog(…, steps:)` (`ProgramContext+WorkoutManagement` + the new `APIClient+DailyHealth` overload — explicit null clears). Build green-check owned by the user (Xcode). |

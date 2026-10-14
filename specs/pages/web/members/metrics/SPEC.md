@@ -1,6 +1,6 @@
 # Page: `members/metrics` (web) — program-wide member performance metrics + CSV export (members sub-route 4 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/metrics` — the **Member Performance Metrics** dashboard reached by the `/members` landing's
 > metrics card (program-admin / global_admin only as an entry path). A searchable, sortable, filterable grid of
 > per-member metric cards + a client-side **Export CSV**. **4th** of the eight deferred `/members` sub-routes
@@ -44,7 +44,7 @@ find outliers, and exports the table to CSV for offline reporting.
 
 ## 4. Contents / sections
 
-1. **`PageHeader`** — title "Member Performance Metrics", subtitle `${filtered} members` (or "Loading metrics…"),
+1. **`PageHeader`** — title "Member Performance Metrics", subtitle `${filtered} members` (or "Loading metrics…" while loading; none after a failed load — D-REL1),
    `backHref="/members"`, plus an **Export CSV** action button (`disabled` when no data / zero members)
    (`metrics/page.tsx:163-180`).
 2. **Search/controls `GlassCard`** (`relative z-30`, `:182-204`) — a `md:grid-cols-[1fr,200px,200px,140px]` row:
@@ -53,7 +53,7 @@ find outliers, and exports the table to CSV for offline reporting.
      workout types · current/longest streak · avg diet) (`:195`).
    - **Direction `Select`** — `DIR_OPTIONS` (desc/asc) (`:196`).
    - **Filters button** — opens the filter modal (`setShowFilters(true)`) (`:197-203`).
-3. **States** — `LoadingState` / `ErrorState` / `EmptyState` ("No members to display.") (`:206-216`).
+3. **States** — ~~`LoadingState` / `ErrorState`~~ *(superseded at v0.2.2 by D-REL1)* `QueryView` (loading · `ErrorView` + Retry · offline view · stale banner) / `EmptyState` ("No members to display.") (`:206-216`).
 4. **Cards grid** — one `MemberMetricsCard` per member (`:218-225`):
    - avatar (`initials`) · name · "Workouts N" · a **hero metric** whose value+label follow the current
      `sortField` (`MemberMetricsCard.heroValue`/`heroLabel`, `:240-268`).
@@ -122,12 +122,15 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
 
 ## 8. States & edge cases
 
-- **Loading** — `metricsQuery.isLoading` → `LoadingState "Loading metrics…"`; the header subtitle reads
-  "Loading metrics…" and Export is `disabled`.
-- **Error** — `metricsQuery.isError` → `ErrorState` with the error message.
+- **Loading** — "Loading metrics…" via `QueryView` (D-REL1); the header subtitle reads "Loading metrics…" and
+  Export is `disabled`. With nothing loaded while offline → the kit offline `ErrorView`, never a spinner.
+- **Error** — ~~`metricsQuery.isError` → `ErrorState` with the error message~~ *(superseded at v0.2.2 by D-REL1)* —
+  the kit `ErrorView` + Retry (the header subtitle drops "Loading metrics…"); a failed refresh over shown cards →
+  the floating stale banner; a failed read reloads when the connection returns.
 - **Empty** — `data.members.length === 0` → `EmptyState "No members to display."`; Export `disabled` (and
   `handleExport` early-returns).
-- **Loaded** — header subtitle `${filtered} members`; one card per member; the hero metric follows `sortField`.
+- **Loaded** — header subtitle `${filtered} members`; one card per member; the hero metric follows `sortField`
+  (Avg Steps → the rounded average with thousands separators, "—" when missing or hidden — D-REL1).
 - **Search / sort / direction / filters** — each updates local state → a new query key → a fresh server fetch
   (server-driven; no client filtering of loaded rows).
 - **Filters modal** — `Clear all` resets to `defaultFilters`; `Done`/backdrop closes; custom date range only applies
@@ -144,6 +147,7 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
 | **D-S1** | **Faithful otherwise** — same `useAuthGuard()` default (no role gate), same React Query key + `enabled` gate, same server-driven search/sort/direction/filters, same `MemberMetricsCard` hero-metric switch, same `MetricsFilterModal`/`FilterRange` markup, same client-side `handleExport` CSV. | `members/metrics/page.tsx:78-430` |
 | **D-C1** | **Full-tokenize the amber flame badge** — `bg-amber-200/70 text-amber-900` → `bg-rf-warning/20 text-rf-warning` (the lone non-`rf` color; `rf-warning` exists, `#f59e0b` light / `#fbbf24` dark). Theme-aware; the run-27/39 selective-tokenize taken to full tokenize per user pick. | `members/metrics/page.tsx:305`; `tailwind.config.ts:23`, `globals.css:20,44` |
 | **D-STANCE** | Faithful 1:1 **+ D-C1**. No backend work, no feature bump (route + api fn already shipped). | user, this run |
+| **D-REL1** | **Phase 4 polish (#29, #39).** #29 the metrics load goes through `QueryView` (frontend-kit **D-KIT-21**: loading → failed `ErrorView` + Retry → stale banner; offline view; reload on reconnect), replacing `LoadingState` / `ErrorState`; after a failure the header subtitle drops "Loading metrics…". #39 sorting by **Avg Steps** makes it the card's hero number (`stepsLabel(Math.round(avg_steps))`, "—" when missing or hidden) — it used to fall through to the workouts count under the "Avg Steps" label (member-analytics **D-C13**). | `ec13107`; web plan decision 5, amendments anchor step 34 |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
@@ -164,7 +168,7 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
   `escapeCsv` escapes only `member_name` (numeric fields are emitted raw — safe, they contain no commas/quotes).
   `null` avg sleep/diet → empty cells. Faithful.
 - **F5 — hero metric is sort-coupled.** The big number on each card (`heroValue`/`heroLabel`) is whatever the current
-  `sortField` selects (`current_streak` → "Current Streak", fallback label → "Active Days"; default sort = active_days, D-C7). A display nicety, not a separate
+  `sortField` selects (`current_streak` → "Current Streak", `avg_steps` → "Avg Steps" (its own value case since v0.2.2, D-REL1), fallback label → "Active Days"; default sort = active_days, D-C7). A display nicety, not a separate
   control. Faithful.
 - **F6 — `current_streak` / `longest_streak` filters are min-only.** `FilterRange` for both streaks passes `maxValue=""`
   and a one-arg `onChange` (`:391-392`) — no upper bound by design. Faithful.
@@ -175,6 +179,7 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #29 `QueryView` (ErrorView + Retry, stale banner, offline view, reload on reconnect; no "Loading metrics…" subtitle after a failure); #39 the Avg Steps hero value. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the CSV export follows the shared column contract via `lib/metrics-csv.ts` (units in the headers, rows = the list on screen in its order, unified filename — member-analytics D-C9, #47); the load error goes through `toAppError` (#8). |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (sortField initial state active_days; option list order unchanged), card subtitle = "Workouts N", first grid tile = Active days (in-place swap). CSV export unchanged. |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/metrics` (members sub-route 4 of 8) — program-wide member performance dashboard (search/sort/filter + per-member cards + client-side CSV export); D-C1 full-tokenize the amber flame badge → `rf-warning`. No new dependency, zero backend work, no feature bump. |

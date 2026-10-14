@@ -1,6 +1,6 @@
 # Page: `program` (web) — the program settings hub (fourth & last workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/program` — **the fourth (last) bottom-nav tab** of a program's workspace. The settings hub:
 > a role-gated menu of settings entries (program info/edit · members/invite · role management · workout types ·
 > leave program · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins.
@@ -25,7 +25,7 @@ The **program settings hub** for the active program — the workspace's "setting
 admin (or global admin) it is a menu of grouped settings cards: **Program Info** (Select Program · Edit Program
 Details), **Members** (View Members · Invite Member), **Role Management** (live Admins/Loggers lists + Manage
 Roles), **Workout Types** (count + entry), **Leave Program**, and **My Account** (Profile · Change Password ·
-Appearance · Privacy Policy · Sign Out). For a non-admin (logger/member) it collapses to a **read-only Program
+Appearance · Privacy Policy · Support · Sign Out). For a non-admin (logger/member) it collapses to a **read-only Program
 Info card** (name, status, duration, a client-computed progress bar, active-member count) + **Switch Program** +
 **Leave Program** + **My Account**. Used by **every enrolled member**; the menu vs read-only-card split is by
 role (§7). Almost every control is forward-navigation; the only live actions on the landing are **Leave Program**
@@ -61,7 +61,7 @@ shared sign-out/account section + the leave-confirm dialog.
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Header | "Program" + active program name + a user-initials avatar pill. | program/page.tsx:90-98 |
-| Error banner | `ErrorState` shown only on a failed leave mutation. | program/page.tsx:100 |
+| Error banner | `ErrorState` on a failed leave mutation. **0.3.0 (D-REL1):** a failed membership read (or, on the admin view, a failed workout-types read) shows the kit `ErrorView` + Retry under it; a failed refresh over shown data shows the floating "Couldn't refresh · Retry" banner. | program/page.tsx (header + `loadError` / `loadStale`) |
 | **Admin variant** — Program Info | Select Program (→ `/programs`) · Edit Program Details (→ `/program/edit`, subtitle = status + date range). | program/page.tsx:104-138 |
 | Admin — Members | View Members (→ `/members/list`, subtitle = active count) · Invite Member (`canInvite` → `/members/invite`). **0.2.0 (D-NP1):** behind `PEOPLE_LIVE` the first row reads **`People`** · `<n> enrolled` (dark today: `View Members` · `<n> active`). | program/page.tsx (Members section) |
 | Admin — Role Management | `canManageRoles`-only; live **Admins** + **Loggers** lists (`RoleList`, from membership details) + Manage Roles (→ `/program/roles`). | program/page.tsx:178-217 |
@@ -69,8 +69,9 @@ shared sign-out/account section + the leave-confirm dialog.
 | **Non-admin variant** — Program Info card | Read-only `GlassCard`: Name · Status (`StatusBadge`) · Duration · a **client-computed progress bar** (`computeProgramProgress`, %/elapsed/remaining) · Active Members. | program/page.tsx:265-315 |
 | Non-admin — Switch Program | → `/programs`. | program/page.tsx:317-330 |
 | Leave Program | `canLeaveProgram`-only (both variants) → opens the leave-confirm dialog. Extracted to one `LeaveProgramButton` (D-C2). | program/page.tsx:244-259, 332-347 |
-| My Account | Profile (→ `/program/profile`) · **`Inbox`** (0.2.0: `<n> new` + a count pill, else `Invites and notifications` → `/programs?open=inbox`) · **`Notifications`** (0.2.0 → `/program/notifications`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · **`Announcements`** (0.2.0, global admins → `/program/announcements`) · Privacy Policy (→ `/program/privacy`) · **Sign Out** (live `signOut()`). | program/page.tsx (`MyAccountSection`) |
+| My Account | Profile (→ `/program/profile`; 0.3.0: titled with the member name, subtitle `@username`, initials in the circle — D-REL1) · **`Inbox`** (0.2.0: `<n> new` + a count pill, else `Invites and notifications` → `/programs?open=inbox`) · **`Notifications`** (0.2.0 → `/program/notifications`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · **`Announcements`** (0.2.0, global admins → `/program/announcements`) · Privacy Policy (→ `/program/privacy`) · **`Support`** (0.3.0, `Get help or contact us` → `/support` in a new tab — D-REL1) · **Sign Out** (~~live `signOut()`~~ *(superseded at v0.3.0 by D-REL1)* opens the `Sign Out?` confirm). | program/page.tsx (`MyAccountSection`) |
 | Leave-confirm dialog | `ConfirmDialog` (danger) — runs `leaveMutation`; on success clears the active program, invalidates `["programs"]`, → `/programs`. | program/page.tsx:354-362 |
+| Sign-out confirm (0.3.0) | `ConfirmDialog` (danger) `Sign Out?` / `Are you sure you want to sign out?` / `Sign Out` → `signOut()` → `/login`; at page root, not inside `MyAccountSection` (D-REL1). | program/page.tsx (page root) |
 
 **Data flow.** `membershipQuery` (`fetchMembershipDetails`) → active members (`is_active`) → the active count +
 the Admins/Loggers `RoleList`s. `workoutsQuery` (`fetchProgramWorkouts`) → visible + custom counts for the
@@ -125,7 +126,11 @@ and is not gated by the lock.)
 
 - **Loading:** the Members count shows "Loading...", Role Management shows "Loading roles...", Workout Types
   shows "Loading...", and the non-admin Active Members row shows "—" until each query resolves.
-- **Empty:** Role Management with no admins/loggers → "No admins or loggers assigned."
+- **Failed (D-REL1):** the Members count and Workout Types subtitle read "—" (never "0 active"), the non-admin
+  Active Members row stays "—", and the page shows one `ErrorView` + Retry (membership failure first; a
+  workout-types failure counts only on the admin view). A failed read reloads when the connection returns.
+- **Empty:** Role Management with no admins/loggers → "No admins or loggers assigned." — only on loaded data,
+  never after a failure (D-REL1).
 - **Leave success:** `clearActiveProgram()` + invalidate `["programs"]` + → `/programs`. **Leave failure:** the
   `ErrorState` banner shows the mutation error; the dialog's confirm label reads "Leaving..." while pending.
 - **No active program:** `useAuthGuard()` (default `requireProgram:true`) redirects to `/programs`.
@@ -146,6 +151,7 @@ and is not gated by the lock.)
 | **D-C1** | **Read the appearance label via `getStoredTheme()`** (from `lib/theme.ts`) instead of the raw `localStorage.getItem("rf:appearance")` + manual mapping in `MyAccountSection` (legacy `page.tsx:459-463`). Single-sources the storage key (`THEME_KEY`) + valid values; behavior-identical (still a post-mount `useEffect` to avoid hydration mismatch). | `program/page.tsx:459-463`; `lib/theme.ts:1-12`; user answer (pinned cleanup). |
 | **D-C2** | **Extract the duplicated Leave Program button** into one local `LeaveProgramButton` component. The button markup was byte-identical in both role branches (legacy `page.tsx:244-259` & `332-347`), both gated by `canLeaveProgram`; a single component is behavior-preserving. | `program/page.tsx:244-259`, 332-347; user answer (pinned cleanup). |
 | **D-C3** | **Keep `computeProgramProgress` local (no change).** It is **client-computed** from `program.start_date`/`end_date`, semantically distinct from the summary tab's `ProgramProgressCard` which uses the **server-derived** `progress_percent`/`elapsed_days` (run-11 "client copy vs server copy"). Single-use here; not hoisted. Flagged §10 (F4). | `program/page.tsx:434-453`; `summary/page.tsx:338-347`; user answer (confirm, no change). |
+| **D-REL1** | **Phase 4 polish (#33, #41).** #33 honest roster / roles / workout-type states (the Summary recipe): `Loading...` while loading, "—" only after a failed read, the role-lists empty line only on loaded data, one kit `ErrorView` + Retry (`retryNow` on the failed key) for a failed membership read or — admin view only — a failed workout-types read, the stale `FloatingBanner` at page root, refetch on reconnect (program-memberships **D-C7** #33; program-workouts **D-C3**). #41 `MyAccountSection` names the member (name + `@username` + initials, iOS ProfileRow parity), adds a **Support** row (`Get help or contact us`, opens `/support` in a new tab), and Sign Out opens a `Sign Out?` / `Are you sure you want to sign out?` / `Sign Out` confirm (the picker keeps its `Sign Out` title). | `ec13107`; polish amendments PA1 (#41 copy) |
 | **D-NP1** | **Phase 4 account rows + the People label (0.2.0; notifications D-C30, people D-C13).** `MyAccountSection` gains `Inbox` (the unread `badge`: `<n> new` + a red count pill — W18; opens `/programs?open=inbox`), `Notifications` (`Choose what you're notified about` → `/program/notifications`) and, for global admins, `Announcements` (→ `/program/announcements`). The Members section's first row reads `People` · `<n> enrolled` only when `PEOPLE_LIVE` (release day); dark it keeps `View Members` · `<n> active`. | NP amendments R7, R8, NP-U1; web plan W5, W18. |
 
 ## 10. Flagged characteristics kept as-is
@@ -163,6 +169,7 @@ and is not gated by the lock.)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #33 honest roster / roles / workout-type states (`Loading...`, "—" only on failure, ErrorView + Retry, stale banner, reload on reconnect); #41 signed-in-as profile row (name + `@username`), Support row (new tab), `Sign Out?` confirm. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`b2ea09b`).** My Account rows `Inbox` (count), `Notifications`, `Announcements` (global admins); the Members row label `People` · `<n> enrolled` behind `PEOPLE_LIVE` (dark: unchanged). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the Leave error goes through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 24) — the **ninth web page spec**, the program workspace **Program** tab (fourth & last bottom-nav tab; all four tabs now resolve). The **settings hub**: a role-gated menu (program info/edit · members/invite · role management · workout types · leave · my account) for admins, or a read-only program-info card + switch/leave for non-admins. Only **Leave Program** + **Sign Out** are live actions on the landing; everything else is forward-nav. Read-only-ish → `admin_only_data_entry` **N/A** here. Consumes `program-memberships` (`fetchMembershipDetails` + `leaveProgram`) + `program-workouts` (`fetchProgramWorkouts`) + `auth`; **all endpoints already mounted, no new deps, no feature bump**. Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings tab mirrors later) · **D-SCOPE** (landing only; the 6 `/program/*` sub-routes deferred) · **D-S1** (faithful 1:1) · **D-C1** (appearance label via `getStoredTheme()` instead of raw localStorage) · **D-C2** (extract the duplicated `LeaveProgramButton`, behavior-preserving) · **D-C3** (keep `computeProgramProgress` local — client-computed, distinct from summary's server-derived progress). Flagged F1–F6 (client JWT-decode role; forward-nav to unbuilt routes; global_admin can't leave; client-computed progress; raw `rf:appearance` write contract; no client throttle). Ported `apps/web/src/app/program/page.tsx`. `npm run build` ✓ (`/program` prerendered, 4.36 kB — no Recharts; Middleware 27.3 kB active). |

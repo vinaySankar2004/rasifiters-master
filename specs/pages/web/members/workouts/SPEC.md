@@ -1,6 +1,6 @@
 # Page: `members/workouts` (web) — per-member workout log manager (members sub-route 7 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/workouts?memberId=&name=` — the **View Workouts** manager for one member, reached by the
 > `/members` landing's "Recent Workouts" card. Sort + filter modal + CSV export over the member's workout-log list,
 > each row **editable** (duration modal) and **deletable**. **7th** of the eight deferred `/members` sub-routes
@@ -58,16 +58,18 @@ duration (Edit) or remove a mistaken entry (Delete) — without leaving the memb
    - Two `Select`s — **sort field** (Date / Duration / Workout Type) and **direction** (Descending / Ascending).
    - **Filter** button — opens the filter modal; highlighted (`bg-rf-accent/20`) when any filter is active.
    - A `formattedFilters` summary chip (range · type · "At least/At most {duration}") when filters are set.
-3. **Error line** — `errorMessage` (mutation failures) rendered as a `text-rf-danger` `<p>` (`page.tsx:252`).
-4. **List states** (`page.tsx:254-302`): `LoadingState "Loading workouts..."` / `EmptyState "No workouts found."` /
+3. ~~**Error line** — `errorMessage` (mutation failures) rendered as a `text-rf-danger` `<p>` (`page.tsx:252`).~~
+   *(superseded at v0.1.2 by D-REL1 — an edit error shows inside the Edit modal, a delete error inside the ConfirmDialog)*
+4. **List states** (`page.tsx:254-302`): `QueryView` ("Loading workouts..." · `ErrorView` + Retry · offline view · stale banner — D-REL1) / `EmptyState "No workouts found."` /
    the row list — one `GlassCard padding="sm"` per item (type + date on the left, `formatDuration` on the right), with
-   **Edit** + **Delete** buttons below when `canEdit`/`canDelete`.
+   **Edit** + **Delete** buttons (44 px; Delete = `danger-pill`) below when `canEdit`/`canDelete`.
 5. **Filter `Modal`** (`page.tsx:304-...`) — start/end date inputs, a searchable workout-type `Select` (lazy-loaded
    from `program-workouts`), min/max duration (hr+min pairs), and a "Clear all filters" button.
 6. **Edit `Modal`** — disabled Workout + Date fields, an editable Duration (hr+min) pair, Cancel/Save; `submitEdit`
-   guards `duration > 0`.
+   guards `duration > 0`. Its guard and save errors show inside the modal, above Cancel/Save (D-REL1).
 7. **`ConfirmDialog`** (D-C1) — the danger delete confirm (`open={!!deleteTarget}`, `loading=deleteMutation.isPending`,
-   confirm → `deleteMutation.mutate(deleteTarget)`).
+   confirm → `deleteMutation.mutate(deleteTarget)`). **v0.1.2 (D-REL1):** keep-open mode (`closeOnConfirm={false}`) —
+   it reads `Deleting…` while running, closes only on success, and shows a failure inside the dialog.
 
 ## 5. Components + which shared features it consumes
 
@@ -105,7 +107,7 @@ duration (Edit) or remove a mistaken entry (Delete) — without leaving the memb
 `useAuthGuard()` default (`requireProgram: true`) — no token → `/login`, no active program → `/programs`. A
 **client-side per-member redirect** (`page.tsx:70-75`): `canViewAny = isGlobalAdmin || my_role==="admin" ||
 my_role==="logger"`; a non-`canViewAny` user whose URL `memberId` is **not their own** id is
-`router.push("/members")`'d on mount. So staff may view **any** member's workouts; a plain member may view **only their
+`router.push("/members")`'d on mount — judged only once the session is restored (D-REL1). So staff may view **any** member's workouts; a plain member may view **only their
 own**.
 
 **Edit/Delete gate** — `canDelete = canEdit = !isDataEntryLocked(session, program) && (isGlobalAdmin || admin ||
@@ -136,11 +138,16 @@ boundary (the run-40 `members/detail` / run-43 `members/history` mirror).
 - **No `memberId`** — the redirect `useEffect` early-returns and the query is disabled (`enabled` requires
   `memberId`); the page renders header + controls only, no list. Faithful degenerate direct-nav case (the landing
   always passes `memberId`).
-- **Loading** — `workoutsQuery.isLoading` → `LoadingState "Loading workouts..."`.
+- **Loading** — "Loading workouts..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit offline
+  `ErrorView`, never a spinner.
 - **Empty** — `data && items.length === 0` → `EmptyState "No workouts found."`.
-- **List query error** — **no `isError` branch** — a failed list query renders header + controls only, no list, no
-  message (F5). Only **mutation** errors surface (the `errorMessage` line).
-- **Edit guard** — `submitEdit` blocks `duration <= 0` with "Enter a valid duration before saving." (inline).
+- **List query error** — ~~**no `isError` branch** — a failed list query renders header + controls only, no list, no
+  message (F5). Only **mutation** errors surface (the `errorMessage` line).~~ *(superseded at v0.1.2 by D-REL1)* — the
+  kit `ErrorView` + Retry; a failed refresh over a shown list → the floating stale banner; reload on reconnect.
+- **Edit guard** — `submitEdit` blocks `duration <= 0` with "Enter a valid duration before saving." (inside the Edit
+  modal, D-REL1). A failed save also shows there; the modal stays open.
+- **Delete failure (D-REL1)** — shown inside the open ConfirmDialog (keep-open, `Deleting…` while running); success
+  closes it and refreshes the list.
 - **Non-staff viewing another member** — `router.push("/members")` on mount before any data renders (§7).
 - **Locked non-admin** — list/sort/filter/export render, but Edit/Delete buttons are hidden (`canEdit`/`canDelete`
   false); a forged write would 403 at `requireDataEntryAllowed`.
@@ -156,8 +163,9 @@ boundary (the run-40 `members/detail` / run-43 `members/history` mirror).
 | **D-S1** | **Faithful otherwise** — same `force-dynamic` + `useClientSearchParams` (`memberId`/`name`), same `useAuthGuard()` + `canViewAny` redirect, same React Query keys + `enabled` gates, same sort/filter/export markup, same Edit/Delete mutations + payloads (incl. the `member_name`-only-for-others quirk, F3), `maxWidth="4xl"`. | `members/workouts/page.tsx` |
 | **D-C1** | **`window.confirm` → `ConfirmDialog`** — the legacy delete used the browser-native `window.confirm("Delete this workout log?")`; the rebuild replaced `window.confirm` everywhere, so a `deleteTarget` state + the ported danger `ConfirmDialog` (mirroring `lifestyle/workouts` run 31) keeps the page from being the lone divergence. | `lifestyle/workouts/page.tsx:258-269`; run 31 |
 | **D-C2** | **Reuse hoisted `formatDuration`** — drop the page-local copy (byte-identical body) and import `formatDuration` from `lib/format.ts`, where run 22 hoisted it; pure single-sourcing. | `lib/format.ts:48`; run 22 |
-| **D-C3** | **Tokenize the Delete button** — `bg-red-50 … text-red-600` → `bg-rf-danger/10 text-rf-danger`, exactly as run 39 tokenized `members/list`'s "Inactive" badge; theme-aware, light-mode-identical. | `members/list` D-C; run 39 |
+| **D-C3** | **Tokenize the Delete button** — `bg-red-50 … text-red-600` → `bg-rf-danger/10 text-rf-danger`, exactly as run 39 tokenized `members/list`'s "Inactive" badge; theme-aware, light-mode-identical. *(At v0.1.2 the button uses the shared `danger-pill` class — D-REL1.)* | `members/list` D-C; run 39 |
 | **D-STANCE** | Faithful 1:1 **+ D-C1/C2/C3**. No backend work, no feature bump (all routes + api fns already shipped). | user, this run |
+| **D-REL1** | **Phase 4 polish (#9, #19, #29, #36).** #9 errors show where the user is: an edit error (guard or save) inside the Edit modal, a delete error inside the ConfirmDialog in keep-open mode (`closeOnConfirm={false}`, `Deleting…`, closes on success; frontend-kit **D-KIT-24**) — the page-level error line is gone. #19 the own-only redirect waits for session restore (`isBootstrapping \|\| !session`). #29 the list load goes through `QueryView` (frontend-kit **D-KIT-21**; resolves F5). #36 Export CSV, Edit / Delete, Done / Close / Cancel / Save and Clear-all are 44 px `text-sm` targets; Delete uses `danger-pill` (frontend-kit **D-KIT-22**). | `ec13107` |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
@@ -174,9 +182,10 @@ boundary (the run-40 `members/detail` / run-43 `members/history` mirror).
 - **F4 — `program-workouts` is lazy-loaded.** The workout-type filter options query is `enabled` only when `showFilter`
   is true (`page.tsx:80`) — the dropdown's vocabulary is fetched on first filter-open, not page-load. Faithful
   (deliberate — most viewers never open the filter).
-- **F5 — no list-query error state.** Unlike its read twins (streaks/history use `ErrorState`), this page has **no**
+- ~~**F5 — no list-query error state.** Unlike its read twins (streaks/history use `ErrorState`), this page has **no**
   `workoutsQuery.isError` branch — a failed list fetch renders header + controls only, silently. Only mutation errors
-  surface (the `errorMessage` line). Faithful; flagged — a rebuild cleanup would add an `ErrorState` for the list query.
+  surface (the `errorMessage` line). Faithful; flagged — a rebuild cleanup would add an `ErrorState` for the list query.~~
+  **RESOLVED at v0.1.2 (D-REL1)** — `QueryView` shows the kit `ErrorView` + Retry.
 - **F6 — Edit modal edits duration only.** Workout type + date are disabled (display) fields; only the duration is
   editable, matching the backend `PUT /workout-logs` contract (type+date identify the log, duration is the mutable
   field). Faithful.
@@ -185,5 +194,6 @@ boundary (the run-40 `members/detail` / run-43 `members/history` mirror).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #9 edit errors inside the Edit modal, delete errors inside the keep-open ConfirmDialog (`Deleting…`); #19 the own-only redirect waits for session restore; #29 `QueryView` (F5 resolved); #36 44 px targets, Delete `danger-pill`. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/workouts` (members sub-route 7 of 8) — per-member workout-log manager (sort + filter modal + CSV export + per-row Edit/Delete, URL `memberId`/`name`, non-staff own-only redirect, `admin_only_data_entry`-gated writes). D-C1 `window.confirm`→`ConfirmDialog`, D-C2 reuse hoisted `formatDuration`, D-C3 tokenize the Delete button. No new dependency, zero backend work, no feature bump. |

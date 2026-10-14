@@ -1,6 +1,6 @@
 # Screen: `lifestyle` (android) — the workout-types dashboard (3rd bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in the iOS Lifestyle tab
 > (`Features/Home/Tabs/{Admin,Standard}WorkoutTypesTab.swift`) + [`web lifestyle/workouts`](../../web/lifestyle/workouts/SPEC.md)
 > — this file records only the Android realization + idiom deviations.
@@ -8,7 +8,7 @@
 > per-program shell.
 > **Consumes:** [`analytics`](../../../features/analytics/SPEC.md) (workout-types + health timeline) +
 > [`analytics-v2`](../../../features/analytics-v2/SPEC.md) (the 3 workout-type stat cards) via `ProgramContext.loadLifestyle`.
-> **Files:** `ui/lifestyle/{LifestyleScreen,LifestyleCards}.kt`.
+> **Files:** `ui/lifestyle/{LifestyleScreen,LifestyleCards}.kt` + `core/LifestyleData.kt` (`LifestyleData` / `LifestyleParts`, 0.2.2).
 
 ## Parity + Android-idiom deviations
 
@@ -37,10 +37,11 @@
   `ensureLifestyleViewAsDefault`), **separate** from the Members-tab selection, so it survives a push into
   the timeline detail / manager and back. The timeline detail reads the same slot for its member scope.
 - **Load sequencing (iOS `AdminWorkoutTypesTab.task` parity):** the admin default is applied **before** the
-  first load, in one coroutine — `ensureLifestyleViewAsDefault()` then `loadLifestyle(resolvedMemberId)` —
-  so a program-admin's first fetch is already self-scoped (no brief program-wide flash). A second effect
+  first load~~, in one coroutine — `ensureLifestyleViewAsDefault()` then `loadLifestyle(resolvedMemberId)` —~~
+  so a program-admin's first fetch is already self-scoped (no brief program-wide flash). ~~A second effect
   reloads only on a later, user-initiated "View as" change, gated on a `loadedOnce` flag so the initial
-  default-set (which also moves `viewAsId`) doesn't double-fetch.
+  default-set (which also moves `viewAsId`) doesn't double-fetch.~~ *(Mechanism superseded at 0.2.2 by D-REL1:
+  one load effect waits for `lifestyleDefaultedFor == pid`; `loadedOnce` is gone.)*
 - **Deviation A-1 (charts on Canvas):** the popularity chart is a Compose ranked-bar list (track + colored
   fill, iOS `RankedBarList`); the timeline preview is drawn on the shared `SleepDietChart` Canvas
   (single-axis, no tooltip — tapping the card navigates). iOS's glassy `CardShell` → a flat Material
@@ -52,8 +53,9 @@
 
 ## Data / API (via `ProgramContext.loadLifestyle(memberId)`, Bearer-authed by the OkHttp layer)
 
-Fires on entry, on active-program change, and on every "View as" change. Six reads, refreshed together into
-`ProgramContext.lifestyle` (`LifestyleData`).
+Fires on entry, on active-program change, and on every "View as" change. ~~Six reads, refreshed together into
+`ProgramContext.lifestyle` (`LifestyleData`).~~ Seven reads in parallel, each its own result, merged into
+`ProgramContext.lifestyleState` (kit `UiState<LifestyleData>`) *(0.2.2, D-REL1)*.
 
 | Call | Endpoint | Card |
 |------|----------|------|
@@ -71,10 +73,28 @@ Fires on entry, on active-program change, and on every "View as" change. Six rea
 - **Lifestyle Timeline drill-down** → `Routes.LIFESTYLE_TIMELINE` ([`lifestyle-timeline`](../lifestyle-timeline/SPEC.md)).
 - **Steps Timeline drill-down** → `Routes.LIFESTYLE_STEPS_TIMELINE` ([`lifestyle-steps-timeline`](../lifestyle-steps-timeline/SPEC.md)).
 
+## Phase 4 polish (0.2.2)
+
+- **D-REL1 (#10 #31 #36; analytics D-C11, analytics-v2 D-C6; frontend-kit D-KIT-21, D-KIT-22, D-KIT-23).** **#31
+  (the Summary recipe, superseding the swallowed load errors):** each of the seven reads keeps its own result
+  (`LifestyleParts`) and the cards render through `KitLoad` — a spinner with no data, the offline `ErrorView` with no
+  data offline, `ErrorView` + Retry when all seven fail; a partial failure keeps the parts that loaded, a failed part
+  with no previous value shows "—" (a `null` field — "N/A" / "No data" / "No workouts logged yet." / "No data yet"
+  stay for loaded empty data) + the floating "Couldn't refresh · Retry" (84 dp clearance); pull to refresh; reload on
+  reconnect (`RefetchOnReconnect`). **#10 (keyed state):** the state is keyed by (program, View-as member) — a new key
+  starts from Loading, never the other scope's numbers; `setLifestyleViewAs` resets it to Idle in the same event as the
+  pick; `ensureLifestyleViewAsDefault` applies the default (global-admin → program-wide; everyone else →
+  `loggedInMemberId`, no roster needed) before the roster read, and the load waits for it, so a pick is never lost or
+  overwritten; a reply for an older key or session is dropped; `resetProgramScope` clears it on a program switch.
+  **#36:** the popularity Count / Total Minutes / Avg Minutes segments are `selectableTarget(role = RadioButton)` (48 dp,
+  selected state); the shared View-as rows announce their selected state. #26 does not reach this tab: both timeline
+  previews have no tooltip, so no gestures (a tap navigates).
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #31 kit states (per-part "—", ErrorView + Retry, stale banner, pull to refresh, reconnect reload; `lifestyleState` + `core/LifestyleData.kt`); #10 keyed by (program, View-as): a pick resets to loading, the load waits for the program's default, a pick is never lost; #36 popularity segments + picker rows at 48 dp with selected state. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: `loadLifestyle`'s seven reads run in parallel (still all-or-nothing; #5). |
 | 0.2.0 | 2026-07-09 | **Two steps cards** (analytics 0.2.0 D-C5). `StepsAnalyticsCard` (teal `#14b8a6`; Total Steps / Avg Steps/Day from `lifestyle.steps`) inserted after the stat Row and `StepsTimelinePreviewCard` (single teal `steps` bar, tooltip-free preview) inserted after the Lifestyle Timeline preview → `Routes.LIFESTYLE_STEPS_TIMELINE`. `ProgramContext.loadLifestyle` adds `getHealthSteps`; `LifestyleData` gains `steps: StepsStatsDTO?`; `HealthTimelinePoint` gains `steps`, `HealthTimelineResponse` gains `dailyAverageSteps`. New route in `Routes.kt` + `AppScaffold.kt`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |
 | 0.1.1 | 2026-07-08 | Load sequencing fixed to iOS parity: apply the admin "View as" default **before** the first `loadLifestyle`, in one coroutine, so a program-admin's first fetch is self-scoped (no brief program-wide flash); a `loadedOnce`-gated effect reloads on later user-initiated picks without double-fetching the initial default-set. |

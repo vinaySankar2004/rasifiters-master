@@ -1,6 +1,6 @@
 # Screen: `program-member-management` (ios) — the Program tab's Member Management section
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.4.0 · **App:** `ios` (SwiftUI)
 > **Location:** `AdminProgramTab.swift:30` (`ProgramMemberManagementSection()`, always shown). The section
 > is a card with two nav rows: **View Members** (everyone → `ProgramMembersListView` → global-admin-only
 > `MemberDetailEditView`) + **Invite Member** (`canEditProgramData` → `InviteMemberView`).
@@ -25,14 +25,14 @@
 
 The **Member Management section** of the Program tab (Tab 4) — a program-settings card that lets any member
 **view the roster** and lets a **program/global admin invite** members and (global-admin only) **edit a
-member's membership** (joined date, active flag) or **remove** them. The iOS analogue of the web `/members/*`
+member's membership** (joined date ~~, active flag~~ — the Active toggle is retired at 0.4.0, D-REL1) or **remove** them. The iOS analogue of the web `/members/*`
 sub-routes (`list`/`detail`/`invite`), collapsed under one native card with push-navigation.
 
 ## 2. Why it exists
 
 To give managers native roster/membership control inside the Program tab, matching the built web `/members`
-sub-routes. `ProgramMembersListView` is a searchable roster; `MemberDetailEditView` edits `joined_at` +
-`is_active` (or removes); `InviteMemberView` sends a privacy-safe username invite. Also the shared nav target
+sub-routes. `ProgramMembersListView` is a searchable roster; `MemberDetailEditView` edits `joined_at` ~~+
+`is_active`~~ (or removes — D-REL1); `InviteMemberView` sends a privacy-safe username invite. Also the shared nav target
 of the **Members tab** (run 55) — this port lights up both entry points at once.
 
 ## 3. Route / location
@@ -52,9 +52,10 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
   `memberRow` = avatar (orange if admin) + name + admin star + `@username` + "Inactive" badge (`!is_active`);
   `.refreshable` → `loadMembershipDetails()`. Global-admin rows are `NavigationLink`s; others plain.
 - **`MemberDetailEditView`** (`:162-…`) — identity header + read-only facts (Gender/DOB/Account Created) +
-  editable Joined-Program `DatePicker` + Active `Toggle` + inline error + orange **Save changes**
-  (`updateMembership(role:nil,isActive,joinedAt)`) + soft-red **Remove from Program** (`.alert` confirm →
-  `removeMember`). Initializes `joinedAt`/`isActive` from the DTO `onAppear`.
+  editable Joined-Program `DatePicker` + ~~Active `Toggle`~~ + inline error + orange **Save changes**
+  (`updateMembership(role:nil, isActive:nil, joinedAt)` — was the toggle's `isActive`) + soft-red **Remove from Program** (`.alert`
+  confirm → `removeMember`). Initializes `joinedAt` ~~/`isActive`~~ from the DTO `onAppear`. *(Active `Toggle`
+  removed at v0.4.0 by D-REL1 — switching it off silently removed the member; the confirmed Remove covers that.)*
 - **`InviteMemberView`** (`InviteMemberView.swift`) — header + `@username` field (asciiCapable, no autocap) +
   blue info-note + inline error + orange **Send Invitation** + a transient success toast.
 
@@ -69,7 +70,8 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 
 - `fetchMembershipDetails(token, programId)` → `[MembershipDetailDTO]` (via `ProgramContext.loadMembershipDetails`,
   loaded on the tab `.task`).
-- `updateMembership(memberId, role:nil, isActive, joinedAt)` — sends only `is_active` + `joined_at` (role nil).
+- `updateMembership(memberId, role:nil, isActive:nil, joinedAt)` — sends only `joined_at` (~~`is_active` +~~ since
+  0.4.0, D-REL1; `nil` omits the key — the server still accepts `is_active` from live binaries).
 - `removeMember(memberId)` → `removeMemberFromProgram`.
 - `sendProgramInvite(token, programId, username)` — one-shot, called directly on `APIClient.shared`.
 
@@ -104,10 +106,11 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
 | **D-S1** | **Faithful 1:1** — roster search + global-admin-only editability + `updateMembership(role:nil)` payload + privacy-swallow invite are identical on both clients (faithful IS web parity). | legacy `MemberManagementSection.swift`; web SPECs |
 | **D-DEPS** | **No new dependency** — every API fn, DTO, `ProgramContext` wrapper, theme color, and `sectionHeader`/`settingsRow` helper already ported (foundation run 50 + run 57). | grep-verified |
 | **D-C1** | **Tokenize bare colors** — `.orange`→`Color.appOrange` (avatar/star/save), `.blue`→`Color.appBlue` (invite row + info-note); light-mode-safe (run-26/61). | `MemberManagementSection.swift`, `InviteMemberView.swift` |
-| **D-C2** | **Clear stale error on edit** — `MemberDetailEditView` clears the error `.onChange` of `joinedAt`/`isActive`; `InviteMemberView` clears `.onChange` of `username`. Matches web members/detail D-C3 + members/invite D-C2. | web SPECs |
+| **D-C2** | **Clear stale error on edit** — `MemberDetailEditView` clears the error `.onChange` of `joinedAt` ~~/`isActive`~~ (D-REL1); `InviteMemberView` clears `.onChange` of `username`. Matches web members/detail D-C3 + members/invite D-C2. | web SPECs |
 | **D-C3** | **Full-pill tap target on Send Invitation** — the CTA's `.frame/.padding/.background/.cornerRadius` now live INSIDE the `Button` label closure with `.contentShape(RoundedRectangle(cornerRadius: 14))` + `.buttonStyle(.plain)`, so the whole orange pill is tappable (not just the icon+text). Matches the `AppPrimaryButton` reference pattern. No behavior/contract change. | `InviteMemberView.swift`; `AppButton.swift` |
 | **D-C4** | **Invite send = server-side privacy (invites §3.1 0.2.0, reliability Phase 3 C2).** "Invitation sent" (was "Invite sent") shows ONLY on a 200 — the server already answers 200 for unknown / blocked / already-member usernames; every other status goes through the kit (`AppError`) in the existing error line. The client-side always-success swallow is removed (F3 resolved). | invites §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A1. |
 | **D-NP1** | **The roster is retired; People replaces it (0.3.0; NP-U1, iOS plan TC9; people D-C14).** The section's first row reads `People` · `<n> enrolled` and pushes `PeopleListView`; the whole `ProgramMembersListView` struct (search roster + the global-admin row tap) is removed. `MemberDetailEditView` is reached from `PersonProfileView`'s `Edit membership` (global admins, only after that screen's own membership-details load for the profile's program); a remove from there pops back to People. `Invite Member` (this section) and People's `Invite member` row both push `InviteMemberView`. | NP amendments NP-U1, R6; iOS plan TC9. |
+| **D-REL1** | **Phase 4 polish (#11) — the Active toggle is retired.** `MemberDetailEditView` loses the "Active Membership" `Toggle` (and its `isActive` state / `onChange`): turning it off silently removed the member with no confirm or undo; **Remove from Program** (confirmed) is the one way out. Save sends only `joined_at` (`isActive: nil` omits the key); the server keeps accepting `is_active` for live binaries. Same on web + Android (program-memberships **D-C7**; PA2). | `05e185a`; polish amendments PA2 |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -121,12 +124,15 @@ of the **Members tab** (run 55) — this port lights up both entry points at onc
   username exists (web members/invite F1). **Load-bearing — never surface the real error.**
 - **F4 — client role gating (JWT-decoded).** `isGlobalAdmin`/`canEditProgramData` are display/gating only; the
   backend re-verifies every call.
-- **F5 — Save/Remove share one `isSaving` flag** (web members/detail F5); Save sends only `is_active`+`joined_at`.
+- **F5 — Save/Remove share one `isSaving` flag** (web members/detail F5); Save sends only ~~`is_active`+~~`joined_at`
+  (D-REL1).
 - **F6 — invite `sendProgramInvite` called directly on `APIClient.shared`** (not via a `ProgramContext` wrapper),
   and the view stays put on success (no nav) — faithful to legacy iOS + web.
 
 ## 11. Changelog
 
+- **0.4.0** (2026-10-13, D-REL1 — Phase 4 polish, `05e185a`) — #11: the editor's Active Membership toggle is
+  removed; Save sends only `joined_at`; Remove (confirmed) is the way out (program-memberships D-C7).
 - **0.3.0** (2026-10-13, Phase 4 People, `198407c`) — D-NP1: the roster row becomes `People` · `<n> enrolled` →
   `PeopleListView`; `ProgramMembersListView` deleted (global admins edit from a profile's `Edit membership`).
 - **0.2.1** (2026-10-13, Phase 4 quick wins) — member save / remove errors use `SessionCopy.kitMessage` (server text

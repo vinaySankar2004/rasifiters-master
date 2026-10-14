@@ -1,6 +1,6 @@
 # Page: `lifestyle/steps-timeline` (web) — daily-steps timeline detail
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle/steps-timeline` — the **daily-steps** timeline detail, reached from the
 > [`lifestyle`](../SPEC.md) landing's **Steps Timeline** chart card (a clone of the sibling
 > [`lifestyle/timeline`](../timeline/SPEC.md) sleep/diet detail). A `PeriodSelector` (W/M/Y/P) over one
@@ -51,7 +51,7 @@ period-selectable bar chart with a daily-average-steps summary stat. The steps t
      single left axis (`domain [0, stepsMax*1.1]`, label "steps"); tooltip formatter
      `[value.toLocaleString(), "Steps"]`; **no Legend / no Line / no second axis** (single-series). Empty
      `buckets` → "No data for this range yet." panel.
-4. **`LoadingState`** ("Loading timeline...") / **`ErrorState`** (the query error message) states.
+4. ~~**`LoadingState`** ("Loading timeline...") / **`ErrorState`** (the query error message) states.~~ *(superseded at v0.1.2 by D-REL1)* — `QueryView`: "Loading timeline..." · `ErrorView` + Retry · offline view · stale banner.
 
 ## 5. Components + which shared features it consumes
 
@@ -94,8 +94,10 @@ program bounces to `/programs`.
 
 ## 8. States & edge cases
 
-- **Loading** — `LoadingState` "Loading timeline...".
-- **Error** — `ErrorState` with the query error message.
+- **Loading** — "Loading timeline..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit offline `ErrorView`,
+  never a spinner.
+- **Error** — ~~`ErrorState` with the query error message~~ *(superseded at v0.1.2 by D-REL1)* — the kit `ErrorView`
+  + Retry; a failed refresh over a shown chart → the floating "Couldn't refresh · Retry" banner; reload on reconnect.
 - **Empty** — `buckets.length === 0` → "No data for this range yet." panel inside the card (the daily average
   shows 0).
 - **No active program** — `useAuthGuard` redirects to `/programs`.
@@ -110,6 +112,7 @@ program bounces to `/programs`.
 | **D-DEPS** | **No new dependency** — `fetchHealthTimeline` (steps field additive, analytics 0.2.0), `PeriodSelector`, chrome, chart-theme all already ported; the sweep adds only the page file. | `lifestyle/timeline` run |
 | **D-C1** | **Single teal `steps` series** — one left axis `[0, stepsMax*1.1]` labelled "steps", tooltip `[value.toLocaleString(),"Steps"]`, no Legend/Line/second-axis (unlike the sleep/diet twin's dual-axis composed chart). Accent teal `#14b8a6` (DC-8). | steps-tracking plan DC-8/step 25 |
 | **D-S1** | Faithful clone otherwise — same `resolvedMemberId` logic, query key shape, `enabled` gate, header, empty-state, `force-dynamic`; already `rf-*` tokenized. | sibling `lifestyle/timeline/page.tsx` |
+| **D-REL1** | **Phase 4 polish (#29).** The load goes through the one detail-load helper `QueryView` (frontend-kit **D-KIT-21**): loading → failed `ErrorView` + Retry (`retryNow` on the exact key) → stale content + "Couldn't refresh · Retry"; with no data while offline → the offline view, never a spinner; a failed read reloads on reconnect. Replaces `LoadingState` / `ErrorState`; the query key is unchanged. | `ec13107`; web plan #29 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -130,5 +133,6 @@ program bounces to `/programs`.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #29 `QueryView` replaces `LoadingState` / `ErrorState` (ErrorView + Retry, stale banner, offline view, reload on reconnect). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-07-09 | Initial SPEC + build (steps-tracking run) — the **daily-steps** timeline detail, cloned from the sibling `lifestyle/timeline`: a `PageShell` + `PageHeader` + `PeriodSelector` over one `GlassCard` with a daily-average-steps header and a single teal (`#14b8a6`) `steps` `BarChart` (single left axis "steps", `toLocaleString()` tooltip, no Legend/Line/second-axis). Reuses `fetchHealthTimeline` (the `steps`/`daily_average_steps` fields are additive — analytics 0.2.0 D-C5, per-member-day group semantics per amendment A-4). `consumed_by=[web]`. **No new dependency, no backend work beyond analytics 0.2.0.** Ported `apps/web/src/app/lifestyle/steps-timeline/page.tsx`. `npm run build` ✓. |

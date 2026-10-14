@@ -1,6 +1,6 @@
 # Page: `summary/activity` (web) — workout activity timeline (summary sub-route 1 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/activity` — the **workout activity timeline** detail, the **first** of the six deferred
 > `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's **Activity** chart card). A
 > `PeriodSelector` (W/M/Y/P) over one `GlassCard`: a range/daily-average header + a `BarChart` plotting workouts
@@ -49,8 +49,8 @@ chart so volume and breadth of participation can be read together.
    - **Header row** — Range (`label`) on the left; Daily avg (`daily_average.toFixed(1)`) on the right.
    - **Chart** — `h-72` `BarChart` of `buckets`: a **Workouts** bar + an **Active members** bar (both counts, one
      shared Y-axis). Empty `buckets` → "No data for this range yet." panel (D-C2).
-4. **`LoadingState`** ("Loading timeline...") / **`ErrorState`** (the query error message) states
-   (`activity/page.tsx:37-43`).
+4. ~~**`LoadingState`** ("Loading timeline...") / **`ErrorState`** (the query error message) states
+   (`activity/page.tsx:37-43`).~~ *(superseded at v0.1.2 by D-REL1)* — `QueryView`: "Loading timeline..." · `ErrorView` + Retry · offline view · stale banner.
 
 ## 5. Components + which shared features it consumes
 
@@ -88,8 +88,10 @@ logging on the `/summary` forms, not reads here).
 
 ## 8. States & edge cases
 
-- **Loading** — `LoadingState` "Loading timeline...".
-- **Error** — `ErrorState` with the query error message.
+- **Loading** — "Loading timeline..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit offline `ErrorView`,
+  never a spinner.
+- **Error** — ~~`ErrorState` with the query error message~~ *(superseded at v0.1.2 by D-REL1)* — the kit `ErrorView`
+  + Retry; a failed refresh over a shown chart → the floating "Couldn't refresh · Retry" banner; reload on reconnect.
 - **Empty** — `buckets.length === 0` → "No data for this range yet." panel inside the card (D-C2; the card +
   header still render; the daily average shows 0.0). *Legacy rendered the empty `BarChart` — this is the cleanup.*
 - **No active program** — `useAuthGuard` redirects to `/programs`.
@@ -104,6 +106,7 @@ logging on the `/summary` forms, not reads here).
 | **D-S1** | Faithful 1:1 otherwise — same query key, `enabled` gate, header/daily-average, two same-axis bars, inline axis ticks. Already fully `rf-*` tokenized → **no tokenize cleanup**. No `memberId`/view-as (program-wide). | legacy `activity/page.tsx` |
 | **D-C1** | **Chart `<Legend>` + series names** (change-now) — labels the Workouts + Active members bars (legacy had only the tooltip; the two bars were distinguished by color alone). Series carry explicit `name="Workouts"`/`name="Active members"`; the tooltip formatter keys off the `name`. Mirrors `lifestyle/timeline` D-C3 (run 32). | user decision; legacy `activity/page.tsx:69-75` |
 | **D-C2** | **Empty-state guard** (change-now) — `buckets.length === 0` → "No data for this range yet." panel instead of rendering an empty chart. Mirrors `lifestyle/timeline`'s empty-state (run 32). | user decision; legacy `activity/page.tsx:60-78` |
+| **D-REL1** | **Phase 4 polish (#29).** The load goes through the one detail-load helper `QueryView` (frontend-kit **D-KIT-21**): loading → failed `ErrorView` + Retry (`retryNow` on the exact key) → stale content + "Couldn't refresh · Retry"; with no data while offline → the offline view, never a spinner; a failed read reloads on reconnect. Replaces `LoadingState` / `ErrorState`; the `["summary","timeline",programId,period]` key is unchanged (shared with the Summary launch cache). | `ec13107`; web plan #29 |
 
 > **Not applied:** the `lifestyle/timeline` dual-Y-axis cleanup (D-C2 there) — both series here are **counts**, so
 > a single shared Y-axis is correct; a second axis would be misleading. Deliberately omitted.
@@ -125,4 +128,5 @@ logging on the `/summary` forms, not reads here).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #29 `QueryView` replaces `LoadingState` / `ErrorState` (ErrorView + Retry, stale banner, offline view, reload on reconnect). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

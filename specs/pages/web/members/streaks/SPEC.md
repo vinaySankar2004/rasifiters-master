@@ -1,6 +1,6 @@
 # Page: `members/streaks` (web) — per-member streak stats (members sub-route 6 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/streaks?memberId=&name=` — the **Streak Stats** detail for one member, reached by the
 > `/members` landing's "Streak Stats" card. Two metric pills (Current / Longest, in days) over a row of milestone
 > badges. **6th** of the eight deferred `/members` sub-routes
@@ -48,7 +48,7 @@ hit.
 
 1. **`PageHeader`** — title "Streak Stats", subtitle = the `name` URL param (the member's display name),
    `backHref="/members"` (`page.tsx:42`).
-2. **States** — `LoadingState "Loading streaks..."` / `ErrorState` (the query error message) (`page.tsx:44-46`).
+2. **States** — ~~`LoadingState "Loading streaks..."` / `ErrorState` (the query error message) (`page.tsx:44-46`)~~ *(superseded at v0.1.2 by D-REL1)* — `QueryView` ("Loading streaks..." · `ErrorView` + Retry · offline view · stale banner).
 3. **Streaks `GlassCard`** (`padding="lg"`, rendered when `streaksQuery.data`) (`page.tsx:48-81`):
    - **Two `metric-pill` tiles** (`md:grid-cols-2`) — "Current" → `currentStreakDays` days, "Longest" →
      `longestStreakDays` days.
@@ -90,7 +90,7 @@ hit.
 `useAuthGuard()` default (`requireProgram: true`) — no token → `/login`, no active program → `/programs`. The page
 carries a **client-side per-member redirect**: `canViewAny = isGlobalAdmin || my_role==="admin" || my_role==="logger"`
 (`page.tsx:23-24`); a non-`canViewAny` user whose URL `memberId` is **not their own** id is `router.push("/members")`'d
-on mount (`page.tsx:27-32`). So staff may view **any** member's streaks; a plain member may view **only their own**.
+on mount (`page.tsx:27-32`; judged only once the session is restored — D-REL1). So staff may view **any** member's streaks; a plain member may view **only their own**.
 
 | Role | What they see / can do |
 |------|------------------------|
@@ -114,8 +114,11 @@ layer, the (looser) backend is the real boundary (the run-40 `members/detail` / 
 - **No `memberId`** — the redirect `useEffect` early-returns (`if (!memberId) return`) and the query is disabled
   (`enabled` requires `memberId`); the page renders header only, no card. Faithful (a degenerate direct-nav case; the
   landing always passes `memberId`).
-- **Loading** — `streaksQuery.isLoading` → `LoadingState "Loading streaks..."`.
-- **Error** — `streaksQuery.isError` → `ErrorState` with `(error as Error).message` (e.g. a 403/404 from the service).
+- **Loading** — "Loading streaks..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit offline `ErrorView`,
+  never a spinner.
+- **Error** — ~~`streaksQuery.isError` → `ErrorState` with `(error as Error).message`~~ *(superseded at v0.1.2 by D-REL1)* —
+  the kit `ErrorView` (e.g. a 403/404 from the service) + Retry; a failed refresh over shown data → the floating
+  stale banner; a failed read reloads when the connection returns.
 - **Loaded** — the two metric pills + the milestone badge row. There is **no empty-state branch** (history's D-C1
   all-zero guard has **no analog** here — no chart, and a zero-streak member still renders a meaningful `0 days` +
   all-unachieved milestone row). The milestone list is a fixed server-driven ladder (always non-empty).
@@ -132,6 +135,7 @@ layer, the (looser) backend is the real boundary (the run-40 `members/detail` / 
 | **D-S1** | **Faithful otherwise** — same `force-dynamic` + `useClientSearchParams` (`memberId`/`name`), same `useAuthGuard()` + `canViewAny` redirect, same React Query key `["members","streaks",programId,memberId]` + `enabled` gate, same two-pill + milestone-badge markup, `maxWidth="3xl"`. Already fully `rf-*` tokenized → no tokenize cleanup; no `router.back()` → no nav cleanup (run-40/41); no chart → no empty-state guard (run-43 D-C1 has no analog). | `members/streaks/page.tsx:17-83` |
 | **D-C1** | **Non-color milestone affordance** — achieved milestone badges, which legacy distinguished from unachieved by text color **only** (`text-rf-accent` vs `text-rf-text-muted`), additionally carry a `✓` prefix (`aria-hidden`) + a faint `ring-1 ring-rf-accent/40`. The run-33 color-only-distinguished concern, applied to badges. User chose faithful+affordance over pure-faithful. | `members/streaks/page.tsx:69-77` |
 | **D-STANCE** | Faithful 1:1 **+ D-C1**. No backend work, no feature bump (route + api fn already shipped). | user, this run |
+| **D-REL1** | **Phase 4 polish (#19, #29).** #19 the non-staff own-only redirect waits for session restore (`isBootstrapping \|\| !session` returns early), so a reload never bounces a staff viewer. #29 the load goes through `QueryView` (frontend-kit **D-KIT-21**: loading → failed `ErrorView` + Retry → stale `Couldn't refresh · Retry` banner; offline with no data → the offline view; reload on reconnect), replacing `LoadingState` / `ErrorState`; the query key is unchanged. | `ec13107` |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
@@ -160,5 +164,6 @@ layer, the (looser) backend is the real boundary (the run-40 `members/detail` / 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #19 the own-only redirect waits for session restore; #29 `QueryView` (ErrorView + Retry, stale banner, offline view, reload on reconnect). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/streaks` (members sub-route 6 of 8) — per-member Streak Stats (Current/Longest day pills + milestone badge ladder, URL `memberId`/`name`, non-staff own-only redirect); D-C1 non-color milestone affordance (`✓` + ring on achieved). No new dependency, zero backend work, no feature bump. |

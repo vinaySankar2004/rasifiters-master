@@ -2,7 +2,7 @@
   "$comment": "L4 machine registry — the shared-feature graph for RaSi Fiters. Empty until the first feature is documented via question-asker + committed via git-version. Each feature: { version, spec, status, consumed_by, depends_on, reference_impl: { app, paths } }. consumed_by lists which apps use it: ['web','ios','android'] (all clients), or any subset (e.g. ['ios'] iOS-only, ['android'] Android-only). status: documented|built|adopted|deployed|retired (adopted = a client kit used by screens whose store builds aren't all live yet). version is a label (semver) tracked here + in the SPEC Changelog + a git tag feature/<name>@vX.Y.Z — there are NO per-version folders. Page/screen specs are tracked separately in specs/pages/REGISTRY.md.",
   "features": {
     "auth": {
-      "version": "0.14.0",
+      "version": "0.15.0",
       "spec": "specs/features/auth/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -33,7 +33,7 @@
       }
     },
     "members": {
-      "version": "0.5.0",
+      "version": "0.5.1",
       "spec": "specs/features/members/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -57,7 +57,7 @@
       }
     },
     "programs": {
-      "version": "0.3.0",
+      "version": "0.4.0",
       "spec": "specs/features/programs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -84,7 +84,7 @@
       }
     },
     "program-memberships": {
-      "version": "0.4.0",
+      "version": "0.5.0",
       "spec": "specs/features/program-memberships/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -167,7 +167,7 @@
       }
     },
     "invites": {
-      "version": "0.3.0",
+      "version": "0.3.1",
       "spec": "specs/features/invites/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -215,7 +215,7 @@
       }
     },
     "program-workouts": {
-      "version": "0.1.0",
+      "version": "0.2.0",
       "spec": "specs/features/program-workouts/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -240,7 +240,7 @@
       }
     },
     "workout-logs": {
-      "version": "0.7.0",
+      "version": "0.7.1",
       "spec": "specs/features/workout-logs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -267,7 +267,7 @@
       }
     },
     "daily-health-logs": {
-      "version": "0.4.0",
+      "version": "0.4.1",
       "spec": "specs/features/daily-health-logs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -294,7 +294,7 @@
       }
     },
     "analytics": {
-      "version": "0.6.0",
+      "version": "0.6.1",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -323,7 +323,7 @@
       }
     },
     "analytics-v2": {
-      "version": "0.3.0",
+      "version": "0.3.1",
       "spec": "specs/features/analytics-v2/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -348,7 +348,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.7.0",
+      "version": "0.8.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -422,7 +422,7 @@
       }
     },
     "apple-health": {
-      "version": "0.8.1",
+      "version": "0.9.0",
       "spec": "specs/features/apple-health/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -460,7 +460,7 @@
       }
     },
     "health-connect": {
-      "version": "0.3.1",
+      "version": "0.4.0",
       "spec": "specs/features/health-connect/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -493,7 +493,7 @@
       }
     },
     "frontend-kit": {
-      "version": "0.5.0",
+      "version": "0.6.0",
       "spec": "specs/features/frontend-kit/SPEC.md",
       "status": "adopted",
       "consumed_by": [
@@ -513,7 +513,8 @@
           "src/lib/kit/async-state.ts",
           "src/lib/kit/use-online-status.ts",
           "src/components/kit/FloatingBanner.tsx",
-          "src/components/kit/ErrorView.tsx"
+          "src/components/kit/ErrorView.tsx",
+          "src/components/kit/QueryView.tsx"
         ]
       }
     },

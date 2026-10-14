@@ -1,6 +1,6 @@
 # Screen: `widget-quick-add-health` (ios) — the "Log daily health" widget deep-link form
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
 > **Location:** presented by `AppRootView` when a Home-Screen widget deep-links `WidgetRoute.quickAddHealth`
 > (`.fullScreenCover(item: widgetRoute) { QuickAddHealthWidgetEntryView() }`, gated on `authToken != nil`).
 > Exits via `exitToMyPrograms()` (`returnToMyPrograms = true`, `widgetRoute = nil`, `dismiss()`).
@@ -46,9 +46,10 @@ rows (health is state, not additive). A row is valid with **any one** of sleep /
 
 | Block | What | Shared component |
 |-------|------|------------------|
-| Header | Back button (→ `exitToMyPrograms`) + title **"Log daily health"** + the in-app subtitle. | `WidgetQuickAddHeader` |
+| Header | Back button (→ `exitToMyPrograms`; 44-pt hit area, spoken `Back` — D-REL1) + title **"Log daily health"** + the in-app subtitle. | `WidgetQuickAddHeader` |
+| Lookup error (conditional, 0.2.2) | `ErrorStateView` + Retry under the Programs list when the program list or a selected program's roster failed (D-REL1). | `programsError` / `selectionError` |
 | Programs | Multi-select list of **loggable** programs (active + not locked); **nothing pre-checked**, always shown. | `ProgramMultiSelectSection` |
-| Entry N rows | Per row: **Member** (only when the viewer may pick — else hidden/self), **Date** (`DatePicker` bounded `...Date()` — no future), **Sleep** (`Hours`/`Minutes`, 2-digit `sanitizeDigits`), **Diet quality** (`Menu` 1–5 + Clear), **Steps** (`.numberPad`). Removable; red border + message on a client/back-end row error. | in-app `rowCard` (ported) |
+| Entry N rows | Per row: **Member** (only when the viewer may pick — else hidden/self), **Date** (`DatePicker` bounded `...Date()` — no future), **Sleep** (`Hours`/`Minutes`, 2-digit `sanitizeDigits`), **Diet quality** (`Menu` 1–5 + Clear), **Steps** (`.numberPad`). Removable (✕ 44-pt, `Remove entry N` — D-REL1); red border + message on a client/back-end row error. | in-app `rowCard` (ported) |
 | Add-row controls | `+ Add row` / `+ Add 5 rows` (max 200). | in-app `addRowControls` (ported) |
 | Footer summary | "N rows • [M members •] Hh Mm sleep • S steps". | in-app `summaryLine` (ported) |
 | Save all | `AppPrimaryButton` "Save all" / "Saving…"; disabled unless ≥1 program AND ≥1 valid row, 0 invalid, no in-batch duplicate. | — |
@@ -87,6 +88,9 @@ Same as the twin, plus the health-specific gates: **sleep sanitize** (2 digits/f
 24:00), **steps** whole-number ≥ 0, **at-least-one-metric** (`sleepValue != nil || foodQuality != nil || steps !=
 nil`), and **in-batch (member, date) duplicate** detection (client-side red highlight; the backend upserts). Date
 bounded to today-or-earlier. Transient per-program fetch failure does **not** wipe entered rows (§10 F3).
+**Lookups (0.2.2, D-REL1):** as the twin — a failed program list / selected-program roster → `ErrorStateView` + Retry
+(reload on reconnect); the member sheet says `No active members in this program yet.` only once every selected
+program's roster has arrived, `Couldn't load this` after a failure, `No results` for an unmatched search.
 
 ## 9. Decisions made
 
@@ -95,6 +99,7 @@ bounded to today-or-earlier. Transient per-program fetch failure does **not** wi
 | **D-BATCH** | **The widget IS the in-app multi-row batch form** (`AddDailyHealthDetailView`), + 2 deltas: **(1) no auto-selected program** (`currentProgramId: ""`, no seeding, `alwaysShow: true`); **(2) custom back button** → `exitToMyPrograms()`. Replaces the legacy single-entry per-program-loop + rollback form. **Gains the steps field** (in-app parity). Batch save = one `POST /daily-health-logs/batch` (`program_ids` = selection, upsert). Member options are the **intersection** across selected programs. | User request 2026-07-09 ("use the in-app form, not auto-selected"); in-app `AddDailyHealthDetailView`; `daily-health-logs` D-C5. |
 | **D-LOGGABLE** | **Program list shows only loggable programs** — same shared-`ProgramMultiSelectSection` change as the twin (active + not-locked; current kept; drops completed/locked). | User request 2026-07-09. |
 | **D-REUSE** | **No new component / no new API** — reuses `ProgramMultiSelectSection`, the in-app row card/validation/save (ported into the widget's own `@State`), and `addDailyHealthLogsBatch`. Retired scaffold deleted. | in-app steps-feature; widget pattern. |
+| **D-REL1** | **Phase 4 polish (#16, #36).** #16 as [widget-quick-add-workout](../widget-quick-add-workout/SPEC.md) D-REL1 with the roster only: `programsError` + `selectionError` (only while the current selection still lacks a roster) → `ErrorStateView` + Retry, Retry / reconnect reload whatever failed (P-11); the member sheet's `emptyHint` is gated on every selected program's roster having arrived (`membersLoaded`) — `No active members in this program yet.` / failed `Couldn't load this` / otherwise none; `No results` for an unmatched search (daily-health-logs **D-C8**; PA4). #36 back button 44 pt + `Back`; row ✕ 44 pt + `Remove entry N` (frontend-kit **D-KIT-22**). | `05e185a`; polish amendments PA1, PA4 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -108,6 +113,7 @@ bounded to today-or-earlier. Transient per-program fetch failure does **not** wi
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #16 failed lookups → Couldn't load · Retry (reload on reconnect), the member hint only once every selected roster arrived, `No results` for a search (daily-health-logs D-C8); #36 back button 44 pt + `Back`, ✕ 44 pt + `Remove entry N`. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the form opens at once with the version check alongside — an unsupported build gets the update modal over the form in place (`WidgetCoverView`, app-config D-C8, #7); the cover carries the offline banner (D-KIT-17, #2); save errors use the kit copy (#8). |
 | 0.2.0 | 2026-07-09 | **D-BATCH — the widget is now the in-app multi-row batch "Log daily health" form** (`AddDailyHealthDetailView`), replacing the legacy single-entry sleep+diet quick-add (per-program `addDailyHealthLog` loop + rollback). Two deltas: **no auto-selected program** + the **custom back button** exits to My Programs. **Gains the steps field** (in-app parity; the legacy widget had only sleep + diet). Save = one `POST /daily-health-logs/batch` (`program_ids` = selection, upsert; `applyRowErrors` on error). Member options stay the **intersection** across selected programs; in-batch (member, date) duplicates flagged client-side. **D-LOGGABLE** — the shared `ProgramMultiSelectSection` now lists only loggable programs (mirrored on web/android + the in-app forms). **D-REUSE** — no new component/API; retired scaffold deleted. Adversary-hardened (F3; admin rows start empty). Native build green via the xcode MCP (0 errors). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 65) — the legacy single-entry Quick Add Daily Health widget (multi-program select + member intersection + sanitized sleep + at-least-one-metric [sleep/diet] + per-program save loop + rollback + exit-to-My-Programs) + D-C1 per-program lock, D-C2 shared chrome, D-C3 shared scaffold. Superseded by 0.2.0 (D-BATCH). |

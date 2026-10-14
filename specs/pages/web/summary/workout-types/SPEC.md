@@ -1,6 +1,6 @@
 # Page: `summary/workout-types` (web) — top workout types (summary sub-route 3 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/workout-types` — the **top workout types** detail, the **third** (and **last** of the three
 > chart drill-downs) of the six deferred `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's
 > **Workout Types** card). One `GlassCard` with a single-series `BarChart` of sessions per workout type **plus a
@@ -52,8 +52,8 @@ up to 100 and lists them all).
    - **Ranked list** — a `<ul>` below the chart, one row per type: `workout_name` (bold) + "`{sessions}` sessions ·
      avg `{avg_duration_minutes}` min". Server already orders by sessions DESC.
    - Empty (`data.length === 0`) → styled "No workouts logged yet." panel (D-C1).
-3. **`LoadingState`** ("Loading workout types...") / **`ErrorState`** (the query error message) states
-   (`workout-types/page.tsx:34-40`).
+3. ~~**`LoadingState`** ("Loading workout types...") / **`ErrorState`** (the query error message) states
+   (`workout-types/page.tsx:34-40`).~~ *(superseded at v0.1.2 by D-REL1)* — `QueryView`: "Loading workout types..." · `ErrorView` + Retry · offline view · stale banner.
 
 ## 5. Components + which shared features it consumes
 
@@ -96,8 +96,10 @@ logging on the `/summary` forms, not reads here).
 
 ## 8. States & edge cases
 
-- **Loading** — `LoadingState` "Loading workout types...".
-- **Error** — `ErrorState` with the query error message.
+- **Loading** — "Loading workout types..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit offline `ErrorView`,
+  never a spinner.
+- **Error** — ~~`ErrorState` with the query error message~~ *(superseded at v0.1.2 by D-REL1)* — the kit `ErrorView`
+  + Retry; a failed refresh over a shown chart → the floating "Couldn't refresh · Retry" banner; reload on reconnect.
 - **Empty** — when the returned array is empty (`data.length === 0`) → styled "No workouts logged yet." panel inside
   the card instead of an empty chart (D-C1). *Unlike `distribution`, the predicate is `data.length === 0` — the
   endpoint returns a variable-length array, not a fixed 7 keys, so an empty array IS the empty case (run-34
@@ -114,6 +116,7 @@ logging on the `/summary` forms, not reads here).
 | **D-DEPS** | **No new dependency** — every import (chrome, chart-theme, `useAuthGuard`, `fetchWorkoutTypes`) already ported. The sweep ported nothing but the page itself. Same purest shape as `distribution` (no `PeriodSelector`, no `useState`). | `workout-types/page.tsx:1-17` |
 | **D-S1** | Faithful 1:1 otherwise — same query key, `enabled` gate, single `sessions` bar (`CHART_COLORS[0]`), hidden X-axis ticks, the ranked `<ul>` list, `h-80`. Already fully `rf-*` tokenized → **no tokenize cleanup**. No `memberId`/view-as/period (program-wide, program-to-date). | legacy `workout-types/page.tsx` |
 | **D-C1** | **Styled empty-state panel** (change-now) — upgrade the legacy plain `<p>`"No workouts logged yet." to `distribution`'s styled `rf-surface-muted` panel, so all three `/summary` chart drill-downs share one empty-state look. Predicate kept `data.length === 0` (faithful — already correct for a variable-length array; this is STYLING only, not the run-34 predicate fix). | user decision; legacy `workout-types/page.tsx:44-45`; sibling `distribution/page.tsx:58-61` |
+| **D-REL1** | **Phase 4 polish (#29).** The load goes through the one detail-load helper `QueryView` (frontend-kit **D-KIT-21**): loading → failed `ErrorView` + Retry (`retryNow` on the exact key) → stale content + "Couldn't refresh · Retry"; with no data while offline → the offline view, never a spinner; a failed read reloads on reconnect. Replaces `LoadingState` / `ErrorState`; the `["summary","workoutTypes",programId]` key is unchanged (shared with the Summary launch cache). | `ec13107`; web plan #29 |
 
 > **Not applied (run-33/34 lesson — subtract twin cleanups that don't fit):** the `<Legend>` + series-names cleanup
 > (`activity` D-C1) — this chart has a **single** series, nothing to disambiguate (the subtitle says "Program to
@@ -148,4 +151,5 @@ logging on the `/summary` forms, not reads here).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #29 `QueryView` replaces `LoadingState` / `ErrorState` (ErrorView + Retry, stale banner, offline view, reload on reconnect). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

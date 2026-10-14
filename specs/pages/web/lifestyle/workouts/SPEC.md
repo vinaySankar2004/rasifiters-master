@@ -1,6 +1,6 @@
 # Page: `lifestyle/workouts` (web) — workout types (lifestyle sub-route 1 of 2)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle/workouts` — the program's **workout-type management** screen, the first of the two
 > deferred `/lifestyle` sub-routes (reached from the [`lifestyle`](../SPEC.md) landing's
 > "Manage workouts" / "View workouts" pill). A searchable list of the program's workout types — **global**
@@ -53,16 +53,16 @@ never edited or deleted from here.
 
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
-| Header | `PageHeader` "Workout Types" / program-name subtitle + Back → `/lifestyle`; admin-only "+ Add workout" action button. | workouts/page.tsx:116-134 |
+| Header | `PageHeader` "Workout Types" / program-name subtitle + Back → `/lifestyle`; admin-only "+ Add workout" action button (44 px). | workouts/page.tsx:116-134 |
 | Search | A single `input-shell` text box filtering by `workout_name` (client-side, case-insensitive substring). | workouts/page.tsx:136-143 |
-| Error line | Inline `rf-danger` text on a failed mutation. | workouts/page.tsx:145 |
-| Loading | `LoadingState` ("Loading workout types...") while fetching. | workouts/page.tsx:147 |
+| ~~Error line~~ | ~~Inline `rf-danger` text on a failed mutation.~~ *(superseded at v0.1.2 by D-REL1)* — add / edit / delete errors show inside their own pop-up; a Hide/Show failure shows in a dismissable floating error banner. | workouts/page.tsx (modals + `FloatingBanner`) |
+| Loading / error | `QueryView` ("Loading workout types..." · `ErrorView` + Retry · offline view · stale banner — D-REL1). | workouts/page.tsx (`QueryView`) |
 | Available section | `WorkoutSection` "Available (n)" — the `!is_hidden` cards; shown to **all** roles. | workouts/page.tsx:151-166 |
 | Hidden section | `WorkoutSection` "Hidden (n)" — the `is_hidden` cards; **admins only**, and only when `hiddenWorkouts.length > 0`. | workouts/page.tsx:168-185 |
-| Workout card | Per type: name + "Custom"/"Standard" (+ " · Hidden") label; admin controls — Edit (custom & not-hidden), Hide/Show (all), Delete (custom). | workouts/page.tsx:283-332 |
+| Workout card | Per type: name + "Custom"/"Standard" (+ " · Hidden") label; admin controls — Edit (custom & not-hidden), Hide/Show (all), Delete (custom); 44 px pills (D-REL1). | workouts/page.tsx:283-332 |
 | Add modal | `Modal` with a name input → `addCustomProgramWorkout`. | workouts/page.tsx:189-221 |
 | Edit modal | `Modal` (open when `editTarget`) with a pre-filled name input → `editCustomProgramWorkout`. | workouts/page.tsx:223-256 |
-| Delete confirm | Legacy `window.confirm(`Delete ${name}?`)` → **D-C1: `ConfirmDialog`**. | workouts/page.tsx:161-165,179-183 |
+| Delete confirm | Legacy `window.confirm(`Delete ${name}?`)` → **D-C1: `ConfirmDialog`**; keep-open mode since v0.1.2 (`Deleting…`, error inside, closes on success — D-REL1). | workouts/page.tsx:161-165,179-183 |
 
 ## 5. Components + consumed features
 
@@ -121,11 +121,17 @@ client fns are **already ported** ([apps/web/src/lib/api/program-workouts.ts](..
 
 ## 8. States & edge cases
 
-- **Loading:** `LoadingState` ("Loading workout types...") while the list query runs.
-- **Error (mutation):** inline `rf-danger` line (`error.message` or a fallback per mutation); cleared on Add/Edit
-  modal open (D-C2).
-- **Empty (no matches / no types):** each `WorkoutSection` renders "No workouts to show." when its list is empty.
-  Faithful — no page-level empty state.
+- **Loading:** "Loading workout types..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit
+  offline `ErrorView`, never a spinner. A failed list read → `ErrorView` + Retry; a failed refresh over a shown list
+  → the floating stale banner; reload on reconnect.
+- **Error (mutation):** ~~inline `rf-danger` line (`error.message` or a fallback per mutation); cleared on Add/Edit
+  modal open (D-C2).~~ *(superseded at v0.1.2 by D-REL1)* — an add / edit error shows inside its modal (cleared on
+  open and on the next submit); a delete error (e.g. the server's "Cannot delete this workout. It has N workout
+  log(s)…") shows inside the open ConfirmDialog; a Hide/Show error shows in the dismissable floating error banner
+  (hidden while the global offline banner shows).
+- **Empty (no matches / no types):** each `WorkoutSection` renders ~~"No workouts to show."~~ *(v0.1.2, D-REL1)*
+  `No workout types match your search.` while a search is active, else `No workout types yet.` when its list is
+  empty. Faithful — no page-level empty state.
 - **Search:** client-side substring filter on the loaded rows; clears to the full list when blank (F4 — it
   filters already-loaded data, not a server query).
 - **Add/Edit submit:** the modal button is disabled while the name is blank (`.trim().length === 0`) or the
@@ -145,6 +151,7 @@ client fns are **already ported** ([apps/web/src/lib/api/program-workouts.ts](..
 | **D-S1** | **Faithful 1:1** otherwise — same `canManage` admin gate (no redirect; read-only degrade for non-admins), same Available/Hidden split, same global-vs-custom control matrix, same `["lifestyle","workouts",programId]` query + invalidate-on-success (no optimistic update), same modal markup and payloads. | workouts/page.tsx |
 | **D-C1** | **`window.confirm` → `ConfirmDialog`.** Replace the two native `window.confirm(`Delete ${name}?`)` prompts with the ported `ui/ConfirmDialog` (a `deleteTarget` state opens it; danger style, "Delete" confirm, `loading = deleteCustomMutation.isPending`). Matches **every** sibling — no rebuilt page uses `window.confirm`; keeping it would be the rebuild's lone divergence from its established confirm pattern. Mirrors `program/profile`'s delete flow. | workouts/page.tsx:161-165,179-183; `components/ui/ConfirmDialog.tsx` |
 | **D-C2** | **Clear the stale error on Add and Edit modal open.** Legacy clears `errorMessage` only when opening the Add modal (line 125), not the Edit modal — a prior failure lingers above the sections when you open Edit. Clear it on **both** opens. | workouts/page.tsx:124-126,155,173 |
+| **D-REL1** | **Phase 4 polish (#9, #29, #33, #36).** #9 errors show where the user is (program-workouts **D-C3**; PA5): add / edit errors inside their modal, a delete error inside the ConfirmDialog in keep-open mode (`closeOnConfirm={false}`, `Deleting…`, closes on success; frontend-kit **D-KIT-24**), a Hide/Show failure in a dismissable `FloatingBanner variant="error"` — the page-level error line is gone (D-C2's clear-on-open now applies per modal). #29 the list load goes through `QueryView` (frontend-kit **D-KIT-21**). #33 honest empty lines `No workout types yet.` / `No workout types match your search.` (PA1). #36 "+ Add workout", Close, Edit / Hide / Show / Delete are 44 px `text-sm` targets (frontend-kit **D-KIT-22**). | `ec13107`; polish amendments PA1, PA5 |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -174,5 +181,6 @@ client fns are **already ported** ([apps/web/src/lib/api/program-workouts.ts](..
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #9 add / edit errors in their modal, delete errors in the keep-open ConfirmDialog, Hide/Show errors in a floating banner; #29 `QueryView`; #33 `No workout types yet.` / `No workout types match your search.`; #36 44 px targets. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: every workout-type add / edit / visibility / delete error goes through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 31) — the **seventeenth web page spec**, the **first of the two deferred `/lifestyle` sub-routes**. The **workout-type management** screen — searchable Available/Hidden list of global + custom types; admins Add/Edit/Hide-Show/Delete, everyone else read-only. Decisions: **D-REF** (`consumed_by=[web]`; iOS mirrors later) · **D-SCOPE** (this page only; `/lifestyle/timeline` deferred; 1st-of-2, does not close the group) · **D-DEPS** (**no new dependency** — every import already ported; sweep ports only the page) · **D-S1** (faithful 1:1: `canManage` admin gate with read-only degrade, Available/Hidden split, global-vs-custom control matrix, invalidate-on-success) · **D-C1** (`window.confirm` → `ConfirmDialog`, 2 delete sites) · **D-C2** (clear stale error on Add **and** Edit modal open). Flagged F1–F6 (admin-role gate not `admin_only_data_entry` — corrects the run-23 inference; read-only degrade not redirect; client JWT-decode admin gate; client-side search filter; global types hide/show-only; no per-card in-flight lock). Consumes `program-workouts` (all 6 routes/fns) + `auth` (`useAuthGuard`); **all endpoints already mounted, api module already ported, no feature bump.** Ported `apps/web/src/app/lifestyle/workouts/page.tsx`. `npm run build` ✓ (`/lifestyle/workouts` prerendered, 4.82 kB — no Recharts; Middleware 27.4 kB active). |

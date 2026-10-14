@@ -1,6 +1,6 @@
 # Page: `program/password` (web) — change password (program-settings sub-route 4 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/password` — the logged-in user's **own change-password page** (new + confirm password
 > with a live policy checklist → `PUT /auth/change-password`), the fourth of the six deferred `/program/*`
 > settings sub-routes (reached from the [`program`](../SPEC.md) hub's account menu).
@@ -56,8 +56,8 @@ sign-up paths share (single-sourced).
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Header | `PageHeader` "Change Password" + subtitle + Back → `/program` or `/programs`. | password/page.tsx:48-52 |
-| New password | `input-shell` field (`type` flips with `showPassword`) + a Show/Hide toggle button. | password/page.tsx:55-76 |
-| Confirm password | `input-shell` field, always `type="password"`. | password/page.tsx:78-88 |
+| New password | `input-shell` field (`type` flips with `showPassword`) + a Show/Hide toggle button (44 px target, `aria-label` "Show password" / "Hide password" — D-REL2); label linked by `htmlFor`. | password/page.tsx:55-76 |
+| Confirm password | `input-shell` field, always `type="password"`; label linked by `htmlFor`. | password/page.tsx:78-88 |
 | Policy checklist | 5 `<p>` rows, each gaining **`text-rf-success`** when its rule is met (D-C1). | password/page.tsx:90-96 |
 | Error / success | Inline `rf-danger` error line; **`rf-success`** "Password updated. Your other devices will be signed out." (D-C1, D-REL1). | password/page.tsx (message lines) |
 | Update | "Update Password" (`bg-rf-accent text-black`); disabled unless `validation.isValid` + not pending; clears both messages then mutates. | password/page.tsx:101-114 |
@@ -133,6 +133,7 @@ sign-up paths share (single-sourced).
 | **D-C3** | **Clear the stale success/error message on field edit** — reset `successMessage`/`errorMessage` when New password / Confirm changes, so a prior "Password updated successfully." doesn't linger over the cleared fields. Legacy only cleared them at the *next* Update click (password/page.tsx:36,103-110). Mirrors `profile` D-C2. | legacy lingering `successMessage` |
 
 | **D-REL1** | **Reliability Phase 3 C1 (auth §3.1 rules 4 + 6).** Success copy `AUTH_COPY.passwordChanged` ("Password updated. Your other devices will be signed out." — the same string on iOS + Android). No TanStack auto-retry; the client re-sends once only after a 401 (never ran); "couldn't confirm" (`AUTH_COPY.passwordUnconfirmed`) only after a sent 5xx / 408 / timeout / dropped connection; a same-password 400 after a manual retry of the same value = done. Errors via `credentialErrorMessage(…, "account")`. | auth §3.1; amendments A1 / A8 / A9. |
+| **D-REL2** | **Phase 4 polish (#36, #37).** #36 the Show/Hide toggle is a 44 px target with `aria-label` "Show password" / "Hide password" (frontend-kit **D-KIT-22**; PA12). #37 the New / Confirm labels are linked to their inputs (`htmlFor`). Behaviour unchanged. | `ec13107`; polish amendments PA12 |
 
 ## 10. Flagged characteristics (kept as-is)
 
@@ -157,5 +158,6 @@ sign-up paths share (single-sourced).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.1 | 2026-10-13 | **D-REL2 — Phase 4 polish (`ec13107`).** #36 Show/Hide toggle 44 px + `aria-label` Show/Hide password; #37 linked labels. |
 | 0.2.0 | 2026-10-13 | Reliability Phase 3 C1 — D-REL1: success copy "Password updated. Your other devices will be signed out."; auth §3.1 rule 6 (401 re-sent once after a refresh; "couldn't confirm" after a sent 5xx / 408 / timeout; same-password 400 on a same-value retry = done); errors via `credentialErrorMessage(…, "account")`. §4/§8 updated. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 28) — the **fourteenth web page spec**, the **fourth of the six deferred `/program/*` settings sub-routes**. The signed-in user's **own change-password page** (new + confirm + live policy checklist → `PUT /auth/change-password`) — **not** a program-admin setting (no admin redirect; available to every role; no role-conditional UI at all). A near-twin of the built `reset-password` form (minus the URL-fragment recovery token) and a sibling of `profile`. Decisions: **D-REF** (`consumed_by=[web]`; iOS Settings → Change Password mirrors later) · **D-SCOPE** (this page only; appearance/privacy still deferred) · **D-DEPS** (no new dependency — purest shape) · **D-S1** (faithful 1:1) · **D-C1** (tokenize success/checklist color → `rf-success` at all 6 sites) · **D-C2** (reuse `useAuthGuard({ requireProgram: false })` over the inline redirect) · **D-C3** (clear stale success/error on field edit). Flagged F1–F4 (client policy mirror; no client throttle; Show toggles New only; no JWT re-issue on change). Consumes `auth` (`changePassword`/`useAuthGuard`); **route + api fn + shared policy already shipped, no feature bump.** Ported `apps/web/src/app/program/password/page.tsx`. `npm run build` ✓. |

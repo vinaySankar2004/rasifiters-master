@@ -1,6 +1,6 @@
 # Screen: `program-actions` (ios) — the create-program + invites sheet (the picker "+" target)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.1 · **App:** `ios` (SwiftUI)
 > **Location:** presented as a `.sheet` from `ProgramPickerView`'s floating **"+"** button
 > (`ProgramPickerView.swift:148-156`, badge = pending-invite count); `onDismiss` reloads programs +
 > pending invites.
@@ -44,13 +44,15 @@ invites surface (grouping, admin revoke, the block-future-on-decline modal) + th
 |-------|------|------------------------|
 | Tab picker | Segmented `Picker` — ~~"All Invites"/"My Invites" (by `isGlobalAdmin`)~~ **`Inbox`** (`tray.fill`, every role — 0.3.0, D-NP1) + "Create". ~~Auto-selects tab 0 if `pendingInvites` non-empty, else tab 1.~~ 0.3.0: an explicit `initialTab` wins; else Inbox if `inboxBadgeCount > 0`, else Create; counts not loaded yet → re-chosen when they arrive unless the user already picked a tab. | legacy `ProgramActionsSheet.swift:26-35,68-74` |
 | Sheet chrome | `NavigationStack` + `AppGradient.sheetBackground` + inline "Done" button. | legacy `:53-66` |
-| **Create tab** | Header + **Program name** `TextField` + **Status** `Menu` (`planned`/`active`/`completed`, default `planned`) + **Start date** (today) + **End date** (today+3mo) `DatePicker`s + a "Create Program" button (disabled until name non-empty); success `Alert`. | legacy `CreateProgramTabView.swift:29-157` |
+| **Create tab** | Header + **Program name** `TextField` + **Status** `Menu` (`planned`/`active`/`completed`, default `planned`) + **Start date** (today) + **End date** (today+3mo) `DatePicker`s + (0.3.1) an `appRed` `End date must be after the start date.` line when end ≤ start (by day) + a "Create Program" button (disabled until name non-empty **and** the range is valid); success `Alert`. | legacy `CreateProgramTabView.swift:29-157` |
 | **Invites tab** → **Inbox tab (0.3.0)** | `InboxView(isActive:, reservesOfflineBand: true)` — the `Invitations` section (global admins `All invitations`, grouped by program + Revoke; the `InvitesTabView` content) followed by `Notifications` (inbox rows, per-visit dots, load-on-scroll; see the [inbox](../inbox/SPEC.md) SPEC). Was: header + loading/empty/list states. **Standard:** flat list of `InviteCard`s. **Admin:** invites grouped by program name (sorted), each card showing "To: @username". | legacy `InvitesTabView.swift:29-177` |
-| `InviteCard` | Program name (non-admin) + `StatusPill` + (admin) invitee + date range + "Invited by"/date + **Accept**/**Decline**/(admin) **Revoke** buttons. | legacy `InviteCardView.swift:55-153` |
-| `DeclineInviteDialog` | In-sheet overlay: "Decline invitation?" + program name + a **"Block future invites"** checkbox + Decline/Cancel. | legacy `InvitesTabView.swift:211-321` |
+| `InviteCard` | Program name (non-admin) + `StatusPill` + (admin) invitee + date range + "Invited by"/date + **Accept**/**Decline**/(admin) **Revoke** buttons (44-pt hit areas — 0.3.1, D-REL1). | legacy `InviteCardView.swift:55-153` |
+| `DeclineInviteDialog` | In-sheet overlay: "Decline invitation?" + program name + a **"Block future invites"** checkbox (`.isSelected` trait when ticked — 0.3.1) + Decline/Cancel. | legacy `InvitesTabView.swift:211-321` |
 
 **Create flow** (`CreateProgramTabView.save()`): `createProgram(name, status, startDate, endDate)` →
-`POST /programs` → refresh programs → success `Alert` → `onCreated()` dismisses. **Invite flow**
+`POST /programs` → ~~refresh programs~~ (0.3.1, D-REL1: success = the `POST` alone; the programs refresh after it is
+best-effort — `try?` — and never reports a failure, so a retry can't create a duplicate; the picker reloads when the
+sheet closes) → success `Alert` → `onCreated()` dismisses. **Invite flow**
 (`InvitesTabView.respondToInvite`): `respondToInvite(inviteId, action, blockFuture)` →
 `PUT /program-memberships/invite-response` → `loadPendingInvites()` (+ `loadLookupData()` on accept); an
 **accept** also fires `onAccepted()` → dismiss. Decline routes through the block-future dialog.
@@ -68,7 +70,8 @@ invites surface (grouping, admin revoke, the block-future-on-decline modal) + th
 ## 6. Data / API
 
 - **`POST /programs`** (via `createProgram`) — body `{ name, status, start_date?, end_date? }`; creator
-  auto-enrolled as admin/active. Returns the new program; the context then re-fetches `GET /programs`.
+  auto-enrolled as admin/active. Returns the new program; the context then re-fetches `GET /programs` (best-effort
+  since 0.3.1). 400 `End date must be after the start date.` when start ≥ end (programs D-C4).
 - **`GET /program-memberships/my-invites`** (standard) / **`/all-invites`** (global_admin) — the pending
   invite list (`PendingInviteDTO`).
 - **`PUT /program-memberships/invite-response`** (via `respondToInvite`) — body
@@ -90,8 +93,10 @@ gates on the data-entry lock (the lock follows *logging*, deep in the tab bodies
 
 - **Tab auto-select:** ~~invites pending → Invites tab; none → Create tab (`onAppear`).~~ 0.3.0 (D-NP1): badge > 0 or
   an `inbox` / `invites` route → Inbox; else Create; decided when counts arrive if they hadn't.
-- **Create:** button disabled until the trimmed name is non-empty; `isSaving` swaps a `ProgressView`;
-  errors render an `appRed` footnote; success `Alert` → dismiss.
+- **Create:** button disabled until the trimmed name is non-empty and (0.3.1) the end date is after the start
+  date — else the inline `End date must be after the start date.` (the server 400s the same on create, same copy);
+  `isSaving` swaps a `ProgressView`; errors render an `appRed` footnote; success `Alert` → dismiss (a failed list
+  refresh after a successful create is not an error — D-REL1).
 - **Invites loading/empty:** centered `ProgressView` while loading; an "envelope.open" empty card with
   role-specific copy when `pendingInvites` is empty.
 - **Invite error:** caught into `errorMessage` and surfaced via an `.alert` **only on the admin list**
@@ -108,6 +113,7 @@ gates on the data-entry lock (the lock follows *logging*, deep in the tab bodies
 | **D-DEPS** | **No new dependency** — every service/DTO/component was ported in the foundation (run 50); `StatusPill` is reused from `ProgramPickerView` (top-level, run 52), not redefined. | foundation inventory; collision grep. |
 | **D-C1** | **Inbox errors through the kit (reliability Phase 3 C2; invites §3.1; W7 i10).** A failed inbox load with nothing to show is `ErrorStateView` (Retry) — never "No pending invitations"; a failed refresh over a kept list shows the kit stale banner (floating; shown even offline, since the sheet covers the app-wide offline banner); the spinner shows only with nothing on screen. Accept / Decline / Revoke failures show the kit copy (a 400 keeps the server's text) in the "Unable to update invitation" alert — now on both the standard and the global-admin list. The sheet opens straight on its Invites tab for an invite push tap (`initialTab: 0`, amendment U2). | frontend-kit §5–§6; invites §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) U2. |
 | **D-NP1** | **Tab 0 is the Inbox for every role (0.3.0; notifications D-C31, invites D-C10; NP amendments R4; iOS plan TC3, revision objection 1).** The segmented label is `Inbox` (was `My Invites` / `All Invites`); tab 0 hosts `InboxView` with `reservesOfflineBand: true` — the only host that adds the offline-only 116-pt spacer (D-KIT-17), every other host gets the band from a safe-area inset. Default tab: `initialTab` → else Inbox if `inboxBadgeCount > 0` → else Create, re-chosen when counts arrive unless the user already picked. Accepting an invite closes the sheet first, then marks that program's invite items read. `.offlineBanner()` stays on the sheet. | notifications §3.9; frontend-kit D-KIT-17. |
+| **D-REL1** | **Phase 4 polish (#12, #36, #38).** #12 create is judged by the write itself: `ProgramContext.createProgram` returns once `POST /programs` succeeds, and the follow-up `fetchPrograms` is `try?` (applied only if it lands) — a failed refresh never shows "failed" (programs **D-C5**). #38 the Create tab checks the range by day (`yyyy-MM-dd` strings): end ≤ start → the inline `End date must be after the start date.` and Create disabled; the server rejects the same on create (programs **D-C4**: server on create + every client on edit/create, same copy). #36 the invite card's Accept / Decline / Revoke capsules get 44-pt hit areas (`.minTapTarget()`, drawn size unchanged — the row grows ~4 pt, P-8) and the decline dialog's Block-future checkbox carries `.isSelected` (frontend-kit **D-KIT-22**). | `05e185a`, backend `b23f90c`; polish amendments PA1 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -117,12 +123,13 @@ gates on the data-entry lock (the lock follows *logging*, deep in the tab bodies
 | **F2** | **Invite `errorMessage` surfaces only on the admin list** — the `.alert` is attached to `adminInvitesList`; the standard list sets `errorMessage` but never renders it (a swallow). | `InvitesTabView.swift:172-177` | Kept (faithful) — a shared error surface is a rebuild cleanup. |
 | **F3** | **`StatusPill` lives top-level in `ProgramPickerView.swift`** (not in `Shared/Components/`); reused here rather than moved. | `ProgramPickerView.swift:775` | Kept — hoisting to `Shared/Components/` is a low-risk cleanup. |
 | **F4** | **Role bifurcation is client-side** (`isGlobalAdmin` drives tab label + grouped list + revoke); the backend re-authorizes every invite/create call. | `InvitesTabView.swift` / `InviteCardView.swift` | Kept (faithful) — display-only. |
-| **F5** | **Create defaults status `planned` + start=today / end=today+3mo** (web parity); no create-side date-range validation (web validates only on edit). | `CreateProgramTabView.swift:12-14` | Kept (faithful) — matches web create. |
+| **F5** | **Create defaults status `planned` + start=today / end=today+3mo** (web parity); ~~no create-side date-range validation (web validates only on edit)~~ *(superseded at v0.3.1 by D-REL1: create checks end > start on the client and the server — programs D-C4)*. | `CreateProgramTabView.swift:12-14` | Kept (faithful) — matches web create. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #12 create judged by the `POST` alone (best-effort list refresh — programs D-C5); #38 `End date must be after the start date.` + Create disabled when end ≤ start (programs D-C4, server on create too); #36 44-pt Accept / Decline / Revoke, Block-future `.isSelected`. |
 | 0.3.0 | 2026-10-13 | **D-NP1 — Phase 4 Notifications (`198407c`).** Tab 0 is `Inbox` for every role (`InboxView` — invitations then notifications), `reservesOfflineBand: true`; the default-tab rule (initialTab → badge > 0 → Create, deferred until counts load); accept closes the sheet before the read mark. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the sheet carries the offline banner (`.offlineBanner()`, 76-pt reserve) with offline-only 116-pt bottom spacers in both tabs; a failed inbox reloads by itself on reconnect and reads offline while offline; the stale banner hides while offline (`ScreenBanner`); create errors use the kit copy (frontend-kit D-KIT-17/19, #2/#8). |
 | 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C1.** Inbox load errors → `ErrorStateView` / stale banner; respond errors → kit copy in one alert for both lists; `initialTab` for the invite push tap. |

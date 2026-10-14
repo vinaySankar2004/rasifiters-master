@@ -35,6 +35,8 @@ HealthKit, FCM vs APNs) and are recorded per-screen in `specs/pages/android/<scr
 - **Pure-CLI build** (Claude runs it; iOS builds are the user's ⌘B in Xcode). Compile-check: `cd apps/android && ./gradlew
   :app:assembleDebug`. Install to a running emulator/device: `./gradlew :app:installDebug`. See the
   **`android-build`** skill for the loop.
+- Compose BOM **2025.04.01** (`gradle/libs.versions.toml`; Compose UI 1.8 — `ContentType` autofill on the credential fields,
+  Phase 4 polish #35, auth D-C22).
 - Toolchain already present on this Mac (2026-07-08): Android Studio, SDK (platform **android-36**,
   build-tools, adb, emulator), Temurin **JDK 21**. Gradle wrapper pinned to **8.11.1** (committed);
   `gradle` was brew-installed once only to generate the wrapper.
@@ -127,6 +129,8 @@ shell: above the nav bar; elsewhere at the bottom — the content gives up its h
 foreground / before a widget replay (≤ 3 s): below `min_android_version_code` or any 426 → the blocking
 `ui/components/UpdateRequiredScreen` (plain Play Store intent, no in-app-update library). Observability events
 (`auth.*`, `sync.run`) go through `core/events/ClientEventQueue` (persisted, batches ≤ 25, survives sign-out).
+Phase 4 polish helpers: `ui/components/kit/KitLoad.kt` (the one detail-load helper — frontend-kit D-KIT-21) and
+`ui/components/TapTarget.kt` (48 dp targets + labels, D-KIT-22).
 
 ## Deploy
 Android Studio → signed AAB → Google Play Console **closed testing** (went straight to closed, skipping

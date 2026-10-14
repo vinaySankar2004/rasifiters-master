@@ -1,6 +1,6 @@
 # Page: `lifestyle/timeline` (web) — health timeline (lifestyle sub-route 2 of 2, CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle/timeline` — the **sleep + diet-quality health timeline** detail, the **last** of the two
 > deferred `/lifestyle` sub-routes (reached from the [`lifestyle`](../SPEC.md) landing's **Lifestyle Timeline**
 > chart card). A `PeriodSelector` (W/M/Y/P) over one `GlassCard`: a range/daily-average header + a `ComposedChart`
@@ -53,8 +53,8 @@ sleep and diet trends can be read together over time.
      Daily avg diet (`daily_average_food.toFixed(1)` / 5) on the right.
    - **Chart** — `h-72` `ComposedChart` of `buckets`: a **Sleep** bar series + a **Diet** line series. Empty
      `buckets` → "No data for this range yet." panel (`timeline/page.tsx:91-94`).
-4. **`LoadingState`** ("Loading timeline...") / **`ErrorState`** (the query error message) states
-   (`timeline/page.tsx:61-65`).
+4. ~~**`LoadingState`** ("Loading timeline...") / **`ErrorState`** (the query error message) states
+   (`timeline/page.tsx:61-65`).~~ *(superseded at v0.1.2 by D-REL1)* — `QueryView`: "Loading timeline..." · `ErrorView` + Retry · offline view · stale banner.
 
 ## 5. Components + which shared features it consumes
 
@@ -95,8 +95,10 @@ logging on `/summary`, not reads here).
 
 ## 8. States & edge cases
 
-- **Loading** — `LoadingState` "Loading timeline...".
-- **Error** — `ErrorState` with the query error message.
+- **Loading** — "Loading timeline..." via `QueryView` (D-REL1); with nothing loaded while offline → the kit offline `ErrorView`,
+  never a spinner.
+- **Error** — ~~`ErrorState` with the query error message~~ *(superseded at v0.1.2 by D-REL1)* — the kit `ErrorView`
+  + Retry; a failed refresh over a shown chart → the floating "Couldn't refresh · Retry" banner; reload on reconnect.
 - **Empty** — `buckets.length === 0` → "No data for this range yet." panel inside the card (the card + header
   still render; the daily averages show 0.0).
 - **No active program** — `useAuthGuard` redirects to `/programs`.
@@ -113,6 +115,7 @@ logging on `/summary`, not reads here).
 | **D-C2** | **Dual Y-axis** (change-now) — sleep-hours bars on a left axis `[0, sleepMax*1.1]`; diet-quality line on a right axis `[0, 5]` (ticks 0–5). Replaces the legacy single shared `[0, yMax*1.1]` axis (the F3 scale-mixing where the 1–5 diet line sat nearly flat under the sleep bars). | user decision; legacy `timeline/page.tsx:49,100` |
 | **D-C3** | **Chart `<Legend>`** (change-now) — labels the Sleep bar + Diet line series (legacy had only the tooltip). Series carry explicit `name="Sleep"`/`name="Diet"`; the tooltip formatter keys off the `name`. | user decision |
 | **D-C4** | **Axis unit labels** (change-now) — left axis "hrs", right axis "/ 5" so the two scales are self-explanatory. Pure additive. | user decision |
+| **D-REL1** | **Phase 4 polish (#29).** The load goes through the one detail-load helper `QueryView` (frontend-kit **D-KIT-21**): loading → failed `ErrorView` + Retry (`retryNow` on the exact key) → stale content + "Couldn't refresh · Retry"; with no data while offline → the offline view, never a spinner; a failed read reloads on reconnect. Replaces `LoadingState` / `ErrorState`; the query key is unchanged. | `ec13107`; web plan #29 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -135,4 +138,5 @@ logging on `/summary`, not reads here).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #29 `QueryView` replaces `LoadingState` / `ErrorState` (ErrorView + Retry, stale banner, offline view, reload on reconnect). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

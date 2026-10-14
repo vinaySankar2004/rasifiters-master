@@ -1,6 +1,6 @@
 # Page: `forgot-password` (web) — request a password reset (auth-recovery, step 1)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/forgot-password` (reached from the `/login` "Forgot your password?" link — login SPEC D-C1).
 > **Provenance (legacy, archived):** **NONE — 100% net-new.** No `/forgot-password` exists on either legacy
 > client (web or iOS); confirmed `question-asker` run 16. This page exists only because the migration to
@@ -50,9 +50,9 @@ email at all** — via an always-visible "Contact us" `mailto:` fallback.
 | Heading + subheading | "Reset your password" / "Enter your email and we'll send you a link to reset it." | `forgot-password/page.tsx` |
 | Email input | `type="email"`, placeholder "Email", `autoComplete="email"`. **Email-only** (not username-or-email). | `forgot-password/page.tsx` |
 | Format hint (conditional) | "Enter a valid email address." — shown once the field is non-empty but not yet valid (D-C2). | `forgot-password/page.tsx` |
-| Error banner (conditional) | Red box on a genuine send failure (network/500) — neutral "couldn't send… try again, or contact us below". | `forgot-password/page.tsx` |
+| Error banner (conditional) | Red box (`.error-banner`, dark-aware — D-REL1) on a genuine send failure (network/500) — neutral "couldn't send… try again, or contact us below". | `forgot-password/page.tsx` |
 | Submit button | "Send reset link" / "Sending…" (`isLoading`); disabled until the email is valid (`canSubmit`). | `forgot-password/page.tsx` |
-| Success state | On submit, the form is **replaced** by a green banner: "If an account with that email exists, we've sent a password reset link…" — the **same message regardless of existence** (no enumeration). | `forgot-password/page.tsx` |
+| Success state | On submit, the form is **replaced** by a green banner (`.success-banner`, dark-aware — D-REL1): "If an account with that email exists, we've sent a password reset link…" — the **same message regardless of existence** (no enumeration). | `forgot-password/page.tsx` |
 | **Contact fallback** | **ALWAYS visible** (both form + success states) — "No email on your account? **Contact us** …" → `mailto:SUPPORT_EMAIL`. Serves the placeholder no-email accounts. | `forgot-password/page.tsx`; `config.ts` `SUPPORT_EMAIL` |
 | Back link | "Back to login" → `/login`. | `forgot-password/page.tsx` |
 
@@ -118,6 +118,7 @@ visitor never sees the page (redirected to `/programs`).
 | **D-C2** | **Inline email-format validation** (the field is email-only, unlike login's username-or-email identifier). A loose `EMAIL_RE` gates the submit button + shows a hint; consistent with the mandated "sign-up email must be format-validated" direction. **This is a deliberate divergence from login's F5** (login does no inline validation — different because its identifier is dual-purpose). | User answer (email field = "Add inline email-format validation"); contrast login SPEC F5. |
 | **D-C3** | **Reset runs through the Express backend (R1).** The page never touches Supabase; the email's reset link lands on our **own** `/reset-password` page (`PASSWORD_RESET_REDIRECT_URL`), which will forward the recovery token to `POST /auth/reset-password` next run. Locked by METHODOLOGY R1 (clients never embed Supabase) — stated as context, not re-asked. | METHODOLOGY R1; auth SPEC §7 / D-C4; `render.yaml` `PASSWORD_RESET_REDIRECT_URL`. |
 | **D-S1** | **Faithful to the sibling auth pages' look & feel.** Reuses login/splash chrome verbatim — `BrandMark`, the `motion.div` fade-in, `input-shell` field, `button-primary--dark-white` CTA, `rf-*` tokens, the same redirect-when-authed pattern. No new design language. | `apps/web/src/app/{login,splash}/page.tsx`; `globals.css`. |
+| **D-REL1** | **Phase 4 polish (#43).** The success box uses the dark-aware `.success-banner` and the error box `.error-banner` (text `#dc2626`) instead of light-only emerald / red utility boxes; copy and flow unchanged. | `ec13107`; polish amendments U1 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -133,4 +134,5 @@ visitor never sees the page (redirected to `/programs`).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #43 dark-aware `.success-banner` / `.error-banner` boxes (were light-only emerald / red). |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 17) — the **third web page spec** (after splash, login) and the **first net-new page** (no legacy reference; recovery existed on neither client). Documents `/forgot-password`: email-only field with **inline format validation** (D-C2), **always-send + generic success** (privacy-safe, no enumeration), an **always-visible `mailto:` contact fallback** for placeholder no-email accounts (D-C1), reset routed **through Express** (R1, D-C3), already-authed → `/programs` redirect. Consumes `auth` v0.3.0 (`requestPasswordReset()` `POST /auth/forgot-password`). **Scope (D-SCOPE): page + the one backend route this run; `/reset-password` + `POST /auth/reset-password` next run.** Flagged F1–F5 (form flash; no client rate-limit; iOS recovery gap; reset-page forward dependency; placeholder support email). Ported `apps/web/src/app/forgot-password/page.tsx` + `SUPPORT_EMAIL` (`config.ts`) + `requestPasswordReset()` (`api/auth.ts`); `npm run build` ✓ (`/forgot-password` prerendered, 3.94 kB). |

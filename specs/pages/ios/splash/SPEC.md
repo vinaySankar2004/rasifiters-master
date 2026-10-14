@@ -1,6 +1,6 @@
 # Screen: `splash` (ios) — the public entry / welcome screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.1 · **App:** `ios` (SwiftUI)
 > **Location:** `AppRootView`'s unauthenticated branch — `NavigationStack { SplashView() }` when
 > `programContext.authToken == nil` (`apps/ios/.../App/AppRootView.swift:16-20`).
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Onboarding/SplashView.swift`.
@@ -18,7 +18,7 @@
 
 The **public welcome screen** — the first thing an unauthenticated visitor sees when the app launches
 without a stored session. It plays a short typewriter intro (headline then subheadline), shows the RaSi
-Fiters brand logo, and reveals a single **"Sign in"** CTA that pushes `LoginView`. Used by **everyone
+Fiters brand logo, and ~~reveals~~ shows (from the first frame — D-REL1) a single **"Sign in"** CTA that pushes `LoginView`. Used by **everyone
 pre-auth**; a returning signed-in user never sees it — `AppRootView` bifurcates on `authToken` at the
 root and shows `ProgramPickerView` instead (the iOS analogue of web's authenticated→`/programs` redirect).
 
@@ -42,11 +42,12 @@ mirroring the web `splash → login → create-account` path proven live on `ras
 | Headline (typewriter) | "Hi, welcome to RaSi Fiters" typed char-by-char (55 ms/char); dims to `secondaryLabel` once complete. | `SplashView.swift:62-69` (legacy); ported `apps/ios/.../Features/Onboarding/SplashView.swift` |
 | Subheadline (typewriter) | "Track your fitness journey by logging workouts and monitoring your progress!" typed after a 400 ms beat. | `SplashView.swift:71-74` (legacy) |
 | Brand logo | **`BrandMark(size: 120)`** — the real `BrandIcon` asset in a rounded circle (D-C1). **Was** the legacy placeholder (orange circle + `chart.bar.fill`). | legacy placeholder `SplashView.swift:113-128`; new `BrandMark.swift` |
-| Sign-in CTA | A `NavigationLink → LoginView()`, capsule-styled, with a `.move(.bottom)+.opacity` transition; appears only after the full intro (~300 ms after the subheadline). | `SplashView.swift:85-102` (legacy) |
-| Tap-to-skip (D-SKIP) | `.contentShape(Rectangle())` + `.onTapGesture` on the `ZStack` → `viewModel.skip()` snaps both sentences to full + reveals the CTA (`isSkipped` flag + `skip()`); no-op once the CTA is visible, so the Sign-in `NavigationLink` still pushes normally. **Not in legacy** — deliberate addition. | `apps/ios/.../Features/Onboarding/SplashView.swift` |
+| Sign-in CTA | A `NavigationLink → LoginView()`, capsule-styled. ~~With a `.move(.bottom)+.opacity` transition; appears only after the full intro (~300 ms after the subheadline).~~ *(Superseded at v0.3.1 by D-REL1: always shown from the first frame; `isCTAVisible` removed.)* | `SplashView.swift:85-102` (legacy) |
+| Tap-to-skip (D-SKIP) | `.contentShape(Rectangle())` + `.onTapGesture` on the `ZStack` → `viewModel.skip()` snaps both sentences to full (`isSkipped` flag + `skip()`); no-op once skipped (was: once the CTA was visible — D-REL1), and the Sign-in `NavigationLink` handles its own tap. **Not in legacy** — deliberate addition. | `apps/ios/.../Features/Onboarding/SplashView.swift` |
 
 **Animation sequence** (`SplashViewModel.start()`, `SplashView.swift:16-39` legacy): type headline →
-`isHeadlineComplete` (dims) → 400 ms → type subheadline → 300 ms → reveal CTA. Driven by `.task { await
+`isHeadlineComplete` (dims) → 400 ms → type subheadline ~~→ 300 ms → reveal CTA~~ (D-REL1: the typewriter is
+decoration only — the CTA is already there). Driven by `.task { await
 viewModel.start() }`; the `hasStarted` guard makes it run once. An `isSkipped` flag (checked around each
 `Task.sleep` in `type()` and after each `type()` in `start()`) lets a tap short-circuit to the final state
 (D-SKIP) with no stray character appended.
@@ -83,9 +84,10 @@ program is selected).
   Unlike web (which renders the splash then `router.replace`s, briefly flashing it — web F2), iOS gates at
   the root, so there is **no splash flash** for signed-in users (a platform-routing win, F1).
 - **No empty/error states** — the screen makes no request and cannot fail.
-- **Tap during intro (D-SKIP):** tapping anywhere while the text is still typing sets `isSkipped`, fills both
-  sentences to full, and reveals the CTA in one `withAnimation`. Taps after the CTA is visible are no-ops
-  (`skip()` guards on `isCTAVisible`) — the Sign-in `NavigationLink` handles its own tap (child gesture wins).
+- **Tap during intro (D-SKIP):** tapping anywhere while the text is still typing sets `isSkipped` and fills both
+  sentences to full ~~, and reveals the CTA in one `withAnimation`. Taps after the CTA is visible are no-ops
+  (`skip()` guards on `isCTAVisible`)~~ *(v0.3.1, D-REL1: the CTA is always visible; `skip()` guards on `isSkipped`)* —
+  the Sign-in `NavigationLink` handles its own tap (child gesture wins), so Sign in works mid-intro too.
 - **Forward dependency:** the CTA pushes `LoginView` (built this run); `ProgramPickerView` (the authed
   root) was a deferred stub at the time and has since been ported (the iOS deferred layer closed 2026-06-30).
 
@@ -94,11 +96,12 @@ program is selected).
 | ID | Decision | Rests on |
 |----|----------|----------|
 | **D-REF** | **Reference impl = legacy `ios-mobile/.../Features/Onboarding/SplashView.swift`; web parity = [`web splash`](../../web/splash/SPEC.md). `consumed_by = [ios]`** (this is the iOS screen spec). | legacy `SplashView.swift:1-133`; web splash SPEC. |
-| **D-S1** | **Stance = faithful 1:1 port of the legacy iOS `SplashView`** — `SplashViewModel` typewriter (55 ms/char, the 400/300 ms beats), the headline-dims-on-complete, the capsule CTA + transition, the `AppGradient` background. Oddities → §10, not changed. | legacy `SplashView.swift`; user answer (match web; faithful iOS layout). |
+| **D-S1** | **Stance = faithful 1:1 port of the legacy iOS `SplashView`** — `SplashViewModel` typewriter (55 ms/char, the 400/300 ms beats), the headline-dims-on-complete, the capsule CTA ~~+ transition~~ (always shown since v0.3.1, D-REL1), the `AppGradient` background. Oddities → §10, not changed. | legacy `SplashView.swift`; user answer (match web; faithful iOS layout). |
 | **D-C1** | **ONE web-parity deviation — replace the placeholder icon with the real brand mark.** The legacy `iconPlaceholder` (orange `Circle` + `chart.bar.fill`, a11y-labeled "Brand icon placeholder") is replaced by **`BrandMark(size: 120)`** rendering the new `BrandIcon` asset (the same `app-icon` the web `BrandMark` uses). Closes the web-flagged iOS placeholder bug (web splash F3). | web splash F3 (placeholder = defect to fix on iOS port); user answer ("real brand icon"); [[ios-matches-web-not-just-legacy]]. |
-| **D-SKIP** | **ONE deliberate addition (not in legacy) — tap fast-forwards the intro.** An `isSkipped` flag + `skip()` on `SplashViewModel` snap both sentences to full and reveal the CTA on any tap of the `ZStack` (`.contentShape(Rectangle())` + `.onTapGesture`), so an impatient user reaches Sign-in without waiting out the ~6.6 s typewriter. `type()` checks `isSkipped` around each `Task.sleep` so no stray character lands; guarded to no-op once `isCTAVisible`. Added identically on web (D-SKIP there) so the two surfaces stay 1:1. | `apps/ios/.../Features/Onboarding/SplashView.swift`; user request (2026-06-30). |
+| **D-SKIP** | **ONE deliberate addition (not in legacy) — tap fast-forwards the intro.** An `isSkipped` flag + `skip()` on `SplashViewModel` snap both sentences to full ~~and reveal the CTA~~ on any tap of the `ZStack` (`.contentShape(Rectangle())` + `.onTapGesture`), ~~so an impatient user reaches Sign-in without waiting out the ~6.6 s typewriter~~. `type()` checks `isSkipped` around each `Task.sleep` so no stray character lands; guarded to no-op once ~~`isCTAVisible`~~ `isSkipped`. Added identically on web (D-SKIP there) so the two surfaces stay 1:1. *(CTA half superseded at v0.3.1 by D-REL1 — Sign in no longer waits for the intro.)* | `apps/ios/.../Features/Onboarding/SplashView.swift`; user request (2026-06-30). |
 | **D-DEPS** | **One new dependency — `BrandMark.swift` + the `BrandIcon.imageset`.** Built from the existing `AppIcon` PNGs (light `appIcon.png` + dark `appIconDark.png`). Every other chrome leaf was ported in the foundation (run 50). The legacy `Combine`-based `SplashViewModel` ports inline with the screen. | foundation inventory (run 50); `Assets.xcassets/BrandIcon.imageset`. |
 | **D-C2** | **Forced sign-out explained here first (amendment A2, reliability Phase 3 C2, iOS 1.5.0).** The splash is the signed-out root, so after a forced sign-out (`/refresh` → `401 session_invalid`, or an unreadable token store) its existing subheadline slot types the kit `signedOut` copy — "Your session has ended. Please sign in again." — instead of the marketing line, **once** (`SessionTeardown.consumeForcedSignOutNotice()`; the login alert is the fallback, and any successful sign-in clears an unshown notice). No new chrome; the root's signed-in / signed-out decision is unchanged. | auth §3.1 rule 5; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A1 / A2. |
+| **D-REL1** | **Phase 4 polish (#25).** The Sign in button shows from the first frame (no `isCTAVisible`, no reveal transition); the typewriter is decoration only, and `skip()` now guards on `isSkipped` (auth **D-C21**). Copy, timing and the forced sign-out notice (D-C2) unchanged. | `05e185a` |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -112,6 +115,7 @@ program is selected).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #25 Sign in is visible from the first frame; the typewriter is decoration only (`isCTAVisible` removed; `skip()` guards on `isSkipped`) — auth D-C21. |
 | 0.3.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0) — D-C2.** After a forced sign-out the subheadline slot shows the kit `signedOut` copy once (A2). No layout change. |
 | 0.2.0 | 2026-06-30 | **Tap-to-skip the intro (D-SKIP).** Tapping anywhere on the splash now instantly fast-forwards the typewriter to its final state (both sentences + Sign-in CTA) via an `isSkipped` flag + `skip()` on `SplashViewModel`, wired to `.contentShape(Rectangle())` + `.onTapGesture` on the `ZStack`; `type()` checks the flag around each `Task.sleep` so no stray character lands, and it no-ops once the CTA shows so the Sign-in link still pushes. A deliberate cross-app addition (not in the legacy reference), mirrored on web. Compile-checked clean via `ios-build` (0 errors). `apps/ios/.../Features/Onboarding/SplashView.swift`. |
 | 0.1.0 | 2026-06-30 | Initial SPEC authored via `question-asker` — the **first iOS screen spec**. Documents the public `SplashView` (the unauthenticated `AppRootView` branch): `SplashViewModel` typewriter intro, brand logo, Sign-in CTA → `LoginView`. Consumes only `auth` (root `authToken` bifurcation); no API. Decisions: **D-REF** (`consumed_by=[ios]`; legacy iOS + web parity) · **D-S1** (faithful 1:1 port of the legacy iOS screen) · **D-C1** (ONE web-parity deviation — real `BrandMark` replacing the placeholder, closing web splash F3) · **D-DEPS** (new `BrandMark.swift` + `BrandIcon.imageset`). Flagged F1–F3 (no splash flash — root bifurcation; iOS icon size kept; type-speed divergence). Role rules N/A (public/pre-auth). Ported `apps/ios/.../Features/Onboarding/SplashView.swift` + `Shared/Components/BrandMark.swift` + the `BrandIcon` asset; removed the `SplashView` deferred stub. Build green-check owned by the user (Xcode). |

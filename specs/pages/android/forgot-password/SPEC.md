@@ -1,6 +1,6 @@
 # Screen: `forgot-password` (android) — request a password reset (auth-recovery, step 1)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`web forgot-password`](../../web/forgot-password/SPEC.md)
 > (the primary reference — web-first recovery) + the iOS realization in [`ios login`](../../ios/login/SPEC.md) D-C2
 > / `ForgotPasswordView`. This file records only the Android realization.
@@ -24,9 +24,15 @@
   containers (Compose) vs the SwiftUI rounded rects.
 - **F1 (kept):** the always-200 privacy-safe backend + generic confirmation are unchanged (no enumeration).
 
+## Phase 4 polish (0.1.2)
+
+- **D-REL1 (#35 — auth D-C22):** the Email field carries `ContentType.EmailAddress` (Compose BOM 2025.04.01 autofill)
+  with autocorrect off; autofilled text gets the themed highlight (login D-REL1).
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #35 Email field `ContentType.EmailAddress` autofill, no autocorrect. |
 | 0.1.1 | 2026-07-08 | UI polish (user visual review): shared compact field kit + slimmer `PillButton`, centered `AuthScaffold`, tightened spacing (consistent with the other auth screens). |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase B). `ForgotPasswordScreen` composable → `ProgramContext.forgotPassword()` (`POST /auth/forgot-password`), generic confirmation + neutral error + always-visible contact fallback, replacing the Phase-A stub. Added `core/AppLinks.kt` (privacy + support-mailto constants). Compile-checked green (`android-build`). Visual run = user. |

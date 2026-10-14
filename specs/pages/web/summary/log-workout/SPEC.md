@@ -1,6 +1,6 @@
 # Page: `summary/log-workout` (web) — standalone Log-workout form (summary sub-route 4 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.1 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/log-workout` — the **mobile log fallback** for the Add-workout form: a full-page
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **4th** of the six deferred
 > `/summary` sub-routes and the **1st of the 3 log fallbacks** (siblings `log-health` + `bulk-log-workout`
@@ -75,7 +75,8 @@ differ.
   `routes/logs.js:17-34`). The service resolves the target member, enforcing **403 "You can only log your own
   workouts."** when a non-admin/logger passes someone else's id and **404** when the target isn't an active member
   (`logService.js:118-153`).
-- **Lookups (form mount):** `GET /program-memberships/members?programId` + `GET /program-workouts?programId`.
+- **Lookups (form mount):** `GET /program-memberships/members?programId` + `GET /program-workouts?programId` (+ `GET /programs`
+  for the program multi-select), loaded together by `lib/hooks/use-log-lookups.ts` (D-REL1).
 - **Success:** `invalidateQueries({ queryKey: ["summary"] })` then **`router.push("/summary")`** (D-C1; legacy
   `router.back()`).
 - **0.2.0 (multi-program):** `LogWorkoutsForm` gains the shared `ProgramMultiSelect`; the submit sends
@@ -97,13 +98,16 @@ no active program → `/programs`.
 
 **`admin_only_data_entry`: LIVE (not N/A).** When the lock is **on** and the user is **not** a program admin,
 the page **redirects to `/summary`** on mount (`page.tsx:24-28`, `router.replace` — keeps the locked page out of
-history). The backend `requireDataEntryAllowed` is the real guard (403); the client redirect is UX only. This is
+history) — judged only once the session is restored (`isBootstrapping || !session` returns early, D-REL1). The backend `requireDataEntryAllowed` is the real guard (403); the client redirect is UX only. This is
 the **first** `/summary` sub-route where the lock actually bites (the chart drill-downs were read-only → N/A).
 
 ## 8. States & edge cases
 
 - **Loading lookups** — the form's member/workout `Select`s populate after `fetchProgramMembers` +
-  `fetchProgramWorkouts` resolve (no page-level spinner; faithful).
+  `fetchProgramWorkouts` resolve (no page-level spinner; faithful). **D-REL1:** no hint while loading; a failed
+  lookup shows `InlineLoadError` ("Couldn't load this" + Retry) and reloads on reconnect; `No workout types available
+  for this program yet.` / `No active members in this program yet.` only on loaded data; a picker search with no
+  match reads `No results`.
 - **Saving** — the Save button shows "Saving…" and is disabled (`workoutLogMutation.isPending`).
 - **Error** — the mutation error message renders as a red line above the button (`LogWorkoutForm.tsx:126`).
 - **Locked (non-admin + `admin_only_data_entry`)** — `router.replace("/summary")` on mount.
@@ -119,6 +123,7 @@ the **first** `/summary` sub-route where the lock actually bites (the chart dril
 | **D-DEPS** | **No new dependency** — `LogWorkoutForm` (incl. its `variant="page"` branch), `PageShell`/`PageHeader`, `addWorkoutLog`, `useAuthGuard`, `isDataEntryLocked`, the two lookup fns all already ported (summary landing run 21 + `/program/*` chrome). The sweep ports only the page file. | `page.tsx:3-11`; summary SPEC F6 |
 | **D-S1** | Faithful 1:1 otherwise — same `canLogForAny` derivation, the `admin_only_data_entry` `router.replace` lock guard, the mutation injecting `program_id`, `invalidateQueries(["summary"])`, the `variant="page"` form. Already fully `rf-*` tokenized → **no tokenize cleanup**. | legacy `summary/log-workout/page.tsx` |
 | **D-C1** | **Deterministic-nav cleanup** (change-now) — swap the two legacy `router.back()` calls (post-save success **and** the form `onClose`) for `router.push("/summary")`, so all navigation off the page is deterministic and matches the header BackButton (which already hardcodes `/summary`). Guards the direct-navigation/refresh case where `router.back()` could leave the app. The lock-guard `router.replace("/summary")` is unchanged (faithful — replace deliberately drops the locked page from history). | user decision; legacy `page.tsx:40`, 58 |
+| **D-REL1** | **Phase 4 polish (#16, #19, #36).** #16 the form's lookups load through `use-log-lookups.ts`: a failure is an error (`InlineLoadError` + Retry, reload on reconnect), never an empty list reading "No workout types"; the PA1 hints show only on loaded data (workout-logs **D-C12**; frontend-kit **D-KIT-21**). #19 the `admin_only_data_entry` lock redirect waits for session restore (`isBootstrapping \|\| !session`). #36 the mobile Remove pill is a 44 px `text-sm` target (the desktop ✕ reads `Remove entry {n}`) (frontend-kit **D-KIT-22**; PA12). | `ec13107`; polish amendments PA1, PA4, PA12 |
 
 > **Not a cleanup:** "reuse `refreshSummaryQueries`" was considered and rejected — that helper is a module-private
 > one-liner inside `summary/page.tsx:310` (`invalidateQueries(["summary"])`), byte-identical to the legacy inline
@@ -146,6 +151,7 @@ the **first** `/summary` sub-route where the lock actually bites (the chart dril
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #16 lookups via `use-log-lookups.ts` (`InlineLoadError` + Retry, reload on reconnect, hints only on loaded data); #19 the lock redirect waits for session restore; #36 Remove pill 44 px. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the save error goes through `toAppError` (row-error text kept) and an offline save fails at once (frontend-kit D-KIT-18/19, #4/#8). |
 | 0.2.0 | 2026-07-09 | **Multi-program logging** — `LogWorkoutsForm` (variant="page") gains the shared `ProgramMultiSelect` and sends `program_ids[]` = the full selection to `addWorkoutLogsBatch` (workout-logs 0.5.0 D-C10); when any selected program is non-privileged the member column locks to self. Same submit wiring as the summary landing (2-arg `onSubmit`). `npm run build` ✓. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 36) — the **22nd web page spec**, the standalone **Log-workout** mobile fallback (`/summary` sub-route 4 of 6, **1st of the 3 log fallbacks**). Faithful 1:1 port of the legacy 66-line page: a `PageShell` + `PageHeader` wrapping `LogWorkoutForm variant="page"`, with `canLogForAny` role logic, the `admin_only_data_entry` `router.replace("/summary")` lock guard, and an `addWorkoutLog` mutation invalidating `["summary"]`. **First `/summary` sub-route where `admin_only_data_entry` is live** (the chart drill-downs were read-only → N/A). Decisions: **D-SCOPE** (this page; does not close the group) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — the form + api + chrome all already ported) · **D-S1** (faithful 1:1) · **D-C1** (deterministic-nav cleanup — the two `router.back()` → `router.push("/summary")`; lock `router.replace` unchanged). Flagged F1–F5 (client JWT-decode role/lock; dual lock enforcement; no view-as; no throttle; shared single-sourced form). **Zero backend work, NO feature bump** — `POST /workout-logs` already mounted (`routes/logs.js:38`). Ported `apps/web/src/app/summary/log-workout/page.tsx`. `npm run build` ✓. |

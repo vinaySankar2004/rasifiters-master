@@ -1,6 +1,6 @@
 # Screen: `my-profile` (ios) — the account-menu "My Profile" screen
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.4.0 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramMyAccountSection` (the Program tab's My Account section, run 57) →
 > "My Profile" `NavigationLink → MyProfileView()`.
 > **Provenance (legacy, archived):** `ios-mobile/RaSi-Fiters-App/Features/Home/Settings/MyProfileView.swift`.
@@ -41,14 +41,15 @@ web↔iOS gap toward web parity (memory [[ios-matches-web-not-just-legacy]]).
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Profile header | Initials circle (`appOrangeLight`/`appOrange`) + full name + `@username` + role badge ("Global Admin"/"Program Admin"/"Member"). | legacy `MyProfileView.swift:18-39` |
-| First / Last name inputs | Two `AppInputField`s (D-C3; were inline `systemGray6`/`cornerRadius` fields). Both required. | legacy `:45-65` |
-| Gender menu | `Menu` of `["Male","Female","Non-binary","Prefer not to say"]` + **Clear**; placeholder "Select gender". Kept as a faithful `Menu` (matches create-account's gender picker). | legacy `:67-94` |
+| First / Last name inputs | Two `AppInputField`s (D-C3; were inline `systemGray6`/`cornerRadius` fields), `.givenName` / `.familyName` (D-REL1). Both required. | legacy `:45-65` |
+| Gender menu | `Menu` of `["Male","Female","Non-binary","Prefer not to say"]` + **Clear**; placeholder "Select gender". Kept as a faithful `Menu` (matches create-account's gender picker). A Clear the user picked saves as `gender: null` (D-REL1). | legacy `:67-94` |
 | Error line (conditional) | `appRed` footnote when name validation / save fails. | legacy `:97-101` |
 | Save button | **`AppPrimaryButton`** "Save changes" / `ProgressView` (D-C3; was inline `appOrange`). | legacy `:103-120` |
-| **Email section (web-parity ADD)** | A divider + read-only **current email** display + a **"Change email"/"Cancel"** toggle; the collapsible form holds **New email** (`AppInputField`, regex-validated) + **Current password** (secure `AppInputField`) + an **Update email** `AppPrimaryButton`; a muted-`appRed` error line + an `appGreen` "Email updated successfully." line. | new; mirrors web `profile/page.tsx:223-298` |
-| Delete Account section | Non-global-admins only: divider + **`AppDestructiveButton`** "Delete Account" (D-C3; was an understated text link) + caption. | legacy `:126-149` |
+| **Email section (web-parity ADD)** | A divider + read-only **current email** display + a **"Change email"/"Cancel"** toggle; (0.4.0) a failed email read adds `Couldn't load this` + a 44-pt **Retry** under the row; the collapsible form holds **New email** (`AppInputField`, regex-validated, `.emailAddress`) + **Current password** (secure `AppInputField`, `.password`) + an **Update email** `AppPrimaryButton`; a muted-`appRed` error line + an `appGreen` "Email updated successfully." line. | new; mirrors web `profile/page.tsx:223-298` |
+| Sign-in methods | `SignInMethodsSection` (`MyProfileSections.swift`, 0.4.0): Google / Apple rows (Link / Unlink) + Password (`Enabled` / `Not set` + Add password, `.newPassword`). Rows read "—" with Link disabled and Add password hidden until the identities load; a failed load → `ErrorStateView` + Retry in place of the rows (D-REL1). | `MyProfileSections.swift` |
+| Delete Account section | Non-global-admins only: divider + **`AppDestructiveButton`** "Delete Account" (D-C3; was an understated text link) + (0.4.0) the delete error directly under the button + caption. Now `DeleteAccountSection` (`MyProfileSections.swift`), owning its confirm alert + state. | legacy `:126-149` |
 
-**Save flow** (`save()`, legacy `:202-235`): guard `loggedInUserId` → trim + require both names → `updateMemberProfile(memberId, first, last, gender?)` → success `Alert`. **Email flow** (`changeEmail()`, new): guard `canSubmitEmail` (regex-valid email + non-empty password) → `programContext.changeEmail(newEmail, password)` → set `currentEmail`, hide the form, show success. **Delete flow** (`deleteAccount()`, legacy `:188-200`): confirm `Alert` → `deleteAccount()` → automatic `signOut()` → login.
+**Save flow** (`save()`, legacy `:202-235`): guard `loggedInUserId` → trim + require both names → `updateMemberProfile(memberId, first, last, gender?, clearGender:)` (`clearGender` = blank **and** the user edited gender → `"gender": null`; an untouched blank omits the key — D-REL1) → success `Alert`. **Email flow** (`changeEmail()`, new): guard `canSubmitEmail` (regex-valid email + non-empty password) → `programContext.changeEmail(newEmail, password)` → set `currentEmail`, hide the form, show success. **Delete flow** (`deleteAccount()`, legacy `:188-200`): confirm `Alert` → `deleteAccount()` → automatic `signOut()` → login.
 
 ## 5. Components + features consumed
 
@@ -65,8 +66,8 @@ web↔iOS gap toward web parity (memory [[ios-matches-web-not-just-legacy]]).
 - **`GET /members/:id`** (via `fetchMemberById`) — read on appear to surface the **current email**
   (`MemberDTO.email`, newly added as optional — only this endpoint returns it). Name/gender still init from
   `ProgramContext` session state (faithful legacy).
-- **`PUT /members/:id`** (via `updateMemberProfile`) — body `{ first_name, last_name, gender? }`; backend
-  enforces own-profile-or-global_admin (403).
+- **`PUT /members/:id`** (via `updateMemberProfile`) — body `{ first_name, last_name, gender? }` (`gender: null`
+  only when the user picked Clear — 0.4.0, members D-C5); backend enforces own-profile-or-global_admin (403).
 - **`PUT /auth/email`** (via new `changeEmail`) — body `{ new_email, password }`; backend re-authenticates
   with the current password, validates + normalizes the email, updates Supabase (`email_confirm: true`) +
   `member_emails`. Returns `{ message?, email? }`. **Direct change, no verification email** (web D-EMAIL).
@@ -93,9 +94,14 @@ this screen (the read-vs-write-lock axis: the lock follows logging, not all writ
 - **Name validation:** Save errors inline ("First name is required" / "Last name is required") before any call.
 - **Email validation:** the Update-email button is disabled until the new email is regex-valid
   (`^[^\s@]+@[^\s@]+\.[^\s@]+$`) and the current password is non-empty.
-- **Email read failure:** swallowed (faithful — web surfaces no read error either); the change form still works.
+- **Email read failure:** ~~swallowed (faithful — web surfaces no read error either); the change form still works.~~
+  *(v0.4.0, D-REL1: `Couldn't load this` + Retry under the email row, reloaded on reconnect; "Change email" stays
+  usable.)*
+- **Sign-in methods (D-REL1):** loading → every row "—", Link disabled, Add password hidden; failed → `ErrorStateView`
+  + Retry, reload on reconnect; a Retry keeps loaded rows.
 - **Save/email/delete error:** caught → the section's `appRed` line (or the name error line); the backend
-  message surfaces (e.g. "Current password is incorrect.", "Email already in use").
+  message surfaces (e.g. "Current password is incorrect.", "Email already in use"). The delete error sits directly
+  under the Delete Account button, above its caption, with the button's spinner while it runs (D-REL1).
 - **Delete success:** `deleteAccount()` calls `signOut()` automatically → the root swaps to `LoginView`.
 
 ## 9. Decisions made
@@ -110,6 +116,7 @@ this screen (the read-vs-write-lock axis: the lock follows logging, not all writ
 | **D-C4** | **Set-password rule 6 + message mapping (reliability Phase 3 C2).** Add password is never auto-retried (auth §3.1 rule 6): after a 503 / 5xx / 408 / timeout the line reads the shared "couldn't confirm" copy, and a same-password `400` on the manual retry means it landed (identities re-read, form closes). Success shows "Password set. Your other devices will be signed out." (green, A1). The email change (`PUT /auth/email`) sends a one-shot body (no silent CFNetwork replay). Link / unlink / email errors → `SessionCopy.credentialMessage` (server text for 400 / 401 / 409 / 422); profile save + set-password errors → kit copy (A8). Link / unlink no longer send `refresh_token` nor require one (auth D-C14c). | auth §3.1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A1 / A8. |
 | **D-C5** | **"Sign out everywhere" (auth §3.1 `POST /auth/logout-all`; amendment U3).** A row above Delete Account, for every role, in the screen's row idiom (red title "Sign out everywhere" + the hint "Signs you out on every device, including this one."), behind an alert "Sign out everywhere?" / "You'll be signed out on all your devices, including this one." / destructive "Sign out everywhere" + Cancel. `200` → the full teardown (→ sign-in); a failure keeps the session and shows the kit copy under the row. Same placement + copy on web and Android. | auth §3.1 + D-C14; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) U3 / A1. |
 | **D-NP1** | **Hide my activity (0.3.0; people D-C13/D-C14, members D-C4; NP amendments R11).** `Settings/HideActivitySection.swift`, directly above "Sign out everywhere": a switch `Hide my activity` · `Hides your workouts, streaks and kudos from other members of your programs. Program admins and loggers still see them.`; reads `hide_activity` from `GET /members/:id` (the section hides itself when the key is absent — e.g. before the server knew it), writes `PUT /members/:id { hide_activity }`; a 200 without the echo throws, the switch reverts and shows `Couldn't save. <kit message>`; a load failure shows `Couldn't load this` + Retry. Every role. | people D-C13; iOS plan step 28. |
+| **D-REL1** | **Phase 4 polish (#15, #18, #35, #44).** #15 Delete Account (`DeleteAccountSection`): spinner on the button while it runs and the failure in its own slot directly under the button, above the caption — never the profile form's error line (auth **D-C19**; PA7). #18 sign-in methods (`SignInMethodsSection`, `LoadState<IdentitiesResponse>` instead of a swallowed fetch): "—" with Link disabled and Add password hidden until loaded, `ErrorStateView` + Retry on failure, reload on reconnect — never a false "Not linked" + Link; the email read gets `Couldn't load this` + Retry under the row (reload on reconnect, "Change email" not gated) (auth **D-C19**; PA8). #35 content types `.givenName` / `.familyName` / `.emailAddress` / `.password` / `.newPassword` (auth **D-C22**). #44 picking **Clear** sends an explicit `gender: null` (`clearGender`); an untouched blank gender is omitted, so a gender this device never loaded is never wiped (members **D-C5**). The sign-in + delete sections moved to the new `MyProfileSections.swift` (file size). | `05e185a`; polish amendments PA7, PA8 |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -117,7 +124,7 @@ this screen (the read-vs-write-lock axis: the lock follows logging, not all writ
 |----|----------------|-------|----------------------------|
 | **F1** | **Role badge + Delete gate are client-side** (`isGlobalAdmin`/`isProgramAdmin`) — display/UI only; the backend re-verifies every call. | `MyProfileView.swift` header + delete gate | Kept (faithful) — mirrors web profile F1/F4. |
 | **F2** | **Name round-trips through a space-split heuristic** (`first = parts[0]`, `last = rest`) to/from the single `member_name`. | `MyProfileView.swift` `onAppear` + `save()` | Kept (faithful) — mirrors web profile F3. |
-| **F3** | **Email is fetched once on appear** (`fetchMemberById`); after a change it's set from the response/submitted value (no re-fetch). Read errors swallowed. | `MyProfileView.swift` `loadCurrentEmail()`/`changeEmail()` | Kept (faithful) — web re-fetches via query invalidation; behavior-equivalent. |
+| **F3** | **Email is fetched once on appear** (`fetchMemberById`); after a change it's set from the response/submitted value (no re-fetch). ~~Read errors swallowed.~~ *(v0.4.0, D-REL1: a read error shows Couldn't load + Retry, refetched on reconnect.)* | `MyProfileView.swift` `loadCurrentEmail()`/`changeEmail()` | Kept (faithful) — web re-fetches via query invalidation; behavior-equivalent. |
 | **F4** | **`AppDestructiveButton` is a solid-red capsule** — more prominent than legacy iOS's understated text link and web's outline-danger button (the only shared destructive component). | `MyProfileView.swift` delete section | Kept (D-C3 consistency) — a softer destructive style is a rebuild option. |
 | **F5** | **Name/gender init from `ProgramContext` session state** (not the `fetchMemberById` read) — only email comes from the fetch. | `MyProfileView.swift` `onAppear` vs `task` | Kept (faithful legacy) — web sources all three from one profile query. |
 | **F6** | **No client-side rate-limit/debounce** beyond the `isSaving`/`isChangingEmail` disable. | `MyProfileView.swift` | Kept (faithful) — server-side (mirrors web profile F5). |
@@ -126,6 +133,7 @@ this screen (the read-vs-write-lock axis: the lock follows logging, not all writ
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #15 Delete Account spinner + error under the button (auth D-C19); #18 sign-in methods "—" until loaded / Couldn't load · Retry (replaces the rows) / reload on reconnect, email read error + Retry under the row (auth D-C19); #35 autofill content types; #44 Clear sends `gender: null` (members D-C5); sections split into `MyProfileSections.swift`. |
 | 0.3.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 People, `198407c`): `HideActivitySection` above Sign out everywhere; missing echo = failure (revert + kit message). |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the Delete Account error uses `SessionCopy.kitMessage` (frontend-kit D-KIT-19, #8). |
 | 0.2.0 | 2026-10-13 | **reliability Phase 3 C2 (iOS 1.5.0).** D-C4: set-password rule 6 + A1 copy, credential vs kit messages, link / unlink without `refresh_token`. D-C5: "Sign out everywhere" row + confirm above Delete Account. |

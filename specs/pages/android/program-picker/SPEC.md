@@ -1,6 +1,6 @@
 # Screen: `program-picker` (android) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.4.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.5.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-picker`](../../ios/program-picker/SPEC.md)
 > + [`web programs`](../../web/programs/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `SignedInGraph` route `Routes.PROGRAM_PICKER` (`ProgramPickerScreen`) — the
@@ -14,7 +14,8 @@
 > **Scope:** the picker + its forward-nav are now wired. The **"+"** opens the `ProgramActionsSheet`
 > (My Invites / Create); the account sheet's **Profile / Change Password / Appearance / Notifications** rows
 > navigate to the real settings screens (registered in `SignedInGraph`, reusing the Program-tab screens).
-> **Health Connect** remains deferred (Phase H/J) and is now **omitted** from the sheet (not shown as a dead row).
+> ~~**Health Connect** remains deferred (Phase H/J) and is now **omitted** from the sheet (not shown as a dead row).~~
+> *(Stale since Phase H: the sheet has a **Health Connect** row → [health-connect](../health-connect/SPEC.md); subtitle per D-REL1.)*
 
 ## Parity + Android-idiom deviations
 
@@ -36,8 +37,10 @@
   failure); search is client-side name filter over the loaded list.
 - **Deviation A-1 (Edit/Delete idiom):** manage actions live in a per-card **overflow (⋮) menu**, NOT iOS
   swipe actions — because **long-press is the reorder gesture** on Android, so swipe/long-press can't also carry
-  Edit/Delete. Delete is wired (→ confirm dialog → `DELETE /programs/:id`); **Edit is deferred** (no menu item
-  yet — lands with the edit screen in a later phase).
+  Edit/Delete. Delete is wired (→ confirm dialog → `DELETE /programs/:id`); ~~**Edit is deferred** (no menu item
+  yet — lands with the edit screen in a later phase).~~ *(rewritten at 0.5.0 by D-REL1)* **Edit** sits above Delete
+  (same `canManage` gate): it selects the card's program and opens Edit Program (`Routes.PROGRAM_EDIT`, registered in
+  `SignedInGraph`); Back returns to the picker. The ⋮ is a 48 dp `IconButton` target inside its old 32 dp footprint.
 - **Deviation A-2 (reorder idiom):** reorder = **long-press-drag over the `LazyColumn`** (the Material analog of
   SwiftUI `List.onMove`), a self-contained `ReorderState` that swaps the source list per crossing and re-anchors
   the dragged item by folding the offset delta. **Disabled while searching** (offsets must map 1:1 onto the full
@@ -46,11 +49,14 @@
   Policy / Support open externally via `LocalUriHandler` (Support → the `mailto:` recovery fallback in
   `AppLinks`, since Android has no separate support URL); **Profile / Change Password / Appearance /
   Notifications** rows now **navigate** to the real settings screens (same screens the Program tab uses,
-  registered in `SignedInGraph` so they're reachable before any program is open). The iOS "Apple Health" row
-  ("Health Connect" on Android) is **omitted** here — deferred to Phase H/J — matching `ProgramAccountSection`.
-- **A-4 (invite badge source, rewritten 0.3.0):** the "+" badge = the invite inbox count (`GET /my-invites`; global
+  registered in `SignedInGraph` so they're reachable before any program is open). ~~The iOS "Apple Health" row
+  ("Health Connect" on Android) is **omitted** here — deferred to Phase H/J — matching `ProgramAccountSection`.~~
+  *(Stale since Phase H: the **Health Connect** row is present, as in `ProgramAccountSection`.)*
+- ~~**A-4 (invite badge source, rewritten 0.3.0):** the "+" badge = the invite inbox count (`GET /my-invites`; global
   admins `/all-invites` — iOS `pendingInvites.count` parity) + the member's own `requested` programs. The earlier
-  list-derived badge rested on invites arriving in `GET /programs`, which they never do in prod.
+  list-derived badge rested on invites arriving in `GET /programs`, which they never do in prod.~~
+  **A-4 (the "+" badge + label, rewritten 0.5.0 — D-REL1):** the badge is D-NP1's server `badge` (`99+` cap); the
+  "+" spoken label carries it — `Program actions`, or `Program actions, N new` while the badge is > 0 (`99+` cap).
 - **A-5 (the "+" actions sheet, rewritten 0.3.0 — invites §3.1, A10):** `ProgramActionsSheet` — a `ModalBottomSheet`
   with a **My Invites** (global admins: **All Invites**) **/ Create** segmented toggle. Opens on the invites tab when
   there is something to act on (or on an invite push tap, A-9), else **Create**. *Create* = name/status/start/end →
@@ -83,8 +89,8 @@
   *(Superseded at 0.4.0 by D-NP1 — routing by `target`, [notifications-alerts](../notifications-alerts/SPEC.md) D-NP3.)*
 - **D-NP1 (Phase 4, 0.4.0 — notifications D-C31, invites D-C10; supersedes A-4 and A-5's tab rules):**
   - **"+" badge** = the server `badge` for every role (`99+` cap); before counts load, 0 for global admins, else the
-    member's own invite count — **join requests no longer count** (A-4 superseded). The "+" description reads `Create
-    program or open inbox`.
+    member's own invite count — **join requests no longer count** (A-4 superseded). ~~The "+" description reads `Create
+    program or open inbox`.~~ *(superseded at 0.5.0 by D-REL1 — `Program actions[, N new]`, A-4)*
   - **"+" sheet** tabs **`Inbox` / `Create`** (header `Inbox` · `Invites and notifications`); opens on Inbox when opened
     for invites (`requestInvitesSheet`, an `invites` target) or when badge > 0, else Create; if counts hadn't loaded, the
     badge decides once they arrive unless the member already switched tabs. The Inbox tab = `InboxList` —
@@ -100,6 +106,21 @@
   currently hydrates only the active `ProgramDTO` into `ProgramContext` (membership/lookup hydration lands with
   the downstream screens).
 
+## Phase 4 polish (0.5.0)
+
+- **D-REL1 (#12, #36, #40, #45 — invites D-C11, programs D-C5, program-memberships D-C7, frontend-kit D-KIT-22;
+  polish amendments PA1):**
+  - **#40 Edit on the card** (A-1 rewritten): the ⋮ menu's **Edit** → `selectProgram(program)` + `PROGRAM_EDIT` in
+    `SignedInGraph` ([edit-program](../edit-program/SPEC.md)); the route is a root form a notification tap never leaves.
+  - **#36:** the ⋮ is a 48 dp target in the old 32 dp footprint (the card header doesn't move); the "+" reads `Program
+    actions[, N new]` (A-4); the sheet's `Inbox` / `Create` segments are `selectableTarget`s (`Role.Tab`, selected state
+    announced, ≥ 48 dp); the invite pills (`InvitePill` — Accept / Decline / Revoke / Cancel Request) keep their 36 dp
+    look with a labelled 48 dp touch (`tapTarget`).
+  - **#12:** **Create** is judged by `POST /programs` alone — the list reloads in the background and a failed reload
+    can't make a retry create a duplicate; **Cancel Request** is judged by its `PUT` — the card drops at once, then the
+    list reloads in the background.
+  - **#45:** the account sheet's Health Connect subtitle reads `Sync workouts, sleep, and steps`.
+
 ## Data / API (all via `ProgramContext`, Bearer-authed by the OkHttp layer)
 
 - **`GET /programs`** → `List<ProgramDTO>` (`id, name, status, start/end_date, active/total_members,
@@ -108,7 +129,9 @@
   `{ message }`; optimistic with revert-on-failure.
 - **`POST /programs`** (`{ name, status, start_date, end_date }`) — `createProgram()` from the actions sheet's
   Create tab; the creator becomes the program's admin. Backend defaults a blank/unknown status → `planned` and
-  returns a slim `{ id, message }`, so we **reload** the list rather than decode a full `ProgramDTO`.
+  returns a slim `{ id, message }`, so we **reload** the list rather than decode a full `ProgramDTO` (0.5.0: in the
+  background — the 2xx alone is success, D-REL1). Start ≥ end → `400 "End date must be after the start date."`
+  (programs D-C4; the Create tab already checks it on the client).
 - **`DELETE /programs/:id`** — `deleteProgram()`; drops the card locally on success.
 - **`GET /program-memberships/my-invites`** (global admins **`/all-invites`**) → `List<PendingInviteDTO>` — `loadInvites()`
   on entry, pull-to-refresh, an invite SSE/push, and after every response.
@@ -117,12 +140,14 @@
 - **`GET /notifications/inbox/unread-count`** / **`GET /notifications/inbox`** / **`POST /notifications/inbox/read`**
   (0.4.0) — the badge, the Inbox tab, mark-read (notifications §3.5).
 - **`PUT /program-memberships`** (`{ program_id, member_id, status: "removed" }`) — `cancelJoinRequest()` (a
-  "requested" card's Cancel Request), then reloads the list.
+  "requested" card's Cancel Request); ~~then reloads the list~~ *(0.5.0, D-REL1: drops the card on success, then
+  reloads the list in the background)*.
 
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #40 **Edit** in the card's ⋮ menu → select + Edit Program (A-1 rewritten); #36 48 dp ⋮ in the old 32 dp footprint, "+" label `Program actions[, N new]` (A-4 rewritten; D-NP1's label superseded), selectable Inbox/Create segments, labelled 48 dp invite pills; #12 Create / Cancel Request judged by the write (background reload); #45 Health Connect subtitle `Sync workouts, sleep, and steps`. Stale "Health Connect omitted" lines struck. |
 | 0.4.0 | 2026-10-13 | **D-NP1 — Phase 4 Notifications (`d528f75`).** "+" badge = the server `badge` (join requests no longer count; global admins own invites only); the sheet's tabs are `Inbox` / `Create` (invitations then notifications) with the deferred default; the account sheet's `Inbox` row; answering an invite marks its notifications read; A-4, A-5 tab rules and A-9 superseded. |
 | 0.3.2 | 2026-10-13 | Phase 4 quick wins: the "+" sheet carries the offline banner (its tab area gives up the 76dp band) and its invites tab reads offline while offline; back online, a failed / stale invite inbox reloads beside the program list; invite-response / create / order errors go through `toAppError()` — "Couldn't save program order. …" (frontend-kit D-KIT-17/19, #2/#8). |
 | 0.3.1 | 2026-10-13 | **Polish 1 (offline detection).** No data while offline (link down OR proven offline by a failed request) → the kit's offline `ErrorView` + Retry, never the spinner (rule 6); the offline banner now follows the combined monitor; back online, a failed / stale list reloads itself (D-KIT-13). Compile-checked green (`assembleDebug`). |

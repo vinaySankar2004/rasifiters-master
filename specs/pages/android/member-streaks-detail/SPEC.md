@@ -1,12 +1,13 @@
 # Screen: `member-streaks-detail` (android) — the Streak Stats + milestone ladder
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios member-streaks-detail`](../../ios/member-streaks-detail/SPEC.md)
 > + [`web members/streaks`](../../web/members/streaks/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBER_STREAKS` (`MemberStreakDetailScreen`), pushed from
 > the Members tab's `MemberStreakCard` (after `focusMember(id, name)`).
-> **Consumes:** reads the pre-loaded `ProgramContext.memberStreaks` (from `GET /member-streaks`, loaded by the tab
-> upstream) — **no fetch of its own**, no write.
+> **Consumes:** ~~reads the pre-loaded `ProgramContext.memberStreaks` (from `GET /member-streaks`, loaded by the tab
+> upstream) — **no fetch of its own**, no write.~~ `ProgramContext.loadMemberStreaks(focusedMemberId)`
+> (`GET /member-streaks`), seeded from the tab's `memberStreaks` when it is this member's; no write *(0.1.1, D-REL1)*.
 > **Files:** `ui/members/MemberSimpleDetails.kt` (`MemberStreakDetailScreen`, `MilestoneChips`) + `MemberCards.kt`
 > (`StreakTile`) + `ui/summary/DetailChrome.kt` (`DetailTopBar`).
 
@@ -14,14 +15,16 @@
 
 - **Faithful (iOS/web 1:1):** title **"Streak Stats"**; **Current** + **Longest** tiles (flame icon `AppOrange` /
   trophy icon `AppYellow`, value = "N days"); a **"Milestones"** ladder of day-value chips rendered over the
-  server-computed streak math. Empty → "No streak data." No API call, no write — it reads state the card already
-  loaded (matching the iOS "loaded upstream" contract).
+  server-computed streak math. ~~Empty → "No streak data." No API call, no write — it reads state the card already
+  loaded (matching the iOS "loaded upstream" contract).~~ *(Superseded at 0.1.1 by D-REL1: the detail loads its
+  member's streaks itself; a failure → `ErrorView` + Retry. No write.)*
 - **D-C2 (non-color ✓ milestone affordance, web parity):** an achieved milestone chip gets a **leading ✓ (Check)
   icon + an orange border ring** (plus the orange tint + 15%-alpha fill); an unachieved chip is a plain grey
   surface with no ✓. The achievement is legible without relying on color alone — the same non-color parity the iOS
   SPEC records as D-C2.
 - **Deviation A-1 (scoped via `focusedMemberId`):** the streak state is member-scoped by the tab's `focusMember`
-  before push; the screen has no nav args and issues no fetch, so it renders whatever member the card loaded.
+  before push; the screen has no nav args ~~and issues no fetch, so it renders whatever member the card loaded~~ and
+  loads `focusedMemberId`'s streaks itself *(0.1.1, D-REL1)*.
 - **Deviation A-2 (flat Material chrome):** iOS's glass tiles/chips → flat rounded Material surfaces (`StreakTile`
   + `FlowRow` of chips); the top bar is `DetailTopBar` (circle back + centered title).
 
@@ -29,12 +32,23 @@
 
 | Call | Endpoint | Sets / does |
 |------|----------|-------------|
-| _(none — reads pre-loaded state)_ | `GET /member-streaks` (loaded by the tab's `loadMemberStreaks`) | `currentStreakDays` · `longestStreakDays` · `milestones[]` (day + achieved) |
+| ~~_(none — reads pre-loaded state)_~~ `loadMemberStreaks(focusedMemberId)` (0.1.1) | `GET /member-streaks` ~~(loaded by the tab's `loadMemberStreaks`)~~ | `currentStreakDays` · `longestStreakDays` · `milestones[]` (day + achieved) |
 
-No fetch on entry — the tab's `MemberStreakCard` already loaded `memberStreaks`. Bearer-authed by the OkHttp layer.
+~~No fetch on entry — the tab's `MemberStreakCard` already loaded `memberStreaks`.~~ Loads on entry and on a
+`focusedMemberId` change (0.1.1). Bearer-authed by the OkHttp layer.
+
+## Phase 4 polish (0.1.1)
+
+- **D-REL1 (#26 #29 #36; frontend-kit D-KIT-21, D-KIT-22, D-KIT-23; member-analytics D-C13).** **#29:** the detail
+  loads its member's streaks itself (`rememberLoad(focusedMemberId)` → `loadMemberStreaks`) through `KitLoad` —
+  spinner, the offline `ErrorView` with no data offline, `ErrorView` + Retry on failure (never "No streak data."),
+  reload on reconnect. It opens on the tab card's numbers only when S5's held key says they are this program's + this
+  member's (`memberCardsHeld`), refreshing underneath; otherwise it starts from Loading. **#26:** the screen scrolls
+  vertically. **#36:** the top bar is 48 dp with a labelled (`Back`) 48 dp back target.
 
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #29 the detail loads its member's streaks itself on `KitLoad` (ErrorView + Retry; seeded from the card only for the same member); #26 the screen scrolls; #36 48 dp back target. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E). Current/Longest tiles + milestone ladder over pre-loaded `memberStreaks` (no own fetch). D-C2 non-color ✓-prefix + orange-ring achieved affordance; empty "No streak data." Reads scoped `focusedMemberId`. `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

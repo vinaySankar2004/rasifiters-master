@@ -1,6 +1,6 @@
 # Screen: `login` (android) — the public sign-in screen + entry to auth-recovery
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios login`](../../ios/login/SPEC.md) +
 > [`web login`](../../web/login/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `AuthGraph` route `Routes.LOGIN` (`LoginScreen`), pushed from splash.
@@ -51,10 +51,22 @@
   app-wide, so the Done affordance lands everywhere, not just auth (noted here as the priority auth surface).
   IME back/down-chevron already dismisses natively. **No auth-logic change.**
 
+## Phase 4 polish (0.3.1)
+
+- **D-REL1 (#21, #35, #36 — auth D-C20 / D-C22, frontend-kit D-KIT-22):** #21 the Google button shows a spinner and
+  stays disabled until `socialSignIn` finishes (`onResult` is now `suspend`; extends D-REL3-2's double-tap guard), and
+  **Login** is disabled while it runs (Google is disabled while a password login runs). #35 Compose BOM 2025.04.01
+  semantics autofill: the identifier is `ContentType.Username + EmailAddress` with the Email keyboard and no
+  autocorrect, the password `ContentType.Password` (no autocorrect); a successful login calls `autofill.commit()` (save
+  prompt); autofilled fields get a faint themed wash (`LocalAutofillHighlightColor` = primary at 8 %, `Theme.kt`) instead
+  of Compose's yellow. #36 the Show/Hide eye is a 48 dp `compactTapTarget` labelled `Show password` / `Hide password`
+  (the 22 dp icon and field width unchanged).
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #21 Google spins until sign-in finishes (Login disabled meanwhile); #35 `ContentType` autofill (Username + Email / Password, commit on success, themed highlight, no autocorrect); #36 labelled 48 dp Show/Hide eye. |
 | 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3.** D-REL3-1: server text only for 400/401/409/422, kit copy otherwise; forced sign-out reason shown once; `auth.sign_in_failed`; device ride-along incl. `platform`. D-REL3-2: Google nonce flow + mapped Credential Manager errors + double-tap guard. Compile-checked green (`assembleDebug`). |
 | 0.2.2 | 2026-07-10 | **Fit-on-one-screen layout tighten (no scroll).** After the Google button pushed the footer down, compressed the auth screens' vertical rhythm so Login fits a standard phone with no scroll: `BrandMark` 88→64 (Login/Forgot), 84→64 (Create); `AuthScaffold` padding top 24→20 / bottom 32→24; Login inter-block Spacers reduced (brand 24→16, pre-fields 30→20, fields `spacedBy` 14→12, pre-Login 24→16, pre-"or" 20→14, pre-Google 16→12, pre-forgot 16→12, and the outsized footer gap 28→16 — dropped the redundant 6dp spacer above the "New here?" row). Forgot/Create tightened to match. Spacing/sizing only — **no auth logic or button-style change**. Compile-checked green (`:app:assembleDebug`). |
 | 0.2.1 | 2026-07-10 | **Google button restyle (web parity).** `GoogleSignInButton` is now a custom **dark pill** — the pill shape + 48dp height of `PillButton` with `AppTextField`'s input-surface fill (theme background) + a 1dp `onSurface` alpha-0.22 hairline border, centering the **multicolor Google "G"** (`ic_google_g`, 18dp, untinted) + SemiBold "Continue with Google" in `onSurface`. Reads as a sibling of the filled Login CTA, one emphasis step lower. Auth logic (Credential Manager → `socialSignIn`) unchanged. Compile-checked green (`:app:assembleDebug`). |

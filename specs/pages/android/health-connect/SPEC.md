@@ -1,6 +1,6 @@
 # Screen: `health-connect` (android) — Health Connect sync settings + first-sync confirmation
 
-> **Status:** 🏗️ built · **Version:** 0.3.2 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.4.0 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = the [`health-connect`](../../../features/health-connect/SPEC.md) feature (the Android
 > analog of iOS [`apple-health`](../../../features/apple-health/SPEC.md)) + iOS
 > `Features/Home/Settings/AppleHealthSettingsView.swift` + `Shared/Views/HealthSyncConfirmationView.swift`.
@@ -99,6 +99,19 @@ trigger). Presentation priority is **workouts > sleep > steps** (0.2.0).
   The sync-status notification (`HealthSyncNotifier`) uses the monochrome `ic_stat_notification` and survives the
   Inbox's tray clear. The first-sync review counts as a toast cover (no notification toast over it).
 
+## Phase 4 polish (0.4.0)
+
+- **D-REL1 (#27, #36 — health-connect D-ACTIVE, frontend-kit D-KIT-21 / D-KIT-22; polish amendments PA10):**
+  - **#27 active-only list:** **Sync to Programs** lists only programs the member is **active** in (invited / requested
+    never receive synced data). The program list is re-read on every entry (and on reconnect after a failure) instead
+    of only when empty. Its load state shows **once**, in the first enabled section (Workouts › Sleep › Steps): a
+    spinner, or `InlineLoadError` (`Couldn't load this` + Retry; offline copy while offline); the other sections hide
+    their list until it loads; `No programs available. Join or create a program first.` only for a loaded, empty list.
+    After a fresh successful load, selected ids whose program isn't active are dropped through the controller's own
+    toggles (persisted).
+  - **#36:** each program row is a `toggleTarget` (announced as a checkbox with its checked state, ≥ 48 dp); the back
+    button is the shared labelled 48 dp `Back`.
+
 ## Backend contract
 
 health-sync 0.2.0 (`/api/health-sync/batch`, `/api/health-sync/state`, `integration: "health_connect"`) — live since
@@ -109,6 +122,7 @@ sync (rule 11); live 1.0.0 keeps them.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #27 Sync to Programs = active programs only, list re-read on entry + reconnect, its load state once (first enabled section), inactive selections pruned after a fresh load; #36 program rows announced as checkboxes (48 dp), 48 dp back. |
 | 0.3.2 | 2026-10-13 | **D-NP1** (Phase 4, `d528f75`): the People disclosure footnote; the monochrome notifier icon. PATCH. |
 | 0.3.1 | 2026-10-13 | Phase 4 quick wins: the first-sync review overlay carries the offline banner with a 76dp reserve and swallows taps under it (frontend-kit D-KIT-17, #2). |
 | 0.3.0 | 2026-10-13 | **Reliability Phase 3 C3 — health-sync v2.** D-REL3-1 batch/state contract (per-sample items, deletions, catch-up window, paging, rule-5 hold, per-program `sync_success`); D-REL3-2 Reconnect row; D-REL3-3 triggers; D-REL3-4 review once; D-REL3-5 disconnect keeps exclusions + reviews; D-REL3-6 per-member store + 1.0.0 upgrade (with the recorded upgrade-window deviation). Compile-checked green (`assembleDebug`). |
