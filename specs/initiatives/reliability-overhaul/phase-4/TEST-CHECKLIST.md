@@ -2,7 +2,7 @@
 
 > Everything is built, reviewed and committed. The server and web are live; People is dark on web until
 > release day. **Status:** §1–3 passed on iOS 1.5.1 (59) / Android 1.2.0 (6); §4 passed on the iPhone (TestFlight
-> 1.5.2 (60), 2026-10-13) — the Pixel's §4 check follows the closed-testing Publish of 1.2.0 (7).
+> 1.5.2 (60), 2026-10-13) — the Pixel's §4 check runs on the public 1.2.0 (7).
 
 ## 1. Notifications (all three)
 - [ ] **Inbox:** the "+" sheet's first tab says **Inbox**. Invites sit at the top, notifications below, and the badge

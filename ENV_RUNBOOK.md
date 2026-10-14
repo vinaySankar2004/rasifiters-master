@@ -268,7 +268,8 @@ carries the Web client `client_type: 3`, plus the iOS client in `other_platform_
   member's time zone (`notification_preferences.time_zone`, from `X-Time-Zone`) is stored for reminders.
 - Channels: the CLI-built AAB goes to Play **internal** and **closed** testing — the user's Pixel only receives builds
   through closed testing. **Play managed publishing is ON (since 2026-10-13)** and App Store versions use **manual
-  release**: approval never goes live until the user clicks Publish / Release. Routine: the `deploy` skill §D; what's
+  release**: approval never goes live until the user clicks Publish / Release. Play's Publish releases **every**
+  approved change at once ("Remove changes" pulls them all back to draft) — no track-by-track publish. Routine: the `deploy` skill §D; what's
   on each channel: `RELEASES.md`.
 
 ## 7b. Auth email (password reset) — Resend custom SMTP

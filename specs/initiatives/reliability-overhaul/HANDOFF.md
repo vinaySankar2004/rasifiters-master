@@ -5,7 +5,7 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-13, late night) — BOTH APPS SUBMITTED FOR STORE REVIEW
+## Now (2026-10-13, late night) — ANDROID 1.2.0 PUBLIC · iOS 1.5.2 IN REVIEW
 
 - **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
@@ -13,9 +13,8 @@
   - **iOS 1.5.2 (60): Waiting for Review**, manual release (goes public only on the user's Release click). Also on
     TestFlight Internal — the user's quick check ([`TEST-CHECKLIST`](phase-4/TEST-CHECKLIST.md) §4, incl. "the
     inbox list doesn't jump") **passed**. App Privacy + Other Diagnostic Data. Repo pre-bumped to **1.5.3 (61)**.
-  - **Android 1.2.0 (7): production + closed testing in review**, Data safety + Device IDs + Diagnostics. **Managed
-    publishing ON** — every approved change waits for the user's Publish click (closed testing → Pixel first).
-    Internal testing live. Repo pre-bumped to versionCode **8**.
+  - **Android 1.2.0 (7): PUBLIC** (production + closed testing + Data safety published together, the user's yes).
+    Managed publishing stays ON; one Publish click releases every approved change. Repo pre-bumped to versionCode **8**.
 - **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. People stays dark on web
   (`PEOPLE_LIVE = false`, `apps/web/src/lib/api/people.ts`) until the store apps are public.
 - **Tonight's touch-ups** (plans `plans/phase-4-touchup-{inbox,profile}/`, amendments
@@ -32,7 +31,8 @@
 - **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
   storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt.
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
-  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip.
+  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip; Android R8
+  shrink + obfuscation in the next Android build (release has `isMinifyEnabled = false`; Play: 1 %, fix by Feb 2027).
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 
@@ -40,9 +40,9 @@
 
 1. ~~**The user:** quick TestFlight 60 check (TEST-CHECKLIST §4).~~ **DONE 2026-10-13 — passed.** (A later problem
    → pull the App Store submission, fix, upload **1.5.3 (61)**.)
-2. **Play:** Publishing overview → when closed testing is approved, **Publish** (Pixel gets 7) → Pixel quick check
-   (§4) → when production is approved, **Publish**.
-3. **App Store approved → Release.** Then, once BOTH are public:
+2. ~~**Play Publish**~~ **DONE 2026-10-13** — all three approved changes published at once (Play can't publish one
+   alone). The Pixel §4 check runs on the public 1.2.0 (7); a problem → fix → versionCode 8.
+3. **App Store approved → Release.** Then, with both public:
    1. Flip `PEOPLE_LIVE = true` → deploy web (a yes to push).
    2. Raise app-config `LATEST_*` (later `MIN_*`).
    3. Update RELEASES.md; mark Phase 4 🚀 shipped in BRIEF §7 + PROGRESS.md.
@@ -53,13 +53,13 @@
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web live; phones in store review |
-| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web live; phones in store review |
+| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
+| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
 | W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (60) in App Store review |
-| W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | 🟨 Android 1.2.0 (7) in Play review |
-| W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | 🟨 Android 1.2.0 (7) in Play review |
-| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web live; phones in store review |
-| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web live; phones in store review |
+| W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | ✅ Android 1.2.0 (7) public |
+| W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | ✅ Android 1.2.0 (7) public |
+| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS in review |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web + Android live; iOS in review |
 
 ## Session log
 
@@ -109,4 +109,4 @@
   web + SEO live. Builds iOS 1.5.2 (60) / Android 1.2.0 (7); **both submitted** (App Store manual release; Play
   managed publishing), App Privacy + Data safety updated. Repo pre-bumped to 1.5.3 (61) / versionCode 8. The user's
   TestFlight 60 check passed. Docs freshness pass. Search Console: sitemap resubmitted, Rich Results valid, indexing
-  requested for the home page + 5 waiting pages.
+  requested for the home page + 5 waiting pages. Android 1.2.0 (7) published (all three approved Play changes).

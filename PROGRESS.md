@@ -32,9 +32,9 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (scope + phase plan §7).
 >
 > **Status 2026-10-13:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
-> and the release touch-ups are live on backend + web (People dark on web behind `PEOPLE_LIVE`). **The iOS + Android
-> builds are submitted, awaiting store approval** (versions: `RELEASES.md`). **Next (user-owned):** Play Publish
-> clicks + the App Store Release click, then flip `PEOPLE_LIVE` + raise `LATEST_*` — HANDOFF "Next action".
+> and the release touch-ups are live on backend + web (People dark on web behind `PEOPLE_LIVE`). **Android 1.2.0 (7)
+> is public; iOS 1.5.2 (60) awaits App Store approval** (`RELEASES.md`). **Next
+> (user-owned):** the App Store Release click, then flip `PEOPLE_LIVE` + raise `LATEST_*` — HANDOFF "Next action".
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

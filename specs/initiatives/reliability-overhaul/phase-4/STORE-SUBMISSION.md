@@ -2,7 +2,7 @@
 
 > Claude drives the consoles in the browser pane. **Each change gets the user's yes.** The user types no secrets.
 > Source for the privacy answers: `plans/phase-4-p-server/plan.md` §"Privacy, consent and store disclosures" C.
-> **Status: both submitted 2026-10-13** (`RELEASES.md`). Not done, the user's call: Play step 5 and the optional Play
+> **Status: both submitted 2026-10-13; Android published the same night** (`RELEASES.md`). Not done, the user's call: Play step 5 and the optional Play
 > title tweak (`../plans/phase-4-seo.md`).
 
 ## What's new (same text on both stores; Play allows ≤ 500 characters)
