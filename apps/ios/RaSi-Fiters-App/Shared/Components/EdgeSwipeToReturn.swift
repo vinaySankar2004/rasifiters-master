@@ -79,7 +79,7 @@ private struct EdgeSwipeToReturnInstaller: UIViewRepresentable {
         }
 
         @objc func handleEdgePan(_ recognizer: UIScreenEdgePanGestureRecognizer) {
-            guard recognizer.state == .ended,
+            guard recognizer.state == .ended, isCommitted(recognizer),
                   let root = (recognizer.view?.window ?? UIApplication.shared.keyWindowRoot)?.rootViewController,
                   let tabBar = deepestTabBarController(root) else { return }
             // A sheet / full-screen cover is up: it owns the swipe, never the program shell.
@@ -101,6 +101,15 @@ private struct EdgeSwipeToReturnInstaller: UIViewRepresentable {
                 }
             }
             onRootSwipe()   // a tab's top screen → back to the program list
+        }
+
+        /// Like the system swipe-back: a short or reversed edge drag is cancelled — only a drag past a third of the
+        /// screen, or a quick flick to the right, goes back (2026-10-13: any tiny edge touch used to leave the program).
+        private func isCommitted(_ recognizer: UIScreenEdgePanGestureRecognizer) -> Bool {
+            guard let view = recognizer.view else { return false }
+            let dx = recognizer.translation(in: view).x
+            let vx = recognizer.velocity(in: view).x
+            return vx > 500 || (dx > view.bounds.width / 3 && vx >= 0)
         }
 
         // MARK: - UIGestureRecognizerDelegate

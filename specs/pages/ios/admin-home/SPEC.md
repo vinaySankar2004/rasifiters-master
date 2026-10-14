@@ -32,7 +32,7 @@ navigation + the role bifurcation**; each tab's content is a separate, deferred 
 | Tab 3 — **Lifestyle** | `:47-51, 72-79` | `Label("Lifestyle", "leaf.fill")`; internal tag `workoutTypes`; `AdminWorkoutTypesTab` / `StandardWorkoutTypesTab` |
 | Tab 4 — **Program** | `:53-57, 81-88` | `Label("Program", "calendar.badge.clock")`; `AdminProgramTab` / `StandardProgramTab` |
 | `Period` enum (nested) | `:11-27` | `W/M/Y/P` → `week/month/year/program`; `@State summaryPeriod`, bound into the Summary tab. **Ships with the shell** (the tab bodies reference `AdminHomeView.Period`). `spokenName` (`Week`/`Month`/`Year`/`Program`) = the VoiceOver label of a one-letter segment (D-REL1) |
-| Edge swipe | `.edgeSwipeToReturn { returnToMyPrograms = true }` (`Shared/Components/EdgeSwipeToReturn.swift`) | One window `UIScreenEdgePanGestureRecognizer` while the shell is on screen (removed in `dismantleUIView`); leaves the program **only from a tab's top screen** (D-REL1) |
+| Edge swipe | `.edgeSwipeToReturn { returnToMyPrograms = true }` (`Shared/Components/EdgeSwipeToReturn.swift`) | One window `UIScreenEdgePanGestureRecognizer` while the shell is on screen (removed in `dismantleUIView`); leaves the program **only from a tab's top screen** (D-REL1); acts only on a committed drag — past ⅓ of the width or a > 500 pt/s flick (`isCommitted`, D-REL2) |
 
 ## 5. Components + features consumed
 - **`ProgramContext`** (`Shared/Models/ProgramContext.swift`) — `@EnvironmentObject`; the shell reads only
@@ -75,6 +75,7 @@ data loading lives in the deferred tab bodies.
 | **D-DEPS** | **No new dependency** — `isProgramAdmin` (`ProgramContext.swift:269`) + `adaptiveTint()` (`AppTheme.swift:208`) ported in the foundation (run 50); all 7 tab-body names collision-free. The run ports the shell file + rewrites the stub block. | dep-purity grep, run 53 |
 | **D-C1** | **Program entry = a health-sync trigger (reliability Phase 3 C2; health-sync §8 rule 1).** `.task` → `HealthSyncEngine.shared.trigger(.programEntry)` — every active kind (was workouts + sleep only), spaced ≥ 60 s with the launch / foreground runs. | health-sync §8 rules 1 / 10. |
 | **D-REL1** | **Phase 4 polish (#13, #36).** #13 the edge swipe leaves the program (`returnToMyPrograms`) **only from a tab's top screen**: a screen pushed on the outer stack (Summary / admin Lifestyle / admin Program detail screens — Add workouts, Log health, timelines, Edit program …) or on the tab's own stack is a normal one-level back (the system swipe-back when a transition is already running — `transitionCoordinator` — else one pop), and a presented sheet / cover owns the swipe. The window recognizer is removed when the shell leaves (no stacking per program visit). Forms are no longer lost to an edge swipe. #36 `Period.spokenName` gives the one-letter `W/M/Y/P` segments the spoken labels `Week` / `Month` / `Year` / `Program` (frontend-kit **D-KIT-22**). | `05e185a`; DISCOVERY #13 |
+| **D-REL2** | **Release touch-up (d), 2026-10-13.** The edge swipe acts only on a committed drag — past ⅓ of the view width with no leftward fling, or a rightward flick faster than 500 pt/s (`EdgeSwipeToReturn.isCommitted`), the same commit rule as the system swipe-back. Before, ANY edge touch that ended left the program — the "glitchy" back-swipe the user reported. Checked: no race with the native interactive pop (detail screens use it; the recognizer yields while a transition runs). Making the root swipe follow the finger was considered and **dropped by the user** — don't re-pitch. | touch-up (d) |
 
 ## 10. Flagged characteristics (kept as-is)
 - **F1 — Role bifurcation by physically-separate views.** iOS has distinct `Admin*Tab`/`Standard*Tab`
@@ -91,6 +92,7 @@ data loading lives in the deferred tab bodies.
   Program switching is otherwise via the picker/account flows. (`AdminHomeView.swift:60`)
 
 ## 11. Changelog
+- **v0.2.2** (2026-10-13, D-REL2 — release touch-up (d)) — the edge swipe needs a committed drag (⅓ width or a fast flick); a tiny edge touch no longer leaves the program.
 - **v0.2.1** (2026-10-13, D-REL1 — Phase 4 polish, `05e185a`) — #13 the edge swipe leaves the program only from a
   tab's top screen (a normal one-level back elsewhere; recognizer removed with the shell; F4 corrected); #36
   `Period.spokenName` spoken labels for the W/M/Y/P segments.
