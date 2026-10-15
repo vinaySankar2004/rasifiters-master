@@ -5,73 +5,47 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-14) — POOLED PARITY RELEASE: backend + web LIVE · iOS 1.5.2 (63) + Android 1.2.2 (9) IN REVIEW
+## Now (2026-10-15) — POOLED PARITY RELEASE: backend + web LIVE · iOS 1.5.2 (63) + Android 1.2.2 (9) IN REVIEW
 
-- **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
-  - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
-- **Store state (RELEASES.md):**
-  - **iOS 1.5.2 (61): removed from review** (2026-10-14, the user's call) to add the program-card time bar (iOS
-    program-picker D-BAR). Repo set back from 1.5.3 (62) to **1.5.2 (62)** — same version while 1.5.2 is unapproved.
-    The version keeps (61)'s corrected description and **automatic release**. (61) stays the only unexpired TestFlight
-    build (Internal); 56–60 expired. **(62) is held** (the user, 2026-10-14): the data-source parity fixes go in first,
-    then one push to all three apps.
-  - **Android 1.2.1 (8): PUBLIC** (2026-10-14; R8 on — Play's DEX-optimisation warning, due Feb 2027, cleared) +
-    the refreshed listing description. app-config `LATEST_ANDROID_VERSION_CODE = 8` → "Update available" banner on
-    1.1.0+ (`MIN_*` unset). Managed publishing **OFF** (approved changes go live on their own). Repo at versionCode **9**.
-- **Live:** backend (Render) + web (Vercel) carry everything, incl. tonight's touch-ups. **People is on for web**
-  (`PEOPLE_LIVE = true`, `apps/web/src/lib/api/people.ts` — the off switch), turned on with Android public and iOS
-  still in review (the user's call).
-- **Tonight's touch-ups** (plans `plans/phase-4-touchup-{inbox,profile}/`, amendments
-  `plans/phase-4-touchup-amendments.md`; each surface reviewed + fix-rounded):
-  - (a) Inbox remove one + Clear all — backend `97492d9` (notifications 0.7.0, D-C32), web `fa57ad9`, Android
-    `5ca5309`, iOS `1d813c4`. Option (A): every notification row removable; Invitations never touched.
-  - (b) Exact reminders `9a57bd0` — user-verified.
-  - (c) Profile circle → My Profile, Back returns (D-PC1) — in the same client commits.
-  - (d) iOS edge swipe needs a committed drag `728afad` (D-REL2). Follow-the-finger root swipe **dropped by the
-    user — don't re-pitch.**
-  - (e) iOS People rows `1e74a54`.
-  - (f) SEO `cc46131` (landing 0.1.5, D-LAND-12): WebSite `alternateName` = real spellings only, brand-first
-    description, hero eyebrow, per-page titles. Live + verified; Search Console steps done.
+- **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **pooled release in store review.**
+  Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
+- **Live (backend + web):** everything, incl. the data-source parity fixes (METHODOLOGY R9, `plans/parity-sweep/`) and
+  the D4/D5 metric fixes (`plans/metric-semantics/`), tested on staging first. People is on for web (`PEOPLE_LIVE`,
+  `apps/web/src/lib/api/people.ts` — the off switch).
+- **Stores (`RELEASES.md` is the SoT):** iOS public 1.4.2 (56); **1.5.2 (63) Waiting for Review**, automatic release
+  (61/62 pulled + expired). Android public 1.2.1 (8); **1.2.2 (9) in Play closed-testing review**; managed publishing OFF.
+  app-config `LATEST_ANDROID_VERSION_CODE = 8` (banner), `MIN_*` unset. Repos one train ahead: iOS **1.5.3 (64)**,
+  Android versionCode **10**.
 - **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
   storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; until iOS 1.5.2 is
-  public, iPhone users see People only on web (Hide my activity is in web My Profile).
+  public, iPhone users see People only on web; zone-less members get the forgiving streak window (M7) until their app
+  sends a zone (iOS 1.5.2+, Android 1.2.x, web).
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
-  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip. **Only when next
-  building Android anyway** (Play's optional tips): `isShrinkResources = true` (smaller download; no `getIdentifier`
-  use) and bump `activity-compose` past 1.9.3 (clears the deprecated edge-to-edge API note — the calls are inside
-  AndroidX; the app already calls `enableEdgeToEdge()`). Skip AGP 9 unless upgrading for another reason.
-- **In the next iOS upload:** the program-card time bar (iOS program-picker D-BAR, 2026-10-14 —
-  `progress_percent` instead of an always-full active ÷ total). Web is live with it; Android always had it.
+  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip. **Next Android
+  build only** (Play's optional tips): `isShrinkResources = true`, `activity-compose` past 1.9.3; skip AGP 9.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 
 ## Next action
 
-1. **Data-source parity fixes (METHODOLOGY R9) — backend + web LIVE 2026-10-14** (`41a69d4` + `88ea9ff`; plans
-   `plans/parity-sweep/`). iOS (`d6f569a`, ⌘B green) and Android (`8144345`, `assembleDebug` green) are on `main`,
-   waiting for the pooled release.
-2. **D4 / D5 metric semantics — backend LIVE 2026-10-15** (`fd6c15b`, docs `82d02ac`; `plans/metric-semantics/`):
-   MTD badges compare the same days of last month; the app streak resets unless the member logged today or
-   yesterday, on their stored zone, else the most forgiving window (M7). The user tested web + iOS on staging first.
-3. **Pooled release — submitted 2026-10-14:** iOS **1.5.2 (63)** Waiting for Review (automatic release; 61 + 62
-   expired) and Android **1.2.2 (9)** in Play closed-testing review. Repos pre-bumped: iOS **1.5.3 (64)**, Android
-   versionCode **10**. **Next:** Android approved → the user checks it on the Pixel → promote to production (the user's
-   yes) → `LATEST_ANDROID_VERSION_CODE = 9`. iOS approved → live on its own → `LATEST_IOS_VERSION = 1.5.2` (the user's
-   yes). Then RELEASES.md, and mark Phase 4 🚀 in BRIEF §7 + PROGRESS.
-4. ~2026-10-27: recheck Google's shown site name before doing anything more
-   ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
+1. **Android 1.2.2 (9) approved in closed testing** → the user checks it on the Pixel → promote to production (the
+   user's yes) → on approval: `LATEST_ANDROID_VERSION_CODE = 9` (Render env, the user's yes) → **refresh the testbed**
+   (`tools/testbed/seed.mjs --refresh`, the user asked: after the production push) → RELEASES.md.
+2. **iOS 1.5.2 (63) approved** → live on its own → `LATEST_IOS_VERSION = 1.5.2` (the user's yes) → RELEASES.md.
+   With both public: mark Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` (the hard block) only once adoption allows.
+3. ~2026-10-27: recheck Google's shown site name ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
 ## Workstream status
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 waits for the parity release |
-| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 waits for the parity release |
-| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 — (61) pulled, waits for the parity release |
+| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 (63) in review |
+| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 (63) in review |
+| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (63) in review |
 | W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | ✅ Android public (1.2.1 (8)) |
 | W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | ✅ Android public (1.2.1 (8)) |
-| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS 1.5.2 waits for the parity release |
-| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web + Android live; iOS 1.5.2 waits for the parity release |
+| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS 1.5.2 (63) in review |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web + Android live; iOS 1.5.2 (63) in review |
 
 ## Session log
 
@@ -137,3 +111,6 @@
   pulled 1.5.2 (61) from review to include it; repo set to 1.5.2 (62). `audit` skill now three-surface + data sources.
   Later: the user held (62) — the sweep's data-source fixes (D1 server progress, D2 PTD days-so-far, D3 "N members")
   go in first, then one push to all three; parity rule recorded as METHODOLOGY R9 (no shared version numbers).
+- **2026-10-14/15 (release)** — Pooled release: D4/D5 backend live (`fd6c15b`) after a staging test (web + iOS; the Pixel
+  can't take local builds — Android via closed testing). Android 1.2.2 (9) → closed-testing review; iOS 1.5.2 (63)
+  submitted (61/62 expired). Repos pre-bumped iOS 1.5.3 (64), Android vc 10.
