@@ -155,6 +155,10 @@ and components):
 - *"Does every button / menu-item / tab actually DO something?"*
 - *"Any prop/binding received-but-unused? Any child view mounted-but-dead?"*
 - *"What did we miss — a route, a flag, a table, a state, an edge case, a client that diverges?"*
+- *"Every displayed measure (bar, ring, %, count): which field / formula feeds it, and can it actually
+  vary?"* — write the source into the SPEC row, not just "a progress bar". A value that can never change
+  (e.g. a ratio of two fields the backend always returns equal) is a legacy bug → flag it in §10 and
+  ask; faithful ≠ correct (2026-10-14: the web + iOS program-card bars were always full for months).
 Only sign off when a critic pass turns up nothing new. Dead/placeholder controls under the faithful
 stance become **§10 flagged characteristics** (kept as-is, rebuild-cleanup candidates).
 

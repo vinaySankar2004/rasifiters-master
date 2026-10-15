@@ -632,3 +632,7 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
 - Four commits: `fix(ios)` (code + 3 iOS page SPECs 0.1.2 → 0.1.3 + pages REGISTRY — page bumps, no tag; the chart
   files sit in no feature's `reference_impl`), `fix(testbed)`, `chore(skills)`, `chore(releases)` (ledger + current-state
   docs + the 1.5.3 (62) pre-bump). No new pattern.
+- **2026-10-14 — program-card bar fix.** Two commits: `fix(programs)` (web + iOS code, the three program-list page SPECs
+  — page bumps, no tag — and programs 0.4.1 for a PATCH F2 note, tagged `feature/programs@v0.4.1`; 11 dependents, FYI
+  only, contract unchanged), then `chore(skills)` (audit three-surface + data-source check, question-asker critic
+  check, CLAUDE.md line). No new pattern.

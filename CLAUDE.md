@@ -120,8 +120,8 @@ header and `CONTEXT.md`.
 
 `git-version` (this repo's git skill; ICM commit + version pipeline) · `question-asker` (the spec question
 loop — writes both feature specs and page/screen specs incl. role-based view rules) · `deploy` (provision +
-deploy to Vercel/Render, create Supabase schema/buckets) · `audit` (web↔iOS parity check for shared
-features) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
+deploy to Vercel/Render, create Supabase schema/buckets) · `audit` (web↔iOS↔Android parity check for shared
+features — incl. each measure's data source) · `supabase` (read-only DB inspection; writes → migration file) · `health-check` (periodic
 read-only doc-health cross-review; strict, report-only via plan mode) · `ios-build` (the iOS compile-check
 loop — `tools/ios-typecheck.sh` pre-check, then the user presses ⌘B in Xcode, Claude fixes the reported errors, repeat; NO
 screenshots/simulator, the user runs those) · `android-build` (the Android compile-check loop via the
