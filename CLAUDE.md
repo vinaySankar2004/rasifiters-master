@@ -50,6 +50,8 @@ resolution, authorization stays in Express — no RLS) are the single source of 
 - **Consistency**: snake_case (DB), camelCase (JS/TS API boundary). Follow existing legacy patterns.
 - **Non-breaking**: preserve existing behavior; the whole point is a seamless transfer.
 - **Scalability**: no N+1; explicit I/O timeouts; idempotent writes where retries exist.
+- **Parity**: every displayed value has one source (prefer the backend) and reads the same on web, iOS and
+  Android; a change to what a screen shows lands on all three together (METHODOLOGY R9).
 - **Docs**: update CONTEXT.md / feature SPECs / READMEs when schema or behavior changes.
 
 ## Planning Standards

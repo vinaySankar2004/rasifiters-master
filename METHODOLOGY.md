@@ -153,7 +153,7 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
 
 ---
 
-## Decisions log (R1 → R8) — the audit trail
+## Decisions log (R1 → R9) — the audit trail
 
 > RaSi's decision log starts fresh at the locked scaffolding decisions. Append new R-entries here as
 > the rebuild proceeds; never prune. The Higgins ICM's own R-history (its gen-4→gen-5 cutover) is not
@@ -238,3 +238,13 @@ it one before pruning. Enforced at commit time by `git-version`; `health-check` 
   for experiments. (R1–R7 stand unchanged.) _(Amended 2026-10-12 — as built, staging is **opt-in** for risky
   changes only (migrations, auth/session); day-to-day testing stays on prod — auth D-C13. Live status of the
   initiative: its `BRIEF.md` §7.)_
+- **2026-10-14 R9 — Parity = the same value from the same source on every app.** Every value a screen shows
+  (a bar, ring, %, count, date or label) is defined **once** — preferably computed by the backend and shown as-is — and
+  web, iOS and Android read the same field with the same rounding, the same date rule and the same copy. A change to
+  what a screen shows lands on **all three apps in the same change** (one `multiplex` plan covering every surface in
+  `consumed_by`, then the `audit` check), and the SPEC names each measure's source. Layout and controls may follow
+  platform idiom; the data may not. **Why:** the web + iOS program-card bar sat full for months (active ÷ total
+  members, which the backend always returns equal) while Android showed time elapsed; the sweep that followed found
+  more of the same: program progress from three sources, a PTD % with two denominators, web dates a day early west of
+  UTC. **Enforced by:** `audit` (data-source dimension), `question-asker` (critic check), `multiplex` (per-surface
+  plans). (R1–R8 stand unchanged.)
