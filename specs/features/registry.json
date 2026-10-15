@@ -112,7 +112,7 @@
       }
     },
     "notifications": {
-      "version": "0.7.0",
+      "version": "0.8.0",
       "spec": "specs/features/notifications/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -294,7 +294,7 @@
       }
     },
     "analytics": {
-      "version": "0.6.2",
+      "version": "0.7.0",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -323,7 +323,7 @@
       }
     },
     "analytics-v2": {
-      "version": "0.3.2",
+      "version": "0.4.0",
       "spec": "specs/features/analytics-v2/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -348,7 +348,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.8.1",
+      "version": "0.9.0",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -364,7 +364,8 @@
         "program-memberships",
         "program-workouts",
         "workout-logs",
-        "daily-health-logs"
+        "daily-health-logs",
+        "notifications"
       ],
       "reference_impl": {
         "app": "backend",
@@ -552,7 +553,7 @@
       }
     },
     "people": {
-      "version": "0.1.1",
+      "version": "0.2.0",
       "spec": "specs/features/people/SPEC.md",
       "status": "deployed",
       "consumed_by": [

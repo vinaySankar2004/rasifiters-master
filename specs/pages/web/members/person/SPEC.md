@@ -1,12 +1,12 @@
 # Page: `members/person` (web) — a person's profile (People)
 
 > **Status:** 🏗️ built (`apps/web/`, `b2ea09b`) — **live since 2026-10-13** (`PEOPLE_LIVE`; switched off, it redirects)
-> · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/person?memberId=<id>` — one program member's profile: name, initials, role, workout stats, recent
 > workouts and kudos; staff get "Open full stats", global admins "Edit membership". Reached from a row of the People
 > list ([`members/list`](../list/SPEC.md) with `PEOPLE_LIVE`).
 > **Provenance:** **NET-NEW** (reliability-overhaul Phase 4 Pass B — People S2; no legacy page).
-> **Consumes (features):** [`people`](../../../../features/people/SPEC.md) 0.1.0 (`GET /api/people/:memberId`, `POST` /
+> **Consumes (features):** [`people`](../../../../features/people/SPEC.md) 0.2.0 (`GET /api/people/:memberId`, `POST` /
 > `DELETE /api/people/:memberId/kudos`; D-C13), [`member-analytics`](../../../../features/member-analytics/SPEC.md)
 > (Open full stats lands on its pages), [`program-memberships`](../../../../features/program-memberships/SPEC.md)
 > (Edit membership → `/members/detail`), [`frontend-kit`](../../../../features/frontend-kit/SPEC.md),
@@ -75,9 +75,10 @@ visibility rule.
 ## 10. Flagged characteristics
 | ID | Characteristic | Follow-up? |
 |----|----------------|-----------|
-| **F1** | The streak shown can be stale (people F1 — `computeStreaks` doesn't reset). | Undecided (feature-level). |
+| **F1** | ~~The streak shown can be stale (people F1 — `computeStreaks` doesn't reset).~~ | **RESOLVED** (server-side, 2026-10-14) — people 0.2.0 D-C15 / member-analytics D-C14: the current streak ends on the member's local today or yesterday, else 0, the same number as `/member-streaks` and the Members cards. No page change (the page renders `stats` as sent). |
 
 ## 11. Changelog
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-14 | F1 resolved — the profile streak no longer goes stale (backend `fd6c15b`: people 0.2.0 D-C15, member-analytics 0.9.0 D-C14). Doc only; no page change. PATCH. |
 | 0.1.0 | 2026-10-13 | Initial SPEC — net-new People profile page (Phase 4 Pass B, `b2ea09b`), dark behind `PEOPLE_LIVE`: header card, stats, kudos toggle, recent workouts, hidden line, Open full stats (role-specific), Edit membership (global admins), kit states. |

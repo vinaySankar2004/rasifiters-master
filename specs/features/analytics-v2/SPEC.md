@@ -1,6 +1,6 @@
 # Feature: `analytics-v2` — the v2 analytics aggregates (participation + workout-type stats)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.2 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v2Router`** half only — the
 > file is shared with [`analytics`](../analytics/SPEC.md) v1, §7/D-C1), `services/analyticsService.js` (the
 > **v2** functions; the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` already
@@ -17,6 +17,7 @@
 > + response shapes are ported verbatim.
 > **D-C4** (0.2.1, Phase 4 S0): the `/workouts/types/*` `memberId` passes the shared `utils/memberVisibility.js` `"workouts"` check. Behavior-neutral now; it is the People S1 hook. *(superseded at 0.3.0 by D-C5.)*
 > **D-C5** (0.3.0, People S1): a hidden member viewed by a plain co-member → `403 activity_hidden`; a malformed `memberId` → `400 invalid_request`.
+> **D-C7** (0.4.0, parity-sweep D4): `/participation/mtd` `change_pct` compares this UTC month with the same days of last month ([analytics](../analytics/SPEC.md) D-C12).
 
 ---
 
@@ -36,7 +37,7 @@ them, adding no new files.
 The 5 live v2 endpoints:
 
 1. **MTD participation** — `GET /participation/mtd?programId=`. Active-member participation % this
-   month-to-date + % change vs last MTD. **The live participation card on both clients** (v1's variant dropped).
+   month-to-date + % change vs the same days of last month (0.4.0, D-C7). **The live participation card on both clients** (v1's variant dropped).
 2. **Total workout types** — `GET /workouts/types/total?programId=&memberId=`. Count of distinct workout
    types logged (program-wide or per-member).
 3. **Most-popular type** — `GET /workouts/types/most-popular?programId=&memberId=`. The single workout type
@@ -95,7 +96,8 @@ non-UUID `programId` from a non-admin) → `500 { error: "Internal server error.
 ## 4. Feature list (behaviors to port — verbatim aggregation)
 
 - **`getParticipationMTDV2`** (`:563-590`) — 400 if no `programId`. `buildMTDDateRanges()` → current/previous
-  MTD windows. One `Promise.all`: active-membership `COUNT` (`status:"active"`) + distinct active *loggers*
+  MTD windows (since 0.4.0 — D-C7 / [analytics](../analytics/SPEC.md) D-C12: current = this whole UTC month, previous =
+  last month's 1st → today's UTC day-of-month, capped at last month's length). One `Promise.all`: active-membership `COUNT` (`status:"active"`) + distinct active *loggers*
   current + previous (`WorkoutLog.count{ distinct, col:"member_id", include:[activeMembershipInclude] }`).
   `participation_pct = round1(active/total*100)`; returns `{ total_members, active_members, participation_pct,
   change_pct }`. **Byte-identical to the v1 `getParticipationMTD` that was dropped** (§10 F1) — reinstated
@@ -174,8 +176,8 @@ with one deliberate change**:
 
 **What stays (faithful 1:1):** every aggregation query for the 5 live fns (the `Promise.all` fan-outs, the
 `activeMembershipInclude` inner joins, the `fn("COUNT","*")`/`AVG`/`COUNT(DISTINCT …)` group-bys, the
-`literal`-ordered `limit 1`s), all response shapes + field names, the MTD window scheme (`buildMTDDateRanges`),
-the `percentChange` contract, and the error contract (the `400`-only paths). The numbers match legacy exactly.
+`literal`-ordered `limit 1`s), all response shapes + field names, the MTD window scheme (`buildMTDDateRanges`;
+its date bounds changed at 0.4.0 — D-C7), the `percentChange` contract, and the error contract (the `400`-only paths). The numbers match legacy exactly.
 
 > **Scope note (D-C1).** No migration delta — models + schema pre-ported; the helpers + utils landed with
 > v1. v1 owns the shared helpers; `member-analytics` is its own feature.
@@ -213,8 +215,9 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 | **D-C4** | **Behavior-neutral hook (0.2.1, reliability-overhaul Phase 4 S0).** The 4 `/workouts/types/*` routes run the shared `requireMemberView("workouts", "Access denied. Program membership required.")` from `utils/memberVisibility.js` after `requireProgramAccess` (which now delegates to the same module, analytics D-C9). In S0 every caller that passed the program gate passes it, so responses are unchanged; it is where People S1's "Hide my activity" takes effect. *(superseded at 0.3.0 by D-C5)* | Phase 4 DECISIONS D-P7; analytics D-C9; program-memberships D-C5. |
 | **D-C5** | **Hide my activity (0.3.0, [people](../people/SPEC.md) 0.1.0; deliberate).** The 4 `/workouts/types/{total,most-popular,longest-duration,highest-participation}` routes keep `requireWorkoutsView` as their only member guard, now `requireMemberView("workouts", "This member keeps their activity private.", "activity_hidden")`: a hidden member viewed by a plain co-member → `403 { error, code: "activity_hidden" }`; a memberId that isn't one well-formed id → `400 invalid_request`. `/participation/mtd` and memberId-less calls unchanged. | analytics D-C10; program-memberships D-C6. |
 | **D-C6** | **Honest card states on the clients (0.3.1; reliability-overhaul Phase 4 polish #30 / #31 — client-only presentation).** The v2 reads behind Summary's MTD participation card and the Lifestyle tab's four workout-type stats (`/workouts/types/{total,most-popular,longest-duration,highest-participation}`) follow [analytics](../analytics/SPEC.md) D-C11: in-flight idiom per surface, `—` only after a settled failure, never a fake `0` / `N/A`; Lifestyle keyed by program + View-as member, in parallel, with Retry and pull-to-refresh. No route or shape change. | analytics D-C11. |
+| **D-C7** | **MTD participation compares like-for-like (0.4.0; deliberate — 2026-10-14 parity-sweep D4).** `getParticipationMTDV2` keeps calling `buildMTDDateRanges()`, whose windows changed in [analytics](../analytics/SPEC.md) D-C12 (the single source — UTC calendar): **current** = this whole UTC month; **previous** = last month's 1st → today's UTC day-of-month, capped at last month's length. So `change_pct` = this month's participation % vs the same days of last month (it rises against the old whole-month baseline — fewer distinct members log in a shorter window); `active_members` and `participation_pct` lose only a log dated the 1st of next month (the old window's leak); `total_members` unchanged. `percentChange`, the queries and the response shape unchanged; on the 1st–2nd of a month the badge can swing (analytics D-C12). Supersedes F5. | analytics D-C12; parity sweep D4; `plans/metric-semantics/plan.md` (`fd6c15b`). |
 | **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios, android]`** (android added 0.2.0 — doc↔code lag fix; registry.json already listed it) — the 5 live routes used 1:1 by all three clients, no divergence (optional `memberId` varies per call site, but the route is identical; `highest-participation` is program-wide on both). | Web sweep (`summary/page.tsx` + `lifestyle/page.tsx` + `lib/api/{summary,lifestyle}.ts`) + iOS sweep (`AdminSummaryTab` + `StandardWorkoutTypesTab` + `ProgramContext+Analytics.swift`); Explore agents. |
-| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2 and D-C3 (plus the behavior-neutral D-C4 hook).** Every aggregation query, the MTD window scheme, all response shapes, and the error contract are ported exactly for the 5 live fns; remaining oddities flagged (§10). | Whole v2-half review; §7. |
+| **D-S1** | **Stance = faithful 1:1 verbatim except D-C2 and D-C3 (plus the behavior-neutral D-C4 hook), D-C5, and the 0.4.0 like-for-like MTD windows (D-C7 — only the date bounds move).** Every aggregation query, the MTD window scheme, all response shapes, and the error contract are ported exactly for the 5 live fns; remaining oddities flagged (§10). | Whole v2-half review; §7. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -224,13 +227,14 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 | **F2** | **No per-program authorization on reads (legacy)** — every route was `authenticateToken`-only; any authenticated member could read any program's v2 analytics by `programId`. Inherited from v1 (its F2). | legacy `analytics.js:140-193` | **Changed (D-C3, 0.2.0)** — active membership or global admin required. |
 | **F3** | **`getSummaryV2` / `GET /summary` (v2) was dead** — superseded by the v1 summary on both clients. Dropped (D-C2); distinct (optional `programId`/global agg, `member_name`, no `program_progress`), not a byte-dup. Recorded for the parity audit. | `analytics.js:126-138`; `analyticsService.js:473-561` | Changed (dropped). |
 | **F4** | **`getHighestParticipationWorkoutType`'s member-scoped branch is dead via the route** — both clients always call `highest-participation` program-wide (web omits `memberId`; iOS passes `memberId: nil`), so the `if (memberId)` branch is never exercised. Ported faithfully. | `analyticsService.js:644-666`; web `lifestyle/page.tsx:141` / iOS `StandardWorkoutTypesTab.swift:114,244` | Kept (faithful) — a rebuild could drop the unreachable branch. |
-| **F5** | **`buildMTDDateRanges` computes MTD boundaries in server-LOCAL time** (`new Date(y, m, 1)` / `new Date()`). On Render (UTC) correct; on a non-UTC server the month boundary could shift. Same class as v1's F4 (out of any pinned cleanup scope; v2 has no UTC-bucketing site left after D-C2). | `queryHelpers.js:20-25` | Kept (faithful, out of scope) — a full TZ audit would normalize it. |
+| **F5** | ~~**`buildMTDDateRanges` computes MTD boundaries in server-LOCAL time** (`new Date(y, m, 1)` / `new Date()`). On Render (UTC) correct; on a non-UTC server the month boundary could shift. Same class as v1's F4 (out of any pinned cleanup scope; v2 has no UTC-bucketing site left after D-C2).~~ | `queryHelpers.js` `buildMTDDateRanges` | **Superseded at 0.4.0 by D-C7** — explicit UTC (analytics D-C12). |
 | **F6** | **`fn("COUNT", "*")`** passes `"*"` as a string literal (`COUNT('*')`), which Postgres treats as `COUNT(*)`. Idiom inherited from v1 (its F7). Ported verbatim. `getHighestParticipationWorkoutType` also uses a **raw `literal('DISTINCT "WorkoutLog"."member_id"')`** with a hardcoded table name (correct given the model's default alias). | `analyticsService.js:612, 675` | Kept (faithful) — a cleanup would use `col`/`literal` helpers + avoid the hardcoded alias. |
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-14 | **D-C7 — MTD participation compares like-for-like** (metric-semantics D4, through [analytics](../analytics/SPEC.md) 0.7.0 D-C12). `/participation/mtd` `change_pct` = this UTC month vs the same days of last month; `active_members` / `participation_pct` lose only the next-month-1st leak. §1 / §4 / §7 / header / D-S1 updated; F5 superseded. Backend `fd6c15b` (`utils/queryHelpers.js`; `services/analyticsService.js` untouched); same shape. **MINOR**; no dependents. |
 | 0.3.2 | 2026-10-14 | Doc only (data-source parity sweep, amendments A10): §3 / §7 D-C2 / §8 note that no current client calls the **v1** `GET /analytics/summary` either — program progress comes from the `/programs` row (programs D-C6, analytics F8); iOS 1.4.2 / 1.5.x still call it, so the route stays. No route or behavior change. **PATCH.** |
 | 0.3.1 | 2026-10-13 | **D-C6 — honest card states on the clients** for the MTD participation + workout-type stats (as analytics D-C11; reliability-overhaul Phase 4 polish #30 / #31). Client-only; no backend change. **PATCH.** |
 | 0.3.0 | 2026-10-13 | **D-C5 — Hide my activity (People S1)** on the 4 `/workouts/types/*` routes (403 `activity_hidden`, 400 `invalid_request`). **MINOR**; backend-only. |

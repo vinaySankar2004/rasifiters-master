@@ -1,6 +1,6 @@
 # Screen: `people` (ios) — People list, person profile, kudos and full stats
 
-> **Status:** 🏗️ built (`apps/ios/`, `198407c` — goes live with the Phase 4 store release) · **Version:** 0.1.0 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`, `198407c` — goes live with the Phase 4 store release) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
 > **Location:** `PeopleListView`, pushed from the Members-tab header `person.2` button (both role variants —
 > [admin-members](../admin-members/SPEC.md)) and the Program tab's `People` row
 > ([program-member-management](../program-member-management/SPEC.md)); a row pushes `PersonProfileView`; staff's
@@ -10,7 +10,7 @@
 > **Web parity reference:** [`web members/list`](../../web/members/list/SPEC.md) (`PeopleList`) +
 > [`web members/person`](../../web/members/person/SPEC.md); Android [`people`](../../android/people/SPEC.md) +
 > [`person-profile`](../../android/person-profile/SPEC.md).
-> **Consumes (features):** [`people`](../../../features/people/SPEC.md) 0.1.0 (D-C13 / D-C14),
+> **Consumes (features):** [`people`](../../../features/people/SPEC.md) 0.2.0 (D-C13 / D-C14; profile streak D-C15),
 > [`member-analytics`](../../../features/member-analytics/SPEC.md) (full stats — D-C12), [`program-memberships`](../../../features/program-memberships/SPEC.md)
 > (Edit membership), [`invites`](../../../features/invites/SPEC.md) (Invite member), [`frontend-kit`](../../../features/frontend-kit/SPEC.md).
 
@@ -77,9 +77,10 @@ People's social layer (people §1–§2), replacing the old roster (`ProgramMemb
 | ID | Characteristic | Follow-up? |
 |----|----------------|-----------|
 | **F1** | `PeopleListView.swift` / `PersonProfileView.swift` exceed ~200 lines (accepted, plan TC14). | Accepted. |
-| **F2** | The profile streak can be stale (people F1). | Feature-level, undecided. |
+| **F2** | ~~The profile streak can be stale (people F1).~~ | **RESOLVED** (server-side, 2026-10-14) — people 0.2.0 D-C15 / member-analytics D-C14: the current streak ends on the member's local today or yesterday, else 0, the same number as `MemberFullStatsView`'s streak card. No screen change (the tile renders `stats` as sent). |
 
 ## 11. Changelog
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-14 | F2 resolved — the profile streak no longer goes stale (backend `fd6c15b`: people 0.2.0 D-C15, member-analytics 0.9.0 D-C14). Doc only; no screen change. PATCH. |
 | 0.1.0 | 2026-10-13 | Initial SPEC — net-new People (Phase 4, `198407c`): list (search, Invite row, status lines, markers), profile (stats, recent workouts, kudos toggle, hidden line), staff full stats, global-admin Edit membership (R6), the one-time visibility notice. |
