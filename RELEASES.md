@@ -17,6 +17,8 @@ The user drives all store submissions and announces each one. On every push:
 2. **After** it lands, the user confirms (e.g. "47 is live on TestFlight").
    → Claude flips the log row to its final status and updates the **Current live binaries** table.
 3. This file is committed via the `git-version` skill as a `chore(releases)` commit (no feature bump).
+4. Once a release is public: `LATEST_*` → that release (soft banner); `MIN_*` / `BLOCK_UNVERSIONED_ANDROID` (hard block)
+   only on the user's call (app-config SPEC §7). Log each change below.
 
 Backend note: per the live-binary rule, the backend must stay compatible with **every** binary listed as
 live below (oldest included). See the `ios-live-binary-compatibility` lesson.
@@ -34,7 +36,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| App Store (public) | **1.5.2 (63)** | **Ready for Distribution (live)** (automatic release on approval) | 2026-10-15 | **Current public release** — the reliability overhaul's iOS release (sessions, push + invites, HealthKit sync v2, Notifications, People, polish) + the pooled parity release (R9, D4/D5). App Privacy also lists Other Diagnostic Data. app-config `LATEST_IOS_VERSION = 1.5.2` → "Update available" banner on 1.5.0+ only; 1.4.x ignores it — only the hard minimum (`MIN_IOS_VERSION`, still 1.2.0) can move them. Repo pre-bumped to **1.5.3 (64)**. Un-updated 1.4.x installs linger; the backend must keep degrading gracefully for them |
+| App Store (public) | **1.5.2 (63)** | **Ready for Distribution (live)** (automatic release on approval) | 2026-10-15 | **Current public release** — the reliability overhaul's iOS release (sessions, push + invites, HealthKit sync v2, Notifications, People, polish) + the pooled parity release (R9, D4/D5). App Privacy also lists Other Diagnostic Data. app-config `LATEST_IOS_VERSION = 1.5.2` and **`MIN_IOS_VERSION = 1.5.2`** — every older build (1.4.x included) gets the blocking "Update required" screen. Repo pre-bumped to **1.5.3 (64)** |
 | TestFlight — external ("Beta Testers") | (none) | No build — 1.4.3 (57) expired 2026-10-14 | 2026-10-14 | 8 invited / 6 installs fall back to the App Store. The next external build is the user's call |
 | TestFlight — internal ("Internal") | **1.5.2 (63)** | Testing — the only unexpired build (uploaded 2026-10-14 21:06) | 2026-10-14 | Same build as the App Store release |
 
@@ -42,7 +44,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| Play Store (production) | **1.2.2 (9)** | **LIVE — public on Google Play** (published 2026-10-14, approved within ~1 h) | 2026-10-14 | **Current public release** — the pooled parity release (METHODOLOGY R9 data-source fixes + D4/D5 server metrics); 100% rollout, 178 countries; R8 on. app-config `LATEST_ANDROID_VERSION_CODE = 9` → "Update available" banner on 1.1.0–1.2.1 (1.0.0 (4) installs predate the check; the backend must keep degrading gracefully for them). Repo pre-bumped to versionCode 10. **Managed publishing OFF** since 2026-10-14. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
+| Play Store (production) | **1.2.2 (9)** | **LIVE — public on Google Play** (published 2026-10-14, approved within ~1 h) | 2026-10-14 | **Current public release** — the pooled parity release (METHODOLOGY R9 data-source fixes + D4/D5 server metrics); 100% rollout, 178 countries; R8 on. app-config `LATEST_ANDROID_VERSION_CODE = 9` and **`MIN_ANDROID_VERSION_CODE = 9`** (1.1.0–1.2.1 get the blocking update screen) + **`BLOCK_UNVERSIONED_ANDROID` on** (1.0.0 (4) gets `426` "Please update RaSi Fiters from the Play Store" where data would load). Repo pre-bumped to versionCode 10. **Managed publishing OFF** since 2026-10-14. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
 | Play Console — closed testing ("Alpha") | **1.2.2 (9)** | **Available to selected testers** (released 2026-10-14 22:24) | 2026-10-14 | Same build as production; the user's Pixel check on it passed before the promotion |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
 | Play Console — internal testing | **1.2.0 (7)** | Available to internal testers (released 2026-10-13 20:57 local) | 2026-10-13 | Superseded — 1.2.1 (8) went straight to closed testing (the Pixel's only channel); internal is unused |
@@ -51,6 +53,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-15 | iOS + Android | 1.5.2 / 1.2.2 (9) | app-config (hard gate) | the user forced everyone onto this release: `MIN_IOS_VERSION = 1.5.2` (`render.yaml` + Render), `MIN_ANDROID_VERSION_CODE = 9`, `BLOCK_UNVERSIONED_ANDROID = true`; probed live (header-less Android → 426, 1.2.2 → through). ~7 iOS 1.4.x and ~7 Android 1.0.0 members were still active (push registry, 14 days) | **Live** |
 | 2026-10-15 | iOS | 1.5.2 (63) | App Store + app-config | approved → released automatically; `LATEST_IOS_VERSION = 1.5.2` on prod Render (the user's ask; live API confirmed). **1.5.2 train closes** — repo already at 1.5.3 (64). All four surfaces now public on the pooled parity release | **LIVE — public** |
 | 2026-10-14 | Android | 1.2.2 (9) | Play — production + app-config | approved and published (100%); `LATEST_ANDROID_VERSION_CODE = 9` on prod Render (the user's ask; live API confirmed); testbed refreshed | **LIVE — public** |
 | 2026-10-14 | Android | 1.2.2 (9) | Play — production | promoted from closed testing after the user's Pixel check on the Play build; full rollout; sent for review 22:35 PDT (the user's yes); testbed refreshed after | **Approved → live** (row above) |

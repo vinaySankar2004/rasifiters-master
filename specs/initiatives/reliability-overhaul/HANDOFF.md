@@ -13,14 +13,13 @@
   the D4/D5 metric fixes (`plans/metric-semantics/`). People is on for web (`PEOPLE_LIVE`,
   `apps/web/src/lib/api/people.ts` — the off switch) and in both apps.
 - **Stores (`RELEASES.md` is the SoT):** iOS **1.5.2 (63)** and Android **1.2.2 (9)** public; both publish on approval
-  (App Store automatic release, Play managed publishing OFF). app-config `LATEST_IOS_VERSION = 1.5.2`,
-  `LATEST_ANDROID_VERSION_CODE = 9` (banners); minimums not raised (`MIN_IOS_VERSION` 1.2.0 blocks nobody;
-  `MIN_ANDROID` unset). Repos one train ahead: iOS **1.5.3 (64)**, Android versionCode **10** (versionName is set when
-  the next release is cut).
-- **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); iOS 1.4.x installs ignore
-  the soft banner and keep the old refresh storm — only raising `MIN_IOS_VERSION` (`render.yaml`, the hard block) moves
-  them, the user's call once adoption allows; iOS Members placeholders on return; CONTEXT-file debt; zone-less members
-  get the forgiving streak window (M7) until their app sends a zone (iOS 1.5.2+, Android 1.2.x, web).
+  (App Store automatic release, Play managed publishing OFF). app-config: soft **and** hard gate on this release —
+  `LATEST_*` + `MIN_IOS_VERSION = 1.5.2` / `MIN_ANDROID_VERSION_CODE = 9` + `BLOCK_UNVERSIONED_ANDROID` on (the user
+  forced every older build to update; app-config SPEC §7 policy). Repos one train ahead: iOS **1.5.3 (64)**, Android
+  versionCode **10** (versionName is set when the next release is cut).
+- **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); Android 1.0.0 gets the
+  426 update message in place of data, not a full-screen block (it predates the gate); iOS Members placeholders on
+  return; CONTEXT-file debt; zone-less members get the forgiving streak window (M7) until they open an updated app.
 - **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); Android
   Health Connect hand-entry test; stale-page-SPEC chip. **Next Android build only** (Play's optional tips):
   `isShrinkResources = true`, `activity-compose` past 1.9.3; skip AGP 9.
@@ -32,7 +31,6 @@
 Nothing is in flight. Dated follow-ups only:
 1. ~2026-10-27: recheck Google's shown site name ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 2. ~2026-11-11: delete the legacy `RaSi_Fiters_API`.
-3. `MIN_*` (the hard block) when the user decides adoption allows.
 
 ## Workstream status
 
@@ -117,4 +115,6 @@ Nothing is in flight. Dated follow-ups only:
   healed; refresh now also deletes reviewer-made programs). Production approved within ~1 h → **1.2.2 (9) public**,
   `LATEST_ANDROID_VERSION_CODE = 9`, testbed refreshed again.
 - **2026-10-15** — iOS 1.5.2 (63) approved → public (automatic release); `LATEST_IOS_VERSION = 1.5.2`. **Phase 4 🚀 —
-  every phase is public on all four surfaces.**
+  every phase is public on all four surfaces.** The user previewed the soft + hard update screens on staging (reset
+  after), then forced everyone onto this release: iOS minimum 1.5.2, Android minimum 9 + the 1.0.0 block (app-config
+  0.4.1).
