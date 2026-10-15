@@ -15,7 +15,7 @@
   `progress_percent` (days in ÷ total days) from its port. Converged web + iOS to Android (pages D-BAR; programs 0.4.1
   F2). Root cause: page SPECs said only "a progress bar", and parity audits compared looks, not data sources. The
   `audit` skill now covers all three surfaces + each measure's source; `question-asker` gained the matching critic
-  check. Web live; iOS rides 1.5.3.
+  check. Web live; the user pulled iOS 1.5.2 (61) from review so (62) carries it.
 - **2026-10-10** — **AWS evaluated + shelved; reliability overhaul scoped.** Walked the user through the current
   architecture, an AWS service map, and costs. Reviewed 30 days of Render metrics + Supabase usage: healthy core
   (2 × 500s), but ~22% of requests are expired-token 401s, 409 health-sync noise, no request logs. Decision R8:

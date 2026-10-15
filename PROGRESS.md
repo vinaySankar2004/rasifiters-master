@@ -33,8 +33,8 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 >
 > **Status 2026-10-14:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
 > and the release touch-ups are live on backend + web (People on for web since 2026-10-13). **Android 1.2.1 (8) is
-> public; iOS 1.5.2 (61) awaits App Store approval** (automatic release; `RELEASES.md`). **Next:** on approval, the
-> user's yes for `LATEST_IOS_VERSION` — HANDOFF "Next action".
+> public; iOS 1.5.2 was pulled from review to add the program-card bar fix — (62) is next to upload + resubmit**
+> (automatic release; `RELEASES.md`). **Next:** HANDOFF "Next action".
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

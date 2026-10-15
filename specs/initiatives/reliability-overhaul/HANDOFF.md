@@ -5,14 +5,15 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-14) — ANDROID 1.2.1 + PEOPLE ON WEB LIVE · iOS 1.5.2 (61) IN REVIEW
+## Now (2026-10-14) — ANDROID 1.2.1 + PEOPLE ON WEB LIVE · iOS 1.5.2 (61) PULLED → (62) NEXT
 
 - **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
 - **Store state (RELEASES.md):**
-  - **iOS 1.5.2 (61): Waiting for Review** (resubmitted 2026-10-14 in place of (60): Month x-axis fix + corrected
-    description), **automatic release** (public on approval, set by the user 2026-10-14). The only unexpired TestFlight build
-    (Internal); 56–60 expired. Repo pre-bumped to **1.5.3 (62)**.
+  - **iOS 1.5.2 (61): removed from review** (2026-10-14, the user's call) to add the program-card time bar (iOS
+    program-picker D-BAR). Repo set back from 1.5.3 (62) to **1.5.2 (62)** — same version while 1.5.2 is unapproved.
+    The version keeps (61)'s corrected description and **automatic release**. (61) stays the only unexpired TestFlight
+    build (Internal); 56–60 expired.
   - **Android 1.2.1 (8): PUBLIC** (2026-10-14; R8 on — Play's DEX-optimisation warning, due Feb 2027, cleared) +
     the refreshed listing description. app-config `LATEST_ANDROID_VERSION_CODE = 8` → "Update available" banner on
     1.1.0+ (`MIN_*` unset). Managed publishing **OFF** (approved changes go live on their own). Repo at versionCode **9**.
@@ -38,17 +39,18 @@
   building Android anyway** (Play's optional tips): `isShrinkResources = true` (smaller download; no `getIdentifier`
   use) and bump `activity-compose` past 1.9.3 (clears the deprecated edge-to-edge API note — the calls are inside
   AndroidX; the app already calls `enableEdgeToEdge()`). Skip AGP 9 unless upgrading for another reason.
-- **Queued for the next iOS upload (1.5.3 (62)):** the program-card time bar (iOS program-picker D-BAR, 2026-10-14 —
+- **In the next iOS upload, 1.5.2 (62):** the program-card time bar (iOS program-picker D-BAR, 2026-10-14 —
   `progress_percent` instead of an always-full active ÷ total). Web is live with it; Android always had it.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 
 ## Next action
 
-1. **Apple approves 1.5.2 (61) → it goes live on its own (automatic release).** Then Claude sets
-   `LATEST_IOS_VERSION = 1.5.2` (Render env, merge, the user's yes; it redeploys), updates RELEASES.md and marks Phase 4
-   🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once adoption allows. A problem first → remove from review, fix, upload
-   **1.5.2 (62)** (same version while 1.5.2 is unapproved), re-attach.
+1. **The user: ⌘B → archive → upload 1.5.2 (62)** ((61) + the program-card time bar). Once it processes: attach (62)
+   to iOS 1.5.2 and resubmit (automatic release stays on), then pre-bump the repo to **1.5.3 (63)** (one train ahead).
+   **On approval** it goes live on its own; then Claude sets `LATEST_IOS_VERSION = 1.5.2` (Render env, merge, the
+   user's yes; it redeploys), updates RELEASES.md and marks Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` later, once
+   adoption allows.
 2. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
@@ -56,13 +58,13 @@
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
-| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS in review |
-| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (61) in App Store review |
+| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 (62) to submit |
+| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 (62) to submit |
+| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 — (61) pulled, (62) to submit |
 | W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | ✅ Android public (1.2.1 (8)) |
 | W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | ✅ Android public (1.2.1 (8)) |
-| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS in review |
-| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web + Android live; iOS in review |
+| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS 1.5.2 (62) to submit |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web + Android live; iOS 1.5.2 (62) to submit |
 
 ## Session log
 
@@ -124,3 +126,5 @@
   switched to automatic release (the user). Repo versionCode 9. 1.2.1 (8) verified on the Play build →
   production → **live**, `LATEST_ANDROID_VERSION_CODE = 8` (banner); testbed re-refreshed (reviewer admin drift healed,
   3 reviewer-made programs removed).
+- **2026-10-14 (later)** — Program-card bar fix (web + iOS → `progress_percent`, pages D-BAR; web live). The user
+  pulled 1.5.2 (61) from review to include it; repo set to 1.5.2 (62). `audit` skill now three-surface + data sources.

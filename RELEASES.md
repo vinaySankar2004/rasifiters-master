@@ -34,9 +34,9 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** **1.5.2 (61) is Waiting for Review** (resubmitted 2026-10-14 ~10:55 PDT in place of (60); **automatic release** since 2026-10-14 — public as soon as Apple approves). App Privacy now also lists Other Diagnostic Data. Repo pre-bumped to **1.5.3 (62)**. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
+| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** **1.5.2 (61) removed from review** (2026-10-14, the user's call) to add the program-card time bar; **1.5.2 (62)** is next (repo set back from 1.5.3 (62) to 1.5.2 (62) — same version while unapproved), to attach and resubmit. The 1.5.2 version keeps **automatic release** and the corrected description. App Privacy now also lists Other Diagnostic Data. Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
 | TestFlight — external ("Beta Testers") | (none) | No build — 1.4.3 (57) expired 2026-10-14 | 2026-10-14 | 8 invited / 6 installs fall back to App Store 1.4.2. The next external build is the user's call |
-| TestFlight — internal ("Internal") | **1.5.2 (61)** | **Testing — the only unexpired build** (uploaded 2026-10-14) | 2026-10-14 | **The store candidate**: (60) + the Month x-axis label fix (summary-activity-detail D-AXIS); the user checked it on device. 56–60 expired 2026-10-14 (housekeeping) |
+| TestFlight — internal ("Internal") | **1.5.2 (61)** | **Testing — the only unexpired build** (uploaded 2026-10-14) | 2026-10-14 | Was the store candidate ((60) + the Month x-axis label fix, summary-activity-detail D-AXIS); pulled from review 2026-10-14 — **(62)** (= (61) + the program-card time bar) replaces it. 56–60 expired 2026-10-14 (housekeeping) |
 
 ### Android
 
@@ -51,6 +51,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-14 | iOS | 1.5.2 (61) | App Store | removed from review (Cancel Submission, the user's call) to add the program-card time bar (iOS program-picker D-BAR); repo set to 1.5.2 (62) for the replacement upload | **Removed** — (62) to upload, attach, resubmit |
 | 2026-10-14 | Android | 1.2.1 (8) | Play — production + app-config | approved and published (100%); `LATEST_ANDROID_VERSION_CODE = 8` on prod Render (the user's yes — banner, not a block) | **LIVE — public** |
 | 2026-10-14 | Android | 1.2.1 (8) | Play — production | promoted from closed testing after the Pixel check on the Play build (Google sign-in `/auth/oauth` 200, workout batch 201); full rollout (the user's yes) | **Approved → live** (row above) |
 | 2026-10-14 | Android | 1.2.1 (8) | Play — closed testing (Alpha) | R8 build (APK 3.39 MB, −13.6 MB); sideloaded smoke test on the Pixel passed (all requests 200/201); uploaded by the user, sent for review with the listing change (review restarted to bundle) | **Approved → available to closed testers** (released 14 Oct 11:50); production after the Pixel check |
