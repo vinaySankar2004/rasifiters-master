@@ -1,6 +1,6 @@
 # Feature: `programs` — program lifecycle (create / list / update / soft-delete / per-member order)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/programs.js`, `services/programService.js`,
 > `models/Program.js`, `models/ProgramMembership.js`, `server.js` (`/api/programs` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`; authz via
@@ -212,7 +212,7 @@ contract.
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **`admin_only_data_entry` is web-only** — web's edit page reads + writes the toggle; iOS never decodes or sets it. The backend serves/accepts it for both clients identically. | `program/edit/page.tsx:136-151`; `APIClient+Programs.swift:5-17` | Kept (D-REF) — a client divergence, not a backend change. |
-| **F2** | **`total_members` and `active_members` are always equal** — both branches count the same `status='active'` set under two aliases. | `programService.js:15-16, 42-43` | Kept (faithful) — both clients read both keys; collapsing would break them. |
+| **F2** | **`total_members` and `active_members` are always equal** — both branches count the same `status='active'` set under two aliases. | `programService.js:15-16, 42-43` | Kept (faithful) — both clients read both keys; collapsing would break them. **Trap:** their ratio is always 1, so it can't drive a bar — a time bar reads `progress_percent`. The web + iOS program cards did use active ÷ total (a permanently full bar) until 2026-10-14 (their pages' D-BAR). |
 | **F3** | **`updateProgram` sets `updated_at` manually** despite `Program` having `timestamps:false`; `deleteProgram` does the same on soft-delete. | `programService.js:142, 189` | Kept (faithful). |
 | **F4** | **`admin_only_data_entry` is read/written here but enforced elsewhere** — the lock that blocks non-admin logging lives in the logging features (workout-logs / daily-health-logs), not in `programs`. | `programService.js:139-141` | Kept (faithful) — cross-feature gate, owned downstream. |
 | **F5** | **Both clients decode an `enrollments_closed` field that `getPrograms` never returns** — it resolves to undefined/nil on web + iOS. | web `programs/page.tsx`; `APIClient+Programs.swift:5-17` | Kept (faithful) — backend never produced it; a client-side optional. Not added. |
@@ -223,6 +223,7 @@ contract.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.1 | 2026-10-14 | F2 gains the trap it implies: `active_members / total_members` is always 1, so the program-card bar reads `progress_percent` (time elapsed). Web + iOS fixed to match Android (web programs / iOS program-picker D-BAR); no backend change. |
 | 0.4.0 | 2026-10-13 | **D-C4 — `POST /api/programs` rejects start ≥ end** (`400 "End date must be after the start date."`, before the transaction; create only — edits stay client-checked on all three; live `b23f90c`) + the same check and copy on the web / iOS / Android Create Program forms; **D-C5 — a create is judged by the write** (iOS + Android). §3 error contract + §4 Create updated. **MINOR** (owned interface: a new 400 on create — user acknowledgement of propagation needed at the git-version gate); dependents unaffected (no shape change). Reliability-overhaul Phase 4 polish #12 / #38. |
 | 0.3.0 | 2026-10-13 | **D-C3 — the `program.updated` / `program.deleted` emit is live (reliability-overhaul Phase 4 Notifications server).** Every active member except the requester; after the write, outside the transaction; a failure is logged and swallowed. D-C1's emit deferral superseded (§4/§5/§7/§8 updated). MINOR (deferred behaviour now live; routes, statuses and bodies unchanged); dependents unaffected. |
 | 0.2.0 | 2026-07-05 | **Net-new post-parity: per-member program-card ordering (D-N1).** New `member_program_order` table (migration `sql/005`, composite PK, FKs ON DELETE CASCADE) + `models/MemberProgramOrder.js`; new `PUT /api/programs/order` (`setProgramOrder` — validated full-replace, transactional, FK 23503 → 400; mounted above `/:id`); both `getPrograms` branches now `LEFT JOIN member_program_order` and `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC`. Response shapes otherwise unchanged. Consumed by web `/programs` (framer-motion grip-handle drag + search) and iOS `program-picker` (List `.onMove` long-press drag + `.searchable`). |

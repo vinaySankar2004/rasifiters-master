@@ -38,6 +38,8 @@
   building Android anyway** (Play's optional tips): `isShrinkResources = true` (smaller download; no `getIdentifier`
   use) and bump `activity-compose` past 1.9.3 (clears the deprecated edge-to-edge API note — the calls are inside
   AndroidX; the app already calls `enableEdgeToEdge()`). Skip AGP 9 unless upgrading for another reason.
+- **Queued for the next iOS upload (1.5.3 (62)):** the program-card time bar (iOS program-picker D-BAR, 2026-10-14 —
+  `progress_percent` instead of an always-full active ÷ total). Web is live with it; Android always had it.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 

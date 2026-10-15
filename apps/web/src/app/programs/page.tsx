@@ -878,7 +878,9 @@ function ProgramCard({
   const isRequested = membershipStatus === "requested";
   const activeMembers = program.active_members ?? 0;
   const totalMembers = program.total_members ?? 0;
-  const progress = totalMembers > 0 ? Math.min(activeMembers / totalMembers, 1) : 0;
+  // The bar is time elapsed (days in / total days), the server's progress_percent — Android parity. Not active/total
+  // members: the backend counts both the same way, so that ratio was always a full bar.
+  const progress = Math.min(Math.max((program.progress_percent ?? 0) / 100, 0), 1);
   const programStatusColor = statusColor(program.status ?? "active");
 
   return (

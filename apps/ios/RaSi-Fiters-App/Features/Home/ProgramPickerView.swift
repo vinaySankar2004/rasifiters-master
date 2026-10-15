@@ -1017,11 +1017,10 @@ private struct ProgramCard: View {
         return "\(active) active / \(total) total members"
     }
 
+    // The bar is time elapsed (days in / total days), the server's progress_percent — Android parity. Not active/total
+    // members: the backend counts both the same way, so that ratio was always a full bar.
     private func progressValue(_ program: APIClient.ProgramDTO) -> Double {
-        let total = program.total_members ?? 0
-        guard total > 0 else { return 0 }
-        let active = program.active_members ?? 0
-        return min(max(Double(active) / Double(total), 0), 1)
+        min(max(Double(program.progress_percent ?? 0) / 100, 0), 1)
     }
 
     private func statusColor(_ status: String?) -> Color {

@@ -1,6 +1,6 @@
 # Screen: `program-picker` (android) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.5.0 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.5.1 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-picker`](../../ios/program-picker/SPEC.md)
 > + [`web programs`](../../web/programs/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `SignedInGraph` route `Routes.PROGRAM_PICKER` (`ProgramPickerScreen`) — the
@@ -22,7 +22,8 @@
 - **Faithful (iOS/web 1:1):** header **"My Programs" / "Manage your fitness programs"** + a circular account
   avatar button (→ the account sheet); a scrollable list of program cards over the member's saved order
   (rendered as-is, no client sort); each `ProgramCard` = name + status pill (status-colored) + date range +
-  (members summary OR "Invitation pending"/"Request pending approval") + a status-colored progress bar +
+  (members summary OR "Invitation pending"/"Request pending approval") + a status-colored progress bar of **time elapsed** (`progress_percent` — days in ÷ total days; Android's
+  source since 0.1.0, and web + iOS's since 2026-10-14 — their D-BAR) +
   a **Cancel Request** pill on "requested" cards (A-5: invited cards no longer accept inline); loading spinner; **"No programs
   yet"** empty state; client-side `canOpen`/`canManage` role gating (global_admin opens/manages any; program
   admin manages own; active members open only; invited/requested non-openable); tap an openable card →
@@ -147,6 +148,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.1 | 2026-10-14 | Doc only: the card bar's source is pinned — `progress_percent` (time elapsed). Android was already right; web + iOS read `active / total` members (always equal → always full) and converged to Android (their D-BAR). |
 | 0.5.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #40 **Edit** in the card's ⋮ menu → select + Edit Program (A-1 rewritten); #36 48 dp ⋮ in the old 32 dp footprint, "+" label `Program actions[, N new]` (A-4 rewritten; D-NP1's label superseded), selectable Inbox/Create segments, labelled 48 dp invite pills; #12 Create / Cancel Request judged by the write (background reload); #45 Health Connect subtitle `Sync workouts, sleep, and steps`. Stale "Health Connect omitted" lines struck. |
 | 0.4.0 | 2026-10-13 | **D-NP1 — Phase 4 Notifications (`d528f75`).** "+" badge = the server `badge` (join requests no longer count; global admins own invites only); the sheet's tabs are `Inbox` / `Create` (invitations then notifications) with the deferred default; the account sheet's `Inbox` row; answering an invite marks its notifications read; A-4, A-5 tab rules and A-9 superseded. |
 | 0.3.2 | 2026-10-13 | Phase 4 quick wins: the "+" sheet carries the offline banner (its tab area gives up the 76dp band) and its invites tab reads offline while offline; back online, a failed / stale invite inbox reloads beside the program list; invite-response / create / order errors go through `toAppError()` — "Couldn't save program order. …" (frontend-kit D-KIT-17/19, #2/#8). |
