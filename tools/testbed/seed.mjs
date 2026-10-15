@@ -13,9 +13,10 @@
 //   node seed.mjs --reset     Destructive clean slate: delete every program the test members admin,
 //                             recreate the 3 programs, (re)enroll everyone with their role, seed data,
 //                             set end dates to today+90.
-//   node seed.mjs             (default = --refresh) Non-destructive: find the 3 programs by name, top up
-//                             the last SEED_DAYS of dummy data, push end dates to today+90. Preserves the
-//                             role setup + testers' in-progress state. Use this for "refresh the testbed".
+//   node seed.mjs             (default = refresh) Find the 3 programs by name (recreate a deleted one), restore
+//                             their roles, top up the last SEED_DAYS of dummy data, push end dates to today+90,
+//                             then delete reviewer-made programs that hold only test accounts. Use this for
+//                             "refresh / reset the testbed".
 //
 // SECRETS: the password is read from env TESTBED_PASSWORD (repo is public — never hardcode it).
 //   TESTBED_PASSWORD='...' node tools/testbed/seed.mjs --reset
@@ -175,6 +176,29 @@ async function clearAdminPrograms(sessions) {
   }
   if (deleted.size === 0) log("  (nothing to delete)");
   return deleted;
+}
+
+// Store reviewers create throwaway programs on the demo login every review. Delete (the API's soft delete) any
+// program a test account admins that is not a configured one and holds only test accounts — never a real person's.
+async function pruneStrays(sessions, testIds) {
+  const keep = new Set(PROGRAMS.map((c) => c.name));
+  let n = 0;
+  for (const s of Object.values(sessions)) {
+    if (!s.ok) continue;
+    const progs = await api("GET", "/programs", s.token);
+    for (const p of progs.data || []) {
+      if (p.my_role !== "admin" || keep.has(p.name)) continue;
+      const details = await api("GET", `/program-memberships/details?programId=${p.id}`, s.token);
+      if ((details.data || []).some((m) => m.status === "active" && !testIds.has(m.member_id))) {
+        log(`  ⚠ kept "${p.name}" (${p.id}) — has a non-test member`);
+        continue;
+      }
+      const del = await api("DELETE", `/programs/${p.id}`, s.token);
+      if (del.ok) { n++; log(`  🗑  deleted stray "${p.name}" (${p.id}) via ${s.username}`); }
+      else log(`  ⚠  failed to delete "${p.name}" (${del.status})`);
+    }
+  }
+  if (n === 0) log("  (no strays)");
 }
 
 async function findProgramByName(session, name) {
@@ -357,6 +381,8 @@ async function main() {
       await seedProgram(program, admin, testIds);
       await extendEndDate(program, admin);
     }
+    log("\n── PRUNE (reviewer-made programs) ──");
+    await pruneStrays(sessions, testIds);
   }
 
   await verify(sessions);

@@ -28,8 +28,8 @@ password: <the shared test password>   (see TESTBED_PASSWORD below)
 ## Usage
 
 ```bash
-# Non-destructive refresh (DEFAULT) — top up the last 14 days of data + push end dates to today+90.
-# Use this each time you say "refresh the testbed". Preserves the role setup + testers' in-progress state.
+# Refresh (DEFAULT) — restore the 3 programs' roles, top up the last 14 days of data, push end dates to
+# today+90, delete reviewer-made programs. Use this each time you say "refresh / reset the testbed".
 TESTBED_PASSWORD='<pw>' node tools/testbed/seed.mjs
 
 # Destructive clean slate — delete every program the test members admin, rebuild the 3 programs, re-enroll
@@ -74,8 +74,9 @@ Re-runnable safely: enrollment checks current membership first; daily-health use
 endpoint; workout logs are inserted row-by-row and duplicates (409) are skipped.
 
 Refresh self-heals what testers change: roles and admin drift are restored, and a configured program a tester
-deleted (store reviewers try admin "Delete program") is recreated on its own. Stray programs testers create are not
-removed. Only the configured test accounts get dummy data. A real account that joined a test program (e.g. the owner
+deleted (store reviewers try admin "Delete program") is recreated on its own. Programs reviewers create on the demo
+login are deleted (the API's soft delete) when a test account admins them and only test accounts are in them; one
+with a real member in it is kept and logged. Only the configured test accounts get dummy data. A real account that joined a test program (e.g. the owner
 trying invites/People) is left untouched and logged as `⚠ non-test member left unseeded`.
 
 ## Excluded account
