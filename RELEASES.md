@@ -43,7 +43,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
 | Play Store (production) | **1.2.1 (8)** | **LIVE — public on Google Play** (published 2026-10-14) | 2026-10-14 | **Current public release** — 100% rollout, 178 countries. R8 on: Play's DEX-optimisation warning (due Feb 2027) is cleared. app-config `LATEST_ANDROID_VERSION_CODE = 8` → "Update available" banner on 1.1.0+ (1.0.0 (4) installs predate the check; the backend must keep degrading gracefully for them). Repo at versionCode 9. **Managed publishing OFF** since 2026-10-14. Listed at [play.google.com/…id=com.app.rasifiters](https://play.google.com/store/apps/details?id=com.app.rasifiters) |
-| Play Console — closed testing ("Alpha") | **1.2.1 (8)** | **Available** (R8 build, released 2026-10-14 11:50) | 2026-10-14 | The route that reaches the user's Pixel (it only receives builds through closed testing) |
+| Play Console — closed testing ("Alpha") | **1.2.2 (9)** | **In review** (sent 2026-10-14 ~21:10 PDT; quick checks, then Google review) | 2026-10-14 | The pooled parity release (METHODOLOGY R9) + D4/D5 server metrics. The route that reaches the user's Pixel; production after the Pixel check. 1.2.1 (8) stays available to testers until 1.2.2 is approved |
 | Play Console — closed testing ("Alpha") — prior | 1.0.0 (3) | superseded by (4) | 2026-07-10 | The first Android release. Its Continue-with-Google consent-screen fix is captured in `ENV_RUNBOOK.md` §7 |
 | Play Console — internal testing | **1.2.0 (7)** | Available to internal testers (released 2026-10-13 20:57 local) | 2026-10-13 | Superseded — 1.2.1 (8) went straight to closed testing (the Pixel's only channel); internal is unused |
 
@@ -51,6 +51,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-14 | Android | 1.2.2 (9) | Play — closed testing (Alpha) | the pooled parity release (server program progress, PTD days so far, "N members", 1-dp values; plus the live D4/D5 badge + streak server changes); `bundleRelease` by the user, uploaded by the user, notes + send for review by Claude (the user's yes) | **In review** — production after the Pixel check |
 | 2026-10-14 | iOS | 1.5.2 (61) | App Store | removed from review (Cancel Submission, the user's call) to add the program-card time bar (iOS program-picker D-BAR); repo set to 1.5.2 (62) for the replacement upload | **Removed** — (62) held for the parity fixes, then one push with web + Android |
 | 2026-10-14 | Android | 1.2.1 (8) | Play — production + app-config | approved and published (100%); `LATEST_ANDROID_VERSION_CODE = 8` on prod Render (the user's yes — banner, not a block) | **LIVE — public** |
 | 2026-10-14 | Android | 1.2.1 (8) | Play — production | promoted from closed testing after the Pixel check on the Play build (Google sign-in `/auth/oauth` 200, workout batch 201); full rollout (the user's yes) | **Approved → live** (row above) |
