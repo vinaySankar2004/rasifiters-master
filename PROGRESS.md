@@ -14,7 +14,7 @@ public everywhere:
 |---|---|---|
 | `backend` | Render — `https://rasifiters-api.onrender.com` | 2026-06-28 |
 | `web` | Vercel — `https://rasifiters.com` (git auto-deploy on `main`) | 2026-06-29 |
-| `ios` | App Store (public) + TestFlight ahead-train | 2026-07-15 |
+| `ios` | App Store (public) | 2026-07-15 |
 | `android` | **Google Play (production, 100% rollout)** | 2026-08-06 |
 
 Per-channel binary versions are in `RELEASES.md` (the SoT — don't restate build numbers here). Both repos'
@@ -22,20 +22,16 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 
 ## Next action
 
-> ### ⏭️ ACTIVE INITIATIVE — Reliability overhaul (since 2026-10-10)
+> ### 🚀 Reliability overhaul — shipped 2026-10-15 (since 2026-10-10)
 >
-> Make sessions/auth, push + invites, iOS + Android health sync, Android Google sign-in and realtime
+> Made sessions/auth, push + invites, iOS + Android health sync, Android Google sign-in and realtime
 > industry-standard, consistent across all three frontends, and observable; then the notification redesign + a
-> light social layer. **Start here:**
-> [`specs/initiatives/reliability-overhaul/HANDOFF.md`](specs/initiatives/reliability-overhaul/HANDOFF.md)
-> (current state, what's live with versions, next action) → [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md)
-> (scope + phase plan §7).
+> light social layer. [`HANDOFF.md`](specs/initiatives/reliability-overhaul/HANDOFF.md) (what's live, follow-ups) →
+> [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md) (scope + phase plan §7).
 >
-> **Status 2026-10-14:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
-> and the release touch-ups are live on backend + web (People on for web since 2026-10-13). The pooled parity release
-> (METHODOLOGY R9 data-source fixes + the D4/D5 badge/streak fixes, tested on staging) is live on backend + web and
-> **Android 1.2.2 (9) is public**; **iOS 1.5.2 (63) is in App Store review** (`RELEASES.md`).
-> **Next:** HANDOFF "Next action".
+> **Status 2026-10-15:** every phase (1b, 2, 3, polish 1, 4) is public on all four surfaces — Notifications, People,
+> polish #1–#48 and the pooled parity release (METHODOLOGY R9 + the D4/D5 badge/streak fixes) ship in **iOS 1.5.2
+> (63)** and **Android 1.2.2 (9)** (`RELEASES.md`). **Next:** only the dated follow-ups in HANDOFF "Next action".
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

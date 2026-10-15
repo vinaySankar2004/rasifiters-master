@@ -34,9 +34,9 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Channel | Version | Status | Since | Notes |
 |---|---|---|---|---|
-| App Store (public) | 1.4.2 (56) | Ready for Distribution (live) | 2026-07-20 | **Current public release.** **1.5.2 (63) is Waiting for Review** (submitted 2026-10-14 21:11 PDT — the pooled parity release; (61) was pulled earlier the same day; **automatic release**, public as soon as Apple approves). App Privacy also lists Other Diagnostic Data. Repo pre-bumped to **1.5.3 (64)** (63 is taken). Un-updated 1.4.0/1.4.1 installs may linger; the backend must keep degrading gracefully for them |
-| TestFlight — external ("Beta Testers") | (none) | No build — 1.4.3 (57) expired 2026-10-14 | 2026-10-14 | 8 invited / 6 installs fall back to App Store 1.4.2. The next external build is the user's call |
-| TestFlight — internal ("Internal") | **1.5.2 (63)** | **Testing — the only unexpired build** (uploaded 2026-10-14 21:06) | 2026-10-14 | **The store candidate**: the pooled parity release (server program progress, PTD days so far, "N members", 1-dp values). 61 + 62 expired 2026-10-14 (housekeeping; 62 predated the parity fixes) |
+| App Store (public) | **1.5.2 (63)** | **Ready for Distribution (live)** (automatic release on approval) | 2026-10-15 | **Current public release** — the reliability overhaul's iOS release (sessions, push + invites, HealthKit sync v2, Notifications, People, polish) + the pooled parity release (R9, D4/D5). App Privacy also lists Other Diagnostic Data. app-config `LATEST_IOS_VERSION = 1.5.2` → "Update available" banner on 1.5.0+ only; 1.4.x ignores it — only the hard minimum (`MIN_IOS_VERSION`, still 1.2.0) can move them. Repo pre-bumped to **1.5.3 (64)**. Un-updated 1.4.x installs linger; the backend must keep degrading gracefully for them |
+| TestFlight — external ("Beta Testers") | (none) | No build — 1.4.3 (57) expired 2026-10-14 | 2026-10-14 | 8 invited / 6 installs fall back to the App Store. The next external build is the user's call |
+| TestFlight — internal ("Internal") | **1.5.2 (63)** | Testing — the only unexpired build (uploaded 2026-10-14 21:06) | 2026-10-14 | Same build as the App Store release |
 
 ### Android
 
@@ -51,10 +51,11 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 
 | Date | Platform | Version | Channel | Action | Status |
 |---|---|---|---|---|---|
+| 2026-10-15 | iOS | 1.5.2 (63) | App Store + app-config | approved → released automatically; `LATEST_IOS_VERSION = 1.5.2` on prod Render (the user's ask; live API confirmed). **1.5.2 train closes** — repo already at 1.5.3 (64). All four surfaces now public on the pooled parity release | **LIVE — public** |
 | 2026-10-14 | Android | 1.2.2 (9) | Play — production + app-config | approved and published (100%); `LATEST_ANDROID_VERSION_CODE = 9` on prod Render (the user's ask; live API confirmed); testbed refreshed | **LIVE — public** |
 | 2026-10-14 | Android | 1.2.2 (9) | Play — production | promoted from closed testing after the user's Pixel check on the Play build; full rollout; sent for review 22:35 PDT (the user's yes); testbed refreshed after | **Approved → live** (row above) |
 | 2026-10-14 | iOS | 1.5.2 (61), (62) | TestFlight | expired (housekeeping, the user's yes) — 63 is the only unexpired build | **Expired** |
-| 2026-10-14 | iOS | 1.5.2 (63) | App Store | (61) detached → (63) attached (Xcode bumped the repo's 62 because a 62 existed) → Add for Review → Submit (the user's yes); automatic release | **Waiting for Review** — repo pre-bumped to 1.5.3 (64) |
+| 2026-10-14 | iOS | 1.5.2 (63) | App Store | (61) detached → (63) attached (Xcode bumped the repo's 62 because a 62 existed) → Add for Review → Submit (the user's yes); automatic release | **Approved → live** (top row); repo pre-bumped to 1.5.3 (64) |
 | 2026-10-14 | Android | 1.2.2 (9) | Play — closed testing (Alpha) | the pooled parity release (server program progress, PTD days so far, "N members", 1-dp values; plus the live D4/D5 badge + streak server changes); `bundleRelease` by the user, uploaded by the user, notes + send for review by Claude (the user's yes) | **Approved → available to closed testers** (released 22:24); Pixel check passed → production (row above) |
 | 2026-10-14 | iOS | 1.5.2 (61) | App Store | removed from review (Cancel Submission, the user's call) to add the program-card time bar (iOS program-picker D-BAR); repo set to 1.5.2 (62) for the replacement upload | **Removed** — (62) held for the parity fixes, then one push with web + Android |
 | 2026-10-14 | Android | 1.2.1 (8) | Play — production + app-config | approved and published (100%); `LATEST_ANDROID_VERSION_CODE = 8` on prod Render (the user's yes — banner, not a block) | **LIVE — public** |

@@ -5,48 +5,46 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-14 night) — POOLED PARITY RELEASE: backend + web + Android 1.2.2 (9) LIVE · iOS 1.5.2 (63) IN REVIEW
+## Now (2026-10-15) — 🚀 SHIPPED: all phases public on all four surfaces (iOS 1.5.2 (63) · Android 1.2.2 (9))
 
-- **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **pooled release: Android public, iOS
-  in review.**
+- **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → **4 🚀** — every phase is public; what remains are the follow-ups below.
   Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
-- **Live (backend + web):** everything, incl. the data-source parity fixes (METHODOLOGY R9, `plans/parity-sweep/`) and
-  the D4/D5 metric fixes (`plans/metric-semantics/`), tested on staging first. People is on for web (`PEOPLE_LIVE`,
-  `apps/web/src/lib/api/people.ts` — the off switch).
-- **Stores (`RELEASES.md` is the SoT):** iOS public 1.4.2 (56); **1.5.2 (63) Waiting for Review**, automatic release
-  (61/62 pulled + expired). **Android public 1.2.2 (9)**; managed publishing OFF. app-config
-  `LATEST_ANDROID_VERSION_CODE = 9` (banner); minimums not raised (`MIN_IOS_VERSION` 1.2.0 blocks nobody; `MIN_ANDROID`
-  unset). Repos one train ahead: iOS **1.5.3 (64)**, Android versionCode **10** (versionName is set when the next release
-  is cut).
-- **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
-  storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; until iOS 1.5.2 is
-  public, iPhone users see People only on web; zone-less members get the forgiving streak window (M7) until their app
-  sends a zone (iOS 1.5.2+, Android 1.2.x, web).
-- **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); delete
-  legacy `RaSi_Fiters_API` ~2026-11-11; Android Health Connect hand-entry test; stale-page-SPEC chip. **Next Android
-  build only** (Play's optional tips): `isShrinkResources = true`, `activity-compose` past 1.9.3; skip AGP 9.
+- **Live:** backend + web + both stores, incl. the data-source parity fixes (METHODOLOGY R9, `plans/parity-sweep/`) and
+  the D4/D5 metric fixes (`plans/metric-semantics/`). People is on for web (`PEOPLE_LIVE`,
+  `apps/web/src/lib/api/people.ts` — the off switch) and in both apps.
+- **Stores (`RELEASES.md` is the SoT):** iOS **1.5.2 (63)** and Android **1.2.2 (9)** public; both publish on approval
+  (App Store automatic release, Play managed publishing OFF). app-config `LATEST_IOS_VERSION = 1.5.2`,
+  `LATEST_ANDROID_VERSION_CODE = 9` (banners); minimums not raised (`MIN_IOS_VERSION` 1.2.0 blocks nobody;
+  `MIN_ANDROID` unset). Repos one train ahead: iOS **1.5.3 (64)**, Android versionCode **10** (versionName is set when
+  the next release is cut).
+- **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); iOS 1.4.x installs ignore
+  the soft banner and keep the old refresh storm — only raising `MIN_IOS_VERSION` (`render.yaml`, the hard block) moves
+  them, the user's call once adoption allows; iOS Members placeholders on return; CONTEXT-file debt; zone-less members
+  get the forgiving streak window (M7) until their app sends a zone (iOS 1.5.2+, Android 1.2.x, web).
+- **Open follow-ups:** daily watch (E8 `[refresh]` · `push_deliveries` · `app_events` · scheduler sends); Android
+  Health Connect hand-entry test; stale-page-SPEC chip. **Next Android build only** (Play's optional tips):
+  `isShrinkResources = true`, `activity-compose` past 1.9.3; skip AGP 9.
 - **Boards:** design https://claude.ai/artifact/522hPHN9VSp6db6edCyZ3x · Phase 4
   https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD. Both private.
 
 ## Next action
 
-1. **iOS 1.5.2 (63) approved** (the user reports it) → live on its own → `LATEST_IOS_VERSION = 1.5.2` on prod Render (the
-   user asked for the latest-version bump "whenever appropriate"; the Render call still confirms, then wait for the
-   redeploy) → RELEASES.md. Then mark Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` (the hard block) only once adoption
-   allows.
-2. ~2026-10-27: recheck Google's shown site name ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
+Nothing is in flight. Dated follow-ups only:
+1. ~2026-10-27: recheck Google's shown site name ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
+2. ~2026-11-11: delete the legacy `RaSi_Fiters_API`.
+3. `MIN_*` (the hard block) when the user decides adoption allows.
 
 ## Workstream status
 
 | # | Workstream | Discovery | Design | Build | Shipped |
 |---|---|---|---|---|---|
-| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 (63) in review |
-| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | 🟨 backend + web + Android live; iOS 1.5.2 (63) in review |
-| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | 🟨 iOS 1.5.2 (63) in review |
+| W1 | Sessions / auth | ✅ | ✅ | ✅ all four surfaces | ✅ all public |
+| W2 | Push + invites | ✅ | ✅ | ✅ all four surfaces | ✅ all public |
+| W3 | iOS health sync | ✅ | ✅ | ✅ backend + iOS (since 1.5.0) | ✅ iOS public (1.5.2 (63)) |
 | W4 | Android health sync | ✅ | ✅ | ✅ backend + Android (since 1.1.0) | ✅ Android public (1.2.2 (9)) |
 | W5 | Android Google sign-in | ✅ | ✅ | ✅ console fix + button (since 1.1.0) | ✅ Android public (1.2.2 (9)) |
-| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | 🟨 backend + web + Android live; iOS 1.5.2 (63) in review |
-| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | 🟨 web + Android live; iOS 1.5.2 (63) in review |
+| W6 | Observability + perf | ✅ | ✅ | ✅ backend + client senders (+ instant opens) | ✅ all public |
+| W7 | Frontend state / error / design consistency | ✅ | ✅ | ✅ kit + offline detection + Phase 4 polish | ✅ all public |
 
 ## Session log
 
@@ -118,3 +116,5 @@
   testing, the user's Pixel check passed → production review. Testbed refreshed (a reviewer's Winter Reset admin drift
   healed; refresh now also deletes reviewer-made programs). Production approved within ~1 h → **1.2.2 (9) public**,
   `LATEST_ANDROID_VERSION_CODE = 9`, testbed refreshed again.
+- **2026-10-15** — iOS 1.5.2 (63) approved → public (automatic release); `LATEST_IOS_VERSION = 1.5.2`. **Phase 4 🚀 —
+  every phase is public on all four surfaces.**
