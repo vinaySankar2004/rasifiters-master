@@ -32,10 +32,9 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (scope + phase plan §7).
 >
 > **Status 2026-10-14:** Phases 1b, 2, 3, polish 1 and **4** ✅ (BRIEF §7) — Notifications, People, polish #1–#48
-> and the release touch-ups are live on backend + web (People on for web since 2026-10-13). **Android 1.2.1 (8) is
-> public.** The pooled parity release (METHODOLOGY R9 data-source fixes + the D4/D5 badge/streak fixes, tested on
-> staging) is live on backend + web; **iOS 1.5.2 (63) is in App Store review and Android 1.2.2 (9) in Play production
-> review** (`RELEASES.md`).
+> and the release touch-ups are live on backend + web (People on for web since 2026-10-13). The pooled parity release
+> (METHODOLOGY R9 data-source fixes + the D4/D5 badge/streak fixes, tested on staging) is live on backend + web and
+> **Android 1.2.2 (9) is public**; **iOS 1.5.2 (63) is in App Store review** (`RELEASES.md`).
 > **Next:** HANDOFF "Next action".
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both

@@ -1,7 +1,7 @@
 # Phase 4 — decisions (user, 2026-10-13)
 
-> **Status: built + device-tested 2026-10-13** (backend + web live; Android public (1.2.1 (8)); iOS 1.5.2 (61) in App Store
-> review). Amendments made while building: `../plans/phase-4-{wave-a,np,polish,touchup}-amendments.md`; the as-built
+> **Status: built + device-tested 2026-10-13** (backend + web live; Android public (1.2.2 (9)); iOS 1.5.2 (63) in App Store
+> review — `RELEASES.md`). Amendments made while building: `../plans/phase-4-{wave-a,np,polish,touchup}-amendments.md`; the as-built
 > rules live in the feature SPECs (§9).
 
 > From the decision board (https://claude.ai/artifact/FDpKpKeBSMcWA1W9zruryD, `db` doc `board/phase4`) + the user's
