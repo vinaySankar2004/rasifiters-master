@@ -155,7 +155,8 @@ export async function fetchMemberRecentWorkouts(
   const query = new URLSearchParams({
     programId,
     memberId,
-    limit: params.limit ? String(params.limit) : "1000"
+    // A6: limit 0 = every row (the backend caps only limit > 0), as iOS + Android send; omitted → the old 1000 default.
+    limit: params.limit !== undefined ? String(params.limit) : "1000"
   });
   if (params.startDate) query.set("startDate", params.startDate);
   if (params.endDate) query.set("endDate", params.endDate);
@@ -190,7 +191,8 @@ export async function fetchMemberHealthLogs(
   const query = new URLSearchParams({
     programId,
     memberId,
-    limit: params.limit ? String(params.limit) : "1000"
+    // A6: limit 0 = every row (the backend caps only limit > 0), as iOS + Android send; omitted → the old 1000 default.
+    limit: params.limit !== undefined ? String(params.limit) : "1000"
   });
   if (params.startDate) query.set("startDate", params.startDate);
   if (params.endDate) query.set("endDate", params.endDate);

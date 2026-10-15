@@ -313,7 +313,9 @@ export default function LifestylePage() {
               }
               subtitle={
                 workoutTypeMostPopularQuery.data
-                  ? `${workoutTypeMostPopularQuery.data.sessions} workouts`
+                  ? workoutTypeMostPopularQuery.data.workout_name == null
+                    ? "No data"
+                    : `${workoutTypeMostPopularQuery.data.sessions} workouts`
                   : missingText(mostPopularStatus, "Loading")
               }
             />
@@ -331,7 +333,9 @@ export default function LifestylePage() {
               }
               subtitle={
                 workoutTypeLongestDurationQuery.data
-                  ? `${workoutTypeLongestDurationQuery.data.avg_minutes} mins avg`
+                  ? workoutTypeLongestDurationQuery.data.workout_name == null
+                    ? "No data"
+                    : `${workoutTypeLongestDurationQuery.data.avg_minutes} mins avg`
                   : missingText(longestStatus, "Loading")
               }
             />
@@ -346,7 +350,9 @@ export default function LifestylePage() {
               }
               subtitle={
                 workoutTypeHighestParticipationQuery.data
-                  ? `${workoutTypeHighestParticipationQuery.data.participation_pct.toFixed(1)}% of members`
+                  ? workoutTypeHighestParticipationQuery.data.workout_name == null
+                    ? "No data"
+                    : `${workoutTypeHighestParticipationQuery.data.participation_pct.toFixed(1)}% of members`
                   : missingText(participationStatus, "Loading")
               }
             />

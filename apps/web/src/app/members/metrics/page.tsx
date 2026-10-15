@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
 import { fetchMemberMetrics, type MemberMetrics } from "@/lib/api/members";
-import { initials, downloadCsv, stepsLabel } from "@/lib/format";
+import { avgDietLabel, initials, downloadCsv, stepsLabel } from "@/lib/format";
 import { metricsCsv, metricsCsvFilename } from "@/lib/metrics-csv";
 import { fromQuery } from "@/lib/kit/async-state";
 import { FlameIcon, SearchIcon } from "@/components/icons";
@@ -230,7 +230,7 @@ function MemberMetricsCard({ metric, hero }: { metric: MemberMetrics; hero: stri
       case "longest_streak":
         return `${metric.longest_streak}`;
       case "avg_food_quality":
-        return metric.avg_food_quality?.toFixed(1) ?? "—";
+        return avgDietLabel(metric.avg_food_quality);
       case "avg_steps":
         // polish #39: Avg Steps sorts the list, so it is the big number; "—" when missing or hidden (S0 nulls it).
         return metric.avg_steps == null ? "—" : stepsLabel(Math.round(metric.avg_steps));
@@ -279,7 +279,7 @@ function MemberMetricsCard({ metric, hero }: { metric: MemberMetrics; hero: stri
             <p>Avg sleep</p>
           </div>
           <div className="metric-pill rounded-2xl px-3 py-2">
-            <p className="font-semibold text-rf-text">{metric.avg_food_quality?.toFixed(1) ?? "—"}</p>
+            <p className="font-semibold text-rf-text">{avgDietLabel(metric.avg_food_quality)}</p>
             <p>Avg diet</p>
           </div>
           <div className="metric-pill rounded-2xl px-3 py-2">

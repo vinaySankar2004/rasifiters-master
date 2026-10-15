@@ -9,6 +9,9 @@ export type Program = {
   total_members?: number;
   active_members?: number;
   progress_percent?: number;
+  /** D-C6 (programs SPEC §9): the day counts behind progress_percent (UTC days). Absent on an older backend. */
+  total_days?: number;
+  elapsed_days?: number;
   enrollments_closed?: boolean;
   my_role?: string | null;
   my_status?: string | null;

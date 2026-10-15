@@ -22,7 +22,7 @@ import {
   PendingInvite,
   respondToInvite
 } from "@/lib/api/invites";
-import { formatDateRange, formatInviteDate, initials } from "@/lib/format";
+import { formatDateRange, formatInviteDate, initials, toLocalISODate, todayLocalISO } from "@/lib/format";
 import { saveActiveProgram } from "@/lib/storage";
 import { PageShell } from "@/components/ui/PageShell";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -876,8 +876,8 @@ function ProgramCard({
 }: ProgramCardProps) {
   const isInvited = membershipStatus === "invited";
   const isRequested = membershipStatus === "requested";
-  const activeMembers = program.active_members ?? 0;
-  const totalMembers = program.total_members ?? 0;
+  // D3 (programs SPEC §9): one number — the backend counts active and total members the same way (F2).
+  const memberCount = program.total_members ?? 0;
   // The bar is time elapsed (days in / total days), the server's progress_percent — Android parity. Not active/total
   // members: the backend counts both the same way, so that ratio was always a full bar.
   const progress = Math.min(Math.max((program.progress_percent ?? 0) / 100, 0), 1);
@@ -922,7 +922,7 @@ function ProgramCard({
         </p>
       ) : (
         <p className="mt-4 text-sm font-semibold text-rf-text-muted">
-          {activeMembers} active / {totalMembers} total members
+          {memberCount === 1 ? "1 member" : `${memberCount} members`}
         </p>
       )}
 
@@ -1188,10 +1188,9 @@ function CreateProgramTab({
   errorMessage: string | null;
   onCreate: (payload: { name: string; status: string; start_date?: string; end_date?: string }) => void;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const defaultEnd = new Date(new Date().setMonth(new Date().getMonth() + 3))
-    .toISOString()
-    .slice(0, 10);
+  // A9: the browser's local calendar day (toISOString() is the UTC day — tomorrow on a US evening), as iOS + Android.
+  const today = todayLocalISO();
+  const defaultEnd = toLocalISODate(new Date(new Date().setMonth(new Date().getMonth() + 3)));
 
   const [name, setName] = useState("");
   const [status, setStatus] = useState("planned");

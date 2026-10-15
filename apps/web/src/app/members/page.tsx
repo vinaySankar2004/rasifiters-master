@@ -14,7 +14,7 @@ import {
   type MemberMetrics
 } from "@/lib/api/members";
 import { PEOPLE_COPY, PEOPLE_LIVE } from "@/lib/api/people";
-import { initials, stepsLabel } from "@/lib/format";
+import { avgDietLabel, initials, stepsLabel } from "@/lib/format";
 import { appError } from "@/lib/kit/app-error";
 import { fromQuery, retryNow, type QueryLike } from "@/lib/kit/async-state";
 import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
@@ -553,7 +553,7 @@ function MemberMetricsPreview({ metric }: { metric: MemberMetrics }) {
           <p>Avg sleep</p>
         </div>
         <div className="metric-pill rounded-2xl px-3 py-2">
-          <p className="font-semibold text-rf-text">{metric.avg_food_quality?.toFixed(1) ?? "—"}</p>
+          <p className="font-semibold text-rf-text">{avgDietLabel(metric.avg_food_quality)}</p>
           <p>Avg diet</p>
         </div>
         <div className="metric-pill rounded-2xl px-3 py-2">
@@ -606,7 +606,7 @@ function MemberMetricsSingleCard({ metric }: { metric: MemberMetrics }) {
           <p>Avg sleep</p>
         </div>
         <div className="metric-pill rounded-2xl px-3 py-2">
-          <p className="font-semibold text-rf-text">{metric.avg_food_quality?.toFixed(1) ?? "—"}</p>
+          <p className="font-semibold text-rf-text">{avgDietLabel(metric.avg_food_quality)}</p>
           <p>Avg diet</p>
         </div>
         <div className="metric-pill rounded-2xl px-3 py-2">

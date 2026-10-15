@@ -1,6 +1,7 @@
 import { apiRequest } from "@/lib/api/client";
 import { updateMemberProfile } from "@/lib/api/members";
 import { appError } from "@/lib/kit/app-error";
+import { parseLocalDay } from "@/lib/format";
 
 // People (the people SPEC §3 API contract — list, profile, kudos give / undo). JSON snake_case; errors are
 // { error, code } and the status decides the kit kind. The server decides what the viewer may see (activity_visible,
@@ -90,16 +91,9 @@ export async function saveHideActivity(token: string, memberId: string, hide: bo
   return data.hide_activity;
 }
 
-// "YYYY-MM-DD" is parsed as a LOCAL day: new Date("2026-10-12") is UTC midnight and would read as the previous day
-// west of UTC.
-function parseDay(day: string): Date | null {
-  const [year, month, date] = day.split("-").map(Number);
-  return year && month && date ? new Date(year, month - 1, date) : null;
-}
-
 /** Days from `day` to today in the browser's calendar (0 = today, 1 = yesterday); null when unparseable. */
 function daysAgo(day: string, now: Date): number | null {
-  const parsed = parseDay(day);
+  const parsed = parseLocalDay(day);
   if (!parsed) return null;
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return Math.round((today.getTime() - parsed.getTime()) / 86_400_000);
@@ -107,7 +101,7 @@ function daysAgo(day: string, now: Date): number | null {
 
 /** "Oct 12" this year, "Oct 12, 2025" otherwise (the shared People date format; same as the inbox's). */
 export function formatDay(day: string, now: Date = new Date()): string {
-  const parsed = parseDay(day);
+  const parsed = parseLocalDay(day);
   if (!parsed) return day;
   return parsed.toLocaleDateString(
     undefined,

@@ -38,8 +38,8 @@ export function ProgramsScreen() {
         <p className="text-lg font-bold text-rf-text">My Programs</p>
         <p className="text-[11px] text-rf-text-muted">Manage your fitness programs</p>
       </div>
-      <ProgramCard status="active" name="Construction · Phase 2" dates="Jun 8 – Sep 16, 2026" members="22 active / 22 members" pct={31} />
-      <ProgramCard status="completed" name="Foundation · Phase 1" dates="Feb 28 – Jun 8, 2026" members="30 active / 30 members" pct={100} />
+      <ProgramCard status="active" name="Construction · Phase 2" dates="Jun 8 – Sep 16, 2026" members="22 members" pct={31} />
+      <ProgramCard status="completed" name="Foundation · Phase 1" dates="Feb 28 – Jun 8, 2026" members="30 members" pct={100} />
       <ProgramCard status="planned" name="Peak · Phase 3" dates="Sep 17 – Dec 25, 2026" members="22 members" pct={0} />
     </div>
   );

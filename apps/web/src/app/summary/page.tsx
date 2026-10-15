@@ -6,7 +6,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   fetchActivityTimeline,
-  fetchAnalyticsSummary,
   fetchAvgDurationMTD,
   fetchDistributionByDay,
   fetchMTDParticipation,
@@ -14,7 +13,6 @@ import {
   fetchTotalWorkoutsMTD,
   fetchWorkoutTypes,
   ActivityTimelinePoint,
-  AnalyticsSummary,
   WorkoutType
 } from "@/lib/api/summary";
 import {
@@ -25,7 +23,7 @@ import {
   BulkWorkoutEntry
 } from "@/lib/api/logs";
 import { ApiError } from "@/lib/api/client";
-import { formatTotalDuration } from "@/lib/format";
+import { formatHoursTenths, formatTotalDuration } from "@/lib/format";
 import { workoutTypeColor } from "@/lib/workout-colors";
 import { LogWorkoutsForm } from "@/components/forms/LogWorkoutsForm";
 import { LogDailyHealthForm } from "@/components/forms/LogDailyHealthForm";
@@ -41,6 +39,8 @@ import { appError, toAppError } from "@/lib/kit/app-error";
 import { fromQuery, retryNow, type QueryLike } from "@/lib/kit/async-state";
 import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
 import { cachedQueryFn, useLaunchSeed } from "@/lib/cache/launch-cache";
+import { useActiveProgramRow } from "@/lib/hooks/use-active-program-row";
+import { programProgress, rowForDates, type ProgramProgress } from "@/lib/program-days";
 import { StatusBadge, programStatusVariant } from "@/components/ui/StatusBadge";
 import {
   CHART_COLORS,
@@ -68,10 +68,9 @@ export default function SummaryPage() {
   const dataEntryLocked = isDataEntryLocked(session, program);
   const memberId = session?.user.id;
   const online = useOnlineStatus();
-  // Instant open (D-9): the 8 independent queries (already parallel) are seeded from the per-member launch cache after
+  // Instant open (D-9): the 7 independent queries (already parallel) are seeded from the per-member launch cache after
   // bootstrap, then refreshed. Key VALUES are unchanged so the summary sub-pages keep sharing them.
   const keys = {
-    analytics: ["summary", programId, summaryPeriod],
     mtd: ["summary", "mtdParticipation", programId],
     totalWorkouts: ["summary", "totalWorkouts", programId],
     totalDuration: ["summary", "totalDuration", programId],
@@ -82,16 +81,11 @@ export default function SummaryPage() {
   };
   useLaunchSeed(memberId, programId ? Object.values(keys) : [], programId);
 
-  const analyticsQuery = useQuery({
-    queryKey: keys.analytics,
-    queryFn: cachedQueryFn(
-      memberId,
-      keys.analytics,
-      () => fetchAnalyticsSummary(token, summaryPeriod, programId),
-      programId
-    ),
-    enabled: !!token && !!programId
-  });
+  // D1 (programs SPEC §9 D-C6): Program Progress = the open program's GET /programs row (progress_percent ·
+  // elapsed_days · total_days — the picker bar's numbers); the snapshot dates feed the same-rule fallback until the row
+  // loads. /analytics/summary is no longer read (its program_progress was this page's only use — F5 retired).
+  const programRow = useActiveProgramRow(token, memberId, programId);
+  const progress = programProgress(rowForDates(programRow, program) ?? program);
 
   const mtdParticipationQuery = useQuery({
     queryKey: keys.mtd,
@@ -154,15 +148,15 @@ export default function SummaryPage() {
     queryFn: cachedQueryFn(
       memberId,
       keys.workoutTypes,
-      () => fetchWorkoutTypes(token, programId, 50),
+      () => fetchWorkoutTypes(token, programId, 100),  // A5: as iOS / Android + /summary/workout-types (same key)
       programId
     ),
     enabled: !!token && !!programId
   });
 
-  const summaryQueries = [analyticsQuery, mtdParticipationQuery, totalWorkoutsQuery, totalDurationQuery,
+  const summaryQueries = [mtdParticipationQuery, totalWorkoutsQuery, totalDurationQuery,
     avgDurationQuery, activityTimelineQuery, distributionQuery, workoutTypesQuery];
-  const summaryKeys = [keys.analytics, keys.mtd, keys.totalWorkouts, keys.totalDuration,
+  const summaryKeys = [keys.mtd, keys.totalWorkouts, keys.totalDuration,
     keys.avgDuration, keys.timeline, keys.distribution, keys.workoutTypes];  // same order as summaryQueries
   const summaryStates = summaryQueries.map((query) => fromQuery<unknown>(query));
   const failedState = summaryStates.find((state) => state.status === "failed");
@@ -208,10 +202,8 @@ export default function SummaryPage() {
     ];
   }, [distributionQuery.data]);
 
-  const topWorkoutTypes = useMemo(() => {
-    const types = workoutTypesQuery.data ?? [];
-    return [...types].sort((a, b) => b.total_duration - a.total_duration).slice(0, 6);
-  }, [workoutTypesQuery.data]);
+  // A5: top 5 by total time + an "Others" rollup (iOS WorkoutTypesSummaryCard / Android topSixWithOthers parity).
+  const topWorkoutTypes = useMemo(() => topTypesWithOthers(workoutTypesQuery.data ?? []), [workoutTypesQuery.data]);
 
   const userInitials = useMemo(() => {
     const name = session?.user.memberName ?? session?.user.username ?? "U";
@@ -237,11 +229,7 @@ export default function SummaryPage() {
 
         <div className="grid gap-5">
           <div className="grid gap-5 md:grid-cols-2">
-            <ProgramProgressCard
-              summary={analyticsQuery.data}
-              loading={stillLoading(analyticsQuery)}
-              unavailable={fromQuery(analyticsQuery).status === "failed"}
-            />
+            <ProgramProgressCard progress={progress} status={(programRow ?? program)?.status ?? "active"} />
             <ActivityTimelineCard
               label={activityTimelineQuery.data?.label ?? "Activity"}
               dailyAverage={
@@ -309,7 +297,7 @@ export default function SummaryPage() {
               title="Total Duration"
               value={
                 totalDurationQuery.data
-                  ? `${(totalDurationQuery.data.total_minutes / 60).toFixed(1)} hrs`
+                  ? `${formatHoursTenths(totalDurationQuery.data.total_minutes)} hrs`
                   : stillLoading(totalDurationQuery)
                     ? "…"
                     : "—"
@@ -434,22 +422,10 @@ function SummaryHeader({
   );
 }
 
-// `unavailable` = its query failed with nothing to show: "—", never fake zeros under the ErrorView (frontend-kit §6).
-// `loading` = nothing to show yet: "…" (polish #30), never a fake 0%.
-function ProgramProgressCard({
-  summary,
-  loading = false,
-  unavailable = false
-}: {
-  summary?: AnalyticsSummary;
-  loading?: boolean;
-  unavailable?: boolean;
-}) {
-  const shown = (text: string) => (loading ? "…" : unavailable ? "—" : text);
-  const progress = summary?.program_progress;
-  const percent = progress?.progress_percent ?? 0;
-  const elapsed = progress?.elapsed_days ?? 0;
-  const total = progress?.total_days ?? 0;
+// D1: the ring + day counts are the /programs row's server numbers (programProgress falls back to the same UTC rule on
+// the snapshot dates until the row loads) — always a value, never "…" / "—" (iOS + Android parity).
+function ProgramProgressCard({ progress, status }: { progress: ProgramProgress; status: string }) {
+  const { percent, elapsedDays, totalDays, remainingDays } = progress;
   const size = 120;
   const stroke = 10;
   const radius = (size - stroke) / 2;
@@ -484,28 +460,44 @@ function ProgramProgressCard({
             />
           </svg>
           <div className="relative z-10 text-center">
-            <p className="text-2xl font-bold">{shown(`${percent}%`)}</p>
-            <p className="text-xs text-rf-text-muted">
-              {shown(`${elapsed}/${total} days`)}
-            </p>
+            <p className="text-2xl font-bold">{`${percent}%`}</p>
+            <p className="text-xs text-rf-text-muted">{`${elapsedDays}/${totalDays} days`}</p>
           </div>
         </div>
-        {progress && (
-          <StatusBadge variant={programStatusVariant(progress.status ?? "active")}>{progress.status ?? "active"}</StatusBadge>
-        )}
+        <StatusBadge variant={programStatusVariant(status)}>{status}</StatusBadge>
         <div className="flex flex-wrap items-center justify-center gap-6">
           <div>
             <p className="text-sm text-rf-text-muted">Elapsed</p>
-            <p className="text-lg font-semibold text-rf-text">{shown(`${elapsed} days`)}</p>
+            <p className="text-lg font-semibold text-rf-text">{`${elapsedDays} days`}</p>
           </div>
           <div>
             <p className="text-sm text-rf-text-muted">Remaining</p>
-            <p className="text-lg font-semibold text-rf-text">{shown(`${progress?.remaining_days ?? 0} days`)}</p>
+            <p className="text-lg font-semibold text-rf-text">{`${remainingDays} days`}</p>
           </div>
         </div>
       </div>
     </GlassCard>
   );
+}
+
+/** A5: the Summary "Workout Types" rows — top 5 by total time + "Others" summing the rest (sessions, minutes,
+ *  avg = round(minutes / sessions)); iOS WorkoutTypesSummaryCard + Android topSixWithOthers use the same rule. */
+function topTypesWithOthers(types: WorkoutType[]): WorkoutType[] {
+  const sorted = [...types].sort((a, b) => b.total_duration - a.total_duration);
+  const top = sorted.slice(0, 5);
+  const rest = sorted.slice(5);
+  if (rest.length === 0) return top;
+  const sessions = rest.reduce((sum, type) => sum + type.sessions, 0);
+  const totalDuration = rest.reduce((sum, type) => sum + type.total_duration, 0);
+  return [
+    ...top,
+    {
+      workout_name: "Others",
+      sessions,
+      total_duration: totalDuration,
+      avg_duration_minutes: sessions > 0 ? Math.round(totalDuration / sessions) : 0
+    }
+  ];
 }
 
 function AddWorkoutCard({ onClick, disabled }: { onClick: () => void; disabled?: boolean }) {

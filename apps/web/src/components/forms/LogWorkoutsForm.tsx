@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { IconLock } from "@/components/icons";
 import { InlineLoadError } from "@/components/kit/QueryView";
 import { useLogLookups } from "@/lib/hooks/use-log-lookups";
+import { todayLocalISO } from "@/lib/format";
 
 const MAX_ROWS = 200;
 
@@ -22,10 +23,6 @@ type Row = {
 };
 
 type FieldKey = "member" | "workout" | "date" | "duration";
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function rowHours(r: Row) {
   return Number(r.hours) || 0;
@@ -167,7 +164,7 @@ export function LogWorkoutsForm({
   const addRows = (count: number) => {
     setRows((prev) => {
       if (prev.length >= MAX_ROWS) return prev;
-      const baseDate = prev[prev.length - 1]?.date || todayStr();
+      const baseDate = prev[prev.length - 1]?.date || todayLocalISO();  // A9: local day
       const seedMemberId = ignoreMember ? selfMemberId ?? "" : "";
       const additions: Row[] = [];
       const room = Math.min(count, MAX_ROWS - prev.length);

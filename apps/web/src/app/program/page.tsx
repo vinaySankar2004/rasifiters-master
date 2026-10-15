@@ -10,6 +10,8 @@ import { fetchMembershipDetails, leaveProgram, type MembershipDetail } from "@/l
 import { fetchProgramWorkouts } from "@/lib/api/program-workouts";
 import { formatDateRange, initials } from "@/lib/format";
 import { useAuthGuard } from "@/lib/hooks/use-auth-guard";
+import { useActiveProgramRow } from "@/lib/hooks/use-active-program-row";
+import { programProgress, rowForDates } from "@/lib/program-days";
 import { appError, toAppError } from "@/lib/kit/app-error";
 import { fromQuery, retryNow } from "@/lib/kit/async-state";
 import { useOnlineStatus, useRefetchOnReconnect } from "@/lib/kit/use-online-status";
@@ -117,9 +119,10 @@ export default function ProgramPage() {
   const visibleWorkouts = workoutData.filter((workout) => !workout.is_hidden);
   const customWorkouts = workoutData.filter((workout) => workout.source === "custom");
 
-  const progress = useMemo(() => {
-    return computeProgramProgress(program?.start_date ?? null, program?.end_date ?? null);
-  }, [program?.start_date, program?.end_date]);
+  // D1 (programs SPEC §9 D-C6; supersedes D-C3 / F4): the progress row reads the open program's /programs row — the
+  // Summary ring's and the picker bar's numbers; the snapshot dates feed the same-rule fallback until it loads.
+  const programRow = useActiveProgramRow(token, session?.user.id, programId);
+  const progress = programProgress(rowForDates(programRow, program) ?? program);
 
   const errorMessage = leaveMutation.isError ? toAppError(leaveMutation.error).message : null;
 
@@ -352,8 +355,15 @@ export default function ProgramPage() {
                 </div>
                 <Divider />
                 <InfoRow
-                  label="Active Members"
-                  value={membersPending || membersFailed ? "—" : `${activeMembers}`}
+                  label="Members"
+                  // R9 / D3: the /programs row's active_members, as iOS + Android; the roster count until the row loads.
+                  value={
+                    programRow?.active_members !== undefined
+                      ? `${programRow.active_members}`
+                      : membersPending || membersFailed
+                        ? "—"
+                        : `${activeMembers}`
+                  }
                   alignEnd
                 />
               </div>
@@ -505,27 +515,6 @@ function InfoRow({
 
 function Divider() {
   return <div className="subtle-divider" />;
-}
-
-function computeProgramProgress(startDate: string | null, endDate: string | null) {
-  if (!startDate || !endDate) {
-    return { totalDays: 0, elapsedDays: 0, remainingDays: 0, percent: 0 };
-  }
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-    return { totalDays: 0, elapsedDays: 0, remainingDays: 0, percent: 0 };
-  }
-  const msInDay = 1000 * 60 * 60 * 24;
-  const totalDays = Math.max(Math.round((end.getTime() - start.getTime()) / msInDay), 0);
-  const today = new Date();
-  const elapsedDays = Math.min(
-    Math.max(Math.round((today.getTime() - start.getTime()) / msInDay), 0),
-    totalDays
-  );
-  const remainingDays = Math.max(totalDays - elapsedDays, 0);
-  const percent = totalDays > 0 ? Math.round((elapsedDays / totalDays) * 100) : 0;
-  return { totalDays, elapsedDays, remainingDays, percent };
 }
 
 function MyAccountSection({

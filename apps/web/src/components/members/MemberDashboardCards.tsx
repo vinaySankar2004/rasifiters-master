@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import type { MemberHealthItem, MemberHistoryPoint, MemberMetrics, MemberRecentItem } from "@/lib/api/members";
 import type { AsyncState } from "@/lib/kit/async-state";
 import { dietLabel, formatDuration, formatShortDate, initials, sleepLabel, stepsLabel } from "@/lib/format";
+import { ptdDays, ptdPercent } from "@/lib/program-days";
 import { GlassCard } from "@/components/ui/GlassCard";
 import {
   CHART_AXIS_TICK,
@@ -75,14 +76,11 @@ export function MemberOverviewCard({
   programStart?: string | null;
   programEnd?: string | null;
 }) {
-  const totalDays = useMemo(() => {
-    if (!programStart || !programEnd) return 0;
-    const start = new Date(programStart);
-    const end = new Date(programEnd);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
-    return Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1);
-  }, [programStart, programEnd]);
-  const progressPct = metric && totalDays ? Math.round((metric.active_days / totalDays) * 100) : 0;
+  // D2 + B1 (Members page SPEC): PTD = active days ÷ the program's days so far — start → min(end, today) inclusive, in
+  // the device's local calendar day (log dates are local days) — clamped 0–100; identical on iOS + Android. 0 when a
+  // date is missing.
+  const totalDays = useMemo(() => ptdDays(programStart, programEnd), [programStart, programEnd]);
+  const progressPct = metric ? ptdPercent(metric.active_days, totalDays) : 0;
 
   return (
     <GlassCard>

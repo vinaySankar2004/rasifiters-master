@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { ProgramMultiSelect } from "@/components/forms/LogWorkoutsForm";
 import { InlineLoadError } from "@/components/kit/QueryView";
 import { useLogLookups } from "@/lib/hooks/use-log-lookups";
+import { todayLocalISO } from "@/lib/format";
 
 const MAX_ROWS = 200;
 
@@ -28,10 +29,6 @@ const DIET_OPTIONS = [
   { value: "", label: "Not set" },
   ...["1", "2", "3", "4", "5"].map((value) => ({ value, label: value }))
 ];
-
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function sleepInfo(r: Row) {
   const hoursText = r.sleepHours.trim();
@@ -184,7 +181,7 @@ export function LogDailyHealthForm({
   const addRows = (count: number) => {
     setRows((prev) => {
       if (prev.length >= MAX_ROWS) return prev;
-      const baseDate = prev[prev.length - 1]?.date || todayStr();
+      const baseDate = prev[prev.length - 1]?.date || todayLocalISO();  // A9: local day
       const seedMemberId = ignoreMember ? userId ?? "" : "";
       const additions: Row[] = [];
       const room = Math.min(count, MAX_ROWS - prev.length);
