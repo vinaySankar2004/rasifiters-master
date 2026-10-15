@@ -5,7 +5,7 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-15) — POOLED PARITY RELEASE: backend + web LIVE · iOS 1.5.2 (63) + Android 1.2.2 (9) IN REVIEW
+## Now (2026-10-14 late) — POOLED PARITY RELEASE: backend + web LIVE · Android 1.2.2 (9) in PRODUCTION review · iOS 1.5.2 (63) IN REVIEW
 
 - **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **pooled release in store review.**
   Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
@@ -13,9 +13,10 @@
   the D4/D5 metric fixes (`plans/metric-semantics/`), tested on staging first. People is on for web (`PEOPLE_LIVE`,
   `apps/web/src/lib/api/people.ts` — the off switch).
 - **Stores (`RELEASES.md` is the SoT):** iOS public 1.4.2 (56); **1.5.2 (63) Waiting for Review**, automatic release
-  (61/62 pulled + expired). Android public 1.2.1 (8); **1.2.2 (9) in Play closed-testing review**; managed publishing OFF.
-  app-config `LATEST_ANDROID_VERSION_CODE = 8` (banner), `MIN_*` unset. Repos one train ahead: iOS **1.5.3 (64)**,
-  Android versionCode **10**.
+  (61/62 pulled + expired). Android public 1.2.1 (8); **1.2.2 (9) in production review** (closed testing approved, the
+  user's Pixel check passed; managed publishing OFF → public on approval). app-config `LATEST_ANDROID_VERSION_CODE = 8`
+  (banner), `MIN_*` unset. Repos one train ahead: iOS **1.5.3 (64)**, Android versionCode **10** (versionName is set
+  when the next release is cut).
 - **Known, accepted:** sign out everywhere ends other devices at their next refresh (≤ 1 h); old iOS 1.4.x refresh
   storm (nudge once 1.5.x is public); iOS Members placeholders on return; CONTEXT-file debt; until iOS 1.5.2 is
   public, iPhone users see People only on web; zone-less members get the forgiving streak window (M7) until their app
@@ -28,10 +29,10 @@
 
 ## Next action
 
-1. **Android 1.2.2 (9) approved in closed testing** → the user checks it on the Pixel → promote to production (the
-   user's yes) → on approval: `LATEST_ANDROID_VERSION_CODE = 9` (Render env, the user's yes) → **refresh the testbed**
-   (`tools/testbed/seed.mjs --refresh`, the user asked: after the production push) → RELEASES.md.
-2. **iOS 1.5.2 (63) approved** → live on its own → `LATEST_IOS_VERSION = 1.5.2` (the user's yes) → RELEASES.md.
+1. **Android 1.2.2 (9) approved in production** (the user reports it, or Play's Publishing overview shows it) →
+   `LATEST_ANDROID_VERSION_CODE = 9` on prod Render (the user asked for the latest-version bump "whenever
+   appropriate"; the Render call still confirms) → RELEASES.md.
+2. **iOS 1.5.2 (63) approved** → live on its own → `LATEST_IOS_VERSION = 1.5.2` (same) → RELEASES.md.
    With both public: mark Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` (the hard block) only once adoption allows.
 3. ~2026-10-27: recheck Google's shown site name ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
@@ -113,4 +114,6 @@
   go in first, then one push to all three; parity rule recorded as METHODOLOGY R9 (no shared version numbers).
 - **2026-10-14/15 (release)** — Pooled release: D4/D5 backend live (`fd6c15b`) after a staging test (web + iOS; the Pixel
   can't take local builds — Android via closed testing). Android 1.2.2 (9) → closed-testing review; iOS 1.5.2 (63)
-  submitted (61/62 expired). Repos pre-bumped iOS 1.5.3 (64), Android vc 10.
+  submitted (61/62 expired). Repos pre-bumped iOS 1.5.3 (64), Android vc 10. Later: 1.2.2 (9) approved in closed
+  testing, the user's Pixel check passed → production review. Testbed refreshed (a reviewer's Winter Reset admin drift
+  healed; refresh now also deletes reviewer-made programs).
