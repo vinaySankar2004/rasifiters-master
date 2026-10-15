@@ -31,7 +31,8 @@
 
 1. **Android 1.2.2 (9) approved in production** (the user reports it, or Play's Publishing overview shows it) →
    `LATEST_ANDROID_VERSION_CODE = 9` on prod Render (the user asked for the latest-version bump "whenever
-   appropriate"; the Render call still confirms) → RELEASES.md.
+   appropriate"; the Render call still confirms) → refresh the testbed again (the user asked: after this approval) →
+   RELEASES.md.
 2. **iOS 1.5.2 (63) approved** → live on its own → `LATEST_IOS_VERSION = 1.5.2` (same) → RELEASES.md.
    With both public: mark Phase 4 🚀 in BRIEF §7 + PROGRESS. `MIN_*` (the hard block) only once adoption allows.
 3. ~2026-10-27: recheck Google's shown site name ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
