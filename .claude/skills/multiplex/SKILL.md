@@ -124,3 +124,9 @@ anything you'd want adversarially checked before the user tests it on prod.
   wrapper workflow, one amendments file, then ONE implementer per surface carrying every plan's steps for that surface
   (one fence, no same-file races between tasks). A complex fix round (scroll / gesture / concurrency) gets a fresh
   `impl-adversary` re-review, not just a diff spot-check.
+- (Run 7, 2026-10-14, parity sweep) The backend boot check needs placeholder Supabase env on the command line —
+  `SUPABASE_URL=https://placeholder.supabase.co SUPABASE_SERVICE_ROLE_KEY=x SUPABASE_ANON_KEY=x node -e "require(...)"` —
+  because `config/supabase.js` throws at load without them (the local `.env` holds only `DATABASE_URL`). A message
+  sent to a running planner lands at its next tool round and it re-sends a revised plan: save the LAST `# PLAN` from
+  its transcript, and point a running adversary at the revision. Ship order that worked: push backend alone → Render
+  `live` + clean logs → push the three client commits → Vercel `READY`.

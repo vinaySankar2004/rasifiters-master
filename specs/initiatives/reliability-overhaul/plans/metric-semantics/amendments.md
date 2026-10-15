@@ -63,3 +63,20 @@ and use a global-admin user. Compare HEAD's and the new `getMemberMetrics` on ev
 All non-streak fields must be identical. The adversary's harness is a starting point:
 `/private/tmp/claude-501/-Users-vinayaksankaranarayanan-Developer-rasifiters-master/7654d7b2-3b8b-433d-9d3b-cd2326a54929/scratchpad/harness.js`
 (scratch only, never committed).
+
+## M7: members with no stored time zone get the most forgiving day window (user-directed, 2026-10-14)
+Preview on the live main program: only 3 of 19 members have `notification_preferences.time_zone`. Old iOS builds don't
+send `X-Time-Zone`; iOS 1.5.2+, Android 1.2.x and web do, and the inbox route stores it. A plain UTC fallback would
+show 0 from 17:00 PDT for most Vancouver members who haven't logged yet that day.
+
+The rule:
+- **No zone (or a rejected zone):** judge the streak on the most forgiving window on Earth. `today` = the UTC−12
+  date, so a streak is never zeroed early. Logs count up to the UTC+14 date, so a just-logged day is never ignored.
+  New `utils/localTime.streakDayWindow(timeZone, now)` → `{ today, latest }`.
+  `computeStreaks(dates, today, latest = today)`: current = the run ending at the last day ≤ `latest`, counted only
+  when that day ≥ `today − 1`.
+- **Known zone:** `{ today: local, latest: local }`. This is exactly `memberActivityStats.currentStreak` (today if logged,
+  else yesterday, else 0).
+
+Cost: a missed day can keep a zone-less member's streak alive up to about a day longer. The window closes as members
+update to apps that send their zone (this same release). Docs: member-analytics D-C14 states both windows.

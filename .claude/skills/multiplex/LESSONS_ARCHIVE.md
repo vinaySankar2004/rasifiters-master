@@ -109,3 +109,9 @@ distilled "Converged lessons"). Append one entry per notable run.
   port (scout → planner → plan-adversary + one bounded revision). Built alongside a doc-health pass
   that first corrected `registry.json` `consumed_by` (Android was missing from 10 features) so the
   scout reads an accurate cross-surface graph. Not yet exercised on a real task.
+- **2026-10-14 — Run 7: data-source parity sweep (4 surfaces).** Read-only sweep (side session) → planner (rev 2 after
+  a mid-run A9 message) → plan-adversary APPROVE-WITH-FIXES (2 blocking: PTD local day, Android line range) → user approval
+  → 4 parallel implementers in the main tree (directory-disjoint, no git writes) → impl-adversary PASS (2 small fixes done
+  inline: Android re-read on open, web Members from the row) → user ⌘B green → backend push + Render live → clients
+  pushed + Vercel READY. Docs written by one docs agent at landing. A separate backend-only task (D4/D5 metric
+  semantics) was planned + adversaried in parallel and held for the user's approval.

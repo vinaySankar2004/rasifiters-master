@@ -60,6 +60,10 @@ the clients*, grounded in code + the feature spec.
   or formula each surface feeds it — same-looking UI is not parity. Missed until the user noticed: web + iOS
   program-card bars used `active_members / total_members` (always equal → always full) while Android used
   `progress_percent` (time elapsed). A value that can't vary is a red flag on its own.
+- **Same source isn't enough: same rounding, denominator and day rule too (2026-10-14 sweep).** A value can read the same
+  field everywhere and still differ: 66.7% vs 66% vs 67% (truncate vs round), a PTD % over the whole program vs days so
+  far, a day counted in UTC vs the device's local day, top 6 vs top 5 + Others. Check the formula end to end, and say
+  which day each date or count uses (server progress = UTC; user-entered dates and PTD = local).
 - The **backend is the single contract** — when the clients disagree, the backend + the feature spec
   decide who's right (usually: business logic belongs in the backend, both clients just call it).
 - Living skill: keep this lean; append run notes to `LESSONS_ARCHIVE.md` and promote converged checks here.
