@@ -378,7 +378,7 @@
       }
     },
     "app-config": {
-      "version": "0.4.0",
+      "version": "0.4.1",
       "spec": "specs/features/app-config/SPEC.md",
       "status": "deployed",
       "consumed_by": [
