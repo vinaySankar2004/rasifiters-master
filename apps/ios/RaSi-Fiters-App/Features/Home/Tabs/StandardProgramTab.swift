@@ -185,9 +185,9 @@ struct StandardProgramTab: View {
 
                 Divider()
 
-                // Active Members
+                // Members (D3)
                 HStack {
-                    Text("Active Members")
+                    Text("Members")
                         .font(.subheadline)
                         .foregroundColor(Color(.secondaryLabel))
                     Spacer()

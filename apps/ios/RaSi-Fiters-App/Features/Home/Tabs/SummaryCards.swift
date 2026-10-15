@@ -210,7 +210,7 @@ struct MTDParticipationCard: View {
                 Spacer()
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(Int(pct))%")
+                    Text(String(format: "%.1f%%", pct))
                         .font(.title2.weight(.bold))
                         .foregroundColor(Color(.label))
 

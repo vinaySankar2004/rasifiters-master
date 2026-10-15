@@ -1011,10 +1011,10 @@ private struct ProgramCard: View {
         return "\(start) – \(end)"
     }
 
+    // D3 (programs SPEC §9): one number — the backend counts active and total members the same way (F2).
     private func membersSummary(_ program: APIClient.ProgramDTO) -> String {
-        let active = program.active_members ?? 0
-        let total = program.total_members ?? 0
-        return "\(active) active / \(total) total members"
+        let count = program.total_members ?? 0
+        return count == 1 ? "1 member" : "\(count) members"
     }
 
     // The bar is time elapsed (days in / total days), the server's progress_percent — Android parity. Not active/total

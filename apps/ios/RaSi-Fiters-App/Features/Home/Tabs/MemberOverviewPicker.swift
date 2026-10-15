@@ -95,9 +95,10 @@ struct MemberOverviewCard: View {
         let days = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
         return max(days + 1, 1)
     }
+    /// D2: active days ÷ the program's days so far (device-local calendar, inclusive), clamped 0–100 — web + Android same.
     private func memberProgressPercent(activeDays: Int) -> Int {
         let pct = Double(activeDays) / Double(programTotalDays)
-        return Int(round(pct * 100))
+        return min(max(Int(round(pct * 100)), 0), 100)
     }
 
     var body: some View {
@@ -180,7 +181,7 @@ struct MemberOverviewCard: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("PTD - Member Progress")
                 .font(.subheadline.weight(.semibold))
-            ProgressView(value: Double(m.active_days), total: Double(programTotalDays))
+            ProgressView(value: Double(min(m.active_days, programTotalDays)), total: Double(programTotalDays))
                 .progressViewStyle(.linear)
                 .adaptiveTint()
             Text("\(m.active_days) / \(programTotalDays) days")

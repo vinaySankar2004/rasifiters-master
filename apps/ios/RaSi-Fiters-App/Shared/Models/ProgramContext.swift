@@ -307,11 +307,35 @@ final class ProgramContext: ObservableObject {
         return "\(start) – \(end)"
     }
 
+    /// A4: `yyyy-MM-dd` of startDate / endDate — the same format `apply(program:)` parses them from.
+    private static let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    /// D1 (programs SPEC §9 D-C6): the open program's `/programs` row carries the server's progress —
+    /// `progress_percent` · `elapsed_days` · `total_days` in UTC calendar days, the picker bar's rule — and the Summary
+    /// ring + Program tab show it. nil until that row is in `programs`, while its dates aren't the open program's (A4:
+    /// a date edit until the re-read lands), or when an older backend omits the day fields → the device-calendar
+    /// fallback below (the pre-D1 formula).
+    private var serverProgress: (percent: Int, elapsed: Int, total: Int)? {
+        guard let pid = programId,
+              let row = programs.first(where: { $0.id == pid }),
+              row.start_date.map({ String($0.prefix(10)) }) == Self.dayFormatter.string(from: startDate),
+              row.end_date.map({ String($0.prefix(10)) }) == Self.dayFormatter.string(from: endDate),
+              let total = row.total_days,
+              let elapsed = row.elapsed_days else { return nil }
+        return (row.progress_percent ?? 0, elapsed, total)
+    }
+
     var totalDays: Int {
-        Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 0
+        if let server = serverProgress { return server.total }
+        return Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 0
     }
 
     var elapsedDays: Int {
+        if let server = serverProgress { return server.elapsed }
         let today = Date()
         guard today > startDate else { return 0 }
         return min(Calendar.current.dateComponents([.day], from: startDate, to: today).day ?? 0, totalDays)
@@ -322,8 +346,9 @@ final class ProgramContext: ObservableObject {
     }
 
     var completionPercent: Int {
+        if let server = serverProgress { return server.percent }
         guard totalDays > 0 else { return 0 }
-        return Int(round((Double(elapsedDays) / Double(totalDays)) * 100))
+        return Int((Double(elapsedDays * 100) / Double(totalDays)).rounded())
     }
 
     var adminInitials: String {

@@ -62,6 +62,14 @@ extension ProgramContext {
         if let lock = response.admin_only_data_entry {
             self.adminOnlyDataEntry = lock
         }
+
+        // D1 (programs SPEC §9 D-C6): the Summary ring + Program tab read the /programs row — re-read the list in the
+        // background so the save returns at once (Android parity); a failure keeps the date-guarded fallback (A4).
+        Task { @MainActor [weak self] in
+            if let updatedPrograms = try? await APIClient.shared.fetchPrograms(token: token) {
+                self?.programs = updatedPrograms
+            }
+        }
     }
 
     @MainActor

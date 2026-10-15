@@ -25,7 +25,7 @@ struct HeaderStats: View {
                     Text("DAILY AVERAGE")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(Color(.secondaryLabel))
-                    Text(String(format: "%.0f", dailyAverage))
+                    Text(String(format: "%.1f", dailyAverage))
                         .font(.title3.weight(.semibold))
                         .foregroundColor(.appOrange)
                 }

@@ -11,6 +11,9 @@ extension APIClient {
         let active_members: Int?
         let total_members: Int?
         let progress_percent: Int?
+        /// D-C6 (programs SPEC §9): the day counts behind progress_percent (UTC days); nil from an older backend or cache.
+        let total_days: Int?
+        let elapsed_days: Int?
         let enrollments_closed: Bool?
         let my_role: String?
         let my_status: String?
