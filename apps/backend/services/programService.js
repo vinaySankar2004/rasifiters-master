@@ -9,12 +9,31 @@
 // getPrograms keeps its two raw sequelize.query branches verbatim (D-S2), EXCEPT the net-new
 // post-parity per-member ordering (2026-07-05): both branches LEFT JOIN member_program_order
 // and ORDER BY mpo.position NULLS LAST before the legacy start_date sort; setProgramOrder
-// (PUT /order) writes that table. See SPEC §9.
+// (PUT /order) writes that table — AND the D-C6 day columns (2026-10-14) appended after progress_percent. See SPEC §9.
 const { Program, ProgramMembership } = require("../models");
 const { sequelize } = require("../config/database");
 const { AppError } = require("../utils/response");
 const { createNotification, getActiveProgramMemberIds } = require("../utils/notifications");
 const { logError } = require("../utils/logError");
+
+// D-C6 (programs SPEC §9, 2026-10-14 — the data-source sweep's D1): the day counts behind progress_percent, so every
+// client shows the server's progress instead of its own date math. Same rule as progress_percent and analyticsService
+// program_progress: UTC calendar days (CURRENT_DATE; Sequelize pins the session to +00:00); total_days = end − start;
+// elapsed_days = today − start clamped to [0, total_days]; both 0 unless both dates are set and end > start — so
+// progress_percent = round(elapsed_days / total_days · 100). Additive: older binaries ignore the two keys.
+const PROGRESS_DAY_COLUMNS = `
+                CASE
+                    WHEN p.start_date IS NOT NULL AND p.end_date IS NOT NULL
+                         AND p.end_date > p.start_date
+                    THEN (p.end_date - p.start_date)::int
+                    ELSE 0
+                END AS total_days,
+                CASE
+                    WHEN p.start_date IS NOT NULL AND p.end_date IS NOT NULL
+                         AND p.end_date > p.start_date
+                    THEN LEAST(GREATEST(CURRENT_DATE - p.start_date, 0), p.end_date - p.start_date)::int
+                    ELSE 0
+                END AS elapsed_days`;
 
 // The program-change emit: notify the program's active members, never the person who made the change. Runs after the
 // write succeeded, outside any transaction — a failure is logged and swallowed so the response stays the write's.
@@ -51,7 +70,7 @@ async function getPrograms(requester) {
                          NULLIF((p.end_date - p.start_date)::numeric, 0)) * 100
                     ))::int
                     ELSE 0
-                END AS progress_percent
+                END AS progress_percent,${PROGRESS_DAY_COLUMNS}
             FROM programs p
             LEFT JOIN program_memberships pm ON p.id = pm.program_id
             LEFT JOIN program_memberships pm_user ON p.id = pm_user.program_id AND pm_user.member_id = :userId
@@ -79,7 +98,7 @@ async function getPrograms(requester) {
                      NULLIF((p.end_date - p.start_date)::numeric, 0)) * 100
                 ))::int
                 ELSE 0
-            END AS progress_percent
+            END AS progress_percent,${PROGRESS_DAY_COLUMNS}
         FROM programs p
         INNER JOIN program_memberships pm_user
             ON p.id = pm_user.program_id
