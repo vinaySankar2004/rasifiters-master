@@ -1,12 +1,13 @@
 # Screen: `summary` (android) — the per-program workspace overview (first bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.2.2 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-summary`](../../ios/admin-summary/SPEC.md)
 > + [`web summary`](../../web/summary/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.SUMMARY` (`SummaryScreen`) — Tab 1 of the per-program
 > tab shell, the screen you land on after picking a program on the hub.
 > **Consumes:** [`analytics`](../../../features/analytics/SPEC.md) + [`analytics-v2`](../../../features/analytics-v2/SPEC.md)
-> (7 reads) via `ProgramContext`; program-progress from the already-loaded `ProgramDTO`.
+> (7 reads) via `ProgramContext`; program progress from the open program's [`programs`](../../../features/programs/SPEC.md)
+> row (`ProgramDTO` — `progress_percent` · `elapsed_days` · `total_days`, D-C4).
 > **Files:** `ui/summary/{SummaryScreen,SummaryCards,SummaryCharts}.kt`.
 > **Scope (mirrors iOS run-54 D-SCOPE):** the **dashboard landing ONLY**. The 5 forward targets
 > (activity / distribution / workout-types detail + log-workout / log-health forms) are **stubbed**
@@ -15,9 +16,10 @@
 ## Parity + Android-idiom deviations
 
 - **Faithful (iOS/web 1:1):** header **"Summary" + active-program name + an initials avatar**; a scrollable
-  card dashboard — **Program Progress** (completion ring + %/days + status pill), **MTD Participation**
-  (pct · active/total · change badge), **Total Workouts / Total Duration / Avg Duration** (value + change
-  badge + "vs prior MTD"), **Workout Activity Timeline** (bars = workouts, line + points = active members),
+  card dashboard — **Program Progress** (completion ring + %/days + status pill — the server's numbers, D-C4),
+  **MTD Participation** (pct to one decimal · active/total · change badge), **Total Workouts / Total Duration /
+  Avg Duration** (value + change badge + "vs prior MTD"; Total Duration hours = `round(minutes / 6) / 10`, ".0"
+  dropped — D-C4), **Workout Activity Timeline** (bars = workouts, line + points = active members),
   **Workout Distribution by Day** (7 Sun–Sat bars), **Top Workout Types** (top 5 + "Others" rollup, dot
   colors by name) — and the two gradient **action cards** (Add workouts / Log daily health). Shown
   identically to every enrolled role (no page-level role gate). Loading → MTD placeholder + "No data yet"
@@ -51,10 +53,22 @@
   initials (`ProgramContext.memberName`), matching **web** ("the user's initials avatar"), not iOS's program
   admin initials — resolves the cross-app divergence toward web parity (memory `ios-matches-web-not-just-legacy`).~~
   *(No longer a deviation at 0.2.2 — iOS shows the signed-in user's initials too, `loggedInUserInitials`; D-PC1.)*
-- **Deviation A-3 (progress source):** the progress ring % comes from the loaded **`ProgramDTO.progress_percent`**
+- ~~**Deviation A-3 (progress source):** the progress ring % comes from the loaded **`ProgramDTO.progress_percent`**
   (server value, same as the picker/web `program_progress`); elapsed/total days are computed client-side from
   `start_date`/`end_date` (the iOS date math). The vestigial `analytics/summary` over-fetch (iOS F2 / web F5 —
-  feeds only the deferred detail views) is **skipped** — nothing on the landing reads it.
+  feeds only the deferred detail views) is **skipped** — nothing on the landing reads it.~~ *(Retired at 0.3.0 by
+  D-C4 — no longer a deviation: every surface reads the `/programs` row, and no client calls `analytics/summary`.)*
+- **D-C4 (parity sweep, 0.3.0 — METHODOLOGY R9; retires A-3):** (a) **Program progress = the open program's
+  `GET /programs` row** (sweep D1, [programs](../../../features/programs/SPEC.md) D-C6): `ProgramDTO` decodes
+  `totalDays` / `elapsedDays`, and `programProgress(program)` (`ui/program/ProgramCards.kt`) returns its
+  `progress_percent` (clamped 0–100) · `elapsed_days` · `total_days` (remaining = total − elapsed) — UTC days, the
+  picker bar's numbers, the same on web / iOS. Fallback only when the day fields are absent (a launch-cached list from
+  before the backend change, or the local copy right after an edit): the pre-D1 device-date math, multiply-first
+  rounding. The row is re-read (`loadPrograms()` + `reconcileActiveProgram()`) **when a program is opened** (a pick
+  from the launch-cached list carries that list's day counts — the ring would sit a day behind for the session), on
+  **pull to refresh** (`refreshSummary`), and **after an edit** ([edit-program](../edit-program/SPEC.md) D-PS1). (b) **MTD Participation** shows
+  one decimal (`"%.1f%%"`, was a whole number). (c) **Total Duration** = `round(minutes / 6) / 10` hours, ".0"
+  dropped (`TotalDurationCard(minutes:)`; was `minutes / 60` with a 0.05 whole-number snap) — web + iOS same.
 - **Deviation A-4 (charts on Canvas):** Swift Charts / Recharts have no Compose analog, so the charts are drawn
   on a `Canvas` — thin rounded orange bars, a left **y-axis** (nice ticks via a Swift-Charts-`automatic`-style
   `niceAxis` + faint gridlines), x-axis day labels (drawn with a `TextMeasurer`), and (timeline only) a
@@ -70,7 +84,8 @@
 
 Fires on entry, on active-program change and after a log-form save. Seven reads **in parallel**, each its own
 result, merged into `ProgramContext.summaryState` (kit `UiState<SummaryData>`; `summary` mirrors its data for the
-detail screens). Program progress needs **no** call (read from the `ProgramDTO`).
+detail screens). Program progress needs **no** extra call here: it reads the open program's `ProgramDTO` from the
+`GET /programs` list, which is re-read when a program is opened, on pull to refresh and after an edit (D-C4).
 
 | Call | Endpoint | Card |
 |------|----------|------|
@@ -86,6 +101,7 @@ detail screens). Program progress needs **no** call (read from the `ProgramDTO`)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.0 | 2026-10-14 | **D-C4 — parity sweep (METHODOLOGY R9; Android `8144345`).** The ring + E/T days read the open program's `/programs` row (`programProgress`; date-math fallback when the day fields are absent) — Deviation A-3 retired; the row is re-read when a program is opened, on pull to refresh (X-2) and after an edit; MTD Participation one decimal; Total Duration `round(min/6)/10`, ".0" dropped. |
 | 0.2.2 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle opens `MyProfileScreen` (`tapTarget` "My Profile", same look); system back returns to Summary. A-2 is no longer a deviation (iOS matches). |
 | 0.2.1 | 2026-10-13 | **Polish 1 (offline detection).** No data while offline (link down OR proven offline by a failed request) → the kit's offline `ErrorView` + Retry, never the spinner (rule 6); back online, a failed / stale Summary reloads itself (D-KIT-13). Compile-checked green (`assembleDebug`). |
 | 0.2.0 | 2026-10-13 | **Reliability Phase 3 C3 — D-C3.** Cached Summary first, 7 parallel reads with partial-failure merge, spinner (never zero cards), `ErrorView`, floating stale banner (offline = the app-wide banner), pull to refresh with a `pull_to_refresh` health sync. D-C1 superseded. Compile-checked green (`assembleDebug`). |

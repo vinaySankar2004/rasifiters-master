@@ -1,6 +1,6 @@
 # Feature: `analytics-v2` — the v2 analytics aggregates (participation + workout-type stats)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.3.2 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/analytics.js` (the **`v2Router`** half only — the
 > file is shared with [`analytics`](../analytics/SPEC.md) v1, §7/D-C1), `services/analyticsService.js` (the
 > **v2** functions; the shared date/bucket helpers + the two utils `dateRange.js`/`queryHelpers.js` already
@@ -77,8 +77,10 @@ Every route is `authenticateToken` → `requireProgramAccess` (D-C3); the 4 `/wo
 | 5 | `GET /workouts/types/highest-participation` | `analytics.js:184-193` → `getHighestParticipationWorkoutType(programId, memberId)` (`:640-692`) | Type the most distinct members logged + participation %. |
 
 > **Dropped (D-C2):** `GET /summary` (`analytics.js:126-138` → `getSummaryV2`, `:473-561`) — called by
-> **neither** client (both use the v1 summary, `GET /api/analytics/summary`). Its function is not ported.
-> (§10 F3.)
+> **neither** client (both used the v1 summary, `GET /api/analytics/summary`). Its function is not ported.
+> (§10 F3.) *Since 2026-10-14 no current client calls the v1 summary either — program progress comes from the
+> `/programs` row ([programs](../programs/SPEC.md) D-C6, [analytics](../analytics/SPEC.md) F8); older iOS builds
+> (1.4.2 / 1.5.x) still call the v1 route, which stays.*
 
 ### Error contract (faithful — `routes/analytics.js` + `utils/response.AppError`)
 
@@ -159,9 +161,10 @@ with one deliberate change**:
   functions to those same files (reusing the helpers + utils — exactly the `logs.js` split). The port changes
   `routes/analytics.js`'s export to `{ v1Router, v2Router }` and adds the `v2Router` mount in `server.js`.
   `member-analytics` (`routes/memberAnalytics.js`) is a **separate** feature.
-- **D-C2 — drop the dead `GET /summary` (v2) route + `getSummaryV2`.** Called by neither client — both use
+- **D-C2 — drop the dead `GET /summary` (v2) route + `getSummaryV2`.** Called by neither client — both used
   the **v1** summary (`GET /api/analytics/summary`; web `lib/api/summary.ts`, iOS `AdminSummaryTab` →
-  `APIClient+Analytics.swift`). The **mirror of v1's D-C2** (which dropped the dead v1 `participation/mtd`
+  `APIClient+Analytics.swift`) *(no current client calls the v1 summary since 2026-10-14 — analytics F8; older iOS
+  builds still do)*. The **mirror of v1's D-C2** (which dropped the dead v1 `participation/mtd`
   because both clients used the v2 variant): each version dropped the half-route its clients abandoned. The
   behavior isn't lost — the live v1 summary serves it. `getSummaryV2` is **distinct** from v1's `getSummary`
   (optional `programId` → global/cross-program aggregation; `Member.member_name` instead of
@@ -194,8 +197,9 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
   - **ios:** `AdminSummaryTab.swift:81` calls `participation/mtd` via `ProgramContext+Analytics.swift:70`;
     `StandardWorkoutTypesTab.swift:111-114` / `:241-244` call the 4 workout-type aggregates via
     `ProgramContext+Analytics.swift:189-234` — `total`/`most-popular`/`longest-duration` pass an optional
-    `memberId`; `highest-participation` always passes `memberId: nil`. (`/summary` v2 → unused; iOS uses v1
-    `/api/analytics/summary` from `AdminSummaryTab.swift:80`.)
+    `memberId`; `highest-participation` always passes `memberId: nil`. (`/summary` v2 → unused; ~~iOS uses v1
+    `/api/analytics/summary` from `AdminSummaryTab.swift:80`~~ — since 2026-10-14 the current iOS build's
+    `loadSummary` reads `GET /programs` instead; iOS 1.4.2 / 1.5.x still call the v1 summary — analytics F8.)
   - **android:** `net/ApiService.kt:80` (`participation/mtd`) + `:122-144` (the 4 workout-type aggregates;
     `memberId` optional), called through `core/ProgramContext.kt` from the Summary + Lifestyle screens.
 
@@ -227,6 +231,7 @@ the `percentChange` contract, and the error contract (the `400`-only paths). The
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.2 | 2026-10-14 | Doc only (data-source parity sweep, amendments A10): §3 / §7 D-C2 / §8 note that no current client calls the **v1** `GET /analytics/summary` either — program progress comes from the `/programs` row (programs D-C6, analytics F8); iOS 1.4.2 / 1.5.x still call it, so the route stays. No route or behavior change. **PATCH.** |
 | 0.3.1 | 2026-10-13 | **D-C6 — honest card states on the clients** for the MTD participation + workout-type stats (as analytics D-C11; reliability-overhaul Phase 4 polish #30 / #31). Client-only; no backend change. **PATCH.** |
 | 0.3.0 | 2026-10-13 | **D-C5 — Hide my activity (People S1)** on the 4 `/workouts/types/*` routes (403 `activity_hidden`, 400 `invalid_request`). **MINOR**; backend-only. |
 | 0.2.1 | 2026-10-13 | **D-C4 — `/workouts/types/*` `memberId` routed through the shared `utils/memberVisibility.js` `"workouts"` check (reliability-overhaul Phase 4 S0).** Behavior-neutral in S0 (every program member passes); the People S1 hook. `requireProgramAccess` delegates to the same module (analytics 0.5.0). §3 "every route is" line updated. **PATCH**; backend-only. |

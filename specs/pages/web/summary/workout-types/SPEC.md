@@ -1,6 +1,6 @@
 # Page: `summary/workout-types` (web) — top workout types (summary sub-route 3 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/workout-types` — the **top workout types** detail, the **third** (and **last** of the three
 > chart drill-downs) of the six deferred `/summary` sub-routes (reached from the [`summary`](../SPEC.md) landing's
 > **Workout Types** card). One `GlassCard` with a single-series `BarChart` of sessions per workout type **plus a
@@ -72,9 +72,10 @@ up to 100 and lists them all).
   requires an ACTIVE program membership or global admin (403 otherwise; was `authenticateToken`-only — analytics
   F2, inherited here as F1). The route also accepts a `memberId` (member-scoped branch),
   but this client never sends it — **program-wide only** (F4).
-- **Query key:** `["summary", "workoutTypes", programId]` — **shared with the landing's preview query**, which
+- **Query key:** `["summary", "workoutTypes", programId]` — **shared with the landing's preview query**; ~~which
   passes `limit=50` while this page passes `limit=100`. React Query dedupes by key (not by `queryFn` args), so the
-  two share one cache entry; whichever mounts first wins until refetch (F5).
+  two share one cache entry; whichever mounts first wins until refetch (F5).~~ since 0.1.3 both pass `limit=100`
+  (the landing moved in the parity sweep — summary D-C3), so the shared entry is the same list (F5 resolved).
 - **Zero backend work, NO feature bump** — the route + service (`getWorkoutTypes`) + the `fetchWorkoutTypes` client
   fn all already shipped (`analytics` port; the `summary` landing ported the client fn, run 21).
 
@@ -137,11 +138,13 @@ logging on the `/summary` forms, not reads here).
 - **F4** — The route's `memberId` member-scoped branch is **dead from this client** — the page always calls
   `fetchWorkoutTypes(token, programId, 100)` with no `memberId`, so the breakdown is always program-wide. Faithful;
   the param is kept for parity (inherited from the shared analytics route).
-- **F5** — The detail page passes **`limit=100`** while the landing preview passes **`limit=50`** under the **same**
+- ~~**F5** — The detail page passes **`limit=100`** while the landing preview passes **`limit=50`** under the **same**
   query key `["summary","workoutTypes",programId]`. React Query dedupes by key (not by `queryFn` args), so the two
   share one cache entry — whichever mounts first populates it until a refetch. A latent inconsistency (the detail
   page may briefly show the landing's 50-row slice); faithful, harmless in practice (50 ≤ 100, and real programs
-  rarely exceed 50 workout types). A distinct cache key per limit would be a rebuild cleanup.
+  rarely exceed 50 workout types). A distinct cache key per limit would be a rebuild cleanup.~~ **RESOLVED at 0.1.3:**
+  the landing now passes `limit=100` too (2026-10-14 parity sweep A5 — [summary](../SPEC.md) D-C3; iOS + Android
+  request 100), so the shared cache entry holds the same list whichever page mounts first.
 - **F6** — The X-axis tick labels are **hidden** (`tick={false}`) — workout-type names are long and would overlap;
   identity is conveyed by the ranked list below + the hover tooltip. Faithful.
 - **F7** — The window is **program-to-date** (the service has no date filter) — accumulates every `workout_log`
@@ -151,5 +154,6 @@ logging on the `/summary` forms, not reads here).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.3 | 2026-10-14 | Doc only (parity sweep A5; web `88ea9ff`): F5 resolved — the landing's preview now passes `limit=100` like this page (summary D-C3), so the shared `["summary","workoutTypes",programId]` entry is the same list either way. §6 + §10. |
 | 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #29 `QueryView` replaces `LoadingState` / `ErrorState` (ErrorView + Retry, stale banner, offline view, reload on reconnect). |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the load error message goes through `toAppError` (kit copy, never raw text — frontend-kit D-KIT-19, #8). |

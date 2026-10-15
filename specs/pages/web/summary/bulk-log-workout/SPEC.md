@@ -1,6 +1,8 @@
 # Page: `summary/bulk-log-workout` (web) — standalone Bulk-log-workouts form (summary sub-route 6 of 6 — CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🗑️ **retired 2026-07-01**: the route and `BulkLogWorkoutForm` were merged into the multi-row
+> `LogWorkoutsForm` on [`/summary/log-workout`](../log-workout/SPEC.md) (workout-logs D-C8, `d39090f`). Kept as history.
+> **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/bulk-log-workout` — the **mobile log fallback** for the Bulk-log-workouts form: a full-page
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **6th & LAST** of the six deferred
 > `/summary` sub-routes and the **3rd & final of the 3 log fallbacks** — **this CLOSES the `/summary` sub-route group**
@@ -53,7 +55,10 @@ plus a **second redirect** (the bulk-only member-bounce, F1).
 2. **`BulkLogWorkoutForm variant="page"`** (`bulk-log-workout/page.tsx:51-64`) — the form's bare-content branch
    (`forms/BulkLogWorkoutForm.tsx:416-418`):
    - **Rows** (≤ `MAX_ROWS` = 200, `BulkLogWorkoutForm.tsx:11`) — each row = a searchable member `Select`, a
-     searchable workout-type `Select`, a date `Input` (defaults to the previous row's date or today), and hours+minutes
+     searchable workout-type `Select`, a date `Input` (defaults to the previous row's date or today — *the route and
+     `BulkLogWorkoutForm` were removed in the 2026-07-01 merge, [summary](../SPEC.md) 0.2.0; the unified
+     `LogWorkoutsForm` on [`/summary/log-workout`](../log-workout/SPEC.md) carries this default, the browser's local
+     day since 2026-10-14 — log-workout D-C2*), and hours+minutes
      duration inputs (`BulkLogWorkoutForm.tsx:250-378`). Desktop renders a **table** (`hidden md:block`,
      `:232-311`); mobile renders **stacked cards** (`md:hidden`, `:314-379`).
    - **Add-row controls** — "+ Add row" / "+ Add 5 rows" (disabled at max), with a "Max 200 rows" hint
@@ -176,4 +181,5 @@ last** `/summary` sub-route where the lock bites (after `log-workout`, `log-heal
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-14 | Doc only (parity sweep A9 / amendments A10): §4's date default points at its successor — this route and `BulkLogWorkoutForm` were removed in the 2026-07-01 merge (summary 0.2.0); the unified `LogWorkoutsForm` on `/summary/log-workout` defaults a new row to the browser's local day (`todayLocalISO()`, log-workout D-C2), not the UTC date. |
 | 0.1.0 | 2026-06-29 | Initial SPEC authored via `question-asker` (run 38) — the **24th web page spec**, the standalone **Bulk-log-workouts** mobile fallback (`/summary` sub-route 6 of 6, the **3rd & final log fallback** — **CLOSES the `/summary` group**). Faithful 1:1 port of the legacy 68-line page: a `PageShell` + `PageHeader` wrapping `BulkLogWorkoutForm variant="page"`, with `canLogForAny` role logic, a **two-way** `router.replace` redirect (`admin_only_data_entry` lock → `/summary`; non-admin/logger → `/summary/log-workout`), an `addWorkoutLogsBatch` mutation invalidating `["summary"]`, and per-row `ApiError.details → BulkRowError[]` plumbing. **3rd & last `/summary` sub-route where `admin_only_data_entry` is live** (after `log-workout`, `log-health`). Decisions: **D-SCOPE** (this page; CLOSES the group) · **D-REF** (`consumed_by=[web]`) · **D-DEPS** (no new dependency — the form + api + chrome all already ported) · **D-S1** (faithful 1:1, incl. the two-way redirect + rowErrors plumbing) · **D-C1** (deterministic-nav cleanup — the two `router.back()` → `router.push("/summary")`; both lock/role `router.replace` unchanged). Flagged F1–F8 (two-way redirect/member-bounce; client JWT-decode role; dual lock enforcement; no `canSelectAnyMember`/`userId` on the bulk form; per-row errors matched by submit order; no throttle; shared single-sourced form; client-only 200-row cap). **Zero backend work, NO feature bump** — `POST /workout-logs/batch` already mounted + gated (`routes/logs.js:49`). Ported `apps/web/src/app/summary/bulk-log-workout/page.tsx`. `npm run build` ✓. |

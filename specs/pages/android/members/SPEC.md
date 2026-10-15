@@ -1,6 +1,6 @@
 # Screen: `members` (android) — the per-member performance dashboard (second bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.4.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios admin-members`](../../ios/admin-members/SPEC.md)
 > + [`web members`](../../web/members/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.MEMBERS` (`MembersScreen`) — Tab 2 of the per-program
@@ -18,7 +18,7 @@
     button**; a **`MemberMetricsPreviewCard`** (over-fetches the leaderboard, shows the top member + count →
     metrics detail); a **"View as" selector** (global-admin defaults to **"None"**, program-admin auto-selects
     self via `loggedInMemberId`); and, once a member is picked, the **5 member cards** (Overview · History ·
-    Streak · Recent · Health).
+    Streak · Recent · Health). The Overview's PTD % = active days ÷ the program's days so far, clamped 0–100 (D-PS1).
   - **Logger / member variant** (`StandardMembersBody`): the viewer's own **Overview** + self **`MemberMetricsCard`**
     (hero = Active Days — D-C7) + **History** + **Streak**, then **Recent + Health**. A **logger** additionally gets a
     **logs-only "View as"** that re-scopes only Recent + Health (`LaunchedEffect(loggerViewAsId)`); a plain member
@@ -95,10 +95,23 @@ and re-scopes logs on the logger view-as change.
   height clipped the last ~52 dp row). #26 does not reach this tab: the timeline card has no tooltip, so no gestures
   (amendments A8); the horizontal-only scrub is on the history detail.
 
+## Parity sweep (0.4.0)
+
+- **D-PS1 (2026-10-14 — METHODOLOGY R9; sweep D2 + amendment B1, A7 / M-4).** **PTD:** `MemberOverviewCard`'s % =
+  `activeDays` ÷ `programTotalDays(program)` — the program's **days so far**: start → min(end, today) inclusive in the
+  **device's local calendar day** (`LocalDate.now()`; log dates are local days), at least 1, 0 when a date is missing
+  (`MemberCards.kt`) — rounded and now **clamped 0–100** (`active_days` is not clipped to the program end,
+  [member-analytics](../../../features/member-analytics/SPEC.md) §10). The denominator was already this rule (the iOS
+  date window); the clamp is new, and web adopted the same rule, so the three read the same. Program progress (ring /
+  Program tab / picker bar) is the server's UTC numbers ([programs](../../../features/programs/SPEC.md) D-C6) — the two
+  day rules differ on purpose. **Avg diet:** the `MetricsGrid` tile reads `N / 5` (was a bare `N`), as the hero, iOS
+  and web (user-approved extension).
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-14 | **D-PS1 — parity sweep D2 + B1 / A7 (Android `8144345`).** PTD % clamped 0–100 (denominator unchanged: start → min(end, local today) inclusive, ≥ 1, 0 without dates — now the rule on all three); the grid's Avg diet reads `N / 5`. |
 | 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #10 `resetProgramScope()` on a program switch + loaders publish only for the active program (held-key gate unchanged; history-card reset-to-week removed); #36 View-as rows announce selected state at 48 dp; #42 the picker list sizes itself. Corrected the stale "timeline card has a tooltip" line. |
 | 0.3.0 | 2026-10-13 | **Phase 4 (`d528f75`).** D-NP1 the header button is `People` for every role (Invite moved to People); D-NP2 the S5 recipe (held-key cards, placeholder / `—`, ErrorView only with nothing to show, stale banner, reconnect reload; `membersSelfLoadedFor` removed). |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: reads run in parallel; the standard body spins only for a program's first load (`membersSelfLoadedFor`) and a program switch re-spins and re-defaults View-as; the self card comes from the memberId-scoped overview (no all-member download — member-analytics D-C10); Recent / Health follow View-as (#5). |

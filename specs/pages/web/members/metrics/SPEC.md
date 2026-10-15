@@ -1,6 +1,6 @@
 # Page: `members/metrics` (web) — program-wide member performance metrics + CSV export (members sub-route 4 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/metrics` — the **Member Performance Metrics** dashboard reached by the `/members` landing's
 > metrics card (program-admin / global_admin only as an entry path). A searchable, sortable, filterable grid of
 > per-member metric cards + a client-side **Export CSV**. **4th** of the eight deferred `/members` sub-routes
@@ -57,7 +57,8 @@ find outliers, and exports the table to CSV for offline reporting.
 4. **Cards grid** — one `MemberMetricsCard` per member (`:218-225`):
    - avatar (`initials`) · name · "Workouts N" · a **hero metric** whose value+label follow the current
      `sortField` (`MemberMetricsCard.heroValue`/`heroLabel`, `:240-268`).
-   - a 6-cell mini-grid (active days · total mins · types · avg sleep · avg diet · longest streak) (`:283-303`).
+   - a 6-cell mini-grid (active days · total mins · types · avg sleep · avg diet · longest streak) (`:283-303`); avg
+     diet reads `N / 5` (D-C2), on the grid and as the hero when sorted by avg diet.
    - an amber **"Current streak Nd"** flame badge — **D-C1** tokenized `bg-rf-warning/20 text-rf-warning`
      (legacy `bg-amber-200/70 text-amber-900`) (`:304-308`).
 5. **Filters `Modal`** (`MetricsFilterModal`, `:227-234`, `:312-396`) — a `Clear all` / `Done` header, a date-range
@@ -148,6 +149,7 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
 | **D-C1** | **Full-tokenize the amber flame badge** — `bg-amber-200/70 text-amber-900` → `bg-rf-warning/20 text-rf-warning` (the lone non-`rf` color; `rf-warning` exists, `#f59e0b` light / `#fbbf24` dark). Theme-aware; the run-27/39 selective-tokenize taken to full tokenize per user pick. | `members/metrics/page.tsx:305`; `tailwind.config.ts:23`, `globals.css:20,44` |
 | **D-STANCE** | Faithful 1:1 **+ D-C1**. No backend work, no feature bump (route + api fn already shipped). | user, this run |
 | **D-REL1** | **Phase 4 polish (#29, #39).** #29 the metrics load goes through `QueryView` (frontend-kit **D-KIT-21**: loading → failed `ErrorView` + Retry → stale banner; offline view; reload on reconnect), replacing `LoadingState` / `ErrorState`; after a failure the header subtitle drops "Loading metrics…". #39 sorting by **Avg Steps** makes it the card's hero number (`stepsLabel(Math.round(avg_steps))`, "—" when missing or hidden) — it used to fall through to the workouts count under the "Avg Steps" label (member-analytics **D-C13**). | `ec13107`; web plan decision 5, amendments anchor step 34 |
+| **D-C2** | **Avg diet reads `N / 5` (2026-10-14 parity sweep A7; METHODOLOGY R9).** `avgDietLabel(metric.avg_food_quality)` (`lib/format.ts`) — the server's rounded integer + ` / 5`, `—` when missing — on the mini-grid pill and the hero value (was `toFixed(1)`, e.g. `3.0`). The same copy as iOS + Android (Android's grid pill moved to `N / 5` in the same sweep). The CSV keeps the raw number. | `members/metrics/page.tsx` (`MemberMetricsCard`); `lib/format.ts`; parity-sweep plan A7. |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
@@ -179,6 +181,7 @@ the full program-wide leaderboard (the backend permits it). Faithful; the run-39
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-14 | **D-C2 — parity sweep A7 (web `88ea9ff`).** Avg diet reads `N / 5` (`avgDietLabel`) on the card grid and hero, as iOS + Android. §4 + §9. |
 | 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #29 `QueryView` (ErrorView + Retry, stale banner, offline view, reload on reconnect; no "Loading metrics…" subtitle after a failure); #39 the Avg Steps hero value. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the CSV export follows the shared column contract via `lib/metrics-csv.ts` (units in the headers, rows = the list on screen in its order, unified filename — member-analytics D-C9, #47); the load error goes through `toAppError` (#8). |
 | 0.2.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — default sort = Active Days (sortField initial state active_days; option list order unchanged), card subtitle = "Workouts N", first grid tile = Active days (in-place swap). CSV export unchanged. |

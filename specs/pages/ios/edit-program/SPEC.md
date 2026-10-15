@@ -1,6 +1,6 @@
 # Screen: `edit-program` (ios) — the swipe-to-edit program editor
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.2 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `ProgramPickerView`'s swipe-left **Edit** action on a card the viewer
 > `canManage` (`ProgramPickerView.swift:168-171`, `navigationDestination(item: $programToEdit)`); the picker
 > calls `applyProgram(program)` first to hydrate `ProgramContext`.
@@ -54,7 +54,9 @@ already **displays** the lock; this is where you **set** it.
 
 **Save flow** (`save()`): **skip a no-op PUT** when nothing changed vs the loaded snapshot (D-C3 → just
 `dismiss()`); else `updateProgram(name, status, startDate, endDate, adminOnlyDataEntry)` → `PUT /programs/:id`
-→ the context **hydrates local state from the response** (D-C2) → success `Alert` → OK dismisses.
+→ the context **hydrates local state from the response** (D-C2) → success `Alert` → OK dismisses. Since v0.1.2 the
+save also re-reads `GET /programs` in the background (fire-and-forget — the save returns at once), so the Summary ring
+and the Program tab pick up the server's day counts for the new dates (D-C4).
 
 ## 5. Components + features consumed
 
@@ -93,7 +95,9 @@ editor (the run-27 "this IS the write path for the flag" inversion).
 - **Saving:** `isSaving` swaps a `ProgressView` + disables Save.
 - **Save error:** caught → `appRed` line (backend message surfaces).
 - **Success:** "Saved" `Alert` → OK → `dismiss()` back to the picker; the context already reflects the
-  server row (D-C2).
+  server row (D-C2), and the background `/programs` re-read refreshes the list (D-C4). If that re-read fails, the
+  ring falls back to the device-calendar formula on the new dates (the stale row's dates no longer match) until the
+  next Summary load re-reads the list.
 
 ## 9. Decisions made
 
@@ -105,6 +109,7 @@ editor (the run-27 "this IS the write path for the flag" inversion).
 | **D-C1** | **Web-parity admin-only-data-entry toggle ADD** — a `Toggle` + the web description, absent from legacy iOS entirely. Required new iOS client plumbing: `adminOnlyDataEntry` param on `APIClient.updateProgram` + `ProgramContext.updateProgram` + the field on `ProgramUpdateResponse`. **Zero backend work, no feature bump** — the backend `PUT /programs/:id` already accepts it (web uses it); the run-58 ADD shape (existing endpoint, new 2nd client). Completes the run-54 lock story. | web edit toggle; user answer; [[ios-matches-web-not-just-legacy]]; run-54/58. |
 | **D-C2** | **Adopt the 3 web Edit cleanups** — (a) **date-range validation** (`start >= end` → inline error + Save disabled, web D-C1); (b) **hydrate from the server response** (the context sets `name`/`status`/dates/lock from `ProgramUpdateResponse`, not the optimistic form input, web D-C2); (c) **skip a no-op PUT** (unchanged form → dismiss with no call, web D-C3). | web edit D-C1/D-C2/D-C3; user answer. |
 | **D-DEPS** | **One new API-layer dependency** — the `adminOnlyDataEntry` ADD across `APIClient.updateProgram` + `ProgramUpdateResponse` + `ProgramContext.updateProgram` (the toggle write path). **No new view component** — all chrome is foundation (run 50). `ProgramDTO.admin_only_data_entry` + `ProgramContext.adminOnlyDataEntry` already existed (run 54). | foundation inventory; run-54. |
+| **D-C4** | **A save re-reads `/programs` (2026-10-14 parity sweep D1 / amendment A8; METHODOLOGY R9).** After a successful `PUT`, `ProgramContext.updateProgram` starts a fire-and-forget `Task` that re-reads `GET /programs` and replaces `programs`, so the open program's row carries the server's `total_days` / `elapsed_days` for the new dates ([programs](../../../features/programs/SPEC.md) D-C6) — the Summary ring and the Program tab read that row. The save never waits for it (Android parity); a failure is ignored. Until the new row lands, `serverProgress` ignores the old row because its dates no longer match (A4) and the screens show the device-calendar fallback on the new dates. | `Shared/Models/ProgramContext+ProgramManagement.swift` (`updateProgram`); `ProgramContext.swift` (`serverProgress`); parity-sweep plan step 24 + amendments A4 / A8. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -120,5 +125,6 @@ editor (the run-27 "this IS the write path for the flag" inversion).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-14 | **D-C4 — parity sweep D1 / A8 (iOS `d6f569a`).** A successful save re-reads `GET /programs` in the background (fire-and-forget), so the Summary ring + Program tab get the server's day counts for the new dates; until then the date-guarded fallback shows. §4 / §8 / §9. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: save errors use `SessionCopy.kitMessage` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-30 | Initial SPEC via `question-asker` (run 59) — the **swipe-to-edit program editor**, ported into `apps/ios/.../Features/Home/ProgramActions/EditProgramInfoView.swift`; the deferred stub removed. **D-REF** (legacy iOS + web `program/edit` parity; `consumed_by=[ios]`) · **D-SCOPE** (cohesive cluster with `program-actions`) · **D-S1** (faithful 1:1 port) · **D-C1** (web-parity admin-only-data-entry toggle ADD — new `adminOnlyDataEntry` on `APIClient.updateProgram` + `ProgramContext.updateProgram` + `ProgramUpdateResponse`; zero backend, no feature bump; completes the run-54 lock story) · **D-C2** (adopt the 3 web Edit cleanups — date-range validation, hydrate-from-response, skip-no-op PUT) · **D-DEPS** (one new API-layer dep, no new view component; `ProgramDTO.admin_only_data_entry` already existed run 54). Flagged F1–F5 (no internal role gate; init from context not a read endpoint; day-granularity date check; snapshot-based no-op; no client rate-limit). Role rules = `canManage` at the picker (global_admin any / program admin own); `admin_only_data_entry` N/A as a gate (this screen edits it). Build green-check owned by the user (Xcode); symbols grep-verified. |

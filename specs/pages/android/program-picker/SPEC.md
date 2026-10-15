@@ -1,6 +1,6 @@
 # Screen: `program-picker` (android) — the post-auth landing (My Programs hub)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.5.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.5.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in [`ios program-picker`](../../ios/program-picker/SPEC.md)
 > + [`web programs`](../../web/programs/SPEC.md) — this file records only the Android realization + idiom deviations.
 > **Location:** `ui/RootScreen.kt` `SignedInGraph` route `Routes.PROGRAM_PICKER` (`ProgramPickerScreen`) — the
@@ -22,7 +22,7 @@
 - **Faithful (iOS/web 1:1):** header **"My Programs" / "Manage your fitness programs"** + a circular account
   avatar button (→ the account sheet); a scrollable list of program cards over the member's saved order
   (rendered as-is, no client sort); each `ProgramCard` = name + status pill (status-colored) + date range +
-  (members summary OR "Invitation pending"/"Request pending approval") + a status-colored progress bar of **time elapsed** (`progress_percent` — days in ÷ total days; Android's
+  (members summary — `N members`, `1 member` at one, D-PS1 — OR "Invitation pending"/"Request pending approval") + a status-colored progress bar of **time elapsed** (`progress_percent` — days in ÷ total days; Android's
   source since 0.1.0, and web + iOS's since 2026-10-14 — their D-BAR) +
   a **Cancel Request** pill on "requested" cards (A-5: invited cards no longer accept inline); loading spinner; **"No programs
   yet"** empty state; client-side `canOpen`/`canManage` role gating (global_admin opens/manages any; program
@@ -122,10 +122,19 @@
     list reloads in the background.
   - **#45:** the account sheet's Health Connect subtitle reads `Sync workouts, sleep, and steps`.
 
+## Parity sweep (0.5.2)
+
+- **D-PS1 (2026-10-14 — METHODOLOGY R9; sweep D3):** `membersOrInviteLine` reads `N members` (`1 member` at one) from
+  `totalMembers` — was `{active} active / {total} total members`, two numbers the backend always returns equal
+  ([programs](../../../features/programs/SPEC.md) F2). The same copy as web + iOS. Invited / requested cards keep
+  their status line. `ProgramDTO` also gains `totalDays` / `elapsedDays` (nullable; programs D-C6).
+  (`ui/programs/ProgramPickerScreen.kt`; `net/Dtos.kt`.)
+
 ## Data / API (all via `ProgramContext`, Bearer-authed by the OkHttp layer)
 
 - **`GET /programs`** → `List<ProgramDTO>` (`id, name, status, start/end_date, active/total_members,
-  progress_percent, my_role, my_status, admin_only_data_entry`) — `loadPrograms()` on entry.
+  progress_percent, total_days/elapsed_days (since 0.5.2 — programs D-C6; read by the Summary ring + Program tab, not
+  by the card), my_role, my_status, admin_only_data_entry`) — `loadPrograms()` on entry.
 - **`PUT /programs/order`** (`{ program_ids }`) — `persistProgramOrder(previousOrder)` after a drop; returns
   `{ message }`; optimistic with revert-on-failure.
 - **`POST /programs`** (`{ name, status, start_date, end_date }`) — `createProgram()` from the actions sheet's
@@ -148,6 +157,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.2 | 2026-10-14 | **D-PS1 — parity sweep D3 (Android `8144345`).** The card's member line reads `N members` / `1 member` (was `N active / N total members`), as web + iOS; `ProgramDTO` decodes `totalDays` / `elapsedDays`. |
 | 0.5.1 | 2026-10-14 | Doc only: the card bar's source is pinned — `progress_percent` (time elapsed). Android was already right; web + iOS read `active / total` members (always equal → always full) and converged to Android (their D-BAR). |
 | 0.5.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #40 **Edit** in the card's ⋮ menu → select + Edit Program (A-1 rewritten); #36 48 dp ⋮ in the old 32 dp footprint, "+" label `Program actions[, N new]` (A-4 rewritten; D-NP1's label superseded), selectable Inbox/Create segments, labelled 48 dp invite pills; #12 Create / Cancel Request judged by the write (background reload); #45 Health Connect subtitle `Sync workouts, sleep, and steps`. Stale "Health Connect omitted" lines struck. |
 | 0.4.0 | 2026-10-13 | **D-NP1 — Phase 4 Notifications (`d528f75`).** "+" badge = the server `badge` (join requests no longer count; global admins own invites only); the sheet's tabs are `Inbox` / `Create` (invitations then notifications) with the deferred default; the account sheet's `Inbox` row; answering an invite marks its notifications read; A-4, A-5 tab rules and A-9 superseded. |

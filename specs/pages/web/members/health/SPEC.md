@@ -1,6 +1,6 @@
 # Page: `members/health` (web) — per-member daily-health log manager (members sub-route 8 of 8 — CLOSES the group)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.3 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.4 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/health?memberId=&name=` — the **View Health** manager for one member, reached by the
 > `/members` landing's "View Health / Daily health logs" card. Sort + filter modal + CSV export over the member's
 > daily-health-log list, each row **editable** (sleep + diet modal) and **deletable**. **8th & LAST** of the eight
@@ -180,13 +180,15 @@ mirror).
 | **D-C2** | **Tokenize the Delete button** — `bg-red-50 … text-red-600` (`page.tsx:322`) → `bg-rf-danger/10 text-rf-danger`, exactly as the workouts twin run 45 / `members/list` run 39 tokenized; theme-aware, light-mode-identical. *(At v0.2.3 the button uses the shared `danger-pill` class — D-REL1.)* | run 45/39 |
 | **D-STANCE** | Faithful 1:1 **+ D-C1/C2**. No hoist cleanup (deps already shared). No backend work, no feature bump (all routes + api fns already shipped). | user, this run |
 | **D-REL1** | **Phase 4 polish (#9, #19, #29, #36).** #9 errors show where the user is: an edit error (guard or save) inside the Edit modal, a delete error inside the ConfirmDialog in keep-open mode (`closeOnConfirm={false}`, `Deleting…`, closes on success; frontend-kit **D-KIT-24**) — the page-level error line is gone. #19 the own-only redirect waits for session restore (`isBootstrapping \|\| !session`). #29 the list load goes through `QueryView` (frontend-kit **D-KIT-21**; resolves F5). #36 Export CSV, Edit / Delete, Done / Close / Cancel / Save and Clear-all are 44 px `text-sm` targets; Delete uses `danger-pill` (frontend-kit **D-KIT-22**). | `ec13107` |
+| **D-C3** | **`limit: 0` = every row (2026-10-14 parity sweep A6; METHODOLOGY R9 — resolves F1; the workouts twin's D-C4).** `fetchMemberHealthLogs` sends `limit` whenever it is given (`params.limit !== undefined`), so the page's `limit: 0` reaches the backend as `0` — unbounded (the backend caps only `limit > 0`), as iOS + Android send. The list and the CSV are complete (was capped at 1000 rows). An omitted `limit` still defaults to 1000. | `lib/api/members.ts` (`fetchMemberHealthLogs`); parity-sweep plan A6. |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
-- **F1 — `limit: 0` means "all", but coerces to 1000.** The page passes `limit: 0` intending "no cap"; the api fn
+- ~~**F1 — `limit: 0` means "all", but coerces to 1000.** The page passes `limit: 0` intending "no cap"; the api fn
   coerces falsy → `"1000"` (`members.ts:196` `params.limit ? … : "1000"`). So the list is effectively capped at 1000
   rows, not unbounded. Faithful (legacy behavior); flagged — a rebuild cleanup would be an explicit "all" sentinel.
-  (Shared with the workouts twin F1.)
+  (Shared with the workouts twin F1.)~~ **RESOLVED at v0.2.4 (D-C3):** `limit: 0` is sent as `0`, which the backend
+  treats as unbounded.
 - **F2 — role-gate asymmetry (client redirect stricter than backend read).** The page redirects a non-staff user away
   from another member's `memberId` (`page.tsx:79-84`), but the read path only enforces `ensureProgramAccess` +
   target-enrolled. Faithful; the run-40/43/45 mirror. Rebuild-cleanup candidate only if per-member read restriction
@@ -215,6 +217,7 @@ mirror).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.4 | 2026-10-14 | **D-C3 — parity sweep A6 (web `88ea9ff`).** `limit: 0` reaches the backend as unbounded (was coerced to 1000), so the list and CSV are complete; F1 resolved. §9 + §10. |
 | 0.2.3 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #9 edit errors inside the Edit modal, delete errors inside the keep-open ConfirmDialog (`Deleting…`); #19 the own-only redirect waits for session restore; #29 `QueryView` (F5 resolved); #36 44 px targets, Delete `danger-pill`. |
 | 0.2.2 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.2.1 | 2026-07-09 | **View Health row clarity refactor (cosmetic, cross-surface parity).** Each row (`GlassCard padding="sm"`) moves off the DC-10 two-line format to a **stacked metric-cell layout**: a header (`bg-rf-accent` dot + `logDate` semibold) over a 3-col grid of new `HealthMetric` cells (uppercase `Sleep`/`Diet`/`Steps` label over the semibold value, `bg-rf-surface-muted` fill), so each value reads at a glance. Formatting unchanged (`sleepLabel`/`dietLabel`/`stepsLabel`, `—` for missing, steps grouped); Edit/Delete unchanged; the Members-tab `MemberHealthCard` preview keeps the DC-10 two-line form. Matches the iOS + Android View Health rows. No contract/behavior change. `tsc --noEmit` ✓; user live-tested. |

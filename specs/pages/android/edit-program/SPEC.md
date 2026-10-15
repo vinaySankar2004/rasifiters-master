@@ -1,6 +1,6 @@
 # Screen: `edit-program` (android) — admin program editor
 
-> **Status:** 🏗️ built · **Version:** 0.1.2 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.1.3 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = iOS `Features/Home/ProgramActions/EditProgramInfoView.swift` + web `/program/edit`.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.PROGRAM_EDIT` (`EditProgramScreen`); since 0.1.2 also
 > `ui/RootScreen.kt` `SignedInGraph` (the picker card's Edit — D-REL1).
@@ -14,8 +14,8 @@
 - Client **date-range validation** (end must be after start) → inline red error; **Save changes**
   (orange button) disabled until name non-empty + dates valid.
 - **No-op skip:** an unchanged save pops back without a `PUT` (web/iOS parity). Save →
-  `PUT /programs/:id` (`ProgramContext.updateProgram`, updates the active program + picker card locally) →
-  pops back.
+  `PUT /programs/:id` (`ProgramContext.updateProgram`, updates the active program + picker card locally — without the
+  server's day fields, D-PS1 — then re-reads the program list in the background) → pops back.
 
 ## Phase 4 polish (0.1.2)
 
@@ -26,9 +26,19 @@
   client for edits (`End date must be after the start date.`; the server checks CREATE only — programs D-C4).
   `EditProgramScreen.kt` itself is unchanged in `0b0a0a3` (the change is the route + the shared back target).
 
+## Parity sweep (0.1.3)
+
+- **D-PS1 (2026-10-14 — METHODOLOGY R9; sweep D1 / X-2, [programs](../../../features/programs/SPEC.md) D-C6):** a
+  successful save writes the local copy with `totalDays = null, elapsedDays = null` — the server's day counts belong to
+  the old dates, and keeping them left the Summary ring stale after a date edit (X-2) — so the Summary ring and the
+  Program tab fall back to the device-date math on the new dates; then `scope.launch { loadPrograms().onSuccess {
+  reconcileActiveProgram() } }` re-reads the list, and the new row brings the server's numbers. The re-read is launched,
+  so the save result is not delayed. (`core/ProgramContext.kt` `updateProgram`; `EditProgramScreen.kt` unchanged.)
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.3 | 2026-10-14 | **D-PS1 — parity sweep D1 / X-2 (Android `8144345`).** A save drops the stale `totalDays` / `elapsedDays` from the local copy (the ring falls back to date math on the new dates) and re-reads `/programs` in the background, so the ring then matches the picker bar. |
 | 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #40 also opened from the picker card's Edit (root-graph route, a notification-safe form); #36 shared labelled 48 dp back. Screen file unchanged. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: save errors go through `toAppError()` (server text kept for 400/422 and row errors — frontend-kit D-KIT-19, #8). |

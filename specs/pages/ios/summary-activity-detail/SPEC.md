@@ -1,6 +1,6 @@
 # Screen: `summary-activity-detail` (ios) — the Workout Activity Timeline drill-down
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.3 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.1.4 · **App:** `ios` (SwiftUI)
 > **Location:** pushed from `AdminSummaryTab`'s activity-timeline card
 > (`AdminSummaryTab.swift:252-259`, `NavigationLink { ActivityTimelineDetailView(initialPeriod:) }`) **and**
 > from the Members tab's `MemberHistoryCard` (`MemberCards.swift:28-34`, `memberId` + `showActiveSeries:false`).
@@ -42,7 +42,7 @@ It re-fetches the timeline on each period change. It is **read-only** analytics 
 |-------|------|------------------------|
 | Title + subtitle | "Workout Activity Timeline" / "Workouts · Active members" (or "Workouts" when `showActiveSeries:false`). | legacy `:946-952` |
 | Period selector | Segmented `Picker` over `AdminHomeView.Period.allCases` (W/M/Y/P); segments spoken `Week` / `Month` / `Year` / `Program` (D-REL1). | legacy `:954-959` |
-| Daily-average header | `HeaderStats` (avg + `rangeLabel`); height captured via `HeaderHeightKey` and reserved when a callout shows. | legacy `:961-972` |
+| Daily-average header | `HeaderStats` (DAILY AVERAGE to one decimal, `"%.1f"` — D-C4 · `rangeLabel`); height captured via `HeaderHeightKey` and reserved when a callout shows. | legacy `:961-972` |
 | Chart | `ScrollableBarChart` → workouts `BarMark` (`appOrangeStrong`) + optional active-members `LineMark`/`PointMark` (`appPurple`); custom X-axis ticks via `axisValues`/`shortLabel`; Y auto to `yMax*1.1`. | legacy `:982-1086` |
 | Tap-callout | Drag gesture → `selectedLabel` → `CalloutView` positioned via `clamp` over the tapped bar. | legacy `:1047-1084` |
 | Empty / loading / error | `LoadStateContent`: spinner while loading (offline with nothing → the offline `ErrorStateView`); a failed load → `ErrorStateView` + Retry; "No data for this range yet." when the loaded `points.isEmpty`; the header stats show once data is there (D-REL1). | legacy `:974-981`; 0.1.2 |
@@ -103,6 +103,7 @@ It re-fetches the timeline on each period change. It is **read-only** analytics 
 | **D-DEPS** | **New dependency set** (breaks the no-new-dep streak) — the interactive-callout machinery (`CalloutView`/`HeaderStats`/`HeaderHeightKey`/`clamp` + axis/callout helpers), co-located in legacy deferred Detail files so never in the foundation (run-55/56 pattern) → new `ChartDetailComponents.swift`. `GlassButton` (already ported run 55) + `HealthCalloutView`/`HealthHeaderStats` (future lifestyle-timeline run) intentionally NOT ported. Analytics loaders/DTOs/`ScrollableBarChart`/`memberTimelinePoints` already ported (run 50/54/55). | foundation grep; run-50/54/55. |
 | **D-REL1** | **Phase 4 polish (#29, #34, #36).** #29 the kit detail load (frontend-kit **D-KIT-21**): the screen keeps its own `LoadState<TimelineData>` filled by `APIClient.fetchActivityTimeline` / `fetchMemberHistory` (never `ProgramContext.activityTimeline` / `memberHistory`, so the Summary and Members cards behind it keep their own week); `LoadStateContent` (spinner, offline view with no data, `ErrorStateView` + Retry) + `.loadStateChrome` (stale banner, reconnect reload). #34 keyed on the period: a switch resets to loading in the same event, `loadOutcome` + `applying` drop a result for an older period; the `onDisappear` reload-to-week (F2) and the swallowed `errorMessage` (F1) are gone. #36 the W/M/Y/P segments are spoken `Week` / `Month` / `Year` / `Program` (frontend-kit **D-KIT-22**). | `05e185a`; polish amendments PA9; iOS plan P-4, step 41 |
 | **D-AXIS** | **Month x-axis labels only days 1 · 8 · 15 · 22 · 29** (`axisValues`), Apple-Fitness style; the other periods keep every tick. `AxisMarks(values:)` alone stopped thinning the categorical axis on the Xcode 27 SDK (1.5.2 (60) drew all 31 days), so the mark content filters too (`showsAxisMark`, `ChartDetailComponents.swift`). Shared by the Lifestyle + Steps timeline drill-downs; Android `axisLabels` thins the same days, web's Recharts auto-skips. | user report 2026-10-14 (1.5.2 in review) |
+| **D-C4** | **DAILY AVERAGE to one decimal (2026-10-14 parity sweep A4; METHODOLOGY R9).** `HeaderStats` formats the server's `daily_average` as `"%.1f"` (was `"%.0f"`, so 0.4 read "0"), for both the program variant and the member variant (Workout History) — the shared `ChartDetailComponents.swift` header. Web and Android show the same one-decimal value (Android's activity + member-history details moved from a whole number in the same sweep). | `Features/Home/Detail/ChartDetailComponents.swift` (`HeaderStats`); parity-sweep plan A4. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -117,6 +118,7 @@ It re-fetches the timeline on each period change. It is **read-only** analytics 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.4 | 2026-10-14 | **D-C4 — parity sweep A4 (iOS `d6f569a`).** DAILY AVERAGE shows one decimal (`"%.1f"`, was a whole number) on both the program and the member (Workout History) variant, as web + Android. §4 + §9. |
 | 0.1.3 | 2026-10-14 | **D-AXIS** — the Month x-axis labels only 1/8/15/22/29 again (Xcode 27 SDK regression; ships in 1.5.2 (61)). |
 | 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #29 own `LoadState` via `APIClient` (no shared writes) + kit error view / Retry / stale banner / offline view / reconnect reload (F1 + F2 retired); #34 a period switch resets to loading and an older period's result is dropped; #36 spoken `Week` / `Month` / `Year` / `Program` segments. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: the tap callout uses the shared `chartCalloutPlacement` (measured, flipped below the point when it would cross the top edge, clamped — never clipped; #46) — member history reuses this view. |

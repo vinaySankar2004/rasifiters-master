@@ -1,6 +1,6 @@
 # Page: `members` (web) — the member-overview / "view-as" dashboard (second workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.0 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.5.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/members` — **the second bottom-nav tab** of a program's workspace. NOT a roster-management
 > screen: it is a per-member performance dashboard with a role-gated **"view as"** picker. The actual roster,
 > invite form, full metrics table, and per-member detail/log views are **sub-routes, deferred** (see §3).
@@ -22,7 +22,8 @@
 
 The **member-overview dashboard** for the active program. Depending on role it shows either the signed-in
 member's own performance cards or — for admins/loggers — a **"view as" picker** that swaps the cards to any
-chosen member's data. The cards are: a Member Overview (PTD progress + total time + favorite + MTD workouts),
+chosen member's data. The cards are: a Member Overview (PTD progress — active days ÷ the program's days so far — +
+total time + favorite + MTD workouts),
 a workout-activity bar chart (week), streak stats, recent workouts, and recent daily-health logs. Program
 admins additionally get a **Member Performance Metrics** preview card. Used by **every enrolled member**; what
 appears (own-only vs view-as, the metrics preview, the invite button) varies by role (§7). The page is
@@ -54,14 +55,14 @@ fans out to the roster (`/members/list`), the invite form (`/members/invite`), t
 | Block | What | Reference `file:line` |
 |-------|------|------------------------|
 | Header | "Members" + active program name; a **View Members** pill (→ `/members/list`, shown only when `!canViewAs`) and an **Invite** mail button (→ `/members/invite`, shown when `canInvite`). **0.4.0 (D-NP1):** with `PEOPLE_LIVE` (on since 2026-10-13) the pill reads **`People`** and shows for every role, and the Invite button is gone (it moves to the People list's `Invite member` row); switched off it is unchanged. | members/page.tsx (header) |
-| Metrics preview | `isProgramAdmin`-only card → `/members/metrics`; shows member count + the top member's `MemberMetricsPreview` (avatar, **Active Days hero** — D-C7 primary-stat swap, "Workouts N" subtitle, 6 metric pills led by Active days, an **Avg Steps** tile + current-streak chip on a 2-col grid row — member-analytics 0.4.0 `avg_steps`). | members/page.tsx:253-282, 454-505 |
+| Metrics preview | `isProgramAdmin`-only card → `/members/metrics`; shows member count + the top member's `MemberMetricsPreview` (avatar, **Active Days hero** — D-C7 primary-stat swap, "Workouts N" subtitle, 6 metric pills led by Active days (Avg diet reads `N / 5` — D-C4), an **Avg Steps** tile + current-streak chip on a 2-col grid row — member-analytics 0.4.0 `avg_steps`). | members/page.tsx:253-282, 454-505 |
 | View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "None"). | members/page.tsx:284-294 |
 | Empty hint | `canViewAs` + no selection → "Select a member to view their performance cards." | members/page.tsx:296-300 |
-| Member Overview card | PTD progress % (active_days / program total days), MTD workouts, total time, favorite workout, progress bar. | members/page.tsx:304-308, 507-574 |
-| Metrics single card | **Member-role only** — the signed-in member's own 6-metric pill grid + streak chip (`MemberMetricsSingleCard`). | members/page.tsx:391, 576-623 |
+| Member Overview card | **PTD MP %** = `active_days` ÷ the program's **days so far** (start → min(end, today) inclusive, in the device's local calendar day, ≥ 1; 0 when a date is missing), clamped 0–100 (`ptdDays` / `ptdPercent`, D-C4); MTD workouts, total time, favorite workout, progress bar. | `components/members/MemberDashboardCards.tsx` (`MemberOverviewCard`); `lib/program-days.ts` |
+| Metrics single card | **Member-role only** — the signed-in member's own 6-metric pill grid (Avg diet `N / 5` — D-C4) + streak chip (`MemberMetricsSingleCard`). | members/page.tsx:391, 576-623 |
 | Workout Activity card | Clickable → `/members/history`; a Recharts `BarChart` of the member's workouts over the week + daily average. | members/page.tsx:310-315, 625-669 |
 | Streak Stats card | Clickable → `/members/streaks`; current + longest streak days. | members/page.tsx:316-320, 671-697 |
-| Recent Workouts card | Clickable → `/members/workouts`; top 3 recent workouts (`formatDuration`). | members/page.tsx:323-326, 707-735 |
+| Recent Workouts card | Clickable ("View Workouts") → `/members/workouts`; top 3 recent workouts (`formatDuration`; each date via `formatShortDate`, a stored day parsed as that local day — D-C4). | members/page.tsx:323-326, 707-735 |
 | Daily Health card | Clickable → `/members/health`; top 3 recent health logs — DC-10 two-line rows (logDate semibold; muted `Sleep … · Diet … · Steps …` with `—` for missing, steps thousands-grouped). | members/page.tsx:327-330, 737-765 |
 | View-as picker (logger) | `canViewAsLogger`-only second picker — scopes the **logs** cards (recent/health) to a chosen member while the overview/history/streak stay self. | members/page.tsx:358-366 |
 | Member Picker modal | `Modal` + search-filtered member list (+ optional "None"); single render driven by `activePicker` (D-C3). | members/page.tsx:767-833 |
@@ -157,6 +158,7 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 | **D-C3** | **De-dup the two `MemberPickerModal` render blocks** (legacy `page.tsx:419-449`) into one render driven by an `activePicker` discriminant — preserving the exact per-picker differences (`allowNone` = `isGlobalAdmin` vs `false`; the admin path stores `member ? id : "none"`, the logger path stores only on a member; distinct `onClose` setters). The two pickers are mutually exclusive (admin vs logger branch), so a single render is behavior-identical. | `members/page.tsx:419-449`; user answer (pinned cleanup). |
 | **D-NP1** | **People entry (0.4.0; NP-U1, people D-C13).** Behind `PEOPLE_LIVE` *(on since 2026-10-13)*: the header pill reads `People` for every role and the admin Invite button is removed (Invite moves to the People list's top row and stays on the Program tab); dark (switch off) the header is unchanged. | NP amendments NP-U1; web plan W1, B10(d). |
 | **D-NP2** | **The S5 kit recipe (0.4.0; member-analytics D-C12, NP amendments R13).** `dashboardError` = no card has data **and** no read is still loading → `ErrorView` + Retry (offline copy while offline); the members list counts toward it only when `canViewAs \|\| canViewAsLogger`; a failed card shows `—`; the stale banner (`Couldn't refresh` · Retry) when any read is stale or data + a failure, while online; never another program's or member's values. Cards moved to `components/members/MemberDashboardCards.tsx`. Polish #32. | member-analytics D-C12; web plan B10. |
+| **D-C4** | **Parity sweep (2026-10-14; METHODOLOGY R9 — sweep D2 + amendment B1, A1, A7).** (a) **PTD MP % = active days ÷ the program's days so far:** the denominator counts program start → min(end, today) inclusive, **in the device's local calendar day** (log dates are local days — a UTC "today" would inflate it every evening west of UTC), at least 1, 0 when either date is missing; the % is rounded and clamped 0–100 (`active_days` is not clipped to the program end — [member-analytics](../../../features/member-analytics/SPEC.md) §10). Was active days ÷ the program's **total** days (start → end + 1, unclamped), so a running program read low. The same rule on iOS + Android. `ptdDays` / `ptdPercent` in `lib/program-days.ts`. (Program progress — the ring, Program tab, picker bar — stays the server's UTC numbers, [programs](../../../features/programs/SPEC.md) D-C6; the two day rules differ on purpose.) (b) **Avg diet** reads `N / 5` (`avgDietLabel`; was `N.0`), as iOS + Android. (c) **Local days (A1):** the Recent Workouts dates parse a stored `YYYY-MM-DD` as that local day (`parseLocalDay`), not UTC midnight. | `components/members/MemberDashboardCards.tsx`; `members/page.tsx`; `lib/program-days.ts`; `lib/format.ts`; parity-sweep plan D2 / A1 / A7 + amendments B1. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -175,6 +177,7 @@ deferred `/members/{workouts,health}` edit sub-routes, not this landing.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.0 | 2026-10-14 | **D-C4 — parity sweep (METHODOLOGY R9; web `88ea9ff`).** PTD MP % = active days ÷ the program's days so far (start → min(end, local today) inclusive, ≥ 1, 0 without dates), clamped 0–100 (D2 + B1); Avg diet `N / 5` (A7); Recent Workouts dates parse as local days (A1). §1 / §4 updated. |
 | 0.4.0 | 2026-10-13 | **Phase 4 Pass B (`b2ea09b`).** D-NP1 People pill (behind `PEOPLE_LIVE`; the admin Invite button moves to People); D-NP2 the S5 kit recipe (placeholders, ErrorView only when nothing loaded, `—` per failed card, stale banner, reconnect refetch); cards moved to `components/members/MemberDashboardCards.tsx`. |
 | 0.3.0 | 2026-07-15 | member-analytics 0.4.0 D-C7 — Active Days is the primary stat: metrics-preview fetch sort=active_days (star/top member = top-by-active-days), preview + single-card hero = Active Days, subtitle = "Workouts N", first grid tile = Active days (in-place swap, tile count unchanged). MTD Workouts line untouched. |
 | 0.2.0 | 2026-07-09 | **Steps in the overview grid + View Health preview.** Both `MemberMetricsPreview` (admin preview) and `MemberMetricsSingleCard` (member-self) replace their trailing streak badge with a 2-col grid row 5: an **Avg Steps** metric tile (`stepsLabel(metric.avg_steps)`, thousands-grouped, `—` when null — member-analytics 0.2.0) beside the current-streak chip. `MemberHealthCard`'s 3-row preview → the DC-10 two-line format (`logDate` semibold; muted `Sleep {…} · Diet {…} · Steps {…}`). New helper `stepsLabel` in `lib/format.ts`; `MemberMetrics` type gains `avg_steps`, `MemberHealthItem` gains `steps`. `npm run build` ✓. |

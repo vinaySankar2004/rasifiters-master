@@ -1,6 +1,6 @@
 # Feature: `programs` — program lifecycle (create / list / update / soft-delete / per-member order)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.1 · **Apps (`consumed_by`):** `web`, `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.5.0 · **Apps (`consumed_by`):** `web`, `ios`, `android`
 > **Provenance (legacy, archived):** `backend` — `routes/programs.js`, `services/programService.js`,
 > `models/Program.js`, `models/ProgramMembership.js`, `server.js` (`/api/programs` mount).
 > **Depends on:** [`auth`](../auth/SPEC.md) (every route applies `authenticateToken`; authz via
@@ -18,7 +18,8 @@ The **program lifecycle** of RaSi Fiters — the four `/api/programs` routes ove
 (via `program_id`). The four routes:
 
 1. **List my programs** — `GET /api/programs`. Returns each program the requester can see, decorated with
-   membership counts, the requester's own `my_role`/`my_status`, and a computed `progress_percent`. Two
+   membership counts, the requester's own `my_role`/`my_status`, and a computed `progress_percent` with its day
+   counts `total_days` / `elapsed_days` (0.5.0, D-C6 — every client's one source of program progress). Two
    visibility branches: a `global_admin` sees **all** non-deleted programs; everyone else sees **only the
    programs they belong to**. Used by both clients.
 2. **Create a program** — `POST /api/programs`. Creates the program **and** enrolls the creator as an
@@ -60,9 +61,10 @@ own-profile gate (members SPEC F4).
 
 - **`GET /`** (`programService.js:11-67`): a JSON array of program rows, each:
   `{ id, name, status, start_date, end_date, is_deleted, created_at, updated_at, admin_only_data_entry,
-  total_members, active_members, my_role, my_status, progress_percent }`. `total_members`/`active_members`
-  are integer active-member counts (always equal — §10 F2); `my_role`/`my_status` come from the requester's
-  own membership row (null if none); `progress_percent` is the 0–100 elapsed-time integer (§4).
+  total_members, active_members, my_role, my_status, progress_percent, total_days, elapsed_days }`.
+  `total_members`/`active_members` are integer active-member counts (always equal — §10 F2); `my_role`/`my_status`
+  come from the requester's own membership row (null if none); `progress_percent` is the 0–100 elapsed-time integer
+  and `total_days` / `elapsed_days` its integer day counts (§4; additive since 0.5.0 — D-C6).
 - **`POST /`** (`programService.js:100-108`, HTTP 201): `{ id, name, status, start_date, end_date, message
   }` — **`description` removed** from this object (§7 / D-C2; legacy returned it at `:106`).
 - **`PUT /:id`** (`programService.js:167-175`): `{ id, name, status, start_date, end_date,
@@ -88,7 +90,7 @@ and not `global_admin`), `404` (program not found / already soft-deleted).
   `INNER JOIN program_memberships pm_user … member_id = :userId AND pm_user.status IN
   ('active','invited','requested')` (so you see programs you're active/invited/requested in) + a
   `LEFT JOIN … status = 'active'` for counts. **Kept as raw `sequelize.query` verbatim** (D-S2), except
-  the ordering (net-new D-N1, 0.2.0): both branches `LEFT JOIN member_program_order mpo … member_id =
+  the D-C6 day columns appended after `progress_percent` (0.5.0) and the ordering (net-new D-N1, 0.2.0): both branches `LEFT JOIN member_program_order mpo … member_id =
   :userId` and `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC` — the caller's saved order first,
   never-ordered programs at the bottom by the legacy `start_date` sort.
 - **Save order** (net-new, `setProgramOrder`) — validate (`400`: non-empty array, all UUIDs, no
@@ -96,9 +98,17 @@ and not `global_admin`), `404` (program not found / already soft-deleted).
   `INSERT` positions 0..n-1. Full-replace: ids omitted from the body lose their rows and fall to the
   start_date tail. Ids are trusted-and-stored (no visible-set check — the order only affects the caller's
   own `GET /`; the programs FK rejects nonexistent ids → mapped `400`). Last-write-wins across devices.
-- **`progress_percent`** (`programService.js:19-27, 46-54`) — `0` unless both dates set and
+- **`progress_percent`** (`programService.js` `getPrograms`, both branches) — `0` unless both dates set and
   `end_date > start_date`; else `LEAST(100, GREATEST(0, ((CURRENT_DATE - start_date) / (end_date -
-  start_date)) * 100))::int`. Time-elapsed bar; recomputed server-side each request.
+  start_date)) * 100))::int`. Time-elapsed bar; recomputed server-side each request. **The day rule is UTC:**
+  `CURRENT_DATE` is the session's date and Sequelize pins every session to `+00:00` (`SET TIME ZONE INTERVAL
+  '+00:00'`), so progress ticks at 00:00 UTC (17:00 PDT) for every client.
+- **`total_days` / `elapsed_days`** (0.5.0, D-C6 — `PROGRESS_DAY_COLUMNS`, appended to both branches) — the same
+  rule's integer day counts: `total_days = end_date − start_date`; `elapsed_days = CURRENT_DATE − start_date`
+  clamped to `[0, total_days]`; **both `0`** unless both dates are set and `end_date > start_date` (no dates, one
+  date, or start ≥ end). Identity: `progress_percent = round(100 · elapsed_days / total_days)` (`0` when
+  `total_days = 0`) — verified read-only on prod data for every program; remaining days = `total_days −
+  elapsed_days`.
 - **Create** (`programService.js:70-113`) — require non-blank `name` (`400` else); coerce `status` to one
   of `planned|active|completed` (default `planned`, `:75-76`); **date guard (D-C4, 0.4.0)** — when both `start_date` and
   `end_date` are given and their `yyyy-MM-dd` prefixes compare start ≥ end → `400 "End date must be after the start
@@ -144,7 +154,8 @@ Faithful names (R5); schema in `apps/backend/sql/001_schema.sql`.
 ## 6. Flags / env
 
 No programs-specific env. DB access via the shared `DATABASE_URL` (`config/database.js`). `progress_percent`
-depends on the DB's `CURRENT_DATE` (server clock / timezone). **`admin_only_data_entry`** is a per-program
+(and, since 0.5.0, `total_days` / `elapsed_days`) depend on the DB's `CURRENT_DATE` — UTC, because Sequelize pins
+the session time zone to `+00:00` (§4). **`admin_only_data_entry`** is a per-program
 row flag (not env): set only via `PUT /:id`, read in `GET /`; it **gates data-entry in the logging features**
 (workout-logs / daily-health-logs), *not* enforced inside `programs` itself (§10 F4).
 
@@ -199,20 +210,21 @@ contract.
 |----|----------|----------|
 | **D-C1** | **Scope = the four `/api/programs` routes + `programService`.** ~~The `program.updated`/`program.deleted` notification emit is a **referenced dependency** (owned by `notifications`, which drags in SSE + APNs) → deferred to a guarded TODO no-op; CRUD ports fully functional. Wired when `notifications` lands.~~ *(The emit deferral is superseded at 0.3.0 by D-C3.)* Faithful to the auth `/account` + members `DELETE` deferrals. | `programService.js:153-164, 191-201`; `utils/notifications.js`; auth/members SPEC D-C1. |
 | **D-C2** | **`createProgram` drops the vestigial `description` field** (stop destructuring/persisting/returning it) — the single deliberate cleanup. No client sends it; update can't change it; list never returns it. The `programs.description` column is kept in schema (R5). | `programService.js:70, 85, 106`; web `programs/page.tsx:104`; iOS `APIClient+Programs.swift:51-68`; user decision. |
-| **D-S2** | **`getPrograms` keeps both raw `sequelize.query` branches verbatim** (global-admin-all vs member-INNER-JOIN), incl. the `progress_percent` CASE + active-member counts — no ORM rewrite (divergence risk on a load-bearing read). | `programService.js:6-68`; user decision. |
+| **D-S2** | **`getPrograms` keeps both raw `sequelize.query` branches verbatim** (global-admin-all vs member-INNER-JOIN), incl. the `progress_percent` CASE + active-member counts — no ORM rewrite (divergence risk on a load-bearing read). *(Amended at 0.5.0 by D-C6: verbatim except the D-C6 day columns, interpolated after `progress_percent` in both branches; the existing CASE and joins are untouched. The D-N1 ordering is the earlier exception.)* | `programService.js:6-68`; user decision. |
 | **D-REF** | **Reference impl = legacy `backend`. `consumed_by = [web, ios]`** — both clients call all four routes. **Cross-app divergence:** `admin_only_data_entry` is **web-only** (web edit-page toggle reads + writes it; iOS `ProgramDTO` never decodes/sets it). The backend faithfully serves/accepts it for both clients regardless — kept as-is (§10 F1). | Web + iOS consumption sweep (Explore agents); `program/edit/page.tsx:136-151`; `APIClient+Programs.swift:5-17`. |
 | **D-S1** | **Stance = faithful 1:1 except the `description` drop (D-C2).** Routes, authz gates, raw SQL, transaction, response shapes, error contract preserved; remaining oddities kept + flagged (§10), not fixed. | Whole-module review; §7. |
 | **D-N1** | **Net-new post-parity enhancement (user-requested 2026-07-05): per-member program-card ordering.** New `member_program_order` table (dedicated table, NOT a `program_memberships` column — global admins see programs they have no membership row in), new `PUT /order` (full-replace delete-then-insert; trust-and-store ids, FK-backed; last-write-wins across devices), and the `getPrograms` `ORDER BY mpo.position ASC NULLS LAST, p.start_date ASC` change in both branches (new/unordered programs land at the bottom by start_date). Response shape unchanged — clients rely purely on array order, which is what makes the order sync cross-platform for free. | Migration `sql/005`; `services/programService.js` (`setProgramOrder` + both `getPrograms` branches); `routes/programs.js` (`PUT /order` above `/:id`); user decisions (grip-handle web / long-press iOS / bottom placement). |
 | **D-C3** | **The program-change emit is live (0.3.0; reliability-overhaul Phase 4 N-SRV, DESIGN D-N13 — supersedes D-C1's deferral).** `emitProgramNotification` now reads `getActiveProgramMemberIds(programId)`, **drops the requester** (the person who edited / deleted the program is never notified about their own change) and calls `createNotification({ type, programId, actorMemberId, title, body, recipientIds })` — `program.updated` on a real field change, `program.deleted` on a soft-delete. It runs **after** the write succeeded, outside any transaction, and a failure is **logged and swallowed** (`logError("[notifications] <type> emit failed:")`), so the response is always the write's. Titles / bodies are the legacy texts. Category `program`; `program.updated` is **not** a legacy type, so live binaries get only a push banner for it, never a pop-up ([notifications](../notifications/SPEC.md) D-C20). No route / status / body change. | `services/programService.js` (`emitProgramNotification`); N-SRV plan step 18; notifications D-C19/D-C20. |
 | **D-C4** | **Create rejects start ≥ end (0.4.0; reliability-overhaul Phase 4 polish #38 — deliberate; supersedes the "client-side only" wording in the iOS polish plan P-3).** `POST /api/programs` answers `400 { error: "End date must be after the start date." }` when both dates are given and `String(start).slice(0,10) >= String(end).slice(0,10)` (a start ≥ end program sits at 0 % forever); checked before the transaction. **Create only** — `PUT /:id` is unchanged; **edits are checked on the client on all three** (web `program/edit` D-C1, iOS `EditProgramInfoView`, Android `ProgramActionsSheet` / `EditProgramScreen`), and the three Create Program forms now run the same check with the same copy. Live binaries: Android 1.0.0 / 1.1.0 already block equal and reversed dates; iOS 1.4.2 / 1.5.0 default the end date to +3 months and show the server's 400 text; the testbed seeder creates past-start / future-end programs. Backend deployed first (`b23f90c`). | polish amendments §5 + parity report #17; `services/programService.js` `createProgram`. |
 | **D-C5** | **A create is judged by the write (0.4.0; polish #12; iOS + Android clients).** Create Program reports success when `POST /api/programs` succeeds; the program-list refresh after it runs in the background and its failure never turns the create into "failed" (a retry made a duplicate program). Web already behaved this way. Client-only. | iOS `ProgramContext+ProgramManagement.swift` `createProgram`; Android `ProgramContext.createProgram`. |
+| **D-C6** | **One server source for program progress (0.5.0; 2026-10-14 data-source parity sweep D1 — METHODOLOGY R9).** `GET /programs` adds `total_days` and `elapsed_days` (§4: the `progress_percent` rule's UTC day counts; both 0 unless both dates are set and end > start). Every client now shows **the open program's row** for program progress — the picker bar, the Summary ring (`%` + "E/T days" + Elapsed / Remaining) and the Program tab's progress row — so web, iOS and Android read identical numbers that tick together at 00:00 UTC. **Additive:** iOS 1.4.2 / 1.5.x decode `ProgramDTO` with optional fields and Android 1.0.0–1.2.1 use `ignoreUnknownKeys`, so live binaries ignore the keys; every new client falls back when the fields are absent. **Clients:** web `useActiveProgramRow` (the hub's `["programs"]` query) + `programProgress(rowForDates(row, program) ?? program)` (`lib/program-days.ts`; fallback = this backend rule on the stored dates — web had no sound client formula); iOS `ProgramContext.serverProgress` (`completionPercent` / `elapsedDays` / `totalDays`; fallback = the pre-D1 device-calendar formula), with `loadSummary` re-reading `/programs` in place of `/analytics/summary` and an edit re-reading it in the background; Android `programProgress(program)` (`ui/program/ProgramCards.kt`; fallback = the pre-D1 device-date math), the row re-read when a program is opened, on pull to refresh and after an edit (which also nulls the local copy's day fields). All fallbacks round multiply-first like the server. **Row-date guard:** web and iOS use the row only while its dates equal the open program's (after a date edit the cached row still holds the old dates' counts until the re-read lands). **Known transient:** a launch-cached row (web's launch-cache seed, iOS `.cacheOnly`, Android's cached list) can show day counts a day or more old for a moment on open, until the network row lands — the picker bar has always behaved this way. The Program tab's `Members` row reads the same row's `active_members` on all three (F2). `/analytics/summary`'s `program_progress` is superseded (analytics §10 F8). | `services/programService.js` (`PROGRESS_DAY_COLUMNS`), backend `41a69d4`; web `88ea9ff`, iOS `d6f569a`, Android `8144345`; parity-sweep plan D1 + amendments A4 / A5 / A6. |
 
 ## 10. Flagged characteristics kept as-is
 
 | ID | Characteristic | Where | Rebuild-cleanup candidate? |
 |----|----------------|-------|----------------------------|
 | **F1** | **`admin_only_data_entry` is web-only** — web's edit page reads + writes the toggle; iOS never decodes or sets it. The backend serves/accepts it for both clients identically. | `program/edit/page.tsx:136-151`; `APIClient+Programs.swift:5-17` | Kept (D-REF) — a client divergence, not a backend change. |
-| **F2** | **`total_members` and `active_members` are always equal** — both branches count the same `status='active'` set under two aliases. | `programService.js:15-16, 42-43` | Kept (faithful) — both clients read both keys; collapsing would break them. **Trap:** their ratio is always 1, so it can't drive a bar — a time bar reads `progress_percent`. The web + iOS program cards did use active ÷ total (a permanently full bar) until 2026-10-14 (their pages' D-BAR). |
+| **F2** | **`total_members` and `active_members` are always equal** — both branches count the same `status='active'` set under two aliases. | `programService.js:15-16, 42-43` | Kept (faithful) — both clients read both keys; collapsing would break them. **Trap:** their ratio is always 1, so it can't drive a bar — a time bar reads `progress_percent`. The web + iOS program cards did use active ÷ total (a permanently full bar) until 2026-10-14 (their pages' D-BAR). **Since the 2026-10-14 parity sweep (D3)** every client shows one number — `N members` (`1 member` at one) on the program cards (web programs D-C4, iOS program-picker D-C4, Android program-picker D-PS1; the landing mock D-LAND-14) and a `Members` row on the Program tab — instead of `N active / N total members`. |
 | **F3** | **`updateProgram` sets `updated_at` manually** despite `Program` having `timestamps:false`; `deleteProgram` does the same on soft-delete. | `programService.js:142, 189` | Kept (faithful). |
 | **F4** | **`admin_only_data_entry` is read/written here but enforced elsewhere** — the lock that blocks non-admin logging lives in the logging features (workout-logs / daily-health-logs), not in `programs`. | `programService.js:139-141` | Kept (faithful) — cross-feature gate, owned downstream. |
 | **F5** | **Both clients decode an `enrollments_closed` field that `getPrograms` never returns** — it resolves to undefined/nil on web + iOS. | web `programs/page.tsx`; `APIClient+Programs.swift:5-17` | Kept (faithful) — backend never produced it; a client-side optional. Not added. |
@@ -223,6 +235,7 @@ contract.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.5.0 | 2026-10-14 | **D-C6 — one server source for program progress (data-source parity sweep D1; METHODOLOGY R9).** `GET /programs` adds `total_days` + `elapsed_days` (UTC days, the `progress_percent` rule; both 0 unless both dates and end > start; `progress_percent = round(100·elapsed/total)`), appended to both raw branches — D-S2 amended in place. Backend `41a69d4` (deployed first); web `88ea9ff` / iOS `d6f569a` / Android `8144345` read the open program's row for the Summary ring + Program tab (fallbacks when absent; row-date guard). F2: every client shows one `N members`. §1 / §3 / §4 / §6 / §9 / §10. **MINOR** (additive owned-interface fields); zero dependent re-version; live binaries ignore the keys. |
 | 0.4.1 | 2026-10-14 | F2 gains the trap it implies: `active_members / total_members` is always 1, so the program-card bar reads `progress_percent` (time elapsed). Web + iOS fixed to match Android (web programs / iOS program-picker D-BAR); no backend change. |
 | 0.4.0 | 2026-10-13 | **D-C4 — `POST /api/programs` rejects start ≥ end** (`400 "End date must be after the start date."`, before the transaction; create only — edits stay client-checked on all three; live `b23f90c`) + the same check and copy on the web / iOS / Android Create Program forms; **D-C5 — a create is judged by the write** (iOS + Android). §3 error contract + §4 Create updated. **MINOR** (owned interface: a new 400 on create — user acknowledgement of propagation needed at the git-version gate); dependents unaffected (no shape change). Reliability-overhaul Phase 4 polish #12 / #38. |
 | 0.3.0 | 2026-10-13 | **D-C3 — the `program.updated` / `program.deleted` emit is live (reliability-overhaul Phase 4 Notifications server).** Every active member except the requester; after the write, outside the transaction; a failure is logged and swallowed. D-C1's emit deferral superseded (§4/§5/§7/§8 updated). MINOR (deferred behaviour now live; routes, statuses and bodies unchanged); dependents unaffected. |

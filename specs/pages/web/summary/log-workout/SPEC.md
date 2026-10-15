@@ -1,6 +1,6 @@
 # Page: `summary/log-workout` (web) — standalone Log-workout form (summary sub-route 4 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/log-workout` — the **mobile log fallback** for the Add-workout form: a full-page
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **4th** of the six deferred
 > `/summary` sub-routes and the **1st of the 3 log fallbacks** (siblings `log-health` + `bulk-log-workout`
@@ -53,7 +53,9 @@ differ.
      "You" panel and the member is forced to `userId` (`LogWorkoutForm.tsx:68-82`, 51-53).
    - **Workout type** — searchable `Select` over the program's non-hidden workout types
      (`LogWorkoutForm.tsx:84-91`; `fetchProgramWorkouts` filtered `!is_hidden`).
-   - **Date** — `Input type="date"`, default today (`LogWorkoutForm.tsx:93-98`, 40).
+   - **Date** — `Input type="date"`, default today (`LogWorkoutForm.tsx:93-98`, 40) — since v0.2.3 the browser's
+     **local** calendar day: a new row takes the previous row's date, else `todayLocalISO()` (`LogWorkoutsForm.tsx`
+     `addRows`; D-C2).
    - **Duration** — hours + minutes number inputs combined to minutes (`LogWorkoutForm.tsx:100-123`).
    - **Error** line (mutation error) + **Save workout** / "Saving…" button, disabled until valid + not saving
      (`LogWorkoutForm.tsx:126-142`).
@@ -124,6 +126,7 @@ the **first** `/summary` sub-route where the lock actually bites (the chart dril
 | **D-S1** | Faithful 1:1 otherwise — same `canLogForAny` derivation, the `admin_only_data_entry` `router.replace` lock guard, the mutation injecting `program_id`, `invalidateQueries(["summary"])`, the `variant="page"` form. Already fully `rf-*` tokenized → **no tokenize cleanup**. | legacy `summary/log-workout/page.tsx` |
 | **D-C1** | **Deterministic-nav cleanup** (change-now) — swap the two legacy `router.back()` calls (post-save success **and** the form `onClose`) for `router.push("/summary")`, so all navigation off the page is deterministic and matches the header BackButton (which already hardcodes `/summary`). Guards the direct-navigation/refresh case where `router.back()` could leave the app. The lock-guard `router.replace("/summary")` is unchanged (faithful — replace deliberately drops the locked page from history). | user decision; legacy `page.tsx:40`, 58 |
 | **D-REL1** | **Phase 4 polish (#16, #19, #36).** #16 the form's lookups load through `use-log-lookups.ts`: a failure is an error (`InlineLoadError` + Retry, reload on reconnect), never an empty list reading "No workout types"; the PA1 hints show only on loaded data (workout-logs **D-C12**; frontend-kit **D-KIT-21**). #19 the `admin_only_data_entry` lock redirect waits for session restore (`isBootstrapping \|\| !session`). #36 the mobile Remove pill is a 44 px `text-sm` target (the desktop ✕ reads `Remove entry {n}`) (frontend-kit **D-KIT-22**; PA12). | `ec13107`; polish amendments PA1, PA4, PA12 |
+| **D-C2** | **The default row date is the local day (2026-10-14 parity sweep A9; METHODOLOGY R9).** The shared `components/forms/LogWorkoutsForm.tsx` seeds a new row with the previous row's date, else `todayLocalISO()` (`lib/format.ts`) — was `new Date().toISOString().slice(0, 10)`, the UTC date, which is tomorrow on a US evening (17:00–24:00 Pacific). iOS + Android already default to the device's local day. A user-entered calendar date is local; program progress counts stay the server's UTC days ([programs](../../../../features/programs/SPEC.md) D-C6) — different on purpose. The same form serves the `/summary` desktop modal. | `components/forms/LogWorkoutsForm.tsx`; `lib/format.ts` (`todayLocalISO`); parity-sweep plan A9. |
 
 > **Not a cleanup:** "reuse `refreshSummaryQueries`" was considered and rejected — that helper is a module-private
 > one-liner inside `summary/page.tsx:310` (`invalidateQueries(["summary"])`), byte-identical to the legacy inline
@@ -151,6 +154,7 @@ the **first** `/summary` sub-route where the lock actually bites (the chart dril
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-14 | **D-C2 — parity sweep A9 (web `88ea9ff`).** The default row date is the browser's local day (`todayLocalISO()`), not the UTC date (tomorrow on a US evening); the shared form, so the `/summary` modal too. §4 + §9. |
 | 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #16 lookups via `use-log-lookups.ts` (`InlineLoadError` + Retry, reload on reconnect, hints only on loaded data); #19 the lock redirect waits for session restore; #36 Remove pill 44 px. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the save error goes through `toAppError` (row-error text kept) and an offline save fails at once (frontend-kit D-KIT-18/19, #4/#8). |
 | 0.2.0 | 2026-07-09 | **Multi-program logging** — `LogWorkoutsForm` (variant="page") gains the shared `ProgramMultiSelect` and sends `program_ids[]` = the full selection to `addWorkoutLogsBatch` (workout-logs 0.5.0 D-C10); when any selected program is non-privileged the member column locks to self. Same submit wiring as the summary landing (2-arg `onSubmit`). `npm run build` ✓. |

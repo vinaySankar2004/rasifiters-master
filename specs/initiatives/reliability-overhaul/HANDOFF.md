@@ -47,16 +47,18 @@
 
 ## Next action
 
-1. **Data-source parity fixes (METHODOLOGY R9)** — the sweep's plan (`~/.claude/plans/lexical-moseying-pony.md`, raw
-   traces in the app's side-session notes) with the user's decisions: **D1** progress from the server (`/programs` gains
-   `total_days` + `elapsed_days`, additive), **D2** PTD % = active days ÷ days so far, **D3** "N members"; Batch A
-   fixes A1–A7 in; D4 / D5 / A8 / X-4 out. Through `multiplex`: plan → plan-adversary → the user approves → per-surface
-   build → impl-adversary → compile → backend first.
-2. **Then one push to all three:** web deploys; the user archives + uploads iOS 1.5.2 (62) (attach, resubmit — automatic
-   release) and the Android build. Each store keeps its own version train (the user — no shared numbers). After the
-   iOS upload, pre-bump the repo one train ahead. On iOS approval Claude sets `LATEST_IOS_VERSION` (the user's yes),
-   updates RELEASES.md and marks Phase 4 🚀 in BRIEF §7 + PROGRESS.
-3. ~2026-10-27: recheck Google's shown site name before doing anything more
+1. **Data-source parity fixes (METHODOLOGY R9) — backend + web LIVE 2026-10-14** (`41a69d4` + `88ea9ff`; plans
+   `plans/parity-sweep/`). iOS (`d6f569a`, ⌘B green) and Android (`8144345`, `assembleDebug` green) are on `main`,
+   waiting for the pooled release.
+2. **D4 / D5 metric semantics** (`plans/metric-semantics/`: MTD badges compare the same days of last month; the app
+   streak resets unless the member logged today or yesterday, on their stored zone, else the most forgiving window, M7).
+   Backend only. Approved; being built and reviewed. **Not on `main`**: it goes to the `staging` branch only.
+3. **One pooled release (the user, 2026-10-14):** push `main` + D4/D5 to `staging` → the user tests all three apps there
+   (iOS Staging scheme, Android `staging` build, the web staging alias) → then one push: D4/D5 to `main` (Render), the
+   iOS 1.5.2 (62) archive + upload + resubmit (automatic release), and the Android build + submit. Each store keeps its
+   own version train. After the iOS upload, pre-bump the repo one train ahead. On iOS approval Claude sets
+   `LATEST_IOS_VERSION` (the user's yes), updates RELEASES.md and marks Phase 4 🚀 in BRIEF §7 + PROGRESS.
+4. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
 ## Workstream status

@@ -1,6 +1,6 @@
 # Page: `summary/log-health` (web) — standalone Log-daily-health form (summary sub-route 5 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/summary/log-health` — the **mobile log fallback** for the Log-daily-health form: a full-page
 > version of the desktop modal that lives on the [`summary`](../SPEC.md) landing. **5th** of the six deferred
 > `/summary` sub-routes and the **2nd of the 3 log fallbacks** (sibling `log-workout` done run 36;
@@ -51,7 +51,9 @@ the workout form.
    (`forms/LogDailyHealthForm.tsx:162-164`):
    - **Member** — a searchable `Select` when `canSelectAnyMember` (admin/global-admin/logger); otherwise a static
      "You" panel and the member is forced to `userId` (`LogDailyHealthForm.tsx:81-95`, 46-48).
-   - **Date** — `Input type="date"`, default today (`LogDailyHealthForm.tsx:97-102`, 36).
+   - **Date** — `Input type="date"`, default today (`LogDailyHealthForm.tsx:97-102`, 36) — since v0.2.3 the browser's
+     **local** calendar day: a new row takes the previous row's date, else `todayLocalISO()` (`LogDailyHealthForm.tsx`
+     `addRows`; D-C2).
    - **Sleep time** — hours + minutes number inputs (digit-stripped, ≤2 chars each) combined to fractional hours;
      0:00–24:00 validity message (`LogDailyHealthForm.tsx:104-131`).
    - **Diet quality** — `Select` of ratings 1–5 (`LogDailyHealthForm.tsx:133-139`).
@@ -127,6 +129,7 @@ history) — judged only once the session is restored (`isBootstrapping || !sess
 | **D-S1** | Faithful 1:1 otherwise — same `canLogForAny` derivation, the `admin_only_data_entry` `router.replace` lock guard, the mutation injecting `program_id`, `invalidateQueries(["summary"])`, the `variant="page"` form. Already fully `rf-*` tokenized → **no tokenize cleanup**. | legacy `summary/log-health/page.tsx` |
 | **D-C1** | **Deterministic-nav cleanup** (change-now, matches run 36) — swap the two legacy `router.back()` calls (post-save success **and** the form `onClose`) for `router.push("/summary")`, so all navigation off the page is deterministic and matches the header BackButton (which already hardcodes `/summary`). Guards the direct-navigation/refresh case where `router.back()` could leave the app. The lock-guard `router.replace("/summary")` is unchanged (faithful — replace deliberately drops the locked page from history). | user decision; legacy `page.tsx:39`, 57 |
 | **D-REL1** | **Phase 4 polish (#16, #19, #36).** #16 the form's lookups load through `use-log-lookups.ts`: a failure is an error (`InlineLoadError` + Retry, reload on reconnect), never an empty list; `No active members in this program yet.` only on loaded data (daily-health-logs **D-C8**; frontend-kit **D-KIT-21**). #19 the `admin_only_data_entry` lock redirect waits for session restore (`isBootstrapping \|\| !session`). #36 the mobile Remove pill is a 44 px `text-sm` target (the desktop ✕ reads `Remove entry {n}`) (frontend-kit **D-KIT-22**; PA12). | `ec13107`; polish amendments PA1, PA4, PA12 |
+| **D-C2** | **The default row date is the local day (2026-10-14 parity sweep A9; METHODOLOGY R9).** The shared `components/forms/LogDailyHealthForm.tsx` seeds a new row with the previous row's date, else `todayLocalISO()` (`lib/format.ts`) — was `new Date().toISOString().slice(0, 10)`, the UTC date, which is tomorrow on a US evening (17:00–24:00 Pacific). iOS + Android already default to the device's local day. A user-entered calendar date is local; program progress counts stay the server's UTC days ([programs](../../../../features/programs/SPEC.md) D-C6) — different on purpose. The same form serves the `/summary` desktop modal. | `components/forms/LogDailyHealthForm.tsx`; `lib/format.ts` (`todayLocalISO`); parity-sweep plan A9. |
 
 > **Not a cleanup:** "reuse `refreshSummaryQueries`" was considered and rejected (same as run 36) — that helper is a
 > module-private one-liner inside `summary/page.tsx:310` (`invalidateQueries(["summary"])`), byte-identical to the
@@ -156,6 +159,7 @@ history) — judged only once the session is restored (`isBootstrapping || !sess
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-14 | **D-C2 — parity sweep A9 (web `88ea9ff`).** The default row date is the browser's local day (`todayLocalISO()`), not the UTC date (tomorrow on a US evening); the shared form, so the `/summary` modal too. §4 + §9. |
 | 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #16 lookups via `use-log-lookups.ts` (`InlineLoadError` + Retry, reload on reconnect, hint only on loaded data); #19 the lock redirect waits for session restore; #36 Remove pill 44 px. |
 | 0.2.1 | 2026-10-13 | Phase 4 quick wins: the save error goes through `toAppError` (row-error text kept) and an offline save fails at once (frontend-kit D-KIT-18/19, #4/#8). |
 | 0.2.0 | 2026-07-09 | **Steps + batched multi-program** — the page renders the rebuilt batched multi-row `LogDailyHealthForm` (variant="page") with a **steps** column + the shared `ProgramMultiSelect` (`program_ids[]`), posting to `addDailyHealthLogsBatch` (daily-health-logs 0.2.0 D-C5) instead of the single `addDailyHealthLog`; gains per-row `rowErrors` plumbing + `isGlobalAdmin`. Same submit wiring as the summary landing (2-arg `onSubmit`). `npm run build` ✓. |

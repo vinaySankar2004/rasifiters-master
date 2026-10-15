@@ -1,6 +1,6 @@
 # Screen: `member-history-detail` (android) — the per-member Workout History drill-down
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.1.2 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the shared contract in the **member branch** of
 > [`ios summary-activity-detail`](../../ios/summary-activity-detail/SPEC.md) (per-member, single-series) —
 > this file records only the Android realization + idiom deviations.
@@ -16,7 +16,7 @@
 - **Faithful (iOS/web 1:1):** title **"Workout Activity Timeline" / "Workouts"**; a **W/M/Y/P period selector**
   that re-fetches on each change (`loadMemberHistory(memberId, period.key)`, keyed by ~~`LaunchedEffect(period.key,
   memberId)`~~ `rememberLoad(period.key to memberId)`, 0.1.1); a **daily-average header** ("DAILY AVERAGE" + range
-  label + rounded whole-number average, on one baseline); and the workouts **bars** chart. Loading → spinner; empty →
+  label + the average — ~~rounded whole-number~~ to one decimal since 0.1.2 (D-PS1) — on one baseline); and the workouts **bars** chart. Loading → spinner; empty →
   "No data for this range yet." ~~(load errors swallowed → empty state, iOS F1).~~ *(Superseded at 0.1.1 by D-REL1:
   a failed load → `ErrorView` + Retry.)*
 - **Range label = iOS parity:** `week` → **"This Week"** (friendly override); `month`/`year`/`program` use the
@@ -50,9 +50,16 @@ Re-runs on every period change and on `focusedMemberId` change. Bearer-authed by
   labelled (`Back`) 48 dp back target; the private `HistoryPeriodSelector` gives way to the shared `PeriodSelector`
   (48 dp segments, spoken `Week` / `Month` / `Year` / `Program`, selected state).
 
+## Parity sweep (0.1.2)
+
+- **D-PS1 (2026-10-14 — METHODOLOGY R9; sweep A4):** the DAILY AVERAGE value is the server's `daily_average` to one
+  decimal (`String.format(Locale.US, "%.1f", …)`; was `roundToInt()`), as the iOS member variant (`HeaderStats`) and
+  web. (`ui/members/MemberSimpleDetails.kt` `MemberHistoryDetailScreen`.)
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-14 | **D-PS1 — parity sweep A4 (Android `8144345`).** DAILY AVERAGE shows one decimal (was a whole number), as iOS + web. |
 | 0.1.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #26 page scrolls, chart scrubs horizontally only; #29 `KitLoad` (ErrorView + Retry) instead of the swallowed error; #34 the detail keeps its own keyed result (`publish = false`, no reset-to-week on leave); #36 48 dp back + shared `PeriodSelector`. |
 | 0.1.0 | 2026-07-08 | Initial Android port (Phase E). Per-member W/M/Y/P workout timeline — single-series bars (no active-members line), daily-average header, "This Week" friendly override. Reads scoped `focusedMemberId`; Canvas `BarLineChart`. Faithful to the member branch of the activity-timeline detail (iOS F1 swallow). `assembleDebug` BUILD SUCCESSFUL. Visual run = user. |

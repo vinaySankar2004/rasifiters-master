@@ -1,6 +1,6 @@
 # Page: `program` (web) — the program settings hub (fourth & last workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.3.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.0 · **App:** `web` (Next.js App Router)
 > **Route:** `/program` — **the fourth (last) bottom-nav tab** of a program's workspace. The settings hub:
 > a role-gated menu of settings entries (program info/edit · members/invite · role management · workout types ·
 > leave program · my account) for admins, or a **read-only** program-info card + switch/leave for non-admins.
@@ -9,13 +9,16 @@
 > **Provenance (legacy, archived):** `rasifiters-webapp/src/app/program/page.tsx`.
 > **Consumes (features):** [`program-memberships`](../../../features/program-memberships/SPEC.md)
 > (`fetchMembershipDetails` → the role lists + active count; `leaveProgram` → the Leave action),
+> [`programs`](../../../features/programs/SPEC.md) (the open program's `GET /programs` row → the non-admin
+> Progress + Members rows, D-C4),
 > [`program-workouts`](../../../features/program-workouts/SPEC.md) (`fetchProgramWorkouts` → the workout-type
 > count), [`auth`](../../../features/auth/SPEC.md) (`useAuthGuard` + `useAuth.signOut` + the client role), and the
 > active program from `lib/storage.ts` (`clearActiveProgram`).
 > **Cross-app:** the iOS admin-home **Program/Settings tab** (`Features/Home/` + `Features/Settings/`) renders the
 > same settings hub natively; parity audited at the iOS port.
 > **Stance:** faithful 1:1 port **+ two small cleanups** (D-C1 read the appearance label via `getStoredTheme()`;
-> D-C2 extract the duplicated Leave Program button). Oddities flagged §10.
+> D-C2 extract the duplicated Leave Program button) **+ the 2026-10-14 parity sweep** (D-C4: server program
+> progress, "Members", local-day dates — METHODOLOGY R9). Oddities flagged §10.
 
 ---
 
@@ -26,7 +29,7 @@ admin (or global admin) it is a menu of grouped settings cards: **Program Info**
 Details), **Members** (View Members · Invite Member), **Role Management** (live Admins/Loggers lists + Manage
 Roles), **Workout Types** (count + entry), **Leave Program**, and **My Account** (Profile · Change Password ·
 Appearance · Privacy Policy · Support · Sign Out). For a non-admin (logger/member) it collapses to a **read-only Program
-Info card** (name, status, duration, a client-computed progress bar, active-member count) + **Switch Program** +
+Info card** (name, status, duration, the server's program-progress bar, member count) + **Switch Program** +
 **Leave Program** + **My Account**. Used by **every enrolled member**; the menu vs read-only-card split is by
 role (§7). Almost every control is forward-navigation; the only live actions on the landing are **Leave Program**
 (a mutation) and **Sign Out**.
@@ -67,7 +70,7 @@ shared sign-out/account section + the leave-confirm dialog.
 | Admin — Members | View Members (→ `/members/list`, subtitle = active count) · Invite Member (`canInvite` → `/members/invite`). **0.2.0 (D-NP1):** behind `PEOPLE_LIVE` (on since 2026-10-13) the first row reads **`People`** · `<n> enrolled` (switched off: `View Members` · `<n> active`). | program/page.tsx (Members section) |
 | Admin — Role Management | `canManageRoles`-only; live **Admins** + **Loggers** lists (`RoleList`, from membership details) + Manage Roles (→ `/program/roles`). | program/page.tsx:178-217 |
 | Admin — Workout Types | Count (`{visible} available, {custom} custom`) → `/lifestyle/workouts`. | program/page.tsx:219-242 |
-| **Non-admin variant** — Program Info card | Read-only `GlassCard`: Name · Status (`StatusBadge`) · Duration · a **client-computed progress bar** (`computeProgramProgress`, %/elapsed/remaining) · Active Members. | program/page.tsx:265-315 |
+| **Non-admin variant** — Program Info card | Read-only `GlassCard`: Name · Status (`StatusBadge`) · Duration (`formatDateRange`, stored days parsed as local days) · a **progress bar** from the open program's `GET /programs` row (`progress_percent` · `elapsed_days` · remaining — `useActiveProgramRow` + `programProgress`, the Summary ring's and picker bar's numbers) · **Members** (the row's `active_members`; the roster's active count until the row loads). D-C4. | program/page.tsx (non-admin card); `lib/program-days.ts`; `lib/hooks/use-active-program-row.ts` |
 | Non-admin — Switch Program | → `/programs`. | program/page.tsx:317-330 |
 | Leave Program | `canLeaveProgram`-only (both variants) → opens the leave-confirm dialog. Extracted to one `LeaveProgramButton` (D-C2). | program/page.tsx:244-259, 332-347 |
 | My Account | Profile (→ `/program/profile`; 0.3.0: titled with the member name, subtitle `@username`, initials in the circle — D-REL1) · **`Inbox`** (0.2.0: `<n> new` + a count pill, else `Invites and notifications` → `/programs?open=inbox`) · **`Notifications`** (0.2.0 → `/program/notifications`) · Change Password (→ `/program/password`) · Appearance (→ `/program/appearance`, subtitle = stored theme label) · **`Announcements`** (0.2.0, global admins → `/program/announcements`) · Privacy Policy (0.3.2: `/privacy-policy` in a new tab — privacy-policy D-ONE) · **`Support`** (0.3.0, `Get help or contact us` → `/support` in a new tab — D-REL1) · **Sign Out** (~~live `signOut()`~~ *(superseded at v0.3.0 by D-REL1)* opens the `Sign Out?` confirm). | program/page.tsx (`MyAccountSection`) |
@@ -77,7 +80,8 @@ shared sign-out/account section + the leave-confirm dialog.
 **Data flow.** `membershipQuery` (`fetchMembershipDetails`) → active members (`is_active`) → the active count +
 the Admins/Loggers `RoleList`s. `workoutsQuery` (`fetchProgramWorkouts`) → visible + custom counts for the
 Workout Types subtitle. `leaveMutation` (`leaveProgram`) is the only write. Both reads are keyed under
-`["program", …]` and gated on `token && programId`.
+`["program", …]` and gated on `token && programId`. `useActiveProgramRow` reads the picker's own `["programs"]`
+query for the non-admin card's progress + Members rows (D-C4).
 
 ## 5. Components + features consumed
 
@@ -102,6 +106,7 @@ All calls send the Supabase access JWT as `Authorization: Bearer` (via `apiReque
 |------|----------|-------|
 | `fetchMembershipDetails(token, programId)` | `GET /program-memberships/details?programId` | All memberships; the page filters `is_active`, then splits by `program_role` for the Admins/Loggers lists. |
 | `fetchProgramWorkouts(token, programId)` | `GET /program-workouts?programId` | Workout-type list; the page counts `!is_hidden` (visible) + `source==="custom"` (custom). |
+| `fetchPrograms` (via `useActiveProgramRow`) | `GET /programs` | Query key `["programs"]` (shared with the hub). The open program's row → the non-admin Progress + Members rows (D-C4). |
 | `leaveProgram(token, programId)` | `PUT /program-memberships/leave` | The only write — body `{ program_id }`; success clears the active program + → `/programs`. |
 
 ## 7. Role-based view rules
@@ -126,9 +131,10 @@ and is not gated by the lock.)
 ## 8. States & edge cases
 
 - **Loading:** the Members count shows "Loading...", Role Management shows "Loading roles...", Workout Types
-  shows "Loading...", and the non-admin Active Members row shows "—" until each query resolves.
+  shows "Loading...", and the non-admin Members row shows "—" until the `/programs` row or the roster resolves
+  (the progress bar always has a value — the UTC-rule fallback on the stored dates, D-C4).
 - **Failed (D-REL1):** the Members count and Workout Types subtitle read "—" (never "0 active"), the non-admin
-  Active Members row stays "—", and the page shows one `ErrorView` + Retry (membership failure first; a
+  Members row stays "—" unless the `/programs` row supplies it (D-C4), and the page shows one `ErrorView` + Retry (membership failure first; a
   workout-types failure counts only on the admin view). A failed read reloads when the connection returns.
 - **Empty:** Role Management with no admins/loggers → "No admins or loggers assigned." — only on loaded data,
   never after a failure (D-REL1).
@@ -151,10 +157,11 @@ and is not gated by the lock.)
 | **D-S1** | **Stance = faithful 1:1 port** — both role variants + the leave mutation ported verbatim from legacy; verbatim except D-C1 / D-C2. **No feature bump** — consumes only already-mounted endpoints + already-ported deps. | `program/page.tsx:1-541`; user answer ("faithful + pinned cleanups"). |
 | **D-C1** | **Read the appearance label via `getStoredTheme()`** (from `lib/theme.ts`) instead of the raw `localStorage.getItem("rf:appearance")` + manual mapping in `MyAccountSection` (legacy `page.tsx:459-463`). Single-sources the storage key (`THEME_KEY`) + valid values; behavior-identical (still a post-mount `useEffect` to avoid hydration mismatch). | `program/page.tsx:459-463`; `lib/theme.ts:1-12`; user answer (pinned cleanup). |
 | **D-C2** | **Extract the duplicated Leave Program button** into one local `LeaveProgramButton` component. The button markup was byte-identical in both role branches (legacy `page.tsx:244-259` & `332-347`), both gated by `canLeaveProgram`; a single component is behavior-preserving. | `program/page.tsx:244-259`, 332-347; user answer (pinned cleanup). |
-| **D-C3** | **Keep `computeProgramProgress` local (no change).** It is **client-computed** from `program.start_date`/`end_date`, semantically distinct from the summary tab's `ProgramProgressCard` which uses the **server-derived** `progress_percent`/`elapsed_days` (run-11 "client copy vs server copy"). Single-use here; not hoisted. Flagged §10 (F4). | `program/page.tsx:434-453`; `summary/page.tsx:338-347`; user answer (confirm, no change). |
+| **D-C3** | ~~**Keep `computeProgramProgress` local (no change).** It is **client-computed** from `program.start_date`/`end_date`, semantically distinct from the summary tab's `ProgramProgressCard` which uses the **server-derived** `progress_percent`/`elapsed_days` (run-11 "client copy vs server copy"). Single-use here; not hoisted. Flagged §10 (F4).~~ *(superseded at v0.4.0 by D-C4 — [programs](../../../features/programs/SPEC.md) D-C6; `computeProgramProgress` is deleted.)* | `program/page.tsx:434-453`; `summary/page.tsx:338-347`; user answer (confirm, no change). |
 | **D-REL1** | **Phase 4 polish (#33, #41).** #33 honest roster / roles / workout-type states (the Summary recipe): `Loading...` while loading, "—" only after a failed read, the role-lists empty line only on loaded data, one kit `ErrorView` + Retry (`retryNow` on the failed key) for a failed membership read or — admin view only — a failed workout-types read, the stale `FloatingBanner` at page root, refetch on reconnect (program-memberships **D-C7** #33; program-workouts **D-C3**). #41 `MyAccountSection` names the member (name + `@username` + initials, iOS ProfileRow parity), adds a **Support** row (`Get help or contact us`, opens `/support` in a new tab), and Sign Out opens a `Sign Out?` / `Are you sure you want to sign out?` / `Sign Out` confirm (the picker keeps its `Sign Out` title). | `ec13107`; polish amendments PA1 (#41 copy) |
 | **D-NP1** | **Phase 4 account rows + the People label (0.2.0; notifications D-C30, people D-C13).** `MyAccountSection` gains `Inbox` (the unread `badge`: `<n> new` + a red count pill — W18; opens `/programs?open=inbox`), `Notifications` (`Choose what you're notified about` → `/program/notifications`) and, for global admins, `Announcements` (→ `/program/announcements`). The Members section's first row reads `People` · `<n> enrolled` only when `PEOPLE_LIVE` (release day; *on since 2026-10-13*); dark it keeps `View Members` · `<n> active`. | NP amendments R7, R8, NP-U1; web plan W5, W18. |
 | **D-PC1** | **Touch-up (c) — the header circle opens My Profile (2026-10-13).** The header's initials circle (was a decorative `<div>`) is a `<button type="button" aria-label="My Profile">` with the same classes → `router.push("/program/profile")`; Back (`router.back()` / browser Back) returns to `/program`. Same as web summary D-PC1 and the iOS/Android Summary + Program headers. `MyAccountSection` keeps its profile row. | user, touch-up (c) (reliability HANDOFF) |
+| **D-C4** | **Parity sweep (2026-10-14; METHODOLOGY R9 — supersedes D-C3, resolves F4).** (a) **Progress (sweep D1, [programs](../../../features/programs/SPEC.md) D-C6):** the non-admin card reads the open program's `GET /programs` row via `useActiveProgramRow` + `programProgress(rowForDates(row, program) ?? program)` — `progress_percent` · `elapsed_days` · remaining in UTC days, the same numbers as the Summary ring, the picker bar and iOS / Android. `rowForDates` drops the row while its dates differ from the open program's (a date edit, until the refetch lands); the fallback is the backend's own UTC-day rule on the stored dates (multiply-first rounding). The old local formula rolled over at 12:00 UTC (it compared `new Date(start)` — UTC midnight — with the current time). (b) **"Members" (sweep D3):** the row is labelled `Members` (was `Active Members`) and reads the row's `active_members`, as iOS and Android do; until the row loads it shows the roster's active count. (c) **Dates (A1):** `formatDateRange` → `formatShortDate` parses a stored `YYYY-MM-DD` as that local day (`parseLocalDay`), so Duration no longer reads a day early west of UTC. | `program/page.tsx`; `lib/program-days.ts`; `lib/hooks/use-active-program-row.ts`; `lib/format.ts`; parity-sweep plan D1 / D3 / A1 + amendments A4 / A6. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -163,7 +170,7 @@ and is not gated by the lock.)
 | **F1** | **Client-side role from an unverified JWT decode** (`session.user.globalRole`) + the active program's `my_role` drive `isProgramAdmin` / `canInvite` / `canManageRoles` / `canLeaveProgram` — display/gating only; the backend re-verifies + re-authorizes every call (e.g. `leaveProgram` runs the membership-exit authz server-side). Same posture as the other workspace tabs' F1. | `program/page.tsx:37-41` | Kept (faithful) — not a security boundary. |
 | ~~**F2**~~ **RESOLVED** | Forward navigation to then-unbuilt routes — the 6 `/program/*` sub-routes (edit/roles/profile/password/appearance/privacy) + `/members/list` + `/members/invite` + `/lifestyle/workouts`. **All since ported; nothing 404s.** | `program/page.tsx:123`, 144, 162, 203, 223, 469, 484, 499, 514 | Closed — targets ported in later runs. |
 | **F3** | **`global_admin` cannot Leave Program** (`canLeaveProgram = !isGlobalAdmin`) yet is treated as a program admin everywhere else — a deliberate asymmetry (a global admin isn't an enrolled member to exit). | `program/page.tsx:41`, 244 | Kept (faithful) — intentional product rule. |
-| **F4** | **Client-computed progress bar** — the non-admin Program Info card derives % / elapsed / remaining days locally via `computeProgramProgress(start_date, end_date)` (D-C3), distinct from summary's server-derived progress. A second, divergent progress source. | `program/page.tsx:434-453`, 292-307 | Candidate — could read the same server `analytics` progress as summary, but the legacy card intentionally avoids the analytics call here; left faithful. |
+| ~~**F4**~~ **RESOLVED** | ~~**Client-computed progress bar** — the non-admin Program Info card derives % / elapsed / remaining days locally via `computeProgramProgress(start_date, end_date)` (D-C3), distinct from summary's server-derived progress. A second, divergent progress source.~~ | `program/page.tsx` (non-admin card) | Closed at v0.4.0 (D-C4) — the card reads the `/programs` row, the one progress source on every surface. |
 | **F5** | **Raw `rf:appearance` write contract** — the appearance label is now read via `getStoredTheme()` (D-C1), but the **value is still written** by the deferred `/program/appearance` sub-route directly to `localStorage` (the legacy contract); this page only reads it. | `program/page.tsx:455-463` | Kept (faithful) — the appearance sub-route owns the write; both ends share `lib/theme.ts`'s `THEME_KEY`. |
 | **F6** | **No client-side rate limiting / no refetch throttle** on the two reads (membership details + workouts), consistent with the other tabs' no-throttle posture. | `program/page.tsx:45-55` | Kept (faithful) — throttling belongs server-side. |
 
@@ -171,6 +178,7 @@ and is not gated by the lock.)
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-14 | **D-C4 — parity sweep (METHODOLOGY R9; web `88ea9ff`).** The non-admin Program Info card's progress reads the open program's `GET /programs` row (`useActiveProgramRow` + `programProgress`, date-guarded; UTC-rule fallback) — `computeProgramProgress` deleted, D-C3 superseded, F4 resolved; the row label is `Members`, read from the row's `active_members` (roster count until it loads); Duration dates parse as local days (A1). §1 / §4 / §6 / §8 updated. |
 | 0.3.2 | 2026-10-13 | **Privacy Policy row → the public page** (privacy-policy D-ONE): `window.open(PRIVACY_POLICY_URL)` in a new tab, like Support and the phones; the in-app `/program/privacy` copy is retired. |
 | 0.3.1 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle is a button (`aria-label="My Profile"`, same look) → `/program/profile`; Back returns to Program. |
 | 0.3.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #33 honest roster / roles / workout-type states (`Loading...`, "—" only on failure, ErrorView + Retry, stale banner, reload on reconnect); #41 signed-in-as profile row (name + `@username`), Support row (new tab), `Sign Out?` confirm. |

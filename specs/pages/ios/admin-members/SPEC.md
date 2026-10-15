@@ -6,7 +6,7 @@
 > `Detail/MemberMetricsViews.swift (MemberMetricsPreviewCard)`; `GlassButton` from `Detail/ActivityTimelineViews.swift:153`)
 > **Web sibling (co-equal reference):** `/members` landing — `specs/pages/web/members/SPEC.md`
 > **Ported to:** `apps/ios/RaSi-Fiters-App/Features/Home/Tabs/{AdminMembersTab,StandardMembersTab,MemberCards,MemberOverviewPicker}.swift`
-> + `Shared/Components/GlassButton.swift` (+ `Tabs/MemberCardsState.swift`, 0.5.0) · **Run:** 55 (2026-06-30) · **v0.5.1** (2026-10-13)
+> + `Shared/Components/GlassButton.swift` (+ `Tabs/MemberCardsState.swift`, 0.5.0) · **Run:** 55 (2026-06-30) · **v0.6.0** (2026-10-14)
 
 ## 1. What it is + who uses it
 The **Members tab** — Tab 2 of `AdminHomeView`, the iOS analogue of the web `/members` landing. A **per-member
@@ -35,13 +35,13 @@ adapted to native idioms (a view-as **sheet** + `NavigationLink` push detail vie
 | Header (title "Members" · program name · **Invite** `GlassButton`) | `AdminOtherTabs.swift:25-40` | Invite → `InviteMemberView` (a deferred stub at port time; since ported). **0.5.0 (D-NP1):** the button is `person.2` → `PeopleListView` (a swap of `envelope.badge.person.crop`, not a new button — NP-U1); Invite moves to People's `Invite member` row and stays on the Program tab. |
 | **Member Metrics preview** card (`NavigationLink` → `MemberMetricsDetailView`) | `:43-48` | `MemberMetricsPreviewCard` — fetches the leaderboard, shows top member (web F5) |
 | **View as** selector (`canViewAs = isProgramAdmin`) → `MemberPickerView` sheet | `:50-51, 87-118` | global_admin gets the "None" option; program admin defaults to self |
-| `MemberOverviewCard` · `MemberHistoryCard` · `MemberStreakCard` · `MemberRecentCard` · `MemberHealthCard` (when a member is selected) | `:52-58` | each card is a `NavigationLink` to a detail view (deferred at port time; all since ported) |
+| `MemberOverviewCard` · `MemberHistoryCard` · `MemberStreakCard` · `MemberRecentCard` · `MemberHealthCard` (when a member is selected) | `:52-58` | each card is a `NavigationLink` to a detail view (deferred at port time; all since ported). The Overview's **PTD MP %** = active days ÷ the program's days so far, clamped 0–100 (D-C2). |
 
 ### `StandardMembersTab` (logger + member) — legacy `StandardMembersTab.swift:5-199`
 | Block | Reference `file:line` | Notes |
 |---|---|---|
 | Header (title · program name · **View Members** `GlassButton`) | `StandardMembersTab.swift:31-47` | View Members → `ProgramMembersListView` (a deferred stub at port time; since ported). **0.5.0 (D-NP1):** `person.2` → `PeopleListView` (the roster is retired). |
-| `MemberOverviewCard` (self) | `:55-57` | |
+| `MemberOverviewCard` (self) | `:55-57` | PTD MP % = active days ÷ the program's days so far, clamped 0–100 (D-C2) |
 | `MemberMetricsCard(metric:, hero: .active_days)` (self — D-C7 primary-stat swap) | `:60-62` | the member-self metrics card |
 | `MemberHistoryCard` · `MemberStreakCard` (self) | `:65-68` | |
 | **logger only:** `loggerViewAsSelector` sheet, then `MemberRecentCard` + `MemberHealthCard` scoped to the picked member | `:70-74, 105-144` | logger can view-as another member's **logs only** |
@@ -100,6 +100,7 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
 | **D-NP1** | **People from the header, every role (0.5.0; NP-U1 — supersedes iOS UA-1; people D-C14).** Both tabs' header `GlassButton` is `person.2` → `PeopleListView`: on `AdminMembersTab` it replaces the `envelope.badge.person.crop` Invite button (a swap, never a second header button — the custom-header rule), on `StandardMembersTab` it replaces the roster push. | NP amendments NP-U1; iOS plan TC1. |
 | **D-NP2** | **The S5 recipe with owner tokens + render-time identity (0.5.0; member-analytics D-C12; iOS plan TC5/TC12, verdict #1).** `MemberCardState` per card (`Tabs/MemberCardsState.swift`); `ProgramContext.memberCardsOwner` (`members-tab`, or a `MemberFullStatsView` UUID) — a tab that finds another owner resets the cards to placeholders and reloads its own member, and both tabs skip their reconnect / `members.count` reloads while another owner holds them; the render-time identity tags `memberHistoryMemberId` / `memberStreaksMemberId` / `memberRecentMemberId` make a card show a placeholder unless the data is its member's; the Metrics preview keeps its own `loadedProgramId` (`.task(id: program\|refresh)`) so another program's rows never show. Accepted: placeholders flash once when returning from Workout History / View Workouts (they load without the owner flag). `loadMemberOverview` returns `AppError?`. | member-analytics D-C12; NP amendments R13. |
 | **D-REL1** | **Phase 4 polish (#10, #29).** #10 keyed member cards (frontend-kit **D-KIT-23**): the picker calls `ProgramContext.resetProgramScopedData()` when the program changes (the cards, the owner token + identity tags, the metrics rows, `membershipDetails`); both tabs reset "View as" for every role on a program change — `AdminMembersTab` cancels its View-as `loadTask` and re-applies the default, `StandardMembersTab` cancels `loggerLoadTask` and clears `loggerViewAsMember`; a logger's member pick cancels the previous member's Recent read. The shared loaders (`loadMemberOverview` / `History` / `Streaks` / `Recent`, `loadMembershipDetails`, `loadLookupData`) publish only when not cancelled and the program is unchanged. I4: an unfinished View-as load is cancelled `onDisappear` and restarted on the next appearance while the cards are free. `MemberHistoryCard`'s render-time id falls back to the signed-in member, never the overview's member. #29 (one line in `MemberCards`): the streak card pushes `MemberStreakDetail(memberId: selectedMember?.id ?? loggedInUserId)`, which loads its own streaks ([member-streaks-detail](../member-streaks-detail/SPEC.md)). The cards' loading / error placeholders stay People S5's (D-NP2; iOS plan P-1). | `05e185a`; polish amendments PA6 (I4); iOS plan P-1, steps 35–37 |
+| **D-C2** | **PTD MP % = active days ÷ the program's days so far, clamped (2026-10-14 parity sweep D2 + amendment B1; METHODOLOGY R9).** `MemberOverviewCard.programTotalDays` keeps its rule — `ProgramContext.startDate` → min(`endDate`, now) inclusive in `Calendar.current` (the **device's local calendar day** — log dates are local days), at least 1 — and `memberProgressPercent` now clamps the rounded % to 0–100; the bar's value is `min(active_days, programTotalDays)` and the caption stays `a / b days`. The clamp matters because `active_days` is not clipped to the program end ([member-analytics](../../../features/member-analytics/SPEC.md) §10). Web adopted this denominator and Android already had it, so the three read the same (program progress — ring / Program tab / picker bar — is the server's UTC numbers, [programs](../../../features/programs/SPEC.md) D-C6; the two day rules differ on purpose). **Dateless program (sweep X-3, out of scope):** a program without dates keeps `ProgramContext`'s placeholder dates (init ±180 days; `apply(program:)` keeps the previous dates when one is null), so iOS shows a non-zero denominator where web and Android read 0 days / 0 %. | `Features/Home/Tabs/MemberOverviewPicker.swift` (`programTotalDays`, `memberProgressPercent`); `Shared/Models/ProgramContext.swift:190-198`; `ProgramContext+ProgramManagement.swift`; parity-sweep plan D2 / X-3 + amendments B1. |
 
 ## 10. Flagged characteristics kept as-is
 - **F1** — `StandardMembersTab.errorMessage` is set (`:163`) but **never rendered**; load errors are swallowed
@@ -119,6 +120,10 @@ views, not this tab. Matches the web `/members` landing (web SPEC §7).
   `/members/{metrics,invite,list,streaks,workouts,health}` sub-routes; each a later run. Forward-nav (web F2).
 
 ## 11. Changelog
+- **v0.6.0** (2026-10-14, **D-C2 — parity sweep D2 + B1, METHODOLOGY R9**; iOS `d6f569a`) — PTD MP % is clamped 0–100 and
+  the bar's value to the denominator; the denominator stays start → min(end, today) inclusive in the device's local
+  calendar day (now the rule on web + Android too). Notes the dateless-program placeholder divergence (X-3, out of
+  scope). §4 + §9.
 - **v0.5.1** (2026-10-13, **D-REL1 — Phase 4 polish (`05e185a`)**) — #10 program switch clears the shared cards and resets
   View-as for every role, member switches cancel the previous reads, superseded loader replies never publish, the View-as
   load stops `onDisappear` (I4); #29 the streak card passes `memberId` to its self-loading detail.

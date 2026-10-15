@@ -1,6 +1,6 @@
 # Screen: `program` (android) — the Program tab (4th bottom tab)
 
-> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.3.1 · **App:** `android` (Compose)
+> **Status:** 🏗️ built (ported to `apps/android/`) · **Version:** 0.4.0 · **App:** `android` (Compose)
 > **Thin port-note.** Full behavior = the iOS Program tab
 > (`Features/Home/Tabs/{Admin,Standard}ProgramTab.swift` + `ProgramCards.swift`) + the web `/program`
 > surfaces — this file records only the Android realization + idiom deviations.
@@ -13,7 +13,7 @@ Header (both variants): **"Program"** + active-program name + the signed-in user
 (web-parity avatar, same as the Summary tab). **0.3.1:** tapping it opens [`my-profile`](../my-profile/SPEC.md) (D-PC1).
 
 - **Standard (non-admin):** read-only **Program Info** card (Name / Status pill / Duration / Progress bar +
-  elapsed·remaining days / Active Members — client date math, iOS `ProgramContext` computeds) + a standalone
+  elapsed·remaining days — the open program's `/programs` row, D-PS1 / **Members**) + a standalone
   **Switch Program** card + a **Leave Program** card + the **My Account** section.
 - **Admin/global-admin:** a **Program Info** action section (**Select Program** always · **Edit Program
   Details** if `canEditProgramData` · **Leave Program** if not global-admin) · a **Members** section
@@ -79,10 +79,22 @@ notifications` → the [`inbox`](../inbox/SPEC.md) screen) · **Change Password*
   CircleShape)` (first in the chain; 52 dp, look unchanged) → `Routes.PROGRAM_PROFILE`. System back pops to the Program
   tab. The My Account profile row stays. Parity: web `/program`, iOS `AdminProgramTab`/`StandardProgramTab`.
 
+## Parity sweep (0.4.0)
+
+- **D-PS1 (2026-10-14 — METHODOLOGY R9; sweep D1 / D3, [programs](../../../features/programs/SPEC.md) D-C6):** the
+  read-only Program Info card's `%`, bar, days elapsed and days remaining come from `programProgress(program)`
+  (`ui/program/ProgramCards.kt`) — the open program's `progress_percent` · `elapsed_days` · `total_days` in UTC days, the
+  Summary ring's and the picker bar's numbers, identical on web + iOS. The device-date math (multiply-first rounding) is
+  only the fallback when the day fields are absent (a launch-cached list from before the backend change, or the local
+  copy right after an edit until the list re-read lands — edit-program D-PS1). `programCompletionPercent` /
+  `programElapsedDays` / `programRemainingDays` are deleted. The row label reads **`Members`** (was `Active Members`;
+  the count is still `activeMembers`). (`ProgramSections.kt` `ProgramInfoReadOnlyCard`.)
+
 ## Changelog
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.0 | 2026-10-14 | **D-PS1 — parity sweep (METHODOLOGY R9; Android `8144345`).** The read-only Program Info card's progress reads the open program's `/programs` row via `programProgress` (date-math fallback only when the day fields are absent); the row label is `Members`. |
 | 0.3.1 | 2026-10-13 | **D-PC1 — touch-up (c).** The header initials circle opens `MyProfileScreen` (`tapTarget` "My Profile", same look); system back returns to Program. |
 | 0.3.0 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #33 admin sections on the kit states — `Loading...` / `—` + `Couldn't load this · Retry` (People, Workout Types), spinner / inline error / honest empty (Role Management), pull to refresh, stale banner, reconnect reload; #45 Health Connect subtitle `Sync workouts, sleep, and steps`. Stale A-1 (Health Connect row omitted) struck. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`d528f75`).** "View Members" → `People` · `<n> enrolled` (the People list); the My Account `Inbox` row (`<n> new`). |

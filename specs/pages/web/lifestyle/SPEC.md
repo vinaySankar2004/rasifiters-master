@@ -1,6 +1,6 @@
 # Page: `lifestyle` (web) — the workout-analytics / health-timeline dashboard (third workspace tab)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.2.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/lifestyle` — **the third bottom-nav tab** of a program's workspace. NOT a sleep/diet *logging*
 > screen: it is a **read-only** workout-type-analytics + health-timeline overview with the same role-gated
 > **"view as"** picker as the Members tab. The workout-type CRUD (the write path) and the full timeline detail
@@ -63,9 +63,9 @@ the tab. It is the landing/hub for the lifestyle cluster — the entry point tha
 | View-as picker (admin) | `canViewAs`-only button → opens `MemberPickerModal`; shows `viewAsLabel` (selected member / "Admin" / "Member"). | lifestyle/page.tsx:187-197 |
 | Empty hint | `!canViewAs && !loggedInUserId` → `EmptyState` "Unable to identify the logged-in member." | lifestyle/page.tsx:199-201 |
 | Stat: Total workout types | `WorkoutStatCard` (amber) — distinct exercise count, program-to-date. | lifestyle/page.tsx:205-223 |
-| Stat: Most popular | `WorkoutStatCard` (violet) — top workout name + session count. | lifestyle/page.tsx:224-239 |
-| Stat: Longest duration | `WorkoutStatCard` (red) — workout name + avg minutes. | lifestyle/page.tsx:242-258 |
-| Stat: Highest participation | `WorkoutStatCard` (green) — workout name + `participation_pct`% of members. **Always program-wide** (ignores the view-as member). | lifestyle/page.tsx:259-274 |
+| Stat: Most popular | `WorkoutStatCard` (violet) — top workout name + session count; "N/A" · "No data" when the loaded stat has no workout (D-C11). | lifestyle/page.tsx:224-239 |
+| Stat: Longest duration | `WorkoutStatCard` (red) — workout name + avg minutes; "N/A" · "No data" when the loaded stat has no workout (D-C11). | lifestyle/page.tsx:242-258 |
+| Stat: Highest participation | `WorkoutStatCard` (green) — workout name + `participation_pct`% of members; "N/A" · "No data" when the loaded stat has no workout (D-C11). **Always program-wide** (ignores the view-as member). | lifestyle/page.tsx:259-274 |
 | Steps analytics card | `StepsStatsCard` (teal `#14b8a6` tint; text in the dark-aware teal shade since 0.2.2, `IconSteps`) — inserted **after** the Longest/Highest row (DC-9); 2-col "Total steps" / "Avg steps/day" from `fetchStepsStats` (`GET /analytics/health/steps`, member-scoped via the view-as memberId). | lifestyle/page.tsx (after :275) |
 | Workout Type Popularity card | A sortable horizontal-bar list with a **count / total-minutes / avg-minutes** segmented toggle and a **top-10 / show-all** switch; bar colors are a hash of the workout name. Rendered **above** the two timeline cards to match iOS/Android card order (DC-10). | lifestyle/page.tsx |
 | Lifestyle Timeline card | Clickable → `/lifestyle/timeline?memberId=…`; a Recharts `ComposedChart` (sleep-hours bars + diet-quality line) over the last 10 buckets of the week. | lifestyle/page.tsx |
@@ -138,7 +138,7 @@ read or a forward-nav link). The lock has no effect here; it governs the workout
   read, incl. the admin member list); a failed refresh over shown cards → the floating stale banner; failed reads
   reload on reconnect. A View-as or program change shows "…" until the new member's reads arrive.
 - **Empty:** ~~stat cards → "No data"~~ *(superseded at v0.2.2 by D-REL1)* a loaded stat with no workout name →
-  "N/A"; timeline → "No data yet."; popularity → "No workouts logged yet." (loaded data only).
+  "N/A" with the subtitle "No data" on Most popular / Longest duration / Highest participation (D-C11); timeline → "No data yet."; popularity → "No workouts logged yet." (loaded data only).
 - **No member context (logger/member with no `loggedInUserId`):** the `EmptyState` "Unable to identify the
   logged-in member." renders and the member-scoped reads stay disabled.
 - **No active program:** `useAuthGuard()` (default `requireProgram:true`) redirects to `/programs`.
@@ -161,6 +161,7 @@ read or a forward-nav link). The lock has no effect here; it governs the workout
 | **D-C2** | **Port `components/ui/EmptyState.tsx` verbatim** — a new 10-line neutral empty-card primitive (distinct from the already-ported `ErrorState`), the page's only no-member-context fallback. | legacy `components/ui/EmptyState.tsx:1-10`; user answer (faithful). |
 | **D-C10** | **Deliberate card reorder → iOS/Android parity.** Card order is now Steps stats → **Workout Type Popularity** → Lifestyle Timeline → Steps Timeline, moving Popularity **above** the two timeline charts. This **supersedes DC-9** (which had kept web's legacy order with Popularity last, "no reorder"). The web layout diverged from the native apps and confused the user; iOS `AdminWorkoutTypesTab.swift:71-91` and Android `LifestyleScreen.kt` both render Popularity above the timelines. Pure JSX reorder — no prop/data/behavior change. | iOS `AdminWorkoutTypesTab.swift:71-91`; user request (match iOS/Android layout). |
 | **D-REL1** | **Phase 4 polish (#31, #36, #43).** #31 honest Lifestyle states (the Summary recipe; analytics **D-C11**, analytics-v2 **D-C6**): per-card `cardStatus` — "…" / "Loading" while loading, "—" only after a settled failure, empty copy only on loaded data; one `ErrorView` + Retry (`retryNow` on each failed key), the stale `FloatingBanner`, refetch on reconnect; the query keys are hoisted value-identical, so a View-as change starts the new member's cards at "…" (frontend-kit **D-KIT-23**). The page-local picker is extracted to the shared `components/MemberPickerModal.tsx` (the Members tab adopts it in People S5). #36 44 px header pill, popularity metric toggle (`aria-pressed`), Show all, picker rows / Done (frontend-kit **D-KIT-22**). #43 accent TEXT uses dark-aware shades (`--rf-accent-amber/violet/red/green/teal`; the bright hue stays as the chip tint). | `ec13107`; polish amendments U3 |
+| **D-C11** | **The "No data" null state on all three named stat cards (2026-10-14 parity sweep A7; METHODOLOGY R9; user-approved extension).** When a loaded Most popular / Longest duration / Highest participation stat has no `workout_name` (no workouts logged), the card reads `N/A` with the subtitle `No data` — not `0 workouts` / `0 mins avg` / `0.0% of members`. iOS and Android already did this on all three; web had it on none (the sweep's finding named Highest participation; the user approved extending it to the two sibling cards). Loaded data only — loading and failed states are unchanged (D-REL1). | `lifestyle/page.tsx` (`WorkoutStatCard` subtitles); parity-sweep plan A7 + Risks (A7 null state); amendments "Flagged parity extensions" (i). |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -178,6 +179,7 @@ read or a forward-nav link). The lock has no effect here; it governs the workout
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2.3 | 2026-10-14 | **D-C11 — parity sweep A7 (web `88ea9ff`).** Most popular / Longest duration / Highest participation read `N/A` · `No data` when the loaded stat has no workout (iOS + Android parity; the two sibling cards user-approved). §4 / §8 / §9. |
 | 0.2.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #31 honest states ("…" while loading, "—" after a failure, ErrorView + Retry, stale banner, reload on reconnect) + `MemberPickerModal` extracted to `components/`; #36 44 px pill / toggle / picker rows with selected state; #43 dark-aware accent text shades. |
 | 0.2.1 | 2026-07-09 | **Card reorder → iOS/Android parity (DC-10).** Moved the **Workout Type Popularity** card **above** the Lifestyle Timeline + Steps Timeline cards, so the web order (Steps stats → Popularity → Lifestyle Timeline → Steps Timeline) matches iOS `AdminWorkoutTypesTab.swift:71-91` and Android `LifestyleScreen.kt`. Web had rendered Popularity last (the legacy order kept by DC-9), which diverged from the native apps and read as "missing." Pure JSX reorder in `lifestyle/page.tsx` — no prop/data/behavior change; **supersedes DC-9**. |
 | 0.2.0 | 2026-07-09 | **Two new steps cards** (analytics 0.2.0 D-C5). A **`StepsStatsCard`** (teal `#14b8a6`, new `IconSteps`; Total steps / Avg steps/day from the new `fetchStepsStats` → `GET /analytics/health/steps`, member-scoped) inserted after the Longest/Highest stat row, and a **`StepsTimelineCard`** (clone of `LifestyleTimelineCard`, single teal `steps` bar; → `/lifestyle/steps-timeline`) inserted after the Lifestyle Timeline card — both minimal faithful insertions, no reorder of existing cards (DC-9). `lib/api/lifestyle.ts` gains `StepsStats` + `fetchStepsStats` and `steps`/`daily_average_steps` on the timeline types; `lib/format.ts` gains `stepsLabel`; `components/icons` gains `IconSteps`. `npm run build` ✓. |

@@ -31,9 +31,9 @@ cards two-per-row (`laidOutRows()`). Each card is drag-reorderable (persisted pe
 | Block | Reference `file:line` | Ported to |
 |---|---|---|
 | `SummaryHeader` (title · program name · signed-in user's initials circle → `MyProfileView`, D-PC1) | legacy `AdminHomeHelpers.swift:53` | `SummaryCards.swift` (`SummaryHeader`) |
-| **Program Progress** (`CompletionRing` + %/days + status pill) | `AdminHomeHelpers.swift:145, 197` | `SummaryCards.swift` |
-| **MTD Participation** (pct · active/total · change badge) | `AdminHomeHelpers.swift:219` | `SummaryCards.swift` |
-| **Total Workouts / Total Duration / Avg Duration** (value + change badge) | `AdminHomeHelpers.swift:284, 337, 398` | `SummaryCards.swift` |
+| **Program Progress** (`CompletionRing` + %/days + status pill) — the open program's `GET /programs` row (`progress_percent` · `elapsed_days` · `total_days`, D-C4) | `AdminHomeHelpers.swift:145, 197` | `SummaryCards.swift`; `ProgramContext.swift` (`serverProgress`) |
+| **MTD Participation** (pct to one decimal, `"%.1f%%"` — D-C4 · active/total · change badge) | `AdminHomeHelpers.swift:219` | `SummaryCards.swift` |
+| **Total Workouts / Total Duration / Avg Duration** (value + change badge; Total Duration hours = `round(minutes / 6) / 10`, ".0" dropped — D-C4) | `AdminHomeHelpers.swift:284, 337, 398` | `SummaryCards.swift`; `ProgramContext+Analytics.swift` |
 | **Add workout / Log daily health** action cards | `AdminHomeHelpers.swift:1503, 1562` | `SummaryCards.swift` |
 | **Activity Timeline** card (bar + line Swift Chart) | `AdminHomeHelpers.swift:693` | `SummaryChartCards.swift` |
 | **Distribution by Day** card (7-day bar chart) | `WorkoutDistributionViews.swift:136` | `SummaryChartCards.swift` |
@@ -45,7 +45,8 @@ cards two-per-row (`laidOutRows()`). Each card is drag-reorderable (persisted pe
 ## 5. Components + features consumed
 - **`ProgramContext`** (`@EnvironmentObject`) — all analytics data + the `load*` methods + the program-progress
   computeds (`completionPercent`/`elapsedDays`/`totalDays`/`remainingDays`/`loggedInUserInitials`/`name`/`status`),
-  all ported in the foundation (run 50). NEW this run: `adminOnlyDataEntry` + `dataEntryLocked` (D-C2).
+  all ported in the foundation (run 50); since v0.3.0 the progress computeds read `serverProgress` — the open
+  program's `programs` row — and fall back to the device-calendar formula (D-C4). NEW this run: `adminOnlyDataEntry` + `dataEntryLocked` (D-C2).
 - **`APIClient+Analytics`** DTOs (`MTDParticipationDTO`, `ActivityTimelinePoint`, `WorkoutTypeDTO`, …) — foundation.
 - **`workoutTypePaletteColor`** (`Shared/Components/WorkoutPopularityLogic.swift:56`) — foundation.
 - **Theme** (`appOrange`/`appBlue`/`appRed`/`appBackgroundSecondary`/`appOrangeGradientEnd`, …) — foundation.
@@ -59,8 +60,12 @@ api function**. ~~On mount + on `period` change, `load()` calls (all on `Program
 `loadMTDParticipation()`, `loadTotalWorkoutsMTD()`, `loadTotalDurationMTD()`, `loadAvgDurationMTD()`,
 `loadActivityTimeline(period: timelinePeriod.apiValue)`, `loadDistributionByDay()`, `loadWorkoutTypes()`.~~
 *(superseded by D-C3 at v0.2.0; the leftover `loadActivityTimeline` / `loadWorkoutTypes` were deleted at v0.2.3)* —
-`load()` calls `ProgramContext.loadSummary(period:timelinePeriod:read:)`: the 8 reads in parallel, returning which parts
-applied (`Set<SummaryPart>`, D-REL1) + the first failure.
+`load()` calls `ProgramContext.loadSummary(period:timelinePeriod:read:)`: ~~the 8 reads in parallel~~ *(since v0.3.0 —
+D-C4)* the 7 analytics reads + `GET /programs` in parallel, returning which analytics parts applied
+(`Set<SummaryPart>`, D-REL1) + the first analytics failure. The programs read is best-effort: a `.network` result
+replaces `programs`, a `.cacheOnly` result fills only an empty list, a failure keeps the last list and never fails
+the tab; the open program's row also refreshes `activeMembers` (the Program tab's "Members"). `/analytics/summary` is
+no longer called. `period` is kept only as part of the load key.
 NEW decode: `ProgramDTO.admin_only_data_entry` (already returned by the backend program payload; web sources it
 identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(program:)`.
 
@@ -92,7 +97,8 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   `resetProgramScopedData()` clears every Summary field — the previous program's totals never show.
 - **Error (D-C3, supersedes the D-C1 banner):** nothing loaded for this program → `ErrorStateView` (Retry) and the
   analytics cards hide (the add / progress cards stay) — never another program's or zero values; some parts loaded, or
-  data + a failed refresh → those values stay with the kit stale banner. Back online → refetch. A load that fails
+  data + a failed refresh → those values stay with the kit stale banner. Program Progress always shows a value (the
+  `/programs` row, else the device-calendar fallback — D-C4). Back online → refetch. A load that fails
   while offline (link down or proven offline — polish-1) shows the offline error view, a client timeout included. Pull-to-refresh reloads now and starts a background
   `pull_to_refresh` sync; a sync that lands workouts bumps `summaryRefreshToken` → reload again.
 - **Reorder:** drag a card → `CardDropDelegate` moves it + `persistOrder()` writes
@@ -108,9 +114,10 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
 | **D-C1** | *(Superseded by D-C3 — iOS 1.5.0: the kit error view / stale banner.)* **Web-parity ADD — a visible error banner.** Legacy set `errorMessage` (`AdminSummaryTab.swift:88`) but rendered it nowhere; web shows an `ErrorState`. Additive red banner, no new dep. The run-52 swallow-vs-surface mirror. | web `summary/page.tsx:181-183` |
 | **D-C2** | **Web-parity ADD — the `admin_only_data_entry` landing treatment.** A 🔒 banner (verbatim `DATA_LOCK_MESSAGE`) + dimmed/non-navigating add cards when `dataEntryLocked`. Required adding `ProgramDTO.admin_only_data_entry` decode + `ProgramContext.adminOnlyDataEntry`/`dataEntryLocked` (web `isDataEntryLocked` = flag on && not admin). Absent from legacy iOS entirely. | web `lib/permissions.ts:5,21-25`, `summary/page.tsx:196-200`; backend `Program` model |
 | **D-DEPS** | **No new dependency for the dashboard** — every analytics loader/DTO/theme symbol + the progress computeds ported in the foundation (run 50). Newly ported WITH the cards (lived only in deferred Detail files): `ScrollableBarChart`, `DistributionPoint`/`distributionPoints`, `DistributionChartOverlay`, `typeColor`/`barColor`. | dep-purity grep; foundation `WorkoutPopularityLogic.swift` |
-| **D-C3** | **Kit adoption + instant open (reliability Phase 3 C2; board §6.5, D-9; frontend-kit §5–§6).** `ProgramContext.loadSummary` runs the 8 loads in parallel (was serial) and applies every part that loaded; `LoadState<String>` (the program id on screen) + `.task(id: SummaryLoadKey)` replaces `guard !isLoading` (W7 F5); cache-first via `LaunchCache`; `ErrorStateView` only when nothing loaded (analytics cards hidden — amendment A13), any part that loaded → stale (kept values + banner) via `ScreenBanner`; the scroll content gets bottom padding while that banner shows, and the offline band is the stack's bottom safe-area inset (A6); refetch on reconnect; `.refreshable` = reload now + a background `pull_to_refresh` sync, and a run that applies workouts reloads again (A13, H5); the timeline card's empty spinner removed (W7 F3). | frontend-kit §5–§6; health-sync §8 rule 1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A6 / A13 / H5. |
+| **D-C3** | **Kit adoption + instant open (reliability Phase 3 C2; board §6.5, D-9; frontend-kit §5–§6).** `ProgramContext.loadSummary` runs the 8 loads in parallel (was serial) *(the `/analytics/summary` load replaced by `GET /programs` at v0.3.0 — D-C4)* and applies every part that loaded; `LoadState<String>` (the program id on screen) + `.task(id: SummaryLoadKey)` replaces `guard !isLoading` (W7 F5); cache-first via `LaunchCache`; `ErrorStateView` only when nothing loaded (analytics cards hidden — amendment A13), any part that loaded → stale (kept values + banner) via `ScreenBanner`; the scroll content gets bottom padding while that banner shows, and the offline band is the stack's bottom safe-area inset (A6); refetch on reconnect; `.refreshable` = reload now + a background `pull_to_refresh` sync, and a run that applies workouts reloads again (A13, H5); the timeline card's empty spinner removed (W7 F3). | frontend-kit §5–§6; health-sync §8 rule 1; Phase 3 client amendments (`specs/initiatives/reliability-overhaul/plans/phase-3-client-amendments.md`) A6 / A13 / H5. |
 | **D-REL1** | **Phase 4 polish (#30, with #10).** #30 honest Summary cards (analytics **D-C11**, analytics-v2 **D-C6**; the frontend-kit D-KIT-11 in-flight idiom): `loadSummary` returns WHICH parts applied (`Set<SummaryPart>`) and the tab keeps `loadedParts`; each of the 7 analytics cards (MTD Participation, Total workouts, Total duration, Avg duration, timeline, distribution, top types) renders only when its part loaded — else `PlaceholderCard(isUnavailable:)`: the spinner while a load is in flight (first load, Retry, refresh), `—` (spoken `Unavailable`) after a settled failure; never a fake 0. The three chart drill-downs open only from a loaded card. #10 keyed state (frontend-kit **D-KIT-23**): a program change sets `.loading` + clears `loadedParts` in the same event; `resetProgramScopedData()` clears the Summary fields. | `05e185a`; polish amendments U3; iOS plan P-6, steps 33–34 |
 | **D-PC1** | **Touch-up (c) — the header circle opens My Profile (2026-10-13).** `SummaryHeader` (shared by Summary and the admin Program tab) wraps its circle in `NavigationLink { MyProfileView() }` + `.buttonStyle(.plain)` + `.contentShape(Circle())` + `.accessibilityLabel("My Profile")` — same look. It pushes on the picker's outer stack, so nav back / the edge swipe pops to this tab with the selected tab and program intact. Initials now read `loggedInUserInitials` (was `adminInitials`: the same name at sign-in, never refreshed after a rename in My Profile) — web/Android parity; closes android/summary A-2. `ProgramContext.adminInitials`/`adminName` are now unused (left in place); a missing user name shows `?` (was "A" from the `"Admin"` default). The picker's account button is unchanged. | user, touch-up (c) (reliability HANDOFF) |
+| **D-C4** | **Parity sweep (2026-10-14; METHODOLOGY R9).** (a) **Program Progress = the open program's `GET /programs` row (sweep D1; [programs](../../../features/programs/SPEC.md) D-C6).** `ProgramDTO` decodes `total_days` / `elapsed_days`; `ProgramContext.serverProgress` returns the open program's `progress_percent` · `elapsed_days` · `total_days` (UTC days — the picker bar's numbers, the same on web / Android), and `completionPercent` / `elapsedDays` / `totalDays` read it. It is nil until the row is in `programs`, while the row's dates differ from the open program's `startDate` / `endDate` (`yyyy-MM-dd`; a date edit until the re-read lands), or when an older backend omits the day fields → the pre-D1 device-calendar formula, now multiply-first rounded like the server. `loadSummary` re-reads `GET /programs` in place of `/analytics/summary` (best-effort; `.cacheOnly` fills only an empty list) and refreshes `activeMembers` from the row; the silent 7-day `distribution_by_day` fallback for the distribution card is gone (sweep S-9) — the card shows only `/analytics/distribution/day`. (b) **MTD Participation** shows one decimal (`"%.1f%%"`, was a whole number), as web + Android. (c) **Total Duration** = `round(minutes / 6) / 10` hours (was `round(minutes / 60 · 10) / 10`), ".0" still dropped — web + Android same. | `Shared/Models/ProgramContext.swift` (`serverProgress`, `dayFormatter`); `ProgramContext+Analytics.swift` (`loadSummary`); `Shared/Services/APIClient+Programs.swift`; `Features/Home/Tabs/SummaryCards.swift`; parity-sweep plan D1 / A7 + amendments A4 / A6 / A7. |
 
 ## 10. Flagged characteristics (kept as-is)
 - **F1 — iOS-only drag-to-reorder + per-program `UserDefaults` persistence.** Web has no card reordering; this
@@ -118,7 +125,8 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   (`AdminSummaryTab.swift:37-49, 204-227`)
 - **F2 — Vestigial period bindings.** `period` (from the shell) and `timelinePeriod` (`.week`) drive `load()`
   but **no period-selector UI renders** on the landing → effectively week-fixed. Matches web F4 (no landing
-  selector) + F5 (over-fetch — `loadAnalytics` results aren't all shown). The period selector is a deferred
+  selector) + F5 (over-fetch — `loadAnalytics` results aren't all shown; *web F5 retired and `/analytics/summary`
+  no longer read at v0.3.0 — D-C4*). The period selector is a deferred
   detail-view concern. (`AdminSummaryTab.swift:9, 14, 80, 85`)
 - **F3 — 5 deferred detail-view stubs.** `AddWorkoutDetailView`, `AddDailyHealthDetailView`,
   `ActivityTimelineDetailView`, `DistributionByDayDetailView`, `WorkoutTypesDetailView` — the iOS analogues of
@@ -133,6 +141,11 @@ identically) → hydrated into `ProgramContext.adminOnlyDataEntry` in `apply(pro
   boundary is the backend 403 (`requireDataEntryAllowed`) reached by the deferred log forms. (web F2 mirror)
 
 ## 11. Changelog
+- **v0.3.0** (2026-10-14, **D-C4 — parity sweep, METHODOLOGY R9**; iOS `d6f569a`) — Program Progress reads the open
+  program's `GET /programs` row (`serverProgress`, date-guarded; device-calendar fallback, multiply-first rounding);
+  `loadSummary` re-reads `/programs` instead of `/analytics/summary` (best-effort, `.cacheOnly` fills only an empty
+  list) and refreshes the Program-tab member count; the 7-day distribution fallback (S-9) is removed; MTD
+  Participation `"%.1f%%"`; Total Duration `round(min/6)/10`. §4 / §5 / §6 / §8 / §9 / §10 updated.
 - **v0.2.4** (2026-10-13, **D-PC1 — touch-up (c)**) — the `SummaryHeader` circle is a plain-style `NavigationLink` → `MyProfileView` (label "My Profile", same look) and shows `loggedInUserInitials` (was `adminInitials`, now unused).
 - **v0.2.3** (2026-10-13, **D-REL1 — Phase 4 polish (`05e185a`)**) — #30 a card without its loaded part shows a spinner
   while in flight and `—` (`Unavailable`) after a settled failure, never a fake 0 (`loadSummary` returns the applied

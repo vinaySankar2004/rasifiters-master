@@ -57,7 +57,7 @@
       }
     },
     "programs": {
-      "version": "0.4.1",
+      "version": "0.5.0",
       "spec": "specs/features/programs/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -294,7 +294,7 @@
       }
     },
     "analytics": {
-      "version": "0.6.1",
+      "version": "0.6.2",
       "spec": "specs/features/analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -323,7 +323,7 @@
       }
     },
     "analytics-v2": {
-      "version": "0.3.1",
+      "version": "0.3.2",
       "spec": "specs/features/analytics-v2/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -348,7 +348,7 @@
       }
     },
     "member-analytics": {
-      "version": "0.8.0",
+      "version": "0.8.1",
       "spec": "specs/features/member-analytics/SPEC.md",
       "status": "deployed",
       "consumed_by": [

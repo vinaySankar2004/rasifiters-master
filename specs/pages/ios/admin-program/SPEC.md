@@ -1,6 +1,6 @@
 # Screen: `AdminProgramTab` / `StandardProgramTab` (ios) — the Program tab (Tab 4, the LAST tab body)
 
-> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.2.2 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (ported to `apps/ios/`) · **Version:** 0.3.0 · **App:** `ios` (SwiftUI)
 > **Location:** Tab 4 **"Program"** (`calendar.badge.clock`) of `AdminHomeView`'s bottom `TabView` — the iOS
 > analogue of the web `/program` workspace hub. Role-bifurcated by `programContext.isProgramAdmin`:
 > `AdminProgramTab` (program/global admin — sectioned management menu) vs `StandardProgramTab` (logger/member —
@@ -28,7 +28,7 @@ twin of web `/program`. It is **role-bifurcated** into two physically separate v
 - **`AdminProgramTab`** (program admin / global_admin) — a sectioned scroll of management cards: Program Info
   (select/edit/leave), Member Management, Role Management (admin-gated), Workout Types, and My Account.
 - **`StandardProgramTab`** (logger / member) — a read-only Program Info card (name · status · duration ·
-  client-computed progress · active members), a Switch-Program button, a Leave-Program button, and My Account.
+  the server's program progress · members), a Switch-Program button, a Leave-Program button, and My Account.
 
 Used by **every enrolled member**; which variant renders is decided by `AdminHomeView` from
 `programContext.isProgramAdmin` (§7).
@@ -78,7 +78,7 @@ manager, the workout-type manager, and the account screens (profile/password/app
 | Block | What | Reference `file:line` (legacy) |
 |---|---|---|
 | Header | Inline `HStack`: "Program" + program name + own initials avatar (orange gradient); the avatar is a `NavigationLink` → `MyProfileView()` on this tab's own stack (0.2.2, D-PC1). | `StandardProgramTab.swift` (header `HStack`) |
-| Program Info card | Read-only `GlassCard`: Name · Status (capsule badge) · Duration · **Progress bar** (`completionPercent` + elapsed/remaining days) · Active Members. | `StandardProgramTab.swift:95-213` |
+| Program Info card | Read-only `GlassCard`: Name · Status (capsule badge) · Duration · **Progress bar** (`completionPercent` + elapsed/remaining days — the open program's `/programs` row, D-C4) · **Members** (`activeMembers`, D-C4). | `StandardProgramTab.swift:95-213` |
 | Switch Program | Button → `ProgramPickerView`. | `StandardProgramTab.swift:215-253` |
 | Leave Program | Button → confirm alert → `leaveProgram()` → picker. | `StandardProgramTab.swift:255-295` |
 | My Account | `ProgramMyAccountSection()` (shared). | `StandardProgramTab.swift:68` |
@@ -155,6 +155,7 @@ write sub-routes, not the program hub). The read-vs-write axis (runs 31/36/54/55
 | **D-NP1** | **Inbox row + the People row (0.2.0; notifications D-C31, people D-C14, NP-U1).** `ProgramMyAccountSection` (in `Tabs/ProgramCards.swift`) gains the `Inbox` row (the badge as `<n> new`) pushing `InboxView`; the Member Management section's roster row becomes `People` · `<n> enrolled` → `PeopleListView` (TC1 / UA-1 superseded by NP-U1 — the Members-tab header also opens People for every role). Same rows on both role variants (My Account is shared). | NP amendments NP-U1, R7, R8; iOS plan TC1, TC9. |
 | **D-REL1** | **Phase 4 polish (#45).** `ProgramMyAccountSection`'s Apple Health row subtitle reads `Sync workouts, sleep, and steps` (was "Sync workouts automatically"; iOS syncs steps — Android keeps `Sync workouts and sleep`), the same copy as the picker's account sheet (PA1). Both role variants (shared section). The management sections' own polish is recorded in their page SPECs. | `05e185a`; polish amendments PA1 |
 | **D-PC1** | **Touch-up (c) — the header circle opens My Profile (2026-10-13).** Admin variant: via the shared `SummaryHeader` (admin-summary D-PC1), initials = `loggedInUserInitials`. Standard variant: the inline circle is wrapped the same way (`NavigationLink { MyProfileView() }`, `.buttonStyle(.plain)`, `.contentShape(Circle())`, label "My Profile") and pushes on the tab's own `NavigationStack`. Back / the edge swipe pops to the Program tab. `ProgramMyAccountSection` keeps its profile row. | user, touch-up (c) (reliability HANDOFF) |
+| **D-C4** | **Parity sweep (2026-10-14; METHODOLOGY R9 — retires F7).** (a) **Progress (sweep D1, [programs](../../../features/programs/SPEC.md) D-C6):** the read-only card's `completionPercent` / `elapsedDays` / `remainingDays` come from `ProgramContext.serverProgress` — the open program's `GET /programs` row (`progress_percent` · `elapsed_days` · `total_days`, UTC days), the Summary ring's and the picker bar's numbers, identical on web + Android. The device-calendar formula (multiply-first rounding) runs only while the row is absent, carries other dates (a date edit until the re-read lands) or lacks the day fields. The row is re-read by Summary's `loadSummary` (admin-summary D-C4) and in the background after an edit ([edit-program](../edit-program/SPEC.md) D-C4). (b) **"Members" (sweep D3):** the row label reads `Members` (was `Active Members`); the count is `activeMembers`, which `loadSummary` now refreshes from the re-read row's `active_members` (as web + Android read the row). | `Features/Home/Tabs/StandardProgramTab.swift`; `Shared/Models/ProgramContext.swift` (`serverProgress`); `ProgramContext+Analytics.swift`; parity-sweep plan D1 / D3 + amendments A4 / A6 / A7. |
 
 ## 10. Flagged characteristics kept as-is
 
@@ -179,14 +180,16 @@ write sub-routes, not the program hub). The read-vs-write axis (runs 31/36/54/55
   (`StandardProgramTab.swift:95-213`) duplicates the field rows web's non-admin `GlassCard` renders; kept
   inline (not extracted) — the layout diverged from `AdminProgramTab`'s sectioned info, so it stays its own
   view (run-22/23 "don't de-dup across diverged layouts"). Faithful.
-- **F7 — progress is client-computed:** `completionPercent`/`elapsedDays`/`remainingDays` are computed in
+- ~~**F7 — progress is client-computed:** `completionPercent`/`elapsedDays`/`remainingDays` are computed in
   `ProgramContext` from the program dates (not fetched analytics) — mirrors web's local
-  `computeProgramProgress`. Faithful.
+  `computeProgramProgress`. Faithful.~~ **RETIRED at v0.3.0 (D-C4):** they read the open program's `GET /programs`
+  row (`serverProgress`); the device-calendar formula is only the fallback.
 
 ## 11. Changelog
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-10-14 | **D-C4 — parity sweep (METHODOLOGY R9; iOS `d6f569a`).** The read-only Program Info card's progress reads the open program's `GET /programs` row (`serverProgress`, date-guarded; device-calendar fallback only when absent) — F7 retired; the row label is `Members`, kept fresh from the re-read row. §1 / §4 / §9 / §10. |
 | 0.2.2 | 2026-10-13 | **D-PC1 — touch-up (c).** The header circle (both variants) opens `MyProfileView` (plain `NavigationLink`, label "My Profile", same look); the admin variant shows `loggedInUserInitials`. |
 | 0.2.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`05e185a`).** #45 My Account's Apple Health subtitle `Sync workouts, sleep, and steps`. |
 | 0.2.0 | 2026-10-13 | **D-NP1 — Phase 4 (`198407c`).** My Account gains the `Inbox` row (unread badge → `InboxView`); the Member Management row reads `People` · `<n> enrolled` → `PeopleListView` (roster retired). |

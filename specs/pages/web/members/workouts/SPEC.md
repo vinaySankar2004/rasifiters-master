@@ -1,6 +1,6 @@
 # Page: `members/workouts` (web) — per-member workout log manager (members sub-route 7 of 8)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.1.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/workouts?memberId=&name=` — the **View Workouts** manager for one member, reached by the
 > `/members` landing's "Recent Workouts" card. Sort + filter modal + CSV export over the member's workout-log list,
 > each row **editable** (duration modal) and **deletable**. **7th** of the eight deferred `/members` sub-routes
@@ -166,12 +166,14 @@ boundary (the run-40 `members/detail` / run-43 `members/history` mirror).
 | **D-C3** | **Tokenize the Delete button** — `bg-red-50 … text-red-600` → `bg-rf-danger/10 text-rf-danger`, exactly as run 39 tokenized `members/list`'s "Inactive" badge; theme-aware, light-mode-identical. *(At v0.1.2 the button uses the shared `danger-pill` class — D-REL1.)* | `members/list` D-C; run 39 |
 | **D-STANCE** | Faithful 1:1 **+ D-C1/C2/C3**. No backend work, no feature bump (all routes + api fns already shipped). | user, this run |
 | **D-REL1** | **Phase 4 polish (#9, #19, #29, #36).** #9 errors show where the user is: an edit error (guard or save) inside the Edit modal, a delete error inside the ConfirmDialog in keep-open mode (`closeOnConfirm={false}`, `Deleting…`, closes on success; frontend-kit **D-KIT-24**) — the page-level error line is gone. #19 the own-only redirect waits for session restore (`isBootstrapping \|\| !session`). #29 the list load goes through `QueryView` (frontend-kit **D-KIT-21**; resolves F5). #36 Export CSV, Edit / Delete, Done / Close / Cancel / Save and Clear-all are 44 px `text-sm` targets; Delete uses `danger-pill` (frontend-kit **D-KIT-22**). | `ec13107` |
+| **D-C4** | **`limit: 0` = every row (2026-10-14 parity sweep A6; METHODOLOGY R9 — resolves F1).** `fetchMemberRecentWorkouts` sends `limit` whenever it is given (`params.limit !== undefined`), so the page's `limit: 0` reaches the backend as `0` — unbounded (the backend caps only `limit > 0`), as iOS + Android send. The list and the CSV are complete (was capped at 1000 rows). An omitted `limit` still defaults to 1000. | `lib/api/members.ts` (`fetchMemberRecentWorkouts`); parity-sweep plan A6. |
 
 ## 10. Open questions / flagged characteristics (kept as-is)
 
-- **F1 — `limit: 0` means "all", but coerces to 1000.** The page passes `limit: 0` intending "no cap"; the api fn
+- ~~**F1 — `limit: 0` means "all", but coerces to 1000.** The page passes `limit: 0` intending "no cap"; the api fn
   coerces falsy → `"1000"` (`members.ts:152` `params.limit ? … : "1000"`). So the list is effectively capped at 1000
-  rows, not unbounded. Faithful (legacy behavior); flagged — a rebuild cleanup would be an explicit "all" sentinel.
+  rows, not unbounded. Faithful (legacy behavior); flagged — a rebuild cleanup would be an explicit "all" sentinel.~~
+  **RESOLVED at v0.1.3 (D-C4):** `limit: 0` is sent as `0`, which the backend treats as unbounded.
 - **F2 — role-gate asymmetry (client redirect stricter than backend read).** The page redirects a non-staff user away
   from another member's `memberId` (`page.tsx:70-75`), but `getMemberRecent` only enforces `ensureProgramAccess` +
   target-enrolled. Faithful; the run-40/43 mirror. Rebuild-cleanup candidate only if per-member read restriction
@@ -194,6 +196,7 @@ boundary (the run-40 `members/detail` / run-43 `members/history` mirror).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.3 | 2026-10-14 | **D-C4 — parity sweep A6 (web `88ea9ff`).** `limit: 0` reaches the backend as unbounded (was coerced to 1000), so the list and CSV are complete; F1 resolved. §9 + §10. |
 | 0.1.2 | 2026-10-13 | **D-REL1 — Phase 4 polish (`ec13107`).** #9 edit errors inside the Edit modal, delete errors inside the keep-open ConfirmDialog (`Deleting…`); #19 the own-only redirect waits for session restore; #29 `QueryView` (F5 resolved); #36 44 px targets, Delete `danger-pill`. |
 | 0.1.1 | 2026-10-13 | Phase 4 quick wins: edit / delete errors go through `toAppError` (frontend-kit D-KIT-19, #8). |
 | 0.1.0 | 2026-06-29 | Initial faithful port of `members/workouts` (members sub-route 7 of 8) — per-member workout-log manager (sort + filter modal + CSV export + per-row Edit/Delete, URL `memberId`/`name`, non-staff own-only redirect, `admin_only_data_entry`-gated writes). D-C1 `window.confirm`→`ConfirmDialog`, D-C2 reuse hoisted `formatDuration`, D-C3 tokenize the Delete button. No new dependency, zero backend work, no feature bump. |
