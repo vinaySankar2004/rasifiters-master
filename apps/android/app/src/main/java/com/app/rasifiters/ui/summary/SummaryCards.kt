@@ -202,7 +202,7 @@ private fun MetricCard(title: String, value: String, secondary: String?, change:
 @Composable
 fun MtdParticipationCard(active: Int, total: Int, pct: Double, change: Double, modifier: Modifier = Modifier) {
     Box(modifier) {
-        MetricCard("MTD Participation", "${pct.roundToInt()}%", "$active/$total members active", change)
+        MetricCard("MTD Participation", String.format(Locale.US, "%.1f%%", pct), "$active/$total members active", change)
     }
 }
 
@@ -212,9 +212,10 @@ fun TotalWorkoutsCard(total: Int, change: Double, modifier: Modifier = Modifier)
 }
 
 @Composable
-fun TotalDurationCard(hours: Double, change: Double, modifier: Modifier = Modifier) {
-    val whole = hours.roundToInt()
-    val label = if (abs(hours - whole) < 0.05) "$whole" else String.format(Locale.US, "%.1f", hours)
+fun TotalDurationCard(minutes: Int, change: Double, modifier: Modifier = Modifier) {
+    // A7 (parity): hours to one decimal, half-up on whole tenths — round(minutes / 6) / 10 — ".0" dropped (web + iOS same).
+    val tenths = (minutes / 6.0).roundToInt()
+    val label = if (tenths % 10 == 0) "${tenths / 10}" else String.format(Locale.US, "%.1f", tenths / 10.0)
     Box(modifier) { MetricCard("Total duration", "$label hrs", null, change) }
 }
 

@@ -178,6 +178,10 @@ data class ProgramDTO(
     @SerialName("active_members") val activeMembers: Int = 0,
     @SerialName("total_members") val totalMembers: Int = 0,
     @SerialName("progress_percent") val progressPercent: Int = 0,
+    /** D-C6 (programs SPEC §9): the day counts behind progress_percent (UTC days). null = absent (an older backend, a
+     *  launch-cached list from before it, or the local copy right after an edit) → the client fallback. */
+    @SerialName("total_days") val totalDays: Int? = null,
+    @SerialName("elapsed_days") val elapsedDays: Int? = null,
     @SerialName("my_role") val myRole: String? = null,
     @SerialName("my_status") val myStatus: String? = null,
     @SerialName("admin_only_data_entry") val adminOnlyDataEntry: Boolean = false,

@@ -47,17 +47,15 @@ import com.app.rasifiters.core.kit.UiState
 import com.app.rasifiters.core.kit.dataOrNull
 import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppOrangeGradientEnd
-import com.app.rasifiters.net.ProgramDTO
 import com.app.rasifiters.ui.Routes
 import com.app.rasifiters.ui.components.kit.ErrorView
 import com.app.rasifiters.ui.components.kit.FloatingBanner
 import com.app.rasifiters.ui.components.kit.FloatingBannerVariant
 import com.app.rasifiters.ui.components.tapTarget
+import com.app.rasifiters.ui.program.programProgress
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
-import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 /**
  * The Summary tab — the per-program workspace overview (Android analog of the iOS `AdminSummaryTab` /
@@ -70,8 +68,8 @@ import java.time.temporal.ChronoUnit
  *
  * Android-idiom deviations (see specs/pages/android/summary/SPEC.md):
  *  • No card drag-reorder (iOS-only legacy nicety, web lacks it) — fixed vertical layout.
- *  • Progress read from the loaded ProgramDTO (progress_percent + date math), skipping the vestigial
- *    `analytics/summary` over-fetch (feeds only the deferred detail views — iOS F2 / web F5).
+ *  • Progress = the loaded ProgramDTO's server fields (progress_percent · elapsed_days · total_days — D1, programs
+ *    SPEC §9 D-C6); no client calls `analytics/summary`.
  * The 5 forward targets (activity / distribution / workout-types / log-workout / log-health) are stubs
  * this phase, per the iOS D-SCOPE landing-vs-details split.
  */
@@ -124,10 +122,11 @@ fun SummaryScreen(programContext: ProgramContext, onNavigate: (String) -> Unit) 
                 if (locked) DataLockBanner()
 
                 val p = program
+                val progress = programProgress(p)   // D1: one UTC-day source for the % and the day counts
                 ProgramProgressCard(
-                    progress = (p?.progressPercent ?: 0).coerceIn(0, 100),
-                    elapsedDays = elapsedDays(p),
-                    totalDays = totalDays(p),
+                    progress = progress.percent,
+                    elapsedDays = progress.elapsedDays,
+                    totalDays = progress.totalDays,
                     status = p?.status ?: "—",
                 )
 
@@ -182,7 +181,7 @@ private fun SummaryAnalytics(summary: SummaryData, onNavigate: (String) -> Unit)
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         val duration = summary.totalDuration
         if (duration == null) UnavailableCard("Total duration", Modifier.weight(1f), height = 240.dp)
-        else TotalDurationCard(hours = duration.totalMinutes / 60.0, change = duration.changePct, modifier = Modifier.weight(1f))
+        else TotalDurationCard(minutes = duration.totalMinutes, change = duration.changePct, modifier = Modifier.weight(1f))
         val avg = summary.avgDuration
         if (avg == null) UnavailableCard("Avg duration", Modifier.weight(1f), height = 240.dp)
         else AvgDurationCard(minutes = avg.avgMinutes, change = avg.changePct, modifier = Modifier.weight(1f))
@@ -270,25 +269,6 @@ private fun DataLockBanner() {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
         )
     }
-}
-
-// ---- Progress computeds (iOS ProgramContext date math; server progress_percent for the ring) ----
-
-private fun parseDate(raw: String?): LocalDate? =
-    raw?.takeIf { it.isNotBlank() }?.let { runCatching { LocalDate.parse(it.take(10)) }.getOrNull() }
-
-private fun totalDays(p: ProgramDTO?): Int {
-    val s = parseDate(p?.startDate) ?: return 0
-    val e = parseDate(p?.endDate) ?: return 0
-    return ChronoUnit.DAYS.between(s, e).toInt().coerceAtLeast(0)
-}
-
-private fun elapsedDays(p: ProgramDTO?): Int {
-    val s = parseDate(p?.startDate) ?: return 0
-    val total = totalDays(p)
-    val today = LocalDate.now()
-    if (!today.isAfter(s)) return 0
-    return ChronoUnit.DAYS.between(s, today).toInt().coerceIn(0, total)
 }
 
 private fun initialsOf(name: String?): String {

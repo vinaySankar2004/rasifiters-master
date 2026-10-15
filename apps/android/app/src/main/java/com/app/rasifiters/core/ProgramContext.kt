@@ -786,6 +786,9 @@ class ProgramContext(
         fun stillMine() = summaryProgramId == pid && isCurrentOwner(owner)
         if (summaryProgramId != pid) {
             summaryProgramId = pid
+            // D1: a program picked from the launch-cached list carries that list's day counts — re-read the row (as iOS
+            // and web do on open) so the ring isn't a day behind for the session.
+            scope.launch { loadPrograms().onSuccess { reconcileActiveProgram() } }
             setSummaryState(UiState.Idle)
             if (memberId != null) launchCache.readSummary(memberId, pid)?.let { hit ->
                 if (stillMine() && _summaryState.value is UiState.Idle) setSummaryState(UiState.Loaded(hit.data, hit.savedAt))
@@ -823,6 +826,8 @@ class ProgramContext(
      *  leaving the tab) and reloads again only if it applied something. */
     suspend fun refreshSummary(): Result<Unit> {
         scope.launch { if (((health.sync("pull_to_refresh") as? HealthSyncResult.Synced)?.count ?: 0) > 0) loadSummary() }
+        // D1 / X-2: the ring reads the open program's /programs row — a pull re-reads it too.
+        scope.launch { loadPrograms().onSuccess { reconcileActiveProgram() } }
         return loadSummary()
     }
 
@@ -1585,9 +1590,14 @@ class ProgramContext(
             val updated = program.copy(
                 name = name, status = status, startDate = startDate,
                 endDate = endDate, adminOnlyDataEntry = adminOnlyDataEntry,
+                // D1 / X-2: the server's day fields belong to the old dates — drop them (the screens fall back to the
+                // date math on the new dates) until the list re-read below brings the server's numbers.
+                totalDays = null, elapsedDays = null,
             )
             _activeProgram.value = updated
             setPrograms(_programs.value.map { if (it.id == updated.id) updated else it })
+            scope.launch { loadPrograms().onSuccess { reconcileActiveProgram() } }
+            Unit
         }.recoverCatching { throw it.asApiError() }
     }
 

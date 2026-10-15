@@ -292,7 +292,7 @@ fun MemberOverviewCard(programContext: ProgramContext, state: CardState = CardSt
                 EmptyLine("No workouts logged yet.")
             } else {
                 val totalDays = programTotalDays(program)
-                val progress = if (totalDays > 0) ((o.activeDays.toDouble() / totalDays) * 100).roundToInt() else 0
+                val progress = if (totalDays > 0) ((o.activeDays.toDouble() / totalDays) * 100).roundToInt().coerceIn(0, 100) else 0  // D2 clamp
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     MemberInitialsAvatar(o.memberName, 48)
                     Spacer(Modifier.size(12.dp))
@@ -366,7 +366,7 @@ fun MemberMetricsCard(metric: MemberMetricsDTO, hero: MetricSortField) {
 @Composable
 private fun MetricsGrid(m: MemberMetricsDTO) {
     val avgSleep = m.avgSleepHours?.let { String.format(Locale.US, "%.1f", it) } ?: "—"
-    val avgDiet = m.avgFoodQuality?.let { "$it" } ?: "—"
+    val avgDiet = m.avgFoodQuality?.let { "$it / 5" } ?: "—"  // A7: as the hero + iOS + web
     val avgSteps = m.avgSteps?.let { String.format(Locale.US, "%,d", it) } ?: "—"
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -603,7 +603,7 @@ private fun ListLine(dotColor: Color, title: String, subtitle: String, trailing:
     }
 }
 
-// ---- Progress math (iOS ProgramContext date window: start → min(end, today) + 1, min 1) ----
+// ---- PTD (D2, Members page SPEC): days so far = start → min(end, today) inclusive, min 1, in the device's local calendar day (log dates are local days); 0 when a date is missing ----
 
 internal fun programTotalDays(program: ProgramDTO?): Int {
     val start = parseIso(program?.startDate) ?: return 0

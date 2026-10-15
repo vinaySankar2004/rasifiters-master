@@ -218,7 +218,7 @@ fun ProgramRowDivider() {
     )
 }
 
-// ---- Status + progress helpers (iOS ProgramContext date math + statusColor) ----
+// ---- Status, date + progress helpers (progress = D1 server fields, date-math fallback) ----
 
 fun programStatusColor(status: String?): Color = when (status?.lowercase()) {
     "completed" -> AppGreen
@@ -240,25 +240,27 @@ fun programDateRangeLabel(program: ProgramDTO?): String {
     return "${start.format(START_FMT)} – ${end.format(END_FMT)}"
 }
 
-private fun totalDays(program: ProgramDTO?): Int {
-    val s = parseProgramDate(program?.startDate) ?: return 0
-    val e = parseProgramDate(program?.endDate) ?: return 0
-    return ChronoUnit.DAYS.between(s, e).toInt().coerceAtLeast(0)
+/**
+ * Program progress for the Summary ring + the Program tab (D1, programs SPEC §9 D-C6): the `/programs` row's
+ * `progress_percent` · `elapsed_days` · `total_days` — the server's UTC-day numbers, the picker bar's rule. Fallback only
+ * when the day fields are absent (a launch-cached list from before the backend change, or the local copy right after an
+ * edit until the list re-read lands): the device-date math these screens used before.
+ */
+data class ProgramProgress(val percent: Int, val elapsedDays: Int, val totalDays: Int) {
+    val remainingDays: Int get() = (totalDays - elapsedDays).coerceAtLeast(0)
 }
 
-fun programElapsedDays(program: ProgramDTO?): Int {
-    val s = parseProgramDate(program?.startDate) ?: return 0
-    val total = totalDays(program)
+fun programProgress(program: ProgramDTO?): ProgramProgress {
+    val serverTotal = program?.totalDays
+    val serverElapsed = program?.elapsedDays
+    if (program != null && serverTotal != null && serverElapsed != null) {
+        return ProgramProgress(program.progressPercent.coerceIn(0, 100), serverElapsed, serverTotal)
+    }
+    val start = parseProgramDate(program?.startDate) ?: return ProgramProgress(0, 0, 0)
+    val end = parseProgramDate(program?.endDate) ?: return ProgramProgress(0, 0, 0)
+    val total = ChronoUnit.DAYS.between(start, end).toInt().coerceAtLeast(0)
     val today = LocalDate.now()
-    if (!today.isAfter(s)) return 0
-    return ChronoUnit.DAYS.between(s, today).toInt().coerceIn(0, total)
-}
-
-fun programRemainingDays(program: ProgramDTO?): Int =
-    (totalDays(program) - programElapsedDays(program)).coerceAtLeast(0)
-
-fun programCompletionPercent(program: ProgramDTO?): Int {
-    val total = totalDays(program)
-    if (total <= 0) return 0
-    return Math.round(programElapsedDays(program).toDouble() / total * 100).toInt()
+    val elapsed = if (today.isAfter(start)) ChronoUnit.DAYS.between(start, today).toInt().coerceIn(0, total) else 0
+    val percent = if (total > 0) Math.round(elapsed * 100.0 / total).toInt() else 0
+    return ProgramProgress(percent, elapsed, total)
 }

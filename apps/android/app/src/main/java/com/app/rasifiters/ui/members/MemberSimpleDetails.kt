@@ -51,7 +51,7 @@ import com.app.rasifiters.ui.summary.DetailTopBar
 import com.app.rasifiters.ui.summary.PERIODS
 import com.app.rasifiters.ui.summary.PeriodSelector
 import com.app.rasifiters.ui.summary.axisLabels
-import kotlin.math.roundToInt
+import java.util.Locale
 
 // The two read-only Members detail leaves — Streak Stats + Workout History. Both scoped to the focused
 // member (ProgramContext.focusedMemberId, set by the tab before push). Faithful to member-streaks-detail
@@ -164,7 +164,7 @@ fun MemberHistoryDetailScreen(programContext: ProgramContext, onBack: () -> Unit
                     Text(rangeLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.alignByBaseline())
                 }
                 Text(
-                    data?.let { it.dailyAverage.roundToInt().toString() } ?: "\u2014",
+                    data?.let { String.format(Locale.US, "%.1f", it.dailyAverage) } ?: "\u2014",  // A4
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = AppOrange,

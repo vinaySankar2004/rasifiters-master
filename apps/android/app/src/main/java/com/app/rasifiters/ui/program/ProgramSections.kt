@@ -59,7 +59,7 @@ private fun loadSubtitle(state: UiState<Unit>, loaded: () -> String): String = w
 
 // ---- Standard (non-admin) variant ----
 
-/** Read-only Program Info card: Name / Status / Duration / Progress / Active Members (iOS StandardProgramTab). */
+/** Read-only Program Info card: Name / Status / Duration / Progress / Members (iOS StandardProgramTab). */
 @Composable
 fun ProgramInfoReadOnlyCard(program: ProgramDTO?) {
     ProgramSectionCard(Icons.Filled.Info, "Program Info", AppBlueTint) {
@@ -86,31 +86,32 @@ fun ProgramInfoReadOnlyCard(program: ProgramDTO?) {
                 Text(programDateRangeLabel(program), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
             }
             ProgramRowDivider()
+            val progressInfo = programProgress(program)   // D1: the /programs row's server fields
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 ProgramInfoRow("Progress") {
-                    Text("${programCompletionPercent(program)}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+                    Text("${progressInfo.percent}%", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
                 }
                 LinearProgressIndicator(
-                    progress = { programCompletionPercent(program) / 100f },
+                    progress = { progressInfo.percent / 100f },
                     color = programStatusColor(program?.status),
                     trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(
-                        "${programElapsedDays(program)} days elapsed",
+                        "${progressInfo.elapsedDays} days elapsed",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     )
                     Text(
-                        "${programRemainingDays(program)} days remaining",
+                        "${progressInfo.remainingDays} days remaining",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     )
                 }
             }
             ProgramRowDivider()
-            ProgramInfoRow("Active Members") {
+            ProgramInfoRow("Members") {
                 Text("${program?.activeMembers ?: 0}", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
             }
         }

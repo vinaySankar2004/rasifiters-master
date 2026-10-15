@@ -635,7 +635,8 @@ private fun dateRange(start: String?, end: String?): String? {
 private fun membersOrInviteLine(program: ProgramDTO): String = when (program.myStatus) {
     "invited" -> "Invitation pending"
     "requested" -> "Request pending approval"
-    else -> "${program.activeMembers} active / ${program.totalMembers} total members"
+    // D3 (programs SPEC §9): one number — the backend counts active and total members the same way (F2).
+    else -> if (program.totalMembers == 1) "1 member" else "${program.totalMembers} members"
 }
 
 // ---- Drag-to-reorder (iOS `.onMove` analog; disabled while searching) ----

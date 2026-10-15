@@ -33,7 +33,7 @@ import com.app.rasifiters.core.theme.AppOrange
 import com.app.rasifiters.core.theme.AppPurple
 import com.app.rasifiters.ui.components.kit.KitLoad
 import com.app.rasifiters.ui.components.kit.rememberLoad
-import kotlin.math.roundToInt
+import java.util.Locale
 
 /**
  * The Workout Activity Timeline drill-down (iOS `ActivityTimelineDetailView`). Period-switchable
@@ -132,8 +132,8 @@ internal fun EmptyText(text: String) {
     Text(text, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
 }
 
-/** iOS `HeaderStats` shows the daily average as a whole number (6 / 2 / 1 / 4). */
-private fun formatAverage(v: Double): String = v.roundToInt().toString()
+/** A4 (parity): the server's daily average to one decimal, as web + iOS ("0.4", "2.0"). */
+private fun formatAverage(v: Double): String = String.format(Locale.US, "%.1f", v)
 
 /** Callout title: format the bucket's ISO date as "MMM d" (e.g. Jul 8); fall back to the bucket label. */
 private fun calloutTitle(iso: String, fallback: String): String =
