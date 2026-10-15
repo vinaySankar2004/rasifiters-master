@@ -5,7 +5,7 @@
 > Durable outcomes move to their canonical homes (SPEC §9 D-rules, `METHODOLOGY.md` R-entries); the session
 > log below is one line per session.
 
-## Now (2026-10-14) — ANDROID 1.2.1 + PEOPLE ON WEB LIVE · iOS 1.5.2 (61) PULLED · PARITY FIXES NEXT
+## Now (2026-10-14) — POOLED PARITY RELEASE: backend + web LIVE · iOS 1.5.2 (63) + Android 1.2.2 (9) IN REVIEW
 
 - **Phase:** 1b ✅ → 2 ✅ → 3 ✅ → polish 1 ✅ → Phase 4 ✅ built + device-tested → **release touch-ups ✅ → submitted.**
   - Phase table: [`BRIEF.md`](BRIEF.md) §7. Decisions: [`phase-4/DECISIONS.md`](phase-4/DECISIONS.md).
@@ -53,11 +53,11 @@
 2. **D4 / D5 metric semantics — backend LIVE 2026-10-15** (`fd6c15b`, docs `82d02ac`; `plans/metric-semantics/`):
    MTD badges compare the same days of last month; the app streak resets unless the member logged today or
    yesterday, on their stored zone, else the most forgiving window (M7). The user tested web + iOS on staging first.
-3. **Pooled release, in progress:** the user archives + uploads **iOS 1.5.2 (62)**, then Claude attaches it to the
-   1.5.2 version and resubmits (automatic release; the user's yes). **Android 1.2.2 (9)**: `bundleRelease` → Play
-   closed testing (Alpha) → the Pixel check (the Pixel can't take locally built variants over the Play app) → production.
-   Afterwards: pre-bump each repo train one ahead, update RELEASES.md, and set `LATEST_IOS_VERSION` /
-   `LATEST_ANDROID_VERSION_CODE` on approval (the user's yes). Then mark Phase 4 🚀 in BRIEF §7 + PROGRESS.
+3. **Pooled release — submitted 2026-10-14:** iOS **1.5.2 (63)** Waiting for Review (automatic release; 61 + 62
+   expired) and Android **1.2.2 (9)** in Play closed-testing review. Repos pre-bumped: iOS **1.5.3 (64)**, Android
+   versionCode **10**. **Next:** Android approved → the user checks it on the Pixel → promote to production (the user's
+   yes) → `LATEST_ANDROID_VERSION_CODE = 9`. iOS approved → live on its own → `LATEST_IOS_VERSION = 1.5.2` (the user's
+   yes). Then RELEASES.md, and mark Phase 4 🚀 in BRIEF §7 + PROGRESS.
 4. ~2026-10-27: recheck Google's shown site name before doing anything more
    ([`plans/phase-4-seo.md`](plans/phase-4-seo.md)).
 
