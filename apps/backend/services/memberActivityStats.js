@@ -1,8 +1,11 @@
-// The member's OWN workout activity for notification content — notifications SPEC §3.6 (the scheduler rule). Workouts
-// only, across all programs (workout_logs): auto-synced sleep / steps never count, so a day with only synced steps still
-// gets its reminder. Streak = consecutive local days with ≥ 1 workout, ending today if today has one, else yesterday; 0
-// otherwise. Deliberately NOT memberAnalyticsService.computeStreaks (per program, never resets after a skipped day) —
-// this number can differ from the app's streak cards (a known gap). Each function is ONE query for many members.
+// The member's OWN workout activity for notification content — notifications SPEC §3.6 (the scheduler rule) — and the
+// ONE current-streak rule (currentStreak): consecutive days with ≥ 1 workout, ending today if today has one, else
+// yesterday; 0 otherwise, where "today" is the member's local day. The app's streak cards use this same rule
+// (memberAnalyticsService.computeStreaks → currentStreak, member-analytics D-C14) over ONE program's log dates; the
+// snapshots here count workouts across ALL programs (workout_logs) — auto-synced sleep / steps never count, so a day
+// with only synced steps still gets its reminder. That data set, and the app's forgiving UTC−12…UTC+14 day window for a
+// member with no stored zone (member-analytics M7), are the deliberate differences (notifications F14).
+// Each query function is ONE query for many members.
 const { QueryTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 const { addDaysToDate } = require("../utils/localTime");

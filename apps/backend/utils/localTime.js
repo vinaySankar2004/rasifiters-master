@@ -57,6 +57,17 @@ const addDaysToDate = (date, days) => {
     return d.toISOString().slice(0, 10);
 };
 
+/** member-analytics D-C14 / M7 — the day window a member's streak is judged on. A stored zone → that zone's today, both
+ *  ends. No zone (or Intl rejects it) → the most forgiving window on Earth: today = the UTC−12 date (a streak is never
+ *  zeroed early), latest = the UTC+14 date (a just-logged day is never ignored). Cost: a missed day can keep a zone-less
+ *  member's streak alive up to ~1 day longer. */
+const streakDayWindow = (timeZone, now = new Date()) => {
+    const local = timeZone ? localParts(timeZone, now)?.date : null;
+    if (local) return { today: local, latest: local };
+    const shifted = (hours) => new Date(now.getTime() + hours * 3600000).toISOString().slice(0, 10);
+    return { today: shifted(-12), latest: shifted(14) };
+};
+
 /** ISO-8601 week of a date, e.g. "2026-W42" — the weekly digest's never-send-twice period. */
 function isoWeekKey(date) {
     const d = new Date(`${date}T00:00:00Z`);
@@ -76,4 +87,4 @@ function dayLabel(date, today) {
     return `on ${label}`;
 }
 
-module.exports = { localParts, toMinutes, isValidDate, addDaysToDate, isoWeekKey, dayLabel };
+module.exports = { localParts, toMinutes, isValidDate, addDaysToDate, streakDayWindow, isoWeekKey, dayLabel };

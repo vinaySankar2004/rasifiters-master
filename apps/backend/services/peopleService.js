@@ -8,6 +8,8 @@ const { AppError } = require("../utils/response");
 const { loadViewer, hasProgramAccess, canView } = require("../utils/memberVisibility");
 const { computeStreaks } = require("./memberAnalyticsService");
 const { getKudosSummary, isActiveGiver } = require("./kudosService");
+const { getTimeZones } = require("./notificationPreferenceService");
+const { streakDayWindow } = require("../utils/localTime");
 
 const RECENT_WORKOUTS_LIMIT = 10;
 const MEMBER_ATTRS = ["id", "first_name", "last_name", "username"];
@@ -87,13 +89,13 @@ async function listPeople({ user, programId }) {
     };
 }
 
-// Same streak window + semantics as GET /api/member-streaks (program start → today UTC; the stale-streak caveat) so
-// the profile and "Open full stats" agree. Active days this month = distinct log dates in the current UTC month.
-const buildStats = (dates, programStart) => {
-    const today = todayUtc();
+// member-analytics D-C14 / M7 — the same streak data + rule as GET /api/member-streaks: this program's log dates from
+// the program start, judged on the member's day window (`window` = streakDayWindow: stored zone, else UTC−12…UTC+14),
+// ending today or yesterday, else 0. Active days this month = distinct log dates in the current UTC month.
+const buildStats = (dates, programStart, window) => {
     const start = programStart || "1970-01-01";
-    const { current, longest } = computeStreaks(dates.filter((d) => d >= start && d <= today));
-    const month = today.slice(0, 7);
+    const { current, longest } = computeStreaks(dates.filter((d) => d >= start), window.today, window.latest);
+    const month = todayUtc().slice(0, 7);
     return {
         current_streak: current,
         longest_streak: longest,
@@ -127,7 +129,7 @@ async function getPersonProfile({ user, programId, memberId }) {
     };
     if (!visible) return profile;
 
-    const [dateRows, recentRows, kudos, canGive] = await Promise.all([
+    const [dateRows, recentRows, kudos, canGive, zones] = await Promise.all([
         WorkoutLog.findAll({
             where: { program_id: programId, member_id: base.member_id },
             attributes: ["log_date"],
@@ -142,9 +144,14 @@ async function getPersonProfile({ user, programId, memberId }) {
             limit: RECENT_WORKOUTS_LIMIT
         }),
         getKudosSummary({ viewerId: viewer.id, recipientId: base.member_id }),
-        base.is_you ? false : isActiveGiver(viewer, programId)
+        base.is_you ? false : isActiveGiver(viewer, programId),
+        getTimeZones([base.member_id])
     ]);
-    profile.stats = buildStats(dateRows.map((row) => toDateString(row.log_date)).filter(Boolean), program.start_date);
+    profile.stats = buildStats(
+        dateRows.map((row) => toDateString(row.log_date)).filter(Boolean),
+        program.start_date,
+        streakDayWindow(zones.get(base.member_id))
+    );
     profile.recent_workouts = recentRows.map((w) => ({
         workout_type: w.ProgramWorkout?.workout_name || "",
         date: toDateString(w.log_date),

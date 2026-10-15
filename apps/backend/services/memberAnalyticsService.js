@@ -2,7 +2,10 @@ const { Op } = require("sequelize");
 const { WorkoutLog, Member, Program, ProgramMembership, ProgramWorkout, DailyHealthLog } = require("../models");
 const { AppError } = require("../utils/response");
 const { resolveTimelineWindow, buildBuckets, bucketKey } = require("./analyticsService");
-const { loadViewer, hasProgramAccess, canView, redactMetricsRow, ACTIVITY_HIDDEN_MESSAGE } = require("../utils/memberVisibility");
+const { loadViewer, hasProgramAccess, canView, canonicalId, redactMetricsRow, ACTIVITY_HIDDEN_MESSAGE } = require("../utils/memberVisibility");
+const { currentStreak } = require("./memberActivityStats");
+const { getTimeZones } = require("./notificationPreferenceService");
+const { addDaysToDate, isValidDate, streakDayWindow } = require("../utils/localTime");
 
 // D-C3 — shared requester-access + target-enrolled prelude for the single-member routes
 // (history / streaks / recent). Faithful: every 400/403/404 status + message preserved 1:1.
@@ -24,24 +27,28 @@ const assertMemberAccess = async (programId, memberId, user) => {
     }
 };
 
-const computeStreaks = (dateStrings) => {
-    if (!dateStrings.length) return { current: 0, longest: 0 };
-    const dates = dateStrings.map(d => new Date(`${d}T00:00:00Z`)).sort((a, b) => a - b);
-
+// member-analytics D-C14 / M7 — the app's streak cards (member-metrics, member-streaks, People profiles). `dateStrings`
+// = one program's "YYYY-MM-DD" log dates; `today` / `latest` = the member's day window (utils/localTime
+// streakDayWindow: a stored zone's today for both ends; no zone → the UTC−12 / UTC+14 dates). Duplicate dates count
+// once; dates after `latest` are ignored. longest = the longest run of consecutive days. current = the best
+// memberActivityStats.currentStreak (the ONE rule the notifications use too: ending on that day if logged, else the day
+// before, else 0) over every day the member's "today" could be — today … latest, at most 3 days for the zone-less window,
+// so a future-dated log can neither zero nor shorten a streak; with a known zone (latest === today) it is exactly
+// currentStreak(days, today).
+const computeStreaks = (dateStrings, today = new Date().toISOString().slice(0, 10), latest = today) => {
+    const days = new Set(dateStrings.filter((day) => day <= latest));
+    if (days.size === 0) return { current: 0, longest: 0 };
+    const sorted = [...days].sort();
     let longest = 1;
-    let currentRun = 1;
-    for (let i = 1; i < dates.length; i++) {
-        const diff = (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
-        if (diff === 1) { currentRun += 1; }
-        else if (diff === 0) { /* same day */ }
-        else { longest = Math.max(longest, currentRun); currentRun = 1; }
+    let run = 1;
+    for (let i = 1; i < sorted.length; i += 1) {
+        run = sorted[i] === addDaysToDate(sorted[i - 1], 1) ? run + 1 : 1;
+        if (run > longest) longest = run;
     }
-    longest = Math.max(longest, currentRun);
-
-    let current = 1;
-    for (let i = dates.length - 1; i > 0; i--) {
-        const diff = (dates[i] - dates[i - 1]) / (1000 * 60 * 60 * 24);
-        if (diff === 1 || diff === 0) { current += 1; } else { break; }
+    let current = 0;
+    for (let day = today; day <= latest; day = addDaysToDate(day, 1)) {
+        const upToDay = new Set([...days].filter((d) => d <= day));
+        current = Math.max(current, currentStreak(upToDay, day));
     }
     return { current, longest };
 };
@@ -99,12 +106,30 @@ async function getMemberMetrics({
 
     const memberIds = memberships.map(m => m.member_id);
 
+    // D-C14 / M7 — each member's streak is judged on their own day window (streakDayWindow: stored zone, else the
+    // forgiving UTC−12…UTC+14 window), cut at the requested endDate when that is earlier. The log read reaches the
+    // latest such day, so a workout an east-of-UTC member logged on their local today counts toward their streak;
+    // every other metric still stops at rangeEnd.
+    const rangeEndDay = rangeEnd.toISOString().slice(0, 10);
+    const endDay = endDate ? (isValidDate(endDate) ? endDate : rangeEndDay) : null;
+    const zones = await getTimeZones(memberIds);
+    const streakWindows = new Map(memberIds.map((id) => {
+        const window = streakDayWindow(zones.get(id), today);
+        if (!endDay) return [id, window];
+        return [id, {
+            today: endDay < window.today ? endDay : window.today,
+            latest: endDay < window.latest ? endDay : window.latest
+        }];
+    }));
+    const logsEndDay = [...streakWindows.values()]
+        .reduce((max, { latest }) => (latest > max ? latest : max), rangeEndDay);
+
     const logs = await WorkoutLog.findAll({
         where: {
             program_id: programId,
             member_id: { [Op.in]: memberIds },
             ...(rangeStart && rangeEnd ? {
-                log_date: { [Op.between]: [rangeStart.toISOString().slice(0, 10), rangeEnd.toISOString().slice(0, 10)] }
+                log_date: { [Op.between]: [rangeStart.toISOString().slice(0, 10), logsEndDay] }
             } : {})
         },
         attributes: ["member_id", "log_date", "duration", "program_workout_id"],
@@ -140,6 +165,7 @@ async function getMemberMetrics({
     }
 
     const perMemberDates = new Map();
+    const perMemberStreakDates = new Map(); // D-C14: every fetched log date (may run one day past rangeEnd)
     const perMemberTypes = new Map();
     const perMemberTypeCounts = new Map();
     const perMemberSleepSum = new Map();
@@ -152,6 +178,9 @@ async function getMemberMetrics({
     for (const log of logs) {
         const entry = metricsMap.get(log.member_id);
         if (!entry) continue;
+        if (!perMemberStreakDates.has(log.member_id)) perMemberStreakDates.set(log.member_id, new Set());
+        perMemberStreakDates.get(log.member_id).add(log.log_date);
+        if (rangeStart && log.log_date > rangeEndDay) continue; // D-C14: past rangeEnd → the streak only
         entry.workouts += 1;
         entry.total_duration += Number(log.duration || 0);
         if (isInCurrentMonth(log.log_date)) entry.mtd_workouts += 1;
@@ -200,8 +229,10 @@ async function getMemberMetrics({
         const dateSet = perMemberDates.get(mid);
         entry.active_days = dateSet ? dateSet.size : 0;
         entry.workout_types = perMemberTypes.get(mid)?.size || 0;
-        if (dateSet) {
-            const { current, longest } = computeStreaks(Array.from(dateSet));
+        const streakDates = perMemberStreakDates.get(mid);
+        if (streakDates) {
+            const { today: streakToday, latest } = streakWindows.get(mid);
+            const { current, longest } = computeStreaks(Array.from(streakDates), streakToday, latest);
             entry.current_streak = current;
             entry.longest_streak = longest;
         }
@@ -329,25 +360,29 @@ async function getMemberHistory({ programId, memberId, period = "week" }, user) 
 async function getMemberStreaks({ programId, memberId }, user) {
     await assertMemberAccess(programId, memberId, user);
 
-    const program = await Program.findOne({ where: { id: programId, is_deleted: false } });
+    const memberKey = canonicalId(memberId);
+    const [program, zones] = await Promise.all([
+        Program.findOne({ where: { id: programId, is_deleted: false } }),
+        getTimeZones(memberKey ? [memberKey] : [])
+    ]);
     if (!program) throw new AppError(404, "Program not found.");
 
     // D-C4 — guard a null start_date (mirrors getMemberMetrics' guard); fall back to the epoch lower
     // bound so the [Op.between] stays valid and the streak window spans all of the member's logs.
     const start = program.start_date ? new Date(`${program.start_date}T00:00:00Z`) : new Date("1970-01-01T00:00:00Z");
-    const today = new Date();
+    // D-C14 / M7 — the read and the streak end on the member's own day window (their stored zone, else UTC−12…UTC+14).
+    const window = streakDayWindow(zones.get(memberKey));
 
     const logs = await WorkoutLog.findAll({
         where: {
             program_id: programId,
             member_id: memberId,
-            log_date: { [Op.between]: [start.toISOString().slice(0, 10), today.toISOString().slice(0, 10)] }
+            log_date: { [Op.between]: [start.toISOString().slice(0, 10), window.latest] }
         },
         attributes: ["log_date"]
     });
 
-    const dates = Array.from(new Set(logs.map(l => l.log_date)));
-    const { current, longest } = computeStreaks(dates);
+    const { current, longest } = computeStreaks(logs.map((l) => l.log_date), window.today, window.latest);
 
     return {
         currentStreakDays: current,
