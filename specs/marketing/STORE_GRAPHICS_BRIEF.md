@@ -10,6 +10,8 @@
   the same thing; source: `apps/web/src/components/landing/content.ts`).
 - **Audience:** everyone who trains with a group — friends, families, clubs, coaches. Never "members only".
 - **Voice:** plain, confident, short. Sentence case. US English. No exclamation marks.
+- **Look:** like the big apps' store pages (WhatsApp and similar) — every image is our orange theme behind a real
+  app screen with a bold headline above it, never a bare screenshot.
 - **Proof points, in priority order:** your group's progress at a glance → logging is fast → see each member's
   progress → trends → automatic Apple Health / Health Connect sync → roles for running a program → free, no ads.
 
@@ -18,10 +20,9 @@
 | Item | Value |
 |---|---|
 | Name | **RaSi Fiters** (capital R, capital S, one "t") |
-| Accent | `#ff8b1f` (strong `#ff7a00`) — use for one highlight per frame, never for body text |
-| Text | headline `#111111`, subline `#646a76` |
-| Background | vertical gradient `#fff4e8` (top) → `#ffffff` (bottom), plus one soft accent glow `#ff8b1f` at 10% opacity behind the screenshot |
-| Icon | `apps/ios/store-assets/icon/icon.png` (orange circle, black bar-chart glyph) — use as-is, never redraw |
+| Background (every frame) | the brand orange: vertical gradient `#ffb45c` (top) → `#ff8b1f` (bottom), plus one soft white radial glow (12% opacity) behind the screenshot |
+| Text | headline `#111111`, subline `#111111` at 72% opacity (black on orange — the icon's own pairing; white on orange is too low-contrast) |
+| Icon | `apps/ios/store-assets/icon/icon.png` (full-bleed orange `#f9ac3a`, black bar-chart glyph) — use as-is, never redraw; on the orange background give it a 12 px white border and the §3 shadow so it doesn't blend in |
 | Type | **SF Pro Display Bold** headlines, **SF Pro Text Regular** sublines (Inter Bold / Regular if SF isn't available — one family across every set) |
 
 ## 3. Hard rules (store compliance)
@@ -69,10 +70,10 @@ Raw input → output folder (output file names = `NN-<raw name>`, e.g. `01-03-su
 | Google Play | 10-inch tablet | **1600 × 2560** | portrait | `apps/android/store-assets/tablet-10/` | `apps/android/store-assets/marketing/tablet-10/` |
 | Google Play | Feature graphic | **1024 × 500** | — (below) | icon + copy | `apps/android/store-assets/marketing/feature-graphic.png` |
 
-**Feature graphic (1024 × 500, no transparency, nothing important in the outer 10%):** the §2 background; the app
-icon at 300 px high, vertically centered, left edge at x 96; to its right "RaSi Fiters" (SF Pro Display Bold 84 px,
-`#111111`), a 64 × 6 px `#ff8b1f` rule, then "Fitness programs, tracked together." (SF Pro Text Regular 34 px,
-`#646a76`). No screenshots, no other text.
+**Feature graphic (1024 × 500, no transparency, nothing important in the outer 10%):** the §2 orange background; the
+app icon as a rounded square (radius 22%) 280 px high with the §2 white border + shadow, vertically centered, left
+edge at x 96; to its right "RaSi Fiters" (SF Pro Display Bold 84 px, `#111111`), a 64 × 6 px `#111111` rule, then
+"Fitness programs, tracked together." (SF Pro Text Regular 34 px, `#111111` at 72%). No screenshots, no other text.
 
 ## 6. Inputs
 
