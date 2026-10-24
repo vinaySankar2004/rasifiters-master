@@ -8,10 +8,10 @@ same set of screens as iOS, so the story stays consistent across both stores.
 | Folder | File(s) | Size / format |
 |--------|---------|---------------|
 | `icon/` | `icon.png` | **512 x 512 px**, 32-bit PNG, up to 1 MB. |
-| `feature-graphic/` | `feature-graphic.png` | **1024 x 500 px**, PNG or JPEG, no transparency, up to 15 MB. |
 | `phone/` | the 8 screenshots below | Portrait, **1080 x 1920 px** (9:16), PNG or JPEG, up to 8 MB each. |
 | `tablet-7/` | the 8 screenshots below | Portrait, **1200 x 1920 px** (7" tablet), PNG or JPEG. |
 | `tablet-10/` | the 8 screenshots below | Portrait, **1600 x 2560 px** (10" tablet), PNG or JPEG. |
+| `marketing/` | `phone/`, `tablet-7/`, `tablet-10/` — 8 captioned frames each (`NN-<raw name>.png`) + `feature-graphic.png` | Frames: same size as the matching raw folder, RGB PNG. Feature graphic: **1024 x 500 px**, no transparency, up to 15 MB. **These are what get uploaded**, in file order. Generated — see the brief below. |
 
 Notes on Play requirements:
 - Phone screenshots are **required**; tablet screenshots are optional but recommended (they make the

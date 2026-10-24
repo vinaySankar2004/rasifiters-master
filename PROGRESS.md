@@ -36,11 +36,11 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > **2026-10-24:** Hide my activity is now reciprocal (people D-C16 — hide yours, see no one else's; staff
 > exempt) — live on the backend + web; the matching iOS 1.5.3 (64) / Android 1.2.3 (10) copy, plus iOS built for
 > the iPhone Duo (Xcode 27.1) with its 16 store screenshots, are built and **held** (`RELEASES.md`); every raw store
-> screenshot set was recaptured on these builds. **Next, in order:** (1) vuhri generates the captioned orange-theme
-> marketing images per [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md); (2) review them + refresh the
-> App Store / Play description text (description, promotional / short text, keywords, What's New — release note
-> drafted: "Optimized for iPhone Duo. Hide my activity now works both ways…"); (3) the user uploads both binaries +
-> the new listing straight to production in one go.
+> screenshot set was recaptured on these builds, and the captioned orange-theme marketing frames are done
+> (`apps/{ios,android}/store-assets/marketing/`, per [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md)).
+> **Next, in order:** (1) iOS first (longer review): App Store Connect 1.5.3 — refreshed listing text (description,
+> promotional text, keywords, What's New — drafted: "Optimized for iPhone Duo. Hide my activity now works both
+> ways…"), the `marketing/` frames, build 64 → submit; (2) the same for Play Console 1.2.3 (10) to production.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

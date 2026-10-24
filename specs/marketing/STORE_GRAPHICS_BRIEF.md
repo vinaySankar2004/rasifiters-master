@@ -1,8 +1,9 @@
 # Store graphics brief — captioned App Store + Google Play sets (for the vuhri agent)
 
 > **What this is:** the exact spec for RaSi Fiters' store marketing images — one captioned frame per real app
-> screenshot, in every size both stores show. vuhri generates the files into the folders below; uploading them to
-> App Store Connect / Play Console happens with the release, on the user's go-ahead. Written 2026-10-24.
+> screenshot, in every size both stores show. vuhri generated the files into the folders below (§7); uploading them to
+> App Store Connect / Play Console happens with the release, on the user's go-ahead. Written 2026-10-24; updated the
+> same day to match the approved render.
 
 ## 1. How the app should be seen
 
@@ -34,8 +35,9 @@
 3. **Exact pixel sizes** from §5, **PNG, RGB, no alpha channel** (App Store Connect rejects transparency).
 4. No rankings, awards, "best", "#1", prices other than "Free", or other brands' logos. "Apple Health" and
    "Health Connect" appear as text only.
-5. Headline ≤ 6 words, subline ≤ 9 words; both readable at thumbnail size (headline cap height ≥ 4.5% of canvas
-   height on portrait frames).
+5. Headline ≤ 6 words, subline ≤ 9 words; both readable at thumbnail size. One headline size per set: cap height
+   4.5% of canvas height on the portrait sets, except **iPhone (3.6%)** and **Android phone (4.4%)** — frame 1's
+   headline can't fit two lines at 4.5% there, so the whole set takes the smaller size. Landscape sets: §4.
 
 ## 4. The 8 frames (store order = this order)
 
@@ -50,10 +52,12 @@
 | 7 | `07-program.png` | You decide who does what | Admin, logger and member roles. |
 | 8 | `01-splash.png` | Free. No ads. | Your data stays yours. |
 
-**Portrait layout:** headline + subline centered in the top 22% (subline 16 px-per-1000 below the headline);
-screenshot centered below, 80% of canvas width, bottom edge 4% above the canvas bottom.
-**Landscape layout:** text left-aligned in the left 36% (vertically centered); screenshot in the right 60%, 4%
-margin on the right.
+**Portrait layout:** headline + subline centered in the top text band (subline 16 px-per-1000 below the headline);
+screenshot centered below, scaled to fit between the text band and a 4% bottom margin — 67–71% of canvas width,
+depending on the set.
+**Landscape layout:** text left-aligned from a 4% left margin within the left 36% (vertically centered); the headline
+takes the largest size that wraps without leaving a short word alone on a line, up to a cap height of **4.0% (iPad)**
+/ **4.2% (Duo inner)**; screenshot in the right 60%, 4% margin on the right.
 
 ## 5. Sets to produce
 
@@ -71,9 +75,11 @@ Raw input → output folder (output file names = `NN-<raw name>`, e.g. `01-03-su
 | Google Play | Feature graphic | **1024 × 500** | — (below) | icon + copy | `apps/android/store-assets/marketing/feature-graphic.png` |
 
 **Feature graphic (1024 × 500, no transparency, nothing important in the outer 10%):** the §2 orange background; the
-app icon as a rounded square (radius 22%) 280 px high with the §2 white border + shadow, vertically centered, left
-edge at x 96; to its right "RaSi Fiters" (SF Pro Display Bold 84 px, `#111111`), a 64 × 6 px `#111111` rule, then
-"Fitness programs, tracked together." (SF Pro Text Regular 34 px, `#111111` at 72%). No screenshots, no other text.
+app icon as a rounded square (radius 22%) 280 px high **including** the §2 12 px white border, plus the shadow,
+vertically centered, left edge at x 96; to its right "RaSi Fiters" (SF Pro Display Bold 84 px, `#111111`), a 64 × 6 px
+`#111111` rule, then "Fitness programs, tracked together." (SF Pro Text Regular 34 px, `#111111` at 72%), wrapped to
+two lines so it stays out of the outer 10%. No screenshots, no other text. This file replaces the old
+`feature-graphic/` design.
 
 ## 6. Inputs
 
@@ -81,8 +87,18 @@ All seven raw sets in §5 were captured on the current builds on 2026-10-24 (iOS
 `ava.rivera`, program "RaSi Winter Reset", 9:41 status bar, light mode) and are ready to frame. How to recapture them:
 the `README.md` in `apps/ios/store-assets/` and `apps/android/store-assets/`.
 
-## 7. Done when
+## 7. Done — 2026-10-24
 
-- Every folder in §5 holds 8 frames (feature graphic: 1 file) at the exact size, RGB PNG.
-- A contact sheet of each set reads as one gallery: same background, type, screenshot scale and shadow.
-- The raw captures are untouched; marketing files live only under `.../store-assets/marketing/`.
+- ✅ Every folder in §5 holds 8 frames (feature graphic: 1 file) at the exact size, 8-bit RGB PNG, no alpha.
+- ✅ Each set's contact sheet reads as one gallery (same background, type, screenshot scale and shadow); the user
+  approved them as rendered.
+- ✅ Each screenshot is a plain resize of its raw capture; the raw captures are untouched; marketing files live only
+  under `.../store-assets/marketing/`.
+
+**Generator** (vuhri's, kept in its own workspace, not this repo) — rerun after any raw recapture or brief change:
+
+```bash
+python3 ~/Developer/vuhri/local/artifacts/rasifiters-store-graphics/render.py ~/Developer/rasifiters-master --sheets <dir>
+```
+
+It writes every §5 output and, with `--sheets`, one contact sheet per set into `<dir>`.

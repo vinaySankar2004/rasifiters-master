@@ -12,6 +12,7 @@ the same set of screens as Android, so the story stays consistent across both st
 | `ipad/` | the 8 screenshots below | Landscape **2752 x 2064 px** (13" iPad), PNG. |
 | `duo-inner/` | the 8 screenshots below | Landscape **2853 x 2007 px** (iPhone Duo inner display, open), PNG. |
 | `duo-outer/` | the 8 screenshots below | Portrait **1398 x 2034 px** (iPhone Duo outer display, closed), PNG. |
+| `marketing/` | `iphone/`, `ipad/`, `duo-inner/`, `duo-outer/` — 8 captioned frames each (`NN-<raw name>.png`) | Same size as the matching raw folder, RGB PNG. **These are what get uploaded**, in file order. Generated from the raw sets — see the brief below. |
 
 Tip: you can export the 1024 icon straight from `Assets.xcassets` (AppIcon).
 
