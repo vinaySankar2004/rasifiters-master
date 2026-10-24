@@ -89,14 +89,15 @@ holds only `ForcedUpdateModalView`), `Assets.xcassets`,
 
 **Build:** target = `RaSi-Fiters-App` scheme. See §Toolchain note below for the local Xcode caveat.
 
-### Toolchain note (local machine, 2026-06-30)
-This Mac's **Xcode 26.5** could not build from the CLI at scaffold time: (a) the **iOS 26.5 device platform
-was not installed** (`xcodebuild ... -downloadPlatform iOS` resolves this), and (b) the **CoreSimulator
-service had a version mismatch** (bundled `1051.54` vs stale launchd job `1051.17.7`) so xcodebuild
-enumerated **zero simulator destinations**. `xcodebuild -runFirstLaunch` fixed the `IDESimulatorFoundation`
-plugin load error. To restore simulator builds the user may need to **open Xcode.app once** (installs
-components) and/or **reboot** (clears the stale CoreSimulator launchd job). Green-check command once healthy:
-`xcodebuild -project apps/ios/RaSi-Fiters-App.xcodeproj -scheme RaSi-Fiters-App -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build` (device, no signing) — or a simulator destination once enumerated.
+### Toolchain (2026-10-24)
+**Xcode 27.1 / iOS 27.1 SDK** — required from 1.5.3: a binary built with the 27.1 SDK runs full-screen on the
+**iPhone Duo** (inner display regular/regular; the system moves the tab bar and nav buttons into a vertical rail
+beside the status column). The app needs no Duo-specific code: it never sizes from `UIScreen.main`, orientation
+or idiom, every `ignoresSafeArea` is a background layer, and wide screens use the iPad adaptive column. Simulator
+runtimes kept on this Mac: **iOS 27.1** (current + Duo) and **iOS 18.6** (the deployment target). Xcode 27's
+simulator app is **DeviceHub** (`Xcode.app/Contents/Applications/DeviceHub.app`) — it is the only way to fold /
+unfold the Duo. CLI green check (no signing):
+`xcodebuild -project apps/ios/RaSi-Fiters-App.xcodeproj -scheme RaSi-Fiters-App -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build`.
 
 ## Deploy
 Xcode → TestFlight → App Store (the user handles signing/upload). Bump the version one higher at push time.

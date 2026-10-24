@@ -44,7 +44,7 @@ versions live in **`RELEASES.md`** (the SoT); page/screen counts in `specs/pages
 | L1 Map | `ICM.md` (this file) + `PROGRESS.md` (current state) |
 | L2 Rooms | `CONTEXT.md` (project: brand + infra + migration source), `apps/{web,ios,android,backend}/CONTEXT.md` |
 | L3 Tools | `.claude/skills/` (question-asker, git-version, deploy, audit, supabase, health-check, ios-build, android-build, multiplex) + `.claude/agents/` (multiplex role-agents) + `.claude/workflows/` (plan-pipeline) + `.claude/hooks/` (guards), `.mcp.json`, `tools/` (read-only ops helpers, `ios-typecheck.sh`, the `testbed/` seeder) |
-| L4 Specs | `specs/features/` (shared capabilities) + `specs/pages/{web,ios,android}/` (per page/screen) + `specs/features/registry.json` + `specs/initiatives/<name>/` (multi-session cross-cutting work: `BRIEF.md` scope + `HANDOFF.md` rolling state; plus its design board, `discovery/`, `plans/` with the binding amendments files, and per-phase folders) |
+| L4 Specs | `specs/features/` (shared capabilities) + `specs/pages/{web,ios,android}/` (per page/screen) + `specs/features/registry.json` + `specs/initiatives/<name>/` (multi-session cross-cutting work: `BRIEF.md` scope + `HANDOFF.md` rolling state; plus its design board, `discovery/`, `plans/` with the binding amendments files, and per-phase folders) + `specs/marketing/` (store listing graphics brief — captions, sizes, rules) |
 | L5 Pipelines | `git-version` skill + Vercel / Render / Supabase MCP flows |
 
 ## Specs: features vs pages

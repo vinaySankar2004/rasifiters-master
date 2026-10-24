@@ -21,19 +21,21 @@ Notes on Play requirements:
 
 ## The 8 screenshots (same filenames in `phone/`, `tablet-7/`, `tablet-10/`)
 
-| File | Screen to capture | Suggested caption (optional overlay) |
-|------|-------------------|--------------------------------------|
-| `01-splash.png` | Splash / brand screen | RaSi Fiters |
-| `02-programs.png` | Your training programs list | Run or join training programs |
-| `03-summary.png` | Progress dashboard (charts + month stats) | See your progress at a glance |
-| `04-log-workout.png` | Logging a workout | Log workouts in seconds |
-| `05-member.png` | Member / group progress | Follow member progress |
-| `06-lifestyle.png` | Lifestyle trends and charts | Watch your trends build |
-| `07-program.png` | Program management (admin view) | Manage members and roles |
-| `08-health-sync.png` | **Health Connect** sync screen | Sync from Health Connect |
+| File | Screen to capture |
+|------|-------------------|
+| `01-splash.png` | Splash / brand screen |
+| `02-programs.png` | Your training programs list |
+| `03-summary.png` | Progress dashboard (charts + month stats) |
+| `04-log-workout.png` | Logging a workout |
+| `05-member.png` | Member / group progress |
+| `06-lifestyle.png` | Lifestyle trends and charts |
+| `07-program.png` | Program management (admin view) |
+| `08-health-sync.png` | **Health Connect** sync screen |
 
 ## Notes
 
+- Captions, store order and the captioned marketing frames built from these raw captures:
+  [`specs/marketing/STORE_GRAPHICS_BRIEF.md`](../../../specs/marketing/STORE_GRAPHICS_BRIEF.md).
 - **Screenshot #1 is the most important** (it shows first). Order is set by upload order in Play Console.
 - Capture phone shots from the Pixel_8 emulator; for tablet shots, launch a 7" and a 10" emulator (or
   resize) and capture the same 8 screens.
