@@ -1,9 +1,8 @@
 # Store graphics brief — captioned App Store + Google Play sets (for the vuhri agent)
 
 > **What this is:** the exact spec for RaSi Fiters' store marketing images — one captioned frame per real app
-> screenshot, in every size both stores show. vuhri generated the files into the folders below (§7); uploading them to
-> App Store Connect / Play Console happens with the release, on the user's go-ahead. Written 2026-10-24; updated the
-> same day to match the approved render.
+> screenshot, in every size both stores show, plus the App Store header / search-results assets (§8). vuhri generates
+> the files (§7); first submitted with iOS 1.5.3 / Android 1.2.3 (2026-10-24). Rerun the generator after any recapture.
 
 ## 1. How the app should be seen
 

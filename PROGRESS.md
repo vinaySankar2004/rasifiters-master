@@ -34,13 +34,13 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > (63)** and **Android 1.2.2 (9)** (`RELEASES.md`). **Next:** only the dated follow-ups in HANDOFF "Next action".
 >
 > **2026-10-24:** Hide my activity is now reciprocal (people D-C16 — hide yours, see no one else's; staff
-> exempt) — live on the backend + web; the matching iOS 1.5.3 (64) / Android 1.2.3 (10) copy, plus iOS built for
-> the iPhone Duo (Xcode 27.1) with its 16 store screenshots, are built and **held** (`RELEASES.md`); every raw store
-> screenshot set was recaptured on these builds, and the captioned orange-theme marketing frames are done
-> (`apps/{ios,android}/store-assets/marketing/`, per [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md)).
-> **Both in review with the refreshed listings:** iOS 1.5.3 (64) (+ the iOS 27 header + search-results assets) and
-> Android 1.2.3 (10) (`RELEASES.md`); both release automatically on approval. **Next:** once each is public, set
-> `LATEST_*` (soft banner) and mark it live in `RELEASES.md`.
+> exempt) — live on the backend + web. The matching **iOS 1.5.3 (64)** (also built for iPhone Duo, Xcode 27.1) and
+> **Android 1.2.3 (10)** are **in review** with refreshed listings — captioned frames from
+> `apps/{ios,android}/store-assets/marketing/` per [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md);
+> both release automatically on approval (`RELEASES.md`). **Next (the user announces each going public):** Android →
+> testbed refresh, then `LATEST_ANDROID_VERSION_CODE` + `MIN_ANDROID_VERSION_CODE` = 10; iOS → `LATEST_IOS_VERSION` +
+> `MIN_IOS_VERSION` = 1.5.3 (`render.yaml` + Render); mark each live in `RELEASES.md`. Raising `MIN_*` is the
+> user's call, made 2026-10-24.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend

@@ -94,7 +94,8 @@ holds only `ForcedUpdateModalView`), `Assets.xcassets`,
 **iPhone Duo** (inner display regular/regular; the system moves the tab bar and nav buttons into a vertical rail
 beside the status column). The app needs no Duo-specific code: it never sizes from `UIScreen.main`, orientation
 or idiom, every `ignoresSafeArea` is a background layer, and wide screens use the iPad adaptive column. Simulator
-runtimes kept on this Mac: **iOS 27.1** (current + Duo) and **iOS 18.6** (the deployment target). Xcode 27's
+runtimes kept on this Mac: **iOS 27.1** (iPhone Duo only — regular iPhone / iPad simulators need the iOS 27.0
+runtime, downloaded per job: `store-assets/README.md`) and **iOS 18.6** (the deployment target). Xcode 27's
 simulator app is **DeviceHub** (`Xcode.app/Contents/Applications/DeviceHub.app`) — it is the only way to fold /
 unfold the Duo. CLI green check (no signing):
 `xcodebuild -project apps/ios/RaSi-Fiters-App.xcodeproj -scheme RaSi-Fiters-App -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build`.
