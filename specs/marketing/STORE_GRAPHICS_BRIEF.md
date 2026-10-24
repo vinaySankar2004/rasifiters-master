@@ -102,3 +102,22 @@ python3 ~/Developer/vuhri/local/artifacts/rasifiters-store-graphics/render.py ~/
 ```
 
 It writes every §5 output and, with `--sheets`, one contact sheet per set into `<dir>`.
+
+## 8. App Store header + search results assets (added 2026-10-24)
+
+App Store Connect (iOS 27) adds two optional creative assets per version: the **product page header** (the first thing a
+visitor sees) and the **search results** asset (shown in Search instead of the first screenshots). Apple's rules
+([best practices](https://developer.apple.com/app-store/asset-best-practices/),
+[specs](https://developer.apple.com/help/app-store-connect/reference/app-information/creative-assets-specifications)):
+one clear idea; key art centered (the store overlays and crops the edges); no pricing (so no "Free"), URLs, ©, awards
+or other platforms; any text must be localized (we ship English only) and is a short phrase, not a description; PNG,
+RGB, no alpha. Both reuse §2 (background, type, ink) and §3.1–3.2 (real screens, unmodified; rounded corners +
+shadow, no bezels). Raw inputs: `apps/ios/store-assets/iphone/`.
+
+| Asset | Output | Canvas | Composition |
+|---|---|---|---|
+| Header | `apps/ios/store-assets/marketing/header.png` | **3840 × 1646** (21:9) | **No text.** Three raw iPhone captures: `03-summary.png` in front, centered (640 px wide, top edge at y 180); `05-member.png` left and `06-lifestyle.png` right of it (560 px wide, top edges at y 300, centers at x 1160 and x 2680 — 160 px gaps). Glow centered behind the trio. Everything sits in the central half of the width (x 880–2960); the rest is plain orange. |
+| Search results | `apps/ios/store-assets/marketing/search-results.png` | **3840 × 2560** (3:2) | Headline **"Fitness programs, tracked together"** on one line, centered, SF Pro Display Bold, cap height 4.5% of canvas height, top of caps at y 205. Below it, three raw iPhone captures side by side at equal size — `03-summary.png`, `04-log-workout.png`, `05-member.png` — 900 px wide each, 160 px gaps, centered, top edges at y 500 (bottom margin ≈ 4%). |
+
+Done when both files exist at the exact size, RGB PNG, no alpha, built by the §7 generator, and the user has checked
+them in App Store Connect's **Preview** (Header and Search Results tabs) before submitting.
