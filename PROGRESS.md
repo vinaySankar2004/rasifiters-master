@@ -38,8 +38,9 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > the iPhone Duo (Xcode 27.1) with its 16 store screenshots, are built and **held** (`RELEASES.md`); every raw store
 > screenshot set was recaptured on these builds, and the captioned orange-theme marketing frames are done
 > (`apps/{ios,android}/store-assets/marketing/`, per [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md)).
-> **iOS 1.5.3 (64) submitted** with the refreshed listing + frames (`RELEASES.md`). **Next:** (1) Play Console —
-> refreshed listing + frames + 1.2.3 (10) to production; (2) once each is public, `LATEST_*` (soft banner).
+> **Android 1.2.3 (10) + refreshed Play listing in review; iOS 1.5.3 (64) pulled back to add the header +
+> search-results assets** (`RELEASES.md`). **Next:** (1) upload those two in App Store Connect, check Preview, mark
+> brief §8 done, resubmit; (2) once each is public, `LATEST_*` (soft banner).
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
