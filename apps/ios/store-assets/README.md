@@ -17,7 +17,12 @@ the same set of screens as Android, so the story stays consistent across both st
 Tip: you can export the 1024 icon straight from `Assets.xcassets` (AppIcon).
 
 iPhone Duo sets are optional today (they add the "optimized for iPhone Duo" badge) and required from April 2027
-for apps built with the iOS 27.1 SDK or later.
+for apps built with the iOS 27.1 SDK or later. App Store Connect has **one** iPhone Duo slot (up to 10 screenshots,
+either display's size), so the listing uses the 8 `duo-inner` frames; `duo-outer` is kept for reference.
+
+Uploading (App Store Connect → the version → Media Manager): `marketing/iphone/` → *iPhone with Dynamic Island (large
+display)* (the required medium size scales from it); `marketing/duo-inner/` → *iPhone Duo*; `marketing/ipad/` →
+*iPad 13" display*. Upload → select all 8 — the `NN-` prefixes keep the order.
 
 **How these were captured (all four sets, 2026-10-24):** raw simulator screenshots of the current build, testbed
 login `ava.rivera`, program "RaSi Winter Reset", light mode, status bar pinned with `xcrun simctl status_bar <udid>
