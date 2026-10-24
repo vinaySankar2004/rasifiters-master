@@ -77,22 +77,17 @@ Raw input → output folder (output file names = `NN-<raw name>`, e.g. `01-03-su
 app icon as a rounded square (radius 22%) 280 px high **including** the §2 12 px white border, plus the shadow,
 vertically centered, left edge at x 96; to its right "RaSi Fiters" (SF Pro Display Bold 84 px, `#111111`), a 64 × 6 px
 `#111111` rule, then "Fitness programs, tracked together." (SF Pro Text Regular 34 px, `#111111` at 72%), wrapped to
-two lines so it stays out of the outer 10%. No screenshots, no other text. This file replaces the old
-`feature-graphic/` design.
+two lines so it stays out of the outer 10%. No screenshots, no other text.
 
 ## 6. Inputs
 
-All seven raw sets in §5 were captured on the current builds on 2026-10-24 (iOS 1.5.3 / Android 1.2.3, testbed login
-`ava.rivera`, program "RaSi Winter Reset", 9:41 status bar, light mode) and are ready to frame. How to recapture them:
-the `README.md` in `apps/ios/store-assets/` and `apps/android/store-assets/`.
+The seven raw sets in §5, captured 2026-10-24 on iOS 1.5.3 / Android 1.2.3 (testbed `ava.rivera`, "RaSi Winter
+Reset", 9:41, light mode). Recapture how-to: the `store-assets/README.md` of each app.
 
 ## 7. Done — 2026-10-24
 
-- ✅ Every folder in §5 holds 8 frames (feature graphic: 1 file) at the exact size, 8-bit RGB PNG, no alpha.
-- ✅ Each set's contact sheet reads as one gallery (same background, type, screenshot scale and shadow); the user
-  approved them as rendered.
-- ✅ Each screenshot is a plain resize of its raw capture; the raw captures are untouched; marketing files live only
-  under `.../store-assets/marketing/`.
+✅ Every §5 folder holds its frames at the exact size (8-bit RGB PNG, no alpha), each a plain resize of an untouched
+raw capture; the user approved every set's contact sheet as one gallery.
 
 **Generator** (vuhri's, kept in its own workspace, not this repo) — rerun after any raw recapture or brief change:
 
@@ -104,20 +99,17 @@ It writes every §5 output and, with `--sheets`, one contact sheet per set into 
 
 ## 8. App Store header + search results assets (added 2026-10-24)
 
-App Store Connect (iOS 27) adds two optional creative assets per version: the **product page header** (the first thing a
-visitor sees) and the **search results** asset (shown in Search instead of the first screenshots). Apple's rules
+Two optional iOS 27 assets per version: the **product page header** and the **search results** asset (shown in
+Search instead of the first screenshots). Apple's rules
 ([best practices](https://developer.apple.com/app-store/asset-best-practices/),
 [specs](https://developer.apple.com/help/app-store-connect/reference/app-information/creative-assets-specifications)):
-one clear idea; key art centered (the store overlays and crops the edges); no pricing (so no "Free"), URLs, ©, awards
-or other platforms; any text must be localized (we ship English only) and is a short phrase, not a description; PNG,
-RGB, no alpha. Both reuse §2 (background, type, ink) and §3.1–3.2 (real screens, unmodified; rounded corners +
-shadow, no bezels). Raw inputs: `apps/ios/store-assets/iphone/`.
+one clear idea; key art centered (the store overlays and crops edges); no pricing (so no "Free"), URLs, ©, awards or
+other platforms; text only as a short localized phrase. Both follow §2 and §3.1–3.3; raw inputs:
+`apps/ios/store-assets/iphone/`.
 
 | Asset | Output | Canvas | Composition |
 |---|---|---|---|
 | Header | `apps/ios/store-assets/marketing/header.png` | **3840 × 1646** (21:9) | **No text.** Three raw iPhone captures: `03-summary.png` in front, centered (640 px wide, top edge at y 180); `05-member.png` left and `06-lifestyle.png` right of it (560 px wide, top edges at y 300, centers at x 1160 and x 2680 — 160 px gaps). Glow centered behind the trio. Everything sits in the central half of the width (x 880–2960); the rest is plain orange. |
 | Search results | `apps/ios/store-assets/marketing/search-results.png` | **3840 × 2560** (3:2) | Headline **"Fitness programs, tracked together"** on one line, centered, SF Pro Display Bold, cap height 4.5% of canvas height, top of caps at y 205. Below it, three raw iPhone captures side by side at equal size — `03-summary.png`, `04-log-workout.png`, `05-member.png` — 900 px wide each, 160 px gaps, centered, top edges at y 500 (bottom margin ≈ 4%). |
 
-**✅ Done — 2026-10-24:** both files at the exact size, RGB PNG, no alpha, built by the §7 generator (a full rerun left
-the §5 frames byte-identical); uploaded to iOS 1.5.3 and checked by the user in App Store Connect's **Preview**
-(Header and Search Results tabs) before submitting.
+**✅ Done — 2026-10-24:** both built by the §7 generator and checked by the user in App Store Connect's **Preview**.

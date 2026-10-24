@@ -16,15 +16,13 @@ the same set of screens as Android, so the story stays consistent across both st
 
 Tip: you can export the 1024 icon straight from `Assets.xcassets` (AppIcon).
 
-iPhone Duo sets are optional today (they add the "optimized for iPhone Duo" badge) and required from April 2027
-for apps built with the iOS 27.1 SDK or later. App Store Connect has **one** iPhone Duo slot (up to 10 screenshots,
-either display's size), so the listing uses the 8 `duo-inner` frames; `duo-outer` is kept for reference.
+iPhone Duo screenshots add the "optimized for iPhone Duo" badge (required from April 2027 for iOS 27.1 SDK builds).
+App Store Connect has **one** Duo slot (10 max, either display's size), so the listing uses `duo-inner`.
 
-Uploading (App Store Connect → the version → Media Manager): `marketing/iphone/` → *iPhone with Dynamic Island (large
-display)* (the required medium size scales from it); `marketing/duo-inner/` → *iPhone Duo*; `marketing/ipad/` →
-*iPad 13" display*. Upload → select all 8 — the `NN-` prefixes keep the order. `marketing/header.png` and
-`marketing/search-results.png` go on the version page → *Header and Search Results* (one per tab; check **Preview**).
-They lock once the version is in review, so add them **before** submitting.
+**Uploading** (the version → Media Manager; select all 8, the `NN-` prefixes keep the order): `marketing/iphone/` →
+*iPhone with Dynamic Island (large display)* (the required medium size scales from it); `marketing/duo-inner/` →
+*iPhone Duo*; `marketing/ipad/` → *iPad 13" display*. `marketing/header.png` / `search-results.png` → the version
+page's *Header and Search Results* tabs (check **Preview**) — they lock in review, so add them **before** submitting.
 
 **How these were captured (all four sets, 2026-10-24):** raw simulator screenshots of the current build, testbed
 login `ava.rivera`, program "RaSi Winter Reset", light mode, status bar pinned with `xcrun simctl status_bar <udid>
@@ -50,9 +48,5 @@ RGB — App Store Connect rejects alpha channels. Delete the simulators afterwar
 
 ## Notes
 
-- Captions, store order and the captioned marketing frames built from these raw captures:
-  [`specs/marketing/STORE_GRAPHICS_BRIEF.md`](../../../specs/marketing/STORE_GRAPHICS_BRIEF.md).
-- **Screenshot #1 is the most important** (it shows first in the listing). Order is controlled by how you
-  arrange them in App Store Connect.
-- App Store requires at least one screenshot per device size you support; supplying all 8 is recommended.
-- Keep the same visual frame/style across all 8 so the set looks like one gallery.
+- Captions, store order and the framed sets: [`specs/marketing/STORE_GRAPHICS_BRIEF.md`](../../../specs/marketing/STORE_GRAPHICS_BRIEF.md).
+- App Store requires at least one screenshot per supported device size; we upload all 8.
