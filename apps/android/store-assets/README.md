@@ -37,6 +37,10 @@ Notes on Play requirements:
 - Captions, store order and the captioned marketing frames built from these raw captures:
   [`specs/marketing/STORE_GRAPHICS_BRIEF.md`](../../../specs/marketing/STORE_GRAPHICS_BRIEF.md).
 - **Screenshot #1 is the most important** (it shows first). Order is set by upload order in Play Console.
+- **Publishing a listing change:** each slot holds 8, so delete the old set before uploading. "Save as draft" keeps
+  edits inside the listing editor; to queue them press **Next** → answer the AI-asset declaration (these frames:
+  "Don't label" — real screens composed by script) → **Save**, then send from **Publishing overview** together with
+  the release.
 - **How these were captured (2026-10-24):** one temporary emulator (`system-images;android-36;google_apis;arm64-v8a`)
   restarted at each size by editing its `config.ini` `hw.lcd.width/height/density` — 1080x1920 @ 420, 1200x1920 @ 320,
   1600x2560 @ 320 — so it stays signed in (testbed `ava.rivera`, "RaSi Winter Reset", the debug build). Status bar via

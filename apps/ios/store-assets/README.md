@@ -24,6 +24,7 @@ Uploading (App Store Connect → the version → Media Manager): `marketing/ipho
 display)* (the required medium size scales from it); `marketing/duo-inner/` → *iPhone Duo*; `marketing/ipad/` →
 *iPad 13" display*. Upload → select all 8 — the `NN-` prefixes keep the order. `marketing/header.png` and
 `marketing/search-results.png` go on the version page → *Header and Search Results* (one per tab; check **Preview**).
+They lock once the version is in review, so add them **before** submitting.
 
 **How these were captured (all four sets, 2026-10-24):** raw simulator screenshots of the current build, testbed
 login `ava.rivera`, program "RaSi Winter Reset", light mode, status bar pinned with `xcrun simctl status_bar <udid>
