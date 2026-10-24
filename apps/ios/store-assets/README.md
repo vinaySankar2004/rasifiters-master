@@ -22,7 +22,8 @@ either display's size), so the listing uses the 8 `duo-inner` frames; `duo-outer
 
 Uploading (App Store Connect → the version → Media Manager): `marketing/iphone/` → *iPhone with Dynamic Island (large
 display)* (the required medium size scales from it); `marketing/duo-inner/` → *iPhone Duo*; `marketing/ipad/` →
-*iPad 13" display*. Upload → select all 8 — the `NN-` prefixes keep the order.
+*iPad 13" display*. Upload → select all 8 — the `NN-` prefixes keep the order. `marketing/header.png` and
+`marketing/search-results.png` go on the version page → *Header and Search Results* (one per tab; check **Preview**).
 
 **How these were captured (all four sets, 2026-10-24):** raw simulator screenshots of the current build, testbed
 login `ava.rivera`, program "RaSi Winter Reset", light mode, status bar pinned with `xcrun simctl status_bar <udid>
