@@ -641,5 +641,5 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   dependents were FYI only, no gate) and six page SPECs (no tags); tags pushed by name. Then a no-bump
   `chore(release)` (Duo store screenshots, toolchain doc, Android versionName, marketing brief). Lesson: a copy-only
   client change that ships with a backend rule change rides in the SAME feature commit, so one tag covers all four
-  surfaces. A script that bumps `registry.json` by searching for `"<name>"` can hit an earlier feature whose key
-  contains it (`"programs"` before `"program-memberships"`) — anchor on the full `"<name>": {` key.
+  surfaces. A script that bumps `registry.json` by searching for `"<name>"` first hits that name inside an earlier
+  feature's `depends_on` list (it bumped `programs` instead of `program-memberships`) — anchor on the `"<name>": {` key.
