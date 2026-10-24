@@ -37,6 +37,10 @@ Notes on Play requirements:
 - Captions, store order and the captioned marketing frames built from these raw captures:
   [`specs/marketing/STORE_GRAPHICS_BRIEF.md`](../../../specs/marketing/STORE_GRAPHICS_BRIEF.md).
 - **Screenshot #1 is the most important** (it shows first). Order is set by upload order in Play Console.
-- Capture phone shots from the Pixel_8 emulator; for tablet shots, launch a 7" and a 10" emulator (or
-  resize) and capture the same 8 screens.
+- **How these were captured (2026-10-24):** one temporary emulator (`system-images;android-36;google_apis;arm64-v8a`)
+  restarted at each size by editing its `config.ini` `hw.lcd.width/height/density` — 1080x1920 @ 420, 1200x1920 @ 320,
+  1600x2560 @ 320 — so it stays signed in (testbed `ava.rivera`, "RaSi Winter Reset", the debug build). Status bar via
+  SystemUI demo mode (`adb shell am broadcast -a com.android.systemui.demo -e command clock -e hhmm 0941`, full
+  battery, Wi-Fi only, no notifications); `adb exec-out screencap -p`; save as RGB. The Mac keeps no emulator: download
+  the image + `cmdline-tools` for the session (Pixel phones cover day-to-day testing) and delete them after.
 - Keep the same visual frame/style across all 8 so the set reads as one gallery.

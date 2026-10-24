@@ -74,12 +74,11 @@ icon at 300 px high, vertically centered, left edge at x 96; to its right "RaSi 
 `#111111`), a 64 × 6 px `#ff8b1f` rule, then "Fitness programs, tracked together." (SF Pro Text Regular 34 px,
 `#646a76`). No screenshots, no other text.
 
-## 6. Inputs that need fresh captures first
+## 6. Inputs
 
-The Duo sets are current (2026-10-24). The **`iphone/`, `ipad/` and Android `phone/` / `tablet-7/` / `tablet-10/`
-raw sets predate the People release** (2026-10-13): their Members header shows the old invite icon and the Program tab
-reads "View Members". Recapture those five raw sets on the current builds (testbed login `ava.rivera`, program
-"RaSi Winter Reset", 9:41 status bar) before generating frames from them, so the marketing shows today's app.
+All seven raw sets in §5 were captured on the current builds on 2026-10-24 (iOS 1.5.3 / Android 1.2.3, testbed login
+`ava.rivera`, program "RaSi Winter Reset", 9:41 status bar, light mode) and are ready to frame. How to recapture them:
+the `README.md` in `apps/ios/store-assets/` and `apps/android/store-assets/`.
 
 ## 7. Done when
 

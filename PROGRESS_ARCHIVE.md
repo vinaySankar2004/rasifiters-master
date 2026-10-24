@@ -13,7 +13,9 @@
 - **2026-10-24** — **Reciprocal Hide my activity + iPhone Duo.** people 0.3.0 D-C16 / program-memberships 0.6.0 D-C8
   (`d0eafde`; backend + web live, 11/11 prod checks on the testbed); iOS built with Xcode 27.1 / iOS 27.1 SDK, run
   on the Duo simulator (outer + inner), 16 Duo screenshots; iOS 1.5.3 (64) / Android 1.2.3 (10) ready to upload
-  straight to production; store graphics brief for vuhri (`specs/marketing/`); testbed refreshed; Mac trimmed
+  straight to production; store graphics brief for vuhri (`specs/marketing/`); every raw store set recaptured on the
+  current builds (iPhone 1320×2868, iPad 2752×2064, Android phone / 7" / 10" — temporary simulators, runtime, emulator
+  and image, all deleted after); testbed refreshed; Mac trimmed
   (simulator runtimes → iOS 27.1 + 18.6, Android SDK → platform 36 + build-tools 35.0.0, ~55 GB freed).
 - **2026-10-14** — **Program-card bar = time elapsed on web + iOS (user report).** Web + iOS cards drew
   `active_members / total_members`, which the backend always returns equal, so the bar was always full; Android read
