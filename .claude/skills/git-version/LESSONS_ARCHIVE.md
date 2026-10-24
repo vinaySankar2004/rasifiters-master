@@ -636,3 +636,10 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   — page bumps, no tag — and programs 0.4.1 for a PATCH F2 note, tagged `feature/programs@v0.4.1`; 11 dependents, FYI
   only, contract unchanged), then `chore(skills)` (audit three-surface + data-source check, question-asker critic
   check, CLAUDE.md line). No new pattern.
+- **2026-10-24 — reciprocal Hide my activity + iPhone Duo.** `feat(people)` bumped people 0.3.0 + program-memberships
+  0.6.0 (owned `memberVisibility` interface: one new viewer field + a narrower rule — backward-compatible, so the 15
+  dependents were FYI only, no gate) and six page SPECs (no tags); tags pushed by name. Then a no-bump
+  `chore(release)` (Duo store screenshots, toolchain doc, Android versionName, marketing brief). Lesson: a copy-only
+  client change that ships with a backend rule change rides in the SAME feature commit, so one tag covers all four
+  surfaces. A script that bumps `registry.json` by searching for `"<name>"` can hit an earlier feature whose key
+  contains it (`"programs"` before `"program-memberships"`) — anchor on the full `"<name>": {` key.
