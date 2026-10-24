@@ -44,6 +44,8 @@ data class PersonProfileDTO(
     @SerialName("is_you") val isYou: Boolean = false,
     @SerialName("joined_at") val joinedAt: String? = null,
     @SerialName("activity_visible") val activityVisible: Boolean = false,
+    /** The viewer hid their own activity, so co-members' activity is hidden from them (the switch is reciprocal). */
+    @SerialName("viewer_hides_activity") val viewerHidesActivity: Boolean = false,
     @SerialName("can_open_full_stats") val canOpenFullStats: Boolean = false,
     val stats: PersonStatsDTO? = null,
     @SerialName("recent_workouts") val recentWorkouts: List<PersonWorkoutDTO>? = null,

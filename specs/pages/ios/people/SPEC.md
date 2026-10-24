@@ -1,6 +1,6 @@
 # Screen: `people` (ios) — People list, person profile, kudos and full stats
 
-> **Status:** 🏗️ built (`apps/ios/`, `198407c` — goes live with the Phase 4 store release) · **Version:** 0.1.1 · **App:** `ios` (SwiftUI)
+> **Status:** 🏗️ built (`apps/ios/`; live since iOS 1.5.2) · **Version:** 0.1.2 · **App:** `ios` (SwiftUI)
 > **Location:** `PeopleListView`, pushed from the Members-tab header `person.2` button (both role variants —
 > [admin-members](../admin-members/SPEC.md)) and the Program tab's `People` row
 > ([program-member-management](../program-member-management/SPEC.md)); a row pushes `PersonProfileView`; staff's
@@ -23,7 +23,7 @@ initials, `You` / `Admin` / `Logger` pills and a status line (`Active today` · 
 · `No workouts yet` · `Activity hidden`); empty `No one in this program yet.` / `No one matches your search.`
 **Profile:** the header, then (activity visible) tiles `Current streak`, `Longest streak` (`N days` / `1 day`), `This
 month`, `Last active` (`Today` / `Yesterday` / date / `—`), `Recent workouts` (`No workouts logged yet.`) and the kudos
-block — or `This member keeps their activity private.`
+block — or `This member keeps their activity private.` (or `You're hiding your activity, so other members' activity is hidden from you too. You can change this in My Profile.` when `viewer_hides_activity` — people D-C16)
 
 ## 2. Why it exists
 People's social layer (people §1–§2), replacing the old roster (`ProgramMembersListView`, retired).
@@ -82,5 +82,6 @@ People's social layer (people §1–§2), replacing the old roster (`ProgramMemb
 ## 11. Changelog
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-24 | Hide my activity is reciprocal (people 0.3.0 D-C16): a hidden profile shows the you're-hiding-yours line when `viewerHidesActivity`; the notice body gains `If you hide yours, you won't see theirs either.` Status: live since iOS 1.5.2. |
 | 0.1.1 | 2026-10-14 | F2 resolved — the profile streak no longer goes stale (backend `fd6c15b`: people 0.2.0 D-C15, member-analytics 0.9.0 D-C14). Doc only; no screen change. PATCH. |
 | 0.1.0 | 2026-10-13 | Initial SPEC — net-new People (Phase 4, `198407c`): list (search, Invite row, status lines, markers), profile (stats, recent workouts, kudos toggle, hidden line), staff full stats, global-admin Edit membership (R6), the one-time visibility notice. |

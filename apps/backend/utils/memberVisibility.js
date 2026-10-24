@@ -11,12 +11,15 @@
 //   "roster"     an ACTIVE member of the program             (GET /api/program-memberships/{members,details})
 //   "health"     the member themselves, or program staff     (sleep / diet / steps — averages + daily rows)
 //   "workouts"   the member themselves, staff, or an ACTIVE  (workouts, workout stats, kudos — every output in
-//                co-member the target hasn't hidden from      specs/features/people/SPEC.md §5)
+//                co-member — while neither the target nor     specs/features/people/SPEC.md §5)
+//                the viewer has turned on Hide my activity
 //
 // People S1 (migration 012): loadViewer fills hiddenMemberIds with the program's ACTIVE members who turned on
-// "Hide my activity" — one query, only for a plain ACTIVE member. Callers OMIT what "workouts" refuses, never redact
-// or zero it: member-metrics rows and /analytics/summary top_performers entries are dropped, history / streaks /
-// recent and the ?memberId analytics routes answer 403, People hides stats / recent workouts / kudos.
+// "Hide my activity" — one query, only for a plain ACTIVE member who shares their own activity. The switch is
+// reciprocal (people D-C16): a plain member who hides sees no co-member's activity either (staff keep seeing everyone).
+// Callers OMIT what "workouts" refuses, never redact or zero it: member-metrics rows and /analytics/summary
+// top_performers entries are dropped, history / streaks / recent and the ?memberId analytics routes answer 403, People
+// hides stats / recent workouts / kudos.
 // Ids compare in canonical form (canonicalId): PostgreSQL reads upper case, braces or missing hyphens as the same
 // uuid, so any non-canonical spelling is never "self" and never a visible co-member (fails closed).
 const { Member, ProgramMembership } = require("../models");
@@ -35,10 +38,11 @@ const canonicalId = (id) => {
 
 /** The viewer's context for one program. One composite-PK lookup — none for a global admin, or when programId is
  *  missing / not a single string (a repeated ?programId is never a membership). programRole is the role on a row
- *  of ANY status (null = no row); isActiveMember / isStaff require status "active". hiddenMemberIds (People S1): the
- *  program's ACTIVE members whose members.hide_activity is true (every "workouts" output is active-only already);
- *  one more query, only for a plain active member (staff and global admins see everyone; a non-member sees no
- *  co-member anyway). */
+ *  of ANY status (null = no row); isActiveMember / isStaff require status "active". hidesActivity = the viewer's own
+ *  members.hide_activity (joined on the same lookup). hiddenMemberIds (People S1): the program's ACTIVE members whose
+ *  members.hide_activity is true (every "workouts" output is active-only already); one more query, only for a plain
+ *  active member who shares (staff and global admins see everyone; a hiding member or a non-member sees no co-member
+ *  anyway). */
 async function loadViewer(user, programId) {
     const viewer = {
         id: user?.id || null,
@@ -46,20 +50,23 @@ async function loadViewer(user, programId) {
         programRole: null,
         isActiveMember: false,
         isStaff: false,
+        hidesActivity: false,
         hiddenMemberIds: new Set()
     };
     if (viewer.isGlobalAdmin || !viewer.id || typeof programId !== "string" || !programId) return viewer;
 
     const membership = await ProgramMembership.findOne({
         where: { program_id: programId, member_id: viewer.id },
-        attributes: ["role", "status"]
+        attributes: ["role", "status"],
+        include: [{ model: Member, attributes: ["hide_activity"] }]
     });
     if (!membership) return viewer;
 
     viewer.programRole = membership.role;
     viewer.isActiveMember = membership.status === "active";
     viewer.isStaff = viewer.isActiveMember && STAFF_ROLES.has(membership.role);
-    if (viewer.isActiveMember && !viewer.isStaff) {
+    viewer.hidesActivity = membership.Member?.hide_activity === true;
+    if (viewer.isActiveMember && !viewer.isStaff && !viewer.hidesActivity) {
         const hidden = await ProgramMembership.findAll({
             where: { program_id: programId, status: "active" },
             attributes: ["member_id"],
@@ -86,7 +93,8 @@ function canView(viewer, targetMemberId, kind) {
         case "health": return isSelf || viewer.isStaff;
         case "workouts":
             return isSelf || viewer.isStaff ||
-                (viewer.isActiveMember && target !== null && !viewer.hiddenMemberIds.has(target));
+                (viewer.isActiveMember && !viewer.hidesActivity && target !== null &&
+                    !viewer.hiddenMemberIds.has(target));
         default:
             throw new Error(`memberVisibility: unknown kind "${kind}"`);
     }

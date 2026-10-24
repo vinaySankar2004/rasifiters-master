@@ -41,6 +41,8 @@ export type KudosState = { count: number; given_today: boolean; can_give: boolea
 export type PersonProfile = Omit<PersonRow, "last_active"> & {
   program_id: string;
   joined_at: string | null;
+  /** The viewer hid their own activity, so co-members' activity is hidden from them (the switch is reciprocal). */
+  viewer_hides_activity?: boolean;
   can_open_full_stats: boolean;
   stats: PersonStats | null;
   recent_workouts: RecentWorkout[] | null;
@@ -148,6 +150,7 @@ export const PEOPLE_COPY = {
   lastActive: (date: string) => `Last active ${date}`,
   profileLoading: "Loading profile…",
   hiddenProfile: "This member keeps their activity private.",
+  hiddenByYou: "You're hiding your activity, so other members' activity is hidden from you too. You can change this in My Profile.",
   currentStreak: "Current streak",
   longestStreak: "Longest streak",
   thisMonth: "This month",
@@ -168,11 +171,11 @@ export const PEOPLE_COPY = {
   editMembershipSubtitle: "Joined date, status, remove",
   hideActivityLabel: "Hide my activity",
   hideActivityHint:
-    "Hides your workouts, streaks and kudos from other members of your programs. Program admins and loggers still see them.",
+    "Hides your workouts, streaks and kudos from other members of your programs, and hides theirs from you. Program admins and loggers still see everyone's.",
   hideActivityLoadFailed: "Couldn't load this setting.",
   noticeTitle: "Who can see your activity",
   noticeBody:
-    "Members of your programs can see your workouts, streaks and kudos — including workouts synced from Apple Health or Health Connect. Sleep, diet and steps stay private to you and your program's staff.",
+    "Members of your programs can see your workouts, streaks and kudos — including workouts synced from Apple Health or Health Connect. If you hide yours, you won't see theirs either. Sleep, diet and steps stay private to you and your program's staff.",
   noticeKeep: "Keep visible",
   noticeHide: "Hide my activity",
   saving: "Saving…"

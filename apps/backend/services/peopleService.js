@@ -122,6 +122,7 @@ async function getPersonProfile({ user, programId, memberId }) {
         ...base,
         joined_at: membership.joined_at,
         activity_visible: visible,
+        viewer_hides_activity: viewer.hidesActivity, // D-C16: the hidden-profile line says why (you vs them)
         can_open_full_stats: isStaffViewer(viewer), // D-P11
         stats: null,
         recent_workouts: null,

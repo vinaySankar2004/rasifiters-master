@@ -2,7 +2,7 @@ import { PublicPage } from "@/components/landing/PublicPage";
 
 export default function PublicPrivacyPolicyPage() {
   return (
-    <PublicPage eyebrow="Legal" title="Privacy Policy" subtitle="Effective date: 2026-10-13">
+    <PublicPage eyebrow="Legal" title="Privacy Policy" subtitle="Effective date: 2026-10-24">
       <p>
         RaSi Fiters (&ldquo;we&rdquo;, &ldquo;us&rdquo;, or &ldquo;our&rdquo;) respects your privacy. This policy explains what
         information we collect, how we use it, and the choices you have. It applies to the RaSi
@@ -93,7 +93,7 @@ export default function PublicPrivacyPolicyPage() {
         <p className="text-base font-semibold text-rf-text">Your choices</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Access or update your information in the app.</li>
-          <li>Turn on Hide my activity (My Profile) to hide your workouts, workout stats and kudos from other members of your programs. You stay on your programs&apos; member lists by name, program admins and loggers still see your activity, and program totals still include it.</li>
+          <li>Turn on Hide my activity (My Profile) to hide your workouts, workout stats and kudos from other members of your programs. While it&apos;s on, you don&apos;t see their activity either (unless you&apos;re a program admin or logger). You stay on your programs&apos; member lists by name, program admins and loggers still see your activity, and program totals still include it.</li>
           <li>
             Enable or disable push notifications in the app (My Account → Notifications) or in
             your device Settings; disabling or unregistering stops us from sending push and we

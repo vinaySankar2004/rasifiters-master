@@ -57,7 +57,7 @@ struct PersonProfileView: View {
             }
             recentWorkouts(profile.recentWorkouts ?? [])
         } else {
-            Text(PeopleCopy.hiddenLine)
+            Text(profile.viewerHidesActivity == true ? PeopleCopy.hiddenByYouLine : PeopleCopy.hiddenLine)
                 .font(.subheadline)
                 .foregroundColor(Color(.secondaryLabel))
                 .frame(maxWidth: .infinity, alignment: .leading)

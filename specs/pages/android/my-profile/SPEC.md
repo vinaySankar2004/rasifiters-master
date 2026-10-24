@@ -1,6 +1,6 @@
 # Screen: `my-profile` (android) — account profile editor
 
-> **Status:** 🏗️ built · **Version:** 0.3.2 · **App:** `android` (Compose) · **Thin port-note.**
+> **Status:** 🏗️ built · **Version:** 0.3.3 · **App:** `android` (Compose) · **Thin port-note.**
 > Full behavior = iOS `Features/Home/Settings/MyProfileView.swift` + web `/program/profile`.
 > **Location:** `ui/shell/AppScaffold.kt` route `Routes.PROGRAM_PROFILE` (`MyProfileScreen`). Reached from the Program
 > tab's profile row, the picker's account menu (`AccountMenuSheet`, root route) and — 0.3.2, summary/program D-PC1 —
@@ -49,7 +49,7 @@
 
 - **D-NP1 (Hide my activity — people D-C13/D-C14, R11):** `ui/program/HideActivitySection.kt`, placed directly above
   "Sign out everywhere" in `ProfileScreen.kt`: a switch `Hide my activity` · `Hides your workouts, streaks and kudos from
-  other members of your programs. Program admins and loggers still see them.`; disabled until `GET /members/:id`
+  other members of your programs, and hides theirs from you. Program admins and loggers still see everyone's.`; disabled until `GET /members/:id`
   answers; `PUT /members/:id { hide_activity }`; a 200 without the echo is a failure (`AppErrorKind.SERVER`) — the switch
   rolls back and shows the error. Every role. The screen is a toast form route (`program/profile`, both graphs).
 
@@ -72,6 +72,7 @@
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.3.3 | 2026-10-24 | Hide my activity is reciprocal (people 0.3.0 D-C16): the switch's hint now says it also hides other members' activity from you. |
 | 0.3.2 | 2026-10-13 | Reached-via grows (touch-up (c), summary/program D-PC1): the Summary / Program header circle, plus the picker's account menu (already true, now documented). No change to this screen. |
 | 0.3.1 | 2026-10-13 | **D-REL1 — Phase 4 polish (`0b0a0a3`).** #15 delete error under its button; #18 sign-in methods `—` / Link disabled / Add password hidden until loaded, `Couldn't load this` + Retry, reconnect reload; #44 gender sent only when changed (Clear = explicit null); #35 email / new-password autofill; #36 labelled 48 dp targets. |
 | 0.3.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 People, `d528f75`): `HideActivitySection` above Sign out everywhere; missing echo = failure with rollback. |

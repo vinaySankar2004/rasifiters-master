@@ -1,6 +1,6 @@
 # Screen: `person-profile` (android) — a person's profile + kudos
 
-> **Status:** 🏗️ built (`apps/android/`, `d528f75` — goes live with the Phase 4 store release) · **Version:** 0.1.0 ·
+> **Status:** 🏗️ built (`apps/android/`; live since Android 1.2.2) · **Version:** 0.1.1 ·
 > **App:** `android` (Compose) · **Thin port-note.** Full behavior = [`people`](../../../features/people/SPEC.md) §3 §C–§E
 > (D-C13 / D-C14); iOS [`people`](../../ios/people/SPEC.md) (`PersonProfileView`), web
 > [`members/person`](../../web/members/person/SPEC.md).
@@ -28,4 +28,5 @@
 ## Changelog
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.1 | 2026-10-24 | Hide my activity is reciprocal (people 0.3.0 D-C16): the hidden line becomes `You're hiding your activity, so other members' activity is hidden from you too. You can change this in My Profile.` when `viewerHidesActivity`. Status: live since Android 1.2.2. |
 | 0.1.0 | 2026-10-13 | Initial thin port-note — net-new person profile (Phase 4, `d528f75`): stats tiles (360 dp fit), recent workouts, kudos toggle + undo + 429 / 403 handling, hidden line, Open full stats, Edit membership. |

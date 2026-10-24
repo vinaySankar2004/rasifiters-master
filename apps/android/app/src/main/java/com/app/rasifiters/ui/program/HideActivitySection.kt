@@ -28,7 +28,8 @@ import kotlinx.coroutines.launch
 
 /** What "Hide my activity" hides and from whom — the same sentence on web and iOS. */
 private const val HIDE_ACTIVITY_HINT =
-    "Hides your workouts, streaks and kudos from other members of your programs. Program admins and loggers still see them."
+    "Hides your workouts, streaks and kudos from other members of your programs, and hides theirs from you. Program " +
+        "admins and loggers still see everyone's."
 
 /**
  * My Profile's "Hide my activity" switch (one switch for every program; only the member sets it). [hidden] = the saved

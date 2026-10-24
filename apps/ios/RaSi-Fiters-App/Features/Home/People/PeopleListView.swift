@@ -228,6 +228,7 @@ enum PeopleCopy {
     static let inviteMemberDetail = "Send an invite by username"
     static let activityHidden = "Activity hidden"
     static let hiddenLine = "This member keeps their activity private."
+    static let hiddenByYouLine = "You're hiding your activity, so other members' activity is hidden from you too. You can change this in My Profile."
     static let noWorkoutsYet = "No workouts yet"
     static let currentStreak = "Current streak"
     static let longestStreak = "Longest streak"
@@ -244,7 +245,7 @@ enum PeopleCopy {
     static let kudosGivenHint = "You gave kudos today. Tap again to undo."
     static let kudosLimit = "You've changed kudos too many times. Try again later."
     static let hideActivity = "Hide my activity"
-    static let hideActivityDetail = "Hides your workouts, streaks and kudos from other members of your programs. Program admins and loggers still see them."
+    static let hideActivityDetail = "Hides your workouts, streaks and kudos from other members of your programs, and hides theirs from you. Program admins and loggers still see everyone's."
     static let saveFailed = "Couldn't save."
 
     static func enrolled(_ count: Int) -> String { "\(count) enrolled" }

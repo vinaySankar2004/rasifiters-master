@@ -30,7 +30,8 @@ import kotlinx.coroutines.launch
 private const val NOTICE_TITLE = "Who can see your activity"
 private const val NOTICE_BODY =
     "Members of your programs can see your workouts, streaks and kudos — including workouts synced from Apple Health or " +
-        "Health Connect. Sleep, diet and steps stay private to you and your program's staff."
+        "Health Connect. If you hide yours, you won't see theirs either. Sleep, diet and steps stay private to you and " +
+        "your program's staff."
 
 /**
  * Shows the one-time "Who can see your activity" notice when [enabled] (the first People open; on the program picker,

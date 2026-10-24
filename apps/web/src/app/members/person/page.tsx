@@ -99,7 +99,7 @@ function PersonProfileView() {
             <ActivityDetails profile={profile} token={token} programId={programId} profileKey={profileKey} />
           ) : (
             <GlassCard padding="lg" className="text-sm text-rf-text-muted">
-              {PEOPLE_COPY.hiddenProfile}
+              {profile.viewer_hides_activity ? PEOPLE_COPY.hiddenByYou : PEOPLE_COPY.hiddenProfile}
             </GlassCard>
           )}
           {(profile.can_open_full_stats || isGlobalAdmin) && (

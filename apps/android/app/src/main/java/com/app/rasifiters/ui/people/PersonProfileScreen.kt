@@ -78,6 +78,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 private const val HIDDEN_LINE = "This member keeps their activity private."
+private const val HIDDEN_BY_YOU_LINE =
+    "You're hiding your activity, so other members' activity is hidden from you too. You can change this in My Profile."
 
 /**
  * A person's profile — workouts only: streaks, active days this month, last active, the last 10 workouts, and kudos
@@ -190,7 +192,7 @@ private fun ProfileContent(
         SummaryCard {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Filled.VisibilityOff, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
-                Text(HIDDEN_LINE, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                Text(if (p.viewerHidesActivity) HIDDEN_BY_YOU_LINE else HIDDEN_LINE, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
             }
         }
     } else {

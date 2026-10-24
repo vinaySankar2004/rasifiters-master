@@ -1,7 +1,7 @@
 # Page: `members/person` (web) — a person's profile (People)
 
 > **Status:** 🏗️ built (`apps/web/`, `b2ea09b`) — **live since 2026-10-13** (`PEOPLE_LIVE`; switched off, it redirects)
-> · **Version:** 0.1.1 · **App:** `web` (Next.js App Router)
+> · **Version:** 0.1.2 · **App:** `web` (Next.js App Router)
 > **Route:** `/members/person?memberId=<id>` — one program member's profile: name, initials, role, workout stats, recent
 > workouts and kudos; staff get "Open full stats", global admins "Edit membership". Reached from a row of the People
 > list ([`members/list`](../list/SPEC.md) with `PEOPLE_LIVE`).
@@ -21,7 +21,7 @@
 Every role that can open People: a header card (initials, name, `You` tag, `@username · Admin/Logger`), then — when
 `activity_visible` — four stat pills (`Current streak`, `Longest streak`, `This month` → `N days`; `Last active` →
 `Today` / `Yesterday` / `Oct 12` / `—`), `Recent workouts` (≤ 10; `No workouts logged yet.`) and the kudos block;
-otherwise the line `This member keeps their activity private.`
+otherwise the line `This member keeps their activity private.` (or `You're hiding your activity, so other members' activity is hidden from you too. You can change this in My Profile.` when `viewer_hides_activity` — people D-C16)
 
 ## 2. Why it exists
 People's social layer (people §1): see a co-member's workouts and give kudos, inside your own programs, under the one
@@ -40,7 +40,7 @@ visibility rule.
 | Stats | The four pills (above) from `stats`. |
 | Kudos (`components/people/KudosButton.tsx`) | `N kudos`; ONE toggle `Give kudos` ↔ `Kudos given` (`can_give` only); hint `You gave kudos today. Tap again to undo.` An undo decrements the count only when `removed`. 429 → `You've changed kudos too many times. Try again later.`; 403 `activity_hidden` re-fetches the profile. |
 | Recent workouts | Type · date · duration, newest first. |
-| Hidden | `This member keeps their activity private.` (stats / workouts / kudos are null). |
+| Hidden | `This member keeps their activity private.` (or `You're hiding your activity, so other members' activity is hidden from you too. You can change this in My Profile.` when `viewer_hides_activity` — people D-C16) (stats / workouts / kudos are null). |
 | Staff rows | `Open full stats` · `History, streaks, health` when `can_open_full_stats`; `Edit membership` · `Joined date, status, remove` for global admins → `/members/detail?memberId=`. |
 
 ## 5. Components + consumed features
@@ -80,5 +80,6 @@ visibility rule.
 ## 11. Changelog
 | Version | Date | Change |
 |---------|------|--------|
+| 0.1.2 | 2026-10-24 | Hide my activity is reciprocal (people 0.3.0 D-C16): a hidden profile shows the you're-hiding-yours line when `viewer_hides_activity`. |
 | 0.1.1 | 2026-10-14 | F1 resolved — the profile streak no longer goes stale (backend `fd6c15b`: people 0.2.0 D-C15, member-analytics 0.9.0 D-C14). Doc only; no page change. PATCH. |
 | 0.1.0 | 2026-10-13 | Initial SPEC — net-new People profile page (Phase 4 Pass B, `b2ea09b`), dark behind `PEOPLE_LIVE`: header card, stats, kudos toggle, recent workouts, hidden line, Open full stats (role-specific), Edit membership (global admins), kit states. |

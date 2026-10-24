@@ -9,7 +9,7 @@ import UserNotifications
 /// over the Apple Health review, a widget form or another presentation — it yields to them and comes back after.
 enum ActivityVisibilityNotice {
     static let title = "Who can see your activity"
-    static let message = "Members of your programs can see your workouts, streaks and kudos — including workouts synced from Apple Health or Health Connect. Sleep, diet and steps stay private to you and your program's staff."
+    static let message = "Members of your programs can see your workouts, streaks and kudos — including workouts synced from Apple Health or Health Connect. If you hide yours, you won't see theirs either. Sleep, diet and steps stay private to you and your program's staff."
     static let keepVisible = "Keep visible"
     static let hide = "Hide my activity"
     static let saveFailedTitle = "Couldn't hide your activity"

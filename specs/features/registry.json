@@ -84,7 +84,7 @@
       }
     },
     "program-memberships": {
-      "version": "0.5.0",
+      "version": "0.6.0",
       "spec": "specs/features/program-memberships/SPEC.md",
       "status": "deployed",
       "consumed_by": [
@@ -553,7 +553,7 @@
       }
     },
     "people": {
-      "version": "0.2.0",
+      "version": "0.3.0",
       "spec": "specs/features/people/SPEC.md",
       "status": "deployed",
       "consumed_by": [

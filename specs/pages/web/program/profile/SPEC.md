@@ -1,6 +1,6 @@
 # Page: `program/profile` (web) — my profile (program-settings sub-route 3 of 6)
 
-> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.2 · **App:** `web` (Next.js App Router)
+> **Status:** 🏗️ built (ported to `apps/web/`) · **Version:** 0.4.3 · **App:** `web` (Next.js App Router)
 > **Route:** `/program/profile` — the logged-in user's **own "My Profile" account page** (first/last name +
 > gender + **email view/change** + Delete Account), the third of the six deferred `/program/*` settings sub-routes (reached from the
 > [`program`](../SPEC.md) hub's "My Account" row). **Despite living under `/program/*` it is NOT a
@@ -65,7 +65,7 @@ best-effort Supabase `admin.deleteUser`).
 | Save | "Save changes" (`bg-rf-accent text-black`); disabled unless the profile has loaded (D-REL5) + both names present + not pending. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Account email (D-EMAIL) | Current email + **Change email** toggle → new-email + current-password inputs → "Update email" (`PUT /auth/email`). Inline `rf-danger`/`rf-success`. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Sign-in methods | Google row (Link via the compact `GoogleSignInButton` / Unlink, disabled when it is the only method) + Password row ("Add password" form for a social-only member → `POST /auth/set-password`). Until the identities load both rows read "—", Link is disabled and Add password is hidden; a failed read shows `InlineLoadError` + Retry under the heading (D-REL5). Errors as `rf-danger` lines; a set password shows the `passwordSet` copy (D-REL2). No `refresh_token` gate (D-REL3). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
-| Hide my activity (0.4.0, D-NP1) | **Behind `PEOPLE_LIVE`** (on since 2026-10-13). `HideActivityToggle` (a `Switch`) directly above Sign out everywhere: `Hide my activity` · `Hides your workouts, streaks and kudos from other members of your programs. Program admins and loggers still see them.`; reads `hide_activity` from `GET /members/:id`, saves `PUT /members/:id { hide_activity }`; a 200 without the echo is a failure; load failure `Couldn't load this setting.` + Retry. | `components/people/HideActivityToggle.tsx` |
+| Hide my activity (0.4.0, D-NP1) | **Behind `PEOPLE_LIVE`** (on since 2026-10-13). `HideActivityToggle` (a `Switch`) directly above Sign out everywhere: `Hide my activity` · `Hides your workouts, streaks and kudos from other members of your programs, and hides theirs from you. Program admins and loggers still see everyone's.`; reads `hide_activity` from `GET /members/:id`, saves `PUT /members/:id { hide_activity }`; a 200 without the echo is a failure; load failure `Couldn't load this setting.` + Retry. | `components/people/HideActivityToggle.tsx` |
 | Sign out everywhere (D-REL1) | Every role. Outlined button "Sign out everywhere" + hint "Signs you out on every device, including this one." → `ConfirmDialog` ("Sign out everywhere?" / "You'll be signed out on all your devices, including this one.") → `POST /auth/logout-all`. Kit message in red under the button on failure. Sits just above Delete Account. | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 | Delete Account | **Hidden for global_admin.** Danger-outline button → `ConfirmDialog`; while deleting the button reads `Deleting…` (disabled) and a failure shows directly under the button, above the caption (D-REL5). | [apps/web/src/app/program/profile/page.tsx](../../../../../../apps/web/src/app/program/profile/page.tsx) |
 
@@ -203,6 +203,7 @@ best-effort Supabase `admin.deleteUser`).
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.3 | 2026-10-24 | Hide my activity is reciprocal (people 0.3.0 D-C16): the switch's hint now says it also hides other members' activity from you. |
 | 0.4.2 | 2026-10-13 | Reached-via grows (touch-up (c), summary/program D-PC1): the Summary / Program header circle, plus the `/programs` account menu (already true, now documented); Back returns to the opener (§3 + the §4 Header row; `backHref` = no-history fallback). No change to this page. |
 | 0.4.1 | 2026-10-13 | **D-REL5 — Phase 4 polish (`ec13107`).** #15 `Deleting…` + the error under Delete Account, above the caption; #18 sign-in methods "—" until loaded (Link disabled, Add password hidden), `InlineLoadError` + Retry, reload on reconnect, Save waits for the profile; #23 Google Link button retries when back online; #37 linked labels. |
 | 0.4.0 | 2026-10-13 | **D-NP1 — Hide my activity** (Phase 4 Pass B, `b2ea09b`): `HideActivityToggle` above Sign out everywhere, behind `PEOPLE_LIVE` (dark until the store release); missing echo = failure; unsaved edits survive. No toast on this route. |

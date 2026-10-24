@@ -57,6 +57,8 @@ extension APIClient {
         /// ISO-8601 program join timestamp (§C); not rendered today.
         let joinedAt: String?
         let activityVisible: Bool
+        /// The viewer hid their own activity, so co-members' activity is hidden from them (the switch is reciprocal).
+        let viewerHidesActivity: Bool?
         let canOpenFullStats: Bool
         let stats: PersonStatsDTO?
         let recentWorkouts: [PersonWorkoutDTO]?
@@ -70,6 +72,7 @@ extension APIClient {
             case isYou = "is_you"
             case joinedAt = "joined_at"
             case activityVisible = "activity_visible"
+            case viewerHidesActivity = "viewer_hides_activity"
             case canOpenFullStats = "can_open_full_stats"
             case recentWorkouts = "recent_workouts"
         }
