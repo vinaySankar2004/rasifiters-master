@@ -38,7 +38,7 @@ Version format: `marketingVersion (buildNumber)`. iOS build = `CURRENT_PROJECT_V
 |---|---|---|---|---|
 | App Store (public) | **1.5.3 (64)** | **LIVE — public** (released 2026-10-25) | 2026-10-25 | **Current public release** — reciprocal hide copy + iPhone Duo (iOS 27.1 SDK) + refreshed listing. App Privacy also lists Other Diagnostic Data. `LATEST_` + **`MIN_IOS_VERSION = 1.5.3`** — every older build gets the blocking "Update required" screen. Repo at **1.5.4 (65)** |
 | TestFlight — external ("Beta Testers") | (none) | No build — 1.4.3 (57) expired 2026-10-14 | 2026-10-14 | 8 invited / 6 installs fall back to the App Store. The next external build is the user's call |
-| TestFlight — internal ("Internal") | **1.5.2 (63)** | Testing — the only unexpired build (uploaded 2026-10-14 21:06) | 2026-10-14 | Previous release; 1.5.3 went straight to the App Store |
+| TestFlight — internal ("Internal") | **1.5.3 (64)** | Testing — auto-added on upload (2026-10-24 14:05) | 2026-10-24 | Same build as the App Store release |
 
 ### Android
 

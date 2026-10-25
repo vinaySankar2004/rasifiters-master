@@ -30,14 +30,13 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > [`BRIEF.md`](specs/initiatives/reliability-overhaul/BRIEF.md) (scope + phase plan §7).
 >
 > **Status 2026-10-15:** every phase (1b, 2, 3, polish 1, 4) is public on all four surfaces — Notifications, People,
-> polish #1–#48 and the pooled parity release (METHODOLOGY R9 + the D4/D5 badge/streak fixes) ship in **iOS 1.5.2
-> (63)** and **Android 1.2.2 (9)** (`RELEASES.md`). **Next:** only the dated follow-ups in HANDOFF "Next action".
+> polish #1–#48 and the pooled parity release (METHODOLOGY R9 + the D4/D5 badge/streak fixes). **Next:** only the
+> dated follow-ups in HANDOFF "Next action".
 >
 > **2026-10-24 → 25:** Hide my activity is now reciprocal (people D-C16 — hide yours, see no one else's; staff
-> exempt), with refreshed store listings (captioned frames per
-> [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md)). **Public on all four surfaces:** iOS 1.5.3 (64)
-> (also built for iPhone Duo) and Android 1.2.3 (10), each its platform's minimum and latest (`RELEASES.md`). No
-> open step.
+> exempt), iOS runs full-screen on iPhone Duo, and both store listings are refreshed
+> ([`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md)). Public on all four surfaces; each new store
+> release is its platform's minimum (`RELEASES.md`). No open step.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
