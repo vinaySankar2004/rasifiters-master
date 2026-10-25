@@ -643,3 +643,7 @@ rule note here; nothing for the lean SKILL yet (single occurrence).
   client change that ships with a backend rule change rides in the SAME feature commit, so one tag covers all four
   surfaces. A script that bumps `registry.json` by searching for `"<name>"` first hits that name inside an earlier
   feature's `depends_on` list (it bumped `programs` instead of `program-memberships`) — anchor on the `"<name>": {` key.
+- **2026-10-25** — app-config 0.4.1 → 0.4.2 (PATCH, doc only: §7 stops restating the live `MIN_IOS_VERSION`), tagged
+  and pushed by name with the iOS 1.5.3 release record. Lesson: the commit body said "dependents: none" from memory;
+  the reverse scan of `depends_on` afterwards found `health-sync` (unaffected — no contract change). Run the reverse
+  scan **before** writing the blast-radius line, never after.
