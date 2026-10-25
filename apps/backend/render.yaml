@@ -36,7 +36,7 @@ services:
     envVars:
       # --- Non-secret (safe to commit) ---------------------------------------------------------
       - key: MIN_IOS_VERSION
-        value: "1.5.2"
+        value: "1.5.3"
       - key: SUPABASE_URL
         value: https://kpadxjekpiwfkqcxtrio.supabase.co
       # Password-recovery email link destination (auth SPEC v0.3.0 / forgot-password page). MUST match the

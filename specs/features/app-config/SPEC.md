@@ -1,6 +1,6 @@
 # Feature: `app-config` — the mobile version gate (iOS + Android) (+ a push index)
 
-> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.1 · **Apps (`consumed_by`):** `ios`, `android`
+> **Status:** 🚀 deployed (ported to `apps/backend/`) · **Version:** 0.4.2 · **Apps (`consumed_by`):** `ios`, `android`
 > (Android since 1.1.0 (5) — D-C7)
 > **Provenance (legacy, archived):** `backend` — `server.js` (the inline `GET /api/app-config` route +
 > the `MIN_IOS_VERSION` env). **0.2.0** adds `middleware/versionGate.js` (env normalizers, `getAppConfig()`,
@@ -169,7 +169,7 @@ fixed when the process starts — a new or changed value applies only on the nex
 
 | Var | Served as / effect | Format | Where it's set |
 |---|---|---|---|
-| `MIN_IOS_VERSION` | `min_ios_version` — iOS hard minimum | dot-separated ints (`1.5.2`), D-C3 | **Declared in `render.yaml`** (`"1.5.2"` since 2026-10-15; was the legacy `1.2.0`). Change it in `render.yaml` so the Blueprint stays the source of truth (F4) and set it via the Render MCP too; applies on the next deploy |
+| `MIN_IOS_VERSION` | `min_ios_version` — iOS hard minimum | dot-separated ints (`1.5.2`), D-C3 | **Declared in `render.yaml`** (live value: `RELEASES.md`). Change it in `render.yaml` so the Blueprint stays the source of truth (F4) and set it via the Render MCP too; applies on the next deploy |
 | `LATEST_IOS_VERSION` | `latest_ios_version` — iOS soft nudge | dot-separated ints (`<x.y.z>`), D-C3 | Operator-managed, **not** in `render.yaml` — Render MCP `update_environment_variables` (per-call confirm), **then redeploy**; only when needed |
 | `MIN_ANDROID_VERSION_CODE` | `min_android_version_code` — Android hard minimum | positive integer `versionCode` (`<versionCode>`), D-C4 | Operator-managed (as above, then redeploy) |
 | `LATEST_ANDROID_VERSION_CODE` | `latest_android_version_code` — Android soft nudge | positive integer `versionCode` (`<versionCode>`), D-C4 | Operator-managed (as above, then redeploy) |
@@ -243,6 +243,7 @@ route; 0.2.0 adds the net-new D-C4–D-C6 (last bullet):
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.4.2 | 2026-10-25 | Doc only: §7 no longer restates the live `MIN_IOS_VERSION` (now `1.5.3` with Android `10` — `RELEASES.md` holds live values). No code change. PATCH. |
 | 0.4.1 | 2026-10-15 | Doc only: §7 records the live hard gate — `MIN_IOS_VERSION` `1.5.2` (`render.yaml` + Render), `MIN_ANDROID_VERSION_CODE` `9`, `BLOCK_UNVERSIONED_ANDROID` on (the user forced everyone onto iOS 1.5.2 / Android 1.2.2 (9)) — and the soft-then-hard policy. No code change. PATCH. |
 | 0.4.0 | 2026-10-13 | **D-C8 — the iOS version check no longer blocks (reliability-overhaul Phase 4 polish #7).** iOS: the widget form opens at once with the check alongside; an unsupported build gets the update modal over the form in place (form inert + hidden from VoiceOver), and the forced-update cover waits until no widget form is actually presented (onAppear / onDisappear flag); the foreground check runs alongside restore. Android keeps A7's ≤ 3 s widget wait (recorded divergence). §1 + "iOS consumption" triggers updated. Client-only; no backend change. MINOR. |
 | 0.3.0 | 2026-10-13 | **Mobile clients consume the 0.2.0 keys (reliability-overhaul Phase 3 client release — iOS 1.5.0 (58), Android 1.1.0 (5)).** `consumed_by` `[ios]` → `[ios, android]` (header, D-REF, F5, registry). D-C7: the update-available banner on the program picker only (A7), dismissable once per version; Android — plain Play Store intent (no in-app-update library; D-C4 Android half superseded), checks throttled to once a minute, a `426` blocks for the rest of the process, nothing composes over the update screen, the widget replay waits ≤ 3 s for the gate; iOS — soft nudge built (`updateAvailableVersion`, `appconfig.dismissedLatestIOSVersion`). "iOS consumption" refreshed (stale `AppRootView` / file line refs replaced by symbol refs); "Android consumption" now as built — the D-C5 precondition (headers on every OkHttp client) is met by 1.1.0 (5). Changelog reordered newest-first. No backend change. MINOR (`consumed_by` contract change); zero dependent re-version. |

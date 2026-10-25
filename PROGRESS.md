@@ -33,13 +33,11 @@ mobile trains are pre-bumped one ahead, so the next upload is ready on either pl
 > polish #1–#48 and the pooled parity release (METHODOLOGY R9 + the D4/D5 badge/streak fixes) ship in **iOS 1.5.2
 > (63)** and **Android 1.2.2 (9)** (`RELEASES.md`). **Next:** only the dated follow-ups in HANDOFF "Next action".
 >
-> **2026-10-24:** Hide my activity is now reciprocal (people D-C16 — hide yours, see no one else's; staff
-> exempt) — live on the backend + web, with refreshed store listings (captioned frames from
-> `apps/{ios,android}/store-assets/marketing/` per [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md)).
-> **Android 1.2.3 (10) is public** (min + latest = 10; testbed refreshed). **iOS 1.5.3 (64)** (also built for iPhone
-> Duo, Xcode 27.1) is **in review**, automatic release (`RELEASES.md`). **Next, when the user says it's public:**
-> `LATEST_IOS_VERSION` + `MIN_IOS_VERSION` = 1.5.3 (`render.yaml` + Render — raising the minimum is the user's call,
-> made 2026-10-24) and mark it live in `RELEASES.md`.
+> **2026-10-24 → 25:** Hide my activity is now reciprocal (people D-C16 — hide yours, see no one else's; staff
+> exempt), with refreshed store listings (captioned frames per
+> [`STORE_GRAPHICS_BRIEF.md`](specs/marketing/STORE_GRAPHICS_BRIEF.md)). **Public on all four surfaces:** iOS 1.5.3 (64)
+> (also built for iPhone Duo) and Android 1.2.3 (10), each its platform's minimum and latest (`RELEASES.md`). No
+> open step.
 >
 > **Standing constraint:** any backend change must degrade gracefully for **every** live binary — both
 > public store releases *and* the older installs users haven't updated (`RELEASES.md` lists them). Backend
